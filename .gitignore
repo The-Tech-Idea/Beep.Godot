@@ -15,3 +15,4 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+/.vs/Beep.Godot.slnx/FileContentIndex

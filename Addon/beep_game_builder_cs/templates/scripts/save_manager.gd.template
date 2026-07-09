@@ -1,0 +1,35 @@
+## Save Manager Autoload Template
+## Copy to res://scripts/managers/ and rename to save_manager.gd
+## Add as autoload in Project Settings → Autoload
+
+extends Node
+class_name SaveManager
+
+func save_json(file_name: String, data: Dictionary) -> void:
+	var full_path := "user://" + file_name
+	var f := FileAccess.open(full_path, FileAccess.WRITE)
+	if f == null:
+		push_error("SaveManager: could not write " + full_path)
+		return
+	f.store_string(JSON.stringify(data, "\t"))
+	f.close()
+
+func load_json(file_name: String) -> Dictionary:
+	var full_path := "user://" + file_name
+	if not FileAccess.file_exists(full_path):
+		return {}
+	var f := FileAccess.open(full_path, FileAccess.READ)
+	if f == null:
+		return {}
+	var text := f.get_as_text()
+	f.close()
+	var result = JSON.parse_string(text)
+	return result if typeof(result) == TYPE_DICTIONARY else {}
+
+func has_save(file_name: String) -> bool:
+	return FileAccess.file_exists("user://" + file_name)
+
+func delete_save(file_name: String) -> void:
+	var full_path := "user://" + file_name
+	if FileAccess.file_exists(full_path):
+		DirAccess.remove_absolute(full_path)

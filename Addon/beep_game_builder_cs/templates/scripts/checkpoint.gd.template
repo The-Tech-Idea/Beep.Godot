@@ -1,0 +1,37 @@
+## Checkpoint / respawn point
+## Attach to Area2D. Player touching it sets respawn position.
+class_name Checkpoint
+extends Area2D
+
+@export var checkpoint_id: String = ""
+@export var active: bool = false
+@export var heal_on_activate: bool = true
+@export var heal_amount: int = 9999
+
+@onready var anim: AnimatedSprite2D = $AnimatedSprite2D
+@onready var particles: GPUParticles2D = $GPUParticles2D
+
+
+func _ready() -> void:
+	body_entered.connect(_on_body_entered)
+	if anim:
+		anim.play("inactive")
+
+
+func _on_body_entered(body: Node2D) -> void:
+	if not body.is_in_group("player") or active:
+		return
+	_activate(body)
+
+
+func _activate(player: Node2D) -> void:
+	active = true
+	if anim:
+		anim.play("active")
+	if particles:
+		particles.emitting = true
+	if heal_on_activate and player.has_method("heal"):
+		player.heal(heal_amount)
+
+	if GameManager.has_method("set_checkpoint"):
+		GameManager.set_checkpoint(self)

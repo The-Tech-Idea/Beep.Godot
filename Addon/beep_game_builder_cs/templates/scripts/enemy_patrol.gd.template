@@ -1,0 +1,111 @@
+## Enemy AI with state machine (patrol → chase → attack)
+## Attach to CharacterBody2D
+class_name EnemyPatrol
+extends CharacterBody2D
+
+@export var speed: float = 60.0
+@export var patrol_speed: float = 40.0
+@export var chase_speed: float = 80.0
+@export var detection_range: float = 200.0
+@export var attack_range: float = 30.0
+@export var patrol_points: Array[Node2D] = []
+@export var damage: int = 10
+
+enum State { IDLE, PATROL, CHASE, ATTACK, DEAD }
+var current_state: State = State.IDLE
+var target: Node2D = null
+var patrol_index: int = 0
+var health: int = 100
+var facing_right: bool = true
+
+@onready var anim: AnimatedSprite2D = $AnimatedSprite2D
+@onready var detection_area: Area2D = $DetectionArea
+@onready var attack_timer: Timer = $AttackTimer
+
+
+func _ready() -> void:
+	if patrol_points.size() > 0:
+		current_state = State.PATROL
+	if detection_area:
+		detection_area.body_entered.connect(_on_body_entered)
+		detection_area.body_exited.connect(_on_body_exited)
+
+
+func _physics_process(delta: float) -> void:
+	if current_state == State.DEAD:
+		return
+
+	match current_state:
+		State.PATROL:
+			_patrol(delta)
+		State.CHASE:
+			_chase(delta)
+		State.ATTACK:
+			_attack()
+
+
+func _patrol(delta: float) -> void:
+	if patrol_points.size() == 0:
+		return
+	var point = patrol_points[patrol_index]
+	var dir = (point.global_position - global_position).normalized()
+	velocity = dir * patrol_speed
+	_update_facing(dir)
+	move_and_slide()
+	if global_position.distance_to(point.global_position) < 8:
+		patrol_index = (patrol_index + 1) % patrol_points.size()
+
+
+func _chase(delta: float) -> void:
+	if target == null or not is_instance_valid(target):
+		current_state = State.PATROL
+		return
+	var dir = (target.global_position - global_position).normalized()
+	velocity = dir * chase_speed
+	_update_facing(dir)
+	move_and_slide()
+	if global_position.distance_to(target.global_position) <= attack_range:
+		current_state = State.ATTACK
+
+
+func _attack() -> void:
+	if target == null or not is_instance_valid(target):
+		current_state = State.PATROL
+		return
+	if attack_timer.is_stopped():
+		if target.has_method("take_damage"):
+			target.take_damage(damage)
+		attack_timer.start()
+
+
+func _on_body_entered(body: Node2D) -> void:
+	if body.is_in_group("player"):
+		target = body
+		current_state = State.CHASE
+
+
+func _on_body_exited(body: Node2D) -> void:
+	if body == target:
+		target = null
+		current_state = State.PATROL
+
+
+func take_damage(amount: int) -> void:
+	health -= amount
+	anim.play("hit")
+	if health <= 0:
+		die()
+
+
+func die() -> void:
+	current_state = State.DEAD
+	anim.play("death")
+	set_physics_process(false)
+	await anim.animation_finished
+	queue_free()
+
+
+func _update_facing(dir: Vector2) -> void:
+	if dir.x != 0:
+		facing_right = dir.x > 0
+		anim.flip_h = not facing_right

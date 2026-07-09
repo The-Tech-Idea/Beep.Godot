@@ -1,0 +1,61 @@
+## Platformer Player Script Template
+## Copy to res://scripts/player/ and rename to platformer_player.gd
+##
+## Usage variables:
+##   {{SPEED}}           – horizontal speed (default: 300.0)
+##   {{JUMP_VELOCITY}}   – jump impulse (default: -480.0)
+##   {{GRAVITY}}         – gravity (default: 1200.0)
+##   {{COYOTE_TIME}}     – coyote time in seconds (default: 0.08)
+##   {{JUMP_BUFFER_TIME}}– jump buffer in seconds (default: 0.1)
+
+extends CharacterBody2D
+class_name PlatformerPlayer
+
+signal moved(direction: float)
+signal jumped
+signal landed
+
+@export var speed: float = {{SPEED}}
+@export var jump_velocity: float = {{JUMP_VELOCITY}}
+@export var gravity: float = {{GRAVITY}}
+@export var coyote_time: float = {{COYOTE_TIME}}
+@export var jump_buffer_time: float = {{JUMP_BUFFER_TIME}}
+@export var acceleration: float = 1600.0
+@export var friction: float = 1200.0
+
+var _coyote_timer: float = 0.0
+var _jump_buffer_timer: float = 0.0
+var _was_on_floor: bool = false
+
+func _physics_process(delta: float) -> void:
+	if not is_on_floor():
+		velocity.y += gravity * delta
+		_coyote_timer -= delta
+	else:
+		_coyote_timer = coyote_time
+
+	_jump_buffer_timer -= delta
+	if Input.is_action_just_pressed("jump"):
+		_jump_buffer_timer = jump_buffer_time
+
+	if _jump_buffer_timer > 0.0 and _coyote_timer > 0.0:
+		velocity.y = jump_velocity
+		_coyote_timer = 0.0
+		_jump_buffer_timer = 0.0
+		jumped.emit()
+
+	if Input.is_action_just_released("jump") and velocity.y < 0.0:
+		velocity.y *= 0.5
+
+	var direction := Input.get_axis("move_left", "move_right")
+	if direction != 0.0:
+		velocity.x = move_toward(velocity.x, direction * speed, acceleration * delta)
+		moved.emit(direction)
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+
+	_was_on_floor = is_on_floor()
+	move_and_slide()
+
+	if is_on_floor() and not _was_on_floor:
+		landed.emit()

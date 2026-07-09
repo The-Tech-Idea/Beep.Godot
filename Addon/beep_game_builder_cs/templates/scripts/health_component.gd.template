@@ -1,0 +1,79 @@
+## Generic health/damage component
+## Attach to any Node. Connect signals to UI.
+class_name HealthComponent
+extends Node
+
+@export var max_health: int = 100
+@export var current_health: int = 100
+@export var invincible_time: float = 0.5
+
+var is_dead: bool = false
+var is_invincible: bool = false
+var invincible_timer: float = 0.0
+
+signal health_changed(current: int, max: int)
+signal damaged(amount: int, current: int)
+signal healed(amount: int, current: int)
+signal died()
+signal invincibility_started()
+signal invincibility_ended()
+
+
+func _ready() -> void:
+	current_health = max_health
+
+
+func _process(delta: float) -> void:
+	if is_invincible:
+		invincible_timer -= delta
+		if invincible_timer <= 0:
+			_end_invincibility()
+
+
+func take_damage(amount: int) -> void:
+	if is_dead or is_invincible:
+		return
+	current_health -= amount
+	current_health = maxi(0, current_health)
+	damaged.emit(amount, current_health)
+	health_changed.emit(current_health, max_health)
+
+	if current_health <= 0:
+		_die()
+	else:
+		_start_invincibility()
+
+
+func heal(amount: int) -> void:
+	if is_dead:
+		return
+	current_health = mini(current_health + amount, max_health)
+	healed.emit(amount, current_health)
+	health_changed.emit(current_health, max_health)
+
+
+func set_max_health(amount: int) -> void:
+	max_health = amount
+	current_health = mini(current_health, max_health)
+	health_changed.emit(current_health, max_health)
+
+
+func _die() -> void:
+	is_dead = true
+	died.emit()
+	health_changed.emit(0, max_health)
+
+
+func _start_invincibility() -> void:
+	is_invincible = true
+	invincible_timer = invincible_time
+	invincibility_started.emit()
+
+
+func _end_invincibility() -> void:
+	is_invincible = false
+	invincibility_ended.emit()
+
+
+func get_health_percent() -> float:
+	return float(current_health) / max_health

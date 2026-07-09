@@ -1,0 +1,53 @@
+## Generic object pool — reuse nodes instead of creating/destroying
+## Use: var pool = ObjectPool.new(bullet_scene, 20)
+class_name ObjectPool
+extends Node
+
+var _scene: PackedScene
+var _pool: Array = []
+var _max_size: int = 100
+
+func _init(scene: PackedScene, preload_count: int = 10, max_size: int = 100) -> void:
+	_scene = scene
+	_max_size = max_size
+	for i in range(preload_count):
+		_return_instance(_create_instance())
+
+
+func get() -> Node:
+	if _pool.size() > 0:
+		return _pool.pop_back()
+	if _pool.size() + 1 <= _max_size:
+		return _create_instance()
+	return null
+
+
+func return_to_pool(instance: Node) -> void:
+	_return_instance(instance)
+
+
+func _create_instance() -> Node:
+	var inst = _scene.instantiate()
+	inst.set_meta("_pooled", true)
+	return inst
+
+
+func _return_instance(inst: Node) -> void:
+	inst.set_process(false)
+	inst.set_physics_process(false)
+	if inst is CanvasItem:
+		inst.visible = false
+	if inst is Node2D:
+		inst.position = Vector2.ZERO
+	_pool.append(inst)
+
+
+func clear() -> void:
+	for inst in _pool:
+		if is_instance_valid(inst):
+			inst.queue_free()
+	_pool.clear()
+
+
+func get_active_count() -> int:
+	return _pool.size()

@@ -1,0 +1,16 @@
+shader_type canvas_item;
+
+// Grass / foliage wind sway
+uniform float time : hint_range(0.0, 100.0) = 0.0;
+uniform float wind_strength : hint_range(0.0, 0.05) = 0.02;
+uniform float wind_speed : hint_range(0.1, 5.0) = 2.0;
+
+void vertex() {
+	// Sway vertex horizontally based on height and time
+	float sway = sin(VERTEX.x * 0.5 + time * wind_speed) * wind_strength * VERTEX.y;
+	VERTEX.x += sway;
+}
+
+void fragment() {
+	COLOR = texture(TEXTURE, UV);
+}

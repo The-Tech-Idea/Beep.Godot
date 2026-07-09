@@ -1,0 +1,14 @@
+shader_type canvas_item;
+// Day/Night Tint Shader Template
+// Copy to res://assets/shaders/ and rename to day_night_tint.gdshader
+//
+// Usage: apply to a Sprite2D or TextureRect material, then
+// animate tint_color and intensity for day/night cycle.
+
+uniform vec4 tint_color : source_color = vec4(0.2, 0.3, 0.6, 1.0);
+uniform float intensity : hint_range(0.0, 1.0) = 0.35;
+
+void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
+	COLOR = mix(tex, tex * tint_color, intensity);
+}

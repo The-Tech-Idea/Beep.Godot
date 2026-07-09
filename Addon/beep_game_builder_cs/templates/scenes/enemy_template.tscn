@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3]
+
+[node name="EnemyTemplate" type="CharacterBody2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="DetectionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+
+[node name="HitboxArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitboxArea"]
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+offset_top = -20.0
+offset_right = 40.0
+offset_bottom = -14.0
+max_value = 100.0
+value = 100.0

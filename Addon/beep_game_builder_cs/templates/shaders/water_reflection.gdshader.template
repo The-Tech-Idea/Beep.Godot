@@ -1,0 +1,23 @@
+shader_type canvas_item;
+
+// Water reflection / ripple shader
+uniform float time : hint_range(0.0, 100.0) = 0.0;
+uniform float strength : hint_range(0.0, 0.05) = 0.02;
+uniform float speed : hint_range(0.1, 5.0) = 1.5;
+uniform vec4 water_color : source_color = vec4(0.1, 0.3, 0.6, 0.4);
+
+void fragment() {
+	vec2 uv = UV;
+	uv.x += sin(uv.y * 10.0 + time * speed) * strength;
+	uv.y += cos(uv.x * 8.0 + time * speed * 0.7) * strength;
+	vec4 col = texture(TEXTURE, uv);
+	// Mirror vertically for reflection
+	if (UV.y > 0.5) {
+		float mirror_y = 1.0 - UV.y;
+		vec2 mirror_uv = vec2(UV.x + sin(mirror_y * 5.0 + time) * strength * 0.5, mirror_y);
+		vec4 mirror_col = texture(TEXTURE, mirror_uv);
+		col = mix(col, mirror_col, 0.6);
+	}
+	col = mix(col, water_color, water_color.a * (1.0 - UV.y));
+	COLOR = col;
+}

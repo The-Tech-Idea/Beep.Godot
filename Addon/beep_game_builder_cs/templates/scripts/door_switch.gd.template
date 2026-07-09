@@ -1,0 +1,79 @@
+## Door that opens when a switch/lever is activated
+## Attach to AnimatableBody2D or StaticBody2D
+class_name DoorSwitch
+extends StaticBody2D
+
+@export var switch_id: String = ""
+@export var open_duration: float = 0.5
+@export var stay_open: bool = false
+@export var start_open: bool = false
+@export var requires_key: String = ""
+
+var is_open: bool = false
+var is_moving: bool = false
+var player_nearby: bool = false
+var player_has_key: bool = false
+
+@onready var anim: AnimationPlayer = $AnimationPlayer
+@onready var collision: CollisionShape2D = $CollisionShape2D
+@onready var key_prompt: Label = $KeyPrompt if has_node("KeyPrompt") else null
+
+
+func _ready() -> void:
+	if start_open: _open_instant()
+	if key_prompt: key_prompt.visible = false
+
+
+func activate() -> void:
+	if is_moving: return
+	if requires_key != "" and not player_has_key:
+		if key_prompt: _show_key_prompt()
+		return
+	_toggle()
+
+
+func _toggle() -> void:
+	is_moving = true
+	if is_open: _close() else: _open()
+
+
+func _open() -> void:
+	is_open = true
+	collision.set_deferred("disabled", true)
+	if anim and anim.has_animation("open"):
+		anim.play("open")
+		await anim.animation_finished
+	else:
+		await get_tree().create_timer(open_duration).timeout
+	is_moving = false
+	if not stay_open:
+		await get_tree().create_timer(2.0).timeout
+		if is_open: _close()
+
+
+func _close() -> void:
+	if anim and anim.has_animation("close"):
+		anim.play("close")
+		await anim.animation_finished
+	collision.set_deferred("disabled", false)
+	is_open = false
+	is_moving = false
+
+
+func _open_instant() -> void:
+	is_open = true
+	collision.set_deferred("disabled", true)
+	if anim: anim.play("open")
+
+
+func _show_key_prompt() -> void:
+	if key_prompt:
+		key_prompt.text = "Need: " + requires_key
+		key_prompt.visible = true
+		await get_tree().create_timer(1.5).timeout
+		key_prompt.visible = false
+
+
+func _on_switch_activated(switch_id_str: String) -> void:
+	if switch_id_str == switch_id and not is_open:
+		_toggle()

@@ -1,0 +1,15 @@
+shader_type canvas_item;
+
+// Poison / toxic green tint with bubbling effect
+uniform float poison_intensity : hint_range(0.0, 1.0) = 0.6;
+uniform vec4 poison_color : source_color = vec4(0.2, 0.8, 0.1, 0.5);
+
+void fragment() {
+	vec4 col = texture(TEXTURE, UV);
+	// Green tint
+	col.rgb = mix(col.rgb, poison_color.rgb, poison_intensity * poison_color.a);
+	// Bubble distortion
+	float bubble = sin(UV.x * 20.0 + TIME * 3.0) * cos(UV.y * 15.0 - TIME * 2.5);
+	col.rgb += poison_color.rgb * bubble * poison_intensity * 0.1;
+	COLOR = col;
+}

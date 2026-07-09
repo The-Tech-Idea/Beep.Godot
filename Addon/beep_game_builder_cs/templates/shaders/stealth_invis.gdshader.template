@@ -1,0 +1,18 @@
+shader_type canvas_item;
+
+// Stealth / invisibility — makes sprite semi-transparent with shimmer
+uniform float stealth_amount : hint_range(0.0, 1.0) = 0.0;
+uniform float shimmer_speed : hint_range(0.0, 5.0) = 2.0;
+
+void fragment() {
+	vec4 col = texture(TEXTURE, UV);
+	if (stealth_amount > 0.01) {
+		float shimmer = sin(UV.y * 30.0 + TIME * shimmer_speed) * 0.3 + 0.7;
+		col.a *= (1.0 - stealth_amount * 0.7) * shimmer;
+		// Edge highlight
+		float edge = abs(UV.x - 0.5) * 2.0;
+		edge = smoothstep(0.85, 1.0, edge);
+		col.rgb += vec3(0.3, 0.6, 1.0) * edge * stealth_amount * 0.4;
+	}
+	COLOR = col;
+}

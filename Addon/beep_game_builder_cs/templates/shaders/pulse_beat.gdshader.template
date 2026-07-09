@@ -1,0 +1,22 @@
+shader_type canvas_item;
+
+// Pulse / beat — sprite scales with a rhythmic pulse (like a heartbeat or music beat)
+// Use: set pulse_speed and pulse_strength via script
+uniform float pulse_speed : hint_range(0.0, 10.0) = 4.0;
+uniform float pulse_strength : hint_range(0.0, 0.5) = 0.1;
+
+void vertex() {
+	float pulse = sin(TIME * pulse_speed) * 0.5 + 0.5;
+	// Make pulse sharper (more like a beat)
+	pulse = pow(pulse, 3.0);
+	VERTEX = VERTEX * (1.0 + pulse * pulse_strength);
+}
+
+void fragment() {
+	vec4 col = texture(TEXTURE, UV);
+	float pulse = sin(TIME * pulse_speed) * 0.5 + 0.5;
+	pulse = pow(pulse, 3.0);
+	// Brighten during pulse
+	col.rgb = mix(col.rgb, col.rgb * 1.5, pulse * pulse_strength * 5.0);
+	COLOR = col;
+}

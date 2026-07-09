@@ -1,0 +1,74 @@
+## Automatic turret that aims at player and shoots
+## Attach to StaticBody2D with RayCast2D and Marker2D (fire point)
+class_name Turret
+extends StaticBody2D
+
+@export var detection_radius: float = 300.0
+@export var fire_rate: float = 0.5
+@export var projectile_scene: PackedScene = null
+@export var projectile_speed: float = 400.0
+@export var rotation_speed: float = 5.0
+@export var aim_offset: Vector2 = Vector2.ZERO
+
+var target: Node2D = null
+var fire_timer: float = 0.0
+var can_see_target: bool = false
+
+@onready var ray: RayCast2D = $RayCast2D
+@onready var fire_point: Marker2D = $FirePoint
+@onready var detection_area: Area2D = $DetectionArea
+@onready var sprite: Sprite2D = $Sprite2D
+@onready var turret_head: Node2D = $TurretHead
+
+
+func _ready() -> void:
+	if detection_area:
+		detection_area.body_entered.connect(_on_body_entered)
+		detection_area.body_exited.connect(_on_body_exited)
+		var shape = CircleShape2D.new()
+		shape.radius = detection_radius
+		detection_area.get_node("CollisionShape2D").shape = shape
+
+
+func _physics_process(delta: float) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+
+	# Aim at target
+	var dir = (target.global_position + aim_offset - turret_head.global_position).normalized()
+	var angle = dir.angle()
+	turret_head.rotation = lerp_angle(turret_head.rotation, angle, rotation_speed * delta)
+
+	# Check line of sight
+	ray.target_position = dir * detection_radius
+	ray.force_raycast_update()
+	can_see_target = ray.get_collider() != null and ray.get_collider().is_in_group("player")
+
+	# Shoot
+	if can_see_target:
+		fire_timer -= delta
+		if fire_timer <= 0:
+			_shoot(dir)
+			fire_timer = fire_rate
+
+
+func _shoot(direction: Vector2) -> void:
+	if projectile_scene == null: return
+	var proj = projectile_scene.instantiate()
+	get_tree().root.add_child(proj)
+	proj.global_position = fire_point.global_position
+	if proj is RigidBody2D:
+		proj.linear_velocity = direction * projectile_speed
+	elif proj.has_method("launch"):
+		proj.launch(direction, projectile_speed)
+
+
+func _on_body_entered(body: Node2D) -> void:
+	if body.is_in_group("player"):
+		target = body
+
+
+func _on_body_exited(body: Node2D) -> void:
+	if body == target:
+		target = null
+		can_see_target = false

@@ -1,0 +1,66 @@
+## Projectile variants: homing, bouncing, orbiting, spread
+## Attach to Area2D or CharacterBody2D
+
+# ──── Homing Missile ────
+class_name HomingMissile
+extends Area2D
+
+@export var speed: float = 300.0
+@export var turn_rate: float = 3.0
+@export var lifetime: float = 5.0
+@export var damage: int = 25
+@export var explosion_radius: float = 80.0
+
+var target: Node2D = null
+var direction: Vector2 = Vector2.RIGHT
+
+
+func _ready() -> void:
+	body_entered.connect(_on_hit)
+	area_entered.connect(_on_hit)
+	var timer = Timer.new()
+	timer.wait_time = lifetime
+	timer.one_shot = true
+	timer.timeout.connect(queue_free)
+	add_child(timer)
+	timer.start()
+
+
+func launch(dir: Vector2, spd: float) -> void:
+	direction = dir.normalized()
+	speed = spd
+
+
+func set_target(t: Node2D) -> void:
+	target = t
+
+
+func _physics_process(delta: float) -> void:
+	if target and is_instance_valid(target):
+		var desired = (target.global_position - global_position).normalized()
+		direction = direction.lerp(desired, turn_rate * delta).normalized()
+		rotation = direction.angle()
+
+	position += direction * speed * delta
+
+
+func _on_hit(body: Node) -> void:
+	if body.has_method("take_damage"):
+		body.take_damage(damage)
+	_explode()
+
+
+func _explode() -> void:
+	if explosion_radius > 0:
+		var space = get_world_2d().direct_space_state
+		var query = PhysicsShapeQueryParameters2D.new()
+		var shape = CircleShape2D.new()
+		shape.radius = explosion_radius
+		query.shape = shape
+		query.transform = Transform2D(0, global_position)
+		var results = space.intersect_shape(query)
+		for result in results:
+			var node = result["collider"]
+			if node and node.has_method("take_damage"):
+				node.take_damage(damage / 2)
+	queue_free()

@@ -1,0 +1,6 @@
+[gd_scene load_steps=1 format=3]
+
+[node name="Player" type="CharacterBody2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]

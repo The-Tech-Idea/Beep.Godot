@@ -1,0 +1,49 @@
+## Moving platform (one-way or looping)
+## Attach to AnimatableBody2D with child CollisionShape2D
+class_name MovingPlatform
+extends AnimatableBody2D
+
+@export var waypoints: Array[Node2D] = []
+@export var speed: float = 80.0
+@export var loop: bool = true
+@export var pause_at_waypoints: float = 0.0
+
+var current_waypoint: int = 0
+var moving_forward: bool = true
+
+
+func _ready() -> void:
+	if waypoints.size() > 0:
+		global_position = waypoints[0].global_position
+
+
+func _physics_process(delta: float) -> void:
+	if waypoints.size() < 2:
+		return
+
+	var target = waypoints[current_waypoint].global_position
+	var dir = (target - global_position).normalized()
+	var dist = global_position.distance_to(target)
+
+	if dist < 4:
+		if pause_at_waypoints > 0:
+			await get_tree().create_timer(pause_at_waypoints).timeout
+		_advance_waypoint()
+	else:
+		position += dir * speed * delta
+
+
+func _advance_waypoint() -> void:
+	if loop:
+		current_waypoint = (current_waypoint + 1) % waypoints.size()
+	else:
+		if moving_forward:
+			current_waypoint += 1
+			if current_waypoint >= waypoints.size():
+				current_waypoint = waypoints.size() - 2
+				moving_forward = false
+		else:
+			current_waypoint -= 1
+			if current_waypoint < 0:
+				current_waypoint = 1
+				moving_forward = true

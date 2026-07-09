@@ -1,0 +1,32 @@
+shader_type canvas_item;
+
+// Portal / vortex swirl effect
+uniform float time : hint_range(0.0, 100.0) = 0.0;
+uniform float swirl_strength : hint_range(0.0, 5.0) = 2.0;
+uniform vec4 portal_color : source_color = vec4(0.3, 0.1, 0.8, 1.0);
+uniform float radius : hint_range(0.1, 1.0) = 0.4;
+
+void fragment() {
+	vec2 centered = UV - 0.5;
+	float dist = length(centered);
+	float angle = atan(centered.y, centered.x);
+
+	// Swirl distortion
+	angle += (radius - dist) * swirl_strength + time;
+
+	vec2 distorted_uv = vec2(cos(angle), sin(angle)) * dist + 0.5;
+	vec4 col = texture(TEXTURE, distorted_uv);
+
+	// Edge glow
+	float edge = smoothstep(radius, radius - 0.1, dist);
+	col = mix(col, portal_color, edge * 0.6);
+
+	// Center bright
+	float center_glow = 1.0 - smoothstep(0.0, 0.15, dist);
+	col.rgb += portal_color.rgb * center_glow * 0.5;
+
+	// Fade outside radius
+	col.a *= smoothstep(radius + 0.1, radius, dist);
+
+	COLOR = col;
+}

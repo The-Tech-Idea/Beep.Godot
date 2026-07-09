@@ -1,0 +1,27 @@
+[gd_scene load_steps=1 format=3]
+
+[node name="PauseMenu" type="Control"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+
+[node name="PauseVBox" type="VBoxContainer" parent="Panel"]
+
+[node name="PauseLabel" type="Label" parent="Panel/PauseVBox"]
+text = "Paused"
+
+[node name="ResumeButton" type="Button" parent="Panel/PauseVBox"]
+text = "Resume"
+
+[node name="RestartButton" type="Button" parent="Panel/PauseVBox"]
+text = "Restart"
+
+[node name="MainMenuButton" type="Button" parent="Panel/PauseVBox"]
+text = "Main Menu"
+
+[node name="QuitButton" type="Button" parent="Panel/PauseVBox"]
+text = "Quit"

@@ -1,0 +1,79 @@
+## Global game manager (Autoload singleton)
+## Handles score, lives, checkpoints, level transitions
+extends Node
+
+var score: int = 0
+var lives: int = 3
+var current_level: String = ""
+var checkpoint_position: Vector2 = Vector2.ZERO
+var checkpoint_level: String = ""
+var is_paused: bool = false
+var game_time: float = 0.0
+
+signal score_changed(new_score: int)
+signal lives_changed(new_lives: int)
+signal level_changed(level_name: String)
+signal game_paused()
+signal game_resumed()
+signal player_died()
+signal game_over()
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+func _process(delta: float) -> void:
+	if not is_paused:
+		game_time += delta
+
+
+func add_score(amount: int) -> void:
+	score += amount
+	score_changed.emit(score)
+
+
+func lose_life() -> void:
+	lives -= 1
+	lives_changed.emit(lives)
+	if lives <= 0:
+		game_over.emit()
+
+
+func set_checkpoint(checkpoint: Node) -> void:
+	checkpoint_position = checkpoint.global_position
+	checkpoint_level = current_level
+
+
+func respawn_player(player: Node2D) -> void:
+	if checkpoint_level != "" and checkpoint_level != current_level:
+		get_tree().change_scene_to_file(checkpoint_level)
+		await get_tree().process_frame
+	player.global_position = checkpoint_position
+	if player.has_method("heal"):
+		player.heal(9999)
+
+
+func change_level(level_path: String) -> void:
+	current_level = level_path
+	level_changed.emit(level_path)
+	get_tree().change_scene_to_file(level_path)
+
+
+func toggle_pause() -> void:
+	is_paused = not is_paused
+	get_tree().paused = is_paused
+	if is_paused:
+		game_paused.emit()
+	else:
+		game_resumed.emit()
+
+
+func restart_level() -> void:
+	get_tree().paused = false
+	is_paused = false
+	get_tree().reload_current_scene()
+
+
+func quit_game() -> void:
+	get_tree().quit()

@@ -1,0 +1,23 @@
+shader_type canvas_item;
+
+// Drop shadow — draws a shadow offset from the sprite
+uniform vec2 shadow_offset = vec2(3.0, 3.0);
+uniform vec4 shadow_color : source_color = vec4(0.0, 0.0, 0.0, 0.5);
+uniform float shadow_softness : hint_range(0.0, 5.0) = 1.0;
+
+void fragment() {
+	vec4 col = texture(TEXTURE, UV);
+	vec2 shadow_uv = UV - shadow_offset / vec2(textureSize(TEXTURE, 0));
+	float shadow_alpha = texture(TEXTURE, shadow_uv).a * shadow_color.a;
+	// Soften shadow
+	if (shadow_softness > 0.0) {
+		float s = 0.0;
+		for (float x = -shadow_softness; x <= shadow_softness; x++)
+			for (float y = -shadow_softness; y <= shadow_softness; y++)
+				s += texture(TEXTURE, shadow_uv + vec2(x, y) / vec2(textureSize(TEXTURE, 0))).a;
+		shadow_alpha = (s / ((shadow_softness * 2.0 + 1.0) * (shadow_softness * 2.0 + 1.0))) * shadow_color.a;
+	}
+	col.rgb = mix(shadow_color.rgb, col.rgb, col.a);
+	col.a = max(col.a, shadow_alpha);
+	COLOR = col;
+}

@@ -1,0 +1,26 @@
+// Example only. Rename to .cs and adapt it inside your own project if needed.
+using Godot;
+using System.Text.Json.Nodes;
+using TheTechIdea.GodotMcp;
+
+public partial class MyMcpRegistration : Node
+{
+    public override void _Ready()
+    {
+        var adapter = GetNodeOrNull<McpGameAdapter>("/root/McpGameAdapter");
+        if (adapter is null)
+            return;
+
+        adapter.RegisterCommand("advance_turn", parameters =>
+        {
+            int count = parameters["count"]?.GetValue<int>() ?? 1;
+            // GameManager.Instance.AdvanceTurn(count);
+            return JsonValue.Create(count);
+        });
+
+        adapter.RegisterState("game", () => new JsonObject
+        {
+            ["example"] = true
+        });
+    }
+}

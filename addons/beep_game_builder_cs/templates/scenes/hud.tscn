@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="1_hud"]
+
+[node name="HUD" type="CanvasLayer"]
+
+[node name="TopLeft" type="MarginContainer" parent="."]
+anchors_preset = 1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_right = 40.0
+offset_bottom = 40.0
+grow_vertical = 0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+
+[node name="StatsVBox" type="VBoxContainer" parent="TopLeft"]
+theme_override_constants/separation = 4
+
+[node name="ScoreLabel" type="Label" parent="TopLeft/StatsVBox"]
+text = "0"
+
+[node name="LivesLabel" type="Label" parent="TopLeft/StatsVBox"]
+text = "× 3"
+
+[node name="HealthLabel" type="Label" parent="TopLeft/StatsVBox"]
+text = "100 / 100"
+
+[node name="Hud" type="Node" parent="."]
+script = ExtResource("1_hud")

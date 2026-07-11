@@ -4,10 +4,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Auto-generates a form from any C# class properties with labels, inputs, and validation.
 /// </summary>
 [Tool]
+[GlobalClass]
 public partial class BeepFormBuilder : VBoxContainer
 {
     private object _dataObject;
@@ -55,7 +58,7 @@ public partial class BeepFormBuilder : VBoxContainer
             row.AddChild(label);
 
             // Input based on type
-            Control input = CreateInputForType(prop.PropertyType, prop.GetValue(obj), (v) =>
+            Godot.Control input = CreateInputForType(prop.PropertyType, prop.GetValue(obj), (v) =>
             {
                 try { prop.SetValue(obj, Convert.ChangeType(v, prop.PropertyType)); }
                 catch { }
@@ -71,7 +74,7 @@ public partial class BeepFormBuilder : VBoxContainer
         AddChild(_submitBtn);
     }
 
-    private Control CreateInputForType(Type type, object currentValue, Action<object> onChanged)
+    private Godot.Control CreateInputForType(Type type, object currentValue, Action<object> onChanged)
     {
         if (type == typeof(string))
         {
@@ -146,7 +149,7 @@ public partial class BeepFormBuilder : VBoxContainer
     private class FieldBinding
     {
         public PropertyInfo Property;
-        public Control Input;
+        public Godot.Control Input;
     }
 
     private static void ClearChildren(Node parent)

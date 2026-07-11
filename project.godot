@@ -1,0 +1,17 @@
+; Engine configuration file.
+; This makes the repo a buildable Godot 4.7 (.NET) dev project so the addon
+; sources compile and the C# can be validated with `dotnet build`. The addons
+; themselves remain distributable by copying addons/<name> into any project.
+
+config_version=5
+
+[application]
+
+config/name="Beep.Godot"
+config/description="Addon source distribution + dev/build harness for the Beep UI and Beep Game Builder (C#) Godot addons."
+run/main_scene=""
+config/features=PackedStringArray("4.7")
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/beep_game_builder_cs/plugin.cfg", "res://addons/beep_ui/plugin.cfg")

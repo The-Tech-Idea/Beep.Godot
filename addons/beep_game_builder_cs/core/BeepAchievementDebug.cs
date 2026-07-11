@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Achievement system. Define achievements with progress, unlock conditions, and notifications.</summary>
 public static class BeepAchievementSystem
 {
@@ -92,7 +94,7 @@ public static class BeepAnalyticsHelper
 
 /// <summary>In-game debug console. Register commands, open/close with tilde key, execute commands.</summary>
 [Tool]
-public partial class BeepDebugConsole : Control
+public partial class BeepDebugConsole : Godot.Control
 {
     private RichTextLabel _output;
     private LineEdit _input;

@@ -1,0 +1,105 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+
+[node name="PreLevel" type="CanvasLayer"]
+layer = 15
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(380, 0)
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 12
+
+[node name="LevelLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Level 4"
+horizontal_alignment = 1
+
+[node name="ObjectiveLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Objective: Reach 1500 points"
+horizontal_alignment = 1
+
+[node name="MovesLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Moves: 25"
+horizontal_alignment = 1
+
+[node name="StarsLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "★ 1000   ★★ 1500   ★★★ 2000"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 6)
+
+[node name="BoosterCaption" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Boosters (optional):"
+
+[node name="BoosterRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="Booster1" type="Button" parent="Center/Panel/Margin/VBox/BoosterRow"]
+custom_minimum_size = Vector2(72, 72)
+text = "Hammer
+x2"
+
+[node name="Booster2" type="Button" parent="Center/Panel/Margin/VBox/BoosterRow"]
+custom_minimum_size = Vector2(72, 72)
+text = "+5
+Moves"
+
+[node name="Booster3" type="Button" parent="Center/Panel/Margin/VBox/BoosterRow"]
+custom_minimum_size = Vector2(72, 72)
+text = "Color
+Bomb"
+
+[node name="Spacer2" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="BackButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(100, 0)
+text = "← Map"
+metadata/action = "back"
+
+[node name="PlayButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Play ▶"
+metadata/action = "play"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+enable_ripple = true
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 21
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+theme_component_path = NodePath("Theme")

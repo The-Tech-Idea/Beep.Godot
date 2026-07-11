@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class CounterComponent : EntityComponent
+    public partial class CounterComponent : UIComponent
     {
         [Export] public float StartValue { get; set; } = 0f;
         [Export] public float Duration { get; set; } = 1f;
@@ -29,7 +29,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _label = GetParent<Label>();
+            _label = GetParent() as Label;
             if (PlayOnReady) CountTo(StartValue);
         }
 

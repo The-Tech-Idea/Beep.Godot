@@ -1,0 +1,74 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs" id="1_pause"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="2_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="3_nav"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="4_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="5_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="6_transition"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+layer = 10
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="Panel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(280, 300)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PauseVBox" type="VBoxContainer" parent="Panel"]
+theme_override_constants/separation = 12
+
+[node name="PauseLabel" type="Label" parent="Panel/PauseVBox"]
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="Panel/PauseVBox"]
+text = "Resume"
+
+[node name="SettingsButton" type="Button" parent="Panel/PauseVBox"]
+text = "Settings"
+
+[node name="RestartButton" type="Button" parent="Panel/PauseVBox"]
+text = "Restart"
+
+[node name="MainMenuButton" type="Button" parent="Panel/PauseVBox"]
+text = "Main Menu"
+
+[node name="QuitButton" type="Button" parent="Panel/PauseVBox"]
+text = "Quit"
+
+[node name="PauseController" type="Node" parent="."]
+script = ExtResource("1_pause")
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("2_menu")
+known_actions = ["resume", "settings", "restart", "menu", "quit"]
+enable_ripple = true
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("3_nav")
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("4_theme")
+preset = 1
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("5_binder")
+theme_component_path = NodePath("Theme")
+
+[node name="Transition" type="Node" parent="."]
+script = ExtResource("6_transition")
+duration = 0.4

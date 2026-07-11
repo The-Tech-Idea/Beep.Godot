@@ -3,10 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Searchable dropdown with filter-as-you-type.
 /// </summary>
 [Tool]
+[GlobalClass]
 public partial class BeepDropdown : Button
 {
     private PopupMenu _popup;

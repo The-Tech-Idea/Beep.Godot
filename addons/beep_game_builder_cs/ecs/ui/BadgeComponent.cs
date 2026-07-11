@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class BadgeComponent : EntityComponent
+    public partial class BadgeComponent : UIComponent
     {
         [Export] public int Count { get; set; } = 0;
         [Export] public Color BadgeColor { get; set; } = new(0.9f, 0.2f, 0.2f, 1f);
@@ -17,7 +17,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void CountChangedEventHandler(int count);
 
-        private Control? _control;
+        private Godot.Control? _control;
         private Label? _badgeLabel;
         private Panel? _badgePanel;
         private Tween? _tween;
@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _control = GetParent<Control>();
+            _control = GetParent() as Godot.Control;
             BuildBadge();
             UpdateBadge();
         }

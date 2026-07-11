@@ -7,7 +7,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ContractComponent : EntityComponent
+    public partial class ContractComponent : GameplayComponent
     {
         [Export] public int WeeklyWage { get; set; } = 5000;
         [Export] public int ContractYears { get; set; } = 3;

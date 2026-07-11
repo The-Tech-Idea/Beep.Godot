@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class DropTableComponent : EntityComponent
+    public partial class DropTableComponent : GameplayComponent
     {
         [Export] public int MinDrops { get; set; } = 1;
         [Export] public int MaxDrops { get; set; } = 3;
@@ -41,7 +41,7 @@ namespace Beep.ECS
             int count = (int)GD.RandRange(MinDrops, MaxDrops + 1);
             EmitSignal(SignalName.TableRolled, count);
 
-            var parent = GetParent<Node2D>();
+            var parent = GetParent() as Node2D;
 
             for (int i = 0; i < count; i++)
             {

@@ -3,11 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Auto-generates a GridContainer from any C# collection.
 /// Column headers from property names, rows from items.
 /// </summary>
 [Tool]
+[GlobalClass]
 public partial class BeepDataGrid : VBoxContainer
 {
     private HBoxContainer _headerRow;

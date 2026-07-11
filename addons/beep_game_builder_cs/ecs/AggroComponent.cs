@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AggroComponent : EntityComponent
+    public partial class AggroComponent : GameplayComponent
     {
         [Export] public float AggroRange { get; set; } = 300f;
         [Export] public float DeaggroRange { get; set; } = 500f;

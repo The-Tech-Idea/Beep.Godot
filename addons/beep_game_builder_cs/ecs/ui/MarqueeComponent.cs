@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class MarqueeComponent : EntityComponent
+    public partial class MarqueeComponent : UIComponent
     {
         [Export] public float Speed { get; set; } = 80f;
         [Export] public float PauseAtStart { get; set; } = 2f;
@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _label = GetParent<Label>();
+            _label = GetParent() as Label;
             if (_label != null) { _label.ClipContents = true; _pauseTimer = PauseAtStart; }
         }
 

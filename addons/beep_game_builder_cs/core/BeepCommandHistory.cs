@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Undo/redo command pattern. Push commands, then Undo() / Redo().</summary>
 public class BeepCommandHistory
 {

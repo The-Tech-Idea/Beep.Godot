@@ -1,0 +1,119 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+
+[node name="LevelUpChoice" type="CanvasLayer"]
+layer = 30
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center"]
+theme_override_constants/separation = 20
+
+[node name="BannerLabel" type="Label" parent="Center/VBox"]
+text = "Level Up!"
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="Center/VBox"]
+text = "Choose one:"
+horizontal_alignment = 1
+
+[node name="CardRow" type="HBoxContainer" parent="Center/VBox"]
+alignment = 1
+theme_override_constants/separation = 20
+
+[node name="Card1" type="PanelContainer" parent="Center/VBox/CardRow"]
+custom_minimum_size = Vector2(200, 260)
+
+[node name="Card1VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card1"]
+theme_override_constants/separation = 10
+
+[node name="Icon1" type="ColorRect" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.7, 0.3, 0.3, 1)
+
+[node name="Name1" type="Label" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+text = "New Weapon"
+horizontal_alignment = 1
+
+[node name="Desc1" type="Label" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+text = "Fires piercing shots."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Pick1" type="Button" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+text = "Pick"
+metadata/action = "pick_1"
+
+[node name="Card2" type="PanelContainer" parent="Center/VBox/CardRow"]
+custom_minimum_size = Vector2(200, 260)
+
+[node name="Card2VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card2"]
+theme_override_constants/separation = 10
+
+[node name="Icon2" type="ColorRect" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.3, 0.6, 0.8, 1)
+
+[node name="Name2" type="Label" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+text = "Move Speed"
+horizontal_alignment = 1
+
+[node name="Desc2" type="Label" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+text = "+10% movement speed."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Pick2" type="Button" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+text = "Pick"
+metadata/action = "pick_2"
+
+[node name="Card3" type="PanelContainer" parent="Center/VBox/CardRow"]
+custom_minimum_size = Vector2(200, 260)
+
+[node name="Card3VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card3"]
+theme_override_constants/separation = 10
+
+[node name="Icon3" type="ColorRect" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.3, 0.7, 0.4, 1)
+
+[node name="Name3" type="Label" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+text = "Max Health"
+horizontal_alignment = 1
+
+[node name="Desc3" type="Label" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+text = "+25 max health."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Pick3" type="Button" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+text = "Pick"
+metadata/action = "pick_3"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+enable_ripple = true
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 15
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+theme_component_path = NodePath("Theme")

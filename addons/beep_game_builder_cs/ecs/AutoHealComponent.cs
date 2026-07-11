@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AutoHealComponent : EntityComponent
+    public partial class AutoHealComponent : GameplayComponent
     {
         [Export] public float HealPerSecond { get; set; } = 2f;
         [Export] public float HealDelay { get; set; } = 5f;

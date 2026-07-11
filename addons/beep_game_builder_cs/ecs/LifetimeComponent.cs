@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class LifetimeComponent : EntityComponent
+    public partial class LifetimeComponent : WorldComponent
     {
         [Export] public float Lifetime { get; set; } = 2f;
         [Export] public bool FadeOut { get; set; } = false;
@@ -23,7 +23,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _canvas = GetParent<CanvasItem>();
+            _canvas = GetParent() as CanvasItem;
         }
 
         public override void _Process(double delta)

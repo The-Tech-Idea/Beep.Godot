@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class RotateComponent : EntityComponent
+    public partial class RotateComponent : WorldComponent
     {
         [Export] public float DegreesPerSecond { get; set; } = 90f;
         [Export] public bool Clockwise { get; set; } = true;
@@ -21,7 +21,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _parent = GetParent<Node2D>();
+            _parent = GetParent() as Node2D;
         }
 
         public override void _Process(double delta)

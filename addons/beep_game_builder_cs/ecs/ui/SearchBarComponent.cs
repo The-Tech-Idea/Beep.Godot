@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class SearchBarComponent : EntityComponent
+    public partial class SearchBarComponent : UIComponent
     {
         [Export] public string Placeholder { get; set; } = "Search...";
         [Export] public float SearchDelay { get; set; } = 0.3f;
@@ -24,7 +24,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             BuildSearch();
         }
@@ -38,7 +38,7 @@ namespace Beep.ECS.UI
             icon.AddThemeFontSizeOverride("font_size", 14);
             icon.CustomMinimumSize = new Vector2(32, 36);
 
-            _input = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            _input = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };
             _input.CustomMinimumSize = new Vector2(0, 36);
             _input.TextChanged += OnTextChanged;
             _input.TextSubmitted += q => EmitSignal(SignalName.SearchSubmitted, q);

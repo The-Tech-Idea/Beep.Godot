@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TopDownController : EntityComponent
+    public partial class TopDownController : ControllerComponent
     {
         [Export] public float Speed { get; set; } = 220f;
         [Export] public float Acceleration { get; set; } = 1800f;
@@ -23,7 +23,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent<CharacterBody2D>();
+            _body = GetParent() as CharacterBody2D;
         }
 
         public override void _PhysicsProcess(double delta)

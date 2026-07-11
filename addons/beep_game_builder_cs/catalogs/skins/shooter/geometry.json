@@ -1,0 +1,19 @@
+{
+  "id": "shooter",
+  "display_name": "Shooter",
+  "corner_radius": 2,
+  "border_width": 2,
+  "shadow_size": 6,
+  "shadow_offset_y": 2,
+  "content_padding": 10,
+  "font_size": 28,
+  "shapes": {
+    "panel":      { "shadow_reduction": 1 },
+    "input":      { "inset_x": 3, "inset_y": 2, "min_x": 3, "min_y": 2, "focus_border_min": 2 },
+    "progress":   { "corner_inset": 2, "margin": 1 },
+    "slider":     { "grabber_shadow": 2, "grabber_hover_shadow": 4, "shadow_scale": 0.5, "track_divisor": 2 },
+    "scrollbar":  { "grabber_divisor": 2, "grabber_min": 2 },
+    "selection":  { "corner_divisor": 2, "corner_min": 1, "margin_x": 3, "focus_border": 1 },
+    "separator":  { "separation": 3 }
+  }
+}

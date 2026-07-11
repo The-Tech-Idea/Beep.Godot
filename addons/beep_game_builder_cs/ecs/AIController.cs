@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AIController : EntityComponent
+    public partial class AIController : ControllerComponent
     {
         public enum AIMode { Idle, Patrol, Chase, Wander, Flee }
 
@@ -33,7 +33,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent<CharacterBody2D>();
+            _body = GetParent() as CharacterBody2D;
         }
 
         public override void _PhysicsProcess(double delta)

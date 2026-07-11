@@ -1,0 +1,104 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="1_player"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/InteractableComponent.cs" id="3_interact"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="4_flow"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_24x24"]
+size = Vector2(24, 24)
+
+[node name="TopDownMain" type="Node2D"]
+
+[node name="Ground" type="TileMapLayer" parent="."]
+
+[node name="Walls" type="TileMapLayer" parent="."]
+
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(640, 360)
+script = ExtResource("1_player")
+
+[node name="PlaceholderVisual" type="ColorRect" parent="Player"]
+offset_right = 32.0
+offset_bottom = 32.0
+color = Color(0.3, 0.7, 0.9, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_24x24")
+
+[node name="InteractionZone" type="Area2D" parent="Player"]
+
+[node name="InteractionShape" type="CollisionShape2D" parent="Player/InteractionZone"]
+shape = SubResource("RectangleShape2D_24x24")
+
+[node name="Interactable" type="Node" parent="Player"]
+script = ExtResource("3_interact")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="Health" type="Node" parent="Player"]
+script = ExtResource("2_health")
+
+[node name="NPCs" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="TransitionZones" type="Node2D" parent="."]
+
+[node name="Items" type="Node2D" parent="."]
+
+[node name="DialogLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="Dialog" type="PanelContainer" parent="DialogLayer"]
+custom_minimum_size = Vector2(0, 120)
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -120.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="DialogVBox" type="VBoxContainer" parent="DialogLayer/Dialog"]
+theme_override_constants/separation = 6
+
+[node name="NameLabel" type="Label" parent="DialogLayer/Dialog/DialogVBox"]
+text = "Character Name"
+
+[node name="TextLabel" type="RichTextLabel" parent="DialogLayer/Dialog/DialogVBox"]
+custom_minimum_size = Vector2(0, 60)
+bbcode_enabled = true
+text = "Dialog text appears here."
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="TopLeft" type="MarginContainer" parent="HUD"]
+anchors_preset = 1
+anchor_right = 1.0
+offset_right = 40.0
+offset_bottom = 40.0
+grow_vertical = 0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+
+[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
+theme_override_constants/separation = 4
+
+[node name="ScoreLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+text = "0"
+
+[node name="LivesLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+text = "× 3"
+
+[node name="HealthLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+text = "100 / 100"
+
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("4_flow")

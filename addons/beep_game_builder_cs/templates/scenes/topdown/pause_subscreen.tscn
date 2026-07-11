@@ -1,0 +1,174 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+
+[node name="PauseSubscreen" type="CanvasLayer"]
+layer = 10
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.05, 0.08, 0.92)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_top = 36
+theme_override_constants/margin_bottom = 36
+
+[node name="MainHBox" type="HBoxContainer" parent="Margin"]
+
+[node name="TabRail" type="VBoxContainer" parent="Margin/MainHBox"]
+custom_minimum_size = Vector2(160, 0)
+theme_override_constants/separation = 4
+
+[node name="PauseLabel" type="Label" parent="Margin/MainHBox/TabRail"]
+text = "Paused"
+
+[node name="Spacer" type="Control" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="InventoryButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "🎒 Inventory"
+
+[node name="MapButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "🗺 Map"
+
+[node name="QuestButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "❓ Quest"
+
+[node name="StatusButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "❤ Status"
+
+[node name="SaveButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "💾 Save"
+
+[node name="ResumeButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "▶ Resume"
+metadata/action = "resume"
+
+[node name="QuitButton" type="Button" parent="Margin/MainHBox/TabRail"]
+text = "⏏ Main Menu"
+metadata/action = "menu"
+
+[node name="ContentArea" type="VBoxContainer" parent="Margin/MainHBox"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="Tabs" type="TabContainer" parent="Margin/MainHBox/ContentArea"]
+size_flags_vertical = 3
+
+[node name="Inventory" type="GridContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 8
+
+[node name="ItemSlot1" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot2" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot3" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot4" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot5" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot6" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot7" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot8" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="EquipRow" type="HBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
+theme_override_constants/separation = 16
+
+[node name="WeaponSlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
+custom_minimum_size = Vector2(64, 64)
+
+[node name="ArmorSlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
+custom_minimum_size = Vector2(64, 64)
+
+[node name="AccessorySlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
+custom_minimum_size = Vector2(64, 64)
+
+[node name="Map" type="TextureRect" parent="Margin/MainHBox/ContentArea/Tabs"]
+custom_minimum_size = Vector2(0, 400)
+
+[node name="Quest" type="VBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
+theme_override_constants/separation = 8
+
+[node name="QuestTitle" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
+text = "Active Quests"
+
+[node name="Quest1" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
+text = "• Find the Master Sword (0/1)"
+
+[node name="Quest2" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
+text = "• Defeat 5 enemies (2/5)"
+
+[node name="Quest3" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
+text = "• Collect 100 gold (45/100)"
+
+[node name="Status" type="GridContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="HealthCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "Health"
+
+[node name="HealthValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "♥ 8 / 10"
+horizontal_alignment = 2
+
+[node name="MagicCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "Magic"
+
+[node name="MagicValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "✦ 30 / 50"
+horizontal_alignment = 2
+
+[node name="GoldCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "Gold"
+
+[node name="GoldValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+text = "🪙 45"
+horizontal_alignment = 2
+
+[node name="Save" type="VBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
+theme_override_constants/separation = 8
+
+[node name="SaveLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+text = "Save Game"
+
+[node name="SaveButton" type="Button" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+text = "💾 Save to Slot 1"
+metadata/action = "save"
+
+[node name="HintLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+text = "(Saves are managed by the SaveManager autoload.)"
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("1_theme")
+preset = 6
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("2_binder")
+theme_component_path = NodePath("Theme")

@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class PlatformerController : EntityComponent
+    public partial class PlatformerController : ControllerComponent
     {
         [Export] public float Speed { get; set; } = 300f;
         [Export] public float JumpVelocity { get; set; } = -450f;
@@ -30,7 +30,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent<CharacterBody2D>();
+            _body = GetParent() as CharacterBody2D;
         }
 
         public override void _PhysicsProcess(double delta)

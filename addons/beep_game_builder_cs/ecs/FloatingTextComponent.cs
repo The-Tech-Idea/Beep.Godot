@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class FloatingTextComponent : EntityComponent
+    public partial class FloatingTextComponent : GameplayComponent
     {
         [Export] public Color NormalColor { get; set; } = Colors.White;
         [Export] public Color CritColor { get; set; } = Colors.Orange;

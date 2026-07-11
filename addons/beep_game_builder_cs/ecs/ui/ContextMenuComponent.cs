@@ -5,25 +5,25 @@ using System.Collections.Generic;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Right-click context menu component. Attach to any Control.
+    /// Right-click context menu component. Attach to any Godot.Control.
     /// Blind — works for any UI element needing a popup menu.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ContextMenuComponent : EntityComponent
+    public partial class ContextMenuComponent : UIComponent
     {
         [Export(PropertyHint.MultilineText)]
         public string MenuItems { get; set; } = "Option 1\nOption 2\nOption 3";
 
         [Signal] public delegate void MenuItemSelectedEventHandler(int index, string label);
 
-        private Control? _control;
+        private Godot.Control? _control;
         private PopupMenu? _menu;
 
         public override void _Ready()
         {
             base._Ready();
-            _control = GetParent<Control>();
+            _control = GetParent() as Godot.Control;
             if (_control == null) return;
 
             _menu = new PopupMenu();

@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 public static class BeepProjectGenerator
 {
     public static List<string> CreateStandardFolders()

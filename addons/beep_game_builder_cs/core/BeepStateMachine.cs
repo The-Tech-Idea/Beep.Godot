@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Simple finite state machine for UI states. Add states with enter/update/exit callbacks.</summary>
 public class BeepStateMachine
 {

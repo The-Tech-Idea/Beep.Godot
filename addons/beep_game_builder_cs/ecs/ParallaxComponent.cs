@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ParallaxComponent : EntityComponent
+    public partial class ParallaxComponent : WorldComponent
     {
         [Export] public float ParallaxFactor { get; set; } = 0.5f;
         [Export] public bool HorizontalOnly { get; set; } = true;
@@ -24,7 +24,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _parent = GetParent<Node2D>();
+            _parent = GetParent() as Node2D;
 
             var cams = GetTree().GetNodesInGroup(FollowCameraGroup);
             if (cams.Count > 0 && cams[0] is Camera2D cam)

@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class InteractableComponent : EntityComponent
+    public partial class InteractableComponent : GameplayComponent
     {
         [Export] public string PromptText { get; set; } = "Press E to interact";
         [Export] public string InputAction { get; set; } = "interact";
@@ -25,7 +25,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            var area = GetParent<Area2D>();
+            var area = GetParent() as Area2D;
             if (area != null)
             {
                 area.BodyEntered += n => { if (n.IsInGroup("players")) { _playerInRange = true; EmitSignal(SignalName.PlayerEnteredRange); } };

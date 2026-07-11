@@ -1,0 +1,15 @@
+{
+  "id": "shooter",
+  "display_name": "Shooter",
+  "icon": "🔫",
+  "description": "Twin-stick / bullet heaven shooter",
+  "default_theme": "scifi",
+  "default_geometry": "shooter",
+  "themes": ["scifi", "cyberpunk", "military", "space", "toxic"],
+  "main_scene": "shooter_main.tscn",
+  "scenes": ["character_select.tscn", "level_up_choice.tscn", "run_results.tscn", "codex.tscn"],
+  "tuning": {
+    "move_speed": 200,
+    "fire_rate": 0.2
+  }
+}

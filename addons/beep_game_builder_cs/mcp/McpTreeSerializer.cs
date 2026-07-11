@@ -32,7 +32,7 @@ public static class McpTreeSerializer
             output["scale"] = McpJson.Vector2ToJson(node2D.Scale);
         }
 
-        if (node is Control control)
+        if (node is Godot.Control control)
         {
             output["position"] = McpJson.Vector2ToJson(control.Position);
             output["size"] = McpJson.Vector2ToJson(control.Size);

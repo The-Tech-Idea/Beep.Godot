@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TypewriterComponent : EntityComponent
+    public partial class TypewriterComponent : UIComponent
     {
         [Export] public float CharsPerSecond { get; set; } = 40f;
         [Export] public bool AutoPlay { get; set; } = false;
@@ -29,7 +29,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _label = GetParent<RichTextLabel>();
+            _label = GetParent() as RichTextLabel;
             if (AutoPlay && !string.IsNullOrEmpty(FullText)) Play(FullText);
         }
 

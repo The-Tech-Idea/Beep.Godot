@@ -1,0 +1,22 @@
+{
+  "id": "candy",
+  "display_name": "Candy",
+  "category": "Aesthetic",
+  "description": "Sweet hyper-cute bubblegum UI — bubblegum pink surface, hot pink accent, soft rounded pill corners",
+  "colors": {
+    "surface_primary": "#FF69B5FF", "surface_hover": "#FF8CC7FF", "surface_pressed": "#E54D99FF", "surface_disabled": "#CC99B2FF",
+    "text_primary": "#FFFFFFFF", "text_hover": "#FFFFFFFF", "text_disabled": "#E5CCD9FF", "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#FF1494FF", "accent_secondary": "#FFB5C2FF",
+    "border_normal": "#FFB5C2FF", "border_hover": "#FF1494FF", "border_focus": "#FF1494FF",
+    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#FF69B5FF", "bg_panel": "#FFD9EBFF", "bg_canvas": "#FFBFDEFF",
+    "semantic_success": "#59BF73FF", "semantic_danger": "#FF4059FF", "semantic_warning": "#FFD940FF", "semantic_info": "#8080FFFF"
+  },
+  "geometry": {
+    "corner_radius": 24, "border_left": 3, "border_top": 3, "border_right": 3, "border_bottom": 3,
+    "shadow_size": 6, "shadow_offset_x": 0, "shadow_offset_y": 3,
+    "pad_left": 22, "pad_right": 22, "pad_top": 11, "pad_bottom": 11,
+    "font_size": 24
+  },
+  "animation": { "hover_scale": 1.08, "hover_duration": 0.20, "press_scale": 0.92, "press_duration": 0.08, "shadow_lift": true, "focus_glow": true }
+}

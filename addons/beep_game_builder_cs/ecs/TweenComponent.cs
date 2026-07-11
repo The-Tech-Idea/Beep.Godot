@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TweenComponent : EntityComponent
+    public partial class TweenComponent : GameplayComponent
     {
         public enum Preset { PopIn, PopOut, FadeIn, FadeOut, SlideIn, SlideOut, BounceIn, BounceOut,
             ScaleUp, ScaleDown, RotateIn, RotateOut, Wobble, Shake, Pulse, Flip, Float,

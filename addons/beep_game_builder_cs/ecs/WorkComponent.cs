@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class WorkComponent : EntityComponent
+    public partial class WorkComponent : GameplayComponent
     {
         [Export] public float AvailableWork { get; set; } = 0f;
         [Export] public float WorkSpeed { get; set; } = 10f;

@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class StateMachineComponent : EntityComponent
+    public partial class StateMachineComponent : GameplayComponent
     {
         [Export] public string InitialState { get; set; } = "idle";
 

@@ -1,0 +1,130 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+
+[node name="LevelMap" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.14, 0.09, 0.16, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 48.0
+grow_horizontal = 2
+theme_override_constants/separation = 16
+
+[node name="Spacer" type="Control" parent="TopBar"]
+size_flags_horizontal = 3
+
+[node name="LivesLabel" type="Label" parent="TopBar"]
+text = "❤ 5"
+
+[node name="GoldLabel" type="Label" parent="TopBar"]
+text = "🪙 320"
+
+[node name="SettingsButton" type="Button" parent="TopBar"]
+text = "⚙"
+metadata/action = "settings"
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 48.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Path" type="VBoxContainer" parent="Scroll"]
+theme_override_constants/separation = 0
+size_flags_horizontal = 4
+alignment = 1
+
+[node name="Level1Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 2
+theme_override_constants/separation = 0
+
+[node name="Level1Button" type="Button" parent="Scroll/Path/Level1Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "1
+★★★"
+metadata/action = "level_1"
+
+[node name="Level2Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 1
+theme_override_constants/separation = 0
+
+[node name="Level2Button" type="Button" parent="Scroll/Path/Level2Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "2
+★★"
+metadata/action = "level_2"
+
+[node name="Level3Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 0
+theme_override_constants/separation = 24
+
+[node name="Pad" type="Control" parent="Scroll/Path/Level3Row"]
+custom_minimum_size = Vector2(48, 0)
+
+[node name="Level3Button" type="Button" parent="Scroll/Path/Level3Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "3
+★"
+metadata/action = "level_3"
+
+[node name="Level4Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 1
+theme_override_constants/separation = 0
+
+[node name="Level4Button" type="Button" parent="Scroll/Path/Level4Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "4
+0"
+metadata/action = "level_4"
+
+[node name="Level5Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 2
+theme_override_constants/separation = 0
+
+[node name="Level5Button" type="Button" parent="Scroll/Path/Level5Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "5
+🔒"
+disabled = true
+metadata/action = "level_5"
+
+[node name="Level6Row" type="HBoxContainer" parent="Scroll/Path"]
+alignment = 1
+theme_override_constants/separation = 0
+
+[node name="Level6Button" type="Button" parent="Scroll/Path/Level6Row"]
+custom_minimum_size = Vector2(90, 90)
+text = "6
+🔒"
+disabled = true
+metadata/action = "level_6"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 21
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+theme_component_path = NodePath("Theme")

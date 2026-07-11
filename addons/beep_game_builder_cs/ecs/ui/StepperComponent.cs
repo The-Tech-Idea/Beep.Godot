@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class StepperComponent : EntityComponent
+    public partial class StepperComponent : UIComponent
     {
         [Export] public int Value { get; set; } = 0;
         [Export] public int MinValue { get; set; } = 0;
@@ -27,7 +27,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             BuildStepper();
             UpdateDisplay();

@@ -1,0 +1,173 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="4_anim"]
+
+[node name="CharacterSelect" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.09, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 24
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+text = "Choose Your Character"
+size_flags_horizontal = 3
+
+[node name="BackButton" type="Button" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(100, 0)
+text = "← Back"
+metadata/action = "back"
+
+[node name="CharGrid" type="GridContainer" parent="Margin/VBox"]
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 20
+columns = 4
+
+[node name="MarineCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
+custom_minimum_size = Vector2(220, 320)
+
+[node name="MarineVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/MarineCard"]
+theme_override_constants/separation = 8
+
+[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+custom_minimum_size = Vector2(0, 120)
+color = Color(0.2, 0.4, 0.7, 1)
+
+[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+text = "Marine"
+horizontal_alignment = 1
+
+[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+text = "Rifle (reliable)"
+horizontal_alignment = 1
+
+[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+text = "+ accuracy"
+horizontal_alignment = 1
+
+[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+text = "Select"
+metadata/action = "char_marine"
+
+[node name="PilotCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
+custom_minimum_size = Vector2(220, 320)
+
+[node name="PilotVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/PilotCard"]
+theme_override_constants/separation = 8
+
+[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+custom_minimum_size = Vector2(0, 120)
+color = Color(0.5, 0.4, 0.2, 1)
+
+[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+text = "Pilot"
+horizontal_alignment = 1
+
+[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+text = "Pistol + lockpick"
+horizontal_alignment = 1
+
+[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+text = "+ extra item slots"
+horizontal_alignment = 1
+
+[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+text = "Select"
+metadata/action = "char_pilot"
+
+[node name="HunterCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
+custom_minimum_size = Vector2(220, 320)
+
+[node name="HunterVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/HunterCard"]
+theme_override_constants/separation = 8
+
+[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+custom_minimum_size = Vector2(0, 120)
+color = Color(0.2, 0.6, 0.3, 1)
+
+[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+text = "Hunter"
+horizontal_alignment = 1
+
+[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+text = "Crossbow (companion)"
+horizontal_alignment = 1
+
+[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+text = "starts with a dog"
+horizontal_alignment = 1
+
+[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+text = "Select"
+metadata/action = "char_hunter"
+
+[node name="BruiserCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
+custom_minimum_size = Vector2(220, 320)
+
+[node name="BruiserVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/BruiserCard"]
+theme_override_constants/separation = 8
+
+[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+custom_minimum_size = Vector2(0, 120)
+color = Color(0.7, 0.2, 0.3, 1)
+
+[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+text = "Bruiser"
+horizontal_alignment = 1
+
+[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+text = "Shotgun (spread)"
+horizontal_alignment = 1
+
+[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+text = "starts with +damage"
+horizontal_alignment = 1
+
+[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+text = "Select"
+metadata/action = "char_bruiser"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+enable_ripple = true
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 15
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
+theme_component_path = NodePath("Theme")
+append_game_name = true
+
+[node name="MenuAnimation" type="Node" parent="."]
+script = ExtResource("4_anim")
+animate_on_ready = true

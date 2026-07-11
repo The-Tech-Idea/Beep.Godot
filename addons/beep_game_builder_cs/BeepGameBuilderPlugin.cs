@@ -1,9 +1,13 @@
 using Godot;
+using GodotMcp;
+
+namespace Beep.GameBuilder;
 
 [Tool]
 public partial class BeepGameBuilderPlugin : EditorPlugin
 {
-    private Control _dock;
+    private Godot.Control? _dock;
+    private GodotMcpBridgeController? _bridge;
 
     public override void _EnterTree()
     {
@@ -17,7 +21,27 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
 
     public override void _ExitTree()
     {
-        if (_dock != null) { RemoveControlFromDocks(_dock); _dock.QueueFree(); }
+        // Tear down the bridge first so the WebSocketPeer is closed cleanly.
+        if (_bridge is not null)
+        {
+            _bridge.DisconnectBridge();
+            _bridge.QueueFree();
+            _bridge = null;
+        }
+
+        if (_dock is not null)
+        {
+            RemoveControlFromDocks(_dock);
+            _dock.QueueFree();
+            _dock = null;
+        }
+
+        // Symmetric with EnsureAutoload in _EnterTree: remove the autoloads we
+        // added so disabling the plugin doesn't leave stale entries in
+        // project.godot pointing at scripts that may no longer be present.
+        RemoveAutoload("McpGameAdapter");
+        RemoveAutoload("GodotMcpRuntime");
+
         GD.Print("[Beep Game Builder] Plugin disabled.");
     }
 
@@ -25,31 +49,37 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
     {
         try
         {
-            var settingsType = System.Type.GetType("GodotMcp.GodotMcpSettings");
-            var bridgeType = System.Type.GetType("GodotMcp.GodotMcpBridgeController");
-            if (settingsType == null || bridgeType == null) return;
-
-            settingsType.GetMethod("EnsureProjectSettings")?.Invoke(null, null);
+            GodotMcpSettings.EnsureProjectSettings();
 
             EnsureAutoload("McpGameAdapter", "res://addons/beep_game_builder_cs/mcp/McpGameAdapter.cs");
             EnsureAutoload("GodotMcpRuntime", "res://addons/beep_game_builder_cs/mcp/GodotMcpRuntime.cs");
 
-            var bridge = System.Activator.CreateInstance(bridgeType) as Node;
-            if (bridge == null) return;
-            bridge.Name = "BeepMcpBridge";
-            AddChild(bridge);
+            // Direct typed construction instead of reflection — the bridge
+            // controller and settings live in the same assembly (GodotMcp).
+            _bridge = new GodotMcpBridgeController
+            {
+                Name = "BeepMcpBridge"
+            };
+            AddChild(_bridge);
 
-            bridgeType.GetMethod("ConfigureEditor")?.Invoke(bridge, new object[] { this });
-            var url = (string)(settingsType.GetMethod("GetUrl")?.Invoke(null, null) ?? "ws://127.0.0.1:8789");
-            var token = (string)(settingsType.GetMethod("GetToken")?.Invoke(null, null) ?? "");
-            bridgeType.GetMethod("Configure")?.Invoke(bridge, new object[] { url, token, "editor", true, 2.0f });
-            bridgeType.GetMethod("ConnectBridge")?.Invoke(bridge, null);
+            _bridge.ConfigureEditor(this);
+
+            string url = GodotMcpSettings.GetUrl();
+            string token = GodotMcpSettings.GetToken();
+            _bridge.Configure(
+                url,
+                token,
+                role: "editor",
+                verbose: true,
+                reconnectDelaySeconds: 2.0
+            );
+            _bridge.ConnectBridge();
 
             GD.Print($"[Beep Game Builder] MCP bridge connected to {url}");
         }
         catch (System.Exception ex)
         {
-            GD.Print($"[Beep Game Builder] MCP bridge not available: {ex.Message}");
+            GD.PushWarning($"[Beep Game Builder] MCP bridge not available: {ex.Message}");
         }
     }
 
@@ -57,5 +87,15 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
     {
         if (!ProjectSettings.HasSetting($"autoload/{name}"))
             AddAutoloadSingleton(name, path);
+    }
+
+    private void RemoveAutoload(string name)
+    {
+        string settingPath = $"autoload/{name}";
+        if (ProjectSettings.HasSetting(settingPath))
+        {
+            RemoveAutoloadSingleton(name);
+            ProjectSettings.Save();
+        }
     }
 }

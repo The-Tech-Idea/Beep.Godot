@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class MovementComponent : EntityComponent
+    public partial class MovementComponent : GameplayComponent
     {
         [Export] public float Speed { get; set; } = 200f;
         [Export] public float Acceleration { get; set; } = 1800f;

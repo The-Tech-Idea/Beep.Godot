@@ -1,14 +1,15 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// UI shake component. Attach to any Control to shake it on demand.
-    /// Blind — works for error feedback, attention grab, impact response.
+    /// UI shake. Attach as a child of a Godot.Control. Shake() triggers a decaying jitter.
+    /// Cascade: set ApplyToChildren = true to shake every descendant Control/Button.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ShakeComponent : EntityComponent
+    public partial class ShakeComponent : EffectComponent
     {
         [Export] public float Intensity { get; set; } = 10f;
         [Export] public float Duration { get; set; } = 0.3f;
@@ -17,20 +18,17 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ShakeStartedEventHandler();
         [Signal] public delegate void ShakeFinishedEventHandler();
 
-        private Control? _control;
-        private Vector2 _originalPos;
+        // Each target shakes around its own original position.
+        private readonly Dictionary<Godot.Control, Vector2> _origPos = new();
         private float _elapsed;
-
-        public override void _Ready()
-        {
-            base._Ready();
-            _control = GetParent<Control>();
-        }
 
         public void Shake(float intensity = -1, float duration = -1)
         {
-            if (_control == null || !IsActive) return;
-            _originalPos = _control.Position;
+            if (!IsActive || Targets.Count == 0) return;
+            _origPos.Clear();
+            foreach (var c in Targets)
+                if (GodotObject.IsInstanceValid(c))
+                    _origPos[c] = c.Position;
             _elapsed = 0;
             Intensity = intensity > 0 ? intensity : Intensity;
             Duration = duration > 0 ? duration : Duration;
@@ -39,16 +37,22 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (_control == null || _elapsed >= Duration) return;
+            if (_elapsed >= Duration || _origPos.Count == 0) return;
             _elapsed += (float)delta;
             float decay = 1f - (_elapsed / Duration);
-            float x = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
-            float y = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
-            _control.Position = _originalPos + new Vector2(x, y);
+
+            foreach (var (c, orig) in _origPos)
+            {
+                if (!GodotObject.IsInstanceValid(c)) continue;
+                float x = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
+                float y = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
+                c.Position = orig + new Vector2(x, y);
+            }
 
             if (_elapsed >= Duration)
             {
-                _control.Position = _originalPos;
+                foreach (var (c, orig) in _origPos)
+                    if (GodotObject.IsInstanceValid(c)) c.Position = orig;
                 EmitSignal(SignalName.ShakeFinished);
             }
         }

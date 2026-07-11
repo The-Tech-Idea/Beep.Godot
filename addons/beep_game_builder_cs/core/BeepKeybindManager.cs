@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Keyboard shortcut / hotkey manager. Register actions with keys and callbacks.
 /// Auto-processes input in _Input and fires callbacks.

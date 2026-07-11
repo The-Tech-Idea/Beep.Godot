@@ -7,7 +7,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class InjuryComponent : EntityComponent
+    public partial class InjuryComponent : GameplayComponent
     {
         [Export] public bool IsInjured { get; set; } = false;
         [Export] public string InjuryType { get; set; } = "";

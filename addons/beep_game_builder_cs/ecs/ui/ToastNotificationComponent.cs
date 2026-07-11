@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ToastNotificationComponent : EntityComponent
+    public partial class ToastNotificationComponent : UIComponent
     {
         public enum ToastType { Info, Success, Warning, Error }
 
@@ -20,7 +20,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ToastShownEventHandler(string message, ToastType type);
         [Signal] public delegate void ToastDismissedEventHandler();
 
-        private readonly System.Collections.Generic.Queue<Control> _activeToasts = new();
+        private readonly System.Collections.Generic.Queue<Godot.Control> _activeToasts = new();
         private static ToastNotificationComponent? _instance;
 
         public override void _Ready()

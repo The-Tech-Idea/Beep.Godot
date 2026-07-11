@@ -32,7 +32,7 @@ YourGodotProject/
   addons/
     godot_mcp/
       plugin.cfg
-      GodotMcpPlugin.cs
+      GodotMcpBridgeController.cs
       GodotMcpRuntime.cs
       McpGameAdapter.cs
       McpWebSocketClient.cs
@@ -130,4 +130,4 @@ MIT License. See `LICENSE.md`.
 
 ## v0.6.2 Godot 4.7 C# hotfix
 
-Fixed Godot 4.7 C# Variant/Dictionary compile errors in McpJson.cs, GodotMcpPlugin.cs, and GodotMcpRuntime.cs.
+Fixed Godot 4.7 C# Variant/Dictionary compile errors in McpJson.cs, GodotMcpBridgeController.cs, and GodotMcpRuntime.cs.

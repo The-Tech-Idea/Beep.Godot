@@ -7,7 +7,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TrainingComponent : EntityComponent
+    public partial class TrainingComponent : GameplayComponent
     {
         [Export] public float Participation { get; set; } = 0.5f; // 0.0 to 1.0
         [Export] public string FocusArea { get; set; } = "Balanced";

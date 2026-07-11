@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TooltipComponent : EntityComponent
+    public partial class TooltipComponent : UIComponent
     {
         [Export(PropertyHint.MultilineText)]
         public string TooltipText { get; set; } = "";
@@ -19,7 +19,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void TooltipShownEventHandler();
         [Signal] public delegate void TooltipHiddenEventHandler();
 
-        private Control? _control;
+        private Godot.Control? _control;
         private Panel? _tooltipPanel;
         private float _hoverTime;
         private bool _showing;
@@ -27,7 +27,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _control = GetParent<Control>();
+            _control = GetParent() as Godot.Control;
             if (_control != null)
             {
                 _control.MouseEntered += () => { if (IsActive) _hoverTime = 0; };

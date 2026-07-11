@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Spring-based procedural animation for UI elements. Smooth, bouncy physics-driven motion.</summary>
 public class BeepProceduralAnim
 {

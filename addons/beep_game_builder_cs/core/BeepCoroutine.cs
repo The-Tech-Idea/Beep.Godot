@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Coroutine-like delayed execution. Schedule actions to run after time or on next frame.</summary>
 public static class BeepCoroutine
 {

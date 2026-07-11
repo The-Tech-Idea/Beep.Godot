@@ -1,0 +1,99 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="4_anim"]
+
+[node name="LevelComplete" type="CanvasLayer"]
+layer = 20
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(380, 0)
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 14
+
+[node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Level Complete!"
+horizontal_alignment = 1
+
+[node name="StarRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 14
+
+[node name="Star1" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
+text = "★"
+
+[node name="Star2" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
+text = "★"
+
+[node name="Star3" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
+text = "★"
+
+[node name="ScoreLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Score: 1820"
+horizontal_alignment = 1
+
+[node name="HighScoreLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "New High Score!"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="MapButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(100, 0)
+text = "Map"
+metadata/action = "map"
+
+[node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(100, 0)
+text = "Retry"
+metadata/action = "retry"
+
+[node name="NextButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Next ▶"
+metadata/action = "next"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+enable_ripple = true
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 21
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+theme_component_path = NodePath("Theme")
+
+[node name="MenuAnimation" type="Node" parent="."]
+script = ExtResource("4_anim")
+animate_on_ready = true

@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class RatingComponent : EntityComponent
+    public partial class RatingComponent : UIComponent
     {
         [Export] public int MaxStars { get; set; } = 5;
         [Export] public float Value { get; set; } = 3.5f;
@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             BuildStars();
             UpdateDisplay();
@@ -42,7 +42,7 @@ namespace Beep.ECS.UI
                 if (Interactive)
                 {
                     int idx = i;
-                    label.MouseFilter = Control.MouseFilterEnum.Stop;
+                    label.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
                     label.GuiInput += e =>
                     {
                         if (e is InputEventMouseButton mb && mb.Pressed)

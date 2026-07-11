@@ -1,0 +1,19 @@
+{
+  "id": "puzzle",
+  "display_name": "Puzzle",
+  "corner_radius": 24,
+  "border_width": 3,
+  "shadow_size": 12,
+  "shadow_offset_y": 5,
+  "content_padding": 20,
+  "font_size": 32,
+  "shapes": {
+    "panel":      { "shadow_reduction": 3 },
+    "input":      { "inset_x": 6, "inset_y": 4, "min_x": 6, "min_y": 3, "focus_border_min": 2 },
+    "progress":   { "corner_inset": 6, "margin": 3 },
+    "slider":     { "grabber_shadow": 4, "grabber_hover_shadow": 6, "shadow_scale": 0.5, "track_divisor": 2 },
+    "scrollbar":  { "grabber_divisor": 3, "grabber_min": 4 },
+    "selection":  { "corner_divisor": 2, "corner_min": 3, "margin_x": 6, "focus_border": 2 },
+    "separator":  { "separation": 6 }
+  }
+}

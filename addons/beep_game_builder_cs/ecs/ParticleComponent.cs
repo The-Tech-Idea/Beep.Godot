@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ParticleComponent : EntityComponent
+    public partial class ParticleComponent : WorldComponent
     {
         [Export] public PackedScene? ParticleScene { get; set; }
         [Export] public bool OneShot { get; set; } = true;

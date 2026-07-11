@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ChipComponent : EntityComponent
+    public partial class ChipComponent : UIComponent
     {
         [Export] public string Label { get; set; } = "Tag";
         [Export] public Color ChipColor { get; set; } = new(0.2f, 0.4f, 0.7f, 1f);
@@ -24,7 +24,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             BuildChip();
         }

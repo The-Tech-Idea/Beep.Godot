@@ -1,0 +1,132 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+
+[node name="LevelSelect" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.13, 0.18, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 20
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+text = "World Map"
+size_flags_horizontal = 3
+
+[node name="CoinsCounter" type="Label" parent="Margin/VBox/Header"]
+text = "🪙 0 / 200"
+
+[node name="BackButton" type="Button" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(100, 0)
+text = "← Menu"
+metadata/action = "back"
+
+[node name="WorldTabs" type="TabContainer" parent="Margin/VBox"]
+size_flags_vertical = 3
+
+[node name="World1" type="ScrollContainer" parent="Margin/VBox/WorldTabs"]
+
+[node name="W1VBox" type="VBoxContainer" parent="Margin/VBox/WorldTabs/World1"]
+theme_override_constants/separation = 12
+size_flags_horizontal = 3
+
+[node name="WorldLabel" type="Label" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
+text = "World 1: Green Hills"
+
+[node name="LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 5
+
+[node name="Level1Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "1-1
+★★★"
+metadata/action = "level_1_1"
+
+[node name="Level2Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "1-2
+★★"
+metadata/action = "level_1_2"
+
+[node name="Level3Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "1-3
+★"
+metadata/action = "level_1_3"
+
+[node name="Level4Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "1-4
+🔒"
+disabled = true
+metadata/action = "level_1_4"
+
+[node name="Level5Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "1-5
+🔒"
+disabled = true
+metadata/action = "level_1_5"
+
+[node name="World2" type="ScrollContainer" parent="Margin/VBox/WorldTabs"]
+
+[node name="W2VBox" type="VBoxContainer" parent="Margin/VBox/WorldTabs/World2"]
+theme_override_constants/separation = 12
+size_flags_horizontal = 3
+
+[node name="WorldLabel" type="Label" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
+text = "World 2: Desert Dunes 🔒"
+
+[node name="LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 5
+
+[node name="Level1Button" type="Button" parent="Margin/VBox/WorldTabs/World2/W2VBox/LevelGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "2-1
+🔒"
+disabled = true
+metadata/action = "level_2_1"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+enable_ripple = true
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("2_theme")
+preset = 2
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
+theme_component_path = NodePath("Theme")
+append_game_name = true

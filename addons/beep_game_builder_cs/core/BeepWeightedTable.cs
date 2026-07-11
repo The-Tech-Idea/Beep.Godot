@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Weighted random table. Add items with weights, then roll for random selection. Great for loot tables.</summary>
 public class BeepWeightedTable<T>
 {

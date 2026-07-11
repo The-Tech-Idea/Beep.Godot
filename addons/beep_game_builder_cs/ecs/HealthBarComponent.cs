@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class HealthBarComponent : EntityComponent
+    public partial class HealthBarComponent : GameplayComponent
     {
         [Export] public Vector2 Size { get; set; } = new(40, 6);
         [Export] public Vector2 BarOffset { get; set; } = new(0, -20);

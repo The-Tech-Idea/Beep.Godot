@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class DragComponent : EntityComponent
+    public partial class DragComponent : UIComponent
     {
         [Export] public bool DragHorizontal { get; set; } = true;
         [Export] public bool DragVertical { get; set; } = true;
@@ -21,7 +21,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void DragEndedEventHandler(Vector2 finalPosition);
         [Signal] public delegate void DroppedEventHandler(Vector2 position);
 
-        private Control? _control;
+        private Godot.Control? _control;
         private Vector2 _dragOffset;
         private Vector2 _startPosition;
         private bool _isDragging;
@@ -29,11 +29,11 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _control = GetParent<Control>();
+            _control = GetParent() as Godot.Control;
             if (_control != null)
             {
                 _control.GuiInput += OnGuiInput;
-                _control.MouseFilter = Control.MouseFilterEnum.Stop;
+                _control.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
             }
         }
 
@@ -48,7 +48,7 @@ namespace Beep.ECS.UI
                     _isDragging = true;
                     _startPosition = _control.Position;
                     _dragOffset = _control.GetGlobalMousePosition() - _control.Position;
-                    if (BringToFrontOnDrag && _control.GetParent() is Control parent)
+                    if (BringToFrontOnDrag && _control.GetParent() is Godot.Control parent)
                         parent.MoveChild(_control, -1);
                     EmitSignal(SignalName.DragStarted);
                     _control.AcceptEvent();
@@ -73,7 +73,7 @@ namespace Beep.ECS.UI
                 if (!DragHorizontal) newPos.X = _control.Position.X;
                 if (!DragVertical) newPos.Y = _control.Position.Y;
 
-                if (ConstrainToParent && _control.GetParent() is Control p)
+                if (ConstrainToParent && _control.GetParent() is Godot.Control p)
                 {
                     newPos.X = Mathf.Clamp(newPos.X, 0, p.Size.X - _control.Size.X);
                     newPos.Y = Mathf.Clamp(newPos.Y, 0, p.Size.Y - _control.Size.Y);

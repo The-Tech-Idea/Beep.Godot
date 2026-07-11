@@ -1,0 +1,14 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Beep.Godot</RootNamespace>
+    <!-- The addon sources live under addons/. Godot.NET.Sdk auto-includes all
+         .cs files under the project directory, so the C# addon compiles with no
+         explicit Compile items. beep_ui is GDScript and is ignored by the build.
+         When a consumer copies addons/beep_game_builder_cs into their own project,
+         that project's own .csproj (also Godot.NET.Sdk) compiles them the same way. -->
+  </PropertyGroup>
+</Project>

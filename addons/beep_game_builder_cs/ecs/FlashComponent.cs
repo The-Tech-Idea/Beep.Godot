@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class FlashComponent : EntityComponent
+    public partial class FlashComponent : GameplayComponent
     {
         [Export] public Color FlashColor { get; set; } = Colors.White;
         [Export] public float FlashDuration { get; set; } = 0.1f;
@@ -24,7 +24,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _canvas = GetParent<CanvasItem>();
+            _canvas = GetParent() as CanvasItem;
             if (_canvas != null && _canvas.Material is ShaderMaterial sm)
                 _flashMaterial = sm;
         }

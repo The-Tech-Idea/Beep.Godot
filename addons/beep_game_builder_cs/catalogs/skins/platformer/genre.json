@@ -1,0 +1,16 @@
+{
+  "id": "platformer",
+  "display_name": "Platformer",
+  "icon": "🎮",
+  "description": "Side-scrolling jump & run",
+  "default_theme": "cartoon",
+  "default_geometry": "platformer",
+  "themes": ["cartoon", "modern", "retro80s", "pixel8bit", "nature"],
+  "main_scene": "platformer_main.tscn",
+  "scenes": ["level_select.tscn", "level_results.tscn"],
+  "tuning": {
+    "gravity": 980,
+    "jump_velocity": -400,
+    "move_speed": 200
+  }
+}

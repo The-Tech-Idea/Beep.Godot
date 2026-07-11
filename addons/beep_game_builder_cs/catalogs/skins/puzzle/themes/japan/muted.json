@@ -1,0 +1,7 @@
+{
+  "id": "muted",
+  "display_name": "Muted",
+  "hue_shift": 0,
+  "saturation_mul": 0.7,
+  "value_mul": 0.85
+}

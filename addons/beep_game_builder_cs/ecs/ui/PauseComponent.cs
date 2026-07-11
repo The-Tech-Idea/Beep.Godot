@@ -1,0 +1,85 @@
+using Godot;
+
+namespace Beep.ECS.UI
+{
+    /// <summary>
+    /// Pause overlay controller. Attach as a child of the pause-menu Control
+    /// (which should be a CanvasLayer or Control on its own layer). On the
+    /// <c>pause</c> input action it toggles <c>GetTree().Paused</c> and
+    /// shows/hides the parent. The parent's <c>ProcessMode</c> must be
+    /// <c>WhenPaused</c> so it stays interactive while gameplay is frozen.
+    ///
+    /// Pair with a <see cref="MenuComponent"/> (action "resume"/"restart"/"menu")
+    /// connected to a <c>NavigationComponent</c> for the full pause loop.
+    /// </summary>
+    [Tool]
+    [GlobalClass]
+    public partial class PauseComponent : UIComponent
+    {
+        /// <summary>Input action that toggles pause (default "pause" = Escape).</summary>
+        [Export] public string ToggleAction { get; set; } = "pause";
+
+        /// <summary>If true, the component captures the toggle input itself. Set false to drive Pause()/Resume() manually.</summary>
+        [Export] public bool CaptureInput { get; set; } = true;
+
+        /// <summary>When pausing, also pause the audio? (Default false — menus usually keep their own sounds.)</summary>
+        [Export] public bool PauseAudio { get; set; } = false;
+
+        [Signal] public delegate void PausedEventHandler();
+        [Signal] public delegate void ResumedEventHandler();
+
+        private Godot.Control? _overlay;
+
+        public override void _Ready()
+        {
+            base._Ready();
+            _overlay = GetParent() as Godot.Control;
+            // The overlay must run while the tree is paused.
+            if (_overlay != null)
+            {
+                _overlay.ProcessMode = Node.ProcessModeEnum.WhenPaused;
+                _overlay.Visible = false;
+            }
+        }
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (!CaptureInput || !IsActive || _overlay == null) return;
+            if (@event.IsActionPressed(ToggleAction))
+            {
+                Toggle();
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
+        public void Toggle()
+        {
+            if (GetTree().Paused) Resume();
+            else Pause();
+        }
+
+        public void Pause()
+        {
+            if (!IsActive || _overlay == null) return;
+            GetTree().Paused = true;
+            _overlay.Visible = true;
+            if (!PauseAudio) SetAudioPaused(false);
+            EmitSignal(SignalName.Paused);
+        }
+
+        public void Resume()
+        {
+            if (!IsActive || _overlay == null) return;
+            _overlay.Visible = false;
+            GetTree().Paused = false;
+            EmitSignal(SignalName.Resumed);
+        }
+
+        private void SetAudioPaused(bool paused)
+        {
+            int bus = AudioServer.GetBusIndex("Master");
+            if (bus >= 0)
+                AudioServer.SetBusMute(bus, paused);
+        }
+    }
+}

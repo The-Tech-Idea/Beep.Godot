@@ -11,7 +11,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class StatusEffectComponent : EntityComponent
+    public partial class StatusEffectComponent : GameplayComponent
     {
         [Signal] public delegate void EffectAppliedEventHandler(string effectId);
         [Signal] public delegate void EffectExpiredEventHandler(string effectId);

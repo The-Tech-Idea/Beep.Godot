@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ProgressRingComponent : Control
+    public partial class ProgressRingComponent : Godot.Control
     {
         [Export] public float Value { get; set; } = 0.7f;
         [Export] public float MaxValue { get; set; } = 1f;

@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AttackComponent : EntityComponent
+    public partial class AttackComponent : GameplayComponent
     {
         [Export] public float Damage { get; set; } = 10f;
         [Export] public float Range { get; set; } = 50f;

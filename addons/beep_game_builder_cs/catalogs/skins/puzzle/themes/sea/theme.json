@@ -1,0 +1,40 @@
+{
+  "id": "sea",
+  "display_name": "Sea",
+  "category": "Nature",
+  "description": "Ocean / underwater UI — deep teal surface, seafoam accent, soft blue glow shadow, rounded flowing corners",
+  "colors": {
+    "surface_primary": "#1A3B4AFF", "surface_hover": "#244D61FF", "surface_pressed": "#0F2938FF", "surface_disabled": "#0D1F29FF",
+    "text_primary": "#4FCCC4FF", "text_hover": "#78E6E0FF", "text_disabled": "#33666BFF", "text_on_dark": "#E6F7F5FF",
+    "accent_primary": "#4FCCC4FF", "accent_secondary": "#2E9999FF",
+    "border_normal": "#296B7AFF", "border_hover": "#4FCCC480", "border_focus": "#4FCCC4CC",
+    "border_bevel_light": "#FFFFFF00", "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#1A4D594D", "bg_panel": "#122E3DF2", "bg_canvas": "#0A1F2EFF",
+    "semantic_success": "#2E9973FF", "semantic_danger": "#D94040FF", "semantic_warning": "#F2BF33FF", "semantic_info": "#4FCCC4FF"
+  },
+  "geometry": {
+    "corner_radius": 10, "border_left": 1, "border_top": 1, "border_right": 1, "border_bottom": 1,
+    "shadow_size": 10, "shadow_offset_x": 0, "shadow_offset_y": 3,
+    "pad_left": 16, "pad_right": 16, "pad_top": 8, "pad_bottom": 8,
+    "font_size": 16
+  },
+  "animation": { "hover_scale": 1.04, "hover_duration": 0.20, "press_scale": 0.96, "press_duration": 0.10, "shadow_lift": true, "focus_glow": true },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/sea/button_normal.png",
+      "margin_left": 18, "margin_top": 18, "margin_right": 18, "margin_bottom": 18,
+      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1,
+      "draw_center": true, "modulate": "#F0FFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/sea/button_hover.png",
+      "margin_left": 18, "margin_top": 18, "margin_right": 18, "margin_bottom": 18,
+      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/sea/panel.png",
+      "margin_left": 12, "margin_top": 12, "margin_right": 12, "margin_bottom": 12,
+      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1
+    }
+  }
+}

@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 public static class BeepInputMapGenerator
 {
     public static List<string> SetupDefaultInput()

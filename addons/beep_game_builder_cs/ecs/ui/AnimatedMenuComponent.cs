@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AnimatedMenuComponent : EntityComponent
+    public partial class AnimatedMenuComponent : UIComponent
     {
         public enum Direction { FromLeft, FromRight, FromTop, FromBottom, FromCenter, FadeOnly }
 
@@ -27,7 +27,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (AnimateOnReady) CallDeferred(nameof(ShowAnimated));
         }
 
@@ -39,7 +39,7 @@ namespace Beep.ECS.UI
 
             for (int i = 0; i < children.Count; i++)
             {
-                if (children[i] is not Control ctrl) continue;
+                if (children[i] is not Godot.Control ctrl) continue;
 
                 ctrl.Modulate = new Color(1, 1, 1, AnimateOnReady ? 0 : 1);
 
@@ -86,7 +86,7 @@ namespace Beep.ECS.UI
             var children = _container.GetChildren();
             for (int i = 0; i < children.Count; i++)
             {
-                if (children[i] is not Control ctrl) continue;
+                if (children[i] is not Godot.Control ctrl) continue;
                 var tween = ctrl.CreateTween();
                 tween.TweenInterval(i * StaggerDelay * 0.5f);
                 tween.SetParallel(true);

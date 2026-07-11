@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class FlipCardComponent : EntityComponent
+    public partial class FlipCardComponent : UIComponent
     {
         [Export] public float Duration { get; set; } = 0.5f;
         [Export] public bool StartFaceUp { get; set; } = true;
@@ -16,17 +16,17 @@ namespace Beep.ECS.UI
         [Signal] public delegate void FlippedEventHandler(bool showingFront);
 
         private Container? _container;
-        private Control? _front;
-        private Control? _back;
+        private Godot.Control? _front;
+        private Godot.Control? _back;
         private bool _showingFront;
 
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             var children = _container.GetChildren();
-            if (children.Count >= 2) { _front = children[0] as Control; _back = children[1] as Control; }
+            if (children.Count >= 2) { _front = children[0] as Godot.Control; _back = children[1] as Godot.Control; }
             if (!StartFaceUp) { _showingFront = false; if (_front != null) _front.Visible = false; }
             else _showingFront = true;
         }

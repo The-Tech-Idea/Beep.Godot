@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AudioComponent : EntityComponent
+    public partial class AudioComponent : GameplayComponent
     {
         [Export] public AudioStream? Stream { get; set; }
         [Export] public float VolumeDb { get; set; } = 0f;

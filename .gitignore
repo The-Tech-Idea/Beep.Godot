@@ -16,3 +16,9 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 /.vs/Beep.Godot.slnx/FileContentIndex
+
+# .NET / C# build artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo

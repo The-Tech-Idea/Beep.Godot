@@ -5,6 +5,8 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Simple AES encryption for save files. Protect player data from tampering.</summary>
 public static class BeepEncryptionHelper
 {

@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>Simple service locator / DI container. Register and resolve services by type.</summary>
 public static class BeepServiceLocator
 {
@@ -24,23 +26,23 @@ public static class BeepServiceLocator
 /// <summary>Grid-based menu navigation for keyboard/controller. Wrap a GridContainer and navigate with arrows.</summary>
 public class BeepGridNavigator
 {
-    private Control[,] _grid;
+    private Godot.Control[,] _grid;
     private int _cols, _rows;
     private int _cx, _cy;
 
     public int CurrentIndex => _cy * _cols + _cx;
-    public Control CurrentItem => _grid[_cy, _cx];
-    public Action<Control, int, int> ItemSelected;
+    public Godot.Control CurrentItem => _grid[_cy, _cx];
+    public Action<Godot.Control, int, int> ItemSelected;
 
     public void Setup(Godot.Collections.Array<Node> children, int columns)
     {
         _cols = columns;
         _rows = Mathf.CeilToInt((float)children.Count / columns);
-        _grid = new Control[_rows, _cols];
+        _grid = new Godot.Control[_rows, _cols];
         for (int i = 0; i < children.Count; i++)
         {
             int r = i / columns, c = i % columns;
-            if (children[i] is Control ctrl) _grid[r, c] = ctrl;
+            if (children[i] is Godot.Control ctrl) _grid[r, c] = ctrl;
         }
         HighlightCurrent();
     }

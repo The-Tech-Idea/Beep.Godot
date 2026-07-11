@@ -54,6 +54,16 @@ public partial class McpWebSocketClient : Node
         EmitStatus("Closed");
     }
 
+    public override void _ExitTree()
+    {
+        // Ensure the WebSocketPeer native handle is always released. If the node
+        // is freed while _shouldConnect is still true (e.g. editor disabled
+        // mid-reconnect-backoff), the peer would otherwise leak.
+        _shouldConnect = false;
+        _helloSent = false;
+        _socket.Close();
+    }
+
     public override void _Process(double delta)
     {
         _socket.Poll();

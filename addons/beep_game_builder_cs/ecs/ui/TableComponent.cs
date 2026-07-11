@@ -2,8 +2,6 @@ using Godot;
 using System.Collections.Generic;
 using System.Linq;
 using SizeFlags = Godot.Control.SizeFlags;
-using UIConfig = SimpleFootBallManager.scenes.UI.Theming.UIConfig;
-
 namespace Beep.ECS.UI
 {
     /// <summary>
@@ -12,7 +10,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TableComponent : EntityComponent
+    public partial class TableComponent : UIComponent
     {
         [Export] public string[] ColumnHeaders { get; set; } = System.Array.Empty<string>();
         [Export] public int[] ColumnWidths { get; set; } = System.Array.Empty<int>();
@@ -20,6 +18,9 @@ namespace Beep.ECS.UI
         [Export] public Color RowEven { get; set; } = new(0.15f, 0.2f, 0.3f, 1f);
         [Export] public Color RowOdd { get; set; } = new(0.18f, 0.22f, 0.33f, 1f);
         [Export] public Color HoverColor { get; set; } = new(0.25f, 0.3f, 0.45f, 1f);
+        [Export] public Color BorderAccent { get; set; } = new(0.35f, 0.5f, 0.7f, 1f);
+        [Export] public Color TextAccent { get; set; } = new(0.7f, 0.8f, 1f, 1f);
+        [Export] public Color TextPrimary { get; set; } = new(0.9f, 0.92f, 0.95f, 1f);
         [Export] public int RowHeight { get; set; } = 32;
         [Export] public int FontSize { get; set; } = 14;
 
@@ -36,7 +37,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<VBoxContainer>();
+            _container = GetParent() as VBoxContainer;
             if (_container == null) return;
             BuildHeader();
         }
@@ -68,16 +69,16 @@ namespace Beep.ECS.UI
             var sb = new StyleBoxFlat { BgColor = HeaderBg };
             sb.SetCornerRadiusAll(0);
             sb.BorderWidthBottom = 2;
-            sb.BorderColor = UIConfig.BorderAccent;
+            sb.BorderColor = BorderAccent;
             btn.AddThemeStyleboxOverride("normal", sb);
             btn.AddThemeStyleboxOverride("hover", sb);
-            btn.AddThemeColorOverride("font_color", UIConfig.TextAccent);
+            btn.AddThemeColorOverride("font_color", TextAccent);
             btn.AddThemeFontSizeOverride("font_size", FontSize);
         }
 
         public void Clear()
         {
-            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Control)?.QueueFree(); row.QueueFree(); }
+            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Godot.Control)?.QueueFree(); row.QueueFree(); }
             _rows.Clear();
             _data.Clear();
         }
@@ -99,7 +100,7 @@ namespace Beep.ECS.UI
             if (_container == null) return;
             var row = new HBoxContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
             row.AddThemeConstantOverride("separation", 0);
-            row.MouseFilter = Control.MouseFilterEnum.Stop;
+            row.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
 
             Color bg = index % 2 == 0 ? RowEven : RowOdd;
             var sb = new StyleBoxFlat { BgColor = bg };
@@ -115,7 +116,7 @@ namespace Beep.ECS.UI
                 label.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
                 label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
                 label.AddThemeFontSizeOverride("font_size", FontSize);
-                label.AddThemeColorOverride("font_color", UIConfig.TextPrimary);
+                label.AddThemeColorOverride("font_color", TextPrimary);
                 row.AddChild(label);
             }
 
@@ -149,7 +150,7 @@ namespace Beep.ECS.UI
             _data.AddRange(sorted);
 
             // Rebuild rows
-            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Control)?.QueueFree(); row.QueueFree(); }
+            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Godot.Control)?.QueueFree(); row.QueueFree(); }
             _rows.Clear();
 
             for (int i = 0; i < _data.Count; i++) RenderRow(_data[i], i);

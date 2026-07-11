@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class PowerSource : EntityComponent
+    public partial class PowerSource : GameplayComponent
     {
         [Export] public float PowerAmount { get; set; } = 100f;
         [Export] public float Efficiency { get; set; } = 1f;
@@ -31,7 +31,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class PowerReceiver : EntityComponent
+    public partial class PowerReceiver : GameplayComponent
     {
         [Export] public float PowerRequired { get; set; } = 50f;
         [Export] public float Efficiency { get; set; } = 1f;

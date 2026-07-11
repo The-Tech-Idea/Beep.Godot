@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ProjectileComponent : EntityComponent
+    public partial class ProjectileComponent : GameplayComponent
     {
         [Export] public float Speed { get; set; } = 400f;
         [Export] public float MaxLifetime { get; set; } = 5f;
@@ -27,7 +27,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _area = GetParent<Area2D>();
+            _area = GetParent() as Area2D;
             if (_area != null)
             {
                 _area.BodyEntered += n => { EmitSignal(SignalName.Hit, n, _area.GlobalPosition); if (!Pierce && _area != null) _area.QueueFree(); };

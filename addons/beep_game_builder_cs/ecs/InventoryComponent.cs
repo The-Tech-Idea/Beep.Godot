@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class InventoryComponent : EntityComponent
+    public partial class InventoryComponent : GameplayComponent
     {
         [Export] public int MaxSlots { get; set; } = 20;
 

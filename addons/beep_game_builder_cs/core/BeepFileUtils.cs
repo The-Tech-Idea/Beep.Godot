@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 public static class BeepFileUtils
 {
     public static Action<string> LogCallback = _ => { };
@@ -23,19 +25,9 @@ public static class BeepFileUtils
         using var f = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Write);
         if (f == null) { LogError($"Could not write: {path}"); return false; }
         f.StoreString(content);
-        // Generate .uid file so Godot 4.x recognizes the resource in FileSystem
-        EnsureUid(path);
+        // UID assignment is handled by Godot's own filesystem scan (RefreshFilesystem)
+        // — hand-rolling uid:// strings Godot doesn't recognize as registered UIDs.
         Log($"Created: {path}"); return true;
-    }
-
-    /// <summary>Create a .uid file if one doesn't exist, so Godot 4.x shows the file in FileSystem.</summary>
-    private static void EnsureUid(string path)
-    {
-        var uidPath = path + ".uid";
-        if (Godot.FileAccess.FileExists(uidPath)) return;
-        string uid = "uid://" + Guid.NewGuid().ToString("N")[..13];
-        using var uf = Godot.FileAccess.Open(uidPath, Godot.FileAccess.ModeFlags.Write);
-        if (uf != null) uf.StoreString(uid);
     }
 
     public static string ReadText(string path)

@@ -2,11 +2,14 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Wraps Godot's Tree with data-binding helpers.
 /// Build a tree from hierarchical data or add rows programmatically.
 /// </summary>
 [Tool]
+[GlobalClass]
 public partial class BeepTreeView : Tree
 {
     [Export] public bool ShowRoot { get; set; } = true;

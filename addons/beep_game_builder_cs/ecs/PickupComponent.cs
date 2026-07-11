@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class PickupComponent : EntityComponent
+    public partial class PickupComponent : GameplayComponent
     {
         [Export] public string ItemId { get; set; } = "coin";
         [Export] public int Quantity { get; set; } = 1;
@@ -29,7 +29,7 @@ namespace Beep.ECS
         {
             base._Ready();
             if (GetParent() is Node2D parent) _startPos = parent.Position;
-            var area = GetParent<Area2D>();
+            var area = GetParent() as Area2D;
             if (area != null) area.BodyEntered += _ => Collect();
         }
 

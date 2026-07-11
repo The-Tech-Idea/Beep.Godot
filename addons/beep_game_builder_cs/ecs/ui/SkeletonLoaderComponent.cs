@@ -8,21 +8,21 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class SkeletonLoaderComponent : EntityComponent
+    public partial class SkeletonLoaderComponent : UIComponent
     {
         [Export] public float ShimmerSpeed { get; set; } = 2f;
         [Export] public Color BaseColor { get; set; } = new(0.18f, 0.18f, 0.22f, 1f);
         [Export] public Color ShimmerColor { get; set; } = new(0.25f, 0.25f, 0.3f, 1f);
         [Export] public bool AutoPlay { get; set; } = true;
 
-        private Control? _control;
+        private Godot.Control? _control;
         private float _time;
         private ShaderMaterial? _shimmerMat;
 
         public override void _Ready()
         {
             base._Ready();
-            _control = GetParent<Control>();
+            _control = GetParent() as Godot.Control;
             if (_control == null) return;
 
             _shimmerMat = new ShaderMaterial();

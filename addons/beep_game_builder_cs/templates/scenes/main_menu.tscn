@@ -1,0 +1,101 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="2_nav"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="4_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="5_transition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="6_anim"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09, 0.09, 0.12, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MenuVBox" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Center/MenuVBox"]
+layout_mode = 2
+text = "Game Title"
+horizontal_alignment = 1
+
+[node name="VersionLabel" type="Label" parent="Center/MenuVBox"]
+layout_mode = 2
+text = "v0.1.0"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="PlayButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Play"
+
+[node name="ContinueButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Continue"
+
+[node name="SettingsButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Settings"
+
+[node name="QuitButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Quit"
+
+[node name="Menu" type="Node" parent="."]
+script = ExtResource("1_menu")
+known_actions = ["play", "continue", "settings", "quit"]
+enable_ripple = true
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("2_nav")
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("3_theme")
+preset = 1
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("4_binder")
+title_label_path = NodePath("Center/MenuVBox/TitleLabel")
+version_label_path = NodePath("Center/MenuVBox/VersionLabel")
+theme_component_path = NodePath("Theme")
+set_window_title = true
+
+[node name="Transition" type="Node" parent="."]
+script = ExtResource("5_transition")
+duration = 0.4
+
+[node name="MenuAnimation" type="Node" parent="."]
+script = ExtResource("6_anim")
+entry_direction = 1
+duration = 0.3
+stagger_delay = 0.05
+animate_on_ready = true

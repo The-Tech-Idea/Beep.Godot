@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class HealthComponent : EntityComponent
+    public partial class HealthComponent : GameplayComponent
     {
         [Export] public float MaxHealth { get; set; } = 100f;
         [Export] public float CurrentHealth { get; set; } = 100f;

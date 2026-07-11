@@ -36,7 +36,7 @@ namespace Beep.ECS
         /// <summary>
         /// Get a specific component from an entity.
         /// </summary>
-        protected static T? GetComponent<T>(Node entity) where T : EntityComponent
+        protected static T? GetComponent<T>(Node entity) where T : GameplayComponent
         {
             foreach (var child in entity.GetChildren())
             {
@@ -48,7 +48,7 @@ namespace Beep.ECS
         /// <summary>
         /// Get all components of type T from an entity.
         /// </summary>
-        protected static List<T> GetComponents<T>(Node entity) where T : EntityComponent
+        protected static List<T> GetComponents<T>(Node entity) where T : GameplayComponent
         {
             var result = new List<T>();
             foreach (var child in entity.GetChildren())

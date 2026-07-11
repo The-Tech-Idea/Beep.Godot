@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class CameraZoomComponent : EntityComponent
+    public partial class CameraZoomComponent : ControllerComponent
     {
         [Export] public Vector2 MinZoom { get; set; } = new(0.5f, 0.5f);
         [Export] public Vector2 MaxZoom { get; set; } = new(2f, 2f);
@@ -24,7 +24,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _cam = GetParent<Camera2D>();
+            _cam = GetParent() as Camera2D;
             if (_cam != null) _targetZoom = _cam.Zoom;
         }
 

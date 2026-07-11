@@ -1,0 +1,14 @@
+{
+  "id": "topdown",
+  "display_name": "Top-Down",
+  "icon": "🗺️",
+  "description": "Top-down adventure / RPG",
+  "default_theme": "fantasy",
+  "default_geometry": "topdown",
+  "themes": ["fantasy", "classic", "nature", "japan", "military"],
+  "main_scene": "topdown_main.tscn",
+  "scenes": ["pause_subscreen.tscn"],
+  "tuning": {
+    "move_speed": 200
+  }
+}

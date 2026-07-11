@@ -9,7 +9,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class AccordionComponent : EntityComponent
+    public partial class AccordionComponent : UIComponent
     {
         [Export] public bool StartExpanded { get; set; } = false;
         [Export] public float AnimationDuration { get; set; } = 0.3f;
@@ -26,7 +26,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
 
             var children = _container.GetChildren();
@@ -59,7 +59,7 @@ namespace Beep.ECS.UI
             var children = _container.GetChildren();
             for (int i = 1; i < children.Count; i++)
             {
-                if (children[i] is not Control ctrl) continue;
+                if (children[i] is not Godot.Control ctrl) continue;
 
                 if (instant)
                 {

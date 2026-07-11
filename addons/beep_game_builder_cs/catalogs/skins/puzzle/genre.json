@@ -1,0 +1,16 @@
+{
+  "id": "puzzle",
+  "display_name": "Puzzle",
+  "icon": "🧩",
+  "description": "Match-3 / grid puzzle",
+  "default_theme": "candy",
+  "default_geometry": "puzzle",
+  "themes": ["candy", "cartoon", "modern", "sea", "japan"],
+  "main_scene": "puzzle_main.tscn",
+  "scenes": ["level_map.tscn", "pre_level.tscn", "level_complete.tscn", "level_failed.tscn"],
+  "tuning": {
+    "grid_width": 8,
+    "grid_height": 8,
+    "target_score": 1000
+  }
+}

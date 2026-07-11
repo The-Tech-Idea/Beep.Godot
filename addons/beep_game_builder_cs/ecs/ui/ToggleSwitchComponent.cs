@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ToggleSwitchComponent : EntityComponent
+    public partial class ToggleSwitchComponent : UIComponent
     {
         [Export] public bool IsOn { get; set; } = false;
         [Export] public Color OnColor { get; set; } = new(0.3f, 0.7f, 0.3f, 1f);
@@ -27,7 +27,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _checkbox = GetParent<CheckBox>();
+            _checkbox = GetParent() as CheckBox;
             if (_checkbox != null)
             {
                 // Hide default checkbox, build ours
@@ -42,7 +42,7 @@ namespace Beep.ECS.UI
         private void BuildSwitch()
         {
             _bg = new ColorRect { Size = SwitchSize, Color = IsOn ? OnColor : OffColor };
-            _bg.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _bg.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
 
             _knob = new ColorRect { Size = new Vector2(SwitchSize.Y - 6, SwitchSize.Y - 6), Color = KnobColor };
             _knob.Position = new Vector2(3, 3);

@@ -9,7 +9,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class CarouselComponent : EntityComponent
+    public partial class CarouselComponent : UIComponent
     {
         [Export] public float CardWidth { get; set; } = 280f;
         [Export] public float Spacing { get; set; } = 16f;
@@ -30,7 +30,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent<Container>();
+            _container = GetParent() as Container;
             if (_container == null) return;
             _slideCount = _container.GetChildCount();
             if (_slideCount == 0) return;
@@ -58,7 +58,7 @@ namespace Beep.ECS.UI
             float centerX = _container.Size.X / 2f;
             for (int i = 0; i < _slideCount; i++)
             {
-                if (_container.GetChild(i) is not Control slide) continue;
+                if (_container.GetChild(i) is not Godot.Control slide) continue;
 
                 float offset = (i - _currentIndex) * (CardWidth + Spacing);
                 float targetX = centerX - CardWidth / 2f + offset;

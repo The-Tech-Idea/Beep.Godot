@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class BobComponent : EntityComponent
+    public partial class BobComponent : WorldComponent
     {
         [Export] public float Amplitude { get; set; } = 5f;
         [Export] public float Speed { get; set; } = 2f;
@@ -24,7 +24,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _parent = GetParent<Node2D>();
+            _parent = GetParent() as Node2D;
             if (_parent != null)
             {
                 _startPos = _parent.Position;

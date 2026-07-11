@@ -10,7 +10,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TabGroupComponent : EntityComponent
+    public partial class TabGroupComponent : UIComponent
     {
         [Export] public int ActiveTab { get; set; } = 0;
         [Export] public Color ActiveTabColor { get; set; } = new(0.2f, 0.4f, 0.8f, 1f);
@@ -22,7 +22,7 @@ namespace Beep.ECS.UI
         private Container? _tabBar;
         private Container? _contentArea;
         private readonly List<Button> _tabs = new();
-        private readonly List<Control> _panels = new();
+        private readonly List<Godot.Control> _panels = new();
         private int _currentTab = -1;
 
         public override void _Ready()
@@ -53,7 +53,7 @@ namespace Beep.ECS.UI
 
             if (_contentArea != null)
                 foreach (var child in _contentArea.GetChildren())
-                    if (child is Control ctrl) _panels.Add(ctrl);
+                    if (child is Godot.Control ctrl) _panels.Add(ctrl);
 
             SwitchToTab(ActiveTab, true);
         }
@@ -89,7 +89,7 @@ namespace Beep.ECS.UI
             EmitSignal(SignalName.TabChanged, index, _tabs[index].Text);
         }
 
-        private void AnimateOut(Control panel)
+        private void AnimateOut(Godot.Control panel)
         {
             var t = panel.CreateTween();
             t.TweenProperty(panel, "modulate:a", 0f, SwitchDuration * 0.5f);

@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
+namespace Beep.GameBuilder;
+
 /// <summary>
 /// Binds C# object properties to Godot UI elements using reflection.
 /// Supports automatic updates via polling or manual refresh.

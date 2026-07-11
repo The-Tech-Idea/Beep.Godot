@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class SpawnerComponent : EntityComponent
+    public partial class SpawnerComponent : WorldComponent
     {
         [Export] public PackedScene? SpawnScene { get; set; }
         [Export] public float SpawnInterval { get; set; } = 3f;

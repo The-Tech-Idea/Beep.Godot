@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class PlayerStatsComponent : EntityComponent
+    public partial class PlayerStatsComponent : GameplayComponent
     {
         [ExportGroup("Technical")]
         [Export] public int Shooting { get; set; } = 50;

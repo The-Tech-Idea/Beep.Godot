@@ -1,0 +1,894 @@
+In Godot 4, implementing a dynamic weather system is best handled using a Singleton (Autoload) [Global/Scene Manager] as a centralized Concurrent State Machine or a Data-Driven Climate System. This decouples weather properties (rain, fog, wind) from individual levels, allowing them to affect lighting and player mechanics globally.Setting Up the Weather ManagerCreate a global script called WeatherManager.gd and add it to your Autoloads (Project Settings > Autoload). This ensures the weather data is persistent and accessible across any level, 2D or 3D.gdscriptextends Node
+
+enum WeatherState { CLEAR, RAIN, FOG, SNOW }
+
+var current_weather: WeatherState = WeatherState.CLEAR
+
+# Signals to notify other nodes (like audio, player stats, and UI)
+signal weather_changed(new_weather)
+
+func change_weather(new_state: WeatherState):
+	current_weather = new_state
+	emit_signal("weather_changed", current_weather)
+Use code with caution.Visuals: Particles and EnvironmentYou can trigger visual effects depending on the current weather:2D: Connect a CPU Particles 2D node to your camera so rain follows the player Easy Particle Rain in Godot 4.3D: Adjust the WorldEnvironment node to activate Volumetric Fog and decrease directional light intensity when shifting to stormy conditions.Randomized or Location-Based TriggersYou can automate your weather patterns in two primary ways:Randomized Weather: Use a Timer node inside your WeatherManager to trigger phase shifts based on weight/probability arrays.Biome / Trigger Zones: Have Area2D or Area3D nodes act as transition zones (e.g., entering a mountain triggers snow patterns) Godot Weather.Gameplay ImpactTo make your weather patterns affect gameplay (e.g., slower movement or reduced visibility), have your Player script listen to the global weather_changed signal:gdscriptfunc _ready():
+	WeatherManager.connect("weather_changed", Callable(self, "_on_weather_changed"))
+
+func _on_weather_changed(new_weather):
+	match new_weather:
+		WeatherManager.WeatherState.RAIN:
+			speed = 150 # Slippery surface, slower speed
+		WeatherManager.WeatherState.CLEAR:
+			speed = 250 # Normal speed
+Use code with caution.If you can tell me whether you are working on a 2D or 3D project, and what specific gameplay effects (like puddles, reduced sight, or camera effects) you need, I can provide the exact code or shader needed.6 sitesWhat is the best way to implement a dynamic weather system ..."I'm working on a project in Godot 4 and I'm interested in implementing a dynamic weather system that can change conditions throug...Godot ForumHow to make RAIN in Godot for beginnersthis is the final effect of 2D rain that we are going to achieve by the end of this goto tutorial. and at the start I need to show...4:15YouTube·Godot Knowledge HubEasy Particle Rain in Godot 4one is a more cartoonish rain one is a more realistic rain um and I've exaggerated the size of the raindrops for the cartoonish ra...2mYouTube·Watt InteractiveShow allYou said: 2d and give me all needed code and other like fogTo create a complete 2D weather system in Godot 4.x, you need a global manager, a weather overlay scene with particles, and a screen shader for fog.1. The Global State Manager (Autoload)Create a script named WeatherManager.gd. Add it to your project's Autoload list (Project -> Project Settings -> Autoload) with the name WeatherManager.gdscriptextends Node
+
+enum Weather { CLEAR, RAIN, SNOW, FOG }
+
+var current_weather: Weather = Weather.CLEAR
+var weather_intensity: float = 0.0 # 0.0 to 1.0 for transitions
+
+signal weather_changed(new_weather: Weather)
+signal intensity_changed(value: float)
+
+func transition_to(new_weather: Weather, duration: float = 3.0) -> void:
+	if current_weather == new_weather: return
+	
+	# Fade out current weather intensity
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(self, "weather_intensity", 0.0, duration * 0.5)
+	await tween.finished
+	
+	# Switch state
+	current_weather = new_weather
+	weather_changed.emit(current_weather)
+	
+	# Fade in new weather intensity
+	var tween_in = create_tween().set_parallel(true)
+	tween_in.tween_property(self, "weather_intensity", 1.0, duration * 0.5)
+	
+	# Update loop to emit intensity changes
+	tween_in.tween_method(func(val): intensity_changed.emit(val), 0.0, 1.0, duration * 0.5)
+Use code with caution.2. The Weather Fog ShaderGodot 2D lacks built-in volumetric fog, so a screen-reading shader is used. Create a ColorRect node, set its layout to Anchors Preset -> Full Rect, and assign a new ShaderMaterial with this code:glslshader_type canvas_item;
+
+uniform sampler2D SCREEN_TEXTURE : hint_screen_texture, filter_linear_mipmap;
+uniform float fog_intensity : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 fog_color : source_color = vec4(0.7, 0.7, 0.8, 1.0);
+uniform float speed = 0.1;
+
+// Simple pseudo-noise function
+float noise(vec2 uv) {
+    return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
+void fragment() {
+    vec4 screen_color = texture(SCREEN_TEXTURE, SCREEN_UV);
+    
+    // Create moving noise layers for fog texture
+    vec2 moving_uv = UV + vec2(TIME * speed, TIME * speed * 0.2);
+    float noise_val = noise(floor(moving_uv * 10.0)) * 0.5 + noise(floor(moving_uv * 20.0)) * 0.5;
+    
+    // Mix screen colors with fog color based on intensity and noise
+    float final_fog = noise_val * fog_intensity * 0.6;
+    COLOR = mix(screen_color, fog_color, final_fog);
+}
+Use code with caution.3. The Weather Controller SceneCreate a new 2D scene named WeatherController.tscn. Attach it to your player or main camera so it follows the screen viewport view.Scene Tree Structure:WeatherController (Node2D)RainParticles (GPUParticles2D)SnowParticles (GPUParticles2D)FogOverlay (ColorRect with the shader above)CanvasModulate (CanvasModulate to darken the world during storms)Attach this script to the root WeatherController node:gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var fog_overlay: ColorRect = $FogOverlay
+@onready var canvas_modulate: CanvasModulate = $CanvasModulate
+
+# Base dark tint for storms
+var storm_color := Color(0.4, 0.4, 0.5, 1.0)
+var clear_color := Color(1.0, 1.0, 1.0, 1.0)
+
+func _ready() -> void:
+	# Connect to global manager
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+	
+	# Initialize everything off
+	_on_weather_changed(WeatherManager.current_weather)
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	# Instantly toggle visibility states
+	rain_particles.emitting = (new_weather == WeatherManager.Weather::RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather::SNOW)
+
+func _on_intensity_changed(intensity: float) -> void:
+	match WeatherManager.current_weather:
+		WeatherManager.Weather.RAIN:
+			rain_particles.amount_ratio = intensity
+			canvas_modulate.color = clear_color.lerp(storm_color, intensity)
+			fog_overlay.material.set_shader_parameter("fog_intensity", intensity * 0.2)
+		WeatherManager.Weather.SNOW:
+			snow_particles.amount_ratio = intensity
+			canvas_modulate.color = clear_color.lerp(Color(0.9, 0.9, 1.0), intensity)
+			fog_overlay.material.set_shader_parameter("fog_intensity", 0.0)
+		WeatherManager.Weather.FOG:
+			fog_overlay.material.set_shader_parameter("fog_intensity", intensity)
+			canvas_modulate.color = clear_color.lerp(Color(0.8, 0.8, 0.8), intensity)
+		WeatherManager.Weather.CLEAR:
+			fog_overlay.material.set_shader_parameter("fog_intensity", 0.0)
+			canvas_modulate.color = clear_color
+Use code with caution.4. Particles Configuration SettingsFor the GPUParticles2D nodes to display properly on a screen overlay:RainParticles:Set Amount to 200.In ProcessMaterial, set Emission Shape to Box. Set Box Extents to (X: 600, Y: 1, Z: 1) to span the width of the screen.Set Direction to (X: -0.2, Y: 1.0) and Initial Velocity Min/Max to 400.SnowParticles:Set Amount to 100.Set Emission Shape to Box with the same width dimensions.Set Initial Velocity Min/Max to 80, and add a slight Orbit Velocity or curve to make flakes drift back and forth.5. Triggering a Weather ChangeCall the autoload script from anywhere in your gameplay code (e.g., area entry triggers, day/night system timers):gdscript# Transition to a heavy foggy weather state over 5 seconds
+WeatherManager.transition_to(WeatherManager.Weather.FOG, 5.0)
+Use code with caution.If you plan to add tilemap interactions like puddles growing when it rains or wind physics forces on your player, let me know so we can implement structural changes for them!AI can make mistakes, so double-check responses 7 sitesLearn Godot 4 by Making a 2D Platformer — Part 5: Level Creation #2Jul 20, 2023 — Now, let's add this to our Autoload resources so that we can access this script's values globally. To add it to your Autoload reso...DEV CommunityLearning Godot 3.1 3D - Lowpoly Scene #1Jul 31, 2019 — The materials are mainly albedo mixed with noise and some vertex distortions. No GI probe is used in the scene. Godot currently do...YouTubeGodot Pong Tutorial – RandomMomentaniaOct 10, 2020 — Using the transform tools/handles in the scene view, select the ColorRect node and make the size of the ColorRect node fit the siz...randommomentania.comShow allYou said: add wind and phiscsTo add wind forces that affect both your particle systems and your physical elements (like rigidbodies or the player), Godot 4.7 provides a dedicated built-in node: Area2D configured as a gravity/force field. This eliminates the need to manually write complex vector math in every individual physics script.Here is how to update your 2D weather system to integrate physics-based wind.1. Update the Global State ManagerUpdate WeatherManager.gd to store and emit global wind properties (velocity vector and strength) that other game systems can read.gdscriptextends Node
+
+enum Weather { CLEAR, RAIN, SNOW, FOG }
+
+var current_weather: Weather = Weather.CLEAR
+var weather_intensity: float = 0.0
+
+# Wind Properties
+var wind_velocity: Vector2 = Vector2.ZERO
+var wind_strength: float = 0.0
+
+signal weather_changed(new_weather: Weather)
+signal intensity_changed(value: float)
+signal wind_changed(velocity: Vector2, strength: float)
+
+func transition_to(new_weather: Weather, duration: float = 3.0) -> void:
+	if current_weather == new_weather: return
+	
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(self, "weather_intensity", 0.0, duration * 0.5)
+	
+	# Fade out wind during transitions
+	tween.tween_property(self, "wind_strength", 0.0, duration * 0.5)
+	await tween.finished
+	
+	current_weather = new_weather
+	weather_changed.emit(current_weather)
+	
+	# Determine new wind direction based on weather
+	var target_wind = Vector2.ZERO
+	if current_weather == Weather.RAIN:
+		target_wind = Vector2(-250.0, 0.0) # Stormy wind blowing left
+	elif current_weather == Weather.SNOW:
+		target_wind = Vector2(80.0, 0.0)   # Gentle drift right
+
+	var tween_in = create_tween().set_parallel(true)
+	tween_in.tween_property(self, "weather_intensity", 1.0, duration * 0.5)
+	tween_in.tween_property(self, "wind_strength", 1.0, duration * 0.5)
+	
+	tween_in.tween_method(func(val): 
+		intensity_changed.emit(val)
+		wind_velocity = target_wind * val
+		wind_changed.emit(wind_velocity, val)
+	, 0.0, 1.0, duration * 0.5)
+Use code with caution.2. The Visual & Physical Wind Field NodeInstead of writing physics code manually, we use an Area2D to act as a global wind tunnel. Add an Area2D named WindField inside your WeatherController.tscn.Scene Tree View:WeatherController (Node2D)WindField (Area2D) -> Add a CollisionShape2D (e.g., a massive rectangle spanning your level)RainParticles (GPUParticles2D)SnowParticles (GPUParticles2D)FogOverlay (ColorRect)CanvasModulateConfigure the WindField Inspector Settings:To turn the Area2D into a physical wind force modifier:Under Gravity, change Gravity Direction to (X: 1, Y: 0) if you want horizontal wind.Change Gravity Point to false.Set Gravity Space Override to Combine (this adds the wind force on top of normal downward world gravity).Update the script attached to WeatherController.gd to adjust both particles and physics forces dynamically:gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var wind_field: Area2D = $WindField
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+	WeatherManager.wind_changed.connect(_on_wind_changed)
+	
+	# Ensure particles listen to the Area2D physical forces
+	rain_particles.collision_base_size = 1.0
+	
+	# Crucial: Allow particle process materials to inherit external forces
+	if rain_particles.process_material is ParticleProcessMaterial:
+		rain_particles.process_material.turbulence_enabled = true
+		snow_particles.process_material.turbulence_enabled = true
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	rain_particles.emitting = (new_weather == WeatherManager.Weather.RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather.SNOW)
+
+func _on_intensity_changed(intensity: float) -> void:
+	# (Keep prior code managing fog intensity and canvas modulate colors here)
+	pass
+
+func _on_wind_changed(velocity: Vector2, strength: float) -> void:
+	# Update physical area gravity magnitude to push physics bodies horizontally
+	wind_field.gravity = velocity.length()
+	wind_field.gravity_direction = velocity.normalized()
+	
+	# Update Particle system vectors dynamically so rain/snow visual angles match the wind
+	if rain_particles.process_material is ParticleProcessMaterial:
+		rain_particles.process_material.direction = Vector3(velocity.x, 400, 0).normalized()
+Use code with caution.3. Making Your Physics Entities ReactBecause the WindField handles the math calculations globally through Godot's internal physics server, your game entities require very little code modification.For RigidBody2D objects (crates, debris, drop items):You do not need to add any code.Ensure their Gravity Scale in the inspector is higher than 0, and they will automatically drift sideways whenever WindField changes its velocity vector.For CharacterBody2D objects (The Player / Enemies):If you want the player character to experience air resistance or drift when jumping into the wind storm, read the global autoload data inside your standard movement loop:gdscriptextends CharacterBody2D
+
+const SPEED = 300.0
+const JUMP_VELOCITY = -400.0
+var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
+
+func _physics_process(delta: float) -> void:
+	# Apply normal downward gravity
+	if not is_on_floor():
+		velocity.y += gravity * delta
+
+	# Handle jump input
+	if input_jump and is_on_floor():
+		velocity.y = JUMP_VELOCITY
+
+	# Get input direction
+	var direction = Input.get_axis("ui_left", "ui_right")
+	if direction:
+		velocity.x = direction * SPEED
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+
+	# --- INTEGRATE WIND PHYSICS ---
+	# If the player is airborne, the storm wind pushes them sideways
+	if not is_on_floor():
+		velocity.x += WeatherManager.wind_velocity.x * delta * 0.5
+
+	move_and_slide()
+Use code with caution.If you plan to include visual physics assets like swaying vegetation/trees using vertex shaders or want to add wind audio adjustments, let me know how you want to expand the scene!1 siteUnreal Engine 5 - Global Wind Controller | Epic Developer CommunityAug 4, 2022 — Unreal Engine 5 - Global Wind Controller Today I am going to implement a global wind system in unreal engine 5. Using the wind con...Epic Games DevelopersYou said: yes give me all1. The Dynamic Foliage Shader (Wind Sway)Instead of moving vegetation with complex physics calculations, we use a Vertex Shader. This changes the position of the pixels on the fly using GPU hardware, meaning you can have thousands of swaying trees or grass tufts without dropping frames.Create a new material on your Sprite2D trees/plants, add a new shader, and paste this code:glslshader_type canvas_item;
+
+uniform float wind_speed = 2.0;
+uniform float wind_strength = 15.0;
+uniform float wind_turbulence = 0.4;
+
+void vertex() {
+    // Only sway the top parts of the sprite (assumes UV.y decreases going up)
+    float sway_factor = (1.0 - UV.y);
+    
+    // Create a wave using time and the object's global position as an offset
+    float time_offset = TIME * wind_speed + (NODE_POSITION_WORLD.x * 0.05);
+    
+    // Main sine wave + a secondary faster wave for turbulence realism
+    float wave = sin(time_offset) + (sin(time_offset * 2.5) * wind_turbulence);
+    
+    // Displace the vertex position horizontally based on wind strength
+    VERTEX.x += wave * wind_strength * sway_factor;
+}
+Use code with caution.2. Upgraded Weather Controller (With Sway & Audio Controllers)This script controls the weather particle shapes, manages the WindField physics body adjustments, alters shader variables on vegetation globally, and controls ambient audio tracks.Required Scene Setup additions to your WeatherController.tscn:Add an AudioStreamPlayer named WindAudio.Add an AudioStreamPlayer named RainAudio.gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var wind_field: Area2D = $WindField
+@onready var fog_overlay: ColorRect = $FogOverlay
+@onready var canvas_modulate: CanvasModulate = $CanvasModulate
+
+# Audio Nodes
+@onready var wind_audio: AudioStreamPlayer = $WindAudio
+@onready var rain_audio: AudioStreamPlayer = $RainAudio
+
+var storm_color := Color(0.4, 0.4, 0.5, 1.0)
+var clear_color := Color(1.0, 1.0, 1.0, 1.0)
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+	WeatherManager.wind_changed.connect(_on_wind_changed)
+	
+	# Start playing ambient audio tracks silently looping
+	if wind_audio.stream: wind_audio.play()
+	if rain_audio.stream: rain_audio.play()
+	_update_audio_volumes(0.0, 0.0)
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	rain_particles.emitting = (new_weather == WeatherManager.Weather.RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather.SNOW)
+
+func _on_intensity_changed(intensity: float) -> void:
+	match WeatherManager.current_weather:
+		WeatherManager.Weather.RAIN:
+			rain_particles.amount_ratio = intensity
+			canvas_modulate.color = clear_color.lerp(storm_color, intensity)
+			fog_overlay.material.set_shader_parameter("fog_intensity", intensity * 0.15)
+			_update_audio_volumes(intensity * 0.8, intensity * 1.0) # Up wind and rain volume
+			
+		WeatherManager.Weather.SNOW:
+			snow_particles.amount_ratio = intensity
+			canvas_modulate.color = clear_color.lerp(Color(0.85, 0.85, 0.95), intensity)
+			fog_overlay.material.set_shader_parameter("fog_intensity", 0.0)
+			_update_audio_volumes(intensity * 0.4, 0.0) # Lower wind, no rain audio
+			
+		WeatherManager.Weather.FOG:
+			fog_overlay.material.set_shader_parameter("fog_intensity", intensity)
+			canvas_modulate.color = clear_color.lerp(Color(0.75, 0.75, 0.75), intensity)
+			_update_audio_volumes(0.0, 0.0)
+			
+		WeatherManager.Weather.CLEAR:
+			fog_overlay.material.set_shader_parameter("fog_intensity", 0.0)
+			canvas_modulate.color = clear_color
+			_update_audio_volumes(0.0, 0.0)
+
+func _on_wind_changed(velocity: Vector2, strength: float) -> void:
+	# Update the Area2D physical zone fields
+	wind_field.gravity = velocity.length()
+	wind_field.gravity_direction = velocity.normalized()
+	
+	# Rotate particle flow directions along with the wind trajectory
+	if rain_particles.process_material is ParticleProcessMaterial:
+		rain_particles.process_material.direction = Vector3(velocity.x, 400.0, 0.0).normalized()
+	if snow_particles.process_material is ParticleProcessMaterial:
+		snow_particles.process_material.direction = Vector3(velocity.x, 150.0, 0.0).normalized()
+		
+	# Global Shader parameters setting across all vegetation materials
+	# Note: Requires setting Project Settings -> Shader Globals with these names
+	RenderingServer.global_shader_parameter_set("wind_speed", 1.5 + (strength * 3.0))
+	RenderingServer.global_shader_parameter_set("wind_strength", strength * 25.0)
+
+func _update_audio_volumes(wind_vol: float, rain_vol: float) -> void:
+	# Convert 0.0-1.0 slider ratios directly into decibel scales (dB)
+	wind_audio.volume_db = linear_to_db(wind_vol)
+	rain_audio.volume_db = linear_to_db(rain_vol)
+Use code with caution.3. Activating Global Variables for Foliage ShadersTo let the vegetation shader sync seamlessly with the WeatherController values without manual code coupling:Open your project top bar options: Project -> Project Settings.Enable the Advanced Settings toggle switch in the upper right corner.Search or browse down to the Shader Globals category tab.Add the following parameters:wind_speed -> Type: floatwind_strength -> Type: floatInside your vegetation shader code, change your custom uniform float declarations directly into:glslglobal uniform float wind_speed;
+global uniform float wind_strength;
+Use code with caution.4. Dynamic Sound Mix UtilityGodot requires converting volume ratios (0.0 to 1.0) into sound decibels (-80 dB to 0 dB). If the built-in function linear_to_db fails or throws an error in older structural sub-versions, save this fall-back utility math handler in your code helper logic loops:gdscript# Helper function logic if linear_to_db is missing from standard API versions
+func custom_linear_to_db(linear_value: float) -> float:
+	if linear_value == 0.0:
+		return -80.0 # Completely muted sound wave floor
+	return 20.0 * (log(linear_value) / log(10.0))
+
+Here is how to add random thunder strikes with camera shake and a puddle accumulation system to your Godot 4.7 2D weather engine.To maximize efficiency, the puddle system uses a global shader variable rather than manually altering every individual ground tile.1. The Puddle Accumulation Ground ShaderApply this shader to your ground tiles, level assets, or TileMapLayer. It automatically darkens surfaces and adds a glossy, mirror-like sheen as rain falls.glslshader_type canvas_item;
+
+// Global uniform updated by our weather system
+global uniform float puddle_depth; 
+
+uniform vec4 puddle_color : source_color = vec4(0.15, 0.17, 0.2, 1.0);
+uniform float wetness_darken : hint_range(0.0, 1.0) = 0.65;
+
+void fragment() {
+    vec4 tex_color = texture(TEXTURE, UV);
+    
+    // Only accumulate puddles on upward-facing flat areas (top parts of texture)
+    float ground_top_mask = smoothstep(0.7, 0.1, UV.y);
+    float current_wetness = puddle_depth * ground_top_mask;
+    
+    // Darken the texture to simulate absorbing water
+    vec3 wet_tint = tex_color.rgb * mix(1.0, wetness_darken, current_wetness);
+    
+    // Mix in a glossy water surface shine reflection 
+    vec3 final_color = mix(wet_tint, puddle_color.rgb, current_wetness * 0.3);
+    
+    COLOR = vec4(final_color, tex_color.a);
+}
+Use code with caution.2. Upgraded Weather Controller (Thunder, Camera Shake, and Puddles)Add a Timer node named ThunderTimer to your WeatherController.tscn tree layout. Then replace your controller script with this full implementation:gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var fog_overlay: ColorRect = $FogOverlay
+@onready var canvas_modulate: CanvasModulate = $CanvasModulate
+@onready var thunder_timer: Timer = $ThunderTimer
+
+# System Parameters
+var current_puddle_depth: float = 0.0
+var target_puddle_depth: float = 0.0
+
+# Camera Shake Variables
+var shake_intensity: float = 0.0
+var camera_node: Camera2D = null
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+	thunder_timer.timeout.connect(_on_thunder_timer_timeout)
+	
+	# Automatically fetch the active level camera
+	camera_node = get_viewport().get_camera_2d()
+
+func _process(delta: float) -> void:
+	# 1. Smoothly grow or evaporate puddles over frame steps
+	current_puddle_depth = move_toward(current_puddle_depth, target_puddle_depth, 0.05 * delta)
+	RenderingServer.global_shader_parameter_set("puddle_depth", current_puddle_depth)
+	
+	# 2. Apply Camera Shake decay processing
+	if shake_intensity > 0.1 and camera_node:
+		camera_node.offset = Vector2(
+			randf_range(-shake_intensity, shake_intensity),
+			randf_range(-shake_intensity, shake_intensity)
+		)
+		shake_intensity = move_toward(shake_intensity, 0.0, 15.0 * delta)
+	elif camera_node:
+		camera_node.offset = Vector2.ZERO
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	rain_particles.emitting = (new_weather == WeatherManager.Weather.RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather.SNOW)
+	
+	# Manage thunder loops and puddle accumulation targets
+	if new_weather == WeatherManager.Weather.RAIN:
+		target_puddle_depth = 1.0
+		_schedule_next_thunder()
+	else:
+		target_puddle_depth = 0.0 # Evaporate naturally when rain stops
+		thunder_timer.stop()
+
+func _on_intensity_changed(intensity: float) -> void:
+	# Scale puddle capacity bounds based on storm size strength
+	if WeatherManager.current_weather == WeatherManager.Weather.RAIN:
+		target_puddle_depth = intensity
+		rain_particles.amount_ratio = intensity
+
+func _schedule_next_thunder() -> void:
+	# Randomize intervals between lighting strike occurrences (7 to 20 seconds)
+	thunder_timer.start(randf_range(7.0, 20.0))
+
+func _on_thunder_timer_timeout() -> void:
+	if WeatherManager.current_weather != WeatherManager.Weather.RAIN: return
+	
+	# Execute lightning flash visual and camera impact trigger
+	trigger_lightning_strike()
+	_schedule_next_thunder()
+
+func trigger_lightning_strike() -> void:
+	# 1. Flash the CanvasModulate instantly to pure bright light
+	var base_storm_color = canvas_modulate.color
+	canvas_modulate.color = Color(1.8, 1.8, 2.0, 1.0) # Overexposed white flash
+	
+	# Smoothly fade back down to normal dark storm values
+	var tween = create_tween()
+	tween.tween_property(canvas_modulate, "color", base_storm_color, randf_range(0.2, 0.5))
+	
+	# 2. Engage camera shake magnitude based on how close/heavy the storm is
+	shake_intensity = randf_range(8.0, 18.0) * WeatherManager.weather_intensi
+
+
+Here is the complete implementation for generating procedural lightning bolts using Line2D nodes, paired with a dynamic screen-flash component, and a sound manager to complete the thunder strike system.1. The Procedural Lightning ScriptCreate a script named LightningBolt.gd. This script builds a zig-zag chain of points from the sky to a target point on the ground, branching off with smaller split paths along the way.gdscriptextends Line2D
+
+func create_bolt(start_pos: Vector2, end_pos: Vector2, segments: int = 12, displacement: float = 30.0) -> void:
+	clear_points()
+	add_point(start_pos)
+	
+	var current_pos = start_pos
+	var direction = (end_pos - start_pos).normalized()
+	var total_distance = start_pos.distance_to(end_pos)
+	var segment_length = total_distance / segments
+	
+	for i in range(1, segments):
+		# Calculate progress along the main line path
+		var progress = float(i) / float(segments)
+		var target_point = start_pos + direction * (segment_length * i)
+		
+		# Add perpendicular jagged noise displacement
+		var normal = Vector2(-direction.y, direction.x)
+		var sway = randf_range(-displacement, displacement) * (1.0 - progress * 0.5)
+		var next_point = target_point + normal * sway
+		
+		add_point(next_point)
+		
+		# 15% chance to create a smaller sub-branch splitting off
+		if randf() < 0.15 and i < segments - 3:
+			_create_branch(next_point, direction, segments - i, displacement * 0.6)
+			
+	add_point(end_pos)
+	
+	# Animate the lightning bolt fading out quickly
+	var tween = create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, randf_range(0.15, 0.3)).set_trans(Tween.TRANS_EXPO)
+	tween.finished.connect(queue_free)
+
+func _create_branch(start: Vector2, main_dir: Vector2, branch_segments: int, branch_disp: float) -> void:
+	var branch_line = Line2D.new()
+	add_child(branch_line)
+	
+	# Match visual aesthetics of the main bolt
+	branch_line.width = width * 0.5
+	branch_line.default_color = default_color
+	branch_line.texture = texture
+	branch_line.texture_mode = texture_mode
+	
+	branch_line.add_point(Vector2.ZERO)
+	
+	# Veer the branch away from the main downward vector direction
+	var angle_offset = randf_range(0.3, 0.7) * (-1.0 if randf() > 0.5 else 1.0)
+	var branch_dir = main_dir.rotated(angle_offset)
+	var seg_len = 15.0
+	
+	var cur_local = Vector2.ZERO
+	for i in range(1, branch_segments / 2):
+		var normal = Vector2(-branch_dir.y, branch_dir.x)
+		var sway = randf_range(-branch_disp, branch_disp)
+		cur_local += (branch_dir * seg_len) + (normal * sway)
+		branch_line.add_point(cur_local)
+Use code with caution.2. Updating the Weather Controller Scene SetupAdd a new Node2D named LightningContainer to your scene tree to safely manage instances of the generated bolts.Scene Tree Configuration:WeatherController (Node2D)LightningContainer (Node2D)ThunderTimer (Timer)ThunderAudio (AudioStreamPlayer)(Existing nodes: RainParticles, SnowParticles, FogOverlay, CanvasModulate, WindAudio, RainAudio)3. Integrating Bolts into the Weather ControllerUpdate your WeatherController.gd script to select real targeting vectors near the player, instantiate the custom lightning geometry, and delay thunder sound effects based on distance.gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var fog_overlay: ColorRect = $FogOverlay
+@onready var canvas_modulate: CanvasModulate = $CanvasModulate
+@onready var thunder_timer: Timer = $ThunderTimer
+@onready var lightning_container: Node2D = $LightningContainer
+@onready var thunder_audio: AudioStreamPlayer = $ThunderAudio
+
+var current_puddle_depth: float = 0.0
+var target_puddle_depth: float = 0.0
+var shake_intensity: float = 0.0
+var camera_node: Camera2D = null
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+	thunder_timer.timeout.connect(_on_thunder_timer_timeout)
+	camera_node = get_viewport().get_camera_2d()
+
+func _process(delta: float) -> void:
+	current_puddle_depth = move_toward(current_puddle_depth, target_puddle_depth, 0.05 * delta)
+	RenderingServer.global_shader_parameter_set("puddle_depth", current_puddle_depth)
+	
+	if shake_intensity > 0.1 and camera_node:
+		camera_node.offset = Vector2(randf_range(-shake_intensity, shake_intensity), randf_range(-shake_intensity, shake_intensity))
+		shake_intensity = move_toward(shake_intensity, 0.0, 15.0 * delta)
+	elif camera_node:
+		camera_node.offset = Vector2.ZERO
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	rain_particles.emitting = (new_weather == WeatherManager.Weather.RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather.SNOW)
+	
+	if new_weather == WeatherManager.Weather.RAIN:
+		target_puddle_depth = 1.0
+		_schedule_next_thunder()
+	else:
+		target_puddle_depth = 0.0
+		thunder_timer.stop()
+
+func _on_intensity_changed(intensity: float) -> void:
+	if WeatherManager.current_weather == WeatherManager.Weather.RAIN:
+		target_puddle_depth = intensity
+		rain_particles.amount_ratio = intensity
+
+func _schedule_next_thunder() -> void:
+	thunder_timer.start(randf_range(6.0, 18.0))
+
+func _on_thunder_timer_timeout() -> void:
+	if WeatherManager.current_weather == WeatherManager.Weather.RAIN:
+		trigger_lightning_strike()
+		_schedule_next_thunder()
+
+func trigger_lightning_strike() -> void:
+	# 1. Determine positions relative to the camera viewport view
+	var cam_center = camera_node.global_position if camera_node else global_position
+	
+	# Determine distance (Closer strikes = brighter flash, harder shake, faster sound)
+	var strike_distance_factor = randf_range(0.1, 1.0) 
+	
+	var strike_x_offset = randf_range(-600.0, 600.0)
+	var start_sky = cam_center + Vector2(strike_x_offset - 200.0, -500.0)
+	var end_ground = cam_center + Vector2(strike_x_offset, randf_range(100.0, 300.0))
+	
+	# 2. Build the visual Line2D bolt scene element programmatically
+	var bolt = Line2D.new()
+	bolt.set_script(load("res://LightningBolt.gd")) # Make sure path matches your setup
+	lightning_container.add_child(bolt)
+	
+	# Visual styling setup
+	bolt.width = randf_range(4.0, 8.0)
+	bolt.default_color = Color(1.5, 1.7, 2.5, 1.0) # Raw overexposed HDR blue/white glow
+	
+	# Build the coordinates geometry points
+	bolt.create_bolt(start_sky, end_ground, 14, 40.0)
+	
+	# 3. Handle screen ambient lightning color flash
+	var base_storm_color = canvas_modulate.color
+	var flash_brightness = mix(2.5, 1.2, strike_distance_factor)
+	canvas_modulate.color = Color(flash_brightness, flash_brightness, flash_brightness + 0.3, 1.0)
+	
+	var tween = create_tween()
+	tween.tween_property(canvas_modulate, "color", base_storm_color, randf_range(0.15, 0.4))
+	
+	# 4. Trigger camera shake rumble
+	shake_intensity = mix(25.0, 4.0, strike_distance_factor) * WeatherManager.weather_intensity
+
+	# 5. Play delayed sound based on distance from the camera
+	var audio_delay = strike_distance_factor * 1.5
+	get_tree().create_timer(audio_delay).timeout.connect(func():
+		if thunder_audio and WeatherManager.current_weather == WeatherManager.Weather.RAIN:
+			# Alter pitch slightly so every single thunder strike feels distinct
+			thunder_audio.pitch_scale = randf_range(0.8, 1.2)
+			thunder_audio.volume_db = linear_to_db(mix(1.0, 0.2, strike_distance_factor))
+			thunder_audio.play()
+	)
+Use code with caution.4. Improving the Bolt's Glow (WorldEnvironment)To give the lightning bolts and flashes a strong neon glow effect, ensure your project handles rendering configurations correctly:Open your master map scene and select your WorldEnvironment node.In the inspector, expand the Glow category section.Check the box to switch Enabled to True.Set the Blend Mode property selector dropdown box to Additive.Set Intensity to around 1.2. Because the bolt's default_color has channel ranges pushed over 1.0 (Color(1.5, 1.7, 2.5)), Godot's built-in engine pipeline treats it as an HDR luminescent object, creating a soft bloom around the line vector segments automatically.
+
+
+The Weather Forecast HUD UI TrackerThis UI widget reads your global WeatherManager state to display the current weather icon alongside a countdown timer showing when the weather will next transition.Step A: Scene Tree Layout for WeatherHUD.tscnWeatherHUD (MarginContainer)HBoxContainerWeatherIcon (TextureRect)VBoxContainerStatusLabel (Label)TimerLabel (Label)Step B: Attach this script to your WeatherHUD node:gdscriptextends MarginContainer
+
+@onready var weather_icon: TextureRect = $HBoxContainer/WeatherIcon
+@onready var status_label: Label = $HBoxContainer/VBoxContainer/StatusLabel
+@onready var timer_label: Label = $HBoxContainer/VBoxContainer/TimerLabel
+
+# Preload your custom UI icons here
+const ICON_CLEAR = preload("res://assets/ui/weather_clear.png")
+const ICON_RAIN = preload("res://assets/ui/weather_rain.png")
+const ICON_SNOW = preload("res://assets/ui/weather_snow.png")
+const ICON_FOG = preload("res://assets/ui/weather_fog.png")
+
+var time_remaining: float = 0.0
+var tracking_timer: bool = false
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	_update_ui(WeatherManager.current_weather)
+
+func _process(delta: float) -> void:
+	if tracking_timer and time_remaining > 0.0:
+		time_remaining -= delta
+		# Format time into MM:SS
+		var minutes := int(time_remaining) / 60
+		var seconds := int(time_remaining) % 60
+		timer_label.text = "Change in: %02d:%02d" % [minutes, seconds]
+	elif tracking_timer:
+		timer_label.text = "Transitioning..."
+
+# Call this from your level manager when scheduling a future event
+func set_forecast(next_weather: String, seconds_until_change: float) -> void:
+	time_remaining = seconds_until_change
+	tracking_timer = true
+	status_label.text = "Approaching: " + next_weather
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	tracking_timer = false
+	_update_ui(new_weather)
+
+func _update_ui(weather: WeatherManager.Weather) -> void:
+	match weather:
+		WeatherManager.Weather.CLEAR:
+			status_label.text = "Weather: Clear Skies"
+			timer_label.text = "Stable"
+			weather_icon.texture = ICON_CLEAR
+		WeatherManager.Weather.RAIN:
+			status_label.text = "Weather: Heavy Rain"
+			timer_label.text = "Storm Warning"
+			weather_icon.texture = ICON_RAIN
+		WeatherManager.Weather.SNOW:
+			status_label.text = "Weather: Blizzard"
+			timer_label.text = "Freezing"
+			weather_icon.texture = ICON_SNOW
+		WeatherManager.Weather.FOG:
+			status_label.text = "Weather: Thick Fog"
+			timer_label.text = "Low Visibility"
+			weather_icon.texture = ICON_FOG
+Use code with caution.2. The Snow Build-Up Layer Canvas ShaderTo implement snow accumulation on your environment without taxing the processor, use a dedicated Canvas Item Material Shader. Apply this shader to your TileMapLayer or specific background Sprite2D structures. It analyzes the vertical texture layout and blankets upward-facing areas in pure white snow.Step A: Configure Global VariablesGo to Project -> Project Settings -> Advanced Settings -> Shader Globals.Add a new float parameter exactly named: snow_accumulation (Type: float).Step B: Create a custom shader file and paste this script:glslshader_type canvas_item;
+
+// Global uniform variable synchronized with our weather engine frame step loops
+global uniform float snow_accumulation;
+
+uniform vec4 snow_color : source_color = vec4(0.95, 0.95, 1.0, 1.0);
+uniform float snow_thickness : hint_range(0.0, 1.0) = 0.5;
+
+void fragment() {
+    vec4 base_tex = texture(TEXTURE, UV);
+    
+    // Create a sharp mask using the texture coordinates to only grab top edges
+    // High UV.y is bottom, Low UV.y is the top of your tile graphic sprite
+    float top_surface_mask = smoothstep(0.45, 0.05, UV.y);
+    
+    // Ensure snow only sticks where the base graphic asset is actually solid
+    float active_snow_weight = top_surface_mask * snow_accumulation * snow_thickness * base_tex.a;
+    
+    // Smoothly blend your original tile look with the winter white snow overlay layer
+    vec3 final_rgb = mix(base_tex.rgb, snow_color.rgb, active_snow_weight);
+    
+    COLOR = vec4(final_rgb, base_tex.a);
+}
+Use code with caution.3. Upgrading the Master Weather Controller SystemUpdate your main WeatherController.gd processing loop so it handles both the new UI tracking timelines and the shader global values. This smoothly grows snow depths during blizzards and thaws them away during clear days.gdscriptextends Node2D
+
+@onready var rain_particles: GPUParticles2D = $RainParticles
+@onready var snow_particles: GPUParticles2D = $SnowParticles
+@onready var fog_overlay: ColorRect = $FogOverlay
+@onready var canvas_modulate: CanvasModulate = $CanvasModulate
+
+# System State Ratios
+var current_snow_depth: float = 0.0
+var target_snow_depth: float = 0.0
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.intensity_changed.connect(_on_intensity_changed)
+
+func _process(delta: float) -> void:
+	# Accumulate or melt snow gradually over time frame counts
+	if WeatherManager.current_weather == WeatherManager.Weather.SNOW:
+		# Accumulate snow faster in heavier storms
+		var snow_accumulation_speed = 0.02 * WeatherManager.weather_intensity
+		current_snow_depth = move_toward(current_snow_depth, target_snow_depth, snow_accumulation_speed * delta)
+	else:
+		# Melt snow gradually when conditions clear up
+		current_snow_depth = move_toward(current_snow_depth, 0.0, 0.04 * delta)
+		
+	# Instantly pass structural settings data straight to your game shaders globally
+	RenderingServer.global_shader_parameter_set("snow_accumulation", current_snow_depth)
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	rain_particles.emitting = (new_weather == WeatherManager.Weather.RAIN)
+	snow_particles.emitting = (new_weather == WeatherManager.Weather.SNOW)
+	
+	if new_weather == WeatherManager.Weather.SNOW:
+		target_snow_depth = 1.0
+
+func _on_intensity_changed(intensity: float) -> void:
+	if WeatherManager.current_weather == WeatherManager.Weather.SNOW:
+		# Match snow depth ceiling limits directly to the weather intensity 
+		target_snow_depth = intensity
+		snow_particles.amount_ratio = intensity
+ The Automated Season & Weather Calendar SystemThis system handles time tracking, manages days, transitions between four distinct seasons, and uses weighted probabilities to choose appropriate weather patterns (e.g., higher chance of snow in winter, higher chance of clear days in summer).Replace your WeatherManager.gd Autoload script with this expanded calendar architecture:gdscriptextends Node
+
+enum Weather { CLEAR, RAIN, SNOW, FOG }
+enum Season { SPRING, SUMMER, AUTUMN, WINTER }
+
+# --- Calendar Settings ---
+const DAY_DURATION_SECONDS: float = 60.0 # Time length of one in-game day
+const DAYS_PER_SEASON: int = 10
+
+var current_day: int = 1
+var current_season: Season = Season.SPRING
+var time_elapsed_today: float = 0.0
+
+# --- Current State ---
+var current_weather: Weather = Weather.CLEAR
+var weather_intensity: float = 0.0
+var wind_velocity: Vector2 = Vector2.ZERO
+var wind_strength: float = 0.0
+
+# --- Signals ---
+signal calendar_updated(day: int, season: Season)
+signal weather_changed(new_weather: Weather)
+signal intensity_changed(value: float)
+signal wind_changed(velocity: Vector2, strength: float)
+
+func _process(delta: float) -> void:
+	_process_calendar_time(delta)
+
+func _process_calendar_time(delta: float) -> void:
+	time_elapsed_today += delta
+	if time_elapsed_today >= DAY_DURATION_SECONDS:
+		time_elapsed_today = 0.0
+		_advance_day()
+
+func _advance_day() -> void:
+	current_day += 1
+	if current_day > DAYS_PER_SEASON:
+		current_day = 1
+		_advance_season()
+	
+	calendar_updated.emit(current_day, current_season)
+	_roll_for_daily_weather()
+
+func _advance_season() -> void:
+	match current_season:
+		Season.SPRING: current_season = Season.SUMMER
+		Season.SUMMER: current_season = Season.AUTUMN
+		Season.AUTUMN: current_season = Season.WINTER
+		Season.WINTER: current_season = Season.SPRING
+
+func _roll_for_daily_weather() -> void:
+	var roll := randf()
+	var next_weather := Weather.CLEAR
+	
+	# Weighted weather probabilities per season
+	match current_season:
+		Season.SPRING:
+			if roll < 0.50: next_weather = Weather.CLEAR
+			elif roll < 0.85: next_weather = Weather.RAIN
+			else: next_weather = Weather.FOG
+		Season.SUMMER:
+			if roll < 0.85: next_weather = Weather.CLEAR
+			else: next_weather = Weather.FOG
+		Season.AUTUMN:
+			if roll < 0.40: next_weather = Weather.CLEAR
+			elif roll < 0.75: next_weather = Weather.RAIN
+			else: next_weather = Weather.FOG
+		Season.WINTER:
+			if roll < 0.30: next_weather = Weather.CLEAR
+			elif roll < 0.85: next_weather = Weather.SNOW
+			else: next_weather = Weather.FOG
+			
+	# Generate a random intensity for today's system (0.4 to 1.0)
+	var random_intensity := randf_range(0.4, 1.0)
+	transition_to(next_weather, random_intensity, 5.0)
+
+func transition_to(new_weather: Weather, target_intensity: float = 1.0, duration: float = 4.0) -> void:
+	if current_weather == new_weather and weather_intensity == target_intensity: return
+	
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(self, "weather_intensity", 0.0, duration * 0.5)
+	tween.tween_property(self, "wind_strength", 0.0, duration * 0.5)
+	await tween.finished
+	
+	current_weather = new_weather
+	weather_changed.emit(current_weather)
+	
+	var target_wind = Vector2.ZERO
+	if current_weather == Weather.RAIN: target_wind = Vector2(-280.0, 0.0)
+	elif current_weather == Weather.SNOW: target_wind = Vector2(110.0, 0.0)
+
+	var tween_in = create_tween().set_parallel(true)
+	tween_in.tween_property(self, "weather_intensity", target_intensity, duration * 0.5)
+	tween_in.tween_property(self, "wind_strength", target_intensity, duration * 0.5)
+	
+	tween_in.tween_method(func(val): 
+		intensity_changed.emit(val)
+		wind_velocity = target_wind * val
+		wind_changed.emit(wind_velocity, val)
+	, 0.0, target_intensity, duration * 0.5)
+Use code with caution.2. Slippery Surface Player Physics MechanicsThis component reads the active global shader uniforms (puddle_depth and snow_accumulation) to modify the player's acceleration, friction, and braking speed. On wet or snowy ground, the player will slide forward when stopping and struggle to change direction quickly.Update your CharacterBody2D player movement script with this integration:gdscriptextends CharacterBody2D
+
+const BASE_SPEED = 250.0
+const JUMP_VELOCITY = -400.0
+
+# --- Slippage Tuning Variables ---
+const NORMAL_ACCEL = 0.25      # Snappy acceleration (Instant response)
+const NORMAL_FRICTION = 0.20   # Crisp stopping speed
+const WET_SLIDE_FACTOR = 0.03  # Slippery braking setting for puddles
+const SNOW_SLIDE_FACTOR = 0.015 # Extra slippery drifting setting for thick snow
+
+var gravity = ProjectSettings.get_setting("physics/2d/default_gravity")
+
+func _physics_process(delta: float) -> void:
+	# Fetch values directly out of our centralized cross-scene Rendering Server Globals
+	var active_puddles: float = RenderingServer.global_shader_parameter_get("puddle_depth")
+	var active_snow: float = RenderingServer.global_shader_parameter_get("snow_accumulation")
+	
+	# 1. Apply Downward Gravity Forces
+	if not is_on_floor():
+		velocity.y += gravity * delta
+
+	# 2. Process Input Jumps
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+		velocity.y = JUMP_VELOCITY
+
+	# 3. Read Direct Horizontal Input Vector Axes
+	var direction := Input.get_axis("ui_left", "ui_right")
+	
+	# 4. Calculate Friction and Acceleration dynamically based on ground environment conditions
+	var target_accel = NORMAL_ACCEL
+	var target_friction = NORMAL_FRICTION
+	
+	if is_on_floor():
+		if active_snow > 0.1:
+			# Snow gives low acceleration traction and massive slippage drifts
+			target_accel = mix(NORMAL_ACCEL, 0.04, active_snow)
+			target_friction = mix(NORMAL_FRICTION, SNOW_SLIDE_FACTOR, active_snow)
+		elif active_puddles > 0.1:
+			# Puddles allow decent acceleration but cause hydroplaning when stopping
+			target_accel = mix(NORMAL_ACCEL, 0.12, active_puddles)
+			target_friction = mix(NORMAL_FRICTION, WET_SLIDE_FACTOR, active_puddles)
+
+	# 5. Apply Horizontal Speeds using calculated weights
+	if direction != 0:
+		# LERP acceleration logic for realistic build-up momentum profiles
+		velocity.x = lerp(velocity.x, direction * BASE_SPEED, target_accel)
+	else:
+		# LERP friction mechanics to handle sliding over icy or muddy paths cleanly
+		velocity.x = lerp(velocity.x, 0.0, target_friction)
+
+	# 6. Apply Environmental Storm Wind Drag Forces when airborne
+	if not is_on_floor():
+		velocity.x += WeatherManager.wind_velocity.x * delta * 0.4
+
+	move_and_slide()
+Use code with caution.3. Updating the Weather HUD View Tracker SceneUpdate your WeatherHUD.gd script to display both the calendar days and active season cycles alongside your existing text layers:gdscriptextends MarginContainer
+
+@onready var status_label: Label = $HBoxContainer/VBoxContainer/StatusLabel
+@onready var timer_label: Label = $HBoxContainer/VBoxContainer/TimerLabel
+
+func _ready() -> void:
+	WeatherManager.weather_changed.connect(_on_weather_changed)
+	WeatherManager.calendar_updated.connect(_on_calendar_updated)
+	_update_hud_display()
+
+func _on_calendar_updated(day: int, season: WeatherManager.Season) -> void:
+	_update_hud_display()
+
+func _on_weather_changed(new_weather: WeatherManager.Weather) -> void:
+	_update_hud_display()
+
+func _update_hud_display() -> void:
+	var season_text := ""
+	match WeatherManager.current_season:
+		WeatherManager.Season.SPRING: season_text = "Spring"
+		WeatherManager.Season.SUMMER: season_text = "Summer"
+		WeatherManager.Season.AUTUMN: season_text = "Autumn"
+		WeatherManager.Season.WINTER: season_text = "Winter"
+		
+	var weather_text := ""
+	match WeatherManager.current_weather:
+		WeatherManager.Weather.CLEAR: weather_text = "Clear"
+		WeatherManager.Weather.RAIN: weather_text = "Heavy Rain"
+		WeatherManager.Weather.SNOW: weather_text = "Blizzard Storm"
+		WeatherManager.Weather.FOG: weather_text = "Dense Fog"
+
+	status_label.text = "Season: %s | Day: %d" % [season_text, WeatherManager.current_day]
+	timer_label.text = "Condition: %s (Intensity: %d%%)" % [weather_text, int(WeatherManager.weather_intensity * 100.0)]
+Use code with caution.If you would like to expand this system into temperature tracking mechanics (like hot/cold survival gauges)
+

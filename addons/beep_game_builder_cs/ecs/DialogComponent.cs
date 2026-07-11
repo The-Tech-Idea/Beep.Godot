@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class DialogComponent : EntityComponent
+    public partial class DialogComponent : GameplayComponent
     {
         [Export(PropertyHint.MultilineText)]
         public string[] Lines { get; set; } = new[] { "Hello!" };

@@ -10,7 +10,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ModalComponent : EntityComponent
+    public partial class ModalComponent : UIComponent
     {
         [Export] public bool StartVisible { get; set; } = false;
         [Export] public Color OverlayColor { get; set; } = new(0, 0, 0, 0.5f);
@@ -20,14 +20,14 @@ namespace Beep.ECS.UI
         [Signal] public delegate void OpenedEventHandler();
         [Signal] public delegate void ClosedEventHandler();
 
-        private Control? _dialog;
+        private Godot.Control? _dialog;
         private ColorRect? _overlay;
         private Tween? _tween;
 
         public override void _Ready()
         {
             base._Ready();
-            _dialog = GetParent<Control>();
+            _dialog = GetParent() as Godot.Control;
             if (_dialog == null) return;
 
             if (!StartVisible) _dialog.Visible = false;
@@ -38,7 +38,7 @@ namespace Beep.ECS.UI
             if (_dialog == null || !IsActive) return;
 
             // Create overlay
-            _overlay = new ColorRect { Color = OverlayColor, MouseFilter = Control.MouseFilterEnum.Stop };
+            _overlay = new ColorRect { Color = OverlayColor, MouseFilter = Godot.Control.MouseFilterEnum.Stop };
             _overlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             if (CloseOnOverlayClick) _overlay.GuiInput += e => { if (e is InputEventMouseButton mb && mb.Pressed) Close(); };
 

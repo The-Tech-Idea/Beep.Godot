@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class FollowTargetComponent : EntityComponent
+    public partial class FollowTargetComponent : ControllerComponent
     {
         [Export] public NodePath? TargetPath { get; set; }
         [Export] public float FollowSpeed { get; set; } = 5f;
@@ -26,7 +26,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _parent = GetParent<Node2D>();
+            _parent = GetParent() as Node2D;
             if (TargetPath != null) SetTarget(GetNode<Node2D>(TargetPath));
             if (_target != null && SnapOnStart && _parent != null)
                 _parent.GlobalPosition = _target.GlobalPosition + Offset;

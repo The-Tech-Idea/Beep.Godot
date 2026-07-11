@@ -1,0 +1,7 @@
+{
+  "id": "cool",
+  "display_name": "Cool",
+  "hue_shift": 30,
+  "saturation_mul": 1.1,
+  "value_mul": 1.0
+}

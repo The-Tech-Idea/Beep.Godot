@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KnockbackComponent : EntityComponent
+    public partial class KnockbackComponent : GameplayComponent
     {
         [Export] public float Strength { get; set; } = 200f;
         [Export] public float Friction { get; set; } = 600f;
@@ -23,7 +23,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent<CharacterBody2D>();
+            _body = GetParent() as CharacterBody2D;
         }
 
         public void ApplyKnockback(Vector2 fromPosition)

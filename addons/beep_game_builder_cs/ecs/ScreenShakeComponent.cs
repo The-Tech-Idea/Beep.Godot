@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ScreenShakeComponent : EntityComponent
+    public partial class ScreenShakeComponent : GameplayComponent
     {
         [Export] public float DefaultIntensity { get; set; } = 5f;
         [Export] public float DefaultDuration { get; set; } = 0.3f;
@@ -23,7 +23,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _cam = GetParent<Camera2D>();
+            _cam = GetParent() as Camera2D;
         }
 
         public void Shake(float intensity = -1, float duration = -1)

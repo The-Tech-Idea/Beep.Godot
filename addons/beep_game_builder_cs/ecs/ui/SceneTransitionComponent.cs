@@ -27,12 +27,18 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            EnsureRect();
+            // Defer rect creation — adding children during _Ready can fail with
+            // "Parent node is busy setting up children" when the parent scene
+            // is still instantiating its own children.
+            CallDeferred(nameof(EnsureRect));
         }
 
         private void EnsureRect()
         {
+            if (_rect != null) return; // already created
             if (GetParent() is not Node parent) return;
+            if (!IsInsideTree()) return;
+
             _rect = new ColorRect
             {
                 Name = "TransitionRect",
@@ -42,7 +48,10 @@ namespace Beep.ECS.UI
             _rect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             _rect.OffsetLeft = _rect.OffsetTop = _rect.OffsetRight = _rect.OffsetBottom = 0;
             parent.AddChild(_rect);
-            _rect.Owner = parent;
+            // Only set owner if parent is in the scene tree (avoids "Invalid owner" error
+            // during editor tool mode when the node isn't fully in the tree yet).
+            if (parent.IsInsideTree())
+                _rect.Owner = parent.Owner;
         }
 
         public void TransitionIn()

@@ -1,0 +1,26 @@
+{
+  "id": "cardgame",
+  "display_name": "Card Game",
+  "icon": "🃏",
+  "description": "Deck building, card battles, collection and rewards",
+  "default_theme": "velvet",
+  "default_geometry": "cardgame",
+  "themes": [
+    "velvet",
+    "arcane",
+    "casino",
+    "paper",
+    "royal"
+  ],
+  "main_scene": "cardgame_main.tscn",
+  "scenes": [
+    "deck_builder.tscn",
+    "card_battle.tscn",
+    "collection.tscn"
+  ],
+  "tuning": {
+    "hand_limit": 10,
+    "card_hover_scale": 1.12,
+    "card_fan_angle": 18
+  }
+}

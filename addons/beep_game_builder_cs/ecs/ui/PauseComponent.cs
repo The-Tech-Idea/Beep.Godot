@@ -28,17 +28,18 @@ namespace Beep.ECS.UI
         [Signal] public delegate void PausedEventHandler();
         [Signal] public delegate void ResumedEventHandler();
 
-        private Godot.Control? _overlay;
+        private Node? _overlay;
 
         public override void _Ready()
         {
             base._Ready();
-            _overlay = GetParent() as Godot.Control;
+            // Accept any Node parent — both Control and CanvasLayer roots work.
+            _overlay = GetParent();
             // The overlay must run while the tree is paused.
             if (_overlay != null)
             {
                 _overlay.ProcessMode = Node.ProcessModeEnum.WhenPaused;
-                _overlay.Visible = false;
+                SetOverlayVisible(false);
             }
         }
 
@@ -62,7 +63,7 @@ namespace Beep.ECS.UI
         {
             if (!IsActive || _overlay == null) return;
             GetTree().Paused = true;
-            _overlay.Visible = true;
+            SetOverlayVisible(true);
             if (!PauseAudio) SetAudioPaused(false);
             EmitSignal(SignalName.Paused);
         }
@@ -70,9 +71,20 @@ namespace Beep.ECS.UI
         public void Resume()
         {
             if (!IsActive || _overlay == null) return;
-            _overlay.Visible = false;
+            SetOverlayVisible(false);
             GetTree().Paused = false;
             EmitSignal(SignalName.Resumed);
+        }
+
+        /// <summary>Toggle visibility on the overlay — works for both CanvasItem
+        /// (Control/Node2D) and CanvasLayer roots.</summary>
+        private void SetOverlayVisible(bool visible)
+        {
+            if (_overlay == null) return;
+            if (_overlay is CanvasItem ci)
+                ci.Visible = visible;
+            else if (_overlay is CanvasLayer cl)
+                cl.Visible = visible;
         }
 
         private void SetAudioPaused(bool paused)

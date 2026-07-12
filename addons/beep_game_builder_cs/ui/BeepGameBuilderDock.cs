@@ -40,6 +40,9 @@ public partial class BeepGameBuilderDock : VBoxContainer
     // Language.
     private OptionButton _language;
 
+    // Regen mode.
+    private OptionButton _regenMode;
+
     public override void _Ready()
     {
         Name = "Beep Game Builder";
@@ -251,6 +254,21 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private void BuildActionsSection(VBoxContainer b)
     {
         AddSectionHeader(b, "Actions");
+
+        // Regen mode selector — controls what happens to existing scenes.
+        _regenMode = AddDropdown(b, "Regen Mode");
+        _regenMode.AddItem("Skip existing (safe)", 0);
+        _regenMode.AddItem("Update unmodified only", 1);
+        _regenMode.AddItem("Overwrite all", 2);
+        _regenMode.Selected = 0;
+
+        var hint = new Label { Text = "• Skip existing: never touch files that exist\n"
+                                   + "• Update unmodified: refresh scenes you haven't edited\n"
+                                   + "• Overwrite all: replace everything (destroys edits)" };
+        hint.AddThemeFontSizeOverride("font_size", 9);
+        hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        b.AddChild(hint);
+
         AddButton(b, "▶ Generate Project", GenerateProject);
         AddButton(b, "💾 Save Settings", SaveSettings);
         AddButton(b, "🔄 Reload from game_info.tres", LoadFromGameInfo);
@@ -283,7 +301,13 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.PixelArt = _pixelArt.ButtonPressed;
 
         Log($"Generating {genre.DisplayName} project: {info.GameName}...");
-        var log = BeepGenreGenerator.CreateProject(genreId, info, overwrite: false);
+        var mode = _regenMode.Selected switch
+        {
+            1 => BeepGenreGenerator.RegenMode.UpdateUnmodified,
+            2 => BeepGenreGenerator.RegenMode.OverwriteAll,
+            _ => BeepGenreGenerator.RegenMode.SkipExisting
+        };
+        var log = BeepGenreGenerator.CreateProject(genreId, info, mode);
         foreach (var line in log) Log(line);
     }
 

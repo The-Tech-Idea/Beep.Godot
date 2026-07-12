@@ -50,20 +50,30 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 
-[node name="PlayButton" type="Button" parent="Center/MenuVBox"]
+[node name="NewGameButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
-text = "Play"
+text = "New Game"
 
 [node name="ContinueButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Continue"
 
+[node name="LoadGameButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Load Game"
+
 [node name="SettingsButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Settings"
+
+[node name="CreditsButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Credits"
 
 [node name="QuitButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
@@ -72,7 +82,7 @@ text = "Quit"
 
 [node name="Menu" type="Node" parent="."]
 script = ExtResource("1_menu")
-known_actions = ["play", "continue", "settings", "quit"]
+known_actions = ["new_game", "continue", "load_game", "settings", "credits", "quit"]
 enable_ripple = true
 
 [node name="Navigation" type="Node" parent="."]
@@ -80,7 +90,6 @@ script = ExtResource("2_nav")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("3_theme")
-preset = 1
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("4_binder")

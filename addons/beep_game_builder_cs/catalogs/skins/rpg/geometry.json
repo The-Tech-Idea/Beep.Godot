@@ -1,0 +1,47 @@
+{
+  "id": "rpg",
+  "display_name": "RPG",
+  "corner_radius": 10,
+  "border_width": 3,
+  "shadow_size": 12,
+  "shadow_offset_y": 4,
+  "content_padding": 18,
+  "font_size": 20,
+  "background_image": "res://addons/beep_game_builder_cs/textures/backgrounds/rpg_tile.png",
+  "background_mode": "tile",
+  "shapes": {
+    "panel": {
+      "shadow_reduction": 2
+    },
+    "input": {
+      "inset_x": 4,
+      "inset_y": 3,
+      "min_x": 4,
+      "min_y": 2,
+      "focus_border_min": 2
+    },
+    "progress": {
+      "corner_inset": 4,
+      "margin": 2
+    },
+    "slider": {
+      "grabber_shadow": 3,
+      "grabber_hover_shadow": 5,
+      "shadow_scale": 0.5,
+      "track_divisor": 2
+    },
+    "scrollbar": {
+      "grabber_divisor": 3,
+      "grabber_min": 3
+    },
+    "selection": {
+      "corner_divisor": 2,
+      "corner_min": 2,
+      "margin_x": 4,
+      "focus_border": 1
+    },
+    "separator": {
+      "separation": 4
+    }
+  }
+}

@@ -57,11 +57,27 @@ public partial class GameInfo : Resource
     /// "As-Authored" = use the theme's own geometry.</summary>
     [Export] public string GeometryProfileName { get; set; } = "As-Authored";
 
-    // ── Scene paths (consumed by the SceneManager autoload) ──
+    // ── Scene paths (consumed by NavigationComponent + GameFlowComponent) ──
     [Export] public string MainMenuPath { get; set; } = "res://scenes/ui/main_menu.tscn";
     [Export] public string GameScenePath { get; set; } = "res://scenes/main/main.tscn";
     [Export] public string SettingsScenePath { get; set; } = "res://scenes/ui/settings_menu.tscn";
     [Export] public string GameOverScenePath { get; set; } = "res://scenes/ui/game_over.tscn";
+
+    // ── Genre-specific scene paths (set by BeepGenreGenerator based on genre) ──
+    [ExportGroup("Genre Scenes")]
+    // Platformer
+    [Export] public string LevelSelectPath { get; set; } = "res://scenes/ui/platformer/level_select.tscn";
+    [Export] public string LevelResultsPath { get; set; } = "res://scenes/ui/platformer/level_results.tscn";
+    // Shooter
+    [Export] public string CharacterSelectPath { get; set; } = "res://scenes/ui/shooter/character_select.tscn";
+    [Export] public string LevelUpPath { get; set; } = "res://scenes/ui/shooter/level_up_choice.tscn";
+    [Export] public string RunResultsPath { get; set; } = "res://scenes/ui/shooter/run_results.tscn";
+    [Export] public string CodexPath { get; set; } = "res://scenes/ui/shooter/codex.tscn";
+    // Puzzle
+    [Export] public string LevelMapPath { get; set; } = "res://scenes/ui/puzzle/level_map.tscn";
+    [Export] public string PreLevelPath { get; set; } = "res://scenes/ui/puzzle/pre_level.tscn";
+    [Export] public string LevelCompletePath { get; set; } = "res://scenes/ui/puzzle/level_complete.tscn";
+    [Export] public string LevelFailedPath { get; set; } = "res://scenes/ui/puzzle/level_failed.tscn";
 
     // ── Genre tuning (controllers read the values relevant to them) ──
     [ExportGroup("Platformer")]
@@ -82,12 +98,11 @@ public partial class GameInfo : Resource
     /// <summary>Canonical save path for the GameInfo resource.</summary>
     public const string TresPath = "res://game_info.tres";
 
-    /// <summary>The autoloaded instance, or null if not registered.</summary>
-    public static GameInfo? Instance =>
-        Engine.GetMainLoop() is SceneTree tree
-            && tree.Root.GetNodeOrNull<GameInfo>("/root/GameInfo") is { } gi
-                ? gi
-                : null;
+    /// <summary>
+    /// The active GameInfo — loaded from game_info.tres by the GameApp autoload.
+    /// Returns GameApp.Instance?.Info, or null if GameApp hasn't loaded yet.
+    /// </summary>
+    public static GameInfo? Instance => ECS.GameApp.Instance?.Info;
 
     /// <summary>Genre → the default theme id from the file-based skin catalog's genre.json.</summary>
     public static string RecommendedTheme(GameGenre genre)

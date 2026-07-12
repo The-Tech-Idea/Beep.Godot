@@ -1,0 +1,93 @@
+{
+  "id": "parchment",
+  "display_name": "Parchment",
+  "category": "RPG",
+  "description": "Parchment UI for RPG",
+  "colors": {
+    "surface_primary": "#6E4A2BFF",
+    "surface_hover": "#815A35FF",
+    "surface_pressed": "#50341EFF",
+    "surface_disabled": "#4F443AFF",
+    "text_primary": "#F7E7C4FF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#888888FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#D3A83DFF",
+    "accent_secondary": "#FF8C59FF",
+    "border_normal": "#3A2517FF",
+    "border_hover": "#D3A83DFF",
+    "border_focus": "#D3A83DFF",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#000000AA",
+    "bg_panel": "#B98C56FF",
+    "bg_canvas": "#4A321DFF",
+    "semantic_success": "#38CC4DFF",
+    "semantic_danger": "#F23333FF",
+    "semantic_warning": "#FFBF26FF",
+    "semantic_info": "#3D99F2FF"
+  },
+  "geometry": {
+    "corner_radius": 10,
+    "border_left": 3,
+    "border_top": 3,
+    "border_right": 3,
+    "border_bottom": 3,
+    "shadow_size": 12,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 4,
+    "pad_left": 18,
+    "pad_right": 18,
+    "pad_top": 9,
+    "pad_bottom": 9,
+    "font_size": 20
+  },
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/rpg/parchment/button_normal.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/rpg/parchment/button_hover.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/rpg/parchment/button_pressed.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/rpg/parchment/panel.png",
+      "margin_left": 8,
+      "margin_top": 8,
+      "margin_right": 8,
+      "margin_bottom": 8,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    }
+  }
+}

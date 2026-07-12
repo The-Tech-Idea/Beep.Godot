@@ -1,0 +1,7 @@
+{
+  "id": "warm",
+  "display_name": "Warm",
+  "hue_shift": -20,
+  "saturation_mul": 1.15,
+  "value_mul": 1.05
+}

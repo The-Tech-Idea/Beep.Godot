@@ -1,0 +1,93 @@
+{
+  "id": "desert",
+  "display_name": "Desert",
+  "category": "Survival",
+  "description": "Desert UI for Survival",
+  "colors": {
+    "surface_primary": "#5A6042FF",
+    "surface_hover": "#6C7550FF",
+    "surface_pressed": "#414630FF",
+    "surface_disabled": "#686B5DFF",
+    "text_primary": "#F1E9D2FF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#888888FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#C58A3AFF",
+    "accent_secondary": "#879E55FF",
+    "border_normal": "#2E3324FF",
+    "border_hover": "#C58A3AFF",
+    "border_focus": "#C58A3AFF",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#000000AA",
+    "bg_panel": "#3E4430FF",
+    "bg_canvas": "#252A1EFF",
+    "semantic_success": "#38CC4DFF",
+    "semantic_danger": "#F23333FF",
+    "semantic_warning": "#FFBF26FF",
+    "semantic_info": "#3D99F2FF"
+  },
+  "geometry": {
+    "corner_radius": 5,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 10,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 3,
+    "pad_left": 14,
+    "pad_right": 14,
+    "pad_top": 8,
+    "pad_bottom": 8,
+    "font_size": 18
+  },
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/survival/desert/button_normal.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/survival/desert/button_hover.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/survival/desert/button_pressed.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/survival/desert/panel.png",
+      "margin_left": 8,
+      "margin_top": 8,
+      "margin_right": 8,
+      "margin_bottom": 8,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    }
+  }
+}

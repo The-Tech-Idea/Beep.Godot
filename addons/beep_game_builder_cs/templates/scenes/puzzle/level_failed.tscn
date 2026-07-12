@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [node name="LevelFailed" type="CanvasLayer"]
 layer = 20
 
@@ -72,9 +73,12 @@ metadata/action = "retry"
 script = ExtResource("1_menu")
 enable_ripple = true
 
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("4_nav")
+
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("2_theme")
-preset = 21
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("3_binder")

@@ -3,66 +3,186 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Scene navigation component. Attach as a child of any node that needs to
-    /// drive scene transitions (menus, game-over screens, pause overlays).
+    /// Scene navigation component. Attach as a child of any node that drives
+    /// scene transitions (menus, game-over screens, pause overlays).
     ///
-    /// Reads the canonical scene paths from the <c>GameInfo</c> autoload
-    /// (res://game_info.tres, registered by BeepGenreGenerator) so paths live in
-    /// ONE place. Emits <see cref="BeforeNavigate"/> before switching, giving a
-    /// transition component (e.g. SceneTransitionComponent) a chance to animate.
+    /// ALL navigation targets are EXPORTED paths — set them in the inspector
+    /// per-scene (the Godot way). No hardcoded routing. Every action maps to
+    /// one exported path. Leave a path empty to disable that action.
     ///
-    /// Designed to be driven by a <c>MenuComponent.ActionTriggered</c> signal:
-    /// connect action "play" → <see cref="GoToGame"/>, "quit" → <see cref="Quit"/>, etc.
+    /// Designed to be driven by a MenuComponent.ActionTriggered signal:
+    /// the menu emits "play", this component navigates to the GameScene path.
+    ///
+    /// Unhandled actions (e.g. "level_1", "char_marine") fire the
+    /// UnhandledAction signal so the game scene can implement custom logic.
     /// </summary>
     [Tool]
     [GlobalClass]
     public partial class NavigationComponent : GameplayComponent
     {
-        /// <summary>If true and GameInfo is present, use its paths instead of the exported fields below.</summary>
-        [Export] public bool UseGameInfoPaths { get; set; } = true;
+        // ════════════════════════════════════════════════════════════════
+        //  Exported navigation targets — set in the inspector per scene.
+        //  Empty string = action disabled (navigates to nothing).
+        // ════════════════════════════════════════════════════════════════
 
-        [Export] public string MainMenuPath { get; set; } = "res://scenes/ui/main_menu.tscn";
-        [Export] public string GamePath { get; set; } = "res://scenes/main/main.tscn";
-        [Export] public string GameOverPath { get; set; } = "res://scenes/ui/game_over.tscn";
+        [ExportGroup("Core Scenes")]
+        /// <summary>Drag a .tscn here. Scene to load for "new_game" / "play" / "continue".</summary>
+        [Export] public PackedScene? GameScene { get; set; }
+        /// <summary>Drag a .tscn here. Scene to load for "menu" / "main_menu".</summary>
+        [Export] public PackedScene? MainMenu { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "settings". Pushed as overlay (GoBack returns).</summary>
+        [Export] public PackedScene? Settings { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "game_over".</summary>
+        [Export] public PackedScene? GameOver { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "credits". Pushed as overlay.</summary>
+        [Export] public PackedScene? Credits { get; set; }
+
+        [ExportGroup("Level Flow")]
+        /// <summary>Drag a .tscn here. Scene for "map" / "level_select" / "level_map".</summary>
+        [Export] public PackedScene? LevelSelect { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "next" (next level / results).</summary>
+        [Export] public PackedScene? NextLevel { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "results" / "run_results".</summary>
+        [Export] public PackedScene? Results { get; set; }
+
+        [ExportGroup("Genre Scenes")]
+        /// <summary>Drag a .tscn here. Scene for "character_select" (shooter).</summary>
+        [Export] public PackedScene? CharacterSelect { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "level_up" (shooter).</summary>
+        [Export] public PackedScene? LevelUp { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "codex" (shooter).</summary>
+        [Export] public PackedScene? Codex { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "pre_level" (puzzle).</summary>
+        [Export] public PackedScene? PreLevel { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "level_complete" (puzzle/platformer).</summary>
+        [Export] public PackedScene? LevelComplete { get; set; }
+        /// <summary>Drag a .tscn here. Scene for "level_failed" (puzzle).</summary>
+        [Export] public PackedScene? LevelFailed { get; set; }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Signals
+        // ════════════════════════════════════════════════════════════════
 
         /// <summary>Emitted before a scene switch. Connect a transition/animation here.</summary>
         [Signal] public delegate void BeforeNavigateEventHandler(string toScene);
+        /// <summary>Emitted for "load_game". Connect to show save-slot UI.</summary>
+        [Signal] public delegate void LoadGameRequestedEventHandler();
+        /// <summary>Emitted for "save_game". Connect to show save-slot UI.</summary>
+        [Signal] public delegate void SaveGameRequestedEventHandler();
+        /// <summary>Emitted for "resume" in a pause menu.</summary>
+        [Signal] public delegate void ResumeRequestedEventHandler();
+        /// <summary>Emitted for any action that has no exported path set.
+        /// Connect to handle genre-specific actions like "level_1", "char_marine".</summary>
+        [Signal] public delegate void UnhandledActionEventHandler(string action);
 
-        /// <summary>Dispatch a named action to a navigation target. Actions: play, continue, menu, restart, quit.</summary>
+        // ════════════════════════════════════════════════════════════════
+        //  Dispatch — maps action strings to exported paths
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Dispatch a named action. Each action maps to an exported path variable.
+        /// If the path is empty, the action fires UnhandledAction instead.
+        /// Actions: new_game, play, continue, menu, main_menu, settings, game_over,
+        /// credits, map, next, results, character_select, level_up, codex,
+        /// pre_level, level_complete, level_failed, load_game, save_game,
+        /// resume, restart, retry, close, back, quit, exit.
+        /// </summary>
         public void Dispatch(string action)
         {
             if (!IsActive) return;
             switch (action)
             {
-                case "play": case "continue": case "start_game": GoToGame(); break;
-                case "menu": case "main_menu": GoToMainMenu(); break;
+                // ── Start game ──
+                case "new_game": case "play": case "continue": case "start_game":
+                    NavigateTo(GameScene, action); break;
+                // ── Menus ──
+                case "menu": case "main_menu":
+                    NavigateTo(MainMenu, action); break;
+                case "settings":
+                    PushTo(Settings, action); break;
+                case "credits":
+                    PushTo(Credits, action); break;
+                // ── Level flow ──
+                case "map": case "world_map": case "level_select": case "level_map":
+                    NavigateTo(LevelSelect, action); break;
+                case "next":
+                    NavigateTo(NextLevel, action); break;
+                case "results": case "run_results":
+                    NavigateTo(Results, action); break;
+                // ── Genre scenes ──
+                case "character_select":
+                    NavigateTo(CharacterSelect, action); break;
+                case "level_up":
+                    NavigateTo(LevelUp, action); break;
+                case "codex":
+                    NavigateTo(Codex, action); break;
+                case "pre_level":
+                    NavigateTo(PreLevel, action); break;
+                case "level_complete":
+                    NavigateTo(LevelComplete, action); break;
+                case "level_failed":
+                    NavigateTo(LevelFailed, action); break;
+                // ── Signals (no scene change) ──
+                case "load_game": EmitSignal(SignalName.LoadGameRequested); break;
+                case "save_game": EmitSignal(SignalName.SaveGameRequested); break;
+                case "resume": EmitSignal(SignalName.ResumeRequested); break;
+                // ── System ──
                 case "restart": case "retry": Restart(); break;
-                case "game_over": GoToGameOver(); break;
+                case "game_over": NavigateTo(GameOver, action); break;
+                case "close": case "back": GoBack(); break;
                 case "quit": case "exit": Quit(); break;
+                // ── Anything else ──
+                default: EmitSignal(SignalName.UnhandledAction, action); break;
             }
         }
 
-        public void GoToMainMenu() => ChangeScene(ResolvePath(MainMenuPath, g => g.MainMenuPath));
-        public void GoToGame() => ChangeScene(ResolvePath(GamePath, g => g.GameScenePath));
-        public void GoToGameOver() => ChangeScene(ResolvePath(GameOverPath, g => g.GameOverScenePath));
-        public void Restart() { if (!IsActive) return; EmitSignal(SignalName.BeforeNavigate, GetTree().CurrentScene.SceneFilePath); GetTree().ReloadCurrentScene(); }
+        // ════════════════════════════════════════════════════════════════
+        //  Navigation helpers
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Navigate to a PackedScene. If null, fire UnhandledAction.</summary>
+        private void NavigateTo(PackedScene? scene, string action)
+        {
+            if (scene != null)
+                ChangeScene(scene);
+            else
+                EmitSignal(SignalName.UnhandledAction, action);
+        }
+
+        /// <summary>Push a scene as an overlay (GoBack returns). If null, fire UnhandledAction.</summary>
+        private void PushTo(PackedScene? scene, string action)
+        {
+            if (scene != null)
+                PushScene(scene);
+            else
+                EmitSignal(SignalName.UnhandledAction, action);
+        }
+
+        public void Restart()
+        {
+            if (!IsActive) return;
+            EmitSignal(SignalName.BeforeNavigate, GetTree().CurrentScene.SceneFilePath);
+            GetTree().ReloadCurrentScene();
+        }
+
         public void Quit() { if (!IsActive) return; GetTree().Quit(); }
 
-        // Pending scene change, held while a SceneTransitionComponent fades in.
-        private string? _pendingPath;
+        // ── Scene change mechanics ──
 
-        private void ChangeScene(string path)
+        private PackedScene? _pendingScene;
+
+        private void ChangeScene(PackedScene scene)
         {
-            if (string.IsNullOrEmpty(path)) return;
+            if (scene == null) return;
+            string path = scene.ResourcePath;
             EmitSignal(SignalName.BeforeNavigate, path);
 
             // If a sibling SceneTransitionComponent exists, gate the scene change
-            // behind its fade-in: play TransitionIn, then change scene on Finished.
-            // This makes transitions OPTIONAL — no transition component = instant change.
+            // behind its fade-in. No transition component = instant change.
             var transition = FindSibling<UI.SceneTransitionComponent>();
             if (transition != null)
             {
-                _pendingPath = path;
+                _pendingScene = scene;
                 transition.Finished -= OnTransitionFinished;
                 transition.Finished += OnTransitionFinished;
                 transition.TransitionIn();
@@ -75,10 +195,10 @@ namespace Beep.ECS
 
         private void OnTransitionFinished()
         {
-            if (_pendingPath == null) return;
-            string p = _pendingPath;
-            _pendingPath = null;
-            GetTree().ChangeSceneToFile(p);
+            if (_pendingScene == null) return;
+            var scene = _pendingScene;
+            _pendingScene = null;
+            GetTree().ChangeSceneToFile(scene.ResourcePath);
         }
 
         /// <summary>Find a component of type T among this node's siblings (same parent).</summary>
@@ -90,18 +210,16 @@ namespace Beep.ECS
             return null;
         }
 
-        // ── Scene history stack (P5) ──
+        // ── Scene history stack (for PushScene / GoBack) ──
         private readonly System.Collections.Generic.Stack<string> _history = new();
-        private static readonly System.Collections.Generic.List<Node> _additiveScenes = new();
 
-        /// <summary>Push the current scene onto the history stack, then change to a new scene.
-        /// Call GoBack() to return.</summary>
-        public void PushScene(string path)
+        /// <summary>Push the current scene onto the history stack, then change to a new scene.</summary>
+        public void PushScene(PackedScene scene)
         {
             if (!IsActive) return;
             var current = GetTree().CurrentScene;
             if (current != null) _history.Push(current.SceneFilePath);
-            ChangeScene(path);
+            ChangeScene(scene);
         }
 
         /// <summary>Pop the last pushed scene and return to it.</summary>
@@ -109,51 +227,10 @@ namespace Beep.ECS
         {
             if (!IsActive || _history.Count == 0) return;
             string prev = _history.Pop();
-            ChangeScene(prev);
+            EmitSignal(SignalName.BeforeNavigate, prev);
+            GetTree().ChangeSceneToFile(prev);
         }
 
-        /// <summary>True if there's a scene to go back to.</summary>
         public bool CanGoBack => _history.Count > 0;
-
-        /// <summary>Load a scene additively (instance it as a child of the current scene root,
-        /// without replacing the current scene). Returns the instanced root, or null.</summary>
-        public Node? LoadSceneAdditive(string path)
-        {
-            if (!IsActive || string.IsNullOrEmpty(path)) return null;
-            var packed = ResourceLoader.Load<PackedScene>(path);
-            if (packed == null) return null;
-            var inst = packed.Instantiate();
-            GetTree().CurrentScene.AddChild(inst);
-            _additiveScenes.Add(inst);
-            return inst;
-        }
-
-        /// <summary>Unload a previously additively-loaded scene instance.</summary>
-        public void UnloadAdditiveScene(Node instance)
-        {
-            if (instance == null || !GodotObject.IsInstanceValid(instance)) return;
-            _additiveScenes.Remove(instance);
-            instance.QueueFree();
-        }
-
-        /// <summary>Unload ALL additively-loaded scenes.</summary>
-        public void UnloadAllAdditiveScenes()
-        {
-            foreach (var s in _additiveScenes)
-                if (GodotObject.IsInstanceValid(s)) s.QueueFree();
-            _additiveScenes.Clear();
-        }
-
-        private string ResolvePath(string fallback, System.Func<GameBuilder.GameInfo, string> selector)
-        {
-            if (!UseGameInfoPaths) return fallback;
-            var info = GameBuilder.GameInfo.Instance;
-            if (info != null)
-            {
-                string p = selector(info);
-                if (!string.IsNullOrEmpty(p)) return p;
-            }
-            return fallback;
-        }
     }
 }

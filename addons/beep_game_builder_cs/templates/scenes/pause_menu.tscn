@@ -38,6 +38,12 @@ horizontal_alignment = 1
 [node name="ResumeButton" type="Button" parent="Panel/PauseVBox"]
 text = "Resume"
 
+[node name="SaveGameButton" type="Button" parent="Panel/PauseVBox"]
+text = "Save Game"
+
+[node name="LoadGameButton" type="Button" parent="Panel/PauseVBox"]
+text = "Load Game"
+
 [node name="SettingsButton" type="Button" parent="Panel/PauseVBox"]
 text = "Settings"
 
@@ -55,7 +61,7 @@ script = ExtResource("1_pause")
 
 [node name="Menu" type="Node" parent="."]
 script = ExtResource("2_menu")
-known_actions = ["resume", "settings", "restart", "menu", "quit"]
+known_actions = ["resume", "save_game", "load_game", "settings", "restart", "menu", "main_menu", "quit"]
 enable_ripple = true
 
 [node name="Navigation" type="Node" parent="."]
@@ -63,7 +69,6 @@ script = ExtResource("3_nav")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("4_theme")
-preset = 1
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("5_binder")

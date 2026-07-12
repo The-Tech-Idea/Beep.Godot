@@ -14,7 +14,9 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
         _dock = new BeepGameBuilderDock { EditorPlugin = this };
         AddControlToDock(DockSlot.RightUl, _dock);
 
-        TryEnableMcpBridge();
+        // Defer MCP bridge setup — adding children during _EnterTree can fail
+        // with "Parent node is busy setting up children" in some editor states.
+        CallDeferred(nameof(TryEnableMcpBridge));
 
         GD.Print("[Beep Game Builder] Plugin enabled.");
     }

@@ -73,8 +73,8 @@ namespace Beep.ECS
                 GetTree().ChangeSceneToFile(target);
                 return;
             }
-            if (GoToMenuAfterBoot) nav.GoToMainMenu();
-            else nav.GoToGame();
+            if (GoToMenuAfterBoot) nav.Dispatch("main_menu");
+            else nav.Dispatch("play");
         }
     }
 }

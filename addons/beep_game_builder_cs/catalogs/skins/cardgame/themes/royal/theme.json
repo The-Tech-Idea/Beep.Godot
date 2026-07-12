@@ -1,0 +1,93 @@
+{
+  "id": "royal",
+  "display_name": "Royal",
+  "category": "Card Game",
+  "description": "Royal UI for Card Game",
+  "colors": {
+    "surface_primary": "#F4E8CCFF",
+    "surface_hover": "#FFF5DEFF",
+    "surface_pressed": "#D8C59FFF",
+    "surface_disabled": "#B9AF9AFF",
+    "text_primary": "#2A2117FF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#888888FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#D5A53DFF",
+    "accent_secondary": "#8B1E2DFF",
+    "border_normal": "#4C3424FF",
+    "border_hover": "#D5A53DFF",
+    "border_focus": "#D5A53DFF",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#000000AA",
+    "bg_panel": "#174C36FF",
+    "bg_canvas": "#0D3425FF",
+    "semantic_success": "#38CC4DFF",
+    "semantic_danger": "#F23333FF",
+    "semantic_warning": "#FFBF26FF",
+    "semantic_info": "#3D99F2FF"
+  },
+  "geometry": {
+    "corner_radius": 14,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 16,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 6,
+    "pad_left": 20,
+    "pad_right": 20,
+    "pad_top": 10,
+    "pad_bottom": 10,
+    "font_size": 19
+  },
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/cardgame/royal/button_normal.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/cardgame/royal/button_hover.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/cardgame/royal/button_pressed.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/cardgame/royal/panel.png",
+      "margin_left": 8,
+      "margin_top": 8,
+      "margin_right": 8,
+      "margin_bottom": 8,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    }
+  }
+}

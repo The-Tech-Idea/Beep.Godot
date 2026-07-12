@@ -28,16 +28,16 @@ namespace Beep.ECS.UI
         /// source is unavailable. Skips texture resolution entirely when
         /// <paramref name="nodeTypeEnabled"/> is false (per-node toggle) or the
         /// master <see cref="UseTextures"/> is off.</summary>
-        private StyleBox SkinOr(bool nodeTypeEnabled, StyleBox? jsonTex, string? skinPath, StyleBoxFlat procedural)
+        private StyleBox SkinOr(bool nodeTypeEnabled, StyleBox? jsonTex, Texture2D? skinTex, StyleBoxFlat procedural)
         {
             if (UseTextures && nodeTypeEnabled)
             {
                 // 1. JSON-driven texture wins when set (per-slot override).
                 if (jsonTex != null) return jsonTex;
-                // 2. Inspector UISkin fills slots the JSON omits.
-                if (_skin != null && _skin.HasTextures && !string.IsNullOrEmpty(skinPath))
+                // 2. Inspector UISkin texture (drag-and-drop Texture2D).
+                if (skinTex != null && _skin != null && _skin.HasTextures)
                 {
-                    var sb = _skin.BuildStyleBox(skinPath);
+                    var sb = _skin.BuildStyleBox(skinTex);
                     if (sb != null) return sb;
                 }
             }

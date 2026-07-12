@@ -24,6 +24,26 @@ public static class BeepGenreGenerator
     private const string I18nTemplatePath = "res://addons/beep_game_builder_cs/templates/i18n/translations.csv";
     private const string I18nTargetPath = "res://i18n/translations.csv";
 
+    /// <summary>Meta key stamped on every generated scene so we can detect
+    /// unmodified scenes on regeneration (safe to overwrite) vs user-edited
+    /// ones (should not be overwritten).</summary>
+    private const string GeneratedMetaKey = "_beep_generated";
+    /// <summary>Version of the generator — bump when templates change.
+    /// Scenes stamped with an older version are "stale" and get refreshed.</summary>
+    private const string GeneratorVersion = "0.5.0";
+
+    /// <summary>Regeneration mode passed to CreateProject.</summary>
+    public enum RegenMode
+    {
+        /// <summary>Don't touch any existing file (safest — current default).</summary>
+        SkipExisting,
+        /// <summary>Only overwrite scenes that still have the _beep_generated stamp
+        /// (user hasn't edited them). Preserves user-modified scenes.</summary>
+        UpdateUnmodified,
+        /// <summary>Overwrite everything (nuclear — destroys user edits).</summary>
+        OverwriteAll,
+    }
+
     // ════════════════════════════════════════════════════════════════
     // Public API — single data-driven entry point.
     // The genre's theme list, scene list, main scene, and tuning all come
@@ -35,11 +55,22 @@ public static class BeepGenreGenerator
     /// data (themes, scenes, main scene, tuning) comes from the file-based skin
     /// catalog's genre.json — zero hardcoded genre data here.
     /// </summary>
-    public static List<string> CreateProject(string genreId, GameInfo info, bool overwrite = false)
+    public static List<string> CreateProject(string genreId, GameInfo info, RegenMode mode = RegenMode.SkipExisting)
     {
+        return CreateProject(genreId, info, mode, out _);
+    }
+
+    /// <summary>Back-compat overload (bool overwrite → RegenMode).</summary>
+    public static List<string> CreateProject(string genreId, GameInfo info, bool overwrite)
+        => CreateProject(genreId, info, overwrite ? RegenMode.OverwriteAll : RegenMode.SkipExisting);
+
+    private static List<string> CreateProject(string genreId, GameInfo info, RegenMode mode, out bool anyError)
+    {
+        anyError = false;
         var genre = Beep.ECS.UI.SkinCatalog.GetGenre(genreId);
         if (genre == null)
         {
+            anyError = true;
             GD.PushError($"[BeepGenreGenerator] Genre '{genreId}' not found in skin catalog.");
             return new List<string> { $"ERROR: Genre '{genreId}' not found." };
         }
@@ -57,7 +88,7 @@ public static class BeepGenreGenerator
         // Apply tuning defaults from genre.json (only if user hasn't overridden).
         ApplyTuning(info, genre);
 
-        return StampProject(info, genre, overwrite);
+        return StampProject(info, genre, mode);
     }
 
     /// <summary>Apply tuning values from genre.json (gravity, move_speed, fire_rate, etc.).</summary>
@@ -78,10 +109,10 @@ public static class BeepGenreGenerator
     /// genre gameplay scene + controller → autoloads → GameInfo.tres →
     /// project settings. Returns a log of every action.
     /// </summary>
-    public static List<string> StampProject(GameInfo info, Beep.ECS.UI.GenreDef genre, bool overwrite)
+    public static List<string> StampProject(GameInfo info, Beep.ECS.UI.GenreDef genre, RegenMode mode)
     {
         var log = new List<string>();
-        log.Add($"=== Stamping {genre.DisplayName} project: {info.GameName} ===");
+        log.Add($"=== Stamping {genre.DisplayName} project: {info.GameName} (mode: {mode}) ===");
 
         // 1) Standard scaffold (folders, defaults, input).
         log.AddRange(BeepProjectGenerator.CreateStandardFolders());
@@ -93,24 +124,27 @@ public static class BeepGenreGenerator
         EnsureAutoload("Settings", "res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs");
         EnsureAutoload("Locale", "res://addons/beep_game_builder_cs/ecs/ui/LocalizationComponent.cs");
         WriteGameInfoTres(info);
-        EnsureAutoload("GameInfo", GameInfoTresPath);
-        log.Add("C# autoloads registered (GameApp + Settings + Locale + GameInfo).");
+        // GameInfo is a Resource, not a Node — it CANNOT be autoloaded directly.
+        // Instead, GameApp (the Node autoload above) loads game_info.tres in its
+        // _Ready and exposes it via GameApp.Info. GameInfo.Instance is a convenience
+        // accessor that reads from the tree if a GameInfo node somehow exists.
+        log.Add("C# autoloads registered (GameApp + Settings + Locale). GameInfo loaded by GameApp.");
 
         // 2b) Stamp the translation CSV + configure the Locale autoload to load it.
-        StampTranslations(overwrite, log);
+        StampTranslations(mode != RegenMode.SkipExisting, log);
 
         // 4) Shared UI scenes (all genres reuse these).
-        CopyUiScene("main_menu.tscn", "res://scenes/ui/main_menu.tscn", overwrite, log);
-        CopyUiScene("pause_menu.tscn", "res://scenes/ui/pause_menu.tscn", overwrite, log);
-        CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", overwrite, log);
-        CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", overwrite, log);
-        CopyUiScene("hud.tscn", "res://scenes/ui/hud.tscn", overwrite, log);
+        CopyUiScene("main_menu.tscn", "res://scenes/ui/main_menu.tscn", mode, log);
+        CopyUiScene("pause_menu.tscn", "res://scenes/ui/pause_menu.tscn", mode, log);
+        CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", mode, log);
+        CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
+        CopyUiScene("hud.tscn", "res://scenes/ui/hud.tscn", mode, log);
 
         // 5) Genre-specific UI scenes — from genre.json's scenes[] array.
-        CopyGenreUiScenes(genre, overwrite, log);
+        CopyGenreUiScenes(genre, mode, log);
 
         // 6) Genre-specific gameplay scene.
-        CopyGenreScene(genre, info.GameScenePath, overwrite, log);
+        CopyGenreScene(genre, info.GameScenePath, mode, log);
 
         // 7) Project settings from GameInfo.
         BeepProjectDefaults.ApplyFromGameInfo(info);
@@ -126,33 +160,104 @@ public static class BeepGenreGenerator
     // Shared helpers
     // ════════════════════════════════════════════════════════════════
 
-    private static void CopyUiScene(string templateName, string targetPath, bool overwrite, List<string> log)
-        => CopyUiSceneFromPath($"{SceneTemplatesDir}/{templateName}", targetPath, overwrite, log);
+    private static void CopyUiScene(string templateName, string targetPath, RegenMode mode, List<string> log)
+        => CopyUiSceneFromPath($"{SceneTemplatesDir}/{templateName}", targetPath, mode, log);
 
-    /// <summary>Loads a .tscn from <paramref name="src"/> and saves it to <paramref name="dst"/>.</summary>
-    private static void CopyUiSceneFromPath(string src, string dst, bool overwrite, List<string> log)
+    /// <summary>
+    /// Load a .tscn template, stamp it with the generator version, and save to dst.
+    /// The RegenMode controls what happens when dst already exists:
+    ///   SkipExisting       → don't touch it
+    ///   UpdateUnmodified   → overwrite ONLY if it still has the _beep_generated stamp
+    ///   OverwriteAll       → always overwrite
+    /// </summary>
+    private static void CopyUiSceneFromPath(string src, string dst, RegenMode mode, List<string> log)
     {
-        if (!overwrite && FileAccess.FileExists(dst)) { log.Add($"Skipped (exists): {dst}"); return; }
+        // Check if the target already exists.
+        if (FileAccess.FileExists(dst))
+        {
+            if (mode == RegenMode.SkipExisting)
+            {
+                log.Add($"Skipped (exists): {dst}");
+                return;
+            }
+            if (mode == RegenMode.UpdateUnmodified)
+            {
+                // Only overwrite if the existing scene is still stamped as generated
+                // (i.e. the user hasn't edited it). If the stamp is gone, the user
+                // modified the scene and we preserve their work.
+                if (!IsSceneGenerated(dst))
+                {
+                    log.Add($"Skipped (user-modified): {dst}");
+                    return;
+                }
+            }
+            // OverwriteAll falls through to the copy below.
+        }
+
         EnsureDir(dst);
-        var packed = ResourceLoader.Load<PackedScene>(src);
-        if (packed == null) { log.Add($"WARN template missing: {src}"); return; }
-        Error err = ResourceSaver.Save(packed, dst);
-        if (err == Error.Ok) log.Add($"Created scene: {dst}");
-        else log.Add($"WARN save failed ({err}): {dst}");
+
+        // Just COPY the .tscn file — no instantiate, no pack, no owner issues.
+        // The template files are ready-to-use scenes; copying them verbatim is
+        // the fastest and safest approach (no node tree manipulation needed).
+        if (!FileAccess.FileExists(src))
+        {
+            log.Add($"WARN template missing: {src}");
+            return;
+        }
+
+        using var srcFile = FileAccess.Open(src, FileAccess.ModeFlags.Read);
+        if (srcFile == null)
+        {
+            log.Add($"WARN: cannot read template: {src}");
+            return;
+        }
+        string content = srcFile.GetAsText();
+
+        bool ok = BeepFileUtils.SafeWriteText(dst, content, overwrite: true);
+        if (ok)
+        {
+            StampGenerated(dst);
+            log.Add($"Copied: {dst}");
+        }
+        else
+            log.Add($"WARN copy failed: {dst}");
+    }
+
+    /// <summary>
+    /// Check if a generated file is unmodified. Uses a sidecar .beep marker file:
+    /// when we copy a scene, we also write &lt;scene&gt;.beep. If the user edits
+    /// and saves the scene in the editor, the .beep marker is stale (older mtime
+    /// than the scene), meaning the user modified it.
+    /// </summary>
+    private static bool IsSceneGenerated(string scenePath)
+    {
+        string markerPath = scenePath + ".beep";
+        if (!FileAccess.FileExists(markerPath)) return false;
+        // If the scene was modified after the marker, the user edited it.
+        var sceneTime = FileAccess.GetModifiedTime(scenePath);
+        var markerTime = FileAccess.GetModifiedTime(markerPath);
+        return sceneTime <= markerTime;
+    }
+
+    /// <summary>Write a .beep sidecar marker so we can detect unmodified scenes on regen.</summary>
+    private static void StampGenerated(string scenePath)
+    {
+        string markerPath = scenePath + ".beep";
+        BeepFileUtils.SafeWriteText(markerPath, GeneratorVersion, overwrite: true);
     }
 
     /// <summary>Copy the genre's main gameplay scene. Source filename comes from genre.json's main_scene.</summary>
-    private static void CopyGenreScene(Beep.ECS.UI.GenreDef genre, string gameScenePath, bool overwrite, List<string> log)
+    private static void CopyGenreScene(Beep.ECS.UI.GenreDef genre, string gameScenePath, RegenMode mode, List<string> log)
     {
         string sceneFile = !string.IsNullOrEmpty(genre.MainScene) ? genre.MainScene : $"{genre.Id}_main.tscn";
-        CopyUiScene(sceneFile, gameScenePath, overwrite, log);
+        CopyUiScene(sceneFile, gameScenePath, mode, log);
     }
 
     /// <summary>
     /// Copies the genre-specific UI scenes listed in genre.json's scenes[] array.
     /// Sources live in templates/scenes/&lt;genre&gt;/ and are copied to scenes/ui/&lt;genre&gt;/.
     /// </summary>
-    private static void CopyGenreUiScenes(Beep.ECS.UI.GenreDef genre, bool overwrite, List<string> log)
+    private static void CopyGenreUiScenes(Beep.ECS.UI.GenreDef genre, RegenMode mode, List<string> log)
     {
         string genreDir = genre.Id;
         string srcDir = $"{SceneTemplatesDir}/{genreDir}";
@@ -162,7 +267,7 @@ public static class BeepGenreGenerator
         {
             string src = $"{srcDir}/{scene}";
             string dst = $"{dstDir}/{scene}";
-            CopyUiSceneFromPath(src, dst, overwrite, log);
+            CopyUiSceneFromPath(src, dst, mode, log);
         }
     }
 

@@ -1,0 +1,26 @@
+{
+  "id": "racing",
+  "display_name": "Racing",
+  "icon": "🏁",
+  "description": "Race HUD, lap counters, garage and vehicle selection",
+  "default_theme": "neon",
+  "default_geometry": "racing",
+  "themes": [
+    "neon",
+    "motorsport",
+    "street",
+    "arcade",
+    "carbon"
+  ],
+  "main_scene": "racing_main.tscn",
+  "scenes": [
+    "garage.tscn",
+    "vehicle_select.tscn",
+    "race_results.tscn"
+  ],
+  "tuning": {
+    "speedometer_max": 320,
+    "lap_count": 3,
+    "hud_safe_margin": 24
+  }
+}

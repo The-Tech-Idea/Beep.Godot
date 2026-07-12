@@ -19,6 +19,15 @@ namespace Beep.ECS
         [Export] public int TargetScore { get; set; } = 1000;
         [Export] public bool AutoLoseOnZeroLives { get; set; } = true;
 
+        /// <summary>When true, GameOver/LevelComplete signals automatically change
+        /// the scene to the configured GameOver/LevelComplete paths from GameInfo.
+        /// Set false if you want to handle the signal yourself (e.g. custom animation first).</summary>
+        [Export] public bool AutoNavigateOnEnd { get; set; } = true;
+
+        /// <summary>Delay (seconds) before navigating after GameOver/LevelComplete fires.
+        /// Gives time for death animations, particle bursts, etc.</summary>
+        [Export] public float NavigateDelay { get; set; } = 0f;
+
         [Signal] public delegate void ScoreChangedEventHandler(int score);
         [Signal] public delegate void LivesChangedEventHandler(int lives);
         [Signal] public delegate void GameOverEventHandler();
@@ -30,6 +39,12 @@ namespace Beep.ECS
             // Seed from GameInfo tuning if available (target score, etc.).
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) TargetScore = info.TargetScore;
+            // Auto-wire GameOver/LevelComplete to scene transitions.
+            if (AutoNavigateOnEnd)
+            {
+                GameOver += OnGameOver;
+                LevelComplete += OnLevelComplete;
+            }
         }
 
         public void AddScore(int amount)
@@ -67,5 +82,47 @@ namespace Beep.ECS
 
         public void TriggerGameOver() => EmitSignal(SignalName.GameOver);
         public void TriggerLevelComplete() => EmitSignal(SignalName.LevelComplete);
+
+        /// <summary>Called when the GameOver signal fires. If AutoNavigateOnEnd is true,
+        /// changes scene to the GameOver path from GameInfo after an optional delay.</summary>
+        public void OnGameOver()
+        {
+            if (!AutoNavigateOnEnd) return;
+            NavigateToScene(GameBuilder.GameInfo.Instance?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn");
+        }
+
+        /// <summary>Called when the LevelComplete signal fires. If AutoNavigateOnEnd is true,
+        /// changes scene to the LevelComplete/LevelResults path from GameInfo after an optional delay.</summary>
+        public void OnLevelComplete()
+        {
+            if (!AutoNavigateOnEnd) return;
+            // Use LevelCompletePath if set (puzzle), otherwise LevelResultsPath (platformer),
+            // otherwise fall back to game over.
+            var info = GameBuilder.GameInfo.Instance;
+            string path = info?.LevelCompletePath;
+            if (string.IsNullOrEmpty(path)) path = info?.LevelResultsPath;
+            if (string.IsNullOrEmpty(path)) path = info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
+            NavigateToScene(path);
+        }
+
+        private void NavigateToScene(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !IsActive) return;
+            if (NavigateDelay > 0f)
+            {
+                // Defer the scene change so animations can play first.
+                var tree = GetTree();
+                if (tree != null)
+                    tree.CreateTimer(NavigateDelay).Timeout += () =>
+                    {
+                        if (GodotObject.IsInstanceValid(this) && IsActive)
+                            GetTree()?.ChangeSceneToFile(path);
+                    };
+            }
+            else
+            {
+                GetTree()?.ChangeSceneToFile(path);
+            }
+        }
     }
 }

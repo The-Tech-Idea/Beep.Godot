@@ -1,0 +1,26 @@
+{
+  "id": "survival",
+  "display_name": "Survival",
+  "icon": "🧭",
+  "description": "Crafting, inventory, status meters and world map",
+  "default_theme": "wilderness",
+  "default_geometry": "survival",
+  "themes": [
+    "wilderness",
+    "apocalypse",
+    "frozen",
+    "desert",
+    "industrial"
+  ],
+  "main_scene": "survival_main.tscn",
+  "scenes": [
+    "crafting.tscn",
+    "backpack.tscn",
+    "world_map.tscn"
+  ],
+  "tuning": {
+    "quick_slots": 8,
+    "warning_threshold": 0.25,
+    "status_decay_seconds": 60
+  }
+}

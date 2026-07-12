@@ -1,0 +1,26 @@
+{
+  "id": "citybuilder",
+  "display_name": "City Builder",
+  "icon": "🏙️",
+  "description": "Construction, economy, citizen statistics and districts",
+  "default_theme": "urban",
+  "default_geometry": "citybuilder",
+  "themes": [
+    "urban",
+    "eco",
+    "industrial",
+    "future",
+    "blueprint"
+  ],
+  "main_scene": "citybuilder_main.tscn",
+  "scenes": [
+    "build_menu.tscn",
+    "economy.tscn",
+    "districts.tscn"
+  ],
+  "tuning": {
+    "build_grid_size": 32,
+    "resource_slots": 6,
+    "notification_stack": 5
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "strategy",
+  "display_name": "Strategy",
+  "icon": "♟️",
+  "description": "Command panels, resources, units and tactical overlays",
+  "default_theme": "command",
+  "default_geometry": "strategy",
+  "themes": [
+    "command",
+    "military",
+    "royal",
+    "scifi",
+    "blueprint"
+  ],
+  "main_scene": "strategy_main.tscn",
+  "scenes": [
+    "unit_panel.tscn",
+    "research.tscn",
+    "diplomacy.tscn"
+  ],
+  "tuning": {
+    "resource_slots": 5,
+    "unit_card_width": 220,
+    "map_overlay_opacity": 0.78
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "industrial",
+  "display_name": "Industrial",
+  "category": "City Builder",
+  "description": "Industrial UI for City Builder",
+  "colors": {
+    "surface_primary": "#E8EEF2FF",
+    "surface_hover": "#F5F8FAFF",
+    "surface_pressed": "#CDD8DFFF",
+    "surface_disabled": "#C2C9CDFF",
+    "text_primary": "#24323BFF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#888888FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#2E86ABFF",
+    "accent_secondary": "#4FA66AFF",
+    "border_normal": "#8EA1ADFF",
+    "border_hover": "#2E86ABFF",
+    "border_focus": "#2E86ABFF",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#000000AA",
+    "bg_panel": "#D6E0E6FF",
+    "bg_canvas": "#BFCBD3FF",
+    "semantic_success": "#38CC4DFF",
+    "semantic_danger": "#F23333FF",
+    "semantic_warning": "#FFBF26FF",
+    "semantic_info": "#3D99F2FF"
+  },
+  "geometry": {
+    "corner_radius": 7,
+    "border_left": 1,
+    "border_top": 1,
+    "border_right": 1,
+    "border_bottom": 1,
+    "shadow_size": 9,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 3,
+    "pad_left": 14,
+    "pad_right": 14,
+    "pad_top": 8,
+    "pad_bottom": 8,
+    "font_size": 17
+  },
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/citybuilder/industrial/button_normal.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/citybuilder/industrial/button_hover.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/citybuilder/industrial/button_pressed.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/citybuilder/industrial/panel.png",
+      "margin_left": 8,
+      "margin_top": 8,
+      "margin_right": 8,
+      "margin_bottom": 8,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    }
+  }
+}

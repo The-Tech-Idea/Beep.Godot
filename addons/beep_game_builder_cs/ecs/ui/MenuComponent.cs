@@ -74,7 +74,15 @@ namespace Beep.ECS.UI
             }
             _buttons.Clear();
 
-            if (GetParent() is not Godot.Control parent) return;
+            // Scan ALL descendant buttons (not just direct children) — buttons are
+            // typically nested inside Center/MenuVBox, Panel/VBox, etc.
+            if (GetParent() is not Node parent) return;
+            FindButtonsRecursive(parent);
+        }
+
+        /// <summary>Recursively find all Button nodes under parent and wire them.</summary>
+        private void FindButtonsRecursive(Node parent)
+        {
             foreach (var child in parent.GetChildren())
             {
                 if (child is Button btn)
@@ -92,9 +100,11 @@ namespace Beep.ECS.UI
                             RippleColor = RippleColor
                         };
                         btn.AddChild(ripple);
-                        ripple.Owner = btn;
                     }
                 }
+                // Recurse into containers (VBox, HBox, Panel, Margin, etc.)
+                if (child is not Button && child.GetChildCount() > 0)
+                    FindButtonsRecursive(child);
             }
         }
 

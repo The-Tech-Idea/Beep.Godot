@@ -1,0 +1,26 @@
+{
+  "id": "rpg",
+  "display_name": "RPG",
+  "icon": "⚔️",
+  "description": "Character progression, inventory, quests and dialogue",
+  "default_theme": "fantasy",
+  "default_geometry": "rpg",
+  "themes": [
+    "fantasy",
+    "darkfantasy",
+    "arcane",
+    "royal",
+    "parchment"
+  ],
+  "main_scene": "rpg_main.tscn",
+  "scenes": [
+    "inventory.tscn",
+    "character.tscn",
+    "quests.tscn"
+  ],
+  "tuning": {
+    "inventory_columns": 6,
+    "dialogue_speed": 0.04,
+    "tooltip_delay": 0.35
+  }
+}

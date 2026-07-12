@@ -46,7 +46,7 @@ text = "Main Menu"
 
 [node name="Menu" type="Node" parent="."]
 script = ExtResource("1_menu")
-known_actions = ["retry", "menu"]
+known_actions = ["retry", "menu", "main_menu"]
 enable_ripple = true
 
 [node name="Navigation" type="Node" parent="."]
@@ -54,7 +54,6 @@ script = ExtResource("2_nav")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("3_theme")
-preset = 1
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("4_binder")

@@ -1,0 +1,93 @@
+{
+  "id": "motorsport",
+  "display_name": "Motorsport",
+  "category": "Racing",
+  "description": "Motorsport UI for Racing",
+  "colors": {
+    "surface_primary": "#102235FF",
+    "surface_hover": "#183A54FF",
+    "surface_pressed": "#0B1724FF",
+    "surface_disabled": "#344451FF",
+    "text_primary": "#EAFBFFFF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#888888FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#00D9FFFF",
+    "accent_secondary": "#FF3EB5FF",
+    "border_normal": "#1A6F8BFF",
+    "border_hover": "#00D9FFFF",
+    "border_focus": "#00D9FFFF",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#000000AA",
+    "bg_panel": "#0D1B2AFF",
+    "bg_canvas": "#070E16FF",
+    "semantic_success": "#38CC4DFF",
+    "semantic_danger": "#F23333FF",
+    "semantic_warning": "#FFBF26FF",
+    "semantic_info": "#3D99F2FF"
+  },
+  "geometry": {
+    "corner_radius": 8,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 14,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 5,
+    "pad_left": 16,
+    "pad_right": 16,
+    "pad_top": 8,
+    "pad_bottom": 8,
+    "font_size": 22
+  },
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/motorsport/button_normal.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/motorsport/button_hover.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/motorsport/button_pressed.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/motorsport/panel.png",
+      "margin_left": 8,
+      "margin_top": 8,
+      "margin_right": 8,
+      "margin_bottom": 8,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1
+    }
+  }
+}

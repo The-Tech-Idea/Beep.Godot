@@ -179,6 +179,11 @@ public partial class BeepGameBuilderDock : VBoxContainer
         applyBtn.Pressed += ApplyLiveToAllComponents;
         b.AddChild(applyBtn);
 
+        b.AddChild(new HSeparator());
+        var genBtn = new Button { Text = "▶ Generate Full Project (one-click starter)" };
+        genBtn.Pressed += GenerateFullProject;
+        b.AddChild(genBtn);
+
         RefreshAutoloadStatus();
     }
 
@@ -547,6 +552,27 @@ public partial class BeepGameBuilderDock : VBoxContainer
             }
         });
         Log($"Saved game_info.tres + re-themed {count} ThemePresetComponent(s).");
+    }
+
+    private void GenerateFullProject()
+    {
+        var info = ReadFormIntoGameInfo();
+        // Pick the genre from the Theme tab's current selection, or fall back to
+        // whatever's in game_info.tres.
+        string genreId = GetSelectedGenreId() ?? info.Genre.ToString().ToLowerInvariant();
+        if (string.IsNullOrEmpty(genreId)) { Log("[ERROR] No genre selected."); return; }
+
+        // Pick theme from the Theme tab if one is selected.
+        string themeId = GetSelectedThemeId();
+        if (!string.IsNullOrEmpty(themeId)) info.DefaultThemePreset = themeId;
+
+        // Pick palette from the Theme tab if one is selected.
+        if (_palettePicker != null && _palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
+            info.PaletteName = _paletteIds[_palettePicker.Selected];
+
+        Log($"Generating {genreId} project: {info.GameName}...");
+        var log = BeepGenreGenerator.CreateProject(genreId, info, overwrite: false);
+        foreach (var line in log) Log(line);
     }
 
     // ════════════════════════════════════════════════════════════════

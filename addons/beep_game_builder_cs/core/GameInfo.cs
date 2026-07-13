@@ -63,7 +63,7 @@ public partial class GameInfo : Resource
     [Export] public string SettingsScenePath { get; set; } = "res://scenes/ui/settings_menu.tscn";
     [Export] public string GameOverScenePath { get; set; } = "res://scenes/ui/game_over.tscn";
 
-    // ── Genre-specific scene paths (set by BeepGenreGenerator based on genre) ──
+    // ── Genre-specific scene paths (set by BeepGenreScene's nav_wiring at runtime) ──
     [ExportGroup("Genre Scenes")]
     // Platformer
     [Export] public string LevelSelectPath { get; set; } = "res://scenes/ui/platformer/level_select.tscn";
@@ -97,6 +97,20 @@ public partial class GameInfo : Resource
 
     /// <summary>Canonical save path for the GameInfo resource.</summary>
     public const string TresPath = "res://game_info.tres";
+
+    /// <summary>Default path for the main menu scene — used when the user
+    /// leaves GameInfo.MainMenuPath empty.</summary>
+    public const string DefaultMainMenuPath = "res://scenes/ui/main_menu.tscn";
+
+    /// <summary>Default path for the game scene (the scene set as the project's
+    /// main scene).</summary>
+    public const string DefaultGameScenePath = "res://scenes/main/main.tscn";
+
+    /// <summary>Default path for the settings menu scene.</summary>
+    public const string DefaultSettingsScenePath = "res://scenes/ui/settings_menu.tscn";
+
+    /// <summary>Default path for the game-over scene.</summary>
+    public const string DefaultGameOverScenePath = "res://scenes/ui/game_over.tscn";
 
     /// <summary>
     /// The active GameInfo — loaded from game_info.tres by the GameApp autoload.

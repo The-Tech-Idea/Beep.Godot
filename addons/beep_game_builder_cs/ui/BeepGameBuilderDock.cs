@@ -1,17 +1,40 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Beep.ECS;                  // GameApp, BeepGenreScene
+using Beep.ECS.UI;                // SkinCatalog, ThemePresetComponent
+using Beep.GameBuilder;            // GameInfo
 
 namespace Beep.GameBuilder;
 
 /// <summary>
-/// Beep Game Builder editor dock. A SINGLE scrollable form — no tabs.
-/// Top to bottom: Genre → Theme → Palette → Geometry → Game Identity →
-/// Display → Audio → Language → Generate button.
+/// Beep Game Builder editor dock. Three tabs:
 ///
-/// Everything else (components) is added via Godot's native Add Node dialog —
-/// all [GlobalClass] components appear categorized under EntityComponent →
-/// UIComponent / GameplayComponent / ControllerComponent / WorldComponent.
+/// <list type="bullet">
+///   <item>
+///     <term>App</term> GameInfo field grid (name/version/dev/genre/theme/
+///     palette/geometry/scene paths/tuning). Save to res://game_info.tres
+///     + reload from disk. Read-only autoload status (GameApp, GameInfo).
+///   </item>
+///   <item>
+///     <term>Theme</term> Cascading Genre → Theme → Palette → Geometry
+///     dropdowns driven from <c>SkinCatalog.AllGenres</c>. Click "Apply to
+///     All Components" to re-theme every <see cref="ThemePresetComponent"/> in
+///     the open scene.
+///   </item>
+///   <item>
+///     <term>Settings</term> Project-level writes to <c>ProjectSettings</c>
+///     (resolution / FPS / pixel art / fullscreen / main scene /
+///     internationalization).
+///   </item>
+/// </list>
+///
+/// Components are added via Godot's native Add Node dialog (Ctrl+A) — every
+/// <c>[GlobalClass] [Tool]</c> component appears categorized under its base
+/// (UIComponent / GameplayComponent / ControllerComponent / WorldComponent /
+/// EntityComponent). No component browser is provided here; Godot already
+/// has one.
 /// </summary>
 [Tool]
 public partial class BeepGameBuilderDock : VBoxContainer
@@ -20,28 +43,21 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private TextEdit _output;
 
-    // Genre + skin cascading pickers.
+    // GameInfo edit fields.
+    private LineEdit _gameName, _version, _developer, _description;
+    private LineEdit _themePreset, _paletteName, _geometryProfile;
+    private LineEdit _mainMenuPath, _gameScenePath, _settingsScenePath, _gameOverScenePath;
+    private SpinBox _resW, _resH, _targetFps;
+    private SpinBox _gravity, _jumpVel, _moveSpd, _fireRate;
+    private SpinBox _gridW, _gridH, _targetScore;
+    private CheckBox _pixelArt;
+
+    // Theme tab.
     private OptionButton _genrePicker, _themePicker, _palettePicker;
-    private Label _genreDescription;
     private readonly List<string> _genreIds = new();
     private readonly List<string> _themeIds = new();
     private readonly List<string> _paletteIds = new();
-
-    // Game identity.
-    private LineEdit _gameName, _version, _developer, _description;
-
-    // Display.
-    private SpinBox _resW, _resH, _targetFps;
-    private CheckBox _pixelArt, _fullscreen;
-
-    // Audio.
-    private HSlider _masterVol, _sfxVol, _musicVol;
-
-    // Language.
-    private OptionButton _language;
-
-    // Regen mode.
-    private OptionButton _regenMode;
+    private Label _genreDescription, _autoloadStatus, _settingsAutoloadStatus;
 
     public override void _Ready()
     {
@@ -53,70 +69,275 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void BuildUI()
     {
-        // Title.
         var title = new Label { Text = "Beep Game Builder", HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 16);
         AddChild(title);
 
-        var subtitle = new Label
-        {
-            Text = "Configure your game, then Generate.\n"
-                 + "Add components via Add Node (Ctrl+A).",
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        subtitle.AddThemeFontSizeOverride("font_size", 10);
-        AddChild(subtitle);
+        var tabs = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+        AddChild(tabs);
 
-        // Single scrollable form — no TabContainer.
-        var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
-        AddChild(scroll);
-        var b = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        scroll.AddChild(b);
+        AddAppTab(tabs);
+        AddThemeTab(tabs);
+        AddSettingsTab(tabs);
 
-        BuildGenreSection(b);
-        BuildIdentitySection(b);
-        BuildDisplaySection(b);
-        BuildAudioSection(b);
-        BuildLanguageSection(b);
-        BuildActionsSection(b);
-
-        // Output log.
+        // Output log at the bottom of the dock — shared across all tabs.
         _output = new TextEdit { CustomMinimumSize = new Vector2(0, 100), Editable = false, PlaceholderText = "Output..." };
         AddChild(_output);
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Genre + Skin section (cascading dropdowns)
+    // App tab — GameInfo editor + autoload probe
     // ════════════════════════════════════════════════════════════════
 
-    private void BuildGenreSection(VBoxContainer b)
+    private void AddAppTab(TabContainer tabs)
     {
-        AddSectionHeader(b, "Genre & Skin");
+        var scroll = new ScrollContainer
+        {
+            Name = "App",
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        var b = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(b);
+        tabs.AddChild(scroll);
 
-        _genrePicker = AddDropdown(b, "Genre");
-        _genreDescription = new Label { Text = "", CustomMinimumSize = new Vector2(0, 30) };
-        _genreDescription.AddThemeFontSizeOverride("font_size", 10);
+        // ── Autoload status (read-only) ──
+        _autoloadStatus = new Label { Text = "" };
+        _autoloadStatus.AddThemeFontSizeOverride("font_size", 11);
+        b.AddChild(_autoloadStatus);
+
+        var refreshStatusBtn = new Button { Text = "↻ Refresh status" };
+        refreshStatusBtn.Pressed += RefreshAutoloadStatus;
+        b.AddChild(refreshStatusBtn);
+
+        b.AddChild(new HSeparator());
+
+        // ── Identity section ──
+        AddSectionHeader(b, "Identity");
+        _gameName = AddField(b, "Game name", "My Game");
+        _version = AddField(b, "Version", "0.1.0");
+        _developer = AddField(b, "Developer", "");
+        _description = AddField(b, "Description", "");
+
+        // ── Theme + palette + geometry selection (text fields, not dropdowns — dropdowns live in Theme tab) ──
+        AddSectionHeader(b, "Skin (drop a BeepGenreScene into your scene to apply)");
+        _themePreset = AddField(b, "Default theme preset", "modern");
+        _paletteName = AddField(b, "Palette name", "Default");
+        _geometryProfile = AddField(b, "Geometry profile", "As-Authored");
+
+        // ── Scene paths section ──
+        AddSectionHeader(b, "Scene paths");
+        _mainMenuPath = AddField(b, "Main menu", GameInfo.DefaultMainMenuPath);
+        _gameScenePath = AddField(b, "Game scene", GameInfo.DefaultGameScenePath);
+        _settingsScenePath = AddField(b, "Settings menu", GameInfo.DefaultSettingsScenePath);
+        _gameOverScenePath = AddField(b, "Game over", GameInfo.DefaultGameOverScenePath);
+
+        // ── Display section ──
+        AddSectionHeader(b, "Display");
+        var resRow = new HBoxContainer();
+        resRow.AddChild(new Label { Text = "Resolution: " });
+        _resW = NewSpinBox(320, 3840, 1280);
+        _resH = NewSpinBox(240, 2160, 720);
+        resRow.AddChild(_resW);
+        resRow.AddChild(new Label { Text = " × " });
+        resRow.AddChild(_resH);
+        b.AddChild(resRow);
+        _targetFps = NewSpinBox(30, 240, 60);
+        _targetFps.CustomMinimumSize = new Vector2(80, 0);
+        b.AddChild(WithLabel("Target FPS", _targetFps));
+        _pixelArt = new CheckBox { Text = "Pixel art (texture filter off)" };
+        b.AddChild(_pixelArt);
+
+        // ── Tuning section ──
+        AddSectionHeader(b, "Tuning");
+        _gravity = NewSpinBoxFloat(-2000, 2000, 980);
+        b.AddChild(WithLabel("Gravity", _gravity));
+        _jumpVel = NewSpinBoxFloat(-2000, 2000, -400);
+        b.AddChild(WithLabel("Jump velocity", _jumpVel));
+        _moveSpd = NewSpinBoxFloat(0, 2000, 200);
+        b.AddChild(WithLabel("Move speed", _moveSpd));
+        _fireRate = NewSpinBoxFloat(0.01, 5, 0.2, 0.01);
+        b.AddChild(WithLabel("Fire rate (s)", _fireRate));
+        _gridW = NewSpinBox(1, 20, 8);
+        _gridH = NewSpinBox(1, 20, 8);
+        _targetScore = NewSpinBox(0, 1_000_000, 1000);
+        b.AddChild(WithLabel("Puzzle grid width", _gridW));
+        b.AddChild(WithLabel("Puzzle grid height", _gridH));
+        b.AddChild(WithLabel("Puzzle target score", _targetScore));
+
+        // ── Save / Reload / Apply actions ──
+        b.AddChild(new HSeparator());
+        var saveBtn = new Button { Text = "💾 Save to game_info.tres" };
+        saveBtn.Pressed += SaveGameInfo;
+        b.AddChild(saveBtn);
+
+        var reloadBtn = new Button { Text = "🔄 Reload from game_info.tres" };
+        reloadBtn.Pressed += LoadGameInfoIntoForm;
+        b.AddChild(reloadBtn);
+
+        var applyBtn = new Button { Text = "▶ Apply live to all ThemePresetComponents in open scene" };
+        applyBtn.Pressed += ApplyLiveToAllComponents;
+        b.AddChild(applyBtn);
+
+        RefreshAutoloadStatus();
+    }
+
+    private void RefreshAutoloadStatus()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Autoloads (registered in project.godot):");
+        var app = GameApp.Instance;
+        sb.AppendLine(app != null ? "  ✅ /root/GameApp   found" : "  ⚠ /root/GameApp   NOT registered");
+        sb.AppendLine(GameInfo.Instance != null ? "  ✅ /root/GameInfo  found" : "  ⚠ /root/GameInfo  NOT registered");
+        sb.AppendLine("Tip: GameApp autoload is registered by saving game_info.tres with GameInfo.TresPath. "
+                    + "If missing, add node \"GameApp\" under /root in the SceneTree dock "
+                    + "(Project → SceneTree → Children → Add child node → Beep → GameApp).");
+        _autoloadStatus.Text = sb.ToString();
+        if (_settingsAutoloadStatus != null) _settingsAutoloadStatus.Text = sb.ToString();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Theme tab — cascading pickers + apply
+    // ════════════════════════════════════════════════════════════════
+
+    private void AddThemeTab(TabContainer tabs)
+    {
+        var scroll = new ScrollContainer
+        {
+            Name = "Theme",
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        var b = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(b);
+        tabs.AddChild(scroll);
+
+        AddSectionHeader(b, "Pick a skin — applies when you click 'Apply to All Components'");
+
+        _genrePicker = new OptionButton();
+        _genreDescription = new Label { CustomMinimumSize = new Vector2(0, 40) };
         _genreDescription.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _themePicker = new OptionButton();
+        _palettePicker = new OptionButton();
+
+        b.AddChild(WithLabel("Genre", _genrePicker));
         b.AddChild(_genreDescription);
+        b.AddChild(WithLabel("Theme", _themePicker));
+        b.AddChild(WithLabel("Palette", _palettePicker));
 
-        _themePicker = AddDropdown(b, "Theme");
-        _palettePicker = AddDropdown(b, "Palette");
-        // Geometry is per-genre (geometry.json) — applied automatically, no picker needed.
-
-        // Wire cascading. Use named method references (not lambdas) so Godot
-        // can cleanly disconnect on cleanup. Select() doesn't emit item_selected
-        // in Godot 4, so we call the cascade methods manually after each Select().
         _genrePicker.ItemSelected += OnGenreItemSelected;
         _themePicker.ItemSelected += OnThemeItemSelected;
 
+        b.AddChild(new HSeparator());
+
+        var applyBtn = new Button { Text = "▶ Apply to all ThemePresetComponents in open scene" };
+        applyBtn.Pressed += () => ApplyThemeToOpenScene(false);
+        b.AddChild(applyBtn);
+
+        var applyBtnForce = new Button { Text = "↻ Re-apply (sets every ThemePresetComponent to selected skin)" };
+        applyBtnForce.Pressed += () => ApplyThemeToOpenScene(true);
+        b.AddChild(applyBtnForce);
+
+        b.AddChild(new HSeparator());
+
+        AddSectionHeader(b, "Other");
+        var showCatBtn = new Button { Text = "📂 Show skin catalog in FileSystem dock" };
+        showCatBtn.Pressed += () =>
+        {
+            EditorPlugin?.GetEditorInterface()?.GetFileSystemDock()?.NavigateToPath(
+                "res://addons/beep_game_builder_cs/catalogs/skins/");
+            Log("Navigated FileSystem dock to catalogs/skins/.");
+        };
+        b.AddChild(showCatBtn);
+
         PopulateGenres();
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // Settings tab — ProjectSettings writes + autoload probe
+    // ════════════════════════════════════════════════════════════════
+
+    private void AddSettingsTab(TabContainer tabs)
+    {
+        var scroll = new ScrollContainer
+        {
+            Name = "Settings",
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        var b = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(b);
+        tabs.AddChild(scroll);
+
+        _settingsAutoloadStatus = new Label();
+        _settingsAutoloadStatus.AddThemeFontSizeOverride("font_size", 11);
+        b.AddChild(_settingsAutoloadStatus);
+
+        var refreshBtn = new Button { Text = "↻ Refresh status" };
+        refreshBtn.Pressed += RefreshAutoloadStatus;
+        b.AddChild(refreshBtn);
+
+        b.AddChild(new HSeparator());
+
+        AddSectionHeader(b, "Display");
+        var resRow = new HBoxContainer();
+        resRow.AddChild(new Label { Text = "Default resolution: " });
+        var settingsResW = NewSpinBox(320, 3840, 1280);
+        var settingsResH = NewSpinBox(240, 2160, 720);
+        resRow.AddChild(settingsResW);
+        resRow.AddChild(new Label { Text = " × " });
+        resRow.AddChild(settingsResH);
+        b.AddChild(resRow);
+        var fpsRow = new HBoxContainer();
+        fpsRow.AddChild(new Label { Text = "Default FPS: " });
+        var settingsFps = NewSpinBox(30, 240, 60);
+        fpsRow.AddChild(settingsFps);
+        b.AddChild(fpsRow);
+        var fullscreenCb = new CheckBox { Text = "Window start mode: fullscreen" };
+        b.AddChild(fullscreenCb);
+
+        var applyProjBtn = new Button { Text = "💾 Apply Display settings to ProjectSettings" };
+        applyProjBtn.Pressed += () =>
+        {
+            ProjectSettings.SetSetting("display/window/size/viewport_width", (int)settingsResW.Value);
+            ProjectSettings.SetSetting("display/window/size/viewport_height", (int)settingsResH.Value);
+            ProjectSettings.SetSetting("application/run/max_fps", (int)settingsFps.Value);
+            ProjectSettings.SetSetting("display/window/size/mode", fullscreenCb.ButtonPressed ? 3 : 0);
+            ProjectSettings.Save();
+            Log("ProjectSettings display updated + saved.");
+        };
+        b.AddChild(applyProjBtn);
+
+        b.AddChild(new HSeparator());
+
+        AddSectionHeader(b, "Localization");
+        b.AddChild(new Label { Text = "Translations CSV:" });
+        var i18nPath = new Label();
+        i18nPath.AddThemeFontSizeOverride("font_size", 10);
+        string trPath = "res://i18n/translations.csv";
+        i18nPath.Text = FileAccess.FileExists(trPath) ? "  ✅ " + trPath : "  ⚠ " + trPath + " (missing — run localization setup first)";
+        b.AddChild(i18nPath);
+        var enableI18nBtn = new Button { Text = "💾 Enable translations in ProjectSettings" };
+        enableI18nBtn.Pressed += () =>
+        {
+            ProjectSettings.SetSetting("internationalization/locale/translations", true);
+            ProjectSettings.Save();
+            Log("internationalization/locale/translations = true (saved).");
+        };
+        b.AddChild(enableI18nBtn);
+
+        RefreshAutoloadStatus();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Theme tab — population + cascade
+    // ════════════════════════════════════════════════════════════════
 
     private void PopulateGenres()
     {
         _genrePicker.Clear();
         _genreIds.Clear();
-        foreach (var kvp in Beep.ECS.UI.SkinCatalog.AllGenres)
+        foreach (var kvp in SkinCatalog.AllGenres.OrderBy(k => k.Key))
         {
             _genrePicker.AddItem($"{kvp.Value.Icon} {kvp.Value.DisplayName}", _genreIds.Count);
             _genreIds.Add(kvp.Key);
@@ -128,26 +349,20 @@ public partial class BeepGameBuilderDock : VBoxContainer
         }
     }
 
-    /// <summary>Signal handler for _genrePicker.ItemSelected (named method, not lambda).</summary>
+    /// <summary>Named signal handler (Godot 4.7 — named methods disconnect cleanly).</summary>
     private void OnGenreItemSelected(long index) => OnGenreChanged();
-
-    /// <summary>Signal handler for _themePicker.ItemSelected (named method, not lambda).</summary>
-    private void OnThemeItemSelected(long index) => OnThemeChanged();
 
     private void OnGenreChanged()
     {
         string genreId = GetSelectedGenreId();
         if (genreId == null) return;
-        var genre = Beep.ECS.UI.SkinCatalog.GetGenre(genreId);
+        var genre = SkinCatalog.GetGenre(genreId);
         if (genre == null) return;
+        _genreDescription.Text = $"{(string.IsNullOrEmpty(genre.Icon) ? "" : genre.Icon + "  ")}{genre.Description}";
 
-        _genreDescription.Text = genre.Description;
-
-        // Themes.
         _themePicker.Clear();
         _themeIds.Clear();
-        int defaultIdx = 0;
-        int i = 0;
+        int defaultIdx = 0, i = 0;
         foreach (var tkvp in genre.Themes)
         {
             _themePicker.AddItem(tkvp.Value.DisplayName, i);
@@ -156,22 +371,26 @@ public partial class BeepGameBuilderDock : VBoxContainer
             i++;
         }
         if (_themeIds.Count > 0)
+        {
             _themePicker.Select(defaultIdx);
-        OnThemeChanged();
+            OnThemeChanged();
+        }
     }
+
+    /// <summary>Named signal handler for theme picker.</summary>
+    private void OnThemeItemSelected(long index) => OnThemeChanged();
 
     private void OnThemeChanged()
     {
         string genreId = GetSelectedGenreId();
         string themeId = GetSelectedThemeId();
         if (genreId == null || themeId == null) return;
-        var theme = Beep.ECS.UI.SkinCatalog.GetTheme(genreId, themeId);
+        var theme = SkinCatalog.GetTheme(genreId, themeId);
         if (theme == null) return;
 
         _palettePicker.Clear();
         _paletteIds.Clear();
-        int defaultIdx = 0;
-        int i = 0;
+        int defaultIdx = 0, i = 0;
         foreach (var pkvp in theme.Palettes)
         {
             _palettePicker.AddItem(pkvp.Value.DisplayName, i);
@@ -179,197 +398,155 @@ public partial class BeepGameBuilderDock : VBoxContainer
             _paletteIds.Add(pkvp.Key);
             i++;
         }
-        if (_paletteIds.Count > 0)
-            _palettePicker.Select(defaultIdx);
+        if (_paletteIds.Count > 0) _palettePicker.Select(defaultIdx);
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // Game Identity section
-    // ════════════════════════════════════════════════════════════════
+    private string GetSelectedGenreId()
+        => _genrePicker != null && _genrePicker.Selected >= 0 && _genrePicker.Selected < _genreIds.Count
+            ? _genreIds[_genrePicker.Selected] : null;
 
-    private void BuildIdentitySection(VBoxContainer b)
-    {
-        AddSectionHeader(b, "Game Identity");
-        _gameName = AddField(b, "Game Name", "My Game");
-        _version = AddField(b, "Version", "0.1.0");
-        _developer = AddField(b, "Developer", "");
-        _description = AddField(b, "Description", "");
-    }
+    private string GetSelectedThemeId()
+        => _themePicker != null && _themePicker.Selected >= 0 && _themePicker.Selected < _themeIds.Count
+            ? _themeIds[_themePicker.Selected] : null;
 
     // ════════════════════════════════════════════════════════════════
-    // Display section
+    // Theme tab — Apply
     // ════════════════════════════════════════════════════════════════
 
-    private void BuildDisplaySection(VBoxContainer b)
-    {
-        AddSectionHeader(b, "Display");
-
-        var resRow = new HBoxContainer();
-        resRow.AddChild(new Label { Text = "Resolution: " });
-        _resW = new SpinBox { MinValue = 320, MaxValue = 3840, Value = 1280, CustomMinimumSize = new Vector2(80, 0) };
-        _resH = new SpinBox { MinValue = 240, MaxValue = 2160, Value = 720, CustomMinimumSize = new Vector2(80, 0) };
-        resRow.AddChild(_resW);
-        resRow.AddChild(new Label { Text = " × " });
-        resRow.AddChild(_resH);
-        b.AddChild(resRow);
-
-        _targetFps = AddSpinBox(b, "Target FPS", 30, 240, 60);
-        _pixelArt = new CheckBox { Text = "Pixel Art", ButtonPressed = true };
-        b.AddChild(_pixelArt);
-        _fullscreen = new CheckBox { Text = "Fullscreen" };
-        b.AddChild(_fullscreen);
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Audio section
-    // ════════════════════════════════════════════════════════════════
-
-    private void BuildAudioSection(VBoxContainer b)
-    {
-        AddSectionHeader(b, "Audio");
-        _masterVol = AddSlider(b, "Master", 80);
-        _sfxVol = AddSlider(b, "SFX", 90);
-        _musicVol = AddSlider(b, "Music", 70);
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Language section
-    // ════════════════════════════════════════════════════════════════
-
-    private void BuildLanguageSection(VBoxContainer b)
-    {
-        AddSectionHeader(b, "Language");
-        _language = new OptionButton();
-        _language.AddItem("English (en)", 0);
-        _language.AddItem("Español (es)", 1);
-        _language.AddItem("日本語 (ja)", 2);
-        _language.Select(0);
-        b.AddChild(_language);
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Actions section — Generate + Save + Reload
-    // ════════════════════════════════════════════════════════════════
-
-    private void BuildActionsSection(VBoxContainer b)
-    {
-        AddSectionHeader(b, "Actions");
-
-        // Regen mode selector — controls what happens to existing scenes.
-        _regenMode = AddDropdown(b, "Regen Mode");
-        _regenMode.AddItem("Skip existing (safe)", 0);
-        _regenMode.AddItem("Update unmodified only", 1);
-        _regenMode.AddItem("Overwrite all", 2);
-        _regenMode.Selected = 0;
-
-        var hint = new Label { Text = "• Skip existing: never touch files that exist\n"
-                                   + "• Update unmodified: refresh scenes you haven't edited\n"
-                                   + "• Overwrite all: replace everything (destroys edits)" };
-        hint.AddThemeFontSizeOverride("font_size", 9);
-        hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        b.AddChild(hint);
-
-        AddButton(b, "▶ Generate Project", GenerateProject);
-        AddButton(b, "🔄 Reload from game_info.tres", LoadFromGameInfo);
-    }
-
-    /// <summary>Generate a full starter project from the current selections.</summary>
-    private void GenerateProject()
+    private void ApplyThemeToOpenScene(bool force)
     {
         string genreId = GetSelectedGenreId();
-        if (genreId == null) { Log("No genre selected."); return; }
+        string themeId = GetSelectedThemeId();
+        if (string.IsNullOrEmpty(genreId) || string.IsNullOrEmpty(themeId))
+        { Log("No genre/theme selected."); return; }
+        string palId = (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
+            ? _paletteIds[_palettePicker.Selected] : "default";
 
-        var genre = Beep.ECS.UI.SkinCatalog.GetGenre(genreId);
-        string themeId = GetSelectedThemeId() ?? genre?.DefaultTheme ?? "modern";
-        string paletteDisplayName = GetSelectedPaletteDisplayName();
-        // Geometry comes from the genre's geometry.json — applied automatically.
-        string geometryName = genre?.Geometry?.DisplayName ?? "As-Authored";
+        var root = EditorPlugin?.GetEditorInterface()?.GetEditedSceneRoot();
+        if (root == null) { Log("No scene is currently open in the editor."); return; }
 
-        var info = LoadGameInfoFromFile() ?? new GameInfo();
-        info.GameName = string.IsNullOrWhiteSpace(_gameName.Text) ? "My Game" : _gameName.Text;
-        info.Version = _version.Text;
-        info.Developer = _developer.Text;
-        info.Description = _description.Text;
-        info.Genre = GameInfo.GenreFromId(genreId);
-        info.DefaultThemePreset = themeId;
-        info.PaletteName = paletteDisplayName;
-        info.GeometryProfileName = geometryName;
-        info.TargetResolutionWidth = (int)_resW.Value;
-        info.TargetResolutionHeight = (int)_resH.Value;
-        info.TargetFps = (int)_targetFps.Value;
-        info.PixelArt = _pixelArt.ButtonPressed;
-
-        Log($"Generating {genre.DisplayName} project: {info.GameName}...");
-        var mode = _regenMode.Selected switch
+        int count = 0;
+        Walk(root, node =>
         {
-            1 => BeepGenreGenerator.RegenMode.UpdateUnmodified,
-            2 => BeepGenreGenerator.RegenMode.OverwriteAll,
-            _ => BeepGenreGenerator.RegenMode.SkipExisting
-        };
-        var log = BeepGenreGenerator.CreateProject(genreId, info, mode);
-        foreach (var line in log) Log(line);
+            if (node is ThemePresetComponent tpc)
+            {
+                tpc.GenreName = genreId;
+                tpc.PresetName = themeId;
+                tpc.PaletteName = palId;
+                // Geometry comes from the genre's geometry.json (per-genre, single profile).
+                var genre = SkinCatalog.GetGenre(genreId);
+                if (genre?.Geometry != null)
+                    tpc.GeometryProfileName = genre.Geometry.DisplayName;
+                if (force) tpc.ApplyTheme();
+                count++;
+            }
+        });
+        Log($"Applied {genreId}/{themeId}/{palId} to {count} ThemePresetComponent(s) in '{root.Name}'.");
     }
 
-    private void LoadFromGameInfo()
+    /// <summary>Depth-first walk over every Node under <paramref name="n"/>.</summary>
+    private static void Walk(Node n, Action<Node> visit)
     {
-        var info = LoadGameInfoFromFile();
-        if (info == null) { Log("No game_info.tres found. Generate a project first."); return; }
+        visit(n);
+        foreach (var child in n.GetChildren())
+            Walk(child, visit);
+    }
 
+    // ════════════════════════════════════════════════════════════════
+    // App tab — Save / Load / Apply
+    // ════════════════════════════════════════════════════════════════
+
+    private void SaveGameInfo()
+    {
+        var info = ReadFormIntoGameInfo();
+        var err = ResourceSaver.Save(info, GameInfo.TresPath);
+        if (err == Error.Ok) Log($"Saved: {GameInfo.TresPath}"); else Log($"[ERROR] Save failed: {err}");
+    }
+
+    private void LoadGameInfoIntoForm()
+    {
+        var info = LoadGameInfoFromDisk();
+        if (info == null) { Log($"No {GameInfo.TresPath} found."); return; }
         _gameName.Text = info.GameName;
         _version.Text = info.Version;
         _developer.Text = info.Developer;
         _description.Text = info.Description;
+        _themePreset.Text = info.DefaultThemePreset;
+        _paletteName.Text = info.PaletteName;
+        _geometryProfile.Text = info.GeometryProfileName;
+        _mainMenuPath.Text = info.MainMenuPath;
+        _gameScenePath.Text = info.GameScenePath;
+        _settingsScenePath.Text = info.SettingsScenePath;
+        _gameOverScenePath.Text = info.GameOverScenePath;
         _resW.Value = info.TargetResolutionWidth;
         _resH.Value = info.TargetResolutionHeight;
         _targetFps.Value = info.TargetFps;
         _pixelArt.ButtonPressed = info.PixelArt;
+        _gravity.Value = info.Gravity;
+        _jumpVel.Value = info.JumpVelocity;
+        _moveSpd.Value = info.MoveSpeed;
+        _fireRate.Value = info.FireRate;
+        _gridW.Value = info.GridWidth;
+        _gridH.Value = info.GridHeight;
+        _targetScore.Value = info.TargetScore;
+        Log($"Loaded: {GameInfo.TresPath}");
+    }
 
-        // Select genre → cascades themes → cascades palettes.
-        string genreId = info.Genre.ToString().ToLowerInvariant();
-        int genreIdx = _genreIds.IndexOf(genreId);
-        if (genreIdx >= 0)
+    private GameInfo ReadFormIntoGameInfo()
+    {
+        var info = LoadGameInfoFromDisk() ?? new GameInfo();
+        info.GameName = _gameName.Text ?? "My Game";
+        info.Version = _version.Text ?? "0.1.0";
+        info.Developer = _developer.Text ?? "";
+        info.Description = _description.Text ?? "";
+        info.DefaultThemePreset = string.IsNullOrWhiteSpace(_themePreset.Text) ? "modern" : _themePreset.Text;
+        info.PaletteName = string.IsNullOrWhiteSpace(_paletteName.Text) ? "Default" : _paletteName.Text;
+        info.GeometryProfileName = string.IsNullOrWhiteSpace(_geometryProfile.Text) ? "As-Authored" : _geometryProfile.Text;
+        info.MainMenuPath = string.IsNullOrWhiteSpace(_mainMenuPath.Text) ? GameInfo.DefaultMainMenuPath : _mainMenuPath.Text;
+        info.GameScenePath = string.IsNullOrWhiteSpace(_gameScenePath.Text) ? GameInfo.DefaultGameScenePath : _gameScenePath.Text;
+        info.SettingsScenePath = string.IsNullOrWhiteSpace(_settingsScenePath.Text) ? GameInfo.DefaultSettingsScenePath : _settingsScenePath.Text;
+        info.GameOverScenePath = string.IsNullOrWhiteSpace(_gameOverScenePath.Text) ? GameInfo.DefaultGameOverScenePath : _gameOverScenePath.Text;
+        info.TargetResolutionWidth = (int)_resW.Value;
+        info.TargetResolutionHeight = (int)_resH.Value;
+        info.TargetFps = (int)_targetFps.Value;
+        info.PixelArt = _pixelArt.ButtonPressed;
+        info.Gravity = (float)_gravity.Value;
+        info.JumpVelocity = (float)_jumpVel.Value;
+        info.MoveSpeed = (float)_moveSpd.Value;
+        info.FireRate = (float)_fireRate.Value;
+        info.GridWidth = (int)_gridW.Value;
+        info.GridHeight = (int)_gridH.Value;
+        info.TargetScore = (int)_targetScore.Value;
+        // Genre is data-driven from the skin catalog; users re-pick by replacing
+        // DefaultThemePreset + GenreName on a BeepGenreScene. We don't store a
+        // fixed enum here so adding a genre doesn't break old projects.
+        return info;
+    }
+
+    private static GameInfo? LoadGameInfoFromDisk()
+        => FileAccess.FileExists(GameInfo.TresPath)
+            ? ResourceLoader.Load<GameInfo>(GameInfo.TresPath)
+            : null;
+
+    private void ApplyLiveToAllComponents()
+    {
+        var root = EditorPlugin?.GetEditorInterface()?.GetEditedSceneRoot();
+        if (root == null) { Log("No scene open."); return; }
+
+        var info = ReadFormIntoGameInfo();
+        var err = ResourceSaver.Save(info, GameInfo.TresPath);
+        if (err != Error.Ok) { Log($"[ERROR] Save failed: {err}"); return; }
+
+        int count = 0;
+        Walk(root, node =>
         {
-            _genrePicker.Selected = genreIdx;
-            OnGenreChanged();
-
-            int themeIdx = _themeIds.IndexOf(info.DefaultThemePreset.ToLowerInvariant());
-            if (themeIdx >= 0)
+            if (node is ThemePresetComponent tpc)
             {
-                _themePicker.Selected = themeIdx;
-                OnThemeChanged();
+                tpc.ApplyTheme();
+                count++;
             }
-        }
-        Log("Loaded from game_info.tres.");
-    }
-
-    private static GameInfo? LoadGameInfoFromFile()
-    {
-        if (!FileAccess.FileExists(GameInfo.TresPath)) return null;
-        return ResourceLoader.Load<GameInfo>(GameInfo.TresPath);
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    // Picker helpers
-    // ════════════════════════════════════════════════════════════════
-
-    private string GetSelectedGenreId()
-        => _genrePicker.Selected >= 0 && _genrePicker.Selected < _genreIds.Count
-            ? _genreIds[_genrePicker.Selected] : null;
-
-    private string GetSelectedThemeId()
-        => _themePicker.Selected >= 0 && _themePicker.Selected < _themeIds.Count
-            ? _themeIds[_themePicker.Selected] : null;
-
-    private string GetSelectedPaletteDisplayName()
-    {
-        string genreId = GetSelectedGenreId();
-        string themeId = GetSelectedThemeId();
-        if (genreId == null || themeId == null) return "Default";
-        var theme = Beep.ECS.UI.SkinCatalog.GetTheme(genreId, themeId);
-        if (theme == null || _palettePicker.Selected < 0 || _palettePicker.Selected >= _paletteIds.Count)
-            return "Default";
-        string palId = _paletteIds[_palettePicker.Selected];
-        return theme.Palettes.TryGetValue(palId, out var pal) ? pal.DisplayName : "Default";
+        });
+        Log($"Saved game_info.tres + re-themed {count} ThemePresetComponent(s).");
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -378,70 +555,50 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void AddSectionHeader(VBoxContainer parent, string text)
     {
-        parent.AddChild(new Label()); // spacer
+        parent.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
         var lbl = new Label { Text = text };
-        lbl.AddThemeFontSizeOverride("font_size", 14);
+        lbl.AddThemeFontSizeOverride("font_size", 13);
         parent.AddChild(lbl);
+        parent.AddChild(new HSeparator());
     }
 
-    private LineEdit AddField(VBoxContainer parent, string label, string defaultValue)
+    private static HBoxContainer WithLabel(string label, Control child)
     {
         var row = new HBoxContainer();
         row.AddChild(new Label { Text = $"{label}: " });
-        var edit = new LineEdit { Text = defaultValue, CustomMinimumSize = new Vector2(200, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        row.AddChild(edit);
-        parent.AddChild(row);
+        row.AddChild(child);
+        return row;
+    }
+
+    private static LineEdit AddField(VBoxContainer parent, string label, string defaultValue)
+    {
+        var edit = new LineEdit
+        {
+            Text = defaultValue ?? "",
+            PlaceholderText = label,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        parent.AddChild(WithLabel(label, edit));
         return edit;
     }
 
-    private OptionButton AddDropdown(VBoxContainer parent, string label)
+    private static SpinBox NewSpinBox(int min, int max, int val)
     {
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = $"{label}: " });
-        var btn = new OptionButton { CustomMinimumSize = new Vector2(200, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        row.AddChild(btn);
-        parent.AddChild(row);
-        return btn;
-    }
-
-    private SpinBox AddSpinBox(VBoxContainer parent, string label, double min, double max, double val)
-    {
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = $"{label}: " });
-        var sb = new SpinBox { MinValue = min, MaxValue = max, Value = val, CustomMinimumSize = new Vector2(80, 0) };
-        row.AddChild(sb);
-        parent.AddChild(row);
+        var sb = new SpinBox { MinValue = min, MaxValue = max, Value = val, Rounded = true };
+        sb.CustomMinimumSize = new Vector2(80, 0);
         return sb;
     }
 
-    private HSlider AddSlider(VBoxContainer parent, string label, float defaultVal)
+    private static SpinBox NewSpinBoxFloat(double min, double max, double val, double step = 1)
     {
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = $"{label}: " });
-        var slider = new HSlider { MinValue = 0, MaxValue = 100, Value = defaultVal, CustomMinimumSize = new Vector2(150, 0) };
-        row.AddChild(slider);
-        var valLabel = new Label { Text = $"{(int)defaultVal}%", CustomMinimumSize = new Vector2(40, 0) };
-        // Named-method connection (not lambda) so Godot disconnects cleanly on cleanup.
-        slider.ValueChanged += (double v) => OnSliderValueChanged(v, valLabel);
-        row.AddChild(valLabel);
-        parent.AddChild(row);
-        return slider;
-    }
-
-    private static void OnSliderValueChanged(double v, Label valLabel)
-        => valLabel.Text = $"{(int)v}%";
-
-    private void AddButton(Godot.Control parent, string text, Action action)
-    {
-        var btn = new Button { Text = text };
-        btn.Pressed += action;
-        parent.AddChild(btn);
+        var sb = new SpinBox { MinValue = min, MaxValue = max, Value = val, Step = step };
+        sb.CustomMinimumSize = new Vector2(80, 0);
+        return sb;
     }
 
     private void Log(string msg)
     {
-        if (_output != null)
-            _output.Text += msg + "\n";
+        if (_output != null) _output.Text += msg + "\n";
         GD.Print("[Beep] " + msg);
     }
 }

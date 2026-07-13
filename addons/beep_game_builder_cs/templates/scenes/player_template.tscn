@@ -1,6 +1,44 @@
-[gd_scene load_steps=1 format=3]
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="1_health"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/MovementComponent.cs" id="2_movement"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AttackComponent.cs" id="3_attack"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthBarComponent.cs" id="4_healthbar"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(28, 44)
 
 [node name="Player" type="CharacterBody2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("1_health")
+MaxHealth = 100.0
+CurrentHealth = 100.0
+
+[node name="Movement" type="Node" parent="."]
+script = ExtResource("2_movement")
+Speed = 200.0
+Acceleration = 1800.0
+Friction = 1400.0
+CanDash = false
+
+[node name="Attack" type="Node" parent="."]
+script = ExtResource("3_attack")
+Damage = 10.0
+Range = 50.0
+Cooldown = 0.5
+IsRanged = false
+
+[node name="HealthBar" type="Node" parent="."]
+script = ExtResource("4_healthbar")
+ShowOnlyWhenDamaged = true
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+limit_left = 0
+limit_top = 0

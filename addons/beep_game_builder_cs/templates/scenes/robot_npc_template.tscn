@@ -1,7 +1,50 @@
-[gd_scene load_steps=1 format=3]
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="1_health"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AggroComponent.cs" id="2_aggro"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/MovementComponent.cs" id="3_movement"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/InteractableComponent.cs" id="4_interact"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthBarComponent.cs" id="5_healthbar"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(40, 60)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_detection"]
+radius = 250.0
 
 [node name="RobotNPC" type="CharacterBody2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("1_health")
+MaxHealth = 50.0
+CurrentHealth = 50.0
+
+[node name="Movement" type="Node" parent="."]
+script = ExtResource("3_movement")
+Speed = 60.0
+Acceleration = 600.0
+Friction = 600.0
+
+[node name="Aggro" type="Node" parent="."]
+script = ExtResource("2_aggro")
+AggroRange = 300.0
+DeaggroRange = 500.0
+ThreatDecayRate = 5.0
+
+[node name="Interactable" type="Node" parent="."]
+script = ExtResource("4_interact")
+PromptText = "Talk"
+InputAction = "interact"
+Toggleable = false
+
+[node name="HealthBar" type="Node" parent="."]
+script = ExtResource("5_healthbar")
+
 [node name="DetectionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_detection")

@@ -1,6 +1,15 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/DialogUIComponent.cs" id="1_dialog"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/DialogComponent.cs" id="2_dialog_engine"]
 
 [node name="DialogTemplate" type="CanvasLayer"]
+
+[node name="DialogUI" type="Node" parent="."]
+script = ExtResource("1_dialog")
+
+[node name="DialogEngine" type="Node" parent="."]
+script = ExtResource("2_dialog_engine")
 
 [node name="Panel" type="Panel" parent="."]
 anchor_left = 0.5

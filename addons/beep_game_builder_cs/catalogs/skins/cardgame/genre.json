@@ -1,7 +1,7 @@
 {
   "id": "cardgame",
   "display_name": "Card Game",
-  "icon": "🃏",
+  "icon": "\ud83c\udccf",
   "description": "Deck building, card battles, collection and rewards",
   "default_theme": "velvet",
   "default_geometry": "cardgame",
@@ -22,5 +22,31 @@
     "hand_limit": 10,
     "card_hover_scale": 1.12,
     "card_fan_angle": 18
+  },
+  "nav_wiring": {
+    "main_menu.tscn": {
+      "GameScene": "res://scenes/main/cardgame_main.tscn",
+      "Settings": "res://scenes/ui/settings_menu.tscn"
+    },
+    "pause_menu.tscn": {
+      "Settings": "res://scenes/ui/settings_menu.tscn",
+      "MainMenu": "res://scenes/ui/main_menu.tscn"
+    },
+    "game_over.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/cardgame_main.tscn"
+    },
+    "deck_builder.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/cardgame_main.tscn"
+    },
+    "card_battle.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/cardgame_main.tscn"
+    },
+    "collection.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/cardgame_main.tscn"
+    }
   }
 }

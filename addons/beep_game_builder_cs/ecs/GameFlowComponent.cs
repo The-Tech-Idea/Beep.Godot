@@ -113,15 +113,22 @@ namespace Beep.ECS
                 // Defer the scene change so animations can play first.
                 var tree = GetTree();
                 if (tree != null)
-                    tree.CreateTimer(NavigateDelay).Timeout += () =>
+                {
+                    var timer = tree.CreateTimer(NavigateDelay);
+                    timer.Timeout += () =>
                     {
                         if (GodotObject.IsInstanceValid(this) && IsActive)
-                            GetTree()?.ChangeSceneToFile(path);
+                        {
+                            var t = GetTree();
+                            t?.ChangeSceneToFile(path);
+                        }
                     };
+                }
             }
             else
             {
-                GetTree()?.ChangeSceneToFile(path);
+                var tree2 = GetTree();
+                tree2?.ChangeSceneToFile(path);
             }
         }
     }

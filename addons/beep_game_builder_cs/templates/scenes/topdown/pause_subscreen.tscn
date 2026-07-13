@@ -1,9 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="3_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [node name="PauseSubscreen" type="CanvasLayer"]
 layer = 10
@@ -168,10 +167,6 @@ metadata/action = "save"
 text = "(Saves are managed by the SaveManager autoload.)"
 
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("3_menu")
-known_actions = ["resume", "menu", "save"]
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("4_nav")
 
@@ -181,3 +176,7 @@ script = ExtResource("1_theme")
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
 theme_component_path = NodePath("Theme")
+
+[connection signal="pressed" from="Margin/MainHBox/TabRail/ResumeButton" to="Navigation" method="dispatch" binds=["resume"]]
+[connection signal="pressed" from="Margin/MainHBox/TabRail/QuitButton" to="Navigation" method="dispatch" binds=["main_menu"]]
+[connection signal="pressed" from="Margin/MainHBox/ContentArea/Tabs/Save/SaveButton" to="Navigation" method="dispatch" binds=["save"]]

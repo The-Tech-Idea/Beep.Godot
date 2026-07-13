@@ -21,7 +21,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            EnsureLabel();
+            CallDeferred(nameof(EnsureLabel));
             _label!.Visible = false;
             _label.Modulate = new Color(1, 1, 1, 0);
         }
@@ -38,7 +38,7 @@ namespace Beep.ECS.UI
             _label.AddThemeFontSizeOverride("font_size", FontSize);
             var parent = GetParent() as Godot.Control;
             if (parent != null) parent.AddChild(_label);
-            _label.Owner = parent;
+            if (parent.IsInsideTree()) _label.Owner = parent.Owner;
         }
 
         public void Show(string text = "")

@@ -26,6 +26,11 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            CallDeferred(nameof(SetupParticles));
+        }
+
+        private void SetupParticles()
+        {
             if (ParticleScene != null)
             {
                 var inst = ParticleScene.Instantiate<GpuParticles2D>();
@@ -35,15 +40,17 @@ namespace Beep.ECS
                     _particles.OneShot = OneShot;
                     _particles.Emitting = PlayOnStart;
                     _particles.Position = Offset;
-                    _particles.Finished += () =>
-                    {
-                        EmitSignal(SignalName.Finished);
-                        if (AutoQueueFree) _particles?.QueueFree();
-                    };
+                    _particles.Finished += OnParticlesFinished;
                     AddChild(_particles);
                 }
             }
             if (PlayOnStart) EmitSignal(SignalName.BurstPlayed);
+        }
+
+        private void OnParticlesFinished()
+        {
+            EmitSignal(SignalName.Finished);
+            if (AutoQueueFree) _particles?.QueueFree();
         }
 
         public override void _Process(double delta)

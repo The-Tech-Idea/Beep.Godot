@@ -26,16 +26,23 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            CallDeferred(nameof(SetupAudioPlayer));
+        }
+
+        private void SetupAudioPlayer()
+        {
             _player = new AudioStreamPlayer();
             _player.Stream = Stream;
             _player.VolumeDb = VolumeDb;
             _player.PitchScale = PitchScale;
             _player.Bus = Bus;
-            _player.Finished += () => EmitSignal(SignalName.Finished);
+            _player.Finished += OnPlayerFinished;
             AddChild(_player);
 
             if (AutoPlay) Play();
         }
+
+        private void OnPlayerFinished() => EmitSignal(SignalName.Finished);
 
         public void Play()
         {

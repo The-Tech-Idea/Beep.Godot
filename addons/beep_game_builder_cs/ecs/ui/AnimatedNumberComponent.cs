@@ -21,7 +21,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            ResolveLabel();
+            CallDeferred(nameof(ResolveLabel));
             UpdateText(CurrentValue);
         }
 
@@ -33,7 +33,7 @@ namespace Beep.ECS.UI
             {
                 _label = new Label { Name = "NumberLabel", Text = "0" };
                 p.AddChild(_label);
-                _label.Owner = p;
+                if (p.IsInsideTree()) _label.Owner = p.Owner;
             }
         }
 

@@ -1,8 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="3_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs" id="5_settings"]
 
@@ -144,12 +143,10 @@ script = ExtResource("1_theme")
 script = ExtResource("2_binder")
 theme_component_path = NodePath("Theme")
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("3_menu")
-known_actions = ["close"]
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("4_nav")
 
 [node name="Settings" type="Node" parent="."]
 script = ExtResource("5_settings")
+
+[connection signal="pressed" from="Center/Panel/Margin/ContentVBox/CloseButton" to="Navigation" method="dispatch" binds=["close"]]

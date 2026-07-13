@@ -1,6 +1,5 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 
@@ -93,11 +92,6 @@ custom_minimum_size = Vector2(120, 0)
 text = "Play ▶"
 metadata/action = "play"
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("1_menu")
-enable_ripple = true
-
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("4_nav")
 
@@ -107,3 +101,6 @@ script = ExtResource("2_theme")
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
+
+[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/BackButton" to="Navigation" method="dispatch" binds=["back"]]
+[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/PlayButton" to="Navigation" method="dispatch" binds=["play"]]

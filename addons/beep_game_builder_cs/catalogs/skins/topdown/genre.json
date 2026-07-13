@@ -10,5 +10,11 @@
   "scenes": ["pause_subscreen.tscn"],
   "tuning": {
     "move_speed": 200
+  },
+  "nav_wiring": {
+    "main_menu.tscn":         { "GameScene": "res://scenes/main/topdown_main.tscn", "Settings": "res://scenes/ui/settings_menu.tscn" },
+    "pause_menu.tscn":        { "Settings": "res://scenes/ui/settings_menu.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" },
+    "game_over.tscn":         { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/topdown_main.tscn" },
+    "pause_subscreen.tscn":   { "Settings": "res://scenes/ui/settings_menu.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" }
   }
 }

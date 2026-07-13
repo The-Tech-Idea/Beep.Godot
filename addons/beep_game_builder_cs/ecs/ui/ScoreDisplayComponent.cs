@@ -24,7 +24,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            EnsureLabel();
+            CallDeferred(nameof(EnsureLabel));
             UpdateText(CurrentScore);
         }
 
@@ -35,7 +35,7 @@ namespace Beep.ECS.UI
             _label = new Label { Name = "ScoreLabel", Text = Prefix + "0" };
             _label.AddThemeFontSizeOverride("font_size", FontSize);
             GetParent().AddChild(_label);
-            _label.Owner = GetParent();
+            { var _p = GetParent(); if (_p != null && _p.IsInsideTree()) _label.Owner = _p.Owner; }
         }
 
         /// <summary>Add points and animate the roll. Connect GameFlow.ScoreChanged → here.</summary>

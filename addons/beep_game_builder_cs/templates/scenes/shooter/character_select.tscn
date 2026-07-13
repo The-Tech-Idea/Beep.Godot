@@ -1,6 +1,5 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="4_anim"]
@@ -155,11 +154,6 @@ horizontal_alignment = 1
 text = "Select"
 metadata/action = "char_bruiser"
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("1_menu")
-enable_ripple = true
-
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("5_nav")
 
@@ -175,3 +169,9 @@ append_game_name = true
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("4_anim")
 animate_on_ready = true
+
+[connection signal="pressed" from="Margin/VBox/Header/BackButton" to="Navigation" method="dispatch" binds=["back"]]
+[connection signal="pressed" from="Margin/VBox/CharGrid/MarineCard/MarineVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_marine"]]
+[connection signal="pressed" from="Margin/VBox/CharGrid/PilotCard/PilotVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_pilot"]]
+[connection signal="pressed" from="Margin/VBox/CharGrid/HunterCard/HunterVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_hunter"]]
+[connection signal="pressed" from="Margin/VBox/CharGrid/BruiserCard/BruiserVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_bruiser"]]

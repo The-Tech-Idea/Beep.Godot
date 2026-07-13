@@ -22,8 +22,9 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class LocalizationComponent : UIComponent
     {
-        /// <summary>res:// path(s) to CSV translation files. Multiple files are supported.</summary>
-        [Export] public string[] TranslationPaths { get; set; } = System.Array.Empty<string>();
+        /// <summary>res:// path(s) to CSV translation files. Multiple files are supported.
+        /// Shows a file picker in the inspector filtered to .csv files.</summary>
+        [Export(PropertyHint.File, "*.csv,")] public string[] TranslationPaths { get; set; } = System.Array.Empty<string>();
 
         /// <summary>The current locale code (e.g. "en", "es", "ja").</summary>
         [Export] public string CurrentLocale { get; set; } = "en";

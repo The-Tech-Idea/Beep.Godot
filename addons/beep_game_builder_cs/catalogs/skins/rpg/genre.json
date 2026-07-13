@@ -1,7 +1,7 @@
 {
   "id": "rpg",
   "display_name": "RPG",
-  "icon": "⚔️",
+  "icon": "\u2694\ufe0f",
   "description": "Character progression, inventory, quests and dialogue",
   "default_theme": "fantasy",
   "default_geometry": "rpg",
@@ -22,5 +22,31 @@
     "inventory_columns": 6,
     "dialogue_speed": 0.04,
     "tooltip_delay": 0.35
+  },
+  "nav_wiring": {
+    "main_menu.tscn": {
+      "GameScene": "res://scenes/main/rpg_main.tscn",
+      "Settings": "res://scenes/ui/settings_menu.tscn"
+    },
+    "pause_menu.tscn": {
+      "Settings": "res://scenes/ui/settings_menu.tscn",
+      "MainMenu": "res://scenes/ui/main_menu.tscn"
+    },
+    "game_over.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/rpg_main.tscn"
+    },
+    "inventory.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/rpg_main.tscn"
+    },
+    "character.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/rpg_main.tscn"
+    },
+    "quests.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/rpg_main.tscn"
+    }
   }
 }

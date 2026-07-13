@@ -138,6 +138,8 @@ namespace Beep.ECS.UI
                     foreach (var s in scenesVar.AsStringArray()) genreDef.Scenes.Add(s);
                 if (genreJson.TryGetValue("tuning", out var tuningVar) && tuningVar.VariantType == Variant.Type.Dictionary)
                     genreDef.Tuning = tuningVar.AsGodotDictionary();
+                if (genreJson.TryGetValue("nav_wiring", out var navVar) && navVar.VariantType == Variant.Type.Dictionary)
+                    genreDef.NavWiring = navVar.AsGodotDictionary();
             }
 
             // geometry.json — per-genre geometry profile.
@@ -564,6 +566,9 @@ namespace Beep.ECS.UI
         public string MainScene = "";
         public List<string> Scenes = new();
         public Godot.Collections.Dictionary Tuning = new();
+        /// <summary>Scene-to-navigation mapping from genre.json. Key = scene filename
+        /// (e.g. "main_menu.tscn"), Value = Dictionary of property→res:// path.</summary>
+        public Godot.Collections.Dictionary NavWiring = new();
         public GeometryDef? Geometry;
         public Dictionary<string, ThemeDef> Themes = new();
     }

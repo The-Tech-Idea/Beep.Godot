@@ -1,92 +1,103 @@
 # Beep Game Builder (C#)
 
-A .NET (C#) Godot 4 addon for scaffolding games fast: generators for projects,
-scenes, scripts, shaders, tweens, particles, and projectiles, 50+ ECS gameplay
-components, project validation/export tooling, and an MCP bridge for AI agents.
-
-> UI theming and drag-and-drop widgets now live in the separate, GDScript
-> **[`beep_ui`](../beep_ui/README.md)** addon, which runs in any Godot project.
-> This C# addon focuses on game building, ECS, and MCP.
+Godot 4.7 (.NET 8) game builder addon: file-based skin system, 100+ categorized
+components, weather system, scene templates, project generation, and MCP bridge.
 
 ## Requirements
 
-- Godot **4.3+** with **C# / .NET** support.
-- A .NET-enabled Godot project (the addon's `.cs` files compile as part of your
-  project's `.csproj`).
-- The **`beep_ui`** GDScript addon enabled (for themed UI scenes used by genre templates).
+- Godot 4.7+ with .NET 8 SDK
+- For pure-GDScript projects, use `beep_ui` instead (no C# needed)
 
 ## Installation
 
-1. Copy this folder to `<your_project>/addons/beep_game_builder_cs`.
-2. Open the project in Godot (C# build runs automatically).
-3. **Project → Project Settings → Plugins → enable "Beep Game Builder (C#)"**.
-4. The **Beep Game Builder** dock appears on the right.
+1. Copy `addons/beep_game_builder_cs/` into your project's `addons/` directory.
+2. Project → Project Settings → Plugins → enable "Beep Game Builder (C#)".
+3. Build the .NET project (Build button in Godot).
 
-## What's in the dock
+## Editor dock
 
-Each tab exposes one-click generators:
+Single scrollable form — no tabs:
+- **Genre & Skin**: cascading dropdowns (Genre → Theme → Palette)
+- **Game Identity**: name, version, developer
+- **Display**: resolution, FPS, pixel-art, fullscreen
+- **Audio**: master/SFX/music sliders
+- **Language**: en/es/ja
+- **Actions**: Generate (with regen mode), Save, Reload
 
-- **Project** — standard folders, project defaults (1280×720, 2D stretch), input
-  map, manager scripts (scene/save/audio), full starter project, and **genre
-  templates** (see below).
-- **Scenes** — main scene, main/pause menus, enemy patrol, pickup, moving
-  platform, HUD overlay, and templates (enemy, pickup, dialog, projectile).
-- **Characters** — top-down & platformer players, robot NPC, patrol AI, health,
-  camera follow, doors/switches, turrets, checkpoints, weather, day/night,
-  inventory, projectiles, game manager, dialog, pooling, transitions.
-- **Shaders / Tweens / Particles / Projectiles** — catalog-driven generators
-  backed by JSON presets in `catalogs/` and templates in `templates/`. Select
-  from a searchable list and generate (with an "overwrite" toggle).
-- **ECS Components** — 50+ `[GlobalClass]` components. Add them via the editor's
-  **Add Node** menu (search "Component"). Categories: gameplay (Health, Attack,
-  Movement, Knockback, …), controllers (TopDown/Platformer, AI, StateMachine),
-  world/effects, and UI components.
-- **Validation** — validate the project, auto-fix safe issues, write a report.
-- **Export** — generate an export checklist.
+## Components
 
-## Genre Templates
+Add via Godot's **Add Node** dialog (Ctrl+A) — search "Component". Organized:
 
-One click in the **Project** tab stamps a complete, themed, playable starter
-project for a chosen genre. Enter your game name, click the genre, and you get:
+| Category | Count | Examples |
+|---|---|---|
+| **UIComponent** | 47 | Menu, Dialog, HUD, Theme, Settings, Table, Carousel, Tooltip, Toast |
+| **GameplayComponent** | 24 | Health, Attack, Movement, Inventory, AI, Projectile, Pickup, Status |
+| **ControllerComponent** | 9 | Platformer, TopDown, Shooter, AI controllers, Camera, Navigation |
+| **WorldComponent** | 12 | Weather, DayNight, Spawner, Checkpoint, Door, Parallax, WindField |
 
-- The full navigation loop: **Main Menu → Game → (ESC: Pause) → Game Over**.
-- All UI scenes themed via the `beep_ui` `ThemePresetComponent`.
-- A central **`GameInfo`** autoload (`res://game_info.tres`) holding game name,
-  version, genre, theme preset, resolution, and genre tuning — every scene reads
-  from it.
-- Manager autoloads (GameManager, SceneManager, SaveManager, AudioManager).
-- Every behavior is a `[GlobalClass]` component (no `.gd` controller scripts).
+## File-based skin system
 
-| Button | Genre scene | Default theme | Key components |
-|---|---|---|---|
-| New Platformer Project | `platformer_main.tscn` | Cartoon | PlatformerController, Health, Parallax, Camera2D, checkpoints/pickups/enemies containers |
-| New Top-Down Project | `topdown_main.tscn` | Fantasy | TopDownController, Interactable, Health, NavigationRegion2D, dialog overlay |
-| New Shooter Project | `shooter_main.tscn` | SciFi | ShooterController (mouse-aim + fire), Health, Projectiles pool, Spawner |
-| New Puzzle Project | `puzzle_main.tscn` | Candy | Match3BoardComponent (swap/match/cascade/refill), scoring |
+```
+catalogs/skins/
+├── platformer/
+│   ├── genre.json         ← tuning, scenes, default theme
+│   ├── geometry.json      ← per-genre geometry + per-node shapes
+│   └── themes/
+│       └── cartoon/
+│           ├── theme.json ← 22 colors + 12 geometry + 6 animation
+│           └── *.json     ← 7 palettes (default, warm, cool, pastel, ...)
+├── topdown/   (same structure)
+├── shooter/   (same structure)
+└── puzzle/    (same structure)
+```
 
-All `[GlobalClass]` components appear in Godot's **Add Node** menu (Ctrl+A) —
-search "Component" to add any of the 50+ components to a scene node.
+Adding content = drop a file, zero C# changes:
+- New genre: `skins/mygenre/genre.json`
+- New theme: `skins/genre/themes/mytheme/theme.json`
+- New palette: drop `.json` in a theme folder
+- See [Skin system cookbook →](../../docs/SKIN_SYSTEM.md)
 
-## Subsystems
+## Scene templates
 
-### ECS components (`ecs/`)
-`[GlobalClass]` C# components derived from `EntityComponent` (blind, group-based,
-`[Tool]`). Add as children of any node; systems find them by group. Includes 26
-UI components under `ecs/ui/` (the original source of the theming engine now
-ported to `beep_ui`).
+Generated per genre via the dock's Generate button:
+- **Shared**: main_menu, pause_menu, settings_menu, game_over, hud
+- **Platformer**: level_select, level_results + platformer_main
+- **TopDown**: pause_subscreen + topdown_main
+- **Shooter**: character_select, level_up_choice, run_results, codex + shooter_main
+- **Puzzle**: level_map, pre_level, level_complete, level_failed + puzzle_main
 
-### MCP bridge (`mcp/`)
-A WebSocket bridge (`GodotMcpRuntime` autoload + `McpGameAdapter`) that exposes
-the scene tree to external AI agents, configurable under Project Settings
-(`godot_mcp/bridge/...`). See `mcp/README.md`.
+All scenes use `[GlobalClass]` components — no GDScript controllers. Navigation
+wired via `MenuComponent` + `NavigationComponent` (exported PackedScene paths).
 
-## Notes
+## Weather system
 
-- The MCP bridge connects to `ws://127.0.0.1:8789` by default; configure the URL
-  and token in Project Settings.
-- Generated scripts are written into `res://scripts/...` and `.uid` files are
-  created so Godot 4 recognizes them in the FileSystem.
+- 10 weather types with particle effects, fog shaders, cloud overlays
+- Day/night cycle with sky gradient + `RenderingServer.SetDefaultClearColor`
+- Seasons gating weather + weighted random selection
+- Lightning bolts (procedural Line2D) + camera shake integration
+- Intensity engine (0..1 cross-fade transitions)
+- Wind physics via `WindFieldComponent` (Area2D)
+- HUD via `WeatherHUDComponent` (genre/palette/time display)
 
-## License
+## Autoloads (auto-registered by generator)
 
-See the repository [LICENSE.txt](../../LICENSE.txt).
+| Autoload | Type | Purpose |
+|---|---|---|
+| `GameApp` | Node | Session state (level, score, character), Info reference |
+| `Settings` | Node (SettingsComponent) | User settings (audio, display, language) → `user://settings.cfg` |
+| `Locale` | Node (LocalizationComponent) | TranslationServer wrapper, CSV loading |
+
+GameInfo is a Resource (not an autoload) — loaded by GameApp from `game_info.tres`.
+
+## MCP bridge
+
+Optional AI agent bridge over WebSocket. Auto-enabled on plugin load.
+See [MCP README →](mcp/README.md).
+
+## Further reading
+
+- [Architecture →](../../docs/ARCHITECTURE.md)
+- [App workflow →](../../docs/APP_WORKFLOW.md)
+- [Skinning & theming →](../../docs/SKINNING_THEMING.md)
+- [File formats →](../../docs/FILE_FORMATS.md)
+- [Enhancement suggestions →](../../docs/ENHANCEMENT_SUGGESTIONS.md)

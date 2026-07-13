@@ -26,7 +26,7 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _control = GetParent() as Godot.Control;
-            BuildBadge();
+            CallDeferred(nameof(BuildBadge));
             UpdateBadge();
         }
 

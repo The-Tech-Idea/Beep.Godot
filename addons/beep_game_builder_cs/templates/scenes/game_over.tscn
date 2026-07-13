@@ -1,6 +1,5 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="2_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="4_binder"]
@@ -44,11 +43,6 @@ text = "Retry"
 custom_minimum_size = Vector2(220, 0)
 text = "Main Menu"
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("1_menu")
-known_actions = ["retry", "menu", "main_menu"]
-enable_ripple = true
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("2_nav")
 
@@ -68,3 +62,6 @@ duration = 0.4
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("6_anim")
 animate_on_ready = true
+
+[connection signal="pressed" from="Center/GameOverVBox/RetryButton" to="Navigation" method="dispatch" binds=["retry"]]
+[connection signal="pressed" from="Center/GameOverVBox/MainMenuButton" to="Navigation" method="dispatch" binds=["main_menu"]]

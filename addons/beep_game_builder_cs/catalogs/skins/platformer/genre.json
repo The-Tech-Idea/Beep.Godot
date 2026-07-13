@@ -12,5 +12,12 @@
     "gravity": 980,
     "jump_velocity": -400,
     "move_speed": 200
+  },
+  "nav_wiring": {
+    "main_menu.tscn":      { "GameScene": "res://scenes/main/platformer_main.tscn", "Settings": "res://scenes/ui/settings_menu.tscn" },
+    "pause_menu.tscn":     { "Settings": "res://scenes/ui/settings_menu.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" },
+    "game_over.tscn":      { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/platformer_main.tscn" },
+    "level_select.tscn":   { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/platformer_main.tscn", "NextLevel": "res://scenes/ui/platformer/level_results.tscn" },
+    "level_results.tscn":  { "LevelSelect": "res://scenes/ui/platformer/level_select.tscn", "GameScene": "res://scenes/main/platformer_main.tscn" }
   }
 }

@@ -1,6 +1,5 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 
@@ -118,11 +117,6 @@ text = "2-1
 disabled = true
 metadata/action = "level_2_1"
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("1_menu")
-enable_ripple = true
-
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("4_nav")
 
@@ -134,3 +128,11 @@ script = ExtResource("3_binder")
 title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
 theme_component_path = NodePath("Theme")
 append_game_name = true
+
+[connection signal="pressed" from="Margin/VBox/Header/BackButton" to="Navigation" method="dispatch" binds=["back"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level1Button" to="Navigation" method="dispatch" binds=["level_1_1"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level2Button" to="Navigation" method="dispatch" binds=["level_1_2"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level3Button" to="Navigation" method="dispatch" binds=["level_1_3"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level4Button" to="Navigation" method="dispatch" binds=["level_1_4"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level5Button" to="Navigation" method="dispatch" binds=["level_1_5"]]
+[connection signal="pressed" from="Margin/VBox/WorldTabs/World2/W2VBox/LevelGrid/Level1Button" to="Navigation" method="dispatch" binds=["level_2_1"]]

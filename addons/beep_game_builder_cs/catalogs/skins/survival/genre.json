@@ -1,7 +1,7 @@
 {
   "id": "survival",
   "display_name": "Survival",
-  "icon": "🧭",
+  "icon": "\ud83e\udded",
   "description": "Crafting, inventory, status meters and world map",
   "default_theme": "wilderness",
   "default_geometry": "survival",
@@ -22,5 +22,31 @@
     "quick_slots": 8,
     "warning_threshold": 0.25,
     "status_decay_seconds": 60
+  },
+  "nav_wiring": {
+    "main_menu.tscn": {
+      "GameScene": "res://scenes/main/survival_main.tscn",
+      "Settings": "res://scenes/ui/settings_menu.tscn"
+    },
+    "pause_menu.tscn": {
+      "Settings": "res://scenes/ui/settings_menu.tscn",
+      "MainMenu": "res://scenes/ui/main_menu.tscn"
+    },
+    "game_over.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/survival_main.tscn"
+    },
+    "crafting.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/survival_main.tscn"
+    },
+    "backpack.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/survival_main.tscn"
+    },
+    "world_map.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/survival_main.tscn"
+    }
   }
 }

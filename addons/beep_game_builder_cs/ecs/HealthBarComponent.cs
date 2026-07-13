@@ -26,6 +26,11 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            CallDeferred(nameof(SetupBar));
+        }
+
+        private void SetupBar()
+        {
             _health = GetSiblingComponent<HealthComponent>();
             if (_health == null) return;
 
@@ -38,21 +43,29 @@ namespace Beep.ECS
             _bar.AddThemeStyleboxOverride("fill", CreateStyleBox(HealthyColor));
             _bar.AddThemeStyleboxOverride("background", CreateStyleBox(BgColor));
 
-            GetParent()?.AddChild(_bar);
-
-            _health.HealthChanged += (cur, max) =>
+            var parent = GetParent();
+            if (parent != null)
             {
-                if (_bar == null) return;
-                _bar.MaxValue = max;
-                _bar.Value = cur;
-                float pct = cur / max;
-                Color fillColor = pct > 0.5f ? HealthyColor : pct > 0.25f ? WarningColor : DangerColor;
-                _bar.AddThemeStyleboxOverride("fill", CreateStyleBox(fillColor));
-                _bar.Visible = true;
-                _hideTimer = HideDelay;
-            };
+                parent.AddChild(_bar);
+                if (parent.IsInsideTree())
+                    _bar.Owner = parent.Owner;
+            }
+
+            _health.HealthChanged += OnHealthChanged;
 
             _bar.Visible = !ShowOnlyWhenDamaged;
+        }
+
+        private void OnHealthChanged(float cur, float max)
+        {
+            if (_bar == null) return;
+            _bar.MaxValue = max;
+            _bar.Value = cur;
+            float pct = cur / (float)max;
+            Color fillColor = pct > 0.5f ? HealthyColor : pct > 0.25f ? WarningColor : DangerColor;
+            _bar.AddThemeStyleboxOverride("fill", CreateStyleBox(fillColor));
+            _bar.Visible = true;
+            _hideTimer = HideDelay;
         }
 
         public override void _Process(double delta)

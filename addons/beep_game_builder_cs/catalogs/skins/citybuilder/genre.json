@@ -1,7 +1,7 @@
 {
   "id": "citybuilder",
   "display_name": "City Builder",
-  "icon": "🏙️",
+  "icon": "\ud83c\udfd9\ufe0f",
   "description": "Construction, economy, citizen statistics and districts",
   "default_theme": "urban",
   "default_geometry": "citybuilder",
@@ -22,5 +22,31 @@
     "build_grid_size": 32,
     "resource_slots": 6,
     "notification_stack": 5
+  },
+  "nav_wiring": {
+    "main_menu.tscn": {
+      "GameScene": "res://scenes/main/citybuilder_main.tscn",
+      "Settings": "res://scenes/ui/settings_menu.tscn"
+    },
+    "pause_menu.tscn": {
+      "Settings": "res://scenes/ui/settings_menu.tscn",
+      "MainMenu": "res://scenes/ui/main_menu.tscn"
+    },
+    "game_over.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/citybuilder_main.tscn"
+    },
+    "build_menu.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/citybuilder_main.tscn"
+    },
+    "economy.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/citybuilder_main.tscn"
+    },
+    "districts.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/citybuilder_main.tscn"
+    }
   }
 }

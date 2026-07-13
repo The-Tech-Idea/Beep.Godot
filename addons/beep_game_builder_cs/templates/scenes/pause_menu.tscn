@@ -1,7 +1,6 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs" id="1_pause"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs" id="2_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="3_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="4_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="5_binder"]
@@ -59,11 +58,6 @@ text = "Quit"
 [node name="PauseController" type="Node" parent="."]
 script = ExtResource("1_pause")
 
-[node name="Menu" type="Node" parent="."]
-script = ExtResource("2_menu")
-known_actions = ["resume", "save_game", "load_game", "settings", "restart", "menu", "main_menu", "quit"]
-enable_ripple = true
-
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("3_nav")
 
@@ -77,3 +71,11 @@ theme_component_path = NodePath("Theme")
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("6_transition")
 duration = 0.4
+
+[connection signal="pressed" from="Panel/PauseVBox/ResumeButton" to="Navigation" method="dispatch" binds=["resume"]]
+[connection signal="pressed" from="Panel/PauseVBox/SaveGameButton" to="Navigation" method="dispatch" binds=["save_game"]]
+[connection signal="pressed" from="Panel/PauseVBox/LoadGameButton" to="Navigation" method="dispatch" binds=["load_game"]]
+[connection signal="pressed" from="Panel/PauseVBox/SettingsButton" to="Navigation" method="dispatch" binds=["settings"]]
+[connection signal="pressed" from="Panel/PauseVBox/RestartButton" to="Navigation" method="dispatch" binds=["restart"]]
+[connection signal="pressed" from="Panel/PauseVBox/MainMenuButton" to="Navigation" method="dispatch" binds=["main_menu"]]
+[connection signal="pressed" from="Panel/PauseVBox/QuitButton" to="Navigation" method="dispatch" binds=["quit"]]

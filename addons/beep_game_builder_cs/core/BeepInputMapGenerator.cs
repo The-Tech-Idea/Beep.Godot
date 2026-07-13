@@ -22,7 +22,7 @@ public static class BeepInputMapGenerator
         AddJoy("interact", JoyButton.B); AddJoy("dash", JoyButton.LeftShoulder);
         AddJoy("pause", JoyButton.Start); AddJoy("ui_accept", JoyButton.A);
         AddJoy("ui_cancel", JoyButton.B);
-        ProjectSettings.Save();
+        // Don't call ProjectSettings.Save() here — the generator saves once at the end.
         return new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","pause","ui_accept","ui_cancel" };
     }
 

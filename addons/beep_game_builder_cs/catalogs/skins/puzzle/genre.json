@@ -12,5 +12,14 @@
     "grid_width": 8,
     "grid_height": 8,
     "target_score": 1000
+  },
+  "nav_wiring": {
+    "main_menu.tscn":        { "GameScene": "res://scenes/main/puzzle_main.tscn", "Settings": "res://scenes/ui/settings_menu.tscn" },
+    "pause_menu.tscn":       { "Settings": "res://scenes/ui/settings_menu.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" },
+    "game_over.tscn":        { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/puzzle_main.tscn" },
+    "level_map.tscn":        { "MainMenu": "res://scenes/ui/main_menu.tscn", "Settings": "res://scenes/ui/settings_menu.tscn", "PreLevel": "res://scenes/ui/puzzle/pre_level.tscn" },
+    "pre_level.tscn":        { "LevelSelect": "res://scenes/ui/puzzle/level_map.tscn", "GameScene": "res://scenes/main/puzzle_main.tscn" },
+    "level_complete.tscn":   { "LevelSelect": "res://scenes/ui/puzzle/level_map.tscn", "NextLevel": "res://scenes/ui/puzzle/pre_level.tscn", "GameScene": "res://scenes/main/puzzle_main.tscn" },
+    "level_failed.tscn":     { "LevelSelect": "res://scenes/ui/puzzle/level_map.tscn", "GameScene": "res://scenes/main/puzzle_main.tscn" }
   }
 }

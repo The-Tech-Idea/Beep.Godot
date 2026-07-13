@@ -29,7 +29,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            EnsureAmbient();
+            CallDeferred(nameof(EnsureAmbient));
         }
 
         private void EnsureAmbient()
@@ -40,7 +40,7 @@ namespace Beep.ECS
             {
                 _ambient = new CanvasModulate { Name = "DayNightAmbient", Color = DayColor };
                 parent.AddChild(_ambient);
-                _ambient.Owner = parent;
+                if (parent.IsInsideTree()) _ambient.Owner = parent.Owner;
             }
         }
 

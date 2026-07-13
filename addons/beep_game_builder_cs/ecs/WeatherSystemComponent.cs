@@ -225,6 +225,11 @@ void fragment(){
             // Register in the discovery group so WindFieldComponent and
             // WeatherHUDComponent can auto-find this system without a NodePath.
             if (!IsInGroup("weather_system")) AddToGroup("weather_system");
+            CallDeferred(nameof(DeferredInit));
+        }
+
+        private void DeferredInit()
+        {
             EnsureNodes();
             if (!Engine.IsEditorHint()) SetWeather(CurrentWeather);
         }

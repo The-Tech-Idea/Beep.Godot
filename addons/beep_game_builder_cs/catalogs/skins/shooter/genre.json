@@ -11,5 +11,13 @@
   "tuning": {
     "move_speed": 200,
     "fire_rate": 0.2
+  },
+  "nav_wiring": {
+    "main_menu.tscn":         { "GameScene": "res://scenes/main/shooter_main.tscn", "Settings": "res://scenes/ui/settings_menu.tscn" },
+    "pause_menu.tscn":        { "Settings": "res://scenes/ui/settings_menu.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" },
+    "game_over.tscn":         { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/shooter_main.tscn" },
+    "character_select.tscn":  { "MainMenu": "res://scenes/ui/main_menu.tscn", "GameScene": "res://scenes/main/shooter_main.tscn" },
+    "run_results.tscn":       { "GameScene": "res://scenes/main/shooter_main.tscn", "MainMenu": "res://scenes/ui/main_menu.tscn" },
+    "codex.tscn":             { "MainMenu": "res://scenes/ui/main_menu.tscn" }
   }
 }

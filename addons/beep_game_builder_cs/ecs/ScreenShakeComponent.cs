@@ -8,7 +8,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ScreenShakeComponent : GameplayComponent
+    public partial class ScreenShakeComponent : ControllerComponent
     {
         [Export] public float DefaultIntensity { get; set; } = 5f;
         [Export] public float DefaultDuration { get; set; } = 0.3f;

@@ -270,7 +270,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         b.AddChild(hint);
 
         AddButton(b, "▶ Generate Project", GenerateProject);
-        AddButton(b, "💾 Save Settings", SaveSettings);
         AddButton(b, "🔄 Reload from game_info.tres", LoadFromGameInfo);
     }
 
@@ -309,35 +308,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         };
         var log = BeepGenreGenerator.CreateProject(genreId, info, mode);
         foreach (var line in log) Log(line);
-    }
-
-    /// <summary>Save settings to game_info.tres without generating scenes.</summary>
-    private void SaveSettings()
-    {
-        var info = LoadGameInfoFromFile() ?? new GameInfo();
-        info.GameName = _gameName.Text;
-        info.Version = _version.Text;
-        info.Developer = _developer.Text;
-        info.Description = _description.Text;
-        info.TargetResolutionWidth = (int)_resW.Value;
-        info.TargetResolutionHeight = (int)_resH.Value;
-        info.TargetFps = (int)_targetFps.Value;
-        info.PixelArt = _pixelArt.ButtonPressed;
-
-        string genreId = GetSelectedGenreId();
-        if (genreId != null)
-        {
-            var genre = Beep.ECS.UI.SkinCatalog.GetGenre(genreId);
-            info.Genre = GameInfo.GenreFromId(genreId);
-            info.DefaultThemePreset = GetSelectedThemeId() ?? info.DefaultThemePreset;
-            info.PaletteName = GetSelectedPaletteDisplayName();
-            info.GeometryProfileName = genre?.Geometry?.DisplayName ?? "As-Authored";
-        }
-
-        Error err = ResourceSaver.Save(info, GameInfo.TresPath);
-        if (err == Error.Ok) Log($"Saved {GameInfo.TresPath}");
-        else Log($"ERROR saving: {err}");
-        BeepFileUtils.RefreshFilesystem();
     }
 
     private void LoadFromGameInfo()

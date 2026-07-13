@@ -15,7 +15,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class BootComponent : GameplayComponent
+    public partial class BootComponent : ControllerComponent
     {
         /// <summary>Minimum time (seconds) to show the boot/splash screen before transitioning.</summary>
         [Export] public double MinBootTime { get; set; } = 1.5;

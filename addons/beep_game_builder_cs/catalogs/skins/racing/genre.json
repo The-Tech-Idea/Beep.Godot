@@ -1,7 +1,7 @@
 {
   "id": "racing",
   "display_name": "Racing",
-  "icon": "🏁",
+  "icon": "\ud83c\udfc1",
   "description": "Race HUD, lap counters, garage and vehicle selection",
   "default_theme": "neon",
   "default_geometry": "racing",
@@ -22,5 +22,31 @@
     "speedometer_max": 320,
     "lap_count": 3,
     "hud_safe_margin": 24
+  },
+  "nav_wiring": {
+    "main_menu.tscn": {
+      "GameScene": "res://scenes/main/racing_main.tscn",
+      "Settings": "res://scenes/ui/settings_menu.tscn"
+    },
+    "pause_menu.tscn": {
+      "Settings": "res://scenes/ui/settings_menu.tscn",
+      "MainMenu": "res://scenes/ui/main_menu.tscn"
+    },
+    "game_over.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/racing_main.tscn"
+    },
+    "garage.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/racing_main.tscn"
+    },
+    "vehicle_select.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/racing_main.tscn"
+    },
+    "race_results.tscn": {
+      "MainMenu": "res://scenes/ui/main_menu.tscn",
+      "GameScene": "res://scenes/main/racing_main.tscn"
+    }
   }
 }

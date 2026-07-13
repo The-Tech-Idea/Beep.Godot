@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            EnsureLabel();
+            CallDeferred(nameof(EnsureLabel));
             _remaining = DurationSeconds;
             UpdateText();
             if (AutoStart && !Engine.IsEditorHint()) Start();
@@ -37,7 +37,7 @@ namespace Beep.ECS.UI
             _label = new Label { Name = "TimerLabel" };
             _label.AddThemeFontSizeOverride("font_size", FontSize);
             GetParent().AddChild(_label);
-            _label.Owner = GetParent();
+            { var _p = GetParent(); if (_p != null && _p.IsInsideTree()) _label.Owner = _p.Owner; }
         }
 
         public void Start()

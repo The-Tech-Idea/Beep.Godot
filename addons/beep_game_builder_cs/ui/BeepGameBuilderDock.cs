@@ -562,7 +562,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         parent.AddChild(new HSeparator());
     }
 
-    private static HBoxContainer WithLabel(string label, Control child)
+    private static HBoxContainer WithLabel(string label, Node child)
     {
         var row = new HBoxContainer();
         row.AddChild(new Label { Text = $"{label}: " });

@@ -34,12 +34,11 @@ The addon also has **~155 `[GlobalClass]` component classes** (102 in `ecs/`, 53
 
 | # | Phase | Files | Description |
 |---|---|---|---|
-| 1 | `BeepGenreScene` component | `addons/beep_game_builder_cs/ecs/BeepGenreScene.cs` (NEW) | Single `[Tool] [GlobalClass]` Node that reads `GenreId` export → instantiates genre wiring at `_Ready`. Replaces `BeepGenreGenerator.CreateProject`. |
-| 2 | Component-only scene templates | `addons/beep_game_builder_cs/templates/prefabs/**/*.tscn` (NEW) | New directory tree: `prefabs/{ui,gameplay,worlds,shared}/*.tscn` — every node is a `[GlobalClass]` component composition, zero inline code. |
-| 3 | Mark generators `[Obsolete]` | `addons/beep_game_builder_cs/core/*.cs` (MODIFY) | All `Beep*Generator`, `Beep*Composer`, plus `BeepOnStarter` in `ui/`. Mark `[Obsolete("Use BeepGenreScene + prefabs/ instead.")`. **No deletion yet.** |
+| 1 | `BeepGenreScene` component | `addons/beep_game_builder_cs/ecs/BeepGenreScene.cs` (NEW) | Single `[Tool] [GlobalClass]` Node that reads `GenreId` export → at `_Ready` resolves `genre.json`, applies tuning + theme to `GameApp.Info`, auto-instantiates `genre.MainScene` as a child, drives a sibling `ThemePresetComponent`. Replaces `BeepGenreGenerator.CreateProject`. |
+| 2 | README + usage docs | `addons/beep_game_builder_cs/templates/README.md` (NEW), `README.md` (MODIFY) | The existing `templates/scenes/{main_menu,pause_menu,settings_menu,hud,game_over}.tscn` + `templates/scenes/{platformer,topdown,shooter,puzzle}/<genre>_main.tscn` ARE the prefabs (already component-based — verified). One README documents: drop a `BeepGenreScene` into a scene, set `GenreId`, run. No new `.tscn` files needed. |
+| 3 | Mark generators `[Obsolete]` | `addons/beep_game_builder_cs/core/*.cs` (MODIFY) | All `Beep*Generator`, plus `OnStarter` in `ui/`. Mark `[Obsolete("Use BeepGenreScene + templates/scenes/ instead.")`. **No deletion yet.** |
 | 4 | Dock rewrites | `addons/beep_game_builder_cs/ui/BeepGameBuilderDock.cs` (REWRITE), `ui/BeepGameBuilderDock.Genres.cs` (DELETE), `ui/BeepGameBuilderDock.Starter.cs` (DELETE) | 3 tabs: App / Theme / Settings. Existing 11 tabs removed. |
-| 5 | Index documentation | `addons/beep_game_builder_cs/templates/prefabs/index.json` (NEW), `README.md` (MODIFY) | JSON index of every prefab with display name + description + category. README points users at prefabs/ + Add Node. |
-| 6 | Delete generators + old templates | `addons/beep_game_builder_cs/core/BeepGenreGenerator.cs` (DELETE), `BeepProjectGenerator.cs` (DELETE), `BeepScriptGenerator.cs` (DELETE), `BeepSceneGenerator.cs` (DELETE), `BeepShaderGenerator.cs` (DELETE), `BeepTweenGenerator.cs` (DELETE), `BeepParticleGenerator.cs` (DELETE), `BeepProjectileGenerator.cs` (DELETE), `BeepInputMapGenerator.cs` (DELETE), `BeepProjectDefaults.cs` (DELETE), plus 7-8 templates under `templates/scenes/*.tscn` and `templates/scripts/*.gd.template` (DELETE) | Final cleanup. **Only after Phase 5 ships + users confirm they don't need the old path.** |
+| 5 | Delete generators + old `.gd.template` scripts | `addons/beep_game_builder_cs/core/BeepGenreGenerator.cs` (DELETE), `BeepProjectGenerator.cs` (DELETE), `BeepScriptGenerator.cs` (DELETE), `BeepSceneGenerator.cs` (DELETE), `BeepShaderGenerator.cs` (DELETE), `BeepTweenGenerator.cs` (DELETE), `BeepParticleGenerator.cs` (DELETE), `BeepProjectileGenerator.cs` (DELETE), `BeepInputMapGenerator.cs` (DELETE), `BeepProjectDefaults.cs` (DELETE), plus `templates/scripts/*.gd.template` and `templates/i18n/translations.csv` (DELETE) | Final cleanup. **Only after Phase 4 ships + users confirm they don't need the old path.** Keep `templates/scenes/*.tscn` (used by `BeepGenreScene.InstantiateMainScene`). |
 
 **Total:** 1 new C# class, ~15 new .tscn files, ~15 modified .cs files, 11 C# files deleted, ~40 template files deleted, 1 new index.json, 1 README update.
 
@@ -158,106 +157,108 @@ private static void ApplyTuning(GameInfo info, Beep.ECS.UI.GenreDef genre)
 
 ---
 
-## Phase 2 — Component-only scene templates
+## Phase 2 — Document the genre-driven composition model
 
-**Goal:** Replace every generator output with editable `.tscn` files using ONLY `[GlobalClass]` components, zero inline code.
+**Goal:** The existing `templates/scenes/` tree already serves as the prefab catalog. `BeepGenreScene` auto-instantiates the right scenes. We just need one README documenting the model.
 
-### New directory layout
+### Reality check
+
+The existing `templates/scenes/` IS the prefab set:
 
 ```
-addons/beep_game_builder_cs/templates/prefabs/
-├── index.json                  # Phase 5
-├── README.md                   # quick-start usage
-├── ui/
-│   ├── main_menu.tscn
-│   ├── pause_menu.tscn
-│   ├── settings_menu.tscn
-│   ├── hud.tscn
-│   ├── game_over.tscn
-│   ├── title_label.tscn         # simple Control + Label + BeepGameNameBinder
-│   └── themed_button.tscn       # Control + Button + BeepUIButton
-├── gameplay/
-│   ├── player_top_down.tscn
-│   ├── player_platformer.tscn
-│   ├── enemy_patrol.tscn
-│   ├── enemy_chaser.tscn
-│   ├── npc.tscn                 # generic NPC shell
-│   ├── pickup_item.tscn
-│   ├── moving_platform.tscn
-│   ├── checkpoint.tscn
-│   ├── door_switch.tscn
-│   ├── turret.tscn
-│   └── camera_follow.tscn
-├── worlds/
-│   ├── main_scene_platformer.tscn   (BeepGenreScene + ThemePresetComponent + player + HUD)
-│   ├── main_scene_topdown.tscn
-│   ├── main_scene_shooter.tscn
-│   └── main_scene_puzzle.tscn
-├── systems/
-│   ├── weather.tscn             (WeatherSystemComponent + WindFieldComponent + WeatherHUDComponent)
-│   ├── day_night.tscn
-│   ├── inventory.tscn
-│   ├── dialog.tscn
-│   ├── projectile_spawner.tscn
-│   ├── particle_emitter.tscn
-│   ├── tween_runner.tscn
-│   └── screen_transition.tscn
-└── shared/
-    ├── game_root.tscn           # root: BeepGameAppWrapper + BeepGenreScene + ThemePresetComponent + BeepSettings + BeepLocale
-    ├── audio_bus.tscn
-    ├── ui_root.tscn
-    └── save_manager.tscn
+addons/beep_game_builder_cs/templates/scenes/
+├── main_menu.tscn              ← UI scenes (5 files, component-based, already shipped)
+├── pause_menu.tscn
+├── settings_menu.tscn
+├── hud.tscn
+├── game_over.tscn
+├── player_template.tscn
+├── enemy_template.tscn
+├── robot_npc_template.tscn
+├── pickup_template.tscn
+├── dialog_template.tscn
+├── projectile_template.tscn
+├── platformer/
+│   ├── platformer_main.tscn   ← genre-specific main scene (already component-based)
+│   ├── level_select.tscn
+│   └── level_results.tscn
+├── topdown/
+│   └── topdown_main.tscn
+├── shooter/
+│   └── shooter_main.tscn
+└── puzzle/
+    ├── puzzle_main.tscn
+    ├── level_map.tscn
+    ├── pre_level.tscn
+    ├── level_complete.tscn
+    └── level_failed.tscn
 ```
 
-### Template composition rules
+Every shipped `.tscn` already uses `[GlobalClass]` C# components (`PlatformerController`, `HealthComponent`, `GameFlowComponent`, `ParallaxComponent`, `ThemePresetComponent`, `GameInfoBinder`, etc.). The earlier hand-written `preset_<name>.gd` scripts in `beep_ui` and the `.gd.template` files in `templates/scripts/` are the only non-component artefacts — and `.gd.template` files get deleted in Phase 5.
 
-Every prefab must follow these rules:
+### Composition rules (already enforced — verify only)
 
-1. **Zero inline scripts.** The only scripts attached are `[GlobalClass]` C# classes or GDScript classes that ship in the addon. No `.gd` files in prefabs/.
-2. **Zero raw resource embeds** unless they ship with the addon (e.g., a default `StyleBoxFlat` if no theme is set).
-3. **Editable exports.** Every configuration knob the user might want to tweak is `[Export]` on a `[GlobalClass]` component, NOT a hardcoded literal in the scene.
-4. **Compositional.** A prefab that needs multiple behaviors composes them — e.g., `player_top_down.tscn` is a `CharacterBody2D` root with `TopDownController`, `HealthComponent`, `MovementComponent`, `KnockbackComponent`, `AttackComponent`, `HealthBarComponent` (overhead), and a `CollisionShape2D` + `Sprite2D` — all attached as children.
+1. **Every attached script is a `[GlobalClass]` C# class** that ships in the addon. No inline `.gd` scripts.
+2. **Every styled scene has a `ThemePresetComponent` sibling** — driven from `GameApp.Instance.Info`, no hardcoded preset.
+3. **Every UI scene has a `GameInfoBinder`** — so editing `game_info.tres` once updates every menu.
 
-### Example: `worlds/main_scene_platformer.tscn`
+### File to create
 
-```yaml
-[gd_scene format=3]
+`addons/beep_game_builder_cs/templates/README.md`
 
-[node name="MainScene" type="Node2D"]
-script = ExtResource("BeepGenreScene.cs")
-GenreId = "platformer"
-DefaultThemePreset = ""
-PaletteName = "Default"
+```markdown
+# Beep Game Builder templates
 
-[node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(576, 324)
+## How it works
 
-[node name="Player" parent="." instance=ExtResource("../gameplay/player_platformer.tscn")]
-position = Vector2(100, 400)
+Drop a `BeepGenreScene` component into a scene root, set `GenreId` in the
+inspector. At runtime it reads `catalogs/skins/<genreId>/genre.json` and:
 
-[node name="HUD" parent="." instance=ExtResource("../ui/hud.tscn")]
+1. Applies the genre's default theme + tuning to `GameApp.Info`.
+2. Loads `<genreId>_main.tscn` from this folder and adds it as a child.
+3. Drives a sibling `ThemePresetComponent` from the resolved theme.
 
-[node name="Music" type="AudioStreamPlayer" parent="."]
-script = ExtResource("BeepAudioComponent.cs")
+No buttons, no generators. The scenes below are already wired.
+
+## What's here
+
+| Path | Used by |
+|------|---------|
+| `main_menu.tscn`           | Shared UI — main menu |
+| `pause_menu.tscn`          | Shared UI — pause overlay |
+| `settings_menu.tscn`       | Shared UI — settings |
+| `hud.tscn`                 | Shared UI — in-game HUD |
+| `game_over.tscn`           | Shared UI — game over screen |
+| `player_template.tscn`     | Generic player (replace with genre-specific) |
+| `platformer/platformer_main.tscn` | Loaded by `BeepGenreScene` when GenreId="platformer" |
+| `topdown/topdown_main.tscn`       | Loaded by `BeepGenreScene` when GenreId="topdown" |
+| `shooter/shooter_main.tscn`       | Loaded by `BeepGenreScene` when GenreId="shooter" |
+| `puzzle/puzzle_main.tscn`         | Loaded by `BeepGenreScene` when GenreId="puzzle" |
+| `platformer/level_select.tscn`    | Navigated to from `GameFlowComponent` |
+| `puzzle/level_map.tscn`           | Navigated to from `GameFlowComponent` |
+| ...                              | One level scene per genre, navigated via `genre.json#nav_wiring` |
+
+## To add a new genre
+
+1. Drop a folder under `addons/beep_game_builder_cs/catalogs/skins/<your_genre>/`.
+2. Add `<your_genre>.json`, `geometry.json`, `themes/<theme>/theme.json` per the
+   schemas in `docs/FILE_FORMATS.md`.
+3. Add `<your_genre>_main.tscn` here under `templates/scenes/<your_genre>/`.
+4. The `BeepGenreScene` component with `GenreId = "<your_genre>"` will pick it
+   up automatically.
 ```
-
-(Real prefabs are full .tscn files; this is the structural intent.)
-
-### World-scene factory model
-
-The `worlds/` prefabs are **editable start points** — users instantiate one, then add their own levels / enemies / NPCs on top. There is no "stamp this into a fresh project" button.
 
 ### Validation rules
 
-- No `.gd` files appear inside any `templates/prefabs/` subtree (verify with `find templates/prefabs -name '*.gd'`).
-- Every `[Node]` with a `script=` reference points at a `[GlobalClass]` class in the addon (verify by inspection).
-- Theme presets are NOT hardcoded — every styled prefab has a `ThemePresetComponent` sibling that drives from `GameApp.Instance.Info`.
+- One README only — no new code files, no new scenes.
+- Existing scenes verified component-based by Phase 0 survey.
 
 ### Verification
 
-1. Drag `prefabs/worlds/main_scene_platformer.tscn` into a new project.
-2. Run scene — the player is themed, genre tuning applied, GameInfo populated.
-3. Open the scene in the editor — every parameter is an `[Export]`, no inline scripts.
+1. Open a scene that contains `BeepGenreScene` with `GenreId = "platformer"`.
+2. Run → the player + HUD + parallax + camera appear as children of `BeepGenreScene`,
+   themed, with `GameApp.Info` populated from `genre.json`.
+3. Verify the same with `GenreId = "puzzle"` — the puzzle board appears instead.
 
 ---
 

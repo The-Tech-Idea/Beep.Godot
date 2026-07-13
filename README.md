@@ -22,20 +22,10 @@ the C# addon.
    - `addons/beep_game_builder_cs` → `addons/beep_game_builder_cs` (C# / .NET only)
 2. Open the project in **Godot 4.7+** with .NET support.
 3. **Project → Project Settings → Plugins** → enable the addon(s).
-4. In the Beep Game Builder dock: pick a **Genre**, select a **Theme + Palette**,
-   enter a game name, and click **Generate Project**. All scenes, navigation,
-   theming, and autoloads are stamped automatically.
-
-## Editor dock
-
-The `beep_game_builder_cs` dock is a **single scrollable form** (no tabs):
-
-1. **Genre & Skin** — cascading dropdowns: Genre → Theme → Palette (geometry auto-applied per genre)
-2. **Game Identity** — game name, version, developer, description
-3. **Display** — resolution, FPS, pixel-art toggle, fullscreen
-4. **Audio** — master/SFX/music volume sliders
-5. **Language** — language selector
-6. **Actions** — Generate Project (with regen mode selector), Save Settings, Reload
+4. Pick a genre + theme **at design time**: drop a `BeepGenreScene` component into your
+   scene root, set `GenreId = "platformer"` (or topdown / shooter / puzzle) in the
+   inspector. The addon's already-wired scene templates load automatically at runtime —
+   no buttons to click, no generators to run.
 
 **Add components** via Godot's native **Add Node** dialog (Ctrl+A) — search "Component".
 Components are categorized:
@@ -43,6 +33,19 @@ Components are categorized:
 - `EntityComponent` → `GameplayComponent` (24 components)
 - `EntityComponent` → `ControllerComponent` (9 components)
 - `EntityComponent` → `WorldComponent` (12 components)
+
+## Editor dock
+
+The `beep_game_builder_cs` dock has **3 tabs**:
+
+1. **App** — GameApp status (autoload probe) + GameInfo quick-edit grid (game name,
+   version, genre/theme/palette/geometry, scene paths, tuning, display). Save to
+   `game_info.tres` + apply live to all `ThemePresetComponent`s in the open scene.
+2. **Theme** — Cascading genre → theme → palette → geometry dropdowns driven from
+   the file-based skin catalog. Background mode toggle (stretch/tile/center).
+   Click **Apply to All Components** to re-theme the open scene.
+3. **Settings** — Project-level config: resolution / FPS / pixel-art / fullscreen /
+   main scene / autoload status. Writes to `ProjectSettings`.
 
 ## File-based skin system
 

@@ -1,4 +1,6 @@
 using Godot;
+using System;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -8,12 +10,70 @@ namespace Beep.ECS
     /// properties — drag-and-drop .tscn files in the inspector. The generator
     /// auto-wires these when stamping scenes.
     ///
-    /// Designed to be driven by MenuComponent.ActionTriggered → Dispatch().
+    /// Designed to work with or without .tscn [connection] lines — at _Ready it
+    /// auto-wires any Button in the parent tree whose name maps to a known action.
     /// </summary>
     [Tool]
     [GlobalClass]
     public partial class NavigationComponent : ControllerComponent
     {
+        private static readonly Dictionary<string, string> ButtonNameToAction = new()
+        {
+            // Core
+            { "newgamebutton",     "new_game" },    { "startbutton", "new_game" },
+            { "continuebutton",    "continue" },     { "loadgamebutton", "load_game" },
+            { "settingsbutton",    "settings" },     { "creditsbutton", "credits" },
+            { "quitbutton",        "quit" },         { "exitbutton", "quit" },
+            { "restartbutton",     "restart" },      { "retrybutton", "retry" },
+            { "resumebutton",      "resume" },       { "backbutton", "back" },
+            { "returnbutton",      "back" },         { "closebutton", "close" },
+            { "mainmenubutton",    "main_menu" },    { "menubutton", "main_menu" },
+            { "gameoverbutton",    "game_over" },
+            // Genre-specific
+            { "levelselectbutton", "level_select" }, { "resultsbutton", "results" },
+            { "levelupbutton",     "level_up" },     { "codexbutton", "codex" },
+            { "characterbutton",   "character_select" },
+        };
+
+        public override void _Ready()
+        {
+            AutoWireButtons();
+        }
+
+        /// <summary>Walk the parent node tree and connect every Button whose
+        /// lowercased Name maps to a known action string. This makes .tscn
+        /// [connection] lines optional — buttons work as long as their name
+        /// ends with a recognized action suffix (e.g. "StartButton", "SettingsButton").
+        /// Explicit .tscn connections take precedence (they're connected before
+        /// _Ready fires).</summary>
+        private void AutoWireButtons()
+        {
+            var parent = GetParent();
+            if (parent == null) return;
+            Walk(parent, node =>
+            {
+                if (node is Button btn)
+                {
+                    string name = btn.Name.ToString().ToLowerInvariant();
+                    if (ButtonNameToAction.TryGetValue(name, out string action))
+                    {
+                        // Only connect if not already connected (avoid double-firing).
+                        if (!btn.IsConnected(Button.SignalName.Pressed, new Callable(this, nameof(Dispatch))))
+                        {
+                            string a = action; // capture for lambda
+                            btn.Pressed += () => Dispatch(a);
+                        }
+                    }
+                }
+            });
+        }
+
+        private static void Walk(Node root, Action<Node> visit)
+        {
+            visit(root);
+            foreach (var child in root.GetChildren())
+                Walk(child, visit);
+        }
         // ════════════════════════════════════════════════════════════════
         //  Exported navigation targets — drag .tscn files in the inspector
         // ════════════════════════════════════════════════════════════════

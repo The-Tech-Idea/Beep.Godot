@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs" id="1_pause"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="3_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="4_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="5_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="6_transition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/PauseMenu.cs" id="7_scene"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 layer = 10

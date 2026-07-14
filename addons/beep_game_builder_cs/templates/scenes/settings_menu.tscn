@@ -1,11 +1,13 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs" id="5_settings"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/SettingsMenu.cs" id="6_scene"]
 
-[node name="SettingsMenu" type="CanvasLayer"]
+[node name="SettingsMenu" type="CanvasLayer"
+script = ExtResource("6_scene")]
 layer = 10
 
 [node name="Dim" type="ColorRect" parent="."]

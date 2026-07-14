@@ -1,12 +1,14 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="2_nav"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="4_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="5_transition"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="6_anim"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/MainMenu.cs" id="7_scene"]
 
-[node name="MainMenu" type="Control"]
+[node name="MainMenu" type="Control"
+script = ExtResource("7_scene")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

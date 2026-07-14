@@ -117,5 +117,3 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/RetryButton" to="Navigation" method="dispatch" binds=["retry"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/MenuButton" to="Navigation" method="dispatch" binds=["menu"]]

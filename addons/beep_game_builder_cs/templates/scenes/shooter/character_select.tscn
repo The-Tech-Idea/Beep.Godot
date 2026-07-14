@@ -170,8 +170,3 @@ append_game_name = true
 script = ExtResource("4_anim")
 animate_on_ready = true
 
-[connection signal="pressed" from="Margin/VBox/Header/BackButton" to="Navigation" method="dispatch" binds=["back"]]
-[connection signal="pressed" from="Margin/VBox/CharGrid/MarineCard/MarineVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_marine"]]
-[connection signal="pressed" from="Margin/VBox/CharGrid/PilotCard/PilotVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_pilot"]]
-[connection signal="pressed" from="Margin/VBox/CharGrid/HunterCard/HunterVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_hunter"]]
-[connection signal="pressed" from="Margin/VBox/CharGrid/BruiserCard/BruiserVBox/SelectButton" to="Navigation" method="dispatch" binds=["char_bruiser"]]

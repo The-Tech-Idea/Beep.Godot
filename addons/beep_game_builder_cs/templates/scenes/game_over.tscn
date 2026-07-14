@@ -63,5 +63,3 @@ duration = 0.4
 script = ExtResource("6_anim")
 animate_on_ready = true
 
-[connection signal="pressed" from="Center/GameOverVBox/RetryButton" to="Navigation" method="dispatch" binds=["retry"]]
-[connection signal="pressed" from="Center/GameOverVBox/MainMenuButton" to="Navigation" method="dispatch" binds=["main_menu"]]

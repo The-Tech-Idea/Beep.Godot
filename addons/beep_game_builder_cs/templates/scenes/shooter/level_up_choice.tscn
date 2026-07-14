@@ -116,6 +116,3 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Center/VBox/CardRow/Card1/Card1VBox/Pick1" to="Navigation" method="dispatch" binds=["pick_1"]]
-[connection signal="pressed" from="Center/VBox/CardRow/Card2/Card2VBox/Pick2" to="Navigation" method="dispatch" binds=["pick_2"]]
-[connection signal="pressed" from="Center/VBox/CardRow/Card3/Card3VBox/Pick3" to="Navigation" method="dispatch" binds=["pick_3"]]

@@ -128,10 +128,3 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="TopBar/SettingsButton" to="Navigation" method="dispatch" binds=["settings"]]
-[connection signal="pressed" from="Scroll/Path/Level1Row/Level1Button" to="Navigation" method="dispatch" binds=["level_1"]]
-[connection signal="pressed" from="Scroll/Path/Level2Row/Level2Button" to="Navigation" method="dispatch" binds=["level_2"]]
-[connection signal="pressed" from="Scroll/Path/Level3Row/Level3Button" to="Navigation" method="dispatch" binds=["level_3"]]
-[connection signal="pressed" from="Scroll/Path/Level4Row/Level4Button" to="Navigation" method="dispatch" binds=["level_4"]]
-[connection signal="pressed" from="Scroll/Path/Level5Row/Level5Button" to="Navigation" method="dispatch" binds=["level_5"]]
-[connection signal="pressed" from="Scroll/Path/Level6Row/Level6Button" to="Navigation" method="dispatch" binds=["level_6"]]

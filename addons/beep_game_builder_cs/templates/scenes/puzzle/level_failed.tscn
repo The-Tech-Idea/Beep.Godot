@@ -78,6 +78,3 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Center/Panel/Margin/VBox/RetryBonusButton" to="Navigation" method="dispatch" binds=["retry_bonus"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/QuitButton" to="Navigation" method="dispatch" binds=["map"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/RetryButton" to="Navigation" method="dispatch" binds=["retry"]]

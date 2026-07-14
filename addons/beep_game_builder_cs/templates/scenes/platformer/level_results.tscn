@@ -125,6 +125,3 @@ theme_component_path = NodePath("Theme")
 script = ExtResource("4_anim")
 animate_on_ready = true
 
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/NextButton" to="Navigation" method="dispatch" binds=["next"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/RetryButton" to="Navigation" method="dispatch" binds=["retry"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/MapButton" to="Navigation" method="dispatch" binds=["map"]]

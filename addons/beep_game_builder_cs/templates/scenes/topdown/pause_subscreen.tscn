@@ -177,6 +177,3 @@ script = ExtResource("1_theme")
 script = ExtResource("2_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Margin/MainHBox/TabRail/ResumeButton" to="Navigation" method="dispatch" binds=["resume"]]
-[connection signal="pressed" from="Margin/MainHBox/TabRail/QuitButton" to="Navigation" method="dispatch" binds=["main_menu"]]
-[connection signal="pressed" from="Margin/MainHBox/ContentArea/Tabs/Save/SaveButton" to="Navigation" method="dispatch" binds=["save"]]

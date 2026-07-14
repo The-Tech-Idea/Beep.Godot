@@ -103,9 +103,3 @@ duration = 0.3
 stagger_delay = 0.05
 animate_on_ready = true
 
-[connection signal="pressed" from="Center/MenuVBox/NewGameButton" to="Navigation" method="dispatch" binds=["new_game"]]
-[connection signal="pressed" from="Center/MenuVBox/ContinueButton" to="Navigation" method="dispatch" binds=["continue"]]
-[connection signal="pressed" from="Center/MenuVBox/LoadGameButton" to="Navigation" method="dispatch" binds=["load_game"]]
-[connection signal="pressed" from="Center/MenuVBox/SettingsButton" to="Navigation" method="dispatch" binds=["settings"]]
-[connection signal="pressed" from="Center/MenuVBox/CreditsButton" to="Navigation" method="dispatch" binds=["credits"]]
-[connection signal="pressed" from="Center/MenuVBox/QuitButton" to="Navigation" method="dispatch" binds=["quit"]]

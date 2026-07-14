@@ -153,4 +153,3 @@ script = ExtResource("1_theme")
 script = ExtResource("2_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Margin/VBox/Header/BackButton" to="Navigation" method="dispatch" binds=["back"]]

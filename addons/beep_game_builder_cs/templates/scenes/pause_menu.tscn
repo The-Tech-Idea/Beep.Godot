@@ -72,10 +72,3 @@ theme_component_path = NodePath("Theme")
 script = ExtResource("6_transition")
 duration = 0.4
 
-[connection signal="pressed" from="Panel/PauseVBox/ResumeButton" to="Navigation" method="dispatch" binds=["resume"]]
-[connection signal="pressed" from="Panel/PauseVBox/SaveGameButton" to="Navigation" method="dispatch" binds=["save_game"]]
-[connection signal="pressed" from="Panel/PauseVBox/LoadGameButton" to="Navigation" method="dispatch" binds=["load_game"]]
-[connection signal="pressed" from="Panel/PauseVBox/SettingsButton" to="Navigation" method="dispatch" binds=["settings"]]
-[connection signal="pressed" from="Panel/PauseVBox/RestartButton" to="Navigation" method="dispatch" binds=["restart"]]
-[connection signal="pressed" from="Panel/PauseVBox/MainMenuButton" to="Navigation" method="dispatch" binds=["main_menu"]]
-[connection signal="pressed" from="Panel/PauseVBox/QuitButton" to="Navigation" method="dispatch" binds=["quit"]]

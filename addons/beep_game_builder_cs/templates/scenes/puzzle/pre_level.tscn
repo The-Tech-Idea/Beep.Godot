@@ -102,5 +102,3 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 theme_component_path = NodePath("Theme")
 
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/BackButton" to="Navigation" method="dispatch" binds=["back"]]
-[connection signal="pressed" from="Center/Panel/Margin/VBox/ButtonRow/PlayButton" to="Navigation" method="dispatch" binds=["play"]]

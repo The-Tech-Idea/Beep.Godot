@@ -149,4 +149,3 @@ script = ExtResource("4_nav")
 [node name="Settings" type="Node" parent="."]
 script = ExtResource("5_settings")
 
-[connection signal="pressed" from="Center/Panel/Margin/ContentVBox/CloseButton" to="Navigation" method="dispatch" binds=["close"]]

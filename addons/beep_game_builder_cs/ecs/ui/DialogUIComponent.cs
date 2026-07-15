@@ -68,6 +68,8 @@ namespace Beep.ECS.UI
         private Color _cachedAccent;
         private Color _cachedTextPrimary;
         private bool _themeFound;
+        private Tween? _animationTween;
+        private readonly System.Collections.Generic.List<Tween> _choiceTweens = new();
 
         public override void _Ready()
         {
@@ -334,6 +336,11 @@ namespace Beep.ECS.UI
         {
             _showingChoices = true;
             if (_choicesBox == null) return;
+
+            foreach (var t in _choiceTweens)
+                t?.Kill();
+            _choiceTweens.Clear();
+
             _choicesBox.Visible = true;
 
             // Hide continue indicator while choices are shown.
@@ -358,6 +365,7 @@ namespace Beep.ECS.UI
 
                 // Stagger fade-in.
                 var tw = btn.CreateTween();
+                _choiceTweens.Add(tw);
                 tw.TweenInterval(i * ChoiceStaggerDelay);
                 tw.TweenProperty(btn, "modulate:a", 1f, 0.15f).SetEase(Tween.EaseType.Out);
             }
@@ -378,6 +386,8 @@ namespace Beep.ECS.UI
         private void AnimateIn()
         {
             if (_panel == null) return;
+            _animationTween?.Kill();
+
             _panel.Visible = true;
             _panel.Modulate = new Color(1, 1, 1, 0);
 
@@ -385,24 +395,36 @@ namespace Beep.ECS.UI
             Vector2 targetPos = _panel.Position;
             _panel.Position = targetPos + new Vector2(0, 40);
 
-            var tw = _panel.CreateTween().SetParallel(true);
-            tw.TweenProperty(_panel, "modulate:a", 1f, EntryDuration).SetEase(Tween.EaseType.Out);
-            tw.TweenProperty(_panel, "position", targetPos, EntryDuration)
+            _animationTween = _panel.CreateTween().SetParallel(true);
+            _animationTween.TweenProperty(_panel, "modulate:a", 1f, EntryDuration).SetEase(Tween.EaseType.Out);
+            _animationTween.TweenProperty(_panel, "position", targetPos, EntryDuration)
                 .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
         }
 
         private void AnimateOut()
         {
             if (_panel == null) return;
-            var tw = _panel.CreateTween().SetParallel(true);
-            tw.TweenProperty(_panel, "modulate:a", 0f, EntryDuration * 0.7f);
-            tw.TweenProperty(_panel, "position:y", _panel.Position.Y + 30, EntryDuration * 0.7f)
+            _animationTween?.Kill();
+
+            _animationTween = _panel.CreateTween().SetParallel(true);
+            _animationTween.TweenProperty(_panel, "modulate:a", 0f, EntryDuration * 0.7f);
+            _animationTween.TweenProperty(_panel, "position:y", _panel.Position.Y + 30, EntryDuration * 0.7f)
                 .SetEase(Tween.EaseType.In);
-            tw.Finished += () =>
-            {
-                if (_panel != null) _panel.Visible = false;
-                EmitSignal(SignalName.DialogFinished);
-            };
+            _animationTween.Finished += OnAnimateOutFinished;
+        }
+
+        private void OnAnimateOutFinished()
+        {
+            if (_panel != null) _panel.Visible = false;
+            EmitSignal(SignalName.DialogFinished);
+        }
+
+        public override void _ExitTree()
+        {
+            _animationTween?.Kill();
+            foreach (var t in _choiceTweens)
+                t?.Kill();
+            _choiceTweens.Clear();
         }
     }
 }

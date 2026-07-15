@@ -31,6 +31,7 @@ namespace Beep.ECS.UI
         private HBoxContainer? _headerRow;
         private readonly List<HBoxContainer> _rows = new();
         private readonly List<string[]> _data = new();
+        private readonly List<Button> _headerButtons = new();
         private int _sortColumn = -1;
         private bool _sortAsc = true;
 
@@ -56,12 +57,18 @@ namespace Beep.ECS.UI
                 btn.Alignment = HorizontalAlignment.Left;
                 btn.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
                 btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                int col = i;
-                btn.Pressed += () => SortByColumn(col);
+                btn.Pressed += () => OnHeaderButtonPressed(btn);
+                _headerButtons.Add(btn);
                 StyleHeaderButton(btn);
                 _headerRow.AddChild(btn);
             }
             _container.AddChild(_headerRow);
+        }
+
+        private void OnHeaderButtonPressed(Button btn)
+        {
+            int col = _headerButtons.IndexOf(btn);
+            if (col >= 0) SortByColumn(col);
         }
 
         private void StyleHeaderButton(Button btn)
@@ -121,13 +128,22 @@ namespace Beep.ECS.UI
             }
 
             int rowIdx = index;
-            row.GuiInput += e => { if (e is InputEventMouseButton mb && mb.Pressed) EmitSignal(SignalName.RowClicked, rowIdx, values); };
-            row.MouseEntered += () => UpdateRowBg(row, HoverColor);
-            row.MouseExited += () => UpdateRowBg(row, bg);
+            row.GuiInput += e => OnRowGuiInput(e, rowIdx, values);
+            row.MouseEntered += () => OnRowMouseEntered(row);
+            row.MouseExited += () => OnRowMouseExited(row, bg);
 
             _rows.Add(row);
             _container.AddChild(row);
         }
+
+        private void OnRowGuiInput(InputEvent e, int rowIdx, string[] values)
+        {
+            if (e is InputEventMouseButton mb && mb.Pressed)
+                EmitSignal(SignalName.RowClicked, rowIdx, values);
+        }
+
+        private void OnRowMouseEntered(HBoxContainer row) => UpdateRowBg(row, HoverColor);
+        private void OnRowMouseExited(HBoxContainer row, Color bg) => UpdateRowBg(row, bg);
 
         private static void UpdateRowBg(HBoxContainer row, Color color)
         {
@@ -156,6 +172,14 @@ namespace Beep.ECS.UI
             for (int i = 0; i < _data.Count; i++) RenderRow(_data[i], i);
 
             EmitSignal(SignalName.ColumnClicked, column, ColumnHeaders.Length > column ? ColumnHeaders[column] : "");
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var btn in _headerButtons)
+                if (GodotObject.IsInstanceValid(btn))
+                    btn.Pressed -= OnHeaderButtonPressed;
+            _headerButtons.Clear();
         }
     }
 }

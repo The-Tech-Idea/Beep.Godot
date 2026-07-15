@@ -20,6 +20,7 @@ namespace Beep.ECS
         private CanvasItem? _canvas;
         private ShaderMaterial? _flashMaterial;
         private Tween? _tween;
+        private HealthComponent? _health;
 
         public override void _Ready()
         {
@@ -27,6 +28,10 @@ namespace Beep.ECS
             _canvas = GetParent() as CanvasItem;
             if (_canvas != null && _canvas.Material is ShaderMaterial sm)
                 _flashMaterial = sm;
+
+            _health = GetSiblingComponent<HealthComponent>();
+            if (FlashOnDamage && _health != null)
+                _health.Damaged += (amount, health) => Flash();
         }
 
         public void Flash()
@@ -40,7 +45,19 @@ namespace Beep.ECS
                 _tween.TweenProperty(_canvas, "modulate", FlashColor, FlashDuration * 0.5f);
                 _tween.TweenProperty(_canvas, "modulate", Colors.White, FlashDuration * 0.5f);
             }
-            _tween.Finished += () => EmitSignal(SignalName.Flashed);
+            _tween.Finished += OnTweenFinished;
+        }
+
+        private void OnTweenFinished()
+        {
+            EmitSignal(SignalName.Flashed);
+        }
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
+            if (_health != null)
+                _health.Damaged -= (amount, health) => Flash();
         }
     }
 }

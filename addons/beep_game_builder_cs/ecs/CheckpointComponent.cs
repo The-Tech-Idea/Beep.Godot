@@ -38,10 +38,14 @@ namespace Beep.ECS
 
             Vector2 pos = _area?.GlobalPosition ?? Vector2.Zero;
             var app = GameApp.Instance;
-            if (app != null) app.SetLevel(app.CurrentLevel); // mark progression
+            if (app != null) app.SetLevel(app.CurrentLevel);
 
-            if (HealOnActivate && body is Node2D n && n.HasNode("HealthComponent"))
-                if (n.GetNode<HealthComponent>("HealthComponent") is { } h) h.Heal(h.MaxHealth);
+            if (HealOnActivate && body is Node2D n2d)
+            {
+                var health = n2d.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+                if (health != null)
+                    health.Heal(health.MaxHealth);
+            }
 
             EmitSignal(SignalName.CheckpointActivated, pos);
 

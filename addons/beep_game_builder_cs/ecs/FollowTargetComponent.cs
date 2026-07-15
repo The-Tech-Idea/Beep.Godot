@@ -36,7 +36,14 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (_parent == null || _target == null || !IsActive) return;
+            if (_parent == null || !IsActive) return;
+
+            if (_target == null || !GodotObject.IsInstanceValid(_target))
+            {
+                EmitSignal(SignalName.TargetLost);
+                _target = null;
+                return;
+            }
 
             Vector2 desired = _target.GlobalPosition + Offset;
             if (MaxDistance > 0 && _parent.GlobalPosition.DistanceTo(desired) > MaxDistance)

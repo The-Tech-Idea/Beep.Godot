@@ -45,16 +45,23 @@ namespace Beep.ECS
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (!IsActive || !_inRange || _isOpen && !Toggleable) return;
+            if (!IsActive || !_inRange || (_isOpen && !Toggleable)) return;
             if (@event.IsActionPressed(ActivateAction))
             {
+                GetTree().SetInputAsHandled();
+
                 if (!string.IsNullOrEmpty(RequiredItem))
                 {
-                    // Check if the player has the key item via GameApp session.
-                    var app = GameApp.Instance;
-                    if (app == null) return;
-                    // Simple check: SelectedCharacter or a session flag holds the item.
-                    // In a full implementation, an InventoryComponent would own this.
+                    var playerBody = GetTree().CurrentScene?.FindChild("Player", false, false);
+                    if (playerBody is Node2D)
+                    {
+                        var inventory = playerBody.FindChild(nameof(PickupComponent), false, false) as PickupComponent;
+                        if (inventory == null)
+                        {
+                            GD.Print($"[DoorSwitch] Missing required item '{RequiredItem}' to open");
+                            return;
+                        }
+                    }
                 }
                 Toggle();
             }
@@ -64,9 +71,11 @@ namespace Beep.ECS
         {
             _isOpen = !_isOpen;
             if (_door != null)
-                _door.SetDeferred("monitoring", false); // disable collision when open
-            if (_door is CanvasItem ci)
-                ci.Visible = !_isOpen;
+            {
+                _door.SetDeferred("monitoring", !_isOpen);
+                if (_door is CanvasItem ci)
+                    ci.Visible = !_isOpen;
+            }
             EmitSignal(SignalName.SwitchToggled, _isOpen);
         }
 

@@ -15,6 +15,7 @@ namespace Beep.ECS
         [Export] public int MaxSpawned { get; set; } = 10;
         [Export] public bool SpawnOnStart { get; set; } = true;
         [Export] public Vector2 SpawnOffset { get; set; } = Vector2.Zero;
+        [Export] public Vector2 SpawnRandomRange { get; set; } = Vector2.Zero;
         [Export] public string SpawnGroup { get; set; } = "spawned";
 
         [Signal] public delegate void SpawnedEventHandler(Node entity);
@@ -23,6 +24,7 @@ namespace Beep.ECS
 
         private float _timer;
         private int _spawnedCount;
+        private System.Collections.Generic.HashSet<Node> _activeSpawned = new();
 
         public override void _Ready()
         {
@@ -51,20 +53,32 @@ namespace Beep.ECS
             var inst = SpawnScene.Instantiate<Node>();
             if (GetParent() is Node2D parent)
             {
-                if (inst is Node2D n2d) n2d.GlobalPosition = parent.GlobalPosition + SpawnOffset;
+                if (inst is Node2D n2d)
+                {
+                    Vector2 randomOffset = SpawnRandomRange == Vector2.Zero ? Vector2.Zero :
+                        new Vector2(
+                            (float)(GD.Randf() * 2 - 1) * SpawnRandomRange.X,
+                            (float)(GD.Randf() * 2 - 1) * SpawnRandomRange.Y
+                        );
+                    n2d.GlobalPosition = parent.GlobalPosition + SpawnOffset + randomOffset;
+                }
                 parent.GetParent()?.AddChild(inst);
             }
             else GetParent()?.AddChild(inst);
 
             inst.AddToGroup(SpawnGroup);
+            _activeSpawned.Add(inst);
             _spawnedCount++;
             EmitSignal(SignalName.Spawned, inst);
-            inst.TreeExiting += () =>
-            {
-                _spawnedCount--;
-                if (_spawnedCount <= 0) EmitSignal(SignalName.AllDespawned);
-            };
+            inst.TreeExiting += () => OnSpawnedExiting(inst);
             return inst;
+        }
+
+        private void OnSpawnedExiting(Node inst)
+        {
+            _activeSpawned.Remove(inst);
+            _spawnedCount--;
+            if (_spawnedCount <= 0) EmitSignal(SignalName.AllDespawned);
         }
     }
 }

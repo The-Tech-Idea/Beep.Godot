@@ -18,6 +18,8 @@ namespace Beep.ECS
         [Export] public NodePath MuzzlePath { get; set; } = new("Muzzle");
         [Export] public PackedScene? ProjectileScene { get; set; }
         [Export] public float FireRate { get; set; } = 1.0f;
+        [Export] public float ProjectileDamage { get; set; } = 10f;
+        [Export] public float ProjectileSpeed { get; set; } = 400f;
         [Export] public float Range { get; set; } = 400f;
         [Export] public float RotationSpeed { get; set; } = 3f;
         [Export] public bool RequireLineOfSight { get; set; } = true;
@@ -27,12 +29,14 @@ namespace Beep.ECS
         private Marker2D? _muzzle;
         private Node2D? _target;
         private double _cooldown;
+        private ObjectPoolComponent? _pool;
 
         public override void _Ready()
         {
             base._Ready();
             _turret = GetParent() as Node2D;
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
+            _pool = GetSiblingComponent<ObjectPoolComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -92,16 +96,14 @@ namespace Beep.ECS
 
         private void Fire()
         {
-            if (ProjectileScene == null) return;
-            Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _turret!.GlobalPosition;
-            Vector2 dir = Vector2.FromAngle(_turret!.Rotation);
+            if (ProjectileScene == null || _turret == null) return;
+            Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _turret.GlobalPosition;
+            Vector2 dir = Vector2.FromAngle(_turret.Rotation);
 
-            // Use an ObjectPoolComponent sibling if available.
-            var pool = GetSiblingComponent<ObjectPoolComponent>();
             Node proj;
-            if (pool != null)
+            if (_pool != null)
             {
-                proj = pool.Get() ?? ProjectileScene.Instantiate();
+                proj = _pool.Get() ?? ProjectileScene.Instantiate();
                 var root = GetTree().CurrentScene.GetNodeOrNull("Projectiles") ?? GetTree().CurrentScene;
                 if (proj.GetParent() == null) root.AddChild(proj);
             }
@@ -115,6 +117,14 @@ namespace Beep.ECS
             {
                 n2d.GlobalPosition = muzzlePos;
                 n2d.Rotation = dir.Angle();
+
+                var projComp = n2d.FindChild(nameof(ProjectileComponent), false, false) as ProjectileComponent;
+                if (projComp != null)
+                {
+                    projComp.Damage = ProjectileDamage;
+                    projComp.Speed = ProjectileSpeed;
+                    projComp.Launch(dir);
+                }
             }
         }
     }

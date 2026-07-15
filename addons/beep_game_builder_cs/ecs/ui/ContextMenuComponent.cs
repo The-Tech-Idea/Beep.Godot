@@ -19,6 +19,7 @@ namespace Beep.ECS.UI
 
         private Godot.Control? _control;
         private PopupMenu? _menu;
+        private string[] _cachedItems = System.Array.Empty<string>();
 
         public override void _Ready()
         {
@@ -28,30 +29,52 @@ namespace Beep.ECS.UI
 
             _menu = new PopupMenu();
             _menu.Name = "ContextMenu";
-            var items = MenuItems.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < items.Length; i++)
-                _menu.AddItem(items[i].Trim(), i);
-            _menu.IndexPressed += idx =>
-                EmitSignal(SignalName.MenuItemSelected, (int)idx, items[(int)idx].Trim());
+            RebuildMenu();
             _control.AddChild(_menu);
 
-            _control.GuiInput += e =>
+            _control.GuiInput += OnControlGuiInput;
+        }
+
+        private void RebuildMenu()
+        {
+            if (_menu == null) return;
+            _menu.Clear();
+            _cachedItems = MenuItems.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < _cachedItems.Length; i++)
+                _menu.AddItem(_cachedItems[i].Trim(), i);
+            _menu.IndexPressed += OnMenuItemPressed;
+        }
+
+        private void OnMenuItemPressed(long idx)
+        {
+            int index = (int)idx;
+            if (index >= 0 && index < _cachedItems.Length)
+                EmitSignal(SignalName.MenuItemSelected, index, _cachedItems[index].Trim());
+        }
+
+        private void OnControlGuiInput(InputEvent e)
+        {
+            if (!IsActive || _menu == null) return;
+            if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Right && mb.Pressed)
             {
-                if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Right && mb.Pressed)
-                {
-                    _menu.Position = new Vector2I((int)mb.GlobalPosition.X, (int)mb.GlobalPosition.Y);
-                    _menu.Popup();
-                }
-            };
+                _menu.Position = (Vector2I)mb.GlobalPosition;
+                _menu.PopupOnParent();
+                GetTree()?.SetInputAsHandled();
+            }
         }
 
         public void SetItems(string[] items)
         {
             MenuItems = string.Join("\n", items);
-            _menu?.Clear();
-            if (_menu != null)
-                for (int i = 0; i < items.Length; i++)
-                    _menu.AddItem(items[i], i);
+            RebuildMenu();
+        }
+
+        public override void _ExitTree()
+        {
+            if (_menu != null && GodotObject.IsInstanceValid(_menu))
+                _menu.QueueFree();
+            if (_control != null)
+                _control.GuiInput -= OnControlGuiInput;
         }
     }
 }

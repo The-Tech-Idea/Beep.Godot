@@ -20,12 +20,32 @@ namespace Beep.ECS
 
         private Camera2D? _cam;
         private Vector2 _targetZoom;
+        private Vector2 _lastEmittedZoom;
 
         public override void _Ready()
         {
             base._Ready();
             _cam = GetParent() as Camera2D;
-            if (_cam != null) _targetZoom = _cam.Zoom;
+            if (_cam != null)
+            {
+                _targetZoom = _cam.Zoom;
+                _lastEmittedZoom = _cam.Zoom;
+            }
+        }
+
+        public override void _Input(InputEvent @event)
+        {
+            if (_cam == null || !IsActive || !(@event is InputEventMouseButton mb)) return;
+            if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelUp)
+            {
+                ZoomIn();
+                GetTree()?.SetInputAsHandled();
+            }
+            else if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelDown)
+            {
+                ZoomOut();
+                GetTree()?.SetInputAsHandled();
+            }
         }
 
         public void ZoomIn()
@@ -51,8 +71,13 @@ namespace Beep.ECS
         {
             if (_cam == null || !IsActive) return;
             _cam.Zoom = _cam.Zoom.Lerp(_targetZoom, SmoothSpeed * (float)delta);
-            if (_cam.Zoom.DistanceTo(_targetZoom) > 0.001f)
+
+            // Only emit if zoom changed significantly
+            if (_cam.Zoom.DistanceTo(_lastEmittedZoom) > 0.01f)
+            {
                 EmitSignal(SignalName.ZoomChanged, _cam.Zoom);
+                _lastEmittedZoom = _cam.Zoom;
+            }
         }
     }
 }

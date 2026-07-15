@@ -61,18 +61,19 @@ namespace Beep.ECS.UI
 
         public void Pause()
         {
-            if (!IsActive || _overlay == null) return;
+            if (!IsActive || _overlay == null || GetTree().Paused) return;
             GetTree().Paused = true;
             SetOverlayVisible(true);
-            if (!PauseAudio) SetAudioPaused(false);
+            if (PauseAudio) SetAudioPaused(true);
             EmitSignal(SignalName.Paused);
         }
 
         public void Resume()
         {
-            if (!IsActive || _overlay == null) return;
+            if (!IsActive || _overlay == null || !GetTree().Paused) return;
             SetOverlayVisible(false);
             GetTree().Paused = false;
+            if (PauseAudio) SetAudioPaused(false);
             EmitSignal(SignalName.Resumed);
         }
 

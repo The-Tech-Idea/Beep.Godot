@@ -35,12 +35,15 @@ namespace Beep.ECS.UI
 
         public void Open()
         {
-            if (_dialog == null || !IsActive) return;
+            if (_dialog == null || !IsActive || _dialog.Visible) return;
+
+            if (_overlay != null && GodotObject.IsInstanceValid(_overlay))
+                _overlay.QueueFree();
 
             // Create overlay
             _overlay = new ColorRect { Color = OverlayColor, MouseFilter = Godot.Control.MouseFilterEnum.Stop };
             _overlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            if (CloseOnOverlayClick) _overlay.GuiInput += e => { if (e is InputEventMouseButton mb && mb.Pressed) Close(); };
+            if (CloseOnOverlayClick) _overlay.GuiInput += OnOverlayClicked;
 
             var root = _dialog.GetParent();
             int dialogIndex = _dialog.GetIndex();
@@ -56,26 +59,40 @@ namespace Beep.ECS.UI
             _tween.TweenProperty(_dialog, "modulate:a", 1f, AnimationDuration);
             _tween.TweenProperty(_dialog, "scale", Vector2.One, AnimationDuration)
                 .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
-            _tween.Finished += () => EmitSignal(SignalName.Opened);
+            _tween.Finished += OnOpenFinished;
         }
 
         public void Close()
         {
-            if (_dialog == null || !IsActive) return;
+            if (_dialog == null || !IsActive || !_dialog.Visible) return;
 
             _tween?.Kill();
             _tween = _dialog.CreateTween().SetParallel(true);
             _tween.TweenProperty(_dialog, "modulate:a", 0f, AnimationDuration * 0.6f);
             _tween.TweenProperty(_dialog, "scale", new Vector2(0.95f, 0.95f), AnimationDuration * 0.6f);
-            _tween.Finished += () =>
+            _tween.Finished += OnCloseFinished;
+        }
+
+        private void OnOverlayClicked(InputEvent e)
+        {
+            if (CloseOnOverlayClick && e is InputEventMouseButton mb && mb.Pressed)
             {
-                _dialog.Visible = false;
-                _dialog.Scale = Vector2.One;
-                _dialog.Modulate = Colors.White;
-                _overlay?.QueueFree();
-                _overlay = null;
-                EmitSignal(SignalName.Closed);
-            };
+                Close();
+                GetTree()?.SetInputAsHandled();
+            }
+        }
+
+        private void OnOpenFinished() => EmitSignal(SignalName.Opened);
+
+        private void OnCloseFinished()
+        {
+            _dialog.Visible = false;
+            _dialog.Scale = Vector2.One;
+            _dialog.Modulate = Colors.White;
+            if (_overlay != null && GodotObject.IsInstanceValid(_overlay))
+                _overlay.QueueFree();
+            _overlay = null;
+            EmitSignal(SignalName.Closed);
         }
     }
 }

@@ -25,6 +25,7 @@ namespace Beep.ECS.UI
         private Vector2 _dragOffset;
         private Vector2 _startPosition;
         private bool _isDragging;
+        private Tween? _snapTween;
 
         public override void _Ready()
         {
@@ -46,8 +47,9 @@ namespace Beep.ECS.UI
                 if (mb.ButtonIndex == MouseButton.Left && mb.Pressed)
                 {
                     _isDragging = true;
+                    _snapTween?.Kill();
                     _startPosition = _control.Position;
-                    _dragOffset = _control.GetGlobalMousePosition() - _control.Position;
+                    _dragOffset = _control.GetGlobalMousePosition() - _control.GlobalPosition;
                     if (BringToFrontOnDrag && _control.GetParent() is Godot.Control parent)
                         parent.MoveChild(_control, -1);
                     EmitSignal(SignalName.DragStarted);
@@ -61,8 +63,8 @@ namespace Beep.ECS.UI
 
                     if (SnapBack)
                     {
-                        var t = _control.CreateTween();
-                        t.TweenProperty(_control, "position", _startPosition, SnapDuration)
+                        _snapTween = _control.CreateTween();
+                        _snapTween.TweenProperty(_control, "position", _startPosition, SnapDuration)
                             .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
                     }
                 }
@@ -70,8 +72,8 @@ namespace Beep.ECS.UI
             else if (@event is InputEventMouseMotion mm && _isDragging)
             {
                 Vector2 newPos = _control.GetGlobalMousePosition() - _dragOffset;
-                if (!DragHorizontal) newPos.X = _control.Position.X;
-                if (!DragVertical) newPos.Y = _control.Position.Y;
+                if (!DragHorizontal) newPos.X = _control.GlobalPosition.X;
+                if (!DragVertical) newPos.Y = _control.GlobalPosition.Y;
 
                 if (ConstrainToParent && _control.GetParent() is Godot.Control p)
                 {
@@ -82,6 +84,13 @@ namespace Beep.ECS.UI
                 _control.Position = newPos;
                 _control.AcceptEvent();
             }
+        }
+
+        public override void _ExitTree()
+        {
+            _snapTween?.Kill();
+            if (_control != null)
+                _control.GuiInput -= OnGuiInput;
         }
     }
 }

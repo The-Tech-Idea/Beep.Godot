@@ -58,20 +58,27 @@ namespace Beep.ECS.UI
         {
             if (!IsActive || _rect == null) return;
             _tween?.Kill();
-            _rect.Color = new Color(FadeColor.R, FadeColor.G, FadeColor.B, 0);
+            _rect.Color = FadeColor with { A = 0 };
             _tween = CreateTween();
             _tween.TweenProperty(_rect, "color:a", 1f, Duration);
-            _tween.Finished += () => EmitSignal(SignalName.Finished);
+            _tween.Finished += OnTransitionFinished;
         }
 
         public void TransitionOut()
         {
             if (!IsActive || _rect == null) return;
             _tween?.Kill();
-            _rect.Color = new Color(FadeColor.R, FadeColor.G, FadeColor.B, 1);
+            _rect.Color = FadeColor with { A = 1 };
             _tween = CreateTween();
             _tween.TweenProperty(_rect, "color:a", 0f, Duration);
-            _tween.Finished += () => EmitSignal(SignalName.Finished);
+            _tween.Finished += OnTransitionFinished;
+        }
+
+        private void OnTransitionFinished() => EmitSignal(SignalName.Finished);
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
         }
     }
 }

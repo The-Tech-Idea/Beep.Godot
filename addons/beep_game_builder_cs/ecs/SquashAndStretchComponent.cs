@@ -71,5 +71,16 @@ namespace Beep.ECS
                 Duration * 0.4f).SetEase(Tween.EaseType.Out);
             _tween.TweenProperty(target, "scale", _originalScale, Duration * 0.6f).SetEase(Tween.EaseType.In);
         }
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
+            var jump = GetSiblingComponent<JumpComponent>();
+            if (jump != null)
+            {
+                jump.Jumped -= OnJumped;
+                jump.DoubleJumped -= OnDoubleJumped;
+            }
+        }
     }
 }

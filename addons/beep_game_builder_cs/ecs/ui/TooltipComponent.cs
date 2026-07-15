@@ -30,9 +30,14 @@ namespace Beep.ECS.UI
             _control = GetParent() as Godot.Control;
             if (_control != null)
             {
-                _control.MouseEntered += () => { if (IsActive) _hoverTime = 0; };
+                _control.MouseEntered += OnMouseEntered;
                 _control.MouseExited += HideTooltip;
             }
+        }
+
+        private void OnMouseEntered()
+        {
+            if (IsActive) _hoverTime = 0;
         }
 
         public override void _Process(double delta)
@@ -84,6 +89,11 @@ namespace Beep.ECS.UI
         public override void _ExitTree()
         {
             _tooltipPanel?.QueueFree();
+            if (_control != null)
+            {
+                _control.MouseEntered -= OnMouseEntered;
+                _control.MouseExited -= HideTooltip;
+            }
             base._ExitTree();
         }
     }

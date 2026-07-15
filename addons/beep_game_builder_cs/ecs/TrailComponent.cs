@@ -34,7 +34,8 @@ namespace Beep.ECS
                 DefaultColor = TrailColor,
                 JointMode = Line2D.LineJointMode.Round,
                 BeginCapMode = Line2D.LineCapMode.Round,
-                EndCapMode = Line2D.LineCapMode.Round
+                EndCapMode = Line2D.LineCapMode.Round,
+                WidthCurve = CreateWidthFadeCurve()
             };
             _line.Points = new Vector2[0];
             GetParent().AddChild(_line);
@@ -42,20 +43,28 @@ namespace Beep.ECS
                 _line.Owner = GetParent().Owner;
         }
 
+        private Curve CreateWidthFadeCurve()
+        {
+            var curve = new Curve();
+            curve.AddPoint(new Vector2(0, 1), 0, 0);
+            curve.AddPoint(new Vector2(1, 0), 0, 0);
+            return curve;
+        }
+
         public override void _Process(double delta)
         {
-            if (_line == null || GetParent() is not Node2D parent2D) return;
-            _accumulate += (float)delta * FadeSpeed;
-            while (_accumulate >= 1f) { _accumulate -= 1f; }
+            if (_line == null || GetParent() is not Node2D parent2D || !IsActive) return;
 
             // Add current position.
             var points = new System.Collections.Generic.List<Vector2>(_line.Points) { parent2D.Position };
             if (points.Count > MaxPoints) points.RemoveAt(0);
             _line.Points = points.ToArray();
+        }
 
-            // Fade: shift all points toward 0 alpha over time (visual via width taper).
-            if (points.Count > 1)
-                _line.Width = Width;
+        public override void _ExitTree()
+        {
+            if (_line != null && GodotObject.IsInstanceValid(_line))
+                _line.QueueFree();
         }
     }
 }

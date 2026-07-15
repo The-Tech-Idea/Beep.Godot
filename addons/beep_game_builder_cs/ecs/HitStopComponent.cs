@@ -55,5 +55,12 @@ namespace Beep.ECS
                 Engine.TimeScale = 1f;
             }
         }
+
+        public override void _ExitTree()
+        {
+            var health = GetSiblingComponent<HealthComponent>();
+            if (health != null)
+                health.Damaged -= OnDamaged;
+        }
     }
 }

@@ -55,18 +55,28 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (FollowParent && _particles != null && GetParent() is Node2D parent)
+            if (FollowParent && _particles != null && GodotObject.IsInstanceValid(_particles) && GetParent() is Node2D parent)
                 _particles.GlobalPosition = parent.GlobalPosition + Offset;
         }
 
         public void Burst()
         {
-            if (_particles == null || !IsActive) return;
+            if (_particles == null || !GodotObject.IsInstanceValid(_particles) || !IsActive) return;
             _particles.Restart();
             _particles.Emitting = true;
             EmitSignal(SignalName.BurstPlayed);
         }
 
-        public void Stop() { if (_particles != null) _particles.Emitting = false; }
+        public void Stop()
+        {
+            if (_particles != null && GodotObject.IsInstanceValid(_particles))
+                _particles.Emitting = false;
+        }
+
+        public override void _ExitTree()
+        {
+            if (_particles != null && GodotObject.IsInstanceValid(_particles))
+                _particles.QueueFree();
+        }
     }
 }

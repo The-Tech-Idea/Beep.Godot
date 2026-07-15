@@ -37,9 +37,16 @@ namespace Beep.ECS
                 {
                     _accumulated = Mathf.Clamp(_accumulated, -PingPongRange, PingPongRange);
                     Clockwise = !Clockwise;
+                    dir = Clockwise ? 1f : -1f;
                 }
             }
             _parent.RotationDegrees += rot;
+
+            // Normalize rotation to -180..180 to prevent overflow.
+            while (_parent.RotationDegrees > 180f)
+                _parent.RotationDegrees -= 360f;
+            while (_parent.RotationDegrees < -180f)
+                _parent.RotationDegrees += 360f;
         }
     }
 }

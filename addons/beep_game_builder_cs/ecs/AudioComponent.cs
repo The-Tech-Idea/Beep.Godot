@@ -57,12 +57,28 @@ namespace Beep.ECS
             EmitSignal(SignalName.Stopped);
         }
 
-        public void PlayOneShot(AudioStream stream, float volume = 0f)
+        public void PlayOneShot(AudioStream stream, float volume = 0f, float pitch = 1f)
         {
             if (!IsActive || GetParent() == null) return;
-            var p = new AudioStreamPlayer { Stream = stream, VolumeDb = volume, Bus = Bus, Autoplay = true };
+            var p = new AudioStreamPlayer
+            {
+                Stream = stream,
+                VolumeDb = volume,
+                PitchScale = pitch,
+                Bus = Bus
+            };
             GetParent().AddChild(p);
             p.Finished += p.QueueFree;
+            p.Play();
+        }
+
+        public override void _ExitTree()
+        {
+            if (_player != null)
+            {
+                _player.Stop();
+                _player.QueueFree();
+            }
         }
     }
 }

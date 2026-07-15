@@ -27,7 +27,7 @@ namespace Beep.ECS
             _parent = GetParent() as Node2D;
             if (_parent != null)
             {
-                _startPos = _parent.Position;
+                _startPos = _parent.GlobalPosition;
                 _startRot = _parent.RotationDegrees;
             }
         }
@@ -36,9 +36,16 @@ namespace Beep.ECS
         {
             if (_parent == null || !IsActive) return;
             _time += (float)delta * Speed;
+
+            // Reset time every 2π to prevent float overflow.
+            if (_time > Mathf.Tau)
+                _time -= Mathf.Tau;
+
             float offset = Mathf.Sin(_time) * Amplitude;
-            _parent.Position = _startPos + (BobHorizontal ? new Vector2(offset, 0) : new Vector2(0, offset));
-            if (AlsoRotate) _parent.RotationDegrees = _startRot + Mathf.Sin(_time * 1.3f) * RotateAmplitude;
+            _parent.GlobalPosition = _startPos + (BobHorizontal ? new Vector2(offset, 0) : new Vector2(0, offset));
+
+            if (AlsoRotate)
+                _parent.RotationDegrees = _startRot + Mathf.Sin(_time * 1.3f) * RotateAmplitude;
         }
     }
 }

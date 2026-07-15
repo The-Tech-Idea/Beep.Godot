@@ -19,6 +19,7 @@ namespace Beep.ECS
         [Export] public float Friction { get; set; } = 1000f;
         [Export] public float CoyoteTime { get; set; } = 0.1f;
         [Export] public float JumpBufferTime { get; set; } = 0.1f;
+        [Export] public bool StunBlocksMovement { get; set; } = true;
 
         [Signal] public delegate void JumpedEventHandler();
         [Signal] public delegate void LandedEventHandler();
@@ -50,7 +51,8 @@ namespace Beep.ECS
             if (_body == null || !IsActive) return;
 
             float dt = (float)delta;
-            var input = Input.GetAxis("move_left", "move_right");
+            bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
+            var input = isStunned ? 0f : Input.GetAxis("move_left", "move_right");
             bool onFloor = _body.IsOnFloor();
 
             // Gravity

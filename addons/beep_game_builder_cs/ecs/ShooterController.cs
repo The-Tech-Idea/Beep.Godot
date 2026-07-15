@@ -14,14 +14,18 @@ namespace Beep.ECS
     {
         [Export] public float MoveSpeed { get; set; } = 250f;
         [Export] public float FireRate { get; set; } = 0.2f;
+        [Export] public float ProjectileDamage { get; set; } = 10f;
+        [Export] public float ProjectileSpeed { get; set; } = 500f;
         [Export] public string FireAction { get; set; } = "attack";
         [Export] public NodePath MuzzlePath { get; set; } = new("Muzzle");
         [Export] public PackedScene? ProjectileScene { get; set; }
+        [Export] public bool StunBlocksMovement { get; set; } = true;
 
         [Signal] public delegate void FireFiredEventHandler(Vector2 position, Vector2 direction);
 
         private CharacterBody2D? _body;
         private Marker2D? _muzzle;
+        private StatusEffectComponent? _statusEffects;
         private double _cooldown;
 
         public override void _Ready()
@@ -29,6 +33,7 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { MoveSpeed = info.MoveSpeed; FireRate = info.FireRate; }
         }
@@ -37,8 +42,11 @@ namespace Beep.ECS
         {
             if (!IsActive || _body == null || Engine.IsEditorHint()) return;
 
-            Vector2 input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
-            _body.Velocity = input * MoveSpeed;
+            bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
+            Vector2 input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
+
+            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
+            _body.Velocity = input * MoveSpeed * speedMod;
             _body.MoveAndSlide();
 
             // Aim toward mouse.
@@ -47,9 +55,10 @@ namespace Beep.ECS
 
             // Fire.
             _cooldown -= delta;
-            if (Input.IsActionPressed(FireAction) && _cooldown <= 0)
+            if (Input.IsActionPressed(FireAction) && _cooldown < 0)
             {
-                _cooldown = FireRate;
+                GetTree().SetInputAsHandled();
+                _cooldown = 1.0 / FireRate;
                 Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _body.GlobalPosition;
                 Vector2 dir = Vector2.FromAngle(_body.Rotation);
                 EmitSignal(SignalName.FireFired, muzzlePos, dir);
@@ -68,6 +77,14 @@ namespace Beep.ECS
             {
                 n2d.GlobalPosition = pos;
                 n2d.Rotation = dir.Angle();
+
+                var projComp = n2d.FindChild(nameof(ProjectileComponent), false, false) as ProjectileComponent;
+                if (projComp != null)
+                {
+                    projComp.Damage = ProjectileDamage;
+                    projComp.Speed = ProjectileSpeed;
+                    projComp.Launch(dir);
+                }
             }
         }
     }

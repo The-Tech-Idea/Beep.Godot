@@ -19,6 +19,8 @@ namespace Beep.ECS
         [Export] public float AttackRange { get; set; } = 40f;
         [Export] public NodePath[] Waypoints { get; set; } = System.Array.Empty<NodePath>();
         [Export] public string TargetGroup { get; set; } = "players";
+        [Export] public bool StunBlocksMovement { get; set; } = true;
+        [Export] public float WanderChangeRate { get; set; } = 0.02f;
 
         [Signal] public delegate void TargetDetectedEventHandler(Node2D target);
         [Signal] public delegate void TargetLostEventHandler();
@@ -26,21 +28,38 @@ namespace Beep.ECS
         [Signal] public delegate void ReachedWaypointEventHandler(int index);
 
         private CharacterBody2D? _body;
+        private StatusEffectComponent? _statusEffects;
         private Vector2 _moveDir;
         private int _waypointIndex;
         private Node2D? _currentTarget;
+        private Node2D? _lastTarget;
+        private AIMode _lastMode = AIMode.Idle;
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
-            UpdateAI((float)delta);
-            _body.Velocity = _body.Velocity.MoveToward(_moveDir * Speed, 800f * (float)delta);
+
+            // Reset state on mode change.
+            if (Mode != _lastMode)
+            {
+                _moveDir = Vector2.Zero;
+                _lastMode = Mode;
+            }
+
+            bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
+            if (!isStunned)
+                UpdateAI((float)delta);
+
+            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
+            float finalSpeed = Speed * speedMod;
+            _body.Velocity = _body.Velocity.MoveToward(_moveDir * finalSpeed, 800f * (float)delta);
             _body.MoveAndSlide();
         }
 
@@ -66,14 +85,26 @@ namespace Beep.ECS
         private void UpdateChase()
         {
             _currentTarget = FindNearestInGroup(TargetGroup);
-            if (_currentTarget != null)
+            if (_currentTarget != null && GodotObject.IsInstanceValid(_currentTarget))
             {
                 _moveDir = (_currentTarget.GlobalPosition - _body!.GlobalPosition).Normalized();
-                EmitSignal(SignalName.TargetDetected, _currentTarget);
+                if (_lastTarget != _currentTarget)
+                {
+                    EmitSignal(SignalName.TargetDetected, _currentTarget);
+                    _lastTarget = _currentTarget;
+                }
                 if (_body!.GlobalPosition.DistanceTo(_currentTarget.GlobalPosition) < AttackRange)
                     EmitSignal(SignalName.InAttackRange, _currentTarget);
             }
-            else _moveDir = Vector2.Zero;
+            else
+            {
+                if (_lastTarget != null)
+                {
+                    EmitSignal(SignalName.TargetLost);
+                    _lastTarget = null;
+                }
+                _moveDir = Vector2.Zero;
+            }
         }
 
         private void UpdatePatrol()
@@ -91,7 +122,7 @@ namespace Beep.ECS
 
         private void UpdateWander()
         {
-            if (GD.Randf() < 0.02f)
+            if (GD.Randf() < WanderChangeRate)
                 _moveDir = new Vector2(GD.Randf() * 2 - 1, GD.Randf() * 2 - 1).Normalized();
         }
 

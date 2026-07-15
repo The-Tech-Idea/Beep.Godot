@@ -78,5 +78,10 @@ namespace Beep.ECS.UI
 
             EmitSignal(SignalName.CountChanged, Count);
         }
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
+        }
     }
 }

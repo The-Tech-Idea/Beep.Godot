@@ -21,6 +21,8 @@ namespace Beep.ECS.UI
         private ProgressBar? _bar;
         private Label? _nameLabel;
         private int _currentPhase;
+        private VBoxContainer? _vbox;
+        private HealthComponent? _health;
 
         public override void _Ready()
         {
@@ -40,25 +42,25 @@ namespace Beep.ECS.UI
             _nameLabel = new Label { Name = "BossName", Text = "BOSS", HorizontalAlignment = HorizontalAlignment.Center };
             _nameLabel.AddThemeFontSizeOverride("font_size", 18);
 
-            var vbox = new VBoxContainer();
-            vbox.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);
-            vbox.AddThemeConstantOverride("separation", 4);
-            vbox.AddChild(_nameLabel);
-            vbox.AddChild(_bar);
+            _vbox = new VBoxContainer();
+            _vbox.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);
+            _vbox.AddThemeConstantOverride("separation", 4);
+            _vbox.AddChild(_nameLabel);
+            _vbox.AddChild(_bar);
 
             if (GetParent() is Node parent)
             {
-                parent.AddChild(vbox);
+                parent.AddChild(_vbox);
                 if (parent.IsInsideTree())
-                    vbox.Owner = parent.Owner;
+                    _vbox.Owner = parent.Owner;
             }
 
-            var health = GetSiblingComponent<HealthComponent>();
-            if (health != null)
+            _health = GetSiblingComponent<HealthComponent>();
+            if (_health != null)
             {
-                health.HealthChanged += OnHealthChanged;
-                _bar.MaxValue = health.MaxHealth;
-                _bar.Value = health.CurrentHealth;
+                _health.HealthChanged += OnHealthChanged;
+                _bar.MaxValue = _health.MaxHealth;
+                _bar.Value = _health.CurrentHealth;
                 _bar.Visible = true;
             }
         }
@@ -79,6 +81,14 @@ namespace Beep.ECS.UI
                     new StyleBoxFlat { BgColor = BarColor.Darkened(1f - phasePct) });
                 EmitSignal(SignalName.PhaseChanged, phase);
             }
+        }
+
+        public override void _ExitTree()
+        {
+            if (_health != null)
+                _health.HealthChanged -= OnHealthChanged;
+            if (_vbox != null && GodotObject.IsInstanceValid(_vbox))
+                _vbox.QueueFree();
         }
     }
 }

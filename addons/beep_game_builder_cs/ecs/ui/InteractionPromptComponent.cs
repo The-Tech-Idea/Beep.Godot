@@ -21,9 +21,17 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(EnsureLabel));
-            _label!.Visible = false;
-            _label.Modulate = new Color(1, 1, 1, 0);
+            CallDeferred(nameof(SetupLabel));
+        }
+
+        private void SetupLabel()
+        {
+            EnsureLabel();
+            if (_label != null)
+            {
+                _label.Visible = false;
+                _label.Modulate = new Color(1, 1, 1, 0);
+            }
         }
 
         private void EnsureLabel()
@@ -57,7 +65,17 @@ namespace Beep.ECS.UI
             _fade?.Kill();
             _fade = CreateTween();
             _fade.TweenProperty(_label, "modulate:a", 0f, FadeDuration);
-            _fade.Finished += () => _label.Visible = false;
+            _fade.Finished += OnHideFinished;
+        }
+
+        private void OnHideFinished()
+        {
+            if (_label != null) _label.Visible = false;
+        }
+
+        public override void _ExitTree()
+        {
+            _fade?.Kill();
         }
     }
 }

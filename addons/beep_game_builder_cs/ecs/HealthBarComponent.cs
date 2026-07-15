@@ -81,5 +81,13 @@ namespace Beep.ECS
             sb.SetCornerRadiusAll(2);
             return sb;
         }
+
+        public override void _ExitTree()
+        {
+            if (_health != null)
+                _health.HealthChanged -= OnHealthChanged;
+            if (_bar != null && GodotObject.IsInstanceValid(_bar))
+                _bar.QueueFree();
+        }
     }
 }

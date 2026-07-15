@@ -61,11 +61,29 @@ namespace Beep.ECS.UI
             // Slide-in + hold + fade.
             float startY = toast.Position.Y + 20;
             toast.Modulate = new Color(1, 1, 1, 0);
+            toast.Position = new Vector2(toast.Position.X, startY);
             var tw = toast.CreateTween();
+            tw.SetParallel(true);
+            tw.TweenProperty(toast, "position:y", y, Slide);
             tw.TweenProperty(toast, "modulate:a", 1f, Slide);
-            tw.TweenInterval(Duration);
-            tw.TweenProperty(toast, "modulate:a", 0f, Slide * 0.6f);
-            tw.Finished += () => { _active.Remove(toast); toast.QueueFree(); };
+            tw.Chain().TweenInterval(Duration);
+            tw.Chain().TweenProperty(toast, "modulate:a", 0f, Slide * 0.6f);
+            tw.Finished += () => OnToastFinished(toast);
+        }
+
+        private void OnToastFinished(PanelContainer toast)
+        {
+            _active.Remove(toast);
+            if (GodotObject.IsInstanceValid(toast))
+                toast.QueueFree();
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var t in _active)
+                if (GodotObject.IsInstanceValid(t))
+                    t.QueueFree();
+            _active.Clear();
         }
 
         private static Color ColorFor(NoteType type) => type switch

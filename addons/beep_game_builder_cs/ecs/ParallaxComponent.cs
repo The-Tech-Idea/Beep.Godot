@@ -45,7 +45,18 @@ namespace Beep.ECS
 
             if (AutoTile && _cam.IsInsideTree())
             {
-                // Keep looping for infinite scrolling
+                float tileWidth = TileSize.X;
+                float camViewWidth = _cam.GetViewportRect().Size.X / _cam.Zoom.X;
+                float camLeft = _cam.GlobalPosition.X - camViewWidth * 0.5f;
+                float camRight = _cam.GlobalPosition.X + camViewWidth * 0.5f;
+
+                Vector2 parentPos = _parent.GlobalPosition;
+                float parentRight = parentPos.X + tileWidth;
+
+                if (parentRight < camLeft)
+                    _parent.GlobalPosition = new Vector2(parentPos.X + tileWidth, parentPos.Y);
+                else if (parentPos.X > camRight)
+                    _parent.GlobalPosition = new Vector2(parentPos.X - tileWidth, parentPos.Y);
             }
         }
     }

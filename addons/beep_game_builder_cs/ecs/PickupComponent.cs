@@ -25,13 +25,17 @@ namespace Beep.ECS
         private bool _collected;
         private float _respawnTimer;
 
+        private Area2D? _area;
+
         public override void _Ready()
         {
             base._Ready();
             if (GetParent() is Node2D parent) _startPos = parent.Position;
-            var area = GetParent() as Area2D;
-            if (area != null) area.BodyEntered += _ => Collect();
+            _area = GetParent() as Area2D;
+            if (_area != null) _area.BodyEntered += OnBodyEntered;
         }
+
+        private void OnBodyEntered(Node2D body) => Collect()
 
         public override void _Process(double delta)
         {
@@ -65,8 +69,15 @@ namespace Beep.ECS
         private void Respawn()
         {
             _collected = false;
+            _time = 0;
             if (GetParent() is Node2D p) { p.Visible = true; p.ProcessMode = ProcessModeEnum.Inherit; p.Position = _startPos; }
             EmitSignal(SignalName.Respawned);
+        }
+
+        public override void _ExitTree()
+        {
+            if (_area != null)
+                _area.BodyEntered -= OnBodyEntered;
         }
     }
 }

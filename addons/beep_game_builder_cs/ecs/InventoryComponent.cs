@@ -119,6 +119,8 @@ namespace Beep.ECS
         {
             if (!IsActive || Slots == null) return false;
 
+            int originalQuantity = quantity;
+
             if (AutoStack)
             {
                 for (int i = 0; i < MaxSlots; i++)
@@ -130,7 +132,7 @@ namespace Beep.ECS
                         Slots[i]!.Quantity += toAdd;
                         quantity -= toAdd;
                         EmitSignal(SignalName.SlotUpdated, i);
-                        if (quantity <= 0) { EmitSignal(SignalName.ItemAdded, itemId, 1); EmitSignal(SignalName.InventoryChanged); return true; }
+                        if (quantity <= 0) { EmitSignal(SignalName.ItemAdded, itemId, originalQuantity); EmitSignal(SignalName.InventoryChanged); return true; }
                     }
                 }
             }
@@ -153,7 +155,7 @@ namespace Beep.ECS
                 EmitSignal(SignalName.SlotUpdated, slot);
             }
 
-            EmitSignal(SignalName.ItemAdded, itemId, 1);
+            EmitSignal(SignalName.ItemAdded, itemId, originalQuantity);
             EmitSignal(SignalName.InventoryChanged);
             return true;
         }

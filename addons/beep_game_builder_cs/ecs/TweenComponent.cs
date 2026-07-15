@@ -18,7 +18,6 @@ namespace Beep.ECS
         [Export] public Preset Animation { get; set; } = Preset.PopIn;
         [Export] public float Duration { get; set; } = 0.3f;
         [Export] public bool PlayOnReady { get; set; } = true;
-        [Export] public bool AutoReverse { get; set; } = false;
 
         [Signal] public delegate void TweenStartedEventHandler();
         [Signal] public delegate void TweenFinishedEventHandler();
@@ -73,8 +72,9 @@ namespace Beep.ECS
                     _tween.Chain().TweenProperty(node, "scale", Vector2.One, Duration * 0.3f);
                     break;
                 case Preset.Shake:
+                    var startPos = node.Get("position").AsVector2();
                     for (int i = 0; i < 5; i++)
-                        _tween.TweenProperty(node, "position", node.Get("position").AsVector2() + new Vector2(GD.Randf() * 8 - 4, GD.Randf() * 8 - 4), 0.04f);
+                        _tween.TweenProperty(node, "position", startPos + new Vector2(GD.Randf() * 8 - 4, GD.Randf() * 8 - 4), 0.04f);
                     break;
                 case Preset.Pulse:
                     _tween.SetLoops(0);
@@ -97,9 +97,16 @@ namespace Beep.ECS
                     break;
             }
 
-            _tween.Finished += () => EmitSignal(SignalName.TweenFinished);
+            _tween.Finished += OnTweenFinished;
         }
 
+        private void OnTweenFinished() => EmitSignal(SignalName.TweenFinished);
+
         public void Stop() { _tween?.Kill(); }
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
+        }
     }
 }

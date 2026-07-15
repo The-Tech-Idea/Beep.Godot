@@ -30,7 +30,11 @@ namespace Beep.ECS
             base._Ready();
             _body = GetParent() as AnimatableBody2D;
             CollectWaypoints();
-            if (AutoStart && !Engine.IsEditorHint()) _paused = false;
+            if (AutoStart && !Engine.IsEditorHint())
+            {
+                _paused = false;
+                _pauseTimer = 0;
+            }
         }
 
         private void CollectWaypoints()

@@ -50,6 +50,7 @@ namespace Beep.ECS
         {
             _elapsed = 0;
             if (newLifetime > 0) Lifetime = newLifetime;
+            if (_canvas != null) _canvas.Modulate = Colors.White;
         }
     }
 }

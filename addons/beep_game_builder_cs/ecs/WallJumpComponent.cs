@@ -14,6 +14,10 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class WallJumpComponent : ControllerComponent
     {
+        [ExportGroup("Wall Detection")]
+        [Export] public float RayDistance { get; set; } = 12f;
+        [Export] public uint CollisionMask { get; set; } = 0xFFFFFFFF;
+
         [ExportGroup("Wall Slide")]
         [Export] public float WallSlideSpeed { get; set; } = 60f;
         [Export] public float WallStickTime { get; set; } = 0.25f;
@@ -51,13 +55,23 @@ namespace Beep.ECS
             _rightRay = _body.GetNodeOrNull<RayCast2D>("WallRayRight");
             if (_leftRay == null)
             {
-                _leftRay = new RayCast2D { Name = "WallRayLeft", TargetPosition = new Vector2(-12, 0) };
+                _leftRay = new RayCast2D
+                {
+                    Name = "WallRayLeft",
+                    TargetPosition = new Vector2(-RayDistance, 0),
+                    CollisionMask = CollisionMask
+                };
                 _body.AddChild(_leftRay);
                 _leftRay.Enabled = true;
             }
             if (_rightRay == null)
             {
-                _rightRay = new RayCast2D { Name = "WallRayRight", TargetPosition = new Vector2(12, 0) };
+                _rightRay = new RayCast2D
+                {
+                    Name = "WallRayRight",
+                    TargetPosition = new Vector2(RayDistance, 0),
+                    CollisionMask = CollisionMask
+                };
                 _body.AddChild(_rightRay);
                 _rightRay.Enabled = true;
             }

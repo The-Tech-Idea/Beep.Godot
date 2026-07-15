@@ -93,13 +93,14 @@ namespace Beep.ECS
                 new PhysicsPointQueryParameters2D { Position = target });
             foreach (Godot.Collections.Dictionary result in areas)
             {
-                if (result["collider"] is Node2D hitNode && hitNode != _body)
+                var collider = result["collider"].AsGodotObject() as Node2D;
+                if (collider != null && collider != _body)
                 {
-                    var health = hitNode.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+                    var health = collider.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
                     if (health != null)
                     {
                         health.TakeDamage(damage);
-                        var knockback = hitNode.FindChild(nameof(KnockbackComponent), false, false) as KnockbackComponent;
+                        var knockback = collider.FindChild(nameof(KnockbackComponent), false, false) as KnockbackComponent;
                         if (knockback != null) knockback.ApplyKnockback(_body.GlobalPosition);
                     }
                 }

@@ -24,16 +24,15 @@ namespace Beep.ECS
 
         [ExportGroup("Invincibility")]
         [Export] public bool GrantIFrames { get; set; } = true;
-        [Export] public float IFrameMultiplier { get; set; } = 1.0f;
 
         [Signal] public delegate void DashStartedEventHandler(Vector2 direction);
         [Signal] public delegate void DashEndedEventHandler();
 
         private CharacterBody2D? _body;
+        private StatusEffectComponent? _statusEffects;
         private float _dashTimer;
         private float _cooldownTimer;
         private Vector2 _dashDirection;
-        private Vector2 _gravityBackup;
 
         public bool IsDashing => _dashTimer > 0;
         public bool IsOnCooldown => _cooldownTimer > 0;
@@ -43,6 +42,7 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -53,9 +53,20 @@ namespace Beep.ECS
             if (_dashTimer > 0)
             {
                 _dashTimer -= dt;
-                _body.Velocity = _dashDirection * DashSpeed;
+                // Apply dash velocity while preserving Y velocity from gravity.
+                _body.Velocity = new Vector2(_dashDirection.X * DashSpeed, _body.Velocity.Y);
                 _body.MoveAndSlide();
-                if (_dashTimer <= 0) EmitSignal(SignalName.DashEnded);
+
+                // Apply invincibility effect during dash.
+                if (GrantIFrames && _statusEffects != null && !_statusEffects.HasEffect("invincible"))
+                    _statusEffects.ApplyEffect("invincible", DashDuration, isBuff: true, stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
+
+                if (_dashTimer <= 0)
+                {
+                    if (GrantIFrames && _statusEffects != null)
+                        _statusEffects.RemoveEffect("invincible");
+                    EmitSignal(SignalName.DashEnded);
+                }
             }
             else
             {

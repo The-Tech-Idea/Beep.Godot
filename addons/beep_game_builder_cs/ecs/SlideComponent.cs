@@ -49,6 +49,8 @@ namespace Beep.ECS
                         _collision = cs;
                         if (cs.Shape is RectangleShape2D rect)
                             _originalShapeSize = rect.Size;
+                        else
+                            GD.PushWarning($"[Slide] Collision shape must be RectangleShape2D for ShrinkCollision, got {cs.Shape?.GetType().Name}");
                         break;
                     }
                 }
@@ -85,7 +87,8 @@ namespace Beep.ECS
         {
             _slideTimer = SlideDuration;
             _slideDirection = _body!.Velocity.X >= 0 ? 1f : -1f;
-            _body.Velocity = new Vector2(_slideDirection * SlideSpeed, _body.Velocity.Y);
+            float slideVelocity = Mathf.Min(Mathf.Abs(_body.Velocity.X), SlideSpeed);
+            _body.Velocity = new Vector2(_slideDirection * slideVelocity, _body.Velocity.Y);
 
             if (ShrinkCollision && _collision?.Shape is RectangleShape2D rect)
                 rect.Size = new Vector2(_originalShapeSize.X, _originalShapeSize.Y * HeightMultiplier);

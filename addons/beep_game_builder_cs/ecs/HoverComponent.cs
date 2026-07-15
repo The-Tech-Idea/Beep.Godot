@@ -54,8 +54,8 @@ namespace Beep.ECS
                     _isHovering = true;
                     EmitSignal(SignalName.HoverStarted);
                 }
-                // Override gravity with hover gravity.
-                _body.Velocity = new Vector2(_body.Velocity.X, HoverGravity);
+                // Apply light hover gravity (very low upward force).
+                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Max(HoverGravity, _body.Velocity.Y));
                 _hoverTimer += dt;
             }
             else if (_isHovering)
@@ -66,7 +66,8 @@ namespace Beep.ECS
             }
 
             // Reset hover time when landing.
-            if (onFloor) _hoverTimer = 0;
+            if (onFloor)
+                _hoverTimer = 0;
         }
     }
 }

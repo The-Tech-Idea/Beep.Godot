@@ -43,7 +43,7 @@ namespace Beep.ECS
             bool falling = _body.Velocity.Y > 0;
             bool inputHeld = Input.IsActionPressed(GlideAction);
 
-            // Can glide: in air, falling, input held, not on floor.
+            // Can glide: in air (not on floor), falling, input held.
             bool canGlide = !onFloor && falling && inputHeld;
 
             if (canGlide)
@@ -53,15 +53,14 @@ namespace Beep.ECS
                     _isGliding = true;
                     EmitSignal(SignalName.GlideStarted);
                 }
-                // Override fall speed with slow glide descent.
-                _body.Velocity = new Vector2(_body.Velocity.X, GlideFallSpeed);
 
                 // Horizontal air control during glide.
                 float inputX = Input.GetAxis("move_left", "move_right");
                 float targetX = inputX * GlideAirSpeed;
-                _body.Velocity = new Vector2(
-                    Mathf.MoveToward(_body.Velocity.X, targetX, GlideAccel * dt),
-                    _body.Velocity.Y);
+                float newX = Mathf.MoveToward(_body.Velocity.X, targetX, GlideAccel * dt);
+
+                // Set fall speed to glide speed (clamped to prevent upward movement).
+                _body.Velocity = new Vector2(newX, Mathf.Max(GlideFallSpeed, _body.Velocity.Y));
             }
             else if (_isGliding)
             {

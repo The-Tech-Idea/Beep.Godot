@@ -21,6 +21,12 @@ namespace Beep.ECS
         [Export] public float Friction { get; set; } = 400f;
         [Export] public float TurnSpeed { get; set; } = 8f;
 
+        [ExportGroup("Boost")]
+        [Export] public bool EnableBoost { get; set; } = true;
+        [Export] public float BoostMultiplier { get; set; } = 1.5f;
+        [Export] public string BoostAction { get; set; } = "dash";
+        [Export] public float BoostDuration { get; set; } = 2f;
+
         [ExportGroup("Banking")]
         [Export] public bool EnableBanking { get; set; } = true;
         [Export] public float MaxBankAngle { get; set; } = 30f;
@@ -30,6 +36,7 @@ namespace Beep.ECS
 
         private CharacterBody2D? _body;
         private float _targetRotation;
+        private float _boostTimer;
 
         public override void _Ready()
         {
@@ -42,15 +49,25 @@ namespace Beep.ECS
             if (_body == null || !IsActive) return;
             float dt = (float)delta;
 
+            _boostTimer = Mathf.Max(0, _boostTimer - dt);
+
             // Read 8-directional input.
             float x = Input.GetAxis("move_left", "move_right");
             float y = Input.GetAxis("move_up", "move_down");
             Vector2 inputDir = new(x, y);
 
+            // Check for boost activation.
+            if (EnableBoost && Input.IsActionJustPressed(BoostAction) && _boostTimer <= 0)
+                _boostTimer = BoostDuration;
+
+            float currentMaxSpeed = MaxSpeed;
+            if (_boostTimer > 0)
+                currentMaxSpeed *= BoostMultiplier;
+
             if (inputDir.Length() > 0)
             {
                 inputDir = inputDir.Normalized();
-                _body.Velocity = _body.Velocity.MoveToward(inputDir * MaxSpeed, Acceleration * dt);
+                _body.Velocity = _body.Velocity.MoveToward(inputDir * currentMaxSpeed, Acceleration * dt);
                 _targetRotation = inputDir.Angle();
             }
             else
@@ -59,7 +76,7 @@ namespace Beep.ECS
             }
 
             // Banking — smoothly rotate the body toward the movement direction.
-            if (EnableBanking)
+            if (EnableBanking && _body.Velocity.Length() > 1f)
             {
                 float bank = Mathf.LerpAngle(_body.Rotation, _targetRotation, TurnSpeed * dt);
                 _body.Rotation = bank;

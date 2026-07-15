@@ -24,6 +24,7 @@ namespace Beep.ECS
         [Export] public float JumpForce { get; set; } = -450f;
         [Export] public int MaxJumps { get; set; } = 2;
         [Export] public float VariableJumpMultiplier { get; set; } = 0.5f;
+        [Export] public float VariableJumpCutDuration { get; set; } = 0.1f;
         [Export] public float CoyoteTime { get; set; } = 0.1f;
         [Export] public float JumpBufferTime { get; set; } = 0.1f;
 
@@ -31,19 +32,25 @@ namespace Beep.ECS
         [Export] public float ApexHangMultiplier { get; set; } = 0.5f;
         [Export] public float ApexThreshold { get; set; } = 30f;
 
+        [ExportGroup("Status Effects")]
+        [Export] public bool StunBlocksJump { get; set; } = true;
+
         [Signal] public delegate void JumpedEventHandler(int jumpsRemaining);
         [Signal] public delegate void DoubleJumpedEventHandler();
 
         private CharacterBody2D? _body;
+        private StatusEffectComponent? _statusEffects;
         private int _jumpsRemaining;
         private float _coyoteTimer;
         private float _bufferTimer;
+        private float _jumpCutTimer;
         private bool _jumpHeld;
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _jumpsRemaining = MaxJumps;
         }
 
@@ -70,24 +77,39 @@ namespace Beep.ECS
 
             _jumpHeld = Input.IsActionPressed("jump");
 
-            // Apex hang — reduce gravity near the top of the jump.
-            if (!onFloor && Mathf.Abs(_body.Velocity.Y) < ApexThreshold)
+            // Apex hang — reduce gravity only when moving upward near threshold.
+            if (!onFloor && _body.Velocity.Y < 0 && _body.Velocity.Y > -ApexThreshold)
             {
-                float slowFactor = 1f - (1f - ApexHangMultiplier) * (1f - Mathf.Abs(_body.Velocity.Y) / ApexThreshold);
+                float slowFactor = 1f - (1f - ApexHangMultiplier) * (1f - (-_body.Velocity.Y / ApexThreshold));
                 _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * slowFactor);
             }
 
-            // Variable jump height — cut upward velocity when jump is released.
+            // Variable jump height — cut upward velocity when jump is released (frame-independent).
             if (!_jumpHeld && _body.Velocity.Y < 0)
-                _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * VariableJumpMultiplier * dt * 10f + _body.Velocity.Y * (1f - dt * 10f));
+            {
+                _jumpCutTimer += dt;
+                if (_jumpCutTimer < VariableJumpCutDuration)
+                {
+                    float cutProgress = _jumpCutTimer / VariableJumpCutDuration;
+                    _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * Mathf.Lerp(1f, VariableJumpMultiplier, cutProgress));
+                }
+            }
+            else
+            {
+                _jumpCutTimer = 0;
+            }
+
+            // Check for stun/freeze status effects.
+            bool isStunned = StunBlocksJump && _statusEffects != null && _statusEffects.HasEffect("stun");
 
             // Execute buffered jump.
-            if (_bufferTimer > 0 && _jumpsRemaining > 0 && (onFloor || _coyoteTimer > 0 || _jumpsRemaining < MaxJumps))
+            if (_bufferTimer > 0 && _jumpsRemaining > 0 && !isStunned && (onFloor || _coyoteTimer > 0 || _jumpsRemaining < MaxJumps))
             {
                 _body.Velocity = new Vector2(_body.Velocity.X, JumpForce);
                 _jumpsRemaining--;
                 _bufferTimer = 0;
                 _coyoteTimer = 0;
+                _jumpCutTimer = 0;
                 if (_jumpsRemaining == MaxJumps - 1)
                     EmitSignal(SignalName.Jumped, _jumpsRemaining);
                 else

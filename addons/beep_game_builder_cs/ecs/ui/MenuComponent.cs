@@ -61,7 +61,7 @@ namespace Beep.ECS.UI
         {
             foreach (var child in parent.GetChildren())
             {
-                if (child is Button btn)
+                if (child is Button btn && !_buttons.Contains(btn))
                 {
                     _buttons.Add(btn);
                     btn.Pressed += OnButtonPressed;
@@ -102,6 +102,25 @@ namespace Beep.ECS.UI
                 return n.ToSnakeCase();
             }
             return btn.Name.ToString();
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var btn in _buttons)
+                if (GodotObject.IsInstanceValid(btn))
+                    btn.Pressed -= OnButtonPressed;
+
+            if (_navWired && GetParent() is Node p)
+            {
+                foreach (var sibling in p.GetChildren())
+                {
+                    if (sibling is NavigationComponent nav && sibling != this)
+                    {
+                        ActionTriggered -= nav.Dispatch;
+                        break;
+                    }
+                }
+            }
         }
     }
 }

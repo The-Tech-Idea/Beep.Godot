@@ -23,6 +23,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void MenuHiddenEventHandler();
 
         private Container? _container;
+        private readonly System.Collections.Generic.List<Tween> _activeTweens = new();
 
         public override void _Ready()
         {
@@ -34,6 +35,11 @@ namespace Beep.ECS.UI
         public void ShowAnimated()
         {
             if (_container == null || !IsActive) return;
+
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
             var children = _container.GetChildren();
             float offset = GetEntryOffset();
 
@@ -43,14 +49,15 @@ namespace Beep.ECS.UI
 
                 ctrl.Modulate = new Color(1, 1, 1, AnimateOnReady ? 0 : 1);
 
+                Vector2 endPos = ctrl.Position;
                 Vector2 startPos = EntryDirection switch
                 {
-                    Direction.FromLeft => ctrl.Position + new Vector2(-offset, 0),
-                    Direction.FromRight => ctrl.Position + new Vector2(offset, 0),
-                    Direction.FromTop => ctrl.Position + new Vector2(0, -offset),
-                    Direction.FromBottom => ctrl.Position + new Vector2(0, offset),
-                    Direction.FromCenter => ctrl.Position,
-                    _ => ctrl.Position
+                    Direction.FromLeft => endPos + new Vector2(-offset, 0),
+                    Direction.FromRight => endPos + new Vector2(offset, 0),
+                    Direction.FromTop => endPos + new Vector2(0, -offset),
+                    Direction.FromBottom => endPos + new Vector2(0, offset),
+                    Direction.FromCenter => endPos,
+                    _ => endPos
                 };
 
                 if (AnimateOnReady)
@@ -62,13 +69,14 @@ namespace Beep.ECS.UI
                 }
 
                 var tween = ctrl.CreateTween();
+                _activeTweens.Add(tween);
                 float delay = InitialDelay + i * StaggerDelay;
                 tween.TweenInterval(delay);
                 tween.SetParallel(true);
 
                 if (EntryDirection != Direction.FadeOnly && EntryDirection != Direction.FromCenter)
-                    tween.TweenProperty(ctrl, "position", startPos - GetDirectionOffset() * offset,
-                        Duration).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
+                    tween.TweenProperty(ctrl, "position", endPos, Duration)
+                        .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
                 if (EntryDirection == Direction.FromCenter)
                     tween.TweenProperty(ctrl, "scale", Vector2.One, Duration)
                         .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
@@ -76,24 +84,38 @@ namespace Beep.ECS.UI
                 tween.TweenProperty(ctrl, "modulate:a", 1f, Duration * 0.6f);
 
                 if (i == children.Count - 1)
-                    tween.Finished += () => EmitSignal(SignalName.MenuShown);
+                    tween.Finished += OnShowFinished;
             }
         }
+
+        private void OnShowFinished() => EmitSignal(SignalName.MenuShown);
 
         public void HideAnimated()
         {
             if (_container == null || !IsActive) return;
+
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
             var children = _container.GetChildren();
             for (int i = 0; i < children.Count; i++)
             {
                 if (children[i] is not Godot.Control ctrl) continue;
                 var tween = ctrl.CreateTween();
+                _activeTweens.Add(tween);
                 tween.TweenInterval(i * StaggerDelay * 0.5f);
                 tween.SetParallel(true);
                 tween.TweenProperty(ctrl, "modulate:a", 0f, Duration * 0.5f);
                 if (i == children.Count - 1)
-                    tween.Finished += () => { _container.Visible = false; EmitSignal(SignalName.MenuHidden); };
+                    tween.Finished += OnHideFinished;
             }
+        }
+
+        private void OnHideFinished()
+        {
+            if (_container != null) _container.Visible = false;
+            EmitSignal(SignalName.MenuHidden);
         }
 
         private float GetEntryOffset() => EntryDirection switch
@@ -111,5 +133,12 @@ namespace Beep.ECS.UI
             Direction.FromBottom => new Vector2(0, -50f),
             _ => Vector2.Zero
         };
+
+        public override void _ExitTree()
+        {
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+        }
     }
 }

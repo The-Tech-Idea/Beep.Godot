@@ -26,6 +26,7 @@ namespace Beep.ECS.UI
         private int _currentIndex;
         private float _autoTimer;
         private int _slideCount;
+        private readonly System.Collections.Generic.List<Tween> _activeTweens = new();
 
         public override void _Ready()
         {
@@ -53,6 +54,10 @@ namespace Beep.ECS.UI
             if (!Loop && (index < 0 || index >= _slideCount)) return;
             if (!Loop) index = Mathf.Clamp(index, 0, _slideCount - 1);
 
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
             _currentIndex = ((index % _slideCount) + _slideCount) % _slideCount;
 
             float centerX = _container.Size.X / 2f;
@@ -75,6 +80,7 @@ namespace Beep.ECS.UI
                 else
                 {
                     var tween = slide.CreateTween().SetParallel(true);
+                    _activeTweens.Add(tween);
                     tween.TweenProperty(slide, "position:x", targetX, TransitionDuration).SetEase(Tween.EaseType.Out);
                     tween.TweenProperty(slide, "scale", new Vector2(scale, scale), TransitionDuration);
                     tween.TweenProperty(slide, "modulate:a", alpha, TransitionDuration);
@@ -82,6 +88,13 @@ namespace Beep.ECS.UI
             }
 
             EmitSignal(SignalName.SlideChanged, _currentIndex);
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
         }
     }
 }

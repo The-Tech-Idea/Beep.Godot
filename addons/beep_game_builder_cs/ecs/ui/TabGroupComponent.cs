@@ -23,6 +23,7 @@ namespace Beep.ECS.UI
         private Container? _contentArea;
         private readonly List<Button> _tabs = new();
         private readonly List<Godot.Control> _panels = new();
+        private readonly List<Tween> _activeTweens = new();
         private int _currentTab = -1;
 
         public override void _Ready()
@@ -45,11 +46,22 @@ namespace Beep.ECS.UI
             {
                 if (child is Button btn)
                 {
-                    int idx = _tabs.Count;
-                    btn.Pressed += () => SwitchToTab(idx);
                     _tabs.Add(btn);
+                    btn.Pressed += OnTabPressed;
                 }
             }
+
+            WireTabPressHandlers();
+        }
+
+        private void WireTabPressHandlers()
+        {
+            for (int i = 0; i < _tabs.Count; i++)
+                _tabs[i].Pressed += () => OnTabIndexPressed(i);
+        }
+
+        private void OnTabPressed() => GD.PushWarning("Tab pressed but not wired to index");
+        private void OnTabIndexPressed(int idx) => SwitchToTab(idx);
 
             if (_contentArea != null)
                 foreach (var child in _contentArea.GetChildren())
@@ -61,6 +73,10 @@ namespace Beep.ECS.UI
         public void SwitchToTab(int index, bool instant = false)
         {
             if (index == _currentTab || index < 0 || index >= _tabs.Count || !IsActive) return;
+
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
 
             // Deactivate old
             if (_currentTab >= 0 && _currentTab < _panels.Count && _panels[_currentTab] != null)
@@ -81,6 +97,7 @@ namespace Beep.ECS.UI
                 {
                     newPanel.Modulate = new Color(1, 1, 1, 0);
                     var t = newPanel.CreateTween();
+                    _activeTweens.Add(t);
                     t.TweenProperty(newPanel, "modulate:a", 1f, SwitchDuration);
                 }
                 StyleTab(_tabs[index], true);
@@ -92,9 +109,12 @@ namespace Beep.ECS.UI
         private void AnimateOut(Godot.Control panel)
         {
             var t = panel.CreateTween();
+            _activeTweens.Add(t);
             t.TweenProperty(panel, "modulate:a", 0f, SwitchDuration * 0.5f);
-            t.Finished += () => panel.Visible = false;
+            t.Finished += () => OnPanelHideFinished(panel);
         }
+
+        private void OnPanelHideFinished(Godot.Control panel) => panel.Visible = false;
 
         private void StyleTab(Button btn, bool active)
         {
@@ -104,6 +124,17 @@ namespace Beep.ECS.UI
             sb.BorderColor = ActiveTabColor;
             btn.AddThemeStyleboxOverride("normal", sb);
             btn.AddThemeStyleboxOverride("hover", sb);
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
+            foreach (var btn in _tabs)
+                if (GodotObject.IsInstanceValid(btn))
+                    btn.Pressed -= OnTabIndexPressed;
         }
     }
 }

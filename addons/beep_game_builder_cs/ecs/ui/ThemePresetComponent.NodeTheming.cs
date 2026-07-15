@@ -234,8 +234,9 @@ namespace Beep.ECS.UI
         private void ThemeSlider(string typeName)
         {
             var c = _presetInstance!.Colors;
+            var p = _presetInstance!;
             int r = (_gTL + _gTR) / 2;
-            Sb("grabber_area", typeName, CircleBox(c.AccentPrimary, r));
+            Sb("grabber_area", typeName, SkinOr(UseSliderTextures, p.GetSliderGrabberTexture(), _skin?.SliderGrabber, CircleBox(c.AccentPrimary, r)));
             Sb("grabber_area_highlight", typeName, CircleBox(c.AccentSecondary, r, ActiveShapes.Slider.GrabberHoverShadow));
             Sb("slider", typeName, RoundBox(c.SurfaceDisabled, Mathf.Max(2, _gTL / 2)));
             Col(typeName, "tick_color", c.BorderNormal);
@@ -247,8 +248,9 @@ namespace Beep.ECS.UI
         private void ThemeScrollBar(string typeName)
         {
             var c = _presetInstance!.Colors;
+            var p = _presetInstance!;
             int r = Mathf.Max(ActiveShapes.Scrollbar.GrabberMin, (_gTL + _gTR) / ActiveShapes.Scrollbar.GrabberDivisor);
-            Sb("grabber", typeName, CircleBox(Fade(c.TextDisabled, 0.5f), r));
+            Sb("grabber", typeName, SkinOr(UseScrollBarTextures, p.GetScrollGrabberTexture(), _skin?.ScrollGrabber, CircleBox(Fade(c.TextDisabled, 0.5f), r)));
             Sb("grabber_highlight", typeName, CircleBox(Fade(c.TextDisabled, 0.8f), r));
             Sb("scroll", typeName, RoundBox(Fade(c.BgCanvas, 0.7f), 0));
         }
@@ -367,10 +369,11 @@ namespace Beep.ECS.UI
         private void ThemeSeparator()
         {
             var c = _presetInstance!.Colors;
+            var p = _presetInstance!;
             int sep = ActiveShapes.Separator.Separation;
-            var sb = StampGeometry(SeparatorBox(c));
+            var sb = SkinOr(UseSeparatorTextures, p.GetSeparatorTexture(), _skin?.Separator, SeparatorBox(c));
             _generatedTheme!.SetStylebox("separator", "HSeparator", sb);
-            _generatedTheme.SetStylebox("separator", "VSeparator", (StyleBoxFlat)sb.Duplicate());
+            _generatedTheme.SetStylebox("separator", "VSeparator", sb.Duplicate());
             _generatedTheme.SetConstant("separation", "HSeparator", sep);
             _generatedTheme.SetConstant("separation", "VSeparator", sep);
         }
@@ -381,9 +384,10 @@ namespace Beep.ECS.UI
         private void ThemeWindow()
         {
             var c = _presetInstance!.Colors;
+            var p = _presetInstance!;
             string t = "Window";
-            Sb("embedded_border", t, PanelBox(c));
-            Sb("embedded_unfocused_border", t, PanelBox(c));
+            Sb("embedded_border", t, SkinOr(UseDialogTextures, p.GetDialogTexture(), _skin?.Dialog, PanelBox(c)));
+            Sb("embedded_unfocused_border", t, SkinOr(UseDialogTextures, p.GetDialogTexture(), _skin?.Dialog, PanelBox(c)));
             Col(t, "title_color", c.TextPrimary); Col(t, "title_outline_color", c.ShadowColor);
             Col(t, "close_color", c.TextPrimary); Col(t, "close_hover_color", c.SemanticDanger);
             Col(t, "close_pressed_color", c.SemanticDanger);

@@ -397,6 +397,7 @@ namespace Beep.ECS.UI
             slots.ButtonDisabled = ParseTextureSlot(t, "button_disabled");
             slots.ButtonFocus    = ParseTextureSlot(t, "button_focus");
             slots.Panel          = ParseTextureSlot(t, "panel");
+            slots.Dialog         = ParseTextureSlot(t, "dialog");
             slots.InputNormal    = ParseTextureSlot(t, "input_normal");
             slots.InputFocus     = ParseTextureSlot(t, "input_focus");
             slots.ProgressBg     = ParseTextureSlot(t, "progress_bg");
@@ -538,6 +539,7 @@ namespace Beep.ECS.UI
         public TextureSlotDef? ButtonFocus;
         // Other nodes
         public TextureSlotDef? Panel;
+        public TextureSlotDef? Dialog;
         public TextureSlotDef? InputNormal;
         public TextureSlotDef? InputFocus;
         public TextureSlotDef? ProgressBg;
@@ -549,7 +551,7 @@ namespace Beep.ECS.UI
         /// <summary>True if any slot has a texture_path set.</summary>
         public bool AnyTexture =>
             ButtonNormal != null || ButtonHover != null || ButtonPressed != null
-            || ButtonDisabled != null || ButtonFocus != null || Panel != null
+            || ButtonDisabled != null || ButtonFocus != null || Panel != null || Dialog != null
             || InputNormal != null || InputFocus != null
             || ProgressBg != null || ProgressFill != null
             || SliderGrabber != null || ScrollGrabber != null || Separator != null;

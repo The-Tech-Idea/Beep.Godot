@@ -1,9 +1,14 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/PlatformerController.cs" id="1_player"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="3_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ParallaxComponent.cs" id="4_parallax"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/WeatherSystemComponent.cs" id="5_weather"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/SeasonalComponent.cs" id="6_seasonal"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/WeatherAudioController.cs" id="7_weather_audio"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/DynamicFogLayer.cs" id="8_fog"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="9_forecast"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_28x44"]
 size = Vector2(28, 44)
@@ -12,6 +17,18 @@ size = Vector2(28, 44)
 size = Vector2(4000, 200)
 
 [node name="PlatformerMain" type="Node2D"]
+
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("5_weather")
+
+[node name="Seasonal" type="Node" parent="."]
+script = ExtResource("6_seasonal")
+
+[node name="WeatherAudio" type="Node" parent="."]
+script = ExtResource("7_weather_audio")
+
+[node name="Fog" type="Node" parent="."]
+script = ExtResource("8_fog")
 
 [node name="Background" type="ParallaxBackground" parent="."]
 
@@ -71,6 +88,15 @@ shape = SubResource("RectangleShape2D_boundary")
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="WeatherForecast" type="Control" parent="HUD"]
+anchors_preset = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 100
+offset_right = -640
+offset_bottom = -600
+script = ExtResource("9_forecast")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD"]
 anchors_preset = 1

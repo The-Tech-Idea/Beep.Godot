@@ -38,7 +38,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent() as CharacterBody2D;
+            _body = ResolveBody2D();
             // Find the collision shape to shrink during slide.
             if (_body != null && ShrinkCollision)
             {

@@ -8,15 +8,9 @@ namespace Beep.ECS.Scenes
     {
         public override void _Ready()
         {
-            Connect("CloseButton", null, back: true);
-            Connect("BackButton",  null, back: true);
+            GetNode<Button>("Center/Panel/Margin/ContentVBox/CloseButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
         }
 
-        private void Connect(string name, string? target, bool back = false)
-        {
-            var btn = FindChild(name, recursive: true, owned: false) as Button;
-            if (btn == null) return;
-            if (back) btn.Pressed += () => { if (GetParent() is Control p) p.Visible = false; else QueueFree(); };
-        }
+        private void ChangeScene(string? path) { if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path)) GetTree().ChangeSceneToFile(path); }
     }
 }

@@ -1,10 +1,11 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/shooter/Codex.cs" id="3_script"]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [node name="Codex" type="Control"]
+script = ExtResource("3_script")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -142,9 +143,6 @@ modulate = Color(0.5, 0.5, 0.5, 1)
 text = "🔒 ???"
 horizontal_alignment = 1
 
-
-[node name="Navigation" type="Node" parent="."]
-script = ExtResource("4_nav")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")

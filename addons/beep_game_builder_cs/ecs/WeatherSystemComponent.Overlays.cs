@@ -158,18 +158,18 @@ void fragment(){
                 _windDirectionRad = Mathf.Atan2(WindForce.Y, Mathf.Abs(WindForce.X) + 0.0001f);
 
             _cloudScroll += (float)delta;
-            float cover = GetCloudCoverageFor(CurrentWeather);
+            float targetCoverage = CloudCoverageAutoDriven ? GetCloudCoverageFor(CurrentWeather) : CloudCoverage;
 
             // Ease the visible coverage toward the target so clouds form/dissolve
             // smoothly rather than popping in when weather changes.
-            _cloudAlphaCurrent = Mathf.Lerp(_cloudAlphaCurrent, cover, (float)delta * 0.6f);
-            _cloudShadowAlphaCurrent = Mathf.Lerp(_cloudShadowAlphaCurrent, cover, (float)delta * 0.6f);
+            _cloudAlphaCurrent = Mathf.Lerp(_cloudAlphaCurrent, targetCoverage, (float)delta * 0.6f);
+            _cloudShadowAlphaCurrent = Mathf.Lerp(_cloudShadowAlphaCurrent, targetCoverage, (float)delta * 0.6f);
 
             if (_cloudMat != null)
             {
                 _cloudMat.SetShaderParameter("scroll", _cloudScroll);
                 _cloudMat.SetShaderParameter("wind_dir", _windDirectionRad);
-                _cloudMat.SetShaderParameter("coverage", CloudCoverage);
+                _cloudMat.SetShaderParameter("coverage", _cloudAlphaCurrent);
                 _cloudMat.SetShaderParameter("speed", CloudDriftSpeed);
                 _cloudMat.SetShaderParameter("cloud_col", CloudColor);
             }
@@ -177,7 +177,7 @@ void fragment(){
             {
                 _cloudShadowMat.SetShaderParameter("scroll", _cloudScroll);
                 _cloudShadowMat.SetShaderParameter("wind_dir", _windDirectionRad);
-                _cloudShadowMat.SetShaderParameter("coverage", CloudCoverage);
+                _cloudShadowMat.SetShaderParameter("coverage", _cloudShadowAlphaCurrent);
                 _cloudShadowMat.SetShaderParameter("speed", CloudDriftSpeed);
                 _cloudShadowMat.SetShaderParameter("shadow_col", CloudShadowColor);
             }

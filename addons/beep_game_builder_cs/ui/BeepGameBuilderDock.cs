@@ -26,6 +26,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     // ── Picker state ──
     private OptionButton _genrePicker, _themePicker, _palettePicker;
+    private EditorResourcePicker _skinPicker;
     private readonly List<string> _genreIds = new();
     private readonly List<string> _themeIds = new();
     private readonly List<string> _paletteIds = new();
@@ -79,6 +80,9 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _themePicker = AddDropdown(b, "Theme");
         _palettePicker = AddDropdown(b, "Palette");
         // Geometry is per-genre (geometry.json) — applied automatically.
+
+        _skinPicker = new EditorResourcePicker { ResourceType = "Beep.ECS.UI.UISkin", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        b.AddChild(Row("Texture Skin (optional)", _skinPicker));
 
         _genrePicker.ItemSelected += OnGenreItemSelected;
         _themePicker.ItemSelected += OnThemeItemSelected;
@@ -203,6 +207,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.Genre = GameInfo.GenreFromId(gid);
         info.DefaultThemePreset = tid;
         info.PaletteName = pid;
+        info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
         info.GeometryProfileName = genre?.Geometry?.DisplayName ?? "As-Authored";
         info.TargetResolutionWidth = (int)_resW.Value;
         info.TargetResolutionHeight = (int)_resH.Value;
@@ -238,6 +243,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _resH.Value = info.TargetResolutionHeight;
         _targetFps.Value = info.TargetFps;
         _pixelArt.ButtonPressed = info.PixelArt;
+        _skinPicker.EditedResource = info.Skin;
 
         // Select genre → cascades
         string gid = info.Genre.ToString().ToLowerInvariant();
@@ -258,6 +264,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.TargetResolutionHeight = (int)_resH.Value;
         info.TargetFps = (int)_targetFps.Value;
         info.PixelArt = _pixelArt.ButtonPressed;
+        info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
         string gid = GetSelectedGenreId();
         if (gid != null) info.Genre = GameInfo.GenreFromId(gid);
         string tid = GetSelectedThemeId();

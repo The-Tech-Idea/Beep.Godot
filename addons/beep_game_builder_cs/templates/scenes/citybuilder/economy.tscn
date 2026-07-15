@@ -1,0 +1,80 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/citybuilder/Economy.cs" id="3_script"]
+
+[node name="Economy" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15, 0.15, 0.12, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 20
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+text = "Economy"
+size_flags_horizontal = 3
+
+[node name="BackButton" type="Button" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(100, 0)
+text = "← Back"
+
+[node name="StatsGrid" type="GridContainer" parent="Margin/VBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 2
+size_flags_vertical = 3
+
+[node name="GoldCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "Gold"
+
+[node name="GoldValue" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "50000"
+horizontal_alignment = 2
+
+[node name="WoodCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "Wood"
+
+[node name="WoodValue" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "350"
+horizontal_alignment = 2
+
+[node name="StoneCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "Stone"
+
+[node name="StoneValue" type="Label" parent="Margin/VBox/StatsGrid"]
+text = "200"
+horizontal_alignment = 2
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("1_theme")
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("2_binder")
+title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
+theme_component_path = NodePath("Theme")

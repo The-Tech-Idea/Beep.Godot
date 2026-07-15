@@ -1,10 +1,11 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelFailed.cs" id="3_script"]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [node name="LevelFailed" type="CanvasLayer"]
+script = ExtResource("3_script")
 layer = 20
 
 [node name="Dim" type="ColorRect" parent="."]
@@ -68,13 +69,10 @@ custom_minimum_size = Vector2(120, 0)
 text = "Retry (❤)"
 metadata/action = "retry"
 
-[node name="Navigation" type="Node" parent="."]
-script = ExtResource("4_nav")
-
 [node name="Theme" type="Node" parent="."]
-script = ExtResource("2_theme")
+script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
-script = ExtResource("3_binder")
+script = ExtResource("2_binder")
 theme_component_path = NodePath("Theme")
 

@@ -15,15 +15,17 @@ public static class BeepInputMapGenerator
         AddKey("attack", Key.J); AddMouse("attack", MouseButton.Left);
         AddKey("interact", Key.E);
         AddKey("dash", Key.Shift);
+        AddKey("crouch", Key.Ctrl);
         AddKey("pause", Key.Escape);
         AddKey("ui_accept", Key.Enter); AddKey("ui_accept", Key.Space);
         AddKey("ui_cancel", Key.Escape);
         AddJoy("jump", JoyButton.A); AddJoy("attack", JoyButton.X);
         AddJoy("interact", JoyButton.B); AddJoy("dash", JoyButton.LeftShoulder);
+        AddJoy("crouch", JoyButton.RightShoulder);
         AddJoy("pause", JoyButton.Start); AddJoy("ui_accept", JoyButton.A);
         AddJoy("ui_cancel", JoyButton.B);
         // Don't call ProjectSettings.Save() here — the generator saves once at the end.
-        return new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","pause","ui_accept","ui_cancel" };
+        return new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","crouch","pause","ui_accept","ui_cancel" };
     }
 
     private static void AddKey(string action, Key key)

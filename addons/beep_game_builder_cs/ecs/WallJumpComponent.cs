@@ -39,7 +39,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent() as CharacterBody2D;
+            _body = ResolveBody2D();
             SetupWallRays();
         }
 

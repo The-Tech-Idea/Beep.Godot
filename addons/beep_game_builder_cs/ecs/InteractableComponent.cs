@@ -21,15 +21,37 @@ namespace Beep.ECS
         [Signal] public delegate void PlayerExitedRangeEventHandler();
 
         private bool _playerInRange;
+        private DialogComponent? _dialog;
+        private Area2D? _area;
 
         public override void _Ready()
         {
             base._Ready();
-            var area = GetParent() as Area2D;
-            if (area != null)
+            _area = GetParent() as Area2D;
+            _dialog = GetSiblingComponent<DialogComponent>();
+
+            if (_area != null)
             {
-                area.BodyEntered += n => { if (n.IsInGroup("players")) { _playerInRange = true; EmitSignal(SignalName.PlayerEnteredRange); } };
-                area.BodyExited += n => { if (n.IsInGroup("players")) { _playerInRange = false; EmitSignal(SignalName.PlayerExitedRange); } };
+                _area.BodyEntered += OnBodyEntered;
+                _area.BodyExited += OnBodyExited;
+            }
+        }
+
+        private void OnBodyEntered(Node n)
+        {
+            if (n.IsInGroup("players"))
+            {
+                _playerInRange = true;
+                EmitSignal(SignalName.PlayerEnteredRange);
+            }
+        }
+
+        private void OnBodyExited(Node n)
+        {
+            if (n.IsInGroup("players"))
+            {
+                _playerInRange = false;
+                EmitSignal(SignalName.PlayerExitedRange);
             }
         }
 
@@ -38,8 +60,26 @@ namespace Beep.ECS
             if (!IsActive || !_playerInRange) return;
             if (@event.IsActionPressed(InputAction))
             {
+                GetTree().SetInputAsHandled();
                 EmitSignal(SignalName.Interacted);
-                if (Toggleable) { IsToggled = !IsToggled; EmitSignal(SignalName.Toggled, IsToggled); }
+
+                if (_dialog != null)
+                    _dialog.Interact();
+
+                if (Toggleable)
+                {
+                    IsToggled = !IsToggled;
+                    EmitSignal(SignalName.Toggled, IsToggled);
+                }
+            }
+        }
+
+        public override void _ExitTree()
+        {
+            if (_area != null)
+            {
+                _area.BodyEntered -= OnBodyEntered;
+                _area.BodyExited -= OnBodyExited;
             }
         }
     }

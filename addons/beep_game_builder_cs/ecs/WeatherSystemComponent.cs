@@ -46,6 +46,7 @@ namespace Beep.ECS
         [Export] public bool AutoCycle { get; set; } = false;
         [Export] public double CycleInterval { get; set; } = 60.0;
         [Export] public int ParticleCount { get; set; } = 250;
+        [Export] public Material? ParticleMaterial { get; set; }
 
         // ── Public read-only state for HUDs / forecast UIs ──
         /// <summary>Seconds remaining before AutoCycle switches weather (0 if not cycling).</summary>
@@ -81,8 +82,10 @@ namespace Beep.ECS
         [Export] public float LightningShakeIntensity { get; set; } = 12f;
 
         [ExportGroup("Wind")]
+        [Export] public bool EnableWind { get; set; } = true;
         [Export] public Vector2 WindForce { get; set; } = Vector2.Zero;
         [Export] public float WindChangeSpeed { get; set; } = 0.5f;
+        [Export] public float MaxWindMagnitude { get; set; } = 3f;
 
         [ExportGroup("Fog Overlay")]
         [Export] public float FogDensity { get; set; } = 0.4f;
@@ -107,10 +110,29 @@ namespace Beep.ECS
         [Export] public int OverlayLayerIndex { get; set; } = 100;
 
         [ExportGroup("Clouds")]
-        [Export] public bool EnableClouds { get; set; } = true;
-        /// <summary>0 clear .. 1 overcast. Auto-set per weather, override here.</summary>
+        [Export] public bool CloudCoverageAutoDriven { get; set; } = true;
+        /// <summary>Manual override; only used when CloudCoverageAutoDriven is false.</summary>
         [Export] public float CloudCoverage { get; set; } = 0.55f;
         [Export] public float CloudDriftSpeed { get; set; } = 0.04f;
+
+        private bool _enableClouds = true;
+        [Export]
+        public bool EnableClouds
+        {
+            get => _enableClouds;
+            set
+            {
+                bool turningOn = value && !_enableClouds;
+                bool turningOff = !value && _enableClouds;
+                _enableClouds = value;
+                if (turningOn && _overlayLayer != null) EnsureCloudOverlays(_overlayLayer);
+                if (turningOff)
+                {
+                    if (_cloudOverlay != null) _cloudOverlay.Modulate = new Color(1, 1, 1, 0);
+                    if (_cloudShadowOverlay != null) _cloudShadowOverlay.Modulate = new Color(1, 1, 1, 0);
+                }
+            }
+        }
         [Export] public Color CloudColor { get; set; } = new(1f, 1f, 1f, 1f);
         [Export] public Color CloudShadowColor { get; set; } = new(0f, 0f, 0f, 0.35f);
         /// <summary>Multiplier on cloud-shadow visibility (set 0 to disable dapple).</summary>
@@ -130,6 +152,8 @@ namespace Beep.ECS
         private ColorRect? _fogOverlay;
         private ColorRect? _flashOverlay;
         private ShaderMaterial? _fogMat;
+        private Node2D? _boltContainer;  // cached container for lightning bolts
+        private readonly System.Collections.Generic.List<Node> _activeLightningBolts = new();  // track active bolts for cleanup
 
         // ── Internal state ──
         private double _cycleTimer;
@@ -139,6 +163,14 @@ namespace Beep.ECS
         private bool _lightningActive;
         private double _lightningFlashTime;
         private float _fogScroll;
+        private Tween? _weatherTransitionTween;
+
+        // Fog shader state cache — only update uniforms on change
+        private float _cachedFogDensity = -1f;
+        private Color _cachedFogTint = new(-1f, -1f, -1f, -1f);
+        private Vector2 _cachedFogVelocity = new(-1f, -1f);
+        private int _cachedFogOctaves = -1;
+        private Texture2D? _cachedNoiseTexture;
 
         /// <summary>
         /// Frame-lerp rate for the weather→ambient transition. Higher = snappier.
@@ -222,6 +254,14 @@ void fragment(){
         public override void _Ready()
         {
             base._Ready();
+            // Pull initial settings from GameInfo if present (same pattern as PlatformerController).
+            var info = Beep.GameBuilder.GameInfo.Instance;
+            if (info != null)
+            {
+                CurrentWeather = info.DefaultWeather;
+                EnableDayNightCycle = info.EnableDayNightCycle;
+                IsActive = info.EnableWeather;
+            }
             // Register in the discovery group so WindFieldComponent and
             // WeatherHUDComponent can auto-find this system without a NodePath.
             if (!IsInGroup("weather_system")) AddToGroup("weather_system");
@@ -231,12 +271,14 @@ void fragment(){
         private void DeferredInit()
         {
             EnsureNodes();
-            if (!Engine.IsEditorHint()) SetWeather(CurrentWeather);
+            if (!Engine.IsEditorHint() && IsActive) SetWeather(CurrentWeather);
         }
 
         private void EnsureNodes()
         {
             if (GetParent() is not Node parent) return;
+            if (parent is not Node2D)
+                GD.PushWarning($"[Weather] Should be a child of a Node2D (world root) for particles/ambient to render correctly. Parent was {parent.GetType().Name}.");
 
             // Particle system (precipitation / leaves / sand).
             // Lives in WORLD space (parent), not the overlay layer, so rain falls
@@ -246,16 +288,23 @@ void fragment(){
             if (_particles == null)
             {
                 _particles = new CpuParticles2D { Name = "WeatherParticles", Emitting = false };
+                if (ParticleMaterial != null)
+                    _particles.Material = ParticleMaterial;
                 parent.AddChild(_particles);
             }
             ConfigureParticleEmitter();
 
             // Ambient lighting modulator (world-space — tints everything below it).
+            // Godot only allows ONE CanvasModulate per viewport. Search for existing instead of creating.
             _ambient = parent.GetNodeOrNull<CanvasModulate>("WeatherAmbient");
             if (_ambient == null)
             {
-                _ambient = new CanvasModulate { Name = "WeatherAmbient", Color = ClearTint };
-                parent.AddChild(_ambient);
+                // Check if any CanvasModulate exists in the scene tree
+                _ambient = GetTree().Root.FindChild(nameof(CanvasModulate), true, false) as CanvasModulate;
+            }
+            if (_ambient == null)
+            {
+                GD.PushWarning("[Weather] No CanvasModulate found in scene. Add one to the scene root for weather ambient tinting. Weather will render without tint.");
             }
 
             // ── Screen-space overlay layer ──
@@ -306,6 +355,11 @@ void fragment(){
 
             _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
 
+            // Cache the bolt container so we don't search every lightning strike.
+            if (BoltContainer != null)
+                _boltContainer = GetNodeOrNull<Node2D>(BoltContainer);
+            _boltContainer ??= parent as Node2D;
+
             // Cloud + cloud-shadow overlays (built/owned by the Overlays partial).
             if (EnableClouds) EnsureCloudOverlays(overlayRoot);
         }
@@ -337,25 +391,51 @@ void fragment(){
             _particles.LocalCoords = true;
         }
 
-        /// <summary>Push all fog-shader uniforms from the C# exports.</summary>
+        /// <summary>Push fog-shader uniforms only when they change (GPU state cache).</summary>
         private void ApplyFogShaderParams()
         {
             if (_fogMat == null) return;
-            _fogMat.SetShaderParameter("density", FogDensity);
-            _fogMat.SetShaderParameter("tint", GetFogTintFor(CurrentWeather));
-            _fogMat.SetShaderParameter("velocity", FogVelocity);
-            _fogMat.SetShaderParameter("octaves", Mathf.Clamp(FogOctaves, 1, 8));
-            // noise_tex is a hint_default_white sampler. Passing a real texture
-            // overrides the in-shader procedural noise; when null we pass nothing
-            // and the default white (which the shader treats as "no texture bound")
-            // stays in effect.
-            if (NoiseTexture != null)
-                _fogMat.SetShaderParameter("noise_tex", NoiseTexture);
+
+            if (!Mathf.IsEqualApprox(FogDensity, _cachedFogDensity))
+            {
+                _fogMat.SetShaderParameter("density", FogDensity);
+                _cachedFogDensity = FogDensity;
+            }
+
+            Color fogTint = GetFogTintFor(CurrentWeather);
+            if (fogTint != _cachedFogTint)
+            {
+                _fogMat.SetShaderParameter("tint", fogTint);
+                _cachedFogTint = fogTint;
+            }
+
+            if (FogVelocity != _cachedFogVelocity)
+            {
+                _fogMat.SetShaderParameter("velocity", FogVelocity);
+                _cachedFogVelocity = FogVelocity;
+            }
+
+            int clampedOctaves = Mathf.Clamp(FogOctaves, 1, 8);
+            if (clampedOctaves != _cachedFogOctaves)
+            {
+                _fogMat.SetShaderParameter("octaves", clampedOctaves);
+                _cachedFogOctaves = clampedOctaves;
+            }
+
+            if (NoiseTexture != _cachedNoiseTexture)
+            {
+                if (NoiseTexture != null)
+                    _fogMat.SetShaderParameter("noise_tex", NoiseTexture);
+                _cachedNoiseTexture = NoiseTexture;
+            }
         }
 
         public override void _Process(double delta)
         {
             if (!IsActive) return;
+
+            // Always apply fog shader params so live-edits to NoiseTexture/FogOctaves take effect.
+            ApplyFogShaderParams();
 
             // Day-night progression (also drives sky clear color + emits hour signal).
             ProcessDayNight(delta);
@@ -399,12 +479,13 @@ void fragment(){
 
             // Wind drift — affects both particle gravity AND the fog velocity
             // so a strong wind visibly pushes the fog/clouds too.
-            if (WindForce != Vector2.Zero)
+            if (EnableWind)
             {
                 WindForce = new Vector2(
                     WindForce.X + (float)GD.RandRange(-WindChangeSpeed, WindChangeSpeed) * (float)delta * 60f,
                     WindForce.Y + (float)GD.RandRange(-WindChangeSpeed, WindChangeSpeed) * (float)delta * 60f
                 );
+                WindForce = WindForce.LimitLength(MaxWindMagnitude);
                 if (_particles != null)
                     _particles.Gravity = new Vector2(WindForce.X * 100f, _particles.Gravity.Y);
                 if (_fogMat != null)
@@ -416,7 +497,7 @@ void fragment(){
             // Fog shader animation — advance the time uniform used by the FBM.
             if (_fogMat != null && _fogOverlay != null && _fogOverlay.Visible)
             {
-                _fogScroll += (float)delta;
+                _fogScroll += (float)delta * FogScrollSpeed;
                 _fogMat.SetShaderParameter("time_v", _fogScroll);
             }
 
@@ -479,8 +560,9 @@ void fragment(){
             if (_fogOverlay != null)
             {
                 _fogOverlay.Visible = true; // alpha tween handles hiding
-                var tw = CreateTween();
-                tw.TweenProperty(_fogOverlay, "modulate:a", usesFog ? 1f : 0f, TransitionDuration);
+                _weatherTransitionTween?.Kill();
+                _weatherTransitionTween = CreateTween();
+                _weatherTransitionTween.TweenProperty(_fogOverlay, "modulate:a", usesFog ? 1f : 0f, TransitionDuration);
             }
 
             // Lightning enabled only for Storm.
@@ -616,11 +698,17 @@ void fragment(){
         /// </summary>
         private void SpawnLightningBolt()
         {
-            // Resolve a world-space parent for the bolt.
-            Node? container = null;
-            if (BoltContainer != null) container = GetNodeOrNull<Node>(BoltContainer);
-            container ??= GetParent();
-            if (container is not Node2D parent2D) return;
+            if (_boltContainer == null) return;
+
+            // Cap active bolts (clean up old ones if stacking).
+            if (_activeLightningBolts.Count > 15)
+            {
+                var oldBolt = _activeLightningBolts[0];
+                _activeLightningBolts.RemoveAt(0);
+                oldBolt.QueueFree();
+            }
+
+            Node2D parent2D = _boltContainer;
 
             // Pick a strike point relative to the camera so the bolt is on-screen.
             var cam = GetViewport()?.GetCamera2D();
@@ -633,6 +721,7 @@ void fragment(){
             parent2D.AddChild(bolt);
             bolt.GlobalPosition = Vector2.Zero; // bolts use global coords passed to Strike()
             bolt.Strike(startSky, endGround);
+            _activeLightningBolts.Add(bolt);
         }
 
         /// <summary>
@@ -684,5 +773,13 @@ void fragment(){
             WeatherType.Heatwave => new Color(1f, 0.85f, 0.6f, 1f),
             _ => new Color(0.8f, 0.8f, 0.8f, 1f)
         };
+
+        public override void _ExitTree()
+        {
+            _weatherTransitionTween?.Kill();
+            foreach (var bolt in _activeLightningBolts)
+                bolt?.QueueFree();
+            _activeLightningBolts.Clear();
+        }
     }
 }

@@ -4,20 +4,14 @@ namespace Beep.ECS.Scenes
 {
     [Tool]
     [GlobalClass]
-    public partial class GameOver : Control
+    public partial class GameOver : CanvasLayer
     {
         public override void _Ready()
         {
-            Connect("RetryButton",    null, restart: true);
-            Connect("MainMenuButton", "res://scenes/ui/main_menu.tscn");
+            GetNode<Button>("Center/GameOverVBox/RetryButton").Pressed    += () => ChangeScene(GameApp.Instance?.GameScenePath);
+            GetNode<Button>("Center/GameOverVBox/MainMenuButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
         }
 
-        private void Connect(string name, string? target, bool restart = false)
-        {
-            var btn = FindChild(name, recursive: true, owned: false) as Button;
-            if (btn == null) return;
-            if (restart) btn.Pressed += () => GetTree().ReloadCurrentScene();
-            else if (target != null) btn.Pressed += () => { if (ResourceLoader.Exists(target)) GetTree().ChangeSceneToFile(target); };
-        }
+        private void ChangeScene(string? path) { if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path)) GetTree().ChangeSceneToFile(path); }
     }
 }

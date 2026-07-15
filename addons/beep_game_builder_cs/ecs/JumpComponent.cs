@@ -3,10 +3,14 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Advanced jump component. Attach to a CharacterBody2D (alongside a movement
+    /// Advanced jump component. Attach as a child to a CharacterBody2D (alongside a movement
     /// controller like PlatformerController). Provides double-jump, variable jump
     /// height (release early = shorter jump), and apex hang (brief slow-down at
     /// the top of the arc for floaty feel).
+    ///
+    /// Does NOT apply gravity itself — must be composed alongside a controller that does
+    /// (currently only PlatformerController). When present, PlatformerController's built-in
+    /// jump logic automatically defers to this component.
     ///
     /// Composable — stack alongside Slide, Dash, Glide, Hover, WallJump.
     /// All parameters are [Export] so the user tunes them in the inspector.
@@ -39,7 +43,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent() as CharacterBody2D;
+            _body = ResolveBody2D();
             _jumpsRemaining = MaxJumps;
         }
 

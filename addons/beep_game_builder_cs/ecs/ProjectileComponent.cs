@@ -23,16 +23,49 @@ namespace Beep.ECS
         private Vector2 _velocity;
         private float _lifetime;
         private Area2D? _area;
+        private Node2D? _owner;
 
         public override void _Ready()
         {
             base._Ready();
             _area = GetParent() as Area2D;
-            if (_area != null)
+            if (_area == null)
             {
-                _area.BodyEntered += n => { EmitSignal(SignalName.Hit, n, _area.GlobalPosition); if (!Pierce && _area != null) _area.QueueFree(); };
-                _area.AreaEntered += n => { EmitSignal(SignalName.Hit, n, _area.GlobalPosition); if (!Pierce && _area != null) _area.QueueFree(); };
+                GD.PushError($"[Projectile] Parent must be Area2D, got {GetParent()?.GetType().Name}");
+                return;
             }
+
+            _owner = _area.GetParent() as Node2D;
+            _area.BodyEntered += OnBodyEntered;
+            _area.AreaEntered += OnAreaEntered;
+        }
+
+        private void OnBodyEntered(Node n)
+        {
+            OnCollision(n);
+        }
+
+        private void OnAreaEntered(Area2D n)
+        {
+            OnCollision(n);
+        }
+
+        private void OnCollision(Node n)
+        {
+            if (n == _owner || _area == null) return;
+
+            var health = n.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+            if (health != null)
+            {
+                health.TakeDamage(Damage);
+
+                var knockback = n.FindChild(nameof(KnockbackComponent), false, false) as KnockbackComponent;
+                if (knockback != null && n is Node2D hitNode)
+                    knockback.ApplyKnockback(_area.GlobalPosition);
+            }
+
+            EmitSignal(SignalName.Hit, n, _area.GlobalPosition);
+            if (!Pierce) _area.QueueFree();
         }
 
         public void Launch(Vector2 direction)
@@ -51,6 +84,15 @@ namespace Beep.ECS
             {
                 EmitSignal(SignalName.Expired);
                 _area?.QueueFree();
+            }
+        }
+
+        public override void _ExitTree()
+        {
+            if (_area != null)
+            {
+                _area.BodyEntered -= OnBodyEntered;
+                _area.AreaEntered -= OnAreaEntered;
             }
         }
     }

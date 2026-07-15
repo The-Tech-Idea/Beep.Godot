@@ -102,6 +102,20 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("grid_width", out var gw)) info.GridWidth = gw.AsInt32();
         if (genre.Tuning.TryGetValue("grid_height", out var gh)) info.GridHeight = gh.AsInt32();
         if (genre.Tuning.TryGetValue("target_score", out var ts)) info.TargetScore = ts.AsInt32();
+        if (genre.Tuning.TryGetValue("enable_weather", out var ew)) info.EnableWeather = ew.AsBool();
+        if (genre.Tuning.TryGetValue("enable_day_night", out var dn)) info.EnableDayNightCycle = dn.AsBool();
+        if (genre.Tuning.TryGetValue("default_weather", out var dw)
+            && System.Enum.TryParse<Beep.ECS.WeatherSystemComponent.WeatherType>(dw.AsString(), true, out var parsedWeather))
+            info.DefaultWeather = parsedWeather;
+        if (genre.Tuning.TryGetValue("enable_seasons", out var es)) info.EnableSeasons = es.AsBool();
+        if (genre.Tuning.TryGetValue("default_season", out var ds)
+            && System.Enum.TryParse<Beep.ECS.SeasonalComponent.Season>(ds.AsString(), true, out var parsedSeason))
+            info.DefaultSeason = parsedSeason;
+        if (genre.Tuning.TryGetValue("days_per_season", out var dps)) info.DaysPerSeason = dps.AsDouble();
+        if (genre.Tuning.TryGetValue("enable_temperature", out var et)) info.EnableTemperature = et.AsBool();
+        if (genre.Tuning.TryGetValue("ambient_temperature", out var at)) info.AmbientTemperature = at.AsSingle();
+        if (genre.Tuning.TryGetValue("enable_forecast", out var ef)) info.EnableWeatherForecast = ef.AsBool();
+        if (genre.Tuning.TryGetValue("forecast_days", out var fd)) info.ForecastDays = fd.AsInt32();
     }
 
     /// <summary>
@@ -140,16 +154,15 @@ public static class BeepGenreGenerator
         CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
         CopyUiScene("hud.tscn", "res://scenes/ui/hud.tscn", mode, log);
 
-        // 5) Genre-specific UI scenes — from genre.json's scenes[] array.
-        CopyGenreUiScenes(genre, mode, log);
+        // 5) All genre-specific UI scenes and gameplay scenes (not just the selected genre).
+        foreach (var g in Beep.ECS.UI.SkinCatalog.AllGenres.Values)
+        {
+            CopyGenreUiScenes(g, mode, log);
+            string gScenePath = $"res://scenes/main/{g.MainScene}";
+            CopyGenreScene(g, gScenePath, mode, log);
+        }
 
-        // 6) Genre-specific gameplay scene.
-        CopyGenreScene(genre, info.GameScenePath, mode, log);
-
-        // 7) Wire navigation scene references into the generated .tscn files.
-        WireSceneNavigation(info, genre, log);
-
-        // 8) Project settings from GameInfo.
+        // 6) Project settings from GameInfo.
         BeepProjectDefaults.ApplyFromGameInfo(info);
 
         // 9) Save ALL project settings in ONE call (avoids reload prompt spam).
@@ -160,130 +173,6 @@ public static class BeepGenreGenerator
         BeepFileUtils.RefreshFilesystem();
         log.Add("=== Done. Open the main menu scene and press Play. ===");
         return log;
-    }
-
-    // ════════════════════════════════════════════════════════════════
-    //  Wire navigation — inject PackedScene ext_resource references
-    //  into the Navigation node of each generated .tscn so buttons work
-    //  out of the box without manual drag-and-drop.
-    // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For each generated scene that has a Navigation node, inject PackedScene
-    /// ext_resource references. The wiring is fully data-driven from the genre's
-    /// genre.json "nav_wiring" block — NO hardcoded per-genre logic. Adding a
-    /// new genre just means adding a "nav_wiring" block to its genre.json.
-    /// </summary>
-    private static void WireSceneNavigation(GameInfo info, Beep.ECS.UI.GenreDef genre, List<string> log)
-    {
-        // Read the nav_wiring from genre.json (loaded by SkinCatalog).
-        if (genre.NavWiring.Count == 0)
-        {
-            log.Add("Navigation: no nav_wiring in genre.json — skipping.");
-            return;
-        }
-
-        int wiredCount = 0;
-        foreach (var sceneEntry in genre.NavWiring)
-        {
-            // sceneKey is a relative filename like "main_menu.tscn" or "level_select.tscn".
-            string sceneKey = sceneEntry.Key.AsString();
-            string targetPath = ResolveTargetPath(genre.Id, sceneKey);
-            if (!FileAccess.FileExists(targetPath)) continue;
-
-            // sceneEntry.Value is a Dictionary mapping property name → res:// path.
-            var navDict = sceneEntry.Value.AsGodotDictionary();
-            if (navDict.Count == 0) continue;
-
-            // Convert to System.Dictionary for InjectSceneRefs.
-            var props = new System.Collections.Generic.Dictionary<string, string>();
-            foreach (var prop in navDict)
-                props[prop.Key.AsString()] = prop.Value.AsString();
-
-            bool ok = InjectSceneRefs(targetPath, props);
-            if (ok) wiredCount++;
-        }
-
-        log.Add($"Navigation wired: {wiredCount} scenes (from genre.json nav_wiring).");
-    }
-
-    /// <summary>Resolve a scene filename to its generated target path.</summary>
-    private static string ResolveTargetPath(string genreId, string sceneFileName)
-    {
-        // Shared scenes (main_menu, pause_menu, settings_menu, game_over, hud) → scenes/ui/
-        // Genre scenes → scenes/ui/<genre>/
-        bool isShared = sceneFileName is "main_menu.tscn" or "pause_menu.tscn"
-            or "settings_menu.tscn" or "game_over.tscn" or "hud.tscn";
-        return isShared
-            ? $"res://scenes/ui/{sceneFileName}"
-            : $"res://scenes/ui/{genreId}/{sceneFileName}";
-    }
-
-    /// <summary>
-    /// Read a .tscn file, add ext_resource declarations for scene paths, and
-    /// set the PackedScene properties on the Navigation node. Uses Godot
-    /// FileAccess — no System.IO.
-    /// </summary>
-    private static bool InjectSceneRefs(string scenePath, System.Collections.Generic.Dictionary<string, string> props)
-    {
-        using var f = FileAccess.Open(scenePath, FileAccess.ModeFlags.Read);
-        if (f == null) return false;
-        string content = f.GetAsText();
-
-        // Find the Navigation node and its script ext_resource id.
-        var navMatch = System.Text.RegularExpressions.Regex.Match(
-            content, @"\[node name=""Navigation"".*?\nscript = ExtResource\(""([^""]+)""\)\n");
-        if (!navMatch.Success) return false;
-        string navScriptId = navMatch.Groups[1].Value;
-
-        // Find the highest ext_resource id to assign new ones.
-        var idMatches = System.Text.RegularExpressions.Regex.Matches(content, @"id=""(\d+)_");
-        int nextId = 100; // use high IDs to avoid collisions
-        foreach (System.Text.RegularExpressions.Match m in idMatches)
-            nextId = System.Math.Max(nextId, int.Parse(m.Groups[1].Value) + 1);
-
-        // Build ext_resource lines + property assignments.
-        var extLines = new System.Text.StringBuilder();
-        var propLines = new System.Text.StringBuilder();
-        var propToId = new System.Collections.Generic.Dictionary<string, string>();
-
-        foreach (var prop in props)
-        {
-            string resPath = prop.Value;
-            if (string.IsNullOrEmpty(resPath) || !FileAccess.FileExists(resPath)) continue;
-
-            string resId = $"{nextId}_scene_{prop.Key.ToLower()}";
-            extLines.AppendLine($"[ext_resource type=\"PackedScene\" path=\"{resPath}\" id=\"{resId}\"]");
-            propToId[prop.Key] = resId;
-            nextId++;
-        }
-
-        if (propToId.Count == 0) return false;
-
-        foreach (var p in propToId)
-            propLines.AppendLine($"{p.Key} = ExtResource(\"{p.Value}\")");
-
-        // Insert ext_resources before the first [node].
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content, @"(\[node )", extLines.ToString() + "$1");
-
-        // Insert properties right after the Navigation node's script line.
-        string navScriptLine = $"script = ExtResource(\"{navScriptId}\")\n";
-        string newNavBlock = navScriptLine + propLines.ToString();
-        content = content.Replace(navScriptLine, newNavBlock, System.StringComparison.Ordinal);
-
-        // Update load_steps.
-        int addedCount = propToId.Count;
-        var loadStepMatch = System.Text.RegularExpressions.Regex.Match(content, @"load_steps=(\d+)");
-        if (loadStepMatch.Success)
-        {
-            int oldCount = int.Parse(loadStepMatch.Groups[1].Value);
-            content = content.Replace($"load_steps={oldCount}", $"load_steps={oldCount + addedCount}", System.StringComparison.Ordinal);
-        }
-
-        // Write back.
-        BeepFileUtils.SafeWriteText(scenePath, content, overwrite: true);
-        return true;
     }
 
     // ════════════════════════════════════════════════════════════════

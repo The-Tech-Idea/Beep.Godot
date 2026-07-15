@@ -10,7 +10,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class SlideComponent : EffectComponent
+    public partial class SlideInOutComponent : EffectComponent
     {
         public enum SlideDirection { Left, Right, Up, Down }
         public enum SlideMode { SlideAndFade, SlideOnly, FadeOnly }

@@ -53,6 +53,11 @@ public partial class GameInfo : Resource
     /// selected theme's folder. "Default" = no tint.</summary>
     [Export] public string PaletteName { get; set; } = "Default";
 
+    /// <summary>Optional texture-based UI skin resource. When set, the theme engine
+    /// builds StyleBoxTexture (9-patch) for all UI nodes instead of procedural StyleBoxFlat.
+    /// Set in the inspector or via the one-click dock.</summary>
+    [Export] public Beep.ECS.UI.UISkin? Skin { get; set; }
+
     /// <summary>Geometry profile display name from the genre's geometry.json.
     /// "As-Authored" = use the theme's own geometry.</summary>
     [Export] public string GeometryProfileName { get; set; } = "As-Authored";
@@ -91,6 +96,21 @@ public partial class GameInfo : Resource
     [Export] public int GridWidth { get; set; } = 8;
     [Export] public int GridHeight { get; set; } = 8;
     [Export] public int TargetScore { get; set; } = 1000;
+    [ExportGroup("Weather")]
+    [Export] public bool EnableWeather { get; set; } = false;
+    [Export] public ECS.WeatherSystemComponent.WeatherType DefaultWeather { get; set; } = ECS.WeatherSystemComponent.WeatherType.Clear;
+    [Export] public bool EnableDayNightCycle { get; set; } = false;
+
+    [ExportGroup("Seasons")]
+    [Export] public bool EnableSeasons { get; set; } = true;
+    [Export] public ECS.SeasonalComponent.Season DefaultSeason { get; set; } = ECS.SeasonalComponent.Season.Spring;
+    [Export] public double DaysPerSeason { get; set; } = 7.0;
+
+    [ExportGroup("Climate")]
+    [Export] public bool EnableTemperature { get; set; } = false;
+    [Export] public float AmbientTemperature { get; set; } = 20f;
+    [Export] public bool EnableWeatherForecast { get; set; } = true;
+    [Export] public int ForecastDays { get; set; } = 7;
 
     /// <summary>Grid dimensions as a Vector2I (built from exported ints).</summary>
     public Vector2I GridSize => new(GridWidth, GridHeight);

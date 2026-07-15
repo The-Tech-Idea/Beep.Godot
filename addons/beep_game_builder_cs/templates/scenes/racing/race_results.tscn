@@ -1,0 +1,74 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/racing/RaceResults.cs" id="3_script"]
+
+[node name="RaceResults" type="CanvasLayer"]
+layer = 20
+script = ExtResource("3_script")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(420, 0)
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 14
+
+[node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Race Complete"
+horizontal_alignment = 1
+
+[node name="TimeLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Time: 02:45.32"
+horizontal_alignment = 1
+
+[node name="PlacementLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "1st Place"
+horizontal_alignment = 1
+
+[node name="RewardLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Reward: 500 Gold"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Retry"
+
+[node name="MenuButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Menu"
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("1_theme")
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("2_binder")
+theme_component_path = NodePath("Theme")

@@ -27,7 +27,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent() as CharacterBody2D;
+            _body = ResolveBody2D();
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { MoveSpeed = info.MoveSpeed; FireRate = info.FireRate; }

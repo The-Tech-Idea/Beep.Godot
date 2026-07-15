@@ -1,13 +1,13 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs" id="1_pause"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="3_nav"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="4_theme"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="5_binder"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="6_transition"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/PauseMenu.cs" id="7_scene"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="4_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="5_transition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/PauseMenu.cs" id="6_scene"]
 
-[node name="PauseMenu" type="CanvasLayer"]
+[node name="PauseMenu" type="CanvasLayer"
+script = ExtResource("6_scene")]
 layer = 10
 
 [node name="Dim" type="ColorRect" parent="."]
@@ -59,17 +59,14 @@ text = "Quit"
 [node name="PauseController" type="Node" parent="."]
 script = ExtResource("1_pause")
 
-[node name="Navigation" type="Node" parent="."]
-script = ExtResource("3_nav")
-
 [node name="Theme" type="Node" parent="."]
-script = ExtResource("4_theme")
+script = ExtResource("3_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
-script = ExtResource("5_binder")
+script = ExtResource("4_binder")
 theme_component_path = NodePath("Theme")
 
 [node name="Transition" type="Node" parent="."]
-script = ExtResource("6_transition")
+script = ExtResource("5_transition")
 duration = 0.4
 

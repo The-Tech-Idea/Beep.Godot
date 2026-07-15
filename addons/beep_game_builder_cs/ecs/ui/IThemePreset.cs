@@ -151,6 +151,7 @@ namespace Beep.ECS.UI
         StyleBox? GetButtonDisabledTexture();
         StyleBox? GetButtonFocusTexture();
         StyleBox? GetPanelTexture();
+        StyleBox? GetDialogTexture();
         StyleBox? GetInputNormalTexture();
         StyleBox? GetInputFocusTexture();
         StyleBox? GetProgressBgTexture();

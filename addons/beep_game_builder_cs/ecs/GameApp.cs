@@ -81,6 +81,9 @@ namespace Beep.ECS
             // Load the static config resource if one wasn't assigned in the inspector.
             if (Info == null && ResourceLoader.Exists(GameBuilder.GameInfo.TresPath))
                 Info = ResourceLoader.Load<GameBuilder.GameInfo>(GameBuilder.GameInfo.TresPath);
+            // Load the UI skin from GameInfo if not already set in the inspector.
+            if (Skin == null)
+                Skin = Info?.Skin;
         }
 
         // ── Convenience accessors (so callers can do GameApp.Instance.GameName etc.) ──
@@ -89,6 +92,8 @@ namespace Beep.ECS
         public string ThemePreset => Info?.DefaultThemePreset ?? "Modern";
         public string GameScenePath => Info?.GameScenePath ?? "res://scenes/main/main.tscn";
         public string MainMenuPath => Info?.MainMenuPath ?? "res://scenes/ui/main_menu.tscn";
+        public string SettingsScenePath => Info?.SettingsScenePath ?? "res://scenes/ui/settings_menu.tscn";
+        public string GameOverScenePath => Info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
 
         // ── Runtime mutators (emit signals so UI can react) ──
         public void AddSessionScore(int amount)

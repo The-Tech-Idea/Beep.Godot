@@ -28,6 +28,10 @@ namespace Beep.ECS.UI
         [ExportGroup("Panel Textures")]
         [Export] public Texture2D? Panel { get; set; }
 
+        // ── Dialog (Window/embedded borders) textures ──
+        [ExportGroup("Dialog Textures")]
+        [Export] public Texture2D? Dialog { get; set; }
+
         // ── Input (LineEdit / TextEdit) textures ──
         [ExportGroup("Input Textures")]
         [Export] public Texture2D? InputNormal { get; set; }
@@ -58,7 +62,7 @@ namespace Beep.ECS.UI
         public bool HasTextures =>
             ButtonNormal != null || ButtonHover != null
             || ButtonPressed != null || ButtonDisabled != null
-            || ButtonFocus != null || Panel != null
+            || ButtonFocus != null || Panel != null || Dialog != null
             || InputNormal != null || InputFocus != null
             || ProgressBarBackground != null || ProgressBarFill != null
             || SliderGrabber != null || ScrollGrabber != null

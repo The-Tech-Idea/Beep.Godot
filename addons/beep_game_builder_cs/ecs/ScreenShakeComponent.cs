@@ -24,6 +24,7 @@ namespace Beep.ECS
         {
             base._Ready();
             _cam = GetParent() as Camera2D;
+            if (!IsInGroup("screen_shake")) AddToGroup("screen_shake");
         }
 
         public void Shake(float intensity = -1, float duration = -1)

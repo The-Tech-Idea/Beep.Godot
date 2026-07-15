@@ -21,32 +21,16 @@
   "tuning": {
     "hand_limit": 10,
     "card_hover_scale": 1.12,
-    "card_fan_angle": 18
-  },
-  "nav_wiring": {
-    "main_menu.tscn": {
-      "GameScene": "res://scenes/main/cardgame_main.tscn",
-      "Settings": "res://scenes/ui/settings_menu.tscn"
-    },
-    "pause_menu.tscn": {
-      "Settings": "res://scenes/ui/settings_menu.tscn",
-      "MainMenu": "res://scenes/ui/main_menu.tscn"
-    },
-    "game_over.tscn": {
-      "MainMenu": "res://scenes/ui/main_menu.tscn",
-      "GameScene": "res://scenes/main/cardgame_main.tscn"
-    },
-    "deck_builder.tscn": {
-      "MainMenu": "res://scenes/ui/main_menu.tscn",
-      "GameScene": "res://scenes/main/cardgame_main.tscn"
-    },
-    "card_battle.tscn": {
-      "MainMenu": "res://scenes/ui/main_menu.tscn",
-      "GameScene": "res://scenes/main/cardgame_main.tscn"
-    },
-    "collection.tscn": {
-      "MainMenu": "res://scenes/ui/main_menu.tscn",
-      "GameScene": "res://scenes/main/cardgame_main.tscn"
-    }
+    "card_fan_angle": 18,
+    "enable_weather": true,
+    "default_weather": "Clear",
+    "enable_day_night": false,
+    "enable_seasons": true,
+    "default_season": "Spring",
+    "days_per_season": 7,
+    "enable_temperature": false,
+    "ambient_temperature": 20,
+    "enable_forecast": true,
+    "forecast_days": 7
   }
 }

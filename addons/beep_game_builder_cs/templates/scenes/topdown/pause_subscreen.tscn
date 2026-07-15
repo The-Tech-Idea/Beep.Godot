@@ -1,10 +1,11 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/topdown/PauseSubscreen.cs" id="3_script"]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/NavigationComponent.cs" id="4_nav"]
 [node name="PauseSubscreen" type="CanvasLayer"]
+script = ExtResource("3_script")
 layer = 10
 
 [node name="Background" type="ColorRect" parent="."]
@@ -166,9 +167,6 @@ metadata/action = "save"
 [node name="HintLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
 text = "(Saves are managed by the SaveManager autoload.)"
 
-
-[node name="Navigation" type="Node" parent="."]
-script = ExtResource("4_nav")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")

@@ -6,12 +6,14 @@ namespace Beep.ECS
     /// Platformer movement controller component. Attach to any CharacterBody2D.
     /// Blind — works for players, enemies, NPCs with platformer physics.
     /// Uses Input actions: move_left, move_right, jump.
+    /// When a JumpComponent sibling is present, jump behavior (and Jumped/Landed signals) defer entirely to it.
     /// </summary>
     [Tool]
     [GlobalClass]
     public partial class PlatformerController : ControllerComponent
     {
         [Export] public float Speed { get; set; } = 300f;
+        [Export] public float Gravity { get; set; } = 980f;
         [Export] public float JumpVelocity { get; set; } = -450f;
         [Export] public float Acceleration { get; set; } = 1200f;
         [Export] public float Friction { get; set; } = 1000f;
@@ -23,6 +25,9 @@ namespace Beep.ECS
         [Signal] public delegate void MovedEventHandler(Vector2 direction);
 
         private CharacterBody2D? _body;
+        private JumpComponent? _jumpComponent;
+        private StatusEffectComponent? _statusEffects;
+        private KnockbackComponent? _knockback;
         private float _coyoteTimer;
         private float _jumpBufferTimer;
         private bool _wasInAir;
@@ -30,7 +35,14 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _body = GetParent() as CharacterBody2D;
+            _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _knockback = GetSiblingComponent<KnockbackComponent>();
+            var info = GameBuilder.GameInfo.Instance;
+            if (info != null) { Speed = info.MoveSpeed; Gravity = info.Gravity; JumpVelocity = info.JumpVelocity; }
+            if (_body != null)
+                foreach (var child in _body.GetChildren())
+                    if (child is JumpComponent jc) { _jumpComponent = jc; break; }
         }
 
         public override void _PhysicsProcess(double delta)
@@ -41,6 +53,9 @@ namespace Beep.ECS
             var input = Input.GetAxis("move_left", "move_right");
             bool onFloor = _body.IsOnFloor();
 
+            // Gravity
+            if (!onFloor) _body.Velocity += new Vector2(0, Gravity * dt);
+
             // Coyote time
             if (onFloor) _coyoteTimer = CoyoteTime;
             else _coyoteTimer -= dt;
@@ -49,16 +64,18 @@ namespace Beep.ECS
             if (Input.IsActionJustPressed("jump")) _jumpBufferTimer = JumpBufferTime;
             else _jumpBufferTimer -= dt;
 
-            // Jump
-            if (_jumpBufferTimer > 0 && _coyoteTimer > 0)
+            // Jump (skip if JumpComponent is handling it)
+            if (_jumpComponent == null && _jumpBufferTimer > 0 && _coyoteTimer > 0)
             {
                 _body.Velocity = new Vector2(_body.Velocity.X, JumpVelocity);
                 _jumpBufferTimer = 0; _coyoteTimer = 0;
                 EmitSignal(SignalName.Jumped);
             }
 
-            // Horizontal movement
-            float targetX = input * Speed;
+            // Horizontal movement (apply status effect modifiers)
+            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
+            float finalSpeed = Speed * speedMod;
+            float targetX = input * finalSpeed;
             _body.Velocity = new Vector2(
                 Mathf.MoveToward(_body.Velocity.X, targetX,
                     (input != 0 ? Acceleration : Friction) * dt),

@@ -103,6 +103,7 @@ namespace Beep.ECS.UI
 		[Export] public bool UsePanelTextures { get; set; } = true;
 		[Export] public bool UseInputTextures { get; set; } = true;
 		[Export] public bool UseProgressBarTextures { get; set; } = true;
+		[Export] public bool UseDialogTextures { get; set; } = true;
 		[Export] public bool UseSliderTextures { get; set; } = true;
 		[Export] public bool UseScrollBarTextures { get; set; } = true;
 		[Export] public bool UseSeparatorTextures { get; set; } = true;

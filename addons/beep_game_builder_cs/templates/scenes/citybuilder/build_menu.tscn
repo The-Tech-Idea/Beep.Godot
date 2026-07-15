@@ -1,0 +1,67 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/citybuilder/BuildMenu.cs" id="3_script"]
+
+[node name="BuildMenu" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15, 0.15, 0.12, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox"]
+text = "Build Menu"
+
+[node name="ItemGrid" type="GridContainer" parent="Margin/VBox"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 3
+size_flags_vertical = 3
+
+[node name="Item1" type="Button" parent="Margin/VBox/ItemGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "House"
+
+[node name="Item2" type="Button" parent="Margin/VBox/ItemGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "Factory"
+
+[node name="Item3" type="Button" parent="Margin/VBox/ItemGrid"]
+custom_minimum_size = Vector2(100, 100)
+text = "Park"
+
+[node name="CloseButton" type="Button" parent="Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Close"
+
+[node name="Theme" type="Node" parent="."]
+script = ExtResource("1_theme")
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("2_binder")
+theme_component_path = NodePath("Theme")

@@ -41,6 +41,10 @@ namespace Beep.ECS
         /// doesn't drag a grounded player around). Off = always push.
         /// </summary>
         [Export] public bool OnlyPushAirborne { get; set; } = true;
+        /// <summary>
+        /// Maximum horizontal wind speed for CharacterBody2Ds (prevents infinite acceleration).
+        /// </summary>
+        [Export] public float MaxCharacterWindSpeed { get; set; } = 300f;
 
         private Area2D? _area;
         private WeatherSystemComponent? _weather;
@@ -93,13 +97,13 @@ namespace Beep.ECS
 
             // Manually push CharacterBody2Ds (they ignore area gravity).
             float dt = (float)delta;
-            Vector2 push = new(wind.X * CharacterPushAccel * 0.01f, 0f);
             foreach (var body in _characters)
             {
                 if (OnlyPushAirborne && body.IsOnFloor()) continue;
-                // Apply horizontal wind drag to the character's velocity.
+                // Apply horizontal wind push to the character's velocity with clamping.
                 var v = body.Velocity;
                 v.X += wind.X * 0.01f * CharacterPushAccel * dt;
+                v.X = Mathf.Clamp(v.X, -MaxCharacterWindSpeed, MaxCharacterWindSpeed);
                 body.Velocity = v;
             }
         }
@@ -110,8 +114,8 @@ namespace Beep.ECS
         {
             var tree = GetTree();
             if (tree == null) return null;
-            // WeatherSystemComponent registers in the "weather_system" group if
-            // its ComponentGroup is set; fall back to a tree scan.
+            // WeatherSystemComponent unconditionally self-registers into the "weather_system"
+            // group in its _Ready() regardless of ComponentGroup; fall back to a tree scan.
             foreach (var n in tree.GetNodesInGroup("weather_system"))
                 if (n is WeatherSystemComponent w) return w;
             return tree.Root.FindChild("WeatherSystemComponent", true, false) as WeatherSystemComponent;

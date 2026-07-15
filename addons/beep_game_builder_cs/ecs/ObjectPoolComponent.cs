@@ -19,6 +19,7 @@ namespace Beep.ECS
         [Export] public int MaxSize { get; set; } = 50;
 
         private readonly Queue<Node> _pool = new();
+        private int _poolCount;
 
         public override void _Ready()
         {
@@ -30,12 +31,13 @@ namespace Beep.ECS
 
         private void Expand()
         {
-            if (Scene == null) return;
+            if (Scene == null || _poolCount >= MaxSize) return;
             var inst = Scene.Instantiate();
             GetParent().AddChild(inst);
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
             _pool.Enqueue(inst);
+            _poolCount++;
         }
 
         /// <summary>Get an instance from the pool (or instantiate a new one if empty).
@@ -43,10 +45,11 @@ namespace Beep.ECS
         public Node? Get()
         {
             if (!IsActive || Scene == null) return null;
-            if (_pool.Count == 0 && _pool.Count < MaxSize) Expand();
+            if (_pool.Count == 0 && _poolCount < MaxSize) Expand();
             if (_pool.Count == 0) return null;
 
             var inst = _pool.Dequeue();
+            _poolCount--;
             if (inst is CanvasItem ci) ci.Visible = true;
             if (inst is Node2D n2d) n2d.SetProcess(true);
             return inst;
@@ -59,6 +62,7 @@ namespace Beep.ECS
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
             _pool.Enqueue(inst);
+            _poolCount++;
         }
 
         public int Available => _pool.Count;

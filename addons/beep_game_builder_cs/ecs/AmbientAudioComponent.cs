@@ -14,13 +14,18 @@ namespace Beep.ECS
     {
         [Export] public AudioStream? AmbientTrack { get; set; }
         [Export] public AudioStream? CombatTrack { get; set; }
+        [Export] public AudioStream? ThunderTrack { get; set; }
         [Export] public float CrossfadeDuration { get; set; } = 1.5f;
         [Export] public string Bus { get; set; } = "Master";
         [Export] public bool Loop { get; set; } = true;
+        [Export] public NodePath? WeatherSystemPath { get; set; }
 
         private AudioStreamPlayer? _ambientPlayer;
         private AudioStreamPlayer? _combatPlayer;
+        private AudioStreamPlayer? _thunderPlayer;
         private bool _inCombat;
+        private WeatherSystemComponent? _weather;
+        private Tween? _crossfadeTween;
 
         public override void _Ready()
         {
@@ -42,8 +47,15 @@ namespace Beep.ECS
                 Bus = Bus,
                 VolumeDb = -80f
             };
+            _thunderPlayer = new AudioStreamPlayer
+            {
+                Name = "ThunderPlayer",
+                Bus = Bus,
+                VolumeDb = 0f
+            };
             AddChild(_ambientPlayer);
             AddChild(_combatPlayer);
+            AddChild(_thunderPlayer);
 
             // Wire to Area2D parent for zone detection.
             if (GetParent() is Area2D area)
@@ -51,6 +63,15 @@ namespace Beep.ECS
                 area.BodyEntered += OnBodyEntered;
                 area.BodyExited += OnBodyExited;
             }
+
+            // Wire to WeatherSystemComponent for thunder on lightning strikes.
+            if (WeatherSystemPath != null) _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
+            if (_weather == null)
+            {
+                foreach (var n in GetTree().GetNodesInGroup("weather_system"))
+                    if (n is WeatherSystemComponent w) { _weather = w; break; }
+            }
+            if (_weather != null) _weather.LightningStruck += OnLightningStruck;
         }
 
         private void OnBodyEntered(Node body)
@@ -93,8 +114,25 @@ namespace Beep.ECS
         private void Crossfade(AudioStreamPlayer? player, float targetDb)
         {
             if (player == null) return;
-            var tween = CreateTween();
-            tween.TweenProperty(player, "volume_db", targetDb, CrossfadeDuration);
+            _crossfadeTween?.Kill();
+            _crossfadeTween = CreateTween();
+            _crossfadeTween.TweenProperty(player, "volume_db", targetDb, CrossfadeDuration);
+        }
+
+        private void OnLightningStruck()
+        {
+            if (!IsActive || ThunderTrack == null || _thunderPlayer == null) return;
+            _thunderPlayer.Stream = ThunderTrack;
+            _thunderPlayer.Play();
+        }
+
+        public override void _ExitTree()
+        {
+            _crossfadeTween?.Kill();
+            if (_ambientPlayer != null && _ambientPlayer.Playing) _ambientPlayer.Stop();
+            if (_combatPlayer != null && _combatPlayer.Playing) _combatPlayer.Stop();
+            if (_thunderPlayer != null && _thunderPlayer.Playing) _thunderPlayer.Stop();
+            if (_weather != null) _weather.LightningStruck -= OnLightningStruck;
         }
     }
 }

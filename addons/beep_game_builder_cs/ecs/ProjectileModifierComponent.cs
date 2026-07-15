@@ -53,8 +53,6 @@ namespace Beep.ECS
                     break;
 
                 case ModifierMode.Bounce:
-                    _body.GlobalPosition += _velocity * (float)delta;
-                    // Check collision for bounce.
                     if (_body is CharacterBody2D cb)
                     {
                         cb.Velocity = _velocity;

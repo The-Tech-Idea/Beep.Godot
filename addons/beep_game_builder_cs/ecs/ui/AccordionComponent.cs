@@ -22,6 +22,7 @@ namespace Beep.ECS.UI
         private Container? _container;
         private Button? _header;
         private bool _isExpanded;
+        private readonly System.Collections.Generic.List<Tween> _activeTweens = new();
 
         public override void _Ready()
         {
@@ -56,6 +57,10 @@ namespace Beep.ECS.UI
             _isExpanded = expand;
             UpdateHeaderText();
 
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
             var children = _container.GetChildren();
             for (int i = 1; i < children.Count; i++)
             {
@@ -70,6 +75,8 @@ namespace Beep.ECS.UI
                 {
                     ctrl.Visible = true;
                     var tween = ctrl.CreateTween().SetParallel(true);
+                    _activeTweens.Add(tween);
+
                     if (expand)
                     {
                         ctrl.Modulate = new Color(1, 1, 1, 0);
@@ -83,7 +90,7 @@ namespace Beep.ECS.UI
                         tween.TweenProperty(ctrl, "modulate:a", 0f, AnimationDuration * 0.5f);
                         tween.TweenProperty(ctrl, "scale", new Vector2(1, 0), AnimationDuration)
                             .SetEase(Tween.EaseType.In);
-                        tween.Finished += () => ctrl.Visible = false;
+                        tween.Finished += () => OnCollapseFinished(ctrl);
                     }
                 }
             }
@@ -91,12 +98,24 @@ namespace Beep.ECS.UI
             EmitSignal(expand ? SignalName.Expanded : SignalName.Collapsed);
         }
 
+        private void OnCollapseFinished(Godot.Control ctrl) => ctrl.Visible = false;
+
         private void UpdateHeaderText()
         {
             if (_header == null) return;
             string icon = _isExpanded ? ExpandedIcon : CollapsedIcon;
             string text = _header.Text.TrimStart('▶', '▼', ' ').Trim();
             _header.Text = $"{icon} {text}";
+        }
+
+        public override void _ExitTree()
+        {
+            foreach (var t in _activeTweens)
+                t?.Kill();
+            _activeTweens.Clear();
+
+            if (_header != null)
+                _header.Pressed -= Toggle;
         }
     }
 }

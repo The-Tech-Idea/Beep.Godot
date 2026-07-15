@@ -19,6 +19,7 @@ namespace Beep.ECS.UI
         private Godot.Control? _front;
         private Godot.Control? _back;
         private bool _showingFront;
+        private Tween? _flipTween;
 
         public override void _Ready()
         {
@@ -33,26 +34,40 @@ namespace Beep.ECS.UI
 
         public void Flip()
         {
-            if (!IsActive) return;
+            if (!IsActive || _container == null) return;
+            _flipTween?.Kill();
+
             _showingFront = !_showingFront;
             var show = _showingFront ? _front : _back;
             var hide = _showingFront ? _back : _front;
 
             // Scale X to 0, swap visibility, scale back
-            var tween = _container?.CreateTween();
-            if (tween == null) return;
+            _flipTween = _container.CreateTween();
 
-            tween.TweenProperty(_container, "scale:x", 0f, Duration * 0.5f);
-            tween.TweenCallback(Callable.From(() =>
-            {
-                if (hide != null) hide.Visible = false;
-                if (show != null) { show.Visible = true; show.Scale = new Vector2(-1, 1); }
-            }));
-            tween.TweenProperty(_container, "scale:x", 1f, Duration * 0.5f);
-            tween.Finished += () => EmitSignal(SignalName.Flipped, _showingFront);
+            _flipTween.TweenProperty(_container, "scale:x", 0f, Duration * 0.5f);
+            _flipTween.TweenCallback(Callable.From(() => OnFlipMidpoint(show, hide)));
+            _flipTween.TweenProperty(_container, "scale:x", 1f, Duration * 0.5f);
+            _flipTween.Finished += OnFlipFinished;
         }
+
+        private void OnFlipMidpoint(Godot.Control? show, Godot.Control? hide)
+        {
+            if (hide != null) hide.Visible = false;
+            if (show != null)
+            {
+                show.Visible = true;
+                show.Scale = new Vector2(-show.Scale.X, show.Scale.Y);
+            }
+        }
+
+        private void OnFlipFinished() => EmitSignal(SignalName.Flipped, _showingFront);
 
         public void ShowFront() { if (!_showingFront) Flip(); }
         public void ShowBack() { if (_showingFront) Flip(); }
+
+        public override void _ExitTree()
+        {
+            _flipTween?.Kill();
+        }
     }
 }

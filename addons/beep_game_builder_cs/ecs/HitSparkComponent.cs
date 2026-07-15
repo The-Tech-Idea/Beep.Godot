@@ -45,8 +45,21 @@ namespace Beep.ECS
             if (tree != null)
             {
                 var timer = tree.CreateTimer(2f);
-                timer.Timeout += () => { if (GodotObject.IsInstanceValid(spark)) spark.QueueFree(); };
+                timer.Timeout += () => OnSparkTimeout(spark);
             }
+        }
+
+        private void OnSparkTimeout(Node2D spark)
+        {
+            if (GodotObject.IsInstanceValid(spark))
+                spark.QueueFree();
+        }
+
+        public override void _ExitTree()
+        {
+            var health = GetSiblingComponent<HealthComponent>();
+            if (health != null)
+                health.Damaged -= OnDamaged;
         }
     }
 }

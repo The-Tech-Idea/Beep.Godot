@@ -34,10 +34,12 @@ namespace Beep.ECS.UI
                 _checkbox.Text = "";
                 _checkbox.AddThemeConstantOverride("icon_separation", 0);
                 BuildSwitch();
-                _checkbox.Toggled += on => SetState(on);
+                _checkbox.Toggled += OnCheckboxToggled;
                 SetState(_checkbox.ButtonPressed);
             }
         }
+
+        private void OnCheckboxToggled(bool on) => SetState(on);
 
         private void BuildSwitch()
         {
@@ -68,6 +70,13 @@ namespace Beep.ECS.UI
                 _tween.TweenProperty(_bg, "color", targetBg, AnimationDuration);
             }
             EmitSignal(SignalName.Toggled, on);
+        }
+
+        public override void _ExitTree()
+        {
+            _tween?.Kill();
+            if (_checkbox != null)
+                _checkbox.Toggled -= OnCheckboxToggled;
         }
     }
 }

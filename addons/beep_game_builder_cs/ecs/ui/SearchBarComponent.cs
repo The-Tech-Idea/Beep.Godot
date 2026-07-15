@@ -41,11 +41,10 @@ namespace Beep.ECS.UI
             _input = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };
             _input.CustomMinimumSize = new Vector2(0, 36);
             _input.TextChanged += OnTextChanged;
-            _input.TextSubmitted += q => EmitSignal(SignalName.SearchSubmitted, q);
+            _input.TextSubmitted += OnTextSubmitted;
 
             _clearBtn = new Button { Text = "×", Flat = true, Visible = false, CustomMinimumSize = new Vector2(28, 36) };
-            _clearBtn.Pressed += () =>
-            { _input!.Text = ""; EmitSignal(SignalName.SearchChanged, ""); _clearBtn.Visible = false; };
+            _clearBtn.Pressed += OnClearPressed;
 
             // Style
             var sb = new StyleBoxFlat { BgColor = new Color(0.15f, 0.15f, 0.2f, 1f) };
@@ -64,6 +63,16 @@ namespace Beep.ECS.UI
         private void OnTextChanged(string text)
         {
             _clearBtn!.Visible = !string.IsNullOrEmpty(text);
+            _debounceTimer = 0;
+        }
+
+        private void OnTextSubmitted(string query) => EmitSignal(SignalName.SearchSubmitted, query);
+
+        private void OnClearPressed()
+        {
+            if (_input != null) _input.Text = "";
+            if (_clearBtn != null) _clearBtn.Visible = false;
+            EmitSignal(SignalName.SearchChanged, "");
         }
 
         public override void _Process(double delta)
@@ -82,5 +91,16 @@ namespace Beep.ECS.UI
 
         public string Text => _input?.Text ?? "";
         public void Clear() { if (_input != null) { _input.Text = ""; _clearBtn!.Visible = false; } }
+
+        public override void _ExitTree()
+        {
+            if (_input != null)
+            {
+                _input.TextChanged -= OnTextChanged;
+                _input.TextSubmitted -= OnTextSubmitted;
+            }
+            if (_clearBtn != null)
+                _clearBtn.Pressed -= OnClearPressed;
+        }
     }
 }

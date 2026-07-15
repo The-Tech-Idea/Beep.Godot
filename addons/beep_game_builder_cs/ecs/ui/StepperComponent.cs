@@ -36,7 +36,7 @@ namespace Beep.ECS.UI
         private void BuildStepper()
         {
             _minusBtn = new Button { Text = "−", CustomMinimumSize = new Vector2(ButtonSize, ButtonSize), Flat = true };
-            _minusBtn.Pressed += () => SetValue(Value - Step);
+            _minusBtn.Pressed += OnMinusPressed;
 
             _valueLabel = new Label
             {
@@ -46,12 +46,15 @@ namespace Beep.ECS.UI
             };
 
             _plusBtn = new Button { Text = "+", CustomMinimumSize = new Vector2(ButtonSize, ButtonSize), Flat = true };
-            _plusBtn.Pressed += () => SetValue(Value + Step);
+            _plusBtn.Pressed += OnPlusPressed;
 
             _container?.AddChild(_minusBtn);
             _container?.AddChild(_valueLabel);
             _container?.AddChild(_plusBtn);
         }
+
+        private void OnMinusPressed() => SetValue(Value - Step);
+        private void OnPlusPressed() => SetValue(Value + Step);
 
         public void SetValue(int value)
         {
@@ -63,6 +66,14 @@ namespace Beep.ECS.UI
         private void UpdateDisplay()
         {
             if (_valueLabel != null) _valueLabel.Text = Value.ToString(LabelFormat);
+        }
+
+        public override void _ExitTree()
+        {
+            if (_minusBtn != null)
+                _minusBtn.Pressed -= OnMinusPressed;
+            if (_plusBtn != null)
+                _plusBtn.Pressed -= OnPlusPressed;
         }
     }
 }

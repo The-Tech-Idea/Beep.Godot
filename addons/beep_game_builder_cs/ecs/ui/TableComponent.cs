@@ -30,7 +30,7 @@ namespace Beep.ECS.UI
 
         private VBoxContainer? _container;
         private HBoxContainer? _headerRow;
-        private readonly List<HBoxContainer> _rows = new();
+        private readonly List<PanelContainer> _rows = new();
         private readonly List<string[]> _data = new();
         private readonly List<Button> _headerButtons = new();
         private readonly Dictionary<Button, Action> _headerHandlers = new();
@@ -90,7 +90,7 @@ namespace Beep.ECS.UI
 
         public void Clear()
         {
-            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Godot.Control)?.QueueFree(); row.QueueFree(); }
+            foreach (var row in _rows) row.QueueFree();  // frees the panel and its subtree
             _rows.Clear();
             _data.Clear();
         }
@@ -110,17 +110,20 @@ namespace Beep.ECS.UI
         private void RenderRow(string[] values, int index)
         {
             if (_container == null) return;
-            var row = new HBoxContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
-            row.AddThemeConstantOverride("separation", 0);
-            row.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
 
+            // The row background is the row's own PanelContainer, not a loose Panel: the old code
+            // built a Panel, styled it, and never added it to the tree, so zebra striping and hover
+            // never rendered and UpdateRowBg found no Panel to recolor. A PanelContainer draws its
+            // "panel" stylebox behind whatever it wraps, which is exactly the colored-row idiom.
             Color bg = index % 2 == 0 ? RowEven : RowOdd;
-            var sb = new StyleBoxFlat { BgColor = bg };
-            sb.SetCornerRadiusAll(0);
+            var rowPanel = new PanelContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
+            rowPanel.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
+            ApplyRowBg(rowPanel, bg);
 
-            var panel = new Panel();
-            panel.AddThemeStyleboxOverride("panel", sb);
-            panel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 0);
+            row.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;  // let the panel receive hover/click
+            rowPanel.AddChild(row);
 
             for (int i = 0; i < values.Length; i++)
             {
@@ -133,12 +136,12 @@ namespace Beep.ECS.UI
             }
 
             int rowIdx = index;
-            row.GuiInput += e => OnRowGuiInput(e, rowIdx, values);
-            row.MouseEntered += () => OnRowMouseEntered(row);
-            row.MouseExited += () => OnRowMouseExited(row, bg);
+            rowPanel.GuiInput += e => OnRowGuiInput(e, rowIdx, values);
+            rowPanel.MouseEntered += () => ApplyRowBg(rowPanel, HoverColor);
+            rowPanel.MouseExited += () => ApplyRowBg(rowPanel, bg);
 
-            _rows.Add(row);
-            _container.AddChild(row);
+            _rows.Add(rowPanel);
+            _container.AddChild(rowPanel);
         }
 
         private void OnRowGuiInput(InputEvent e, int rowIdx, string[] values)
@@ -147,15 +150,11 @@ namespace Beep.ECS.UI
                 EmitSignal(SignalName.RowClicked, rowIdx, values);
         }
 
-        private void OnRowMouseEntered(HBoxContainer row) => UpdateRowBg(row, HoverColor);
-        private void OnRowMouseExited(HBoxContainer row, Color bg) => UpdateRowBg(row, bg);
-
-        private static void UpdateRowBg(HBoxContainer row, Color color)
+        private static void ApplyRowBg(PanelContainer row, Color color)
         {
             var sb = new StyleBoxFlat { BgColor = color };
             sb.SetCornerRadiusAll(0);
-            foreach (var child in row.GetChildren())
-                if (child is Panel p) { p.AddThemeStyleboxOverride("panel", sb); break; }
+            row.AddThemeStyleboxOverride("panel", sb);
         }
 
         public void SortByColumn(int column)
@@ -171,7 +170,7 @@ namespace Beep.ECS.UI
             _data.AddRange(sorted);
 
             // Rebuild rows
-            foreach (var row in _rows) { foreach (var c in row.GetChildren()) (c as Godot.Control)?.QueueFree(); row.QueueFree(); }
+            foreach (var row in _rows) row.QueueFree();  // frees the panel and its subtree
             _rows.Clear();
 
             for (int i = 0; i < _data.Count; i++) RenderRow(_data[i], i);

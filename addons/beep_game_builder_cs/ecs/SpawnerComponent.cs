@@ -16,7 +16,14 @@ namespace Beep.ECS
         [Export] public bool SpawnOnStart { get; set; } = true;
         [Export] public Vector2 SpawnOffset { get; set; } = Vector2.Zero;
         [Export] public Vector2 SpawnRandomRange { get; set; } = Vector2.Zero;
-        [Export] public string SpawnGroup { get; set; } = "spawned";
+        /// <summary>
+        /// Group each spawned body joins. Defaults to "enemies" because that is what the
+        /// targeting components look for — AIController and TurretComponent scan "players",
+        /// ProjectileModifierComponent (Homing) scans "enemies". The old default, "spawned",
+        /// was a group nothing in the addon ever read, so homing and turrets found no targets
+        /// in every genre.
+        /// </summary>
+        [Export] public string SpawnGroup { get; set; } = "enemies";
 
         [Signal] public delegate void SpawnedEventHandler(Node entity);
         [Signal] public delegate void SpawnLimitReachedEventHandler();

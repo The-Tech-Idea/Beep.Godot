@@ -20,6 +20,7 @@ namespace Beep.ECS.UI
         private LineEdit? _input;
         private Button? _clearBtn;
         private float _debounceTimer;
+        private bool _debouncePending;
 
         public override void _Ready()
         {
@@ -65,6 +66,7 @@ namespace Beep.ECS.UI
         {
             _clearBtn!.Visible = !string.IsNullOrEmpty(text);
             _debounceTimer = 0;
+            _debouncePending = true;  // arm a single emit once typing settles
         }
 
         private void OnTextSubmitted(string query) => EmitSignal(SignalName.SearchSubmitted, query);
@@ -78,15 +80,16 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (_input == null || !IsActive) return;
-            if (!string.IsNullOrEmpty(_input.Text))
+            // Emit ONCE after the text settles, then wait for the next change. The old version
+            // kept firing SearchChanged every SearchDelay for as long as the field was non-empty —
+            // a repeater, not a debouncer.
+            if (_input == null || !IsActive || !_debouncePending) return;
+            _debounceTimer += (float)delta;
+            if (_debounceTimer >= SearchDelay)
             {
-                _debounceTimer += (float)delta;
-                if (_debounceTimer >= SearchDelay)
-                {
-                    _debounceTimer = 0;
-                    EmitSignal(SignalName.SearchChanged, _input.Text);
-                }
+                _debounceTimer = 0;
+                _debouncePending = false;
+                EmitSignal(SignalName.SearchChanged, _input.Text);
             }
         }
 

@@ -53,7 +53,7 @@ namespace Beep.ECS.UI
                             EmitSignal(SignalName.RatingChanged, Value);
                         }
                     };
-                    label.MouseEntered += () => { Value = i + 0.8f; UpdateDisplay(); };
+                    label.MouseEntered += () => { Value = idx + 0.8f; UpdateDisplay(); };
                     label.MouseExited += () => UpdateDisplay();
                 }
 

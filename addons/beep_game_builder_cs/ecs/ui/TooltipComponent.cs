@@ -23,6 +23,7 @@ namespace Beep.ECS.UI
         private Panel? _tooltipPanel;
         private float _hoverTime;
         private bool _showing;
+        private bool _hovering;
 
         public override void _Ready()
         {
@@ -37,12 +38,14 @@ namespace Beep.ECS.UI
 
         private void OnMouseEntered()
         {
-            if (IsActive) _hoverTime = 0;
+            if (IsActive) { _hovering = true; _hoverTime = 0; }
         }
 
         public override void _Process(double delta)
         {
-            if (!IsActive || _showing || string.IsNullOrEmpty(TooltipText)) return;
+            // Gate on _hovering: without it, _hoverTime climbs from load with the mouse nowhere
+            // near the control, and the tooltip pops on its own after ShowDelay seconds.
+            if (!IsActive || !_hovering || _showing || string.IsNullOrEmpty(TooltipText)) return;
             if (_hoverTime < ShowDelay) { _hoverTime += (float)delta; return; }
 
             ShowTooltip();
@@ -79,6 +82,7 @@ namespace Beep.ECS.UI
 
         private void HideTooltip()
         {
+            _hovering = false;
             _hoverTime = 0;
             _showing = false;
             _tooltipPanel?.QueueFree();

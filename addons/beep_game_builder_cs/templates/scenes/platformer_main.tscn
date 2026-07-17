@@ -47,6 +47,7 @@ limit_top = 0
 
 [node name="Health" type="Node" parent="Player"]
 script = ExtResource("2_health")
+EntityGroup = "players"
 
 [node name="UI" type="CanvasLayer" parent="."]
 

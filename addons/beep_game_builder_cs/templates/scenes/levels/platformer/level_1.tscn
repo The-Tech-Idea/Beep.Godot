@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/pickup_template.tscn" id="1_pickup"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary"]
 size = Vector2(4000, 200)
@@ -34,6 +36,15 @@ motion_scale = Vector2(0.5, 0.5)
 [node name="Hazards" type="Node2D" parent="."]
 
 [node name="Pickups" type="Node2D" parent="."]
+
+[node name="Coin1" parent="Pickups" instance=ExtResource("1_pickup")]
+position = Vector2(400, 360)
+
+[node name="Coin2" parent="Pickups" instance=ExtResource("1_pickup")]
+position = Vector2(520, 360)
+
+[node name="Coin3" parent="Pickups" instance=ExtResource("1_pickup")]
+position = Vector2(640, 360)
 
 [node name="LevelBoundary" type="Area2D" parent="."]
 

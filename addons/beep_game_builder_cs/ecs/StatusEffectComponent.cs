@@ -37,7 +37,13 @@ namespace Beep.ECS
             public System.Collections.Generic.Dictionary<string, float> Modifiers = new();  // "speed_multiplier" → 1.5
 
             public float Progress => TotalDuration > 0 ? 1f - (Duration / TotalDuration) : 1f;
-            public bool IsExpired => Duration <= 0;
+
+            /// <summary>A negative authored Duration means permanent: it never ticks down and
+            /// never expires. This is the channel a level-up upgrade / equipment modifier lives
+            /// in — a duration-0 status was the only "modifier" shape before, and it expired on
+            /// the first frame. (Duration == 0 remains a valid instantaneous effect.)</summary>
+            public bool IsPermanent => Duration < 0f;
+            public bool IsExpired => !IsPermanent && Duration <= 0f;
             public bool CanStack => StackCount < MaxStacks;
             public float RemainingPercent => Mathf.Clamp(Duration / TotalDuration, 0f, 1f);
         }
@@ -179,7 +185,7 @@ namespace Beep.ECS
             for (int i = ActiveEffects.Count - 1; i >= 0; i--)
             {
                 var e = ActiveEffects[i];
-                e.Duration -= (float)delta;
+                if (!e.IsPermanent) e.Duration -= (float)delta;
                 e.TimeSinceTick += (float)delta;
 
                 if (e.TimeSinceTick >= e.TickInterval)

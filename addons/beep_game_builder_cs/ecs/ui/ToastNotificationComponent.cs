@@ -29,9 +29,17 @@ namespace Beep.ECS.UI
             _instance = this;
         }
 
+        public override void _ExitTree()
+        {
+            // Clear the static so Show() doesn't call a freed node after a scene change. Guard on
+            // identity: a later instance may already own it.
+            if (_instance == this) _instance = null;
+            base._ExitTree();
+        }
+
         public static void Show(string message, ToastType type = ToastType.Info)
         {
-            _instance?.ShowToast(message, type);
+            if (GodotObject.IsInstanceValid(_instance)) _instance!.ShowToast(message, type);
         }
 
         public void ShowToast(string message, ToastType type = ToastType.Info)

@@ -35,7 +35,7 @@ namespace Beep.ECS
 
         private TemperatureComponent? _temperature;
         private HungerStaminaComponent? _hunger;
-        private StatusEffectComponent? _statusEffects;
+        private StatsComponent? _stats;
         private ResistanceComponent? _resistance;
 
         public override void _Ready()
@@ -44,7 +44,7 @@ namespace Beep.ECS
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _hunger = GetSiblingComponent<HungerStaminaComponent>();
-            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stats = GetSiblingComponent<StatsComponent>();
             _resistance = GetSiblingComponent<ResistanceComponent>();
         }
 
@@ -88,12 +88,12 @@ namespace Beep.ECS
             if (_resistance != null) amount = _resistance.ApplyResistance(amount, damage.Type);
             if (amount <= 0f) return; // resisted to nothing (immunity)
 
-            float armorReduction = Mathf.Clamp(Armor, 0f, MaxArmor) * 0.01f;
+            // Armor comes from the entity's "armor" stat when it has one (so equipment/buffs raise
+            // it), otherwise this component's Armor export. The old status "damage_reduction" lookup
+            // is gone — reduction is a modifier on the armor stat now, one channel not two.
+            float armorValue = _stats?.GetValue("armor", Armor) ?? Armor;
+            float armorReduction = Mathf.Clamp(armorValue, 0f, MaxArmor) * 0.01f;
             float actual = Mathf.Max(0.1f, amount * (1f - armorReduction));
-
-            var statusMods = _statusEffects?.GetModifiers("damage_reduction");
-            if (statusMods != null && statusMods.TryGetValue("armor_multiplier", out var armorMult))
-                actual *= armorMult;
 
             CurrentHealth = Mathf.Max(0, CurrentHealth - actual);
             EmitSignal(SignalName.Damaged, actual, CurrentHealth);

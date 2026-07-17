@@ -205,17 +205,23 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       catalog. (5) `Load()` re-resolves ids via the catalog and warns on a miss; **per-instance
       durability/socket persistence deferred to Phase 7** (nothing mutates them before then — the
       Save note says so). Build + validator green. → `phase-1-item-resources.md`
-- [~] **Phase 2 — Stats & equipment** — **2a foundation done.** `ecs/stats/`: `StatModifier`
+- [x] **Phase 2 — Stats & equipment** — **done (2a+2b+2c).** `ecs/stats/`: `StatModifier`
       (`Stat` id, `Op` Add/Multiply, `Amount`, `Duration` clock-units `< 0`=permanent, `Source`
       GodotObject for identity-withdrawal), `Stat` (BaseValue + modifiers → cached idempotent
       `Value` = (base+adds)×muls, `Changed` signal), and **`StatsComponent`** — the entity's one
       stat block: `GetValue`/`AddModifier`/`RemoveBySource`, and **the single duration ticker**
       (clock-driven like `WorkComponent`: `TurnEnded` if a `TurnManager` is present, else `_Process`).
       Producers only add/remove; they never tick — resolves the Duration-ownership tension.
-      Build-clean. **Still to do:** 2b — refactor `StatusEffectComponent` onto `Stat` (replace the
-      magic-string `GetModifier` API; move its 3 call sites: `AttackComponent`/`ShooterController`/
-      `HealthComponent`; keep `speed_boost`+`damage_reduction` working — the regression test), and
-      2c — `EquipmentComponent` (contributes item modifiers by Source, withdraws on unequip).
+      Build-clean. **2c done:** `EquipmentComponent` (one item per `EquipSlot`, `MainWeapon`
+      convenience, `ISaveable` slot→id via the catalog) contributes an item's modifiers on equip —
+      **`.Duplicate()`d per-wearer** so two entities sharing a `.tres` don't share modifier state —
+      and withdraws them by `Source` on unequip; `GameEquipment.Modifiers` added. **2b done:** the
+      dead modifier API (`GetModifier`/`GetModifiers`/`ApplyEffectWithModifiers`, all 0 callers) is
+      gone — `StatusEffectComponent` keeps only its behavioural flags (stun/hungry/invincible); timed
+      numeric buffs are now `StatModifier`s with a `Duration` on `StatsComponent` (one channel). All
+      **six** consumers migrated to read stats with export-fallback — the plan undercounted (it named
+      3; `speed_boost` was read by `Shooter`+`AI`+`Platformer`+`TopDown` controllers, plus
+      `Attack`/`Health`). Behaviour preserved (removed API returned constants; fallbacks match).
       → `phase-2-equipment.md`
 - [ ] **Phase 3 — Damage packet, then combat integration** — **3a blocks 3b.** Includes the
       melee-hitbox fix that makes `GameWeapon.Range` real. → `phase-3-combat-integration.md`

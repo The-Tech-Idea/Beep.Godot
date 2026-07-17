@@ -47,13 +47,11 @@ namespace Beep.ECS
             if (!CanAttack) return;
             CooldownRemaining = Cooldown;
 
-            float finalDamage = Damage;
-            var statusEffects = GetSiblingComponent<StatusEffectComponent>();
-            if (statusEffects != null)
-            {
-                float dmgMod = statusEffects.GetModifier("damage_boost", "damage_multiplier", 1f);
-                finalDamage *= dmgMod;
-            }
+            // Damage comes from the entity's "damage" stat when it has one — so equipment and
+            // timed buffs modify it — otherwise this component's own Damage export. One stat, read
+            // by both damage paths (this and ShooterController), nothing to fork. See StatsComponent.
+            var stats = GetSiblingComponent<StatsComponent>();
+            float finalDamage = stats?.GetValue("damage", Damage) ?? Damage;
 
             if (IsRanged && ProjectileScene != null)
             {

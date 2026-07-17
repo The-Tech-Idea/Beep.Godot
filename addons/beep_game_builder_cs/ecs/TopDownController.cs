@@ -22,12 +22,14 @@ namespace Beep.ECS
 
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
+        private StatsComponent? _stats;
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stats = GetSiblingComponent<StatsComponent>();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) Speed = info.MoveSpeed;
         }
@@ -39,8 +41,7 @@ namespace Beep.ECS
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             var input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
-            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
-            float finalSpeed = Speed * speedMod;
+            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
 
             if (input.Length() > 0)
             {

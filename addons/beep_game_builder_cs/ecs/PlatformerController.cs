@@ -29,6 +29,7 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private JumpComponent? _jumpComponent;
         private StatusEffectComponent? _statusEffects;
+        private StatsComponent? _stats;
         private KnockbackComponent? _knockback;
         private float _coyoteTimer;
         private float _jumpBufferTimer;
@@ -39,6 +40,7 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stats = GetSiblingComponent<StatsComponent>();
             _knockback = GetSiblingComponent<KnockbackComponent>();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { Speed = info.MoveSpeed; Gravity = info.Gravity; JumpVelocity = info.JumpVelocity; }
@@ -76,8 +78,7 @@ namespace Beep.ECS
             }
 
             // Horizontal movement (apply status effect modifiers)
-            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
-            float finalSpeed = Speed * speedMod;
+            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
             float targetX = input * finalSpeed;
             _body.Velocity = new Vector2(
                 Mathf.MoveToward(_body.Velocity.X, targetX,

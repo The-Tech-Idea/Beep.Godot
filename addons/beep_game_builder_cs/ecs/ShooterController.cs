@@ -31,6 +31,7 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private Marker2D? _muzzle;
         private StatusEffectComponent? _statusEffects;
+        private StatsComponent? _stats;
         private double _cooldown;
 
         public override void _Ready()
@@ -41,6 +42,7 @@ namespace Beep.ECS
             // (marker beside the controller, or under it) without editing every scene.
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath) ?? _body?.GetNodeOrNull<Marker2D>("Muzzle");
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stats = GetSiblingComponent<StatsComponent>();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { MoveSpeed = info.MoveSpeed; FireRate = info.FireRate; }
         }
@@ -52,8 +54,10 @@ namespace Beep.ECS
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             Vector2 input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
-            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
-            _body.Velocity = input * MoveSpeed * speedMod;
+            // Speed from the entity's "move_speed" stat when it has one (equipment/buffs modify
+            // it), else the MoveSpeed export. Same stat channel AttackComponent reads for damage.
+            float speed = _stats?.GetValue("move_speed", MoveSpeed) ?? MoveSpeed;
+            _body.Velocity = input * speed;
             _body.MoveAndSlide();
 
             // Aim toward mouse.

@@ -29,6 +29,7 @@ namespace Beep.ECS
 
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
+        private StatsComponent? _stats;
         private Vector2 _moveDir;
         private int _waypointIndex;
         private Node2D? _currentTarget;
@@ -40,6 +41,7 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stats = GetSiblingComponent<StatsComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -57,8 +59,7 @@ namespace Beep.ECS
             if (!isStunned)
                 UpdateAI((float)delta);
 
-            float speedMod = _statusEffects?.GetModifier("speed_boost", "speed_multiplier", 1f) ?? 1f;
-            float finalSpeed = Speed * speedMod;
+            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
             _body.Velocity = _body.Velocity.MoveToward(_moveDir * finalSpeed, 800f * (float)delta);
             _body.MoveAndSlide();
         }

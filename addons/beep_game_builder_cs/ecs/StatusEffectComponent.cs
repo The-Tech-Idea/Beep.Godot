@@ -6,10 +6,14 @@ using System.Linq;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Status effects component. Blind — attach to any entity for buffs/debuffs.
-    /// Supports effect stacking, refresh, and extend mechanics. Effects can have modifiers
-    /// that affect gameplay (speed, damage, armor multipliers). Works for poison, burning,
-    /// healing, speed boost, armor, invincibility, hunger, cold, etc.
+    /// Status effects component. Blind — attach to any entity for behavioural status FLAGS:
+    /// stun, invincibility, hunger, thirst, poison, burning — anything queried by presence
+    /// (<see cref="HasEffect"/>) and duration, with stacking/refresh/extend.
+    ///
+    /// It no longer carries stat modifiers. Numeric buffs/debuffs (a +10 damage, a ×1.5 speed)
+    /// are <see cref="StatModifier"/>s added to the entity's <see cref="StatsComponent"/> with a
+    /// Duration — StatsComponent ticks and expires them, so there is ONE modifier channel, not two.
+    /// The old GetModifier/ApplyEffectWithModifiers API had zero callers and was removed.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -34,7 +38,6 @@ namespace Beep.ECS
             public bool IsBuff;
             public int StackCount = 1;
             public int MaxStacks = 10;
-            public System.Collections.Generic.Dictionary<string, float> Modifiers = new();  // "speed_multiplier" → 1.5
 
             public float Progress => TotalDuration > 0 ? 1f - (Duration / TotalDuration) : 1f;
 
@@ -94,16 +97,6 @@ namespace Beep.ECS
             EmitSignal(SignalName.EffectApplied, id, 1);
         }
 
-        /// <summary>Apply effect with optional modifiers (e.g., "speed_multiplier" → 1.5).</summary>
-        public void ApplyEffectWithModifiers(string id, float duration, System.Collections.Generic.Dictionary<string, float> modifiers,
-            float tickInterval = 1f, bool isBuff = true, StackBehavior stackBehavior = StackBehavior.Stack, int maxStacks = 10)
-        {
-            ApplyEffect(id, duration, tickInterval, isBuff, stackBehavior, maxStacks);
-            var effect = ActiveEffects.FirstOrDefault(e => e.Id == id);
-            if (effect != null)
-                effect.Modifiers = new System.Collections.Generic.Dictionary<string, float>(modifiers);
-        }
-
         public void RemoveEffect(string id)
         {
             ActiveEffects.RemoveAll(e => e.Id == id);
@@ -115,24 +108,6 @@ namespace Beep.ECS
         public int GetActiveEffectCount(string id) => ActiveEffects.Count(e => e.Id == id);
 
         public List<string> GetActiveEffectIds() => ActiveEffects.Select(e => e.Id).Distinct().ToList();
-
-        /// <summary>Get all modifiers from an active effect (e.g., speed_multiplier).</summary>
-        public System.Collections.Generic.Dictionary<string, float> GetModifiers(string id)
-        {
-            var result = new System.Collections.Generic.Dictionary<string, float>();
-            foreach (var effect in ActiveEffects.Where(e => e.Id == id))
-                foreach (var mod in effect.Modifiers)
-                    result[mod.Key] = result.ContainsKey(mod.Key) ?
-                        result[mod.Key] * mod.Value : mod.Value;  // Multiply stacked modifiers
-            return result;
-        }
-
-        /// <summary>Get combined modifier value (e.g., speed multiplier with stacks).</summary>
-        public float GetModifier(string effectId, string modifierKey, float defaultValue = 1f)
-        {
-            var mods = GetModifiers(effectId);
-            return mods.TryGetValue(modifierKey, out var value) ? value : defaultValue;
-        }
 
         /// <summary>Get progress (0-1) for the first instance of an effect (for UI bars).</summary>
         public float GetEffectProgress(string id)

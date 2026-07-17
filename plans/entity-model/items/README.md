@@ -110,7 +110,11 @@ The audits established these; genre docs should cite, not rediscover:
   weapon can express reach yet.
 - **The item edges do not exist** — `Pickup.Collected → Inventory.AddItem`: 0 connections;
   `Died → DropTable.Roll`: never; `Craft()` deducts materials and **grants nothing**.
-- **`DropTableComponent`'s loot list has no `[Export]`** — drops are unauthorable.
+- **`DropTableComponent`'s loot list has no `[Export]`** — drops are unauthorable. **This is the
+  single highest-leverage fix in the addon**: `Roll()` has **two** callers
+  (`DestructibleComponent.cs:55` *and* `CropGrowthComponent.cs:118`, both guaranteed no-ops), so
+  one `[Export]` un-deadens destructibles, harvesting, and all loot at once. See
+  `../phase-0-component-disposition.md`.
 - **Nothing joins `"players"` / `"enemies"`** — `AIController`, `TurretComponent`,
   `ProjectileModifierComponent` are inert in every genre.
 - **Three false friends:** `PlayerStatsComponent` is a **soccer** stat block;

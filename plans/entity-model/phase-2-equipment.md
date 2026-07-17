@@ -3,7 +3,8 @@
 **Goal:** an entity can hold a `GameWeapon` in MainHand and a shield (`GameArmor`, OffHand),
 and something can ask "what does that add to my damage?"
 
-**Depends on:** Phase 1 (`GameEquipment`, `EquipSlot`).
+**Depends on:** Phase 1 (`GameEquipment`, `EquipSlot`) and **Phase 7 (`GameClock`)** — `Duration`
+cannot be specified until the time model is decided. See the boxed note in 2a.
 
 ---
 
@@ -38,13 +39,39 @@ StatModifier : Resource                 [Tool][GlobalClass]
     Stat     : StringName
     Op       : Add | Multiply
     Amount   : float
-    Duration : float                    — 0 = permanent
+    Duration : float                    — CLOCK UNITS (Phase 7). < 0 = permanent
     Source   : Variant                  — WHO added it (see withdrawal, below)
 ```
 
-**Duration is what unifies the systems.** A sword's `+10` is `duration 0`; a rage buff's `×1.5`
-is `duration 5`. One list, one recalculation, one signal — so equipment, timed buffs and
-permanent upgrades stop being three mechanisms.
+**Duration is what unifies the systems.** A sword's `+10` is permanent; a rage buff's `×1.5` is
+`Duration = 5`. One list, one recalculation, one signal — so equipment, timed buffs and permanent
+upgrades stop being three mechanisms.
+
+> ### ⚠ `Duration` is in **clock units**, not seconds — and this phase is blocked on Phase 7
+>
+> **An earlier draft specified `Duration : float` decremented per frame, with `0` = permanent.
+> That was a real-time-only design, and it silently excluded 2 of the 10 genres.** In cardgame and
+> strategy a buff lasts *3 turns*, and there is no frame count that means "3 turns" — it cannot be
+> expressed. A modifier system that only works in 8 genres is not generic; it is the same defect
+> class as a `[GlobalClass]` that only works on one parent type.
+>
+> **`GameClock` (Phase 7) is the fix**: one clock per game, mode from `genre.json` tuning.
+> Real-time genres emit `Ticked(delta)`; turn-based genres emit `Ticked(1)` on `EndTurn`.
+> `StatusEffectComponent` subscribes to `Ticked` instead of `_Process` — **so the same
+> `StatModifier(Duration = 3)` resource expires after 3 seconds in the shooter and after 3 turns in
+> cardgame, with no branch in any consumer.**
+>
+> **Two changes fall out:**
+> - **`< 0` = permanent, not `0`.** `0` is a legitimate duration (an instantaneous tick), and the
+>   existing code already reads `IsExpired => Duration <= 0` (`StatusEffectComponent.cs:191`) —
+>   so `0` cannot mean "forever" without inverting that. Matches the 2-line guard in `combat.md`.
+> - **Do not tag each modifier `{Amount, Unit}`.** That pushes the branch into every consumer and
+>   invites "3 turns" and "5 seconds" in one stat's list. **Put the decision in one place, or every
+>   consumer grows a copy of it** — the same argument that killed the three-accessor design above.
+>
+> **Land Phase 7's `GameClock` before 2b.** The `StatusEffectComponent` refactor should subscribe to
+> `Ticked` in the *same change* that moves it onto `Stat` — doing it twice touches the only two live
+> effects in the framework twice.
 
 This resolves two gaps the audits found and the accessor design could not:
 

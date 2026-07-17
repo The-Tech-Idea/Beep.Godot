@@ -107,10 +107,14 @@ GameItem : Resource                     [Tool][GlobalClass]
     ├── GameEquipment : GameItem        [Tool][GlobalClass]
     │       Slot : EquipSlot            (MainHand, OffHand, Head, Body, Accessory)
     │       WieldScene : PackedScene?   — the instance held in the hand
-    │       │
+    │       SocketCount : int           — how many holes.  Phase 7 (composition).
+    │       │                             ⚠ NOT `Socketed[]` — see below
     │       ├── GameWeapon : GameEquipment
     │       │       Damage, DamageType (DamageTypeComponent.Type),
-    │       │       AttackSpeedMultiplier, IsRanged, ProjectileScene
+    │       │       Range, IsRanged, ProjectileScene
+    │       │       Cooldown    : float      — CLOCK UNITS, not seconds.  Phase 7
+    │       │       AmmoItem    : GameItem?  — null = needs none (a sword).  Phase 7
+    │       │       AmmoPerUse  : int = 1                                    Phase 7
     │       │
     │       ├── GameShield : GameEquipment
     │       │       Defense, BlockChance, Resistances
@@ -123,8 +127,35 @@ GameItem : Resource                     [Tool][GlobalClass]
     │       (potion, fuel, lamp oil, water — a liquid is not always drinkable)
     │
     └── GameConsumable : GameItem       [Tool][GlobalClass]
-            HealAmount, StatusEffectId, Duration
+            HealAmount, StatusEffectId
+            Duration : float            — CLOCK UNITS, not seconds.  Phase 7
 ```
+
+### Every duration on a `GameItem` is in **clock units** — Phase 7
+
+`GameConsumable.Duration` and `GameWeapon.Cooldown` are **not seconds**. A potion authored
+`Duration = 3` lasts 3 seconds in a real-time genre and 3 **turns** in cardgame/strategy — the same
+`.tres`, no branch in the consumer, because the genre owns the clock (`GameClock`, mode from
+`genre.json` tuning). **An earlier draft called these seconds. That silently excluded 2 of the 10
+genres**, which is the same defect class as a `[GlobalClass]` that only works on one parent type.
+
+**`AttackSpeedMultiplier` is deleted from `GameWeapon`.** It was a multiplier over an unstated unit
+— exactly the ambiguity `GameClock` exists to end. A weapon states its `Cooldown` in clock units;
+speed buffs are `StatModifier`s on the same axis (Phase 2). Two mechanisms for one number is how
+`StatusEffectComponent` ended up consulted at two hardcoded sites with two magic strings.
+
+### Dependencies: what goes on the item, and what does not — Phase 7
+
+| Dependency | Lives on | Why |
+|---|---|---|
+| **Construction** — sword ← 2 iron + 1 leather | **`CraftingRecipe`** (already exists, `CraftingComponent.cs:53-60`) | The same sword may be craftable three ways. `RequiredItems[]` on `GameItem` hardcodes one path and makes the item know how it was made. |
+| **Consumption** — gun ← ammo, lamp ← oil | **`GameWeapon.AmmoItem`** ✅ on the item | A gun *is* a thing that eats ammo, regardless of how it was made. |
+| **Composition** — sword ← 3 gems | **split**: `SocketCount` on the definition, `Socketed[]` on the **slot** | Per-instance. See below. |
+| **Unlock** — barracks ← "Bronze Working" | **`ResearchNode`**, not `GameItem` | A technology is not a thing you can hold. |
+
+**`GameItem` gains no `RequiredItems[]`.** `CraftingRecipe` already models item-depends-on-items and
+already models it correctly. Phase 1's job is to retire its strings:
+`CraftingIngredient.ItemId` → `GameItem`, `CraftingRecipe.OutputItem` → `GameItem`.
 
 `Rarity` moves from the nested `InventoryComponent.ItemRarity` onto `GameItem`. `ItemType`
 (the string) is **deleted** — **the class is the type**. `Stats` (the `Variant` bag) is
@@ -168,15 +199,37 @@ This is also what makes the "must not" list checkable (Phase 5): a validator can
 2. **`ecs/items/GameEquipment.cs`** — adds `EquipSlot`. Declare `EquipSlot` here; Phase 2's
    `EquipmentComponent` uses it.
 3. **`ecs/items/GameWeapon.cs`**, **`ecs/items/GameArmor.cs`**, **`ecs/items/GameConsumable.cs`**.
-4. **`InventoryComponent`** — `InventoryItem[] Slots` becomes `GameItem[]`; drop the nested
-   class, `ItemType`, and `Stats`. Keep `Quantity`/`SlotIndex` — but they are *per-slot state*,
-   not item identity, so they belong in the slot, not on the shared resource. **A `.tres` is
-   shared by reference**: writing `Quantity` onto the resource would make every sword in the
-   world share one count. Use a small `InventorySlot { GameItem Item; int Quantity; }`.
+4. **`InventoryComponent`** — `InventoryItem[] Slots` becomes `InventorySlot[]`; drop the nested
+   class, `ItemType`, and `Stats`. **`Quantity` is per-slot state, not item identity** — a `.tres`
+   is shared by reference, so writing it onto the resource would make every sword in the world
+   share one count.
+
+   **The slot is where all per-instance state lives — this is the load-bearing line of Phase 1:**
+
+   ```csharp
+   InventorySlot {
+       GameItem  Item;          // the shared definition (a .tres)
+       int       Quantity;      // per-instance
+       float     Durability;    // per-instance — NOT GameItem.MaxDurability, which is the cap
+       GameItem[] Socketed;     // per-instance — Phase 7 (composition)
+   }
+   ```
+
+   **Every field below `Item` would be a bug on the resource.** Two swords pointing at
+   `sword_iron.tres` must wear out independently and hold different gems. `MaxDurability` and
+   `SocketCount` are on the **definition** (the cap, the hole count); `Durability` and `Socketed`
+   are on the **instance**. Conflating them is the single most likely way to get this wrong,
+   because both pairs read naturally as "the sword's durability" and "the sword's gems".
+
 5. **Save/load** — `ISaveable` on `InventoryComponent` currently writes
    `Items[id] = quantity` (`ecs/InventoryComponent.cs:322`). Keep persisting **id + quantity**
    and re-resolve the resource on load; do **not** serialize the resource itself. Saves stay
    small and survive an item's stats being rebalanced.
+
+   **But per-instance state must persist too**, or a saved sword returns at full durability with
+   its gems gone. Persist the **slot**, not the item: `{ id, quantity, durability, socketed[ids] }`.
+   Still ids, still small, still rebalance-proof — this is the reason the slot exists rather than
+   being a convenience.
 
 ## Gotchas
 

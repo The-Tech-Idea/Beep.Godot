@@ -3,33 +3,53 @@
 **Goal:** name the framework-level gaps the archetype work exposed, ranked by leverage. Each
 is general (`HazardComponent`), never content (`GoombaComponent`).
 
-**Depends on:** Phase 5's archetype tables for the requirements.
+**Depends on:** Phase 5's archetype tables for the requirements, and **Phase 0**, which
+disposes of what already exists.
+
+> ## ⚠ Read Phase 0 first — this phase was written backwards
+>
+> It proposed 16 new components without first auditing the ~146 we have. A four-way audit,
+> every load-bearing claim hand-verified, found **9 of the 16 already exist** in a form that
+> needs a fix or a wire, not a new type. Those 9 have moved to
+> `phase-0-component-disposition.md`. **What remains below is the genuinely-new residue**,
+> plus the edges — which were always the real content of this phase.
+>
+> The corrections are recorded where they were wrong (below), not only in the tracker.
 
 ---
 
 ## Ranked by reach
 
-### 1. `EntityTagComponent` — nothing joins `"players"` or `"enemies"`
+### 1. ~~`EntityTagComponent`~~ — **WITHDRAWN: it already exists.** → Phase 0
 
-**The single highest-leverage addition in this report.** Three shipped components target
-groups **nobody joins**:
+Nothing joins `"players"` or `"enemies"`, so **every AI, every turret, and every homing
+projectile is inert in every genre** (`AIController.cs:21`, `TurretComponent.cs:17`,
+`ProjectileModifierComponent.cs:22`). That finding stands and is still the highest-leverage
+item in the report. **The proposed fix was wrong.**
 
-- `AIController.TargetGroup = "players"` (`ecs/AIController.cs:21`)
-- `TurretComponent.TargetGroup = "players"` (`ecs/TurretComponent.cs:17`)
-- `ProjectileModifierComponent.TargetGroup = "enemies"` (`ecs/ProjectileModifierComponent.cs:22`)
+`SpawnerComponent.cs:73` already does exactly this — `inst.AddToGroup(SpawnGroup)` groups the
+**body** (`Node2D`), which is precisely what those three lookups filter for. It only defaults
+to `"spawned"` (`:19`) instead of `"enemies"`. **One default change makes homing and turrets
+work with zero new code.**
 
-Verified: no `AddToGroup("players")` anywhere. Only `InteractableComponent` survives, via a
-`n.Name == "Player"` fallback (`:44`) — a hardcoded name, the same fragility as
-`DoorSwitchComponent`.
-
-So **every AI, every turret, and every homing projectile is inert by default, in every genre.**
-
-`EntityComponent` already has the machinery — `ComponentGroup` + `AddToGroup` on `_EnterTree`
-(`ecs/EntityComponent.cs:21-34`) — but it groups the **component node**, not the **body**, so
-lookups expecting a `Node2D` never match. Either add a component that groups the *parent*, or
-give `ComponentGroup` a "group my parent" mode. Small change, unblocks three systems.
+The genuinely missing half is *authored* (non-spawned) bodies — the player.
+`EntityComponent.ComponentGroup` is the home, and it is **free to redefine**: it groups `this`
+(a `Node`, not a `Node2D`), **0 scenes set it**, and every component that really uses groups
+bypasses the export and hardcodes `AddToGroup` in `_Ready` — `WindFieldComponent.cs:119`
+documents the workaround. So it is a **~3-line change to `_EnterTree`**, not a component.
 
 ### 2. `HazardComponent` — no way to damage on contact
+### — but build `AreaTriggerComponent` first
+
+**Correction:** this is one instance of a primitive that already exists seven times by hand —
+`CheckpointComponent:29`, `InteractableComponent:30`, `PickupComponent:48`,
+`ProjectileComponent:41`, `WindFieldComponent:57`, `DoorSwitchComponent:40`,
+`AmbientAudioComponent:61` — **and two of them are BROKEN by exactly the parent-type failure
+the pattern invites.** Hazard, `LevelTransition` and `LapGate` are all this same shape.
+
+Extract `AreaTriggerComponent` (safe resolve + warn on wrong parent) and derive four. Three
+"new components" become ~20-line subclasses, and two BROKEN entries are fixed as a side effect.
+It is also Phase 3's melee hitbox. **Build it once.** (Phase 0, item 2.)
 
 No component damages a body on `Area2D` entry. Grep for `Hazard|KillZone|DamageZone` → nothing.
 Consequences shipping today:
@@ -76,12 +96,12 @@ Phase 4 covers the first; the rest belong here.
 
 | Missing | Genre | Note |
 |---|---|---|
-| `LevelTransitionComponent` | topdown | `TransitionZones` is an empty node; `LevelLoaderComponent.LoadLevel(int)` is public and is the right target — nothing calls it. |
+| ~~`LevelTransitionComponent`~~ **WITHDRAWN** | topdown | **`LevelLoaderComponent` already is it** — `:56` says so verbatim: *"this doubles as a runtime level transition."* It frees the old instance (`:77`), instances the new (`:80`), repositions to `PlayerSpawn` (`:84`), and has **0 external callers**. Wire `GameFlowComponent.LevelComplete → LoadLevel(CurrentLevel+1)`, plus an `AreaTriggerComponent` zone for `TransitionZones`. **Zero new logic.** |
 | `DialogUIComponent` binding | topdown | `DialogComponent` emits `DialogStarted`; `topdown_main`'s `DialogLayer` is inert markup. *(A `DialogUIComponent` exists but builds its own UI and is parent-type-broken — see Phase 5.)* |
-| `StatModifierComponent` | shooter | `LevelUpChoice` records a pick to `SetGameData` and says applying it "is the game's job" — but there is **no permanent-modifier channel**. `StatusEffectComponent` is timed-buff-shaped, and `ShooterController` consults it for **speed only**. So the roguelite's upgrades cannot affect anything. |
-| `CharacterStatsComponent` | rpg | A general STR/DEX/INT block. `PlayerStatsComponent` is soccer (Phase 5). Gives `LevelingComponent.StatPoints` a destination. |
-| `HarvestableComponent` | survival | "requires tool class X, yields item Y ×N". Currently `DestructibleComponent` + a code-only drop table + a pickup that doesn't reach the bag = three broken links for one loop. |
-| `ContainerComponent` | rpg/survival | Chest = a second inventory + transfer. Nothing supports two inventories. |
+| ~~`StatModifierComponent`~~ **WITHDRAWN** | shooter | The gap is real — `LevelUpChoice` records a pick and says applying it "is the game's job", with **no permanent-modifier channel**. But the fix is **2 lines on `StatusEffectComponent`**: `_Process:182` decrements `Duration` unconditionally and `:191 IsExpired => Duration <= 0`, so there is no infinite sentinel — the codebase fakes permanence with `999f` (`HungerStaminaComponent.cs:148`). Guard both on `Duration < 0` and it **is** the channel. (The deeper defect is orthogonal: `ApplyEffectWithModifiers` (`:92`) has **0 callers**, so `GetModifier` is a constant-default function and all 4 read sites are dead. Phase 2 covers it.) |
+| `CharacterStatsComponent` | rpg | **NEW — but delete `PlayerStatsComponent`, don't refactor it.** ~15 lines of salvage in a 70-line file: every stat is a hardcoded property and `SetStat` a hardcoded switch, so "refactoring" means replacing the body with a dictionary and keeping a signal. `Speed`/`Stamina`/`Strength` *look* neutral but are 0-99 soccer ratings — they do not connect to `MovementComponent.Speed` (px/sec). Gives `LevelingComponent.StatPoints` a destination. |
+| `HarvestableComponent` → **extend `CropGrowthComponent`** | survival | It is already 70% of it — stages (`:15`), `Harvest()` (`:114`), `_dropTable?.Roll()` (`:118`). Missing only a tool-class gate and a non-crop (rock/tree) mode. **Blocked on `DropTableComponent` regardless** (§4). |
+| `ContainerComponent` → **~15 lines on `InventoryComponent`** | rpg/survival | Multiple inventories already coexist (nothing is static) and `Resize` (`:297`) handles sizes. The only gap: **no method takes another `InventoryComponent`** — `MoveItem` (`:201`) indexes `Slots[]` on `this` for both ends. Add `TransferTo(...)` over the existing public `RemoveAt` + `AddItem`. **Two real blockers:** `ParticipatesInSave` (`:58`) is documented "player's inventory only — `GameStateData` keeps a single Inventory slot", so a chest **cannot persist**; and drag-across-grids is moot because drag-drop is dead (`Interact.cs:23` never connected). |
 | `CardDef : Resource` + deck/hand | cardgame | The genre is data-shaped; `hand_limit`/`card_fan_angle`/`card_hover_scale` are all inert. |
 | `Match3InputComponent` + `Match3ViewComponent` | puzzle | **The board is headless.** `Swap()` has 0 callers and nothing subscribes to `CellChanged` — no input path, no renderer. The sim is complete and correct; it is simply not connected to anything. Also: `ScoreChanged` → `GameFlow.AddScore` is a **signal connection, not a component** — that one edge makes `target_score` real and `level_complete.tscn` reachable. |
 | `VehicleController` + `VehicleSpec : Resource` | racing | **Confirmed: none exists.** No `ControllerComponent` subclass models a vehicle; grep for `throttle` → 0 hits. `MovementComponent` is the *wrong model*, not just redundant — it accelerates omnidirectionally with no heading, turn rate, or lateral grip. A car that can strafe sideways is not a car. `GameApp.SelectedVehicle` is written by `VehicleSelect` and **read by nothing**. |
@@ -89,24 +109,50 @@ Phase 4 covers the first; the rest belong here.
 | `SelectableComponent` + `SelectionManagerComponent` + `CommandComponent` | strategy | No unit selection, orders, or formation exist at all. |
 | `GridPlacementComponent` + `EconomyTickComponent` + `BuildingSpec` | citybuilder | Nothing exists. Keep the grid as **data**, per Phase 5 — a Node per cell would be a regression from what `Match3BoardComponent` already demonstrates. |
 
-### 6. The refactor worth considering
+### 6. The refactor worth considering — **and it is ~2 lines, not "bigger"**
 
 **`AIController` self-drives** (`_body.Velocity = …; MoveAndSlide()`, `:62-63`), which is why it
 is mutually exclusive with `MovementComponent`. If it instead wrote `DesiredDirection` into a
 sibling `MovementComponent`, the AI-vs-Movement conflict class **dissolves in every genre**, and
-`enemy_template` works as already composed. Bigger change; flagged, not scheduled.
+`enemy_template` works as already composed.
+
+**Correction — this said "Bigger change; flagged, not scheduled." That was wrong.** The
+receiving half is already built and documented for exactly this:
+`MovementComponent.cs:45` is a public settable `Vector2 DesiredDirection`, consumed at
+`:74 Move(DesiredDirection, delta)`, and its own doc at `:21` says it is *"the one an AI can
+steer by setting DesiredDirection."* The change is ~2 lines on the `AIController` side.
+**Schedule it.**
 
 ## Sequencing
 
-1. **`EntityTagComponent`** — unblocks three systems, small.
-2. **The inert edges** (§3, §4) — mostly wiring existing signals; each is a few lines.
-3. **`HazardComponent`** — fills three shipped-but-scriptless nodes.
-4. Genre-shaped components (§5), as the genres are taken seriously.
-5. The `AIController` refactor (§6), if at all.
+**Phase 0 lands first** — the disposition, the deletes, and the four reuse fixes that
+everything here rests on. Then:
+
+1. **The inert edges** (§3, §4) — mostly wiring existing signals; each is a few lines. This is
+   the bulk of the real value in this phase, and always was.
+2. **`AreaTriggerComponent`** → then `HazardComponent` falls out as a subclass, filling three
+   shipped-but-scriptless nodes.
+3. Genre-shaped components (§5) — **only the ones still marked NEW**, as the genres are taken
+   seriously.
+4. The `AIController` refactor (§6), if at all.
+
+## What survives as genuinely new
+
+`HazardComponent`, `LapGate`/`LapTracker`, `EquipmentComponent`, `VehicleController`,
+`SelectableComponent`, `GridPlacementComponent`, `Match3Input`/`Match3View`,
+`CharacterStatsComponent`, `CardDef`. Each was checked against its nearest existing candidate
+and the candidate fails **structurally**, not by taste — e.g. `DragComponent.cs:33` does
+`GetParent() as Control` and `:84` *moves the node it is attached to*, so it cannot serve unit
+selection at 0% overlap; and `Match3BoardComponent`'s grid uses `0` to mean "cleared, refill
+me", so `Refill()` would auto-fill a citybuilder's empty lots with random buildings.
 
 ## Verification
 
 Per component: `dotnet build` 0 errors, `validate_scenes.sh` PASS, and an editor check that
-the thing it unblocks now **actually happens** — e.g. for `EntityTagComponent`: an
-`AIController` enemy chases the player, which today it provably cannot.
+the thing it unblocks now **actually happens** — e.g. for the group fix: an `AIController`
+enemy chases the player, which today it provably cannot.
+
+**For every proposal, one prior check:** grep the nearest existing candidate and state why it
+fails. Nine of the original sixteen did not survive that question. It is cheap, and skipping it
+is what produced this phase's first draft.
 </content>

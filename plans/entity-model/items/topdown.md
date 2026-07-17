@@ -105,7 +105,7 @@ topdown is a subset of rpg (`items/rpg.md` §3), and rpg earned nothing either. 
 | `QuestComponent` / `QuestObjective` (`ecs/QuestComponent.cs:13,71`) | The three shipped objectives. `ProgressObjective` has no callers (README §known). |
 | `PickupComponent` (`ecs/PickupComponent.cs:11`) | Ground items under `level_1.tscn:20`'s `Items` node. `Collected → AddItem` is 0 connections (README §known). |
 | `HealthComponent` (`ecs/HealthComponent.cs:12`) | `pot_clay.tres` durability — blind, no parent cast |
-| `DialogComponent` (`ecs/DialogComponent.cs`) | The `DialogLayer` at `topdown_main.tscn:58-80` — **inert markup**; `DialogStarted` reaches nothing (`phase-6:79`). Item-adjacent only (a shopkeeper), not item model. |
+| `DialogComponent` (`ecs/DialogComponent.cs`) | The `DialogLayer` at `topdown_main.tscn:58-80` — **inert markup**; `DialogStarted` reaches nothing (`phase-6 §5`). Item-adjacent only (a shopkeeper), not item model. |
 | `HealthComponent.Armor` (`:16`), `ResistanceComponent` (`ecs/ResistanceComponent.cs:15-22`) | The receiving half of `GameArmor` — idle, ready |
 
 **New, forced by this tree — all already scheduled elsewhere; this genre adds no new ask:**
@@ -113,13 +113,13 @@ topdown is a subset of rpg (`items/rpg.md` §3), and rpg earned nothing either. 
 | Component | Why | Where |
 |---|---|---|
 | `EquipmentComponent` | `pause_subscreen.tscn:104-110` draws three equip slots and nothing can fill them. `GameStateData.EquippedWeapons` is a `List<string>` (`core/GameStateData.cs:258`) no component writes. | `phase-2-equipment.md` |
-| `DropTableEntry : Resource` | `pot_clay.tres` smashing into a drop needs an authorable table; `_entries` has no `[Export]` (README §known). | `phase-6:69` |
-| `ContainerComponent` | Only if the developer wants chests. `pause_subscreen` does not show one — **do not** count this as forced by topdown. | `phase-6:83` |
+| `DropTableEntry : Resource` | `pot_clay.tres` smashing into a drop needs an authorable table; `_entries` has no `[Export]` (README §known). | `phase-6 §4` |
+| `ContainerComponent` | Only if the developer wants chests. `pause_subscreen` does not show one — **do not** count this as forced by topdown. | `phase-6 §5` |
 
 **Blocking, but not ours to fix here** (cite, do not re-litigate): the
 `InteractableComponent`-on-`CharacterBody2D` bug (`topdown_main.tscn:48`,
 `phase-5-archetypes-per-genre.md:36-38`), and `LevelTransitionComponent` for the empty
-`TransitionZones` node (`level_1.tscn:18`, `phase-6:78`).
+`TransitionZones` node (`level_1.tscn:18`, `phase-6 §5`).
 
 ## 5. Content vs framework
 

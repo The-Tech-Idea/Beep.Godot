@@ -95,7 +95,7 @@ GameTool : GameWeapon        [Tool][GlobalClass]
 
 Passes the rule: **two fields `GameWeapon` cannot express.**
 
-- `HarvestPower` is not `Damage`. `phase-6:82` specifies `HarvestableComponent` as *"requires
+- `HarvestPower` is not `Damage`. `phase-6 §5` specifies `HarvestableComponent` as *"requires
   tool class X, yields item Y ×N"* — a tier gate, unrelated to what the axe does to a wolf.
   Collapsing them means an axe balanced against trees is also balanced against enemies.
 - `ToolClass` cannot be `DamageType`. The enum is Physical/Fire/Ice/Poison/Holy/Dark/
@@ -171,10 +171,10 @@ has no eat/drink flag, so `GameFood` carries its own.
 
 | Component | Why | Where |
 |---|---|---|
-| `HarvestableComponent` | `GameTool.ToolClass`/`HarvestPower` have no reader without it. Today the loop is `DestructibleComponent` + a code-only drop table + a pickup that never reaches the bag = three broken links for one loop. This component **is** the consumer that justifies `GameTool`. | `phase-6:82` — cite, do not re-derive |
+| `HarvestableComponent` → **extend `CropGrowthComponent`, don't add a parallel type** | `GameTool.ToolClass`/`HarvestPower` have no reader without it. **Correction:** `CropGrowthComponent` is already ~70-80% of it — stages (`:15`), `Harvest()` (`:114`), `_dropTable?.Roll()` (`:118`). Missing only a tool-class gate and a non-crop (rock/tree) mode; drop its `_seasonal`-mandatory guard (`:73`) so non-crop harvestables work. **Blocked on `DropTableComponent`'s `[Export]` regardless** — `Roll()` can never yield today. | `phase-6 §5` — cite, do not re-derive |
 | `EquipmentComponent` | Nothing can hold a `GameTool`. | `phase-2-equipment.md` |
-| `ContainerComponent` | Storage box. Nothing supports two inventories. | `phase-6:83` |
-| `DropTableEntry : Resource` | `_entries` has no `[Export]` (README §known) — authored yields are impossible. `CropGrowthComponent.Harvest` already rolls the table, so this is the **shortest path to a working survival loop in the addon.** | `phase-6:69` |
+| `ContainerComponent` → **~15 lines on `InventoryComponent`** | Storage box. **Correction: two inventories are already supported** (nothing is static; `Resize` `:297` handles sizes). Only cross-inventory **transfer** is missing — add `TransferTo(...)` over the existing `RemoveAt` + `AddItem`. Blocker: `ParticipatesInSave` (`:58`) is player-only, so a storage box **cannot persist** without keyed multi-inventory save. | `phase-6 §5` |
+| `DropTableEntry : Resource` | `_entries` has no `[Export]` (README §known) — authored yields are impossible. `CropGrowthComponent.Harvest` already rolls the table, so this is the **shortest path to a working survival loop in the addon.** | `phase-6 §4` |
 
 ## 5. Content vs framework
 

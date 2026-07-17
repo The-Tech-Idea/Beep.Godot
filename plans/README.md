@@ -7,6 +7,8 @@ repo-wide tracker** — a "MASTER_TODO.md" is always scoped to the initiative it
 |---|---|---|
 | **Genre-based scene templates** — the menu→game→pause→game-over loop, per-genre scenes, the generator | `MASTER_TODO.md` + `genre-templates/` | largely complete; see the tracker's Progress list |
 | **Entity & item model** — `GameItem` tree, equipment, damage typing, archetype composition | `entity-model/MASTER_TODO.md` + `entity-model/` | planned, not started |
+| ↳ **Component disposition** — per-component verdict + fix for all ~146 components | `entity-model/components/` (8 docs) | planned, not started |
+| ↳ **Per-genre item trees** — what each genre's `GameItem` tree is, or why it wants none | `entity-model/items/` (11 docs) | planned, not started |
 | Component audit, round 2 | `component-audit-round2.md` | complete |
 | Component-first refactor | `component-first-refactor.md` | historical |
 

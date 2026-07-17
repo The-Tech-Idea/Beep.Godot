@@ -109,7 +109,7 @@ covers rpg completely. rpg's real gaps are all **components**, below.
 |---|---|
 | `InventoryComponent` (`ecs/InventoryComponent.cs:24`) | The bag. `HasItem`/`CountItem`/`AddItem`/`Sort` all work today; only the item *model* is wrong (`InventoryItem` nested class + `Stats` bag, `:30-42`) — Phase 1 replaces it. |
 | `DoorSwitchComponent` (`ecs/DoorSwitchComponent.cs:14`) | Key gating — **the one item edge that works end to end.** |
-| `QuestComponent` + `QuestObjective` (`ecs/QuestComponent.cs:13,71`) | The three shipped objective shapes. Note `ProgressObjective` has **no callers** (README §known / `phase-6:70`) — the model is right, the trigger is missing. |
+| `QuestComponent` + `QuestObjective` (`ecs/QuestComponent.cs:13,71`) | The three shipped objective shapes. Note `ProgressObjective` has **no callers** (README §known / `phase-6 §4`) — the model is right, the trigger is missing. |
 | `CraftingComponent` + `CraftingRecipe`/`CraftingIngredient` (`ecs/CraftingComponent.cs:13,53,65`) | Smithing. `Craft()` grants nothing (README §known). |
 | `HealthComponent.Armor` (`ecs/HealthComponent.cs:16`), `ResistanceComponent` (`ecs/ResistanceComponent.cs:15-22`) | The receiving half of `GameArmor.Defense`/`Resistances` — idle, ready, per `MASTER_TODO.md`. |
 | `LevelingComponent` (`ecs/LevelingComponent.cs:13`) | XP/level. `StatPointsPerLevel` (`:19`) accrues points with nowhere to spend them. |
@@ -121,9 +121,9 @@ covers rpg completely. rpg's real gaps are all **components**, below.
 | Component | Why the rpg tree forces it | Where |
 |---|---|---|
 | `EquipmentComponent` | Nothing can hold a `GameWeapon`. `GameStateData.EquippedWeapons` is a `List<string>` (`core/GameStateData.cs:258`) that no component writes. | `phase-2-equipment.md` |
-| `CharacterStatsComponent` | `character.tscn:53-78` displays Strength 15 / Dexterity 12 / Constitution 10 / Intelligence 14 with **no backing component**. `PlayerStatsComponent` is a soccer block — Shooting/Passing/Dribbling/ShirtNumber (`ecs/PlayerStatsComponent.cs:14-33`), a false friend per README §known. Also gives `LevelingComponent.StatPoints` a destination. | `phase-6:81` |
-| `ContainerComponent` | `chest_oak.tres` is in the tree above and nothing supports a second inventory or a transfer. | `phase-6:83` |
-| `DropTableEntry : Resource` | `DropTableComponent._entries` has no `[Export]` (README §known) — an rpg with authored loot is impossible without C#. | `phase-6:69` |
+| `CharacterStatsComponent` | `character.tscn:53-78` displays Strength 15 / Dexterity 12 / Constitution 10 / Intelligence 14 with **no backing component**. `PlayerStatsComponent` is a soccer block — Shooting/Passing/Dribbling/ShirtNumber (`ecs/PlayerStatsComponent.cs:14-33`), a false friend per README §known. Also gives `LevelingComponent.StatPoints` a destination. | `phase-6 §5` |
+| `ContainerComponent` → **~15 lines on `InventoryComponent`, not a new type** | `chest_oak.tres` is in the tree above. **Correction:** a second inventory *is* already supported — nothing in `InventoryComponent` is static and `Resize` (`:297`) handles variable sizes. Only **transfer** is missing: `MoveItem` (`:201`) indexes `Slots[]` on `this` for both ends, and no method takes another `InventoryComponent`. Add `TransferTo(...)` over the existing public `RemoveAt` + `AddItem`. **But a chest cannot persist** — `ParticipatesInSave` (`:58`) is documented "player's inventory only; `GameStateData` keeps a single Inventory slot". | `phase-6 §5` |
+| `DropTableEntry : Resource` | `DropTableComponent._entries` has no `[Export]` (README §known) — an rpg with authored loot is impossible without C#. | `phase-6 §4` |
 
 **The tree does not force these, and rpg must not invent them:** a shop component, a
 durability-decay component, a stat-requirement gate on equipment. Nothing in the genre's

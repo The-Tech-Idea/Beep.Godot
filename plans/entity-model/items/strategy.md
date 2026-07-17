@@ -33,11 +33,21 @@ building. No map.
   It is a news crawl. The name is a false friend of the same order as the three the README
   already lists (`PlayerStatsComponent` is a soccer stat block; `NavigationComponent` is a
   scene-transition wirer, not pathfinding).
-- **Pathfinding exists and has no callers.** `core/BeepEncryptionPathfinding.cs:68`
-  `class BeepPathfindingGrid` is a real A\* over a `bool[,]` walkable grid with
-  `SetObstacle` and `FindPath(Vector2I, Vector2I)`. `grep` for `BeepPathfindingGrid` outside its
-  own file → **0 hits**. It is not a `Node`, not `[GlobalClass]`, and lives in an
-  encryption-and-pathfinding grab-bag file. Not usable as-is; worth knowing it is there.
+- **Pathfinding exists and has no callers — and it is more valuable than this doc first said.**
+  `core/BeepEncryptionPathfinding.cs:68` `class BeepPathfindingGrid` is a real A\* over a
+  `bool[,]` walkable grid with `SetObstacle(x, y, blocked)` (`:80`) and
+  `FindPath(Vector2I, Vector2I)`. `grep` for `BeepPathfindingGrid` outside its own file →
+  **0 hits**. It is not a `Node`, not `[GlobalClass]`, and lives in an
+  encryption-and-pathfinding grab-bag file, beside SHA256 helpers.
+
+  **This previously read "Not usable as-is; worth knowing it is there." That undersells it into
+  deletion.** `bool[,] _walkable` + `SetObstacle` **is an occupancy model** — precisely what
+  `GridPlacementComponent` needs (`phase-6 §5`) — and adopting it hands citybuilder *and*
+  strategy pathfinding for free. It is the **right base**, not a curiosity: **keep it, move it
+  out of that file.** Contrast `Match3BoardComponent`, the tempting alternative: its grid uses
+  `0` to mean *"cleared, refill me"* (`:144,:174-178`), so `Refill()` would auto-fill your empty
+  lots with random buildings. A 0-caller class is not automatically residue — check what it *is*
+  before pricing it.
 
 ### `WorkComponent` is the genre's one real asset — with a caveat
 

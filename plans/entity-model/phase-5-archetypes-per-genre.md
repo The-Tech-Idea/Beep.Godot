@@ -3,7 +3,14 @@
 **Goal:** state, per archetype, which components are **required**, **optional**, and **must not
 be present** — and make the "must not" checkable rather than folklore.
 
-**Depends on:** Phases 1–4 for the archetypes that need items.
+**Depends on:** **Phase 0** for which components still exist, and Phases 1–4 for the archetypes
+that need items.
+
+> **Revised against the disposition.** These tables were written before the component audit and
+> recommended components that Phase 0 deletes (`BobComponent`, `RotateComponent`,
+> `LifetimeComponent`), listed a broken one without saying so (`TrailComponent`), and **argued
+> with Phase 6** over `DestructibleComponent`. Corrected in place below — a stale table that
+> reads as authoritative is worse than no table.
 
 ---
 
@@ -38,6 +45,14 @@ This is not pedantry; wrong-component-on-wrong-archetype ships today and fails *
   `CharacterBody2D`. It needs an **`Area2D`** parent (`ecs/InteractableComponent.cs:34`) →
   `_playerInRange` never becomes true → **the topdown player cannot interact with anything**,
   and the NPC's "Talk" prompt leads nowhere. Still live.
+
+  **The audit found the topdown case is worse than a misparent — it is semantically inverted.**
+  The component sits on the **Player**, with a sibling `InteractionZone` Area2D at `:43`, and
+  `IsPlayer` (`:44`) filters entering bodies to those named `"Player"`. So even correctly
+  parented it would only ever fire for *another player*. **The player is the interactor, not the
+  interactable.** Two different fixes, not one: `robot_npc_template` needs a reparent onto
+  `DetectionArea` (its semantics are right); `topdown_main` needs the component **removed from
+  the Player** and put on NPCs.
 
 ## Parent type is part of the contract
 
@@ -81,7 +96,8 @@ Its only verb is *be collected*.
 | | |
 |---|---|
 | **REQUIRED** | `PickupComponent` (+ `Item` = a `GameItem` `.tres`, per Phase 4) |
-| **OPTIONAL** | `BobComponent`, `RotateComponent`, `LifetimeComponent`, `ParticleComponent`, `AudioComponent` |
+| **OPTIONAL** | `ParticleComponent`, `FloatingTextComponent` (call `ShowText` beside `AddScore` — it ships in the template and its `ShowText()` has **0 callers**, so it currently does nothing) |
+| **~~OPTIONAL~~ — WITHDRAWN** | ~~`BobComponent`, `RotateComponent`, `LifetimeComponent`~~ — **all three are deleted in Phase 0.** `PickupComponent` already exports `FloatAmplitude`/`FloatSpeed`/`AutoRotate` and does the bob and spin itself (`:15-17,:69-70`), which is what `pickup_template.tscn` ships. `BobComponent` also latches `_startPos` at `_Ready` (`:30`), teleporting a moving parent back. Listing them here was recommending the loser of a redundancy the audit had already settled. |
 | **OPTIONAL — if it can be destroyed** | `HealthComponent`. Legitimate (a fireball burns the dropped sword), but know the cost: `ProjectileComponent.cs:78` finds **any** `HealthComponent`, so every bullet that touches it is consumed on it. Needs collision layers, not just a component. Omit unless the game really destroys ground loot. |
 | **MUST NOT** | `AttackComponent` — a sword on the floor does not swing at anyone. `MovementComponent` / any controller — it doesn't move, and an `Area2D` isn't a `CharacterBody2D`. `InventoryComponent` — it is an item, not a container. `FlashComponent` / `HealthBarComponent` **without** a sibling `HealthComponent` — both resolve one and silently no-op. |
 
@@ -94,7 +110,7 @@ Its verbs are *attack* and possibly *wear out*.
 | **REQUIRED** | nothing intrinsic — it is the weapon's own scene |
 | **OPTIONAL** | `AttackComponent` — **allowed and often correct**; needs only a `Node2D` parent. The wielder delegates the swing to it. *(But see Phase 1: its melee is a point query at the cursor, and `Range` is never read — it does not yet hit what it touches.)* |
 | **OPTIONAL** | `HealthComponent` as **durability** — blind component, HP = condition, `Died` = it breaks. Store the value per-instance, never on the shared `.tres`. |
-| **OPTIONAL** | `TrailComponent`, `ParticleComponent`, `AudioComponent` |
+| **OPTIONAL** | `ParticleComponent`, `AudioComponent`, `TrailComponent` — **but fix `TrailComponent` first**: `:61` builds its points from `parent2D.Position`, not `GlobalPosition`, and the `Line2D` is a *child* of the parent, so the trail rides along and sticks to the blade instead of staying in the world. It is also miscategorized `: UIComponent` for a world effect needing `Node2D` (`:31`). Both fixed in Phase 0. |
 | **MUST NOT** | `PickupComponent` — it is held, not lying there. `MovementComponent` / any controller — the wielder moves; the weapon follows the hand. |
 
 **Together these two rows answer "what does a sword need?"** — and the answer depends on which
@@ -108,11 +124,18 @@ sword you mean. That is the whole point of the rule above.
 | **OPTIONAL** | `InventoryComponent`, `EquipmentComponent` (Phase 2), `AttackComponent`, `StatusEffectComponent`, `ResistanceComponent`, `KnockbackComponent`, `DashComponent`, `LevelingComponent`, `HealthBarComponent`, `FlashComponent` |
 | **MUST NOT** | `MovementComponent` **with a controller** — both call `MoveAndSlide` and fight (warned since this session). `AIController` — same. `PickupComponent` — it goes on the *item*; on a player its `BodyEntered` would hide/free the player. `PlayerStatsComponent` — **see below**. |
 
-> **`PlayerStatsComponent` is a trap.** Despite the name it is a **football/soccer** stat block —
-> `Shooting`, `Passing`, `Dribbling`, `Tackling`, `Keeping`, `ShirtNumber`, `Position = "CM"`
-> (`ecs/PlayerStatsComponent.cs:14-38`). Nothing reads it. It is wrong for RPG and shooter
-> despite `rpg/character.tscn` displaying a Strength stat. `LevelingComponent.StatPointsPerLevel`
-> has **nowhere to spend** — there is no general stat block.
+> **`PlayerStatsComponent` was a trap — Phase 0 deletes it, so this row is transitional.**
+> Despite the name it is a **football/soccer** stat block — `Shooting`, `Passing`, `Dribbling`,
+> `Tackling`, `Keeping`, `ShirtNumber`, `Position = "CM"` (`ecs/PlayerStatsComponent.cs:14-38`),
+> with `OverallRating` dividing by a hardcoded `11`. Nothing reads it.
+>
+> Watch the subtle half: `Speed`/`Stamina`/`Strength` (`:21-23`) *look* genre-neutral but are
+> **0-99 soccer ratings**, not physics values — they do not connect to `MovementComponent.Speed`
+> (a px/sec float). A developer wiring them up would get silence, not an error.
+>
+> `CharacterStatsComponent` (Phase 6) replaces it and gives `LevelingComponent.StatPoints` the
+> destination it has never had. **Once both land, drop this row** — a MUST-NOT list naming a
+> deleted component is just noise.
 
 ### Enemy / hostile — `CharacterBody2D`
 
@@ -134,22 +157,32 @@ sword you mean. That is the whole point of the rule above.
 
 | | |
 |---|---|
-| **REQUIRED** | `ProjectileComponent` (+ `Shooter` set by the spawner) |
-| **OPTIONAL** | `TrailComponent`, `ParticleComponent` |
-| **MUST NOT** | `HealthComponent` — a bullet isn't damageable, and its presence makes it a *target* other bullets consume themselves on. `LifetimeComponent` — `ProjectileComponent` owns lifetime; two timers freeing one node. `FlashComponent` / `HealthBarComponent` — sibling-health no-ops. `MovementComponent`. |
+| **REQUIRED** | `ProjectileComponent` (+ `Shooter` set by the spawner — replaced by `GameDamage.Source` in Phase 3) |
+| **OPTIONAL** | `ParticleComponent`, `TrailComponent` (same `Position`-vs-`GlobalPosition` fix as above) |
+| **MUST NOT** | `HealthComponent` — a bullet isn't damageable, and its presence makes it a *target* other bullets consume themselves on. `LifetimeComponent` — **deleted in Phase 0**; `ProjectileComponent.MaxLifetime` (`:14`) already owns lifetime, and two timers freeing one node is the reason. `FlashComponent` / `HealthBarComponent` — sibling-health no-ops. `MovementComponent`. |
 
 ### Destructible (crate, tree, rock) — `Node2D` / `StaticBody2D`
 
 | | |
 |---|---|
-| **REQUIRED** | `DestructibleComponent` |
-| **OPTIONAL** | `DropTableComponent` (auto-rolled on break) |
-| **MUST NOT** | `HealthComponent` — `DestructibleComponent` has its own `HP` (`int`); two HP pools on one node, and **only one is reachable**. |
+| **REQUIRED** | `DestructibleComponent`, **`HealthComponent`** (after the Phase 0 unification) |
+| **OPTIONAL** | `DropTableComponent` (auto-rolled on break — needs its Phase 0 `[Export]` fix, or it can never yield) |
+| **MUST NOT** | `MovementComponent` / any controller — it is static, and a `StaticBody2D` isn't a `CharacterBody2D`. `PickupComponent` — it is broken, not collected. |
 
-> **`DestructibleComponent` cannot be hit.** `AttackComponent.cs:99` and
-> `ProjectileComponent.cs:78` look **only** for `HealthComponent`. `TakeDamage(int)`
-> (`ecs/DestructibleComponent.cs:31`) has zero callers. So every destructible in every genre
-> is invulnerable. See Phase 6.
+> **⚠ This row previously said `HealthComponent` MUST NOT be present, on the grounds that
+> `DestructibleComponent` has its own `int HP` (`:14`, verified) and two pools would conflict.
+> That contradicted Phase 6, which recommends the opposite — and Phase 6 is right.**
+>
+> The conflict was real but the resolution was backwards: the fix is to **delete the duplicate
+> pool, not to forbid the real one**. `DestructibleComponent`'s private `HP` is precisely *why*
+> it cannot be hit — `AttackComponent.cs:99` and `ProjectileComponent.cs:78` look **only** for
+> `HealthComponent`, so `TakeDamage(int)` (`:31`) has **zero callers** and every destructible in
+> every genre is invulnerable.
+>
+> Unify behind `HealthComponent` (Phase 0) and every existing damage source reaches destructibles
+> **for free**, the second pool disappears, and `Died → Break()` replaces the dead entry point.
+> Keeping the pool and banning `HealthComponent` would have preserved the bug and written it
+> into the contract as if it were a design.
 
 ### Container / chest — `Area2D`, Door — `Area2D`, Crafting station — `Area2D`
 
@@ -202,9 +235,16 @@ a hand/deck — data, not entities.
   topdown levels is decorative. Putting it on a unit silently hijacks Buttons in the parent tree.
 - **`MarqueeComponent` is not an RTS drag-select marquee.** It is a scrolling text ticker on a
   `Label`.
-- Also: **`TrainingComponent` and `ContractComponent` are football-manager residue**
-  (`WeeklyWage`, `ReleaseClause`, `ContractExpiry`, `TrainingFocus`) — not RTS production, despite
-  reading like it. Same trap as `PlayerStatsComponent`.
+- Also: **`TrainingComponent`, `ContractComponent` and `InjuryComponent` are football-manager
+  residue** (`WeeklyWage`, `ReleaseClause`, `ContractExpiry = "2029-06-30"`, `TrainingFocus`,
+  `InjuryRisk` "per match/training") — not RTS production, despite reading like it. Same trap as
+  `PlayerStatsComponent`, and they are **one coherent slice, not four strays**: all four are
+  deleted in Phase 0.
+
+  **The residue reaches the base-class docs too** — `EntityComponent.cs:18` documents
+  `ComponentGroup` with the example `"injured_players"` and `EntitySystem.cs:21` uses
+  `"training_players"` (both verified). Deleting the components while leaving their vocabulary
+  in the base class teaches the next reader the wrong domain. Phase 0 fixes both.
 
 ---
 

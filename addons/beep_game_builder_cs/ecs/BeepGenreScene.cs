@@ -110,7 +110,9 @@ namespace Beep.ECS
             if (!string.IsNullOrEmpty(PaletteName)) app.Info.PaletteName = PaletteName;
             if (!string.IsNullOrEmpty(GeometryProfileName))
                 app.Info.GeometryProfileName = GeometryProfileName;
-            ApplyTuning(app.Info, genre);
+            // Shared with the generator rather than forked — the local copy recognised only
+            // the 7 gameplay keys, so weather/season/save tuning never reached this path.
+            BeepGenreGenerator.ApplyTuning(app.Info, genre);
 
             // Point the genre-specific scene paths at THIS genre's screens, exactly as the
             // generator does. Without this, a project set up the README way (drop in a
@@ -176,21 +178,6 @@ namespace Beep.ECS
             if (ResourceLoader.Exists(template)) return template;
 
             return "";
-        }
-
-        /// <summary>Copy the genre's tuning values into <paramref name="info"/>.
-        /// Recognised keys: gravity, jump_velocity, move_speed, fire_rate,
-        /// grid_width, grid_height, target_score. Missing keys are left untouched.</summary>
-        private static void ApplyTuning(GameInfo info, GenreDef genre)
-        {
-            if (genre.Tuning.Count == 0) return;
-            if (genre.Tuning.TryGetValue("gravity", out var g)) info.Gravity = g.AsSingle();
-            if (genre.Tuning.TryGetValue("jump_velocity", out var j)) info.JumpVelocity = j.AsSingle();
-            if (genre.Tuning.TryGetValue("move_speed", out var m)) info.MoveSpeed = m.AsSingle();
-            if (genre.Tuning.TryGetValue("fire_rate", out var f)) info.FireRate = f.AsSingle();
-            if (genre.Tuning.TryGetValue("grid_width", out var gw)) info.GridWidth = gw.AsInt32();
-            if (genre.Tuning.TryGetValue("grid_height", out var gh)) info.GridHeight = gh.AsInt32();
-            if (genre.Tuning.TryGetValue("target_score", out var ts)) info.TargetScore = ts.AsInt32();
         }
 
         // ── Inspector dropdowns ─────────────────────────────────────────────

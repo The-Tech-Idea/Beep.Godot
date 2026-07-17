@@ -126,7 +126,15 @@ namespace Beep.ECS.UI
             // genre.json — genre definition (tuning, theme list, scenes).
             var genreDef = new GenreDef { Id = genreId };
             var genreJson = BeepFileUtils.LoadJson($"{genrePath}/genre.json");
-            if (genreJson.Count > 0)
+            if (genreJson.Count == 0)
+            {
+                // Was: fall through and return a GenreDef with an empty DisplayName, MainScene
+                // and no themes. LoadAllGenres registered it, the dock listed it, and
+                // StampProject wrote a main scene to "res://scenes/main/" — a path ending in
+                // a slash. A folder without a readable genre.json is not a genre.
+                GD.PushWarning($"[SkinCatalog] Skipping '{genreId}': {genrePath}/genre.json is missing or unreadable.");
+                return null;
+            }
             {
                 genreDef.DisplayName = Str(genreJson, "display_name", genreId);
                 genreDef.Icon = Str(genreJson, "icon", "🎯");
@@ -568,8 +576,15 @@ namespace Beep.ECS.UI
         public string MainScene = "";
         public List<string> Scenes = new();
         public Godot.Collections.Dictionary Tuning = new();
-        /// <summary>Scene-to-navigation mapping from genre.json. Key = scene filename
-        /// (e.g. "main_menu.tscn"), Value = Dictionary of property→res:// path.</summary>
+        /// <summary>Navigation wiring from genre.json. Flat, one level: Key = GameInfo
+        /// property name (e.g. "LevelSelectPath"), Value = scene filename relative to the
+        /// genre's UI folder (e.g. "level_select.tscn"). Applied by
+        /// BeepGenreGenerator.ApplyNavWiring, which resolves the value to
+        /// res://scenes/ui/&lt;genre&gt;/&lt;value&gt;.
+        ///
+        /// (This previously described a nested "scene filename → dictionary of property→path"
+        /// shape, which is not what the loader or any genre.json uses — authoring from it
+        /// produced a block where every key tripped ApplyNavWiring's unknown-property warning.)</summary>
         public Godot.Collections.Dictionary NavWiring = new();
         public GeometryDef? Geometry;
         public Dictionary<string, ThemeDef> Themes = new();

@@ -154,8 +154,17 @@ public static class BeepGenreGenerator
         return false;
     }
 
-    /// <summary>Apply tuning values from genre.json (gravity, move_speed, fire_rate, etc.).</summary>
-    private static void ApplyTuning(GameInfo info, Beep.ECS.UI.GenreDef genre)
+    /// <summary>
+    /// Apply tuning values from genre.json (gravity, move_speed, fire_rate, weather,
+    /// seasons, save/load…). Missing keys are left untouched.
+    ///
+    /// Public for the same reason as ApplyNavWiring above: BeepGenreScene is the runtime
+    /// entry point the README's quick start uses, and it had its own fork of this that
+    /// recognised only the 7 gameplay keys. A project set up the README way therefore
+    /// silently got none of the weather, season or save/load tuning its genre declared.
+    /// Both callers must go through here. Uses no editor API, so it is safe at runtime.
+    /// </summary>
+    public static void ApplyTuning(GameInfo info, Beep.ECS.UI.GenreDef genre)
     {
         if (genre.Tuning.Count == 0) return;
         if (genre.Tuning.TryGetValue("gravity", out var g)) info.Gravity = g.AsSingle();
@@ -167,13 +176,23 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("target_score", out var ts)) info.TargetScore = ts.AsInt32();
         if (genre.Tuning.TryGetValue("enable_weather", out var ew)) info.EnableWeather = ew.AsBool();
         if (genre.Tuning.TryGetValue("enable_day_night", out var dn)) info.EnableDayNightCycle = dn.AsBool();
-        if (genre.Tuning.TryGetValue("default_weather", out var dw)
-            && System.Enum.TryParse<Beep.ECS.WeatherSystemComponent.WeatherType>(dw.AsString(), true, out var parsedWeather))
-            info.DefaultWeather = parsedWeather;
+        if (genre.Tuning.TryGetValue("default_weather", out var dw))
+        {
+            // Warn rather than fall through silently: "Rainy" (the member is Rain) used to
+            // leave DefaultWeather at its default with no diagnostic at all.
+            if (System.Enum.TryParse<Beep.ECS.WeatherSystemComponent.WeatherType>(dw.AsString(), true, out var parsedWeather))
+                info.DefaultWeather = parsedWeather;
+            else
+                GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.default_weather = '{dw.AsString()}' is not a WeatherType — ignored.");
+        }
         if (genre.Tuning.TryGetValue("enable_seasons", out var es)) info.EnableSeasons = es.AsBool();
-        if (genre.Tuning.TryGetValue("default_season", out var ds)
-            && System.Enum.TryParse<Beep.ECS.SeasonalComponent.Season>(ds.AsString(), true, out var parsedSeason))
-            info.DefaultSeason = parsedSeason;
+        if (genre.Tuning.TryGetValue("default_season", out var ds))
+        {
+            if (System.Enum.TryParse<Beep.ECS.SeasonalComponent.Season>(ds.AsString(), true, out var parsedSeason))
+                info.DefaultSeason = parsedSeason;
+            else
+                GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.default_season = '{ds.AsString()}' is not a Season — ignored.");
+        }
         if (genre.Tuning.TryGetValue("days_per_season", out var dps)) info.DaysPerSeason = dps.AsDouble();
         if (genre.Tuning.TryGetValue("enable_temperature", out var et)) info.EnableTemperature = et.AsBool();
         if (genre.Tuning.TryGetValue("ambient_temperature", out var at)) info.AmbientTemperature = at.AsSingle();
@@ -183,6 +202,33 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("max_save_slots", out var mss)) info.MaxSaveSlots = mss.AsInt32();
         if (genre.Tuning.TryGetValue("autosave_enabled", out var ae)) info.AutosaveEnabled = ae.AsBool();
         if (genre.Tuning.TryGetValue("autosave_interval_seconds", out var ais)) info.AutosaveIntervalSeconds = ais.AsSingle();
+
+        WarnUnknownTuning(genre);
+    }
+
+    /// <summary>Every tuning key ApplyTuning above actually consumes.</summary>
+    private static readonly System.Collections.Generic.HashSet<string> KnownTuningKeys = new()
+    {
+        "gravity", "jump_velocity", "move_speed", "fire_rate",
+        "grid_width", "grid_height", "target_score",
+        "enable_weather", "enable_day_night", "default_weather",
+        "enable_seasons", "default_season", "days_per_season",
+        "enable_temperature", "ambient_temperature",
+        "enable_forecast", "forecast_days",
+        "enable_save_load", "max_save_slots", "autosave_enabled", "autosave_interval_seconds",
+    };
+
+    /// <summary>Report tuning keys nothing reads. Several genres ship blocks that look like
+    /// configuration but are decoration (cardgame's hand_limit, rpg's inventory_columns,
+    /// racing's lap_count…) — silence made them indistinguishable from working settings.</summary>
+    private static void WarnUnknownTuning(Beep.ECS.UI.GenreDef genre)
+    {
+        foreach (var key in genre.Tuning.Keys)
+        {
+            string name = key.ToString();
+            if (!KnownTuningKeys.Contains(name))
+                GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.{name} is not read by anything — it has no effect.");
+        }
     }
 
     /// <summary>
@@ -248,6 +294,11 @@ public static class BeepGenreGenerator
         foreach (var g in Beep.ECS.UI.SkinCatalog.AllGenres.Values)
         {
             CopyGenreUiScenes(g, mode, log);
+            if (!IsSafeSceneFileName(g.MainScene))
+            {
+                log.Add($"WARN: genre '{g.Id}' has an unusable main_scene '{g.MainScene}' — skipped.");
+                continue;
+            }
             string gScenePath = $"res://scenes/main/{g.MainScene}";
             CopyGenreScene(g, gScenePath, mode, log);
         }
@@ -329,11 +380,28 @@ public static class BeepGenreGenerator
 
         foreach (var scene in genre.Scenes)
         {
+            if (!IsSafeSceneFileName(scene))
+            {
+                log.Add($"WARN: genre '{genre.Id}' declares an unusable scene name '{scene}' — skipped.");
+                continue;
+            }
             string src = $"{srcDir}/{scene}";
             string dst = $"{dstDir}/{scene}";
             CopyUiSceneFromPath(src, dst, mode, log);
         }
     }
+
+    /// <summary>Whether a catalog-supplied scene filename is safe to concatenate into a write
+    /// path. genre.json is the documented "drop a folder" extension point, so these strings
+    /// are third-party input — a main_scene of "../../project.godot" would otherwise be
+    /// written straight outside the target folder. Also rejects empty, which used to produce
+    /// a destination ending in a bare slash.</summary>
+    private static bool IsSafeSceneFileName(string name)
+        => !string.IsNullOrWhiteSpace(name)
+           && !name.Contains("..")
+           && !name.Contains('/')
+           && !name.Contains('\\')
+           && !name.Contains(':');
 
     private static void EnsureAutoload(string name, string path)
     {

@@ -43,6 +43,7 @@ namespace Beep.ECS.UI
 
         private void BuildSwitch()
         {
+            if (Engine.IsEditorHint()) return;
             _bg = new ColorRect { Size = SwitchSize, Color = IsOn ? OnColor : OffColor };
             _bg.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
 

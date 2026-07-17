@@ -35,6 +35,7 @@ namespace Beep.ECS.UI
 
         private void BuildStepper()
         {
+            if (Engine.IsEditorHint()) return;
             _minusBtn = new Button { Text = "−", CustomMinimumSize = new Vector2(ButtonSize, ButtonSize), Flat = true };
             _minusBtn.Pressed += OnMinusPressed;
 

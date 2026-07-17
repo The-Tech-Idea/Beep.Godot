@@ -21,6 +21,7 @@ namespace Beep.ECS
         private Godot.Control? _targetControl;
         private Vector2 _originalScale;
         private Tween? _tween;
+        private PlatformerController? _platformer;
 
         public override void _Ready()
         {
@@ -40,6 +41,12 @@ namespace Beep.ECS
                 jump.Jumped += OnJumped;
                 jump.DoubleJumped += OnDoubleJumped;
             }
+
+            // Land squash: JumpComponent has no land event, so the squash half never fired.
+            // The sibling PlatformerController tracks floor contact and emits Landed.
+            _platformer = GetSiblingComponent<PlatformerController>();
+            if (_platformer != null)
+                _platformer.Landed += OnLand;
         }
 
         private void OnJumped(int jumpsRemaining) => Stretch();
@@ -81,6 +88,8 @@ namespace Beep.ECS
                 jump.Jumped -= OnJumped;
                 jump.DoubleJumped -= OnDoubleJumped;
             }
+            if (_platformer != null)
+                _platformer.Landed -= OnLand;
         }
     }
 }

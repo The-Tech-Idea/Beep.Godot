@@ -15,11 +15,22 @@ namespace Beep.ECS
     public abstract partial class ControllerComponent : EntityComponent
     {
         /// <summary>Resolve the CharacterBody2D this controller drives.
-        /// Supports two attachment patterns:
-        /// (a) Controller attached directly as the CharacterBody2D's own script.
-        /// (b) Controller added as a child Node under a CharacterBody2D parent.
-        /// This addon uses both patterns — generated template scenes use (a), ability stacks use (b).</summary>
-        protected CharacterBody2D? ResolveBody2D() => this as CharacterBody2D ?? GetParent() as CharacterBody2D;
+        ///
+        /// Attach the controller as a CHILD Node of the CharacterBody2D:
+        ///
+        ///     Player  (CharacterBody2D)
+        ///     └─ Controller  (Node, this script)
+        ///
+        /// It cannot be the body's own script: this type derives from Node, so C# can
+        /// never treat it as a CharacterBody2D. The genre templates used to attach it
+        /// directly to the body, which left this returning null and the player unable
+        /// to move.</summary>
+        protected CharacterBody2D? ResolveBody2D()
+        {
+            if (GetParent() is CharacterBody2D body) return body;
+            GD.PushWarning($"[{Name}] No CharacterBody2D parent — add this controller as a child of the body.");
+            return null;
+        }
     }
 
 }

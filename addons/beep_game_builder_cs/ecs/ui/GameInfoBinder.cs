@@ -59,15 +59,16 @@ namespace Beep.ECS.UI
             if (!VersionLabelPath.IsEmpty && parent.GetNodeOrNull<Label>(VersionLabelPath) is { } ver)
                 ver.Text = $"v{info.Version}";
 
-            // Genre display.
+            // Genre display — show the catalog's display name, falling back to the raw
+            // id if the genre folder isn't loaded.
             if (!GenreLabelPath.IsEmpty && parent.GetNodeOrNull<Label>(GenreLabelPath) is { } genre)
-                genre.Text = info.Genre.ToString();
+                genre.Text = SkinCatalog.GetGenre(info.GenreId)?.DisplayName ?? info.GenreId;
 
             // Theme + palette + geometry + skin — drive the sibling ThemePresetComponent from GameInfo/GameApp.
             if (!ThemeComponentPath.IsEmpty && parent.GetNodeOrNull<ThemePresetComponent>(ThemeComponentPath) is { } theme)
             {
                 // File-based: pass the genre + theme name directly. The catalog resolves it.
-                theme.GenreName = info.Genre.ToString().ToLowerInvariant();
+                theme.GenreName = info.GenreId;
                 theme.PresetName = info.DefaultThemePreset.ToLowerInvariant();
                 theme.PaletteName = info.PaletteName;
                 theme.GeometryProfileName = info.GeometryProfileName;

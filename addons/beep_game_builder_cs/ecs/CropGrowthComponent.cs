@@ -41,9 +41,14 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // Runtime only: this spawns a ColorRect visual into the PARENT and starts the
+            // growth timer. This is [Tool], so without the guard, opening a scene that uses
+            // it would add runtime-only nodes to the parent in the editor.
+            if (Engine.IsEditorHint()) return;
+
             // Auto-discover seasonal system
             var root = GetTree().Root;
-            _seasonal = root.FindChild(nameof(SeasonalComponent), true, false) as SeasonalComponent;
+            _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
             _dropTable = GetSiblingComponent<DropTableComponent>();
 
             // Create visual representation if not present
@@ -114,13 +119,17 @@ namespace Beep.ECS
             _currentStage = GrowthStage.Harvested;
             EmitSignal(SignalName.CropHarvested);
 
-            // Schedule reset to sprout after short delay
-            _ = Task.Delay(1000).ContinueWith(_ =>
-            {
-                _currentStage = GrowthStage.Sprout;
-                _growthProgress = 0f;
-                UpdateVisual();
-            });
+            // Schedule reset to sprout after short delay.
+            // Uses a SceneTree timer, not Task.Delay: the callback touches node state and
+            // must run on the main thread.
+            var timer = GetTree()?.CreateTimer(1.0);
+            if (timer != null)
+                timer.Timeout += () =>
+                {
+                    _currentStage = GrowthStage.Sprout;
+                    _growthProgress = 0f;
+                    UpdateVisual();
+                };
         }
 
         public GrowthStage GetCurrentStage() => _currentStage;

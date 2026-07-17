@@ -3,7 +3,8 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Top-down movement controller component. Attach to any CharacterBody2D.
+    /// Top-down movement controller component. Add as a CHILD of the CharacterBody2D
+    /// it drives (not as the body's own script — see ControllerComponent.ResolveBody2D).
     /// Blind — works for players, NPCs, enemies with top-down movement.
     /// Uses Input actions: move_left, move_right, move_up, move_down.
     /// </summary>

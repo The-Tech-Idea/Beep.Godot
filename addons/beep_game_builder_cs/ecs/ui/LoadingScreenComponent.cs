@@ -34,6 +34,7 @@ namespace Beep.ECS.UI
 
         private void Init()
         {
+            if (Engine.IsEditorHint()) return;
             if (GetParent() is not Node parent) return;
             _bar = parent.GetNodeOrNull<ProgressBar>(ProgressBarPath);
             _label = parent.GetNodeOrNull<Label>(LabelPath);

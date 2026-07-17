@@ -38,11 +38,13 @@ namespace Beep.ECS
 
             Vector2 pos = _area?.GlobalPosition ?? Vector2.Zero;
             var app = GameApp.Instance;
-            if (app != null) app.SetLevel(app.CurrentLevel);
+            // Record THIS as the active respawn point. Was SetLevel(CurrentLevel) — a
+            // self-assignment no-op that stored nothing; SetCheckpoint persists it.
+            if (app != null) app.SetCheckpoint(app.CurrentLevel);
 
             if (HealOnActivate && body is Node2D n2d)
             {
-                var health = n2d.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+                var health = EntityComponent.FindComponent<HealthComponent>(n2d, false);
                 if (health != null)
                     health.Heal(health.MaxHealth);
             }

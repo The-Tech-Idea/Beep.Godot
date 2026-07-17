@@ -33,6 +33,11 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            // Runtime only: this mutates the PARENT (ProcessMode + hides it). Without the
+            // guard, opening pause_menu.tscn in the editor flips the parent's ProcessMode
+            // and hides it in the viewport.
+            if (Engine.IsEditorHint()) return;
+
             // Accept any Node parent — both Control and CanvasLayer roots work.
             _overlay = GetParent();
             // The overlay must run while the tree is paused.

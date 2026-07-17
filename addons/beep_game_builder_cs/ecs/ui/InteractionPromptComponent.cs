@@ -26,6 +26,7 @@ namespace Beep.ECS.UI
 
         private void SetupLabel()
         {
+            if (Engine.IsEditorHint()) return;
             EnsureLabel();
             if (_label != null)
             {
@@ -44,9 +45,15 @@ namespace Beep.ECS.UI
                 Text = DefaultText
             };
             _label.AddThemeFontSizeOverride("font_size", FontSize);
-            var parent = GetParent() as Godot.Control;
-            if (parent != null) parent.AddChild(_label);
-            if (parent.IsInsideTree()) _label.Owner = parent.Owner;
+            // Parent may be a CanvasLayer (the documented HUD usage) — not a Control — so
+            // child it as a plain Node, not `as Control` (which was null → AddChild skipped
+            // and the next line NRE'd on parent.IsInsideTree()).
+            var parent = GetParent();
+            if (parent != null)
+            {
+                parent.AddChild(_label);
+                if (parent.IsInsideTree()) _label.Owner = parent.Owner;
+            }
         }
 
         public void Show(string text = "")

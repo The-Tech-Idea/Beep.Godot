@@ -33,6 +33,7 @@ namespace Beep.ECS.UI
 
         private void BuildStars()
         {
+            if (Engine.IsEditorHint()) return;
             for (int i = 0; i < MaxStars; i++)
             {
                 var label = new Label { Text = "★", HorizontalAlignment = HorizontalAlignment.Center };

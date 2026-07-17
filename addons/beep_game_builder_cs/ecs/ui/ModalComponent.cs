@@ -27,6 +27,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _dialog = GetParent() as Godot.Control;
             if (_dialog == null) return;
 
@@ -78,7 +79,7 @@ namespace Beep.ECS.UI
             if (CloseOnOverlayClick && e is InputEventMouseButton mb && mb.Pressed)
             {
                 Close();
-                GetTree()?.SetInputAsHandled();
+                GetViewport()?.SetInputAsHandled();
             }
         }
 

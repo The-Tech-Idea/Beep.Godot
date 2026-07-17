@@ -31,6 +31,7 @@ namespace Beep.ECS.UI
 
         private void BuildSearch()
         {
+            if (Engine.IsEditorHint()) return;
             var hbox = new HBoxContainer();
             hbox.AddThemeConstantOverride("separation", 0);
 

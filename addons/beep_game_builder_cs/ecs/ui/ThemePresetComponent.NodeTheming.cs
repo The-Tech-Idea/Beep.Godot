@@ -373,7 +373,7 @@ namespace Beep.ECS.UI
             int sep = ActiveShapes.Separator.Separation;
             var sb = SkinOr(UseSeparatorTextures, p.GetSeparatorTexture(), _skin?.Separator, SeparatorBox(c));
             _generatedTheme!.SetStylebox("separator", "HSeparator", sb);
-            _generatedTheme.SetStylebox("separator", "VSeparator", sb.Duplicate());
+            _generatedTheme.SetStylebox("separator", "VSeparator", (StyleBox)sb.Duplicate());
             _generatedTheme.SetConstant("separation", "HSeparator", sep);
             _generatedTheme.SetConstant("separation", "VSeparator", sep);
         }

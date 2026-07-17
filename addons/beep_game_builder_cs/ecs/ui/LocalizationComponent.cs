@@ -23,8 +23,15 @@ namespace Beep.ECS.UI
     public partial class LocalizationComponent : UIComponent
     {
         /// <summary>res:// path(s) to CSV translation files. Multiple files are supported.
-        /// Shows a file picker in the inspector filtered to .csv files.</summary>
-        [Export(PropertyHint.File, "*.csv,")] public string[] TranslationPaths { get; set; } = System.Array.Empty<string>();
+        /// Shows a file picker in the inspector filtered to .csv files.
+        ///
+        /// Defaults to the CSV the generator stamps out (res://i18n/translations.csv).
+        /// This used to default to an empty array, and nothing ever assigned it — Locale is
+        /// registered as a bare autoload script path, so its exports keep their defaults.
+        /// LoadAll() therefore iterated an empty list and no translation was ever loaded,
+        /// even though the CSV was sitting right there.</summary>
+        [Export(PropertyHint.File, "*.csv,")]
+        public string[] TranslationPaths { get; set; } = { "res://i18n/translations.csv" };
 
         /// <summary>The current locale code (e.g. "en", "es", "ja").</summary>
         [Export] public string CurrentLocale { get; set; } = "en";

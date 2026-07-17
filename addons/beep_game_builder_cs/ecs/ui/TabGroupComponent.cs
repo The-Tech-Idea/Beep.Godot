@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 namespace Beep.ECS.UI
@@ -22,6 +23,7 @@ namespace Beep.ECS.UI
         private Container? _tabBar;
         private Container? _contentArea;
         private readonly List<Button> _tabs = new();
+        private readonly Dictionary<Button, Action> _tabHandlers = new();
         private readonly List<Godot.Control> _panels = new();
         private readonly List<Tween> _activeTweens = new();
         private int _currentTab = -1;
@@ -29,6 +31,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             var parent = GetParent();
             if (parent == null) return;
 
@@ -45,23 +48,10 @@ namespace Beep.ECS.UI
             foreach (var child in _tabBar.GetChildren())
             {
                 if (child is Button btn)
-                {
                     _tabs.Add(btn);
-                    btn.Pressed += OnTabPressed;
-                }
             }
 
             WireTabPressHandlers();
-        }
-
-        private void WireTabPressHandlers()
-        {
-            for (int i = 0; i < _tabs.Count; i++)
-                _tabs[i].Pressed += () => OnTabIndexPressed(i);
-        }
-
-        private void OnTabPressed() => GD.PushWarning("Tab pressed but not wired to index");
-        private void OnTabIndexPressed(int idx) => SwitchToTab(idx);
 
             if (_contentArea != null)
                 foreach (var child in _contentArea.GetChildren())
@@ -69,6 +59,19 @@ namespace Beep.ECS.UI
 
             SwitchToTab(ActiveTab, true);
         }
+
+        private void WireTabPressHandlers()
+        {
+            for (int i = 0; i < _tabs.Count; i++)
+            {
+                int idx = i;
+                Action handler = () => OnTabIndexPressed(idx);
+                _tabHandlers[_tabs[i]] = handler;
+                _tabs[i].Pressed += handler;
+            }
+        }
+
+        private void OnTabIndexPressed(int idx) => SwitchToTab(idx);
 
         public void SwitchToTab(int index, bool instant = false)
         {
@@ -128,13 +131,16 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
+
             foreach (var t in _activeTweens)
                 t?.Kill();
             _activeTweens.Clear();
 
-            foreach (var btn in _tabs)
-                if (GodotObject.IsInstanceValid(btn))
-                    btn.Pressed -= OnTabIndexPressed;
+            foreach (var kv in _tabHandlers)
+                if (GodotObject.IsInstanceValid(kv.Key))
+                    kv.Key.Pressed -= kv.Value;
+            _tabHandlers.Clear();
         }
     }
 }

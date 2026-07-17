@@ -95,7 +95,7 @@ namespace Beep.ECS
             ApplyEffect(id, duration, tickInterval, isBuff, stackBehavior, maxStacks);
             var effect = ActiveEffects.FirstOrDefault(e => e.Id == id);
             if (effect != null)
-                effect.Modifiers = new Dictionary<string, float>(modifiers);
+                effect.Modifiers = new System.Collections.Generic.Dictionary<string, float>(modifiers);
         }
 
         public void RemoveEffect(string id)

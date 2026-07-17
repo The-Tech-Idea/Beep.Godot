@@ -37,6 +37,7 @@ namespace Beep.ECS.UI
 
         private void InitTargets()
         {
+            if (Engine.IsEditorHint()) return;
             _visiblePos.Clear();
             foreach (var c in Targets)
             {

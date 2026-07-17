@@ -21,6 +21,9 @@ namespace Beep.ECS
         private ShaderMaterial? _flashMaterial;
         private Tween? _tween;
         private HealthComponent? _health;
+        // Held so _ExitTree can actually detach it — a fresh `-= (a,h)=>Flash()` lambda is a
+        // different delegate instance and would not remove the one subscribed in _Ready.
+        private HealthComponent.DamagedEventHandler? _damagedHandler;
 
         public override void _Ready()
         {
@@ -31,7 +34,10 @@ namespace Beep.ECS
 
             _health = GetSiblingComponent<HealthComponent>();
             if (FlashOnDamage && _health != null)
-                _health.Damaged += (amount, health) => Flash();
+            {
+                _damagedHandler = (amount, health) => Flash();
+                _health.Damaged += _damagedHandler;
+            }
         }
 
         public void Flash()
@@ -56,8 +62,8 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             _tween?.Kill();
-            if (_health != null)
-                _health.Damaged -= (amount, health) => Flash();
+            if (_health != null && _damagedHandler != null)
+                _health.Damaged -= _damagedHandler;
         }
     }
 }

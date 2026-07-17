@@ -33,6 +33,7 @@ namespace Beep.ECS.UI
 
         public void WireButtons()
         {
+            if (Engine.IsEditorHint()) return;
             // Connect to sibling NavigationComponent once.
             if (!_navWired && GetParent() is Node p)
             {

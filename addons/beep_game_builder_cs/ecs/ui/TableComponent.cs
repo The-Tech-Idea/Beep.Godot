@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SizeFlags = Godot.Control.SizeFlags;
@@ -32,6 +33,7 @@ namespace Beep.ECS.UI
         private readonly List<HBoxContainer> _rows = new();
         private readonly List<string[]> _data = new();
         private readonly List<Button> _headerButtons = new();
+        private readonly Dictionary<Button, Action> _headerHandlers = new();
         private int _sortColumn = -1;
         private bool _sortAsc = true;
 
@@ -45,6 +47,7 @@ namespace Beep.ECS.UI
 
         private void BuildHeader()
         {
+            if (Engine.IsEditorHint()) return;
             if (_container == null) return;
             _headerRow = new HBoxContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
             _headerRow.AddThemeConstantOverride("separation", 0);
@@ -57,7 +60,9 @@ namespace Beep.ECS.UI
                 btn.Alignment = HorizontalAlignment.Left;
                 btn.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
                 btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                btn.Pressed += () => OnHeaderButtonPressed(btn);
+                Action handler = () => OnHeaderButtonPressed(btn);
+                _headerHandlers[btn] = handler;
+                btn.Pressed += handler;
                 _headerButtons.Add(btn);
                 StyleHeaderButton(btn);
                 _headerRow.AddChild(btn);
@@ -176,9 +181,10 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
-            foreach (var btn in _headerButtons)
-                if (GodotObject.IsInstanceValid(btn))
-                    btn.Pressed -= OnHeaderButtonPressed;
+            foreach (var kv in _headerHandlers)
+                if (GodotObject.IsInstanceValid(kv.Key))
+                    kv.Key.Pressed -= kv.Value;
+            _headerHandlers.Clear();
             _headerButtons.Clear();
         }
     }

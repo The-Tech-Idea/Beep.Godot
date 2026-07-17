@@ -27,6 +27,7 @@ namespace Beep.ECS.UI
 
         private void Setup()
         {
+            if (Engine.IsEditorHint()) return;
             _container = new HBoxContainer
             {
                 Name = "BuffBar"
@@ -65,7 +66,7 @@ namespace Beep.ECS.UI
             }
         }
 
-        private void OnEffectApplied(string effectId)
+        private void OnEffectApplied(string effectId, int stackCount)
         {
             if (_container == null || _icons.ContainsKey(effectId)) return;
             if (_icons.Count >= MaxSlots) return;

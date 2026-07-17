@@ -28,6 +28,19 @@ namespace Beep.ECS
         /// Gives time for death animations, particle bursts, etc.</summary>
         [Export] public float NavigateDelay { get; set; } = 0f;
 
+        [ExportGroup("Pause")]
+        /// <summary>Open the pause overlay on the pause action (Escape by default), giving
+        /// every gameplay scene a way back to the main menu. The overlay is instanced on
+        /// top of the game rather than navigated to, so the scene stays loaded.</summary>
+        [Export] public bool EnablePauseMenu { get; set; } = true;
+
+        /// <summary>Input action that opens the pause overlay. The generator maps
+        /// "pause" to Escape.</summary>
+        [Export] public string PauseAction { get; set; } = "pause";
+
+        /// <summary>Overlay to instance. Empty = GameInfo.PauseMenuPath.</summary>
+        [Export] public string PauseMenuPathOverride { get; set; } = "";
+
         [Signal] public delegate void ScoreChangedEventHandler(int score);
         [Signal] public delegate void LivesChangedEventHandler(int lives);
         [Signal] public delegate void GameOverEventHandler();
@@ -36,6 +49,10 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // Mark game as running
+            if (GameApp.Instance != null)
+                GameApp.Instance.SetGameRunning(true);
+
             // Seed from GameInfo tuning if available (target score, etc.).
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) TargetScore = info.TargetScore;
@@ -51,6 +68,10 @@ namespace Beep.ECS
         {
             if (!IsActive) return;
             Score += amount;
+            // Keep the global session total in step with the live run score. These used to
+            // diverge — the HUD read GameFlow.Score while GameApp.SessionScore (used for the
+            // best-score record) was updated only by the now-removed ScoreComponent.
+            GameApp.Instance?.AddSessionScore(amount);
             EmitSignal(SignalName.ScoreChanged, Score);
             if (Score >= TargetScore && TargetScore > 0)
                 EmitSignal(SignalName.LevelComplete);
@@ -87,6 +108,9 @@ namespace Beep.ECS
         /// changes scene to the GameOver path from GameInfo after an optional delay.</summary>
         public void OnGameOver()
         {
+            if (GameApp.Instance != null)
+                GameApp.Instance.SetGameRunning(false);
+
             if (!AutoNavigateOnEnd) return;
             NavigateToScene(GameBuilder.GameInfo.Instance?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn");
         }
@@ -130,6 +154,80 @@ namespace Beep.ECS
                 var tree2 = GetTree();
                 tree2?.ChangeSceneToFile(path);
             }
+        }
+
+        // ── Pause overlay ────────────────────────────────────────────────────
+        // Every gameplay scene needs a way back to the main menu. The pause overlay
+        // provides it, but it is a separate scene that nothing instanced — so the
+        // pause action did nothing during play. This component is already present in
+        // every genre's main scene, so opening the overlay from here wires it up
+        // everywhere without touching the scenes.
+        //
+        // Opening and closing are split by ProcessMode, so they never both fire:
+        //   unpaused → this component gets input and opens the overlay
+        //   paused   → the overlay's own PauseComponent is WhenPaused, so it gets the
+        //              input and closes itself (as does its Resume button).
+
+        private Node? _pauseOverlay;
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (Engine.IsEditorHint() || !EnablePauseMenu || !IsActive) return;
+            if (string.IsNullOrEmpty(PauseAction) || !InputMap.HasAction(PauseAction)) return;
+            if (!@event.IsActionPressed(PauseAction)) return;
+
+            OpenPauseMenu();
+            GetViewport()?.SetInputAsHandled();
+        }
+
+        /// <summary>Instance the pause overlay over the current scene and pause the tree.
+        /// Reuses the existing instance if it is still alive (the overlay's Resume button
+        /// frees itself, in which case a fresh one is created).</summary>
+        public void OpenPauseMenu()
+        {
+            string path = !string.IsNullOrEmpty(PauseMenuPathOverride)
+                ? PauseMenuPathOverride
+                : GameApp.Instance?.PauseMenuPath ?? "";
+
+            if (string.IsNullOrEmpty(path) || !ResourceLoader.Exists(path))
+            {
+                GD.PushError($"[GameFlow] Pause menu scene not found: '{path}'. Set GameInfo.PauseMenuPath.");
+                return;
+            }
+
+            if (!GodotObject.IsInstanceValid(_pauseOverlay))
+            {
+                var packed = GD.Load<PackedScene>(path);
+                if (packed == null)
+                {
+                    GD.PushError($"[GameFlow] Could not load pause menu: {path}");
+                    return;
+                }
+
+                _pauseOverlay = packed.Instantiate();
+                // Parent to the current scene so it dies with it, not with this node.
+                (GetTree()?.CurrentScene ?? GetParent()).AddChild(_pauseOverlay);
+            }
+
+            // Let the overlay's own PauseComponent show itself and pause the tree — it
+            // owns the visibility/ProcessMode rules. Fall back to pausing directly if the
+            // overlay doesn't ship one.
+            if (FindPauseComponent(_pauseOverlay!) is { } pause)
+                pause.Pause();
+            else
+            {
+                _pauseOverlay!.ProcessMode = Node.ProcessModeEnum.WhenPaused;
+                var tree = GetTree();
+                if (tree != null) tree.Paused = true;
+            }
+        }
+
+        private static UI.PauseComponent? FindPauseComponent(Node node)
+        {
+            if (node is UI.PauseComponent p) return p;
+            foreach (var child in node.GetChildren())
+                if (FindPauseComponent(child) is { } found) return found;
+            return null;
         }
     }
 }

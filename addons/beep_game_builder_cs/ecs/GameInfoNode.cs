@@ -33,7 +33,26 @@ namespace Beep.ECS
 
         // ── Theme / skin ──
         [ExportGroup("Skin")]
-        [Export] public string DefaultThemePreset { get; set; } = "modern";
+        /// <summary>Genre id (folder name under <c>catalogs/skins/</c>). Mirrors
+        /// <see cref="GameBuilder.GameInfo.Genre"/> and is the cascade root for the
+        /// theme/palette/geometry dropdowns below.</summary>
+        [Export]
+        public string GenreId
+        {
+            get => _genreId;
+            set { _genreId = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+        }
+        private string _genreId = "platformer";
+
+        [Export]
+        public string DefaultThemePreset
+        {
+            // Palette options depend on the selected theme — refresh so it re-cascades.
+            get => _defaultThemePreset;
+            set { _defaultThemePreset = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+        }
+        private string _defaultThemePreset = "modern";
+
         [Export] public string PaletteName { get; set; } = "Default";
         [Export] public string GeometryProfileName { get; set; } = "As-Authored";
 
@@ -94,6 +113,7 @@ namespace Beep.ECS
             if (info.TargetResolutionHeight == 720 && TargetResolutionHeight != 720) info.TargetResolutionHeight = TargetResolutionHeight;
             if (info.PixelArt == true && PixelArt == false) info.PixelArt = PixelArt;
             if (info.TargetFps == 60 && TargetFps != 60) info.TargetFps = TargetFps;
+            if (info.GenreId == "platformer" && GenreId != "platformer") info.GenreId = GenreId;
             if (info.DefaultThemePreset == "modern" && DefaultThemePreset != "modern") info.DefaultThemePreset = DefaultThemePreset;
             if (info.PaletteName == "Default" && PaletteName != "Default") info.PaletteName = PaletteName;
             if (string.IsNullOrEmpty(info.GeometryProfileName) && !string.IsNullOrEmpty(GeometryProfileName)) info.GeometryProfileName = GeometryProfileName;
@@ -109,9 +129,41 @@ namespace Beep.ECS
             if (info.GridHeight == 8 && GridHeight != 8) info.GridHeight = GridHeight;
             if (info.TargetScore == 1000 && TargetScore != 1000) info.TargetScore = TargetScore;
 
+            // Point the genre-specific scene paths at this genre's screens, the same way the
+            // generator and BeepGenreScene do. This is the third way GenreId reaches
+            // GameInfo; without it, a project configured through this node keeps the
+            // hardcoded defaults (which name the puzzle/platformer scenes) and every genre
+            // would still finish a level on the puzzle end screen.
+            if (UI.SkinCatalog.GetGenre(info.GenreId) is { } genre)
+                GameBuilder.BeepGenreGenerator.ApplyNavWiring(info, genre);
+
             // Save the resource so the autoload can re-read it on restart.
             if (ResourceSaver.Save(info, GameBuilder.GameInfo.TresPath) == Error.Ok)
                 GD.Print($"[GameInfoNode] Saved game_info.tres (auto-applied to GameApp.Info).");
+        }
+
+        // ── Inspector dropdowns ─────────────────────────────────────────────
+        // Options are read from the skin catalog's folder tree at edit time.
+
+        public override void _ValidateProperty(Godot.Collections.Dictionary property)
+        {
+            base._ValidateProperty(property);
+
+            switch ((string)property["name"])
+            {
+                case nameof(GenreId):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.GenreHint(_genreId));
+                    break;
+                case nameof(DefaultThemePreset):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.ThemeHint(_genreId, _defaultThemePreset));
+                    break;
+                case nameof(PaletteName):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.PaletteHint(_genreId, _defaultThemePreset, PaletteName));
+                    break;
+                case nameof(GeometryProfileName):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.GeometryHint(_genreId, GeometryProfileName));
+                    break;
+            }
         }
     }
 }

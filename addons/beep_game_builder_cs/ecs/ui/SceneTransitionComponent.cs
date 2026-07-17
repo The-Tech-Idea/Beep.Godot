@@ -27,6 +27,9 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            // EnsureRect spawns a ColorRect. This is [Tool] and lives in the menu scenes,
+            // so without the guard opening one in the editor adds a runtime-only node.
+            if (Engine.IsEditorHint()) return;
             // Defer rect creation — adding children during _Ready can fail with
             // "Parent node is busy setting up children" when the parent scene
             // is still instantiating its own children.

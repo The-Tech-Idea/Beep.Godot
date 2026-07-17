@@ -142,6 +142,10 @@ namespace Beep.ECS.UI
 
         [Export] public string TypewriterCursor { get; set; } = "|";
 
+        /// <summary>Blink the cursor while text reveals (folded in from the old standalone
+        /// TypewriterComponent). Off = a steady cursor.</summary>
+        [Export] public bool TypewriterBlinkCursor { get; set; } = true;
+
         // ═══════════════════════════════════════════════════════════════
         // Bounce
         // ═══════════════════════════════════════════════════════════════
@@ -187,6 +191,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             ResolveTargets();
             if (PlayOnReady)
                 CallDeferred(nameof(Play));
@@ -646,6 +651,7 @@ namespace Beep.ECS.UI
 
         private void ProcessTypewriter(float delta)
         {
+            List<Godot.Control>? completed = null;
             foreach (var kvp in _typewriterStates)
             {
                 var c = kvp.Key;
@@ -656,13 +662,29 @@ namespace Beep.ECS.UI
                 int totalChars = state.FullText.Length;
                 int visible = Mathf.Clamp((int)(state.Elapsed * TypewriterSpeed), 0, totalChars);
                 string shown = state.FullText[..visible];
-                string cursor = (visible < totalChars) ? state.CursorStr : "";
+
+                // Cursor only while still revealing; blinks unless TypewriterBlinkCursor is off.
+                string cursor = "";
+                if (visible < totalChars)
+                    cursor = (!TypewriterBlinkCursor || Mathf.Sin(state.Elapsed * 6f) > 0f) ? state.CursorStr : " ";
 
                 if (state.IsRichLabel && c is RichTextLabel rt)
                     rt.Text = shown + cursor;
                 else if (c is Label l)
                     l.Text = shown + cursor;
+
+                if (visible >= totalChars)
+                    (completed ??= new List<Godot.Control>()).Add(c);
             }
+
+            // Finished reveals emit once and are dropped — otherwise a completed typewriter is
+            // reprocessed every frame forever (the state was never cleared).
+            if (completed != null)
+                foreach (var c in completed)
+                {
+                    _typewriterStates.Remove(c);
+                    EmitSignal(SignalName.EffectCompleted);
+                }
         }
 
         private void StopTypewriter()

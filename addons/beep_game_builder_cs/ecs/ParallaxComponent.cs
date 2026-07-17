@@ -26,8 +26,15 @@ namespace Beep.ECS
             base._Ready();
             _parent = GetParent() as Node2D;
 
+            // Prefer a camera tagged into FollowCameraGroup, but fall back to the active
+            // Camera2D. Nothing in the addon ever joins "main_camera", so without the
+            // fallback parallax silently did nothing unless the user tagged the camera.
+            Camera2D? cam = null;
             var cams = GetTree().GetNodesInGroup(FollowCameraGroup);
-            if (cams.Count > 0 && cams[0] is Camera2D cam)
+            if (cams.Count > 0 && cams[0] is Camera2D tagged) cam = tagged;
+            cam ??= GetViewport()?.GetCamera2D();
+
+            if (cam != null)
             {
                 _cam = cam;
                 _camStartPos = cam.GlobalPosition;

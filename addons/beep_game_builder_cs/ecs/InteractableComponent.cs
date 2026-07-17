@@ -37,9 +37,15 @@ namespace Beep.ECS
             }
         }
 
+        /// <summary>Is this body the player? Accepts either the "players" group or a node
+        /// named "Player" — nothing in the addon joins the group, and the generated scenes
+        /// name the body "Player" (same convention DoorSwitchComponent uses), so relying on
+        /// the group alone meant the prompt never fired.</summary>
+        private static bool IsPlayer(Node n) => n.IsInGroup("players") || n.Name == "Player";
+
         private void OnBodyEntered(Node n)
         {
-            if (n.IsInGroup("players"))
+            if (IsPlayer(n))
             {
                 _playerInRange = true;
                 EmitSignal(SignalName.PlayerEnteredRange);
@@ -48,7 +54,7 @@ namespace Beep.ECS
 
         private void OnBodyExited(Node n)
         {
-            if (n.IsInGroup("players"))
+            if (IsPlayer(n))
             {
                 _playerInRange = false;
                 EmitSignal(SignalName.PlayerExitedRange);
@@ -60,7 +66,7 @@ namespace Beep.ECS
             if (!IsActive || !_playerInRange) return;
             if (@event.IsActionPressed(InputAction))
             {
-                GetTree().SetInputAsHandled();
+                GetViewport().SetInputAsHandled();
                 EmitSignal(SignalName.Interacted);
 
                 if (_dialog != null)

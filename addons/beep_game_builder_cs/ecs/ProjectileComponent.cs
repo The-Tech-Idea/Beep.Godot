@@ -54,12 +54,12 @@ namespace Beep.ECS
         {
             if (n == _owner || _area == null) return;
 
-            var health = n.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+            var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)
             {
                 health.TakeDamage(Damage);
 
-                var knockback = n.FindChild(nameof(KnockbackComponent), false, false) as KnockbackComponent;
+                var knockback = EntityComponent.FindComponent<KnockbackComponent>(n, false);
                 if (knockback != null && n is Node2D hitNode)
                     knockback.ApplyKnockback(_area.GlobalPosition);
             }
@@ -76,6 +76,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_area == null || !IsActive) return;
             if (UseGravity) _velocity.Y += GravityStrength * (float)delta;
             _area.Position += _velocity * (float)delta;

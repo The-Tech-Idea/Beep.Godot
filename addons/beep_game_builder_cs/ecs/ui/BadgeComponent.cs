@@ -32,6 +32,7 @@ namespace Beep.ECS.UI
 
         private void BuildBadge()
         {
+            if (Engine.IsEditorHint()) return;
             if (_control == null) return;
 
             _badgePanel = new Panel();

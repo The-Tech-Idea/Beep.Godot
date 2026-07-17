@@ -28,6 +28,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (!IsActive) return;
             _elapsed += (float)delta;
             float pct = _elapsed / Lifetime;

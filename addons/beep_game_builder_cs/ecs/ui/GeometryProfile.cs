@@ -98,9 +98,8 @@ namespace Beep.ECS.UI
         /// Genre → suggested geometry profile. Now reads from the genre's
         /// geometry.json via the skin catalog (no hardcoded values).
         /// </summary>
-        public static GeometryProfile ForGenre(GameBuilder.GameInfo.GameGenre genre)
+        public static GeometryProfile ForGenre(string genreId)
         {
-            string genreId = genre.ToString().ToLowerInvariant();
             var def = SkinCatalog.GetGeometry(genreId);
             return def?.ToProfile() ?? AsAuthored;
         }

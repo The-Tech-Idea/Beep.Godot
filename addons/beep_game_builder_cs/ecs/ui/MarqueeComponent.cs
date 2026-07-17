@@ -25,12 +25,14 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _label = GetParent() as Label;
             if (_label != null) { _label.ClipContents = true; _pauseTimer = PauseAtStart; }
         }
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_label == null || !IsActive || !AutoStart) return;
 
             float textWidth = _label.GetThemeDefaultFont()?.GetStringSize(_label.Text, fontSize: _label.GetThemeFontSize("font_size")).X ?? _label.Size.X;

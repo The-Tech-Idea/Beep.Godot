@@ -19,6 +19,9 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            // Runtime only: Apply reads DisplayServer.GetDisplaySafeArea and re-anchors the
+            // parent Control, so in the editor it would re-lay-out the parent on scene open.
+            if (Engine.IsEditorHint()) return;
             _control = GetParent() as Godot.Control;
             if (ApplyOnReady) Apply();
             if (TrackResize) GetViewport().SizeChanged += Apply;

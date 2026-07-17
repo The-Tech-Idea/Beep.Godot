@@ -23,6 +23,7 @@ namespace Beep.ECS.UI
         private const string AudioSection = "audio";
         private const string DisplaySection = "display";
         private const string LocaleSection = "locale";
+        private const string GameplaySection = "gameplay";
 
         [Export] public string SettingsPath { get; set; } = "user://settings.cfg";
 
@@ -61,7 +62,9 @@ namespace Beep.ECS.UI
         [Export] public int ResolutionIndex
         {
             get => _resIndex;
-            set { _resIndex = value; Set(DisplaySection, "resolution_index", value); EmitChanged(); }
+            // Applies immediately, like Fullscreen above — otherwise the value is stored
+            // but the window never changes.
+            set { _resIndex = value; Set(DisplaySection, "resolution_index", value); ApplyDisplaySettings(); EmitChanged(); }
         }
         private int _resIndex = 0;
 
@@ -80,6 +83,26 @@ namespace Beep.ECS.UI
             set { _subtitles = value; Set(LocaleSection, "subtitles", value); EmitChanged(); }
         }
         private bool _subtitles = true;
+
+        // ── Gameplay ──
+        // settings_menu.tscn has always shown these two toggles, but there was nothing
+        // behind them to read or write.
+        [ExportGroup("Gameplay")]
+        /// <summary>Camera shake on hits/explosions. Read by camera-shake components.</summary>
+        [Export] public bool ScreenShakeEnabled
+        {
+            get => _screenShake;
+            set { _screenShake = value; Set(GameplaySection, "screen_shake", value); EmitChanged(); }
+        }
+        private bool _screenShake = true;
+
+        /// <summary>Floating damage numbers on hits.</summary>
+        [Export] public bool DamageNumbersEnabled
+        {
+            get => _damageNumbers;
+            set { _damageNumbers = value; Set(GameplaySection, "damage_numbers", value); EmitChanged(); }
+        }
+        private bool _damageNumbers = true;
 
         [Signal] public delegate void SettingsChangedEventHandler();
 
@@ -132,6 +155,8 @@ namespace Beep.ECS.UI
             _resIndex = (int)_config.GetValue(DisplaySection, "resolution_index", 0);
             _language = (string)_config.GetValue(LocaleSection, "language", "en");
             _subtitles = (bool)_config.GetValue(LocaleSection, "subtitles", true);
+            _screenShake = (bool)_config.GetValue(GameplaySection, "screen_shake", true);
+            _damageNumbers = (bool)_config.GetValue(GameplaySection, "damage_numbers", true);
 
             ApplyAudioSettings();
             ApplyDisplaySettings();
@@ -144,20 +169,46 @@ namespace Beep.ECS.UI
         // Apply to engine
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Apply audio volumes to AudioServer buses.</summary>
+        /// <summary>Apply audio volumes to AudioServer buses. Editor-guarded for the same
+        /// reason as ApplyDisplaySettings: this is a [Tool] script, and the AudioServer it
+        /// would mutate in the editor is the editor's own.</summary>
         public void ApplyAudioSettings()
         {
+            if (Engine.IsEditorHint()) return;
+
             SetBusVolume("Master", _master);
             SetBusVolume("SFX", _sfx);
             SetBusVolume("Music", _music);
         }
 
-        /// <summary>Apply fullscreen/windowed mode.</summary>
+        /// <summary>Resolutions offered by settings_menu.tscn's ResolutionOption, in the
+        /// order its items are declared. ResolutionIndex is an index into this.</summary>
+        public static readonly Vector2I[] Resolutions =
+        {
+            new(1280, 720),
+            new(1920, 1080),
+            new(2560, 1440)
+        };
+
+        /// <summary>Apply fullscreen/windowed mode and the chosen resolution.
+        ///
+        /// Editor-guarded: this class is [Tool], so without the guard, ticking Fullscreen
+        /// in the inspector would fullscreen the EDITOR, and changing the resolution would
+        /// resize the editor window. These settings only mean anything in the running game.</summary>
         public void ApplyDisplaySettings()
         {
+            if (Engine.IsEditorHint()) return;
+
             DisplayServer.WindowSetMode(_fullscreen
                 ? DisplayServer.WindowMode.ExclusiveFullscreen
                 : DisplayServer.WindowMode.Windowed);
+
+            // Apply the resolution too — it used to be stored and reloaded but never
+            // applied, so picking one in the settings menu did nothing. Only meaningful
+            // windowed; fullscreen takes the screen size.
+            if (_fullscreen) return;
+            if (_resIndex < 0 || _resIndex >= Resolutions.Length) return;
+            DisplayServer.WindowSetSize(Resolutions[_resIndex]);
         }
 
         /// <summary>Apply the saved language to the LocalizationComponent.</summary>

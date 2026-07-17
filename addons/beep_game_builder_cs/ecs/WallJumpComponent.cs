@@ -49,6 +49,7 @@ namespace Beep.ECS
 
         private void SetupWallRays()
         {
+            if (Engine.IsEditorHint()) return;
             if (_body == null) return;
             // Create or find wall-detection rays on the body.
             _leftRay = _body.GetNodeOrNull<RayCast2D>("WallRayLeft");

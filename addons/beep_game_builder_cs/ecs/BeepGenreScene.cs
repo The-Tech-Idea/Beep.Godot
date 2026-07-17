@@ -31,10 +31,24 @@ namespace Beep.ECS
 
         /// <summary>Genre id (folder name under <c>catalogs/skins/</c>).
         /// Empty at design time = no-op.</summary>
-        [Export] public string GenreId { get; set; } = "";
+        [Export]
+        public string GenreId
+        {
+            // Theme/palette/geometry options all hang off the genre — refresh the list
+            // so those dropdowns re-cascade.
+            get => _genreId;
+            set { _genreId = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+        }
+        private string _genreId = "";
 
         /// <summary>Optional override. Empty = <c>genre.json#default_theme</c>.</summary>
-        [Export] public string ThemePreset { get; set; } = "";
+        [Export]
+        public string ThemePreset
+        {
+            get => _themePreset;
+            set { _themePreset = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+        }
+        private string _themePreset = "";
 
         /// <summary>Optional palette name. Empty = "Default" (no tint).</summary>
         [Export] public string PaletteName { get; set; } = "Default";
@@ -90,13 +104,20 @@ namespace Beep.ECS
             var app = GameApp.Instance;
             if (app?.Info == null) return;     // no autoload → skip silently
 
-            app.Info.Genre = GameInfo.GenreFromId(GenreId);
+            app.Info.GenreId = GenreId;
             app.Info.DefaultThemePreset = string.IsNullOrEmpty(ThemePreset)
                 ? genre.DefaultTheme : ThemePreset;
             if (!string.IsNullOrEmpty(PaletteName)) app.Info.PaletteName = PaletteName;
             if (!string.IsNullOrEmpty(GeometryProfileName))
                 app.Info.GeometryProfileName = GeometryProfileName;
             ApplyTuning(app.Info, genre);
+
+            // Point the genre-specific scene paths at THIS genre's screens, exactly as the
+            // generator does. Without this, a project set up the README way (drop in a
+            // BeepGenreScene instead of running Generate) keeps GameInfo's hardcoded
+            // defaults — which name the puzzle/platformer scenes — so every genre would
+            // still finish a level on the puzzle end screen.
+            BeepGenreGenerator.ApplyNavWiring(app.Info, genre);
 
             if (RegisterAsMainScene)
             {
@@ -170,6 +191,32 @@ namespace Beep.ECS
             if (genre.Tuning.TryGetValue("grid_width", out var gw)) info.GridWidth = gw.AsInt32();
             if (genre.Tuning.TryGetValue("grid_height", out var gh)) info.GridHeight = gh.AsInt32();
             if (genre.Tuning.TryGetValue("target_score", out var ts)) info.TargetScore = ts.AsInt32();
+        }
+
+        // ── Inspector dropdowns ─────────────────────────────────────────────
+        // Values come from the skin catalog at edit time. GenreId and ThemePreset
+        // use EnumSuggestion (editable) because "" is a meaningful value for both —
+        // a closed dropdown could not express it.
+
+        public override void _ValidateProperty(Godot.Collections.Dictionary property)
+        {
+            base._ValidateProperty(property);
+
+            switch ((string)property["name"])
+            {
+                case nameof(GenreId):
+                    UI.SkinPropertyHints.ApplyEnumSuggestion(property, UI.SkinPropertyHints.GenreHint(_genreId));
+                    break;
+                case nameof(ThemePreset):
+                    UI.SkinPropertyHints.ApplyEnumSuggestion(property, UI.SkinPropertyHints.ThemeHint(_genreId, _themePreset));
+                    break;
+                case nameof(PaletteName):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.PaletteHint(_genreId, _themePreset, PaletteName));
+                    break;
+                case nameof(GeometryProfileName):
+                    UI.SkinPropertyHints.ApplyEnum(property, UI.SkinPropertyHints.GeometryHint(_genreId, GeometryProfileName));
+                    break;
+            }
         }
     }
 }

@@ -48,6 +48,7 @@ namespace Beep.ECS
 
         private void SetupLighting()
         {
+            if (Engine.IsEditorHint()) return;
             if (GetParent() is not Node parent) return;
 
             // Find or create directional light
@@ -59,7 +60,7 @@ namespace Beep.ECS
             }
 
             // Find day/night cycle component
-            _dayNight = GetTree().Root.FindChild(nameof(DayNightCycleComponent), true, false) as DayNightCycleComponent;
+            _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(GetTree().Root, true);
             if (_dayNight != null)
             {
                 _dayNight.PhaseChanged += OnPhaseChanged;

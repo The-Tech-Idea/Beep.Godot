@@ -20,6 +20,7 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (!IsActive || !AutoStart || Targets.Count == 0) return;
             _time += (float)delta * Speed;
             float s = Mathf.Lerp(MinScale, MaxScale, (Mathf.Sin(_time) + 1f) / 2f);

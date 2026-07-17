@@ -48,19 +48,21 @@ namespace Beep.ECS
             if (!IsActive || !_inRange || (_isOpen && !Toggleable)) return;
             if (@event.IsActionPressed(ActivateAction))
             {
-                GetTree().SetInputAsHandled();
+                GetViewport().SetInputAsHandled();
 
                 if (!string.IsNullOrEmpty(RequiredItem))
                 {
                     var playerBody = GetTree().CurrentScene?.FindChild("Player", false, false);
-                    if (playerBody is Node2D)
+                    // Compare against the actual carried item, not "has any inventory". Before,
+                    // this only checked that *a* PickupComponent existed on the player, so any
+                    // player opened any gated door — RequiredItem was never consulted.
+                    var inventory = playerBody != null
+                        ? EntityComponent.FindComponent<InventoryComponent>(playerBody, false)
+                        : null;
+                    if (inventory == null || !inventory.HasItem(RequiredItem))
                     {
-                        var inventory = playerBody.FindChild(nameof(PickupComponent), false, false) as PickupComponent;
-                        if (inventory == null)
-                        {
-                            GD.Print($"[DoorSwitch] Missing required item '{RequiredItem}' to open");
-                            return;
-                        }
+                        GD.Print($"[DoorSwitch] Missing required item '{RequiredItem}' to open");
+                        return;
                     }
                 }
                 Toggle();

@@ -24,6 +24,8 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            // Runtime only: SetupOverlay adds a CanvasLayer to the scene root.
+            if (Engine.IsEditorHint()) return;
             CallDeferred(nameof(SetupOverlay));
         }
 

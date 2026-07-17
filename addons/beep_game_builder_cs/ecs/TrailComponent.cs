@@ -21,6 +21,8 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // Runtime only: SetupTrail adds a Line2D to the parent.
+            if (Engine.IsEditorHint()) return;
             CallDeferred(nameof(SetupTrail));
         }
 

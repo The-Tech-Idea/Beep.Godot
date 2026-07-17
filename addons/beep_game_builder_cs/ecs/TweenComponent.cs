@@ -32,6 +32,7 @@ namespace Beep.ECS
 
         public void Play()
         {
+            if (Engine.IsEditorHint()) return;
             if (!IsActive || GetParent() == null) return;
             _tween?.Kill();
             var node = GetParent();

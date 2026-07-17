@@ -31,6 +31,7 @@ namespace Beep.ECS.UI
 
         private void BuildChip()
         {
+            if (Engine.IsEditorHint()) return;
             _chip = new Panel();
             _chip.CustomMinimumSize = new Vector2(0, 28);
             var sb = new StyleBoxFlat { BgColor = ChipColor };

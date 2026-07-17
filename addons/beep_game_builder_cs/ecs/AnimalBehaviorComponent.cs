@@ -47,13 +47,14 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _seasonal = GetTree().Root.FindChild(nameof(SeasonalComponent), true, false) as SeasonalComponent;
-            _weather = GetTree().Root.FindChild(nameof(WeatherSystemComponent), true, false) as WeatherSystemComponent;
+            _seasonal = EntityComponent.FindComponent<SeasonalComponent>(GetTree().Root, true);
+            _weather = EntityComponent.FindComponent<WeatherSystemComponent>(GetTree().Root, true);
             _body = GetParent() as CharacterBody2D;
         }
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (!IsActive || _body == null) return;
 
             // Update behavior based on season/weather

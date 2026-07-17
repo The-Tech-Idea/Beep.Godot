@@ -118,7 +118,7 @@ namespace Beep.ECS
                 n2d.GlobalPosition = muzzlePos;
                 n2d.Rotation = dir.Angle();
 
-                var projComp = n2d.FindChild(nameof(ProjectileComponent), false, false) as ProjectileComponent;
+                var projComp = EntityComponent.FindComponent<ProjectileComponent>(n2d, false);
                 if (projComp != null)
                 {
                     projComp.Damage = ProjectileDamage;

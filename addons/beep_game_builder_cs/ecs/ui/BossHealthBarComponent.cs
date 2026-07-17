@@ -32,6 +32,7 @@ namespace Beep.ECS.UI
 
         private void Setup()
         {
+            if (Engine.IsEditorHint()) return;
             _bar = new ProgressBar
             {
                 Name = "BossBar",

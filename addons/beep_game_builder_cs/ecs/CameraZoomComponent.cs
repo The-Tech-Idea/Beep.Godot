@@ -39,12 +39,12 @@ namespace Beep.ECS
             if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelUp)
             {
                 ZoomIn();
-                GetTree()?.SetInputAsHandled();
+                GetViewport()?.SetInputAsHandled();
             }
             else if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelDown)
             {
                 ZoomOut();
-                GetTree()?.SetInputAsHandled();
+                GetViewport()?.SetInputAsHandled();
             }
         }
 

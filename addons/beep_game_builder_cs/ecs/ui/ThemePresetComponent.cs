@@ -16,7 +16,9 @@ namespace Beep.ECS.UI
 		public string PresetName
 		{
 			get => _presetName;
-			set { _presetName = value; if (IsInsideTree()) ApplyTheme(); }
+			// Palette options depend on the selected theme — refresh the list so the
+			// PaletteName dropdown re-cascades.
+			set { _presetName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _presetName = "modern";
 
@@ -26,7 +28,9 @@ namespace Beep.ECS.UI
 		public string GenreName
 		{
 			get => _genreName;
-			set { _genreName = value; if (IsInsideTree()) ApplyTheme(); }
+			// Theme/palette/geometry options all hang off the genre — refresh the list
+			// so those dropdowns re-cascade.
+			set { _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _genreName = "platformer";
 
@@ -741,5 +745,30 @@ namespace Beep.ECS.UI
 		// skin catalog (skins/<genre>/themes/<theme>/theme.json) via
 		// SkinCatalog.GetTheme() in ApplyTheme() above. See FileThemePreset.
 		// ═══════════════════════════════════════════════
+
+		// ═══════════════════════════════════════════════
+		// Inspector dropdowns — values come from the skin catalog at edit time.
+		// ═══════════════════════════════════════════════
+
+		public override void _ValidateProperty(Godot.Collections.Dictionary property)
+		{
+			base._ValidateProperty(property);
+
+			switch ((string)property["name"])
+			{
+				case nameof(GenreName):
+					SkinPropertyHints.ApplyEnum(property, SkinPropertyHints.GenreHint(_genreName));
+					break;
+				case nameof(PresetName):
+					SkinPropertyHints.ApplyEnum(property, SkinPropertyHints.ThemeHint(_genreName, _presetName));
+					break;
+				case nameof(PaletteName):
+					SkinPropertyHints.ApplyEnum(property, SkinPropertyHints.PaletteHint(_genreName, _presetName, _paletteName));
+					break;
+				case nameof(GeometryProfileName):
+					SkinPropertyHints.ApplyEnum(property, SkinPropertyHints.GeometryHint(_genreName, _geometryProfileName));
+					break;
+			}
+		}
 	}
 }

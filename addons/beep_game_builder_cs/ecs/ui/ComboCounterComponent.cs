@@ -32,6 +32,7 @@ namespace Beep.ECS.UI
 
         private void SetupLabel()
         {
+            if (Engine.IsEditorHint()) return;
             _label = new Label { Name = "ComboLabel", Text = "", Visible = false };
             _label.AddThemeFontSizeOverride("font_size", BaseFontSize);
             _label.AddThemeColorOverride("font_color", ComboColor);

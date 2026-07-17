@@ -34,6 +34,10 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            // Runtime only: Spawn() adds instances into the grandparent. IsActive defaults
+            // true, so without this a [Tool] spawner with a SpawnScene would spawn nodes into
+            // the scene on a timer just from being opened in the editor.
+            if (Engine.IsEditorHint()) return;
             if (!IsActive || SpawnScene == null) return;
             if (_spawnedCount >= MaxSpawned) return;
 

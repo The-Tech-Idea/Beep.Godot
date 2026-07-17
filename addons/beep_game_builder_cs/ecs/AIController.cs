@@ -110,7 +110,7 @@ namespace Beep.ECS
         private void UpdatePatrol()
         {
             if (Waypoints.Length == 0) { _moveDir = Vector2.Zero; return; }
-            var wp = GetNode<Node2D>(Waypoints[_waypointIndex]);
+            var wp = GetNodeOrNull<Node2D>(Waypoints[_waypointIndex]);
             if (wp == null) return;
             _moveDir = (wp.GlobalPosition - _body!.GlobalPosition).Normalized();
             if (_body!.GlobalPosition.DistanceTo(wp.GlobalPosition) < 10f)

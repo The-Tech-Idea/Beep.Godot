@@ -1,4 +1,5 @@
 using Godot;
+using Beep.GameBuilder;
 
 namespace Beep.ECS.Scenes
 {
@@ -8,15 +9,47 @@ namespace Beep.ECS.Scenes
     {
         public override void _Ready()
         {
-            GetNode<Button>("TopBar/SettingsButton").Pressed += () => ChangeScene(GameApp.Instance?.SettingsScenePath);
-            GetNode<Button>("Scroll/Path/Level1Row/Level1Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
-            GetNode<Button>("Scroll/Path/Level2Row/Level2Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
-            GetNode<Button>("Scroll/Path/Level3Row/Level3Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
-            GetNode<Button>("Scroll/Path/Level4Row/Level4Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
-            GetNode<Button>("Scroll/Path/Level5Row/Level5Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
-            GetNode<Button>("Scroll/Path/Level6Row/Level6Button").Pressed += () => ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
+            if (Engine.IsEditorHint()) return;
+
+            // Settings opens as an overlay — navigating to it used to destroy this scene,
+            // and Settings' Close always went to the main menu, so there was no way back
+            // to the map.
+            GetNode<Button>("TopBar/SettingsButton").Pressed += () => UI.SettingsOverlay.Open(this);
+            GetNode<Button>("TopBar/BackButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
+            GetNode<Button>("Scroll/Path/Level1Row/Level1Button").Pressed += () => GoToLevel(1);
+            GetNode<Button>("Scroll/Path/Level2Row/Level2Button").Pressed += () => GoToLevel(2);
+            GetNode<Button>("Scroll/Path/Level3Row/Level3Button").Pressed += () => GoToLevel(3);
+            GetNode<Button>("Scroll/Path/Level4Row/Level4Button").Pressed += () => GoToLevel(4);
+            GetNode<Button>("Scroll/Path/Level5Row/Level5Button").Pressed += () => GoToLevel(5);
+            GetNode<Button>("Scroll/Path/Level6Row/Level6Button").Pressed += () => GoToLevel(6);
         }
 
-        private void ChangeScene(string? path) { if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path)) GetTree().ChangeSceneToFile(path); }
+        /// <summary>Record the chosen level, then go to the pre-level screen. The puzzle board
+        /// reads GameApp.CurrentLevel to scale difficulty (grid size / target score) — before,
+        /// every level button opened the same board.</summary>
+        private void GoToLevel(int level)
+        {
+            GameApp.Instance?.SetLevel(level);
+            ChangeScene(GameInfo.Instance?.PreLevelPath ?? "res://scenes/ui/puzzle/pre_level.tscn");
+        }
+
+        /// <summary>Navigate to a scene. Reports why it failed instead of doing nothing —
+        /// a missing/unset target used to make the button appear dead.</summary>
+        private void ChangeScene(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                GD.PushError($"[{Name}] Navigation target is not set (check GameInfo scene paths).");
+                return;
+            }
+            if (!ResourceLoader.Exists(path))
+            {
+                GD.PushError($"[{Name}] Navigation target does not exist: {path}");
+                return;
+            }
+            Error err = GetTree().ChangeSceneToFile(path);
+            if (err != Error.Ok)
+                GD.PushError($"[{Name}] Failed to change scene to {path}: {err}");
+        }
     }
 }

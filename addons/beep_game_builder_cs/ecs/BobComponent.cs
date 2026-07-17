@@ -34,6 +34,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_parent == null || !IsActive) return;
             _time += (float)delta * Speed;
 

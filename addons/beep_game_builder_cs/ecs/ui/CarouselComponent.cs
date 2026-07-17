@@ -31,6 +31,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _container = GetParent() as Container;
             if (_container == null) return;
             _slideCount = _container.GetChildCount();

@@ -25,10 +25,13 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(EnsureLabel));
             _remaining = DurationSeconds;
+            // Runtime only: EnsureLabel injects a Label into the parent. (The existing
+            // guard below only covered AutoStart, not the label injection.)
+            if (Engine.IsEditorHint()) return;
+            CallDeferred(nameof(EnsureLabel));
             UpdateText();
-            if (AutoStart && !Engine.IsEditorHint()) Start();
+            if (AutoStart) Start();
         }
 
         private void EnsureLabel()

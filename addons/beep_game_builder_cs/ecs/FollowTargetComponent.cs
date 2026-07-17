@@ -27,7 +27,7 @@ namespace Beep.ECS
         {
             base._Ready();
             _parent = GetParent() as Node2D;
-            if (TargetPath != null) SetTarget(GetNode<Node2D>(TargetPath));
+            if (TargetPath != null) SetTarget(GetNodeOrNull<Node2D>(TargetPath));
             if (_target != null && SnapOnStart && _parent != null)
                 _parent.GlobalPosition = _target.GlobalPosition + Offset;
         }
@@ -36,6 +36,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_parent == null || !IsActive) return;
 
             if (_target == null || !GodotObject.IsInstanceValid(_target))

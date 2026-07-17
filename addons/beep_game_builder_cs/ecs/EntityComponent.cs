@@ -53,5 +53,28 @@ namespace Beep.ECS
             }
             return null;
         }
+
+        /// <summary>
+        /// Find the first node of type <typeparamref name="T"/> under <paramref name="root"/>,
+        /// matching by TYPE.
+        ///
+        /// Use this instead of <c>root.FindChild(nameof(T)) as T</c>. FindChild matches a node's
+        /// NAME, so it only worked if the node happened to be named after its class — and the
+        /// scenes name nodes semantically ("Health", "Seasonal", "Weather"), never
+        /// "HealthComponent". Every such lookup silently returned null, which is why attacks
+        /// dealt no damage and nothing reacted to the weather system.
+        /// </summary>
+        /// <param name="root">Where to search. Its own children are checked; root itself is not.</param>
+        /// <param name="recursive">Search descendants too. Mirrors FindChild's second argument.</param>
+        public static T? FindComponent<T>(Node? root, bool recursive = true) where T : class
+        {
+            if (root == null) return null;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is T match) return match;
+                if (recursive && FindComponent<T>(child, true) is { } deeper) return deeper;
+            }
+            return null;
+        }
     }
 }

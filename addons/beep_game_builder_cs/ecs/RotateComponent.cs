@@ -26,6 +26,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_parent == null || !IsActive) return;
             float dir = Clockwise ? 1f : -1f;
             float rot = DegreesPerSecond * dir * (float)delta;

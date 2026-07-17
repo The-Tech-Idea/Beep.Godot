@@ -26,6 +26,10 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // SetupBar spawns a ProgressBar into the parent. This class is [Tool], so
+            // without the guard, opening a scene that uses it would litter the scene with
+            // runtime-only nodes in the editor.
+            if (Engine.IsEditorHint()) return;
             CallDeferred(nameof(SetupBar));
         }
 

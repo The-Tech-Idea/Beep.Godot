@@ -57,7 +57,7 @@ namespace Beep.ECS
             _cooldown -= delta;
             if (Input.IsActionPressed(FireAction) && _cooldown < 0)
             {
-                GetTree().SetInputAsHandled();
+                GetViewport().SetInputAsHandled();
                 _cooldown = 1.0 / FireRate;
                 Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _body.GlobalPosition;
                 Vector2 dir = Vector2.FromAngle(_body.Rotation);
@@ -78,7 +78,7 @@ namespace Beep.ECS
                 n2d.GlobalPosition = pos;
                 n2d.Rotation = dir.Angle();
 
-                var projComp = n2d.FindChild(nameof(ProjectileComponent), false, false) as ProjectileComponent;
+                var projComp = EntityComponent.FindComponent<ProjectileComponent>(n2d, false);
                 if (projComp != null)
                 {
                     projComp.Damage = ProjectileDamage;

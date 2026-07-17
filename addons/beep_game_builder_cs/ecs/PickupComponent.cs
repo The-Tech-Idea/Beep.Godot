@@ -35,10 +35,11 @@ namespace Beep.ECS
             if (_area != null) _area.BodyEntered += OnBodyEntered;
         }
 
-        private void OnBodyEntered(Node2D body) => Collect()
+        private void OnBodyEntered(Node2D body) => Collect();
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint()) return;
             if (_collected)
             {
                 if (RespawnSeconds > 0)

@@ -22,6 +22,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _control = GetParent() as Godot.Control;
             if (_control == null) return;
 

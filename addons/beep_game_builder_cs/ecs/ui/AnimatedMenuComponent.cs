@@ -34,6 +34,7 @@ namespace Beep.ECS.UI
 
         public void ShowAnimated()
         {
+            if (Engine.IsEditorHint()) return;
             if (_container == null || !IsActive) return;
 
             foreach (var t in _activeTweens)

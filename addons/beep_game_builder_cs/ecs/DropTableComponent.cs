@@ -43,8 +43,8 @@ namespace Beep.ECS
             base._Ready();
             // Auto-discover seasonal and weather systems
             var root = GetTree().Root;
-            _seasonal = root.FindChild(nameof(SeasonalComponent), true, false) as SeasonalComponent;
-            _weather = root.FindChild(nameof(WeatherSystemComponent), true, false) as WeatherSystemComponent;
+            _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
+            _weather = EntityComponent.FindComponent<WeatherSystemComponent>(root, true);
         }
 
         public void AddEntry(PackedScene scene, float weight = 1f,

@@ -33,6 +33,17 @@ namespace Beep.ECS.UI
             base._Ready();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { GridWidth = info.GridWidth; GridHeight = info.GridHeight; }
+
+            // Difficulty ramp by the level chosen on the level-map screen (GameApp.CurrentLevel).
+            // Each level grows the board + gem variety a little (capped), so level 6 is
+            // meaningfully harder than level 1 instead of an identical board.
+            int level = GameApp.Instance?.CurrentLevel ?? 1;
+            if (level > 1)
+            {
+                GridWidth = Mathf.Min(GridWidth + (level - 1), 12);
+                GridHeight = Mathf.Min(GridHeight + (level - 1), 12);
+                GemTypeCount = Mathf.Min(GemTypeCount + (level - 1) / 2, 8);
+            }
             InitGrid();
         }
 

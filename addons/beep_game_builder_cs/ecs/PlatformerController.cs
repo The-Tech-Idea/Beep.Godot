@@ -3,7 +3,8 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Platformer movement controller component. Attach to any CharacterBody2D.
+    /// Platformer movement controller component. Add as a CHILD of the CharacterBody2D
+    /// it drives (not as the body's own script — see ControllerComponent.ResolveBody2D).
     /// Blind — works for players, enemies, NPCs with platformer physics.
     /// Uses Input actions: move_left, move_right, jump.
     /// When a JumpComponent sibling is present, jump behavior (and Jumped/Landed signals) defer entirely to it.

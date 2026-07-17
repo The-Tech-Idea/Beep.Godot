@@ -1,4 +1,5 @@
 using Godot;
+using Beep.GameBuilder;
 
 namespace Beep.ECS.Scenes
 {
@@ -8,13 +9,49 @@ namespace Beep.ECS.Scenes
     {
         public override void _Ready()
         {
+            if (Engine.IsEditorHint()) return;
+
             GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/BackButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelMapPath ?? "res://scenes/ui/puzzle/level_map.tscn");
             GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/PlayButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
-            GetNode<Button>("Center/Panel/Margin/VBox/BoosterRow/Booster1").Pressed += () => GD.Print("TODO: Booster1 not yet implemented");
-            GetNode<Button>("Center/Panel/Margin/VBox/BoosterRow/Booster2").Pressed += () => GD.Print("TODO: Booster2 not yet implemented");
-            GetNode<Button>("Center/Panel/Margin/VBox/BoosterRow/Booster3").Pressed += () => GD.Print("TODO: Booster3 not yet implemented");
+
+            // Boosters are optional pre-level pickers: toggle them on, and the choice is
+            // carried into the level via the GameStateManager data bag (booster_1..3). The
+            // level scene reads GetGameData("booster_N") to apply the effect — that effect
+            // is the game's, but selecting + carrying is real and complete here.
+            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster1", "booster_1");
+            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster2", "booster_2");
+            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster3", "booster_3");
         }
 
-        private void ChangeScene(string? path) { if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path)) GetTree().ChangeSceneToFile(path); }
+        private void WireBooster(string nodePath, string key)
+        {
+            if (GetNodeOrNull<Button>(nodePath) is not { } button) return;
+
+            button.ToggleMode = true;
+            // Reflect any previously-saved selection.
+            var manager = GameStateManagerComponent.Instance;
+            button.ButtonPressed = manager?.GetGameData(key, false).AsBool() ?? false;
+
+            button.Toggled += on => GameStateManagerComponent.Instance?.SetGameData(key, on);
+        }
+
+        /// <summary>Navigate to a scene. Reports why it failed instead of doing nothing —
+        /// a missing/unset target used to make the button appear dead.</summary>
+        private void ChangeScene(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                GD.PushError($"[{Name}] Navigation target is not set (check GameInfo scene paths).");
+                return;
+            }
+            if (!ResourceLoader.Exists(path))
+            {
+                GD.PushError($"[{Name}] Navigation target does not exist: {path}");
+                return;
+            }
+            Error err = GetTree().ChangeSceneToFile(path);
+            if (err != Error.Ok)
+                GD.PushError($"[{Name}] Failed to change scene to {path}: {err}");
+        }
     }
 }

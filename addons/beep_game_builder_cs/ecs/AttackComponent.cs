@@ -77,7 +77,7 @@ namespace Beep.ECS
             Vector2 direction = (target - _body.GlobalPosition).Normalized();
             GetParent()?.GetParent()?.AddChild(proj);
 
-            var projComp = projNode.FindChild(nameof(ProjectileComponent), false, false) as ProjectileComponent;
+            var projComp = EntityComponent.FindComponent<ProjectileComponent>(projNode, false);
             if (projComp != null)
             {
                 projComp.Speed = ProjectileSpeed;
@@ -96,11 +96,11 @@ namespace Beep.ECS
                 var collider = result["collider"].AsGodotObject() as Node2D;
                 if (collider != null && collider != _body)
                 {
-                    var health = collider.FindChild(nameof(HealthComponent), false, false) as HealthComponent;
+                    var health = EntityComponent.FindComponent<HealthComponent>(collider, false);
                     if (health != null)
                     {
                         health.TakeDamage(damage);
-                        var knockback = collider.FindChild(nameof(KnockbackComponent), false, false) as KnockbackComponent;
+                        var knockback = EntityComponent.FindComponent<KnockbackComponent>(collider, false);
                         if (knockback != null) knockback.ApplyKnockback(_body.GlobalPosition);
                     }
                 }

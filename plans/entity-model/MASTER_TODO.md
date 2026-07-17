@@ -96,10 +96,10 @@ entity without equipment is unaffected and nothing existing breaks.
 
 - [ ] **Phase 1 — Item resources** — `GameItem` hierarchy as `[Tool][GlobalClass] Resource`;
       `InventoryComponent` stores them. → `phase-1-item-resources.md`
-- [ ] **Phase 2 — Equipment** — `EquipmentComponent`: slots, equip/unequip, modifier query.
-      → `phase-2-equipment.md`
-- [ ] **Phase 3 — Damage typing, then combat integration** — **3a blocks 3b.**
-      → `phase-3-combat-integration.md`
+- [ ] **Phase 2 — Stats & equipment** — `Stat`/`StatModifier`; refactor `StatusEffectComponent`
+      onto it; `EquipmentComponent` contributes modifiers. → `phase-2-equipment.md`
+- [ ] **Phase 3 — Damage packet, then combat integration** — **3a blocks 3b.** Includes the
+      melee-hitbox fix that makes `GameWeapon.Range` real. → `phase-3-combat-integration.md`
 - [ ] **Phase 4 — Pickups & drops** — carry a `GameItem`, not a string; wire the missing
       `Collected → AddItem` edge. → `phase-4-pickups-and-drops.md`
 - [ ] **Phase 5 — Archetypes per genre** — required / optional / **must not have**, and make
@@ -161,10 +161,25 @@ inert in every genre (Phase 6, §1).
 - **Two representations.** Definition = `Resource` (stacks, saves, shops). Instance = a node
   (`WorldScene` / `WieldScene`) that **may** carry `AttackComponent`, durability, a hitbox.
   Same shape the repo already uses for bullets (`ProjectileScene` + `ProjectileComponent`).
-- **Equipment is an optional sibling.** No entity is required to have it; combat components
-  query it if present, exactly as they already query `StatusEffectComponent`.
-- **Additive, not a rewrite.** Existing `[Export]`s on `AttackComponent` stay as the base
-  values; equipment modifies them. A project with no equipment behaves identically.
+- **One modifier system: `Stat` + `StatModifier`.** A modifier is `{stat, op, amount, duration,
+  source}`; `duration 0` = permanent. Equipment, timed buffs and permanent upgrades stop being
+  three mechanisms. `EquipmentComponent` **contributes** modifiers rather than exposing
+  `DamageBonus`/`DefenseBonus`/`ResistanceFor` accessors — those needed a new accessor plus a
+  consumer edit per stat, which is how `StatusEffectComponent` ended up consulted at two
+  hardcoded sites with two magic-string keys. Matches [community
+  practice](https://minoqi.medium.com/modular-stat-attribute-system-tutorial-for-godot-4-0bac1c5062ce);
+  fixes the shooter's missing permanent-upgrade channel and the two-damage-paths blocker for
+  free. `StatusEffectComponent` is refactored onto it, API replaced.
+- **~~Additive, not a rewrite.~~ WITHDRAWN.** It was premised on back-compat we do not have
+  (dev code, no shipped consumers, no fallbacks or stubs). Three recommendations were hedged
+  *only* to avoid touching signatures, and each left a field that silently does nothing — this
+  repo's signature defect. They flip:
+  - **damage packet (Option B), not the minimal fix** — gains `Source`, crit, on-hit; and the
+    1-arg `TakeDamage` overload is **deleted**, since defaulting to `Physical` is *why* every
+    hit is Physical;
+  - **fix melee, then `GameWeapon.Range` is real** — replace the cursor point-query with a
+    hitbox (the same primitive as `HazardComponent`) instead of omitting the field;
+  - **`PickupComponent.Item` replaces `ItemId`** — no dual path.
 - **`MUST NOT HAVE` is part of the contract** — but it is **conditional, not absolute**. A
   sword that cannot break must not have `HealthComponent`; one that can, should. The test is
   always *"does this representation of this thing do that?"*, never *"is it a sword?"*

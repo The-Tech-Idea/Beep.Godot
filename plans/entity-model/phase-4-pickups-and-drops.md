@@ -39,10 +39,12 @@ Phases 1–3 reachable.
 [Export] public int Quantity { get; set; } = 1;  // how many (stays)
 ```
 
-`ItemId` becomes a **fallback**, not the source of truth: `Item?.Id ?? ItemId`. Keep it so
-existing scenes and the coin case (an id with no resource) keep working — this repo has been
-bitten enough by silent breakage. Emit the resource alongside the id so a receiver can use
-either.
+**`ItemId` is deleted, not kept as a fallback.** An earlier draft proposed `Item?.Id ?? ItemId`
+so existing scenes kept working — but the scenes are ours to edit, and no fallbacks or stubs
+are wanted here. Two ways to say what a pickup is, one of which is a string that cannot carry
+stats, is exactly the ambiguity this model exists to end. Update the shipped templates in the
+same change (`pickup_template.tscn` and any level that places one) — `validate_scenes.sh`'s
+property check will catch a missed one, since `ItemId` would no longer match any `[Export]`.
 
 **2. `InventoryComponent.AddItem` — accept a `GameItem`, and be connected to.**
 It currently rebuilds from a template lookup and falls back to `template?.X ?? default`

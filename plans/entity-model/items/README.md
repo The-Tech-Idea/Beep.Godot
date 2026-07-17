@@ -27,6 +27,27 @@ The whole model collapses if this is got wrong, so it is a test, not a taste:
 `RpgSword`. A genre earns a class only when it introduces a *kind of thing* the spine cannot
 describe — a **card**, a **vehicle spec**, a **building footprint**.
 
+## Validated against Godot community practice
+
+This model was designed from first principles plus evidence inside this repo — neither of which
+tells you whether it is what a **Godot developer** expects to find. It was then checked against
+external practice. **The spine is confirmed; don't re-litigate it:**
+
+| Our decision | External practice |
+|---|---|
+| Components are **Nodes**, composed on an entity | Idiomatic. [`HealthComponent`/`HitboxComponent` are the canonical examples](https://www.gotut.net/composition-in-godot-4/) — the names this repo already uses. A true ECS is [essentially impossible in vanilla Godot](https://forum.godotengine.org/t/question-about-composition-inheritence/98065); pseudo-composition is the norm. |
+| Items are **`Resource` subclasses**, authored as `.tres` | ["The best way to define items"](https://uhiyama-lab.com/en/notes/godot/inventory-system/) — a node-less template usable anywhere. |
+| `GameItem` → `GameWeapon` **by inheritance** | The standard shape is a base `ItemData` with [`WeaponData extends ItemData`](https://codingquests.io/blog/godot-4-custom-resources-tutorial) adding `attack_bonus`/`weapon_type`. Ours is a rename of theirs. |
+| Save **id + quantity**, re-resolve on load | Near-verbatim: ["use Resources to author game data, but save player progress as plain JSON containing only the values you need, like ids and quantities"](https://www.strayspark.studio/blog/godot-4-inventory-crafting-system-complete-guide). Phase 1 reached this from first principles. |
+| Variation by `.tres`, not by class | Confirmed — one `.tres` per item, the path itself acting as identity. |
+
+**The sharing trap is worse than it looks, and the obvious fix is broken.** Per-instance state
+(durability, enchantments) cannot live on a shared `.tres`. Godot's built-in answer,
+`resource_local_to_scene`, has a [known engine bug (godot#45350)](https://github.com/godotengine/godot/issues/45350):
+duplicating an already-instantiated scene makes the copies **share** the resource anyway, and
+setting the flag at runtime does nothing to resources already created. It is exactly what a
+developer will reach for, and it will not hold. Per-instance state lives on the **instance**.
+
 ## The spine
 
 Every genre draws from this. Nothing here is genre-specific.

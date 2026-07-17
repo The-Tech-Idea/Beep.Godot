@@ -42,16 +42,34 @@ weapon's type must be pushed onto that component on equip, and the source is sti
 (fixes the projectile self-hit exclusion, `ProjectileComponent.cs:31`/`:70`), on-hit effects,
 and damage numbers in one move. Larger, and touches every combat signature.
 
-**Recommendation: A now, B when a second consumer appears.** A unblocks the whole equipment
-model with a few lines. B is the right end state but is a combat-pipeline rewrite and should
-not ride along with the item model. **Decide before writing code.**
+**Decided: B.** An earlier draft recommended "A now, B later" **because B touches every combat
+signature**. That is not a cost we carry — this is dev code with no shipped consumers, and no
+fallbacks or stubs are wanted. With the only objection void, A is just B with the useful parts
+missing.
 
-### Work (Option A)
+B fixes in one move what A leaves broken:
 
-1. `AttackComponent.Attack` — resolve optional `DamageTypeComponent` sibling; pass its `Type`
-   to the 2-arg `TakeDamage`. Default `Physical` when absent (identical to today).
-2. `ProjectileComponent.OnCollision` — same.
-3. Keep the 1-arg overload — it is the correct default, not a bug.
+- **type** — A does this too;
+- **`Source`** — repairs the projectile self-hit exclusion *properly*, replacing the `Shooter`
+  property bolted on this session (`ProjectileComponent.cs:31`);
+- **crit / on-hit data** — A has nowhere to put either;
+- and it kills the **bare-float handoff** (`AttackComponent.cs:84`, `:102`;
+  `ProjectileComponent.cs:81`) that loses everything except a number.
+
+### Work (Option B)
+
+1. **`GameDamage`** — `Amount`, `Type`, `Source`, `IsCrit`. Threaded through
+   `Attack → Projectile → TakeDamage`.
+2. **`HealthComponent.TakeDamage(GameDamage)`** replaces both overloads.
+3. **Delete the 1-arg `TakeDamage(amount)` overload.** It exists to default to `Physical`, and
+   it is *the reason* every hit in the framework is Physical — a convenience default that
+   silently ate the entire type system. Make the type explicit at every call site; there are
+   four (`AttackComponent.cs:102`, `ProjectileComponent.cs:81`, `TemperatureComponent.cs:180`,
+   `HealthComponent.cs:74`).
+4. **`DamageTypeComponent`** — with the weapon carrying `DamageType` (Phase 1) and the packet
+   carrying it to the target, the component has no job left. Delete it rather than leave a
+   third dead thing in `ecs/`. *(Its `Type` enum stays — `GameWeapon` and `ResistanceComponent`
+   both reference it.)*
 
 ---
 
@@ -98,44 +116,51 @@ keeps finding.
 
 ### Work
 
-**1. `AttackComponent`** — beside the existing `StatusEffectComponent` block (`:51-56`),
-resolve an optional `EquipmentComponent` and add its `DamageBonus` to the base:
+**Consumers read the entity's `Stat`, not `EquipmentComponent`.** Phase 2 replaced the
+three-accessor design; nothing queries equipment. This also **supersedes the shared-helper fix
+above**: a `Stat` owned by the entity is read by whoever computes damage, so `AttackComponent`
+and `ShooterController` need no common query and *cannot* fork.
 
-```
-finalDamage = (Damage + equipment?.DamageBonus ?? 0) * statusMultiplier
-```
+**1. `AttackComponent`** — `finalDamage` comes from the `damage` `Stat`. The `[Export] Damage`
+becomes that stat's `BaseValue` (the entity's own contribution — a punch). The
+`StatusEffectComponent` block at `:51-56` is deleted: buffs are modifiers on the same stat now.
 
-Additive base, multiplicative buffs — a +10 sword and a ×1.5 rage buff compose as expected.
-`Damage` stays the entity's own contribution (a punch).
+**2. `ShooterController`** — same, for `ProjectileDamage`. Reads the stat directly; there is no
+`AttackComponent` in its path and now it doesn't need one.
 
-**1b. `ShooterController`** — same query, same helper, applied to `ProjectileDamage` before it
-is handed to the projectile. Without this the shooter has no equipment at all.
+**3. `HealthComponent`** — `Armor` becomes a `Stat`. The `damage_reduction` status lookup at
+`:92-94` is deleted for the same reason.
 
-**2. `HealthComponent`** — add `equipment?.DefenseBonus` to `Armor` **at use** (`:89`), not by
-writing the field. Writing it would fight the inspector value and go stale.
+**4. `ResistanceComponent`** — per-type values become `Stat`s (`resist_fire`, …), so armour
+contributes `{resist_fire, Multiply, 0.5}` rather than mutating an `[Export]` float. This is
+what lets **two armour pieces both contribute and cleanly withdraw** — impossible today.
 
-**3. `ResistanceComponent.ApplyResistance`** (`:41`) — multiply in
-`equipment.ResistanceFor(type)`. Product, not sum, matching the existing semantics.
+### Melee has no reach — fix it, don't design around it
+
+`AttackComponent.Range` is never read: `DealMeleeDamage` is an **`IntersectPoint` point query at
+the cursor** (`:92-93`). No arc, no reach. An earlier draft said *"do not add `Range` to
+`GameWeapon` until this is decided"* — that was avoidance, and it was premised on not touching
+existing signatures, which we are free to do.
+
+**Replace the point query with a real hitbox** (`Area2D` + reach), and `Range` means something.
+This is the same missing primitive as `HazardComponent` (Phase 6 §2) — build it once. It is also
+the model the user described: *a wielded sword carries `AttackComponent` and a hitbox, and hits
+what it touches.* A weapon that cannot express reach is not a weapon.
+
+Consequently **`GameWeapon` gets `Range`** (Phase 1), gated on this fix landing — not omitted.
+
+`GameWeapon.IsRanged`/`ProjectileScene` **replace** the controller's exports rather than adding
+to them: a bow *is* the range, it doesn't add reach to a fist. Same for `FireRate` —
+`ShooterController._Ready` currently overwrites it from `GameInfo` unconditionally (`:45`), so
+the weapon can never own it. The weapon wins when equipped; `GameInfo` is the project default.
+No conditional-fallback dance.
 
 ### Rules
 
-- **Optional throughout.** Every lookup is a null-checked sibling. An entity with no
-  equipment must behave *exactly* as before — that is what makes this safe.
-- **Query, never cache on the consumer.** `AttackComponent` must not copy `DamageBonus` at
-  `_Ready`; equipment changes at runtime. Phase 2 caches on the owner, where invalidation is
-  possible.
-- **Warn, don't no-op.** A `GameWeapon` equipped with no `AttackComponent` to use it →
-  `PushWarning` (`CLAUDE.md` § *Never fail silently*).
-
-### Out of scope — record, don't fix
-
-- **`AttackComponent.Range` is never read.** `DealMeleeDamage` is a **point query at the
-  cursor** (`:92-93`) — no arc, no reach. So `GameWeapon.Range` cannot work without
-  reworking melee hit detection. **Do not add `Range` to `GameWeapon` in Phase 1** until this
-  is decided; a field that silently does nothing is this repo's signature defect.
-- `GameWeapon.IsRanged`/`ProjectileScene` **replace** rather than add to
-  `AttackComponent`'s exports (a bow *is* the range; it doesn't add to a fist). Needs the
-  same decision. Damage is the only cleanly additive stat — ship that first.
+- **The entity owns the stats.** Every consumer reads them; none of them own them.
+- **Warn, don't no-op.** A `GameWeapon` equipped with nothing able to use it → `PushWarning`
+  (`CLAUDE.md` § *Never fail silently*).
+- **An entity with no modifiers behaves exactly as today** — `Stat.Value` is `BaseValue`.
 
 ## Verification
 

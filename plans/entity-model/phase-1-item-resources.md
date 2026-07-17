@@ -135,7 +135,11 @@ GameItem : Resource                     [Tool][GlobalClass]
 already lines up with `ResistanceComponent`'s per-type multipliers. *(Note Phase 3a: that enum
 is currently unreachable — every hit is Physical.)*
 
-`Range` is deliberately **absent** from `GameWeapon` — see the note at the end of this doc.
+**`GameWeapon` gets `Range`** — gated on Phase 3's melee fix, not omitted. An earlier draft left
+it out because `AttackComponent.Range` is never read (melee is a point query at the cursor), so
+the field would silently do nothing. That was avoidance premised on not touching existing
+signatures — a constraint we do not have. Phase 3 replaces the point query with a real hitbox;
+`Range` lands with it. A weapon that cannot express reach is not a weapon.
 
 ### The traits on the base are the point
 
@@ -176,13 +180,22 @@ This is also what makes the "must not" list checkable (Phase 5): a validator can
 
 ## Gotchas
 
-- **Resource sharing is the big one.** Two swords pointing at `sword_iron.tres` share it.
-  Anything per-instance (quantity, durability, enchantments) must live in the slot/holder, or
-  be an explicit `.Duplicate()`. This is exactly what the `Stats` bag was papering over.
+- **Resource sharing is the big one, and the obvious fix is broken.** Two swords pointing at
+  `sword_iron.tres` share it, so anything per-instance (quantity, durability, enchantments)
+  must live on the instance/slot, or be an explicit `.Duplicate()`. This is exactly what the
+  `Stats` bag was papering over.
+
+  Godot's built-in answer is **`resource_local_to_scene`** — and it is a trap. It has a [known
+  engine bug (godot#45350)](https://github.com/godotengine/godot/issues/45350): duplicating an
+  already-instantiated scene makes the copies **share** the resource anyway, and setting the
+  flag at runtime does nothing to resources already created. It is precisely what a developer
+  will reach for, and it will not hold. **Say so in the component docs**, or this gets
+  rediscovered the hard way.
 - Filename must equal class name — registration is filename-driven.
 - `[Export]` on a Resource subclass shows in the inspector only with `[GlobalClass]`.
-- Existing scenes set `PickupComponent.ItemId` (a string). Phase 4 migrates them; Phase 1
-  leaves `ItemId` alone so nothing breaks in between.
+- Existing scenes set `PickupComponent.ItemId` (a string). Phase 4 **replaces** it — no
+  fallback, no dual path. Phase 1 can leave it alone; Phase 4 deletes it and updates the
+  templates.
 
 ## Verification
 

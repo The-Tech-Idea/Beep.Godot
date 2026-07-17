@@ -119,18 +119,8 @@ namespace Beep.ECS
             if (_particles != null && _particles.Emitting)
                 _particles.Amount = Mathf.Max(1, (int)(ParticleCount * _intensityCurrent));
 
-            // ── Fog density scales with intensity ──
-            if (_fogMat != null && _fogOverlay != null)
-            {
-                bool usesFog = CurrentWeather is WeatherType.Fog or WeatherType.Sandstorm
-                    or WeatherType.Heatwave;
-                if (usesFog)
-                {
-                    float baseDensity = CurrentWeather == WeatherType.Heatwave
-                        ? FogDensity * 0.3f : FogDensity;
-                    _fogMat.SetShaderParameter("density", baseDensity * _intensityCurrent);
-                }
-            }
+            // (Fog density now lives in the standalone DynamicFogLayer, which reads
+            // WeatherIntensity directly — see DynamicFogLayer.FogWeightFor.)
 
             // ── Publish global shader uniforms so any shader can react ──
             if (PublishGlobalShaderParams) PublishGlobals();

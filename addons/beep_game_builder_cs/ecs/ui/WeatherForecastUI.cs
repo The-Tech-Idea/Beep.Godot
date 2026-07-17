@@ -35,17 +35,24 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // SetupUI builds the forecast container and its rows. This is [Tool] and sits
+            // in the genre main scenes, so without the guard opening one in the editor
+            // fills it with runtime-only children.
+            if (Engine.IsEditorHint()) return;
+            // Hide + skip building when the genre disables the forecast.
+            if (Beep.GameBuilder.GameInfo.Instance is { } info && !info.EnableWeatherForecast)
+            {
+                Visible = false;
+                return;
+            }
             SetupUI();
         }
 
         private void SetupUI()
         {
             // Create main container
-            _forecastContainer = new VBoxContainer
-            {
-                Name = "ForecastContainer",
-                SeparationOverride = (int)ItemSpacing
-            };
+            _forecastContainer = new VBoxContainer { Name = "ForecastContainer" };
+            _forecastContainer.AddThemeConstantOverride("separation", (int)ItemSpacing);
             AddChild(_forecastContainer);
 
             // Generate forecast if not already done
@@ -60,7 +67,11 @@ namespace Beep.ECS
         {
             if (ForecastData == null || _forecastContainer == null) return;
 
-            _forecastContainer.QueueFreeChildren();
+            foreach (var child in _forecastContainer.GetChildren())
+            {
+                _forecastContainer.RemoveChild(child);
+                child.QueueFree();
+            }
             _currentRowContainer = null;
 
             for (int i = 0; i < ForecastData.DaysForward.Length; i++)
@@ -70,9 +81,9 @@ namespace Beep.ECS
                 {
                     _currentRowContainer = new HBoxContainer
                     {
-                        SizeFlags = Control.SizeFlagsEnum.ExpandFill,
-                        SeparationOverride = (int)ItemSpacing
+                        SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
                     };
+                    _currentRowContainer.AddThemeConstantOverride("separation", (int)ItemSpacing);
                     _forecastContainer.AddChild(_currentRowContainer);
                 }
 
@@ -95,10 +106,11 @@ namespace Beep.ECS
             {
                 BgColor = GetWeatherColor(dayData.WeatherType),
                 BorderColor = Colors.Black,
-                SetBorderFlat = true,
-                BorderSize = 2
+                BorderWidthLeft = 2,
+                BorderWidthTop = 2,
+                BorderWidthRight = 2,
+                BorderWidthBottom = 2
             };
-            var styleDef = new StyleBoxStyleDef();
             panel.AddThemeStyleboxOverride("panel", styleBox);
 
             // Content layout

@@ -55,6 +55,11 @@ namespace Beep.ECS
         [Export] public float TemperatureRecoveryRate { get; set; } = 0.5f;  // degrees per second
         [Export] public bool EnableAmbientTempInfluence { get; set; } = true;
 
+        [ExportGroup("Vignette")]
+        /// <summary>CanvasLayer index for the full-screen warning vignette. Exported (was a
+        /// hardcoded 200) so it can be set relative to other overlays.</summary>
+        [Export] public int VignetteLayerIndex { get; set; } = 200;
+
         [Signal] public delegate void TemperatureChangedEventHandler(float temp, int state);
         [Signal] public delegate void TemperatureDamageEventHandler(float damage);
 
@@ -68,18 +73,36 @@ namespace Beep.ECS
         {
             base._Ready();
             CurrentTemp = Mathf.Clamp(CurrentTemp, MinTemp, MaxTemp);
-            _health = GetNode<HealthComponent>("../Health") ?? GetNode<HealthComponent>("..");
+            // Runtime only: SetupVignette adds a CanvasLayer to the scene root.
+            if (Engine.IsEditorHint()) return;
+            // GetNodeOrNull, not GetNode: the throwing variant meant the "../Health" absent
+            // case errored before the "?? .." fallback could run.
+            _health = GetNodeOrNull<HealthComponent>("../Health") ?? GetSiblingComponent<HealthComponent>();
             CallDeferred(nameof(SetupVignette));
         }
 
         private void SetupVignette()
         {
-            // Create a vignette overlay for temperature warnings
-            _vignetteLayer = new CanvasLayer { Layer = 200 };
-            GetTree().Root.AddChild(_vignetteLayer);
+            // One shared vignette layer, adopted if the scene already has it — several
+            // temperature entities (player + companions) would otherwise each stack their
+            // own full-screen ColorRect at the same layer index and fight. Named so the
+            // adopt-or-create works; index is exported.
+            var root = GetTree().Root;
+            _vignetteLayer = root.GetNodeOrNull<CanvasLayer>("TemperatureVignette");
+            if (_vignetteLayer != null)
+            {
+                _vignetteRect = _vignetteLayer.GetNodeOrNull<ColorRect>("VignetteRect");
+                if (_vignetteRect != null) return;   // already built by another instance
+            }
+            else
+            {
+                _vignetteLayer = new CanvasLayer { Name = "TemperatureVignette", Layer = VignetteLayerIndex };
+                root.AddChild(_vignetteLayer);
+            }
 
             _vignetteRect = new ColorRect
             {
+                Name = "VignetteRect",
                 Color = new Color(1, 1, 1, 0),
                 MouseFilter = Control.MouseFilterEnum.Ignore
             };
@@ -89,7 +112,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
 
             // Update temperature toward ambient
             if (EnableAmbientTempInfluence)

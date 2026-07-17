@@ -1,0 +1,30 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/AmbientController.cs" id="1_ambient"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/DayNightCycleComponent.cs" id="2_daynight"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/WeatherSystemComponent.cs" id="3_weather"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/SeasonalComponent.cs" id="4_seasonal"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/WeatherAudioController.cs" id="5_weather_audio"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/DynamicFogLayer.cs" id="6_fog"]
+
+[node name="Atmosphere" type="Node2D"]
+
+[node name="WeatherAmbient" type="CanvasModulate" parent="."]
+
+[node name="AmbientController" type="Node" parent="."]
+script = ExtResource("1_ambient")
+
+[node name="DayNight" type="Node" parent="."]
+script = ExtResource("2_daynight")
+
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("3_weather")
+
+[node name="Seasonal" type="Node" parent="."]
+script = ExtResource("4_seasonal")
+
+[node name="WeatherAudio" type="Node" parent="."]
+script = ExtResource("5_weather_audio")
+
+[node name="Fog" type="Node" parent="."]
+script = ExtResource("6_fog")

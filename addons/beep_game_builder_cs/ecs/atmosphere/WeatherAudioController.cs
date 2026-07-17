@@ -39,6 +39,11 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // Don't run in the editor: this class is [Tool] and lives in every genre main
+            // scene, and Setup() adds a bus to the AudioServer and spawns player nodes.
+            // Without this, merely opening a main scene mutated the EDITOR's audio buses
+            // and littered the scene with runtime-only children.
+            if (Engine.IsEditorHint()) return;
             CallDeferred(nameof(Setup));
         }
 
@@ -125,8 +130,7 @@ namespace Beep.ECS
                 Name = name,
                 Bus = BusName,
                 VolumeDb = -80f,
-                Stream = stream,
-                Bus = BusName
+                Stream = stream
             };
             AddChild(player);
             if (stream != null) player.Play();

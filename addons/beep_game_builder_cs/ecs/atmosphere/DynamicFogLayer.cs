@@ -50,6 +50,12 @@ void fragment() {
         public override void _Ready()
         {
             base._Ready();
+            // DeferredInit spawns fog nodes. This is [Tool] and sits in every genre main
+            // scene, so without the guard just opening one in the editor fills it with
+            // runtime-only children.
+            if (Engine.IsEditorHint()) return;
+            // Fog is weather-driven, so it follows the weather enable flag.
+            if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableWeather;
             if (!IsInGroup("fog_layer")) AddToGroup("fog_layer");
             CallDeferred(nameof(DeferredInit));
         }
@@ -110,14 +116,23 @@ void fragment() {
         {
             if (!IsActive || _fogMat == null) return;
 
-            // Update fog density based on weather intensity
+            // Drive density from the weather system. This is now the ONE fog: the weather
+            // system used to also draw its own fog overlay, so fog rendered twice. Weather's
+            // internal overlay was removed; this reads WeatherIntensity and only fogs for
+            // fog-like weather. (Was a stub that hardcoded 0.2 regardless of weather.)
             if (_weather != null && EnableWeatherIntegration)
-            {
-                // Assume weather has a WeatherIntensity property (0-1)
-                // For now, use CurrentWeather as proxy (this will be wired up later)
-                SetFogDensity(0.2f);  // Default density; adjust based on actual weather integration
-            }
+                SetFogDensity(FogWeightFor(_weather.CurrentWeather) * _weather.WeatherIntensity);
         }
+
+        /// <summary>How foggy each weather type is, 0..1, before intensity scales it. Fog is
+        /// full; storms and sandstorms haze; everything else is clear.</summary>
+        private static float FogWeightFor(WeatherSystemComponent.WeatherType w) => w switch
+        {
+            WeatherSystemComponent.WeatherType.Fog => 1.0f,
+            WeatherSystemComponent.WeatherType.Storm => 0.4f,
+            WeatherSystemComponent.WeatherType.Sandstorm => 0.6f,
+            _ => 0f
+        };
 
         /// <summary>
         /// Set fog density based on weather intensity (0 = clear, 1 = maximum fog).

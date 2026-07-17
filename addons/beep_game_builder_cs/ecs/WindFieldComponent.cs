@@ -53,6 +53,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _area = GetParent() as Area2D;
             if (_area == null)
             {

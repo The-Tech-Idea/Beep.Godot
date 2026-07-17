@@ -64,6 +64,10 @@ namespace Beep.ECS.UI
         private Label? _wind;
         private TextureRect? _icon;
         private global::Beep.ECS.WeatherSystemComponent? _ws;
+        // Time-of-day and season moved out of the weather system to their own authorities;
+        // the HUD reads each from its owner.
+        private global::Beep.ECS.DayNightCycleComponent? _dayNight;
+        private global::Beep.ECS.SeasonalComponent? _seasonalComp;
 
         public override void _Ready()
         {
@@ -93,10 +97,15 @@ namespace Beep.ECS.UI
                 return;
             }
 
+            // Day/night and season now live in their own components. Optional — the HUD
+            // just omits those fields if they're absent.
+            _dayNight = global::Beep.ECS.EntityComponent.FindComponent<global::Beep.ECS.DayNightCycleComponent>(GetTree()?.Root, true);
+            _seasonalComp = global::Beep.ECS.EntityComponent.FindComponent<global::Beep.ECS.SeasonalComponent>(GetTree()?.Root, true);
+
             // React to weather/season changes immediately; the forecast/intensity/
             // time values are polled in _Process because they change continuously.
             _ws.WeatherChanged += OnWeatherChanged;
-            _ws.SeasonChanged += OnSeasonChanged;
+            if (_seasonalComp != null) _seasonalComp.SeasonChanged += OnSeasonChanged;
             OnWeatherChanged((int)_ws.CurrentWeather);
             RefreshAll();
         }
@@ -124,10 +133,10 @@ namespace Beep.ECS.UI
                     : "—";
             }
 
-            // Time of day in HH:MM (driven by the day-night cycle).
-            if (_time != null)
+            // Time of day in HH:MM, from the day-night cycle if one is present.
+            if (_time != null && _dayNight != null)
             {
-                float t = _ws.TimeOfDay;
+                float t = _dayNight.TimeOfDay;
                 _time.Text = $"{(int)t:00}:{(int)((t - (int)t) * 60f):00}";
             }
 

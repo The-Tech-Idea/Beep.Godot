@@ -53,6 +53,7 @@ namespace Beep.ECS
             base._Ready();
             _currentSeasonColor = GetColorForSeason(CurrentSeason);
             if (!IsInGroup("seasonal")) AddToGroup("seasonal");
+            if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableSeasons;
             CallDeferred(nameof(DeferredInit));
         }
 
@@ -94,7 +95,7 @@ namespace Beep.ECS
             _seasonTransitionTween = CreateTween();
             _seasonTransitionTween.SetTrans(Tween.TransitionType.Sine);
             _seasonTransitionTween.TweenMethod(
-                c => _currentSeasonColor = c,
+                Callable.From<Color>(c => _currentSeasonColor = c),
                 _currentSeasonColor,
                 targetColor,
                 TransitionDuration

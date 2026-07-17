@@ -5,22 +5,22 @@ namespace Beep.ECS
     /// <summary>
     /// Comprehensive 2D weather system. Attach to a Node2D (or the world root).
     /// Supports 10 weather types, each with particle effects, ambient tinting,
-    /// a procedural fog overlay (shader-based), wind force, and lightning flashes.
+    /// wind force, and lightning flashes. Fog/haze is rendered by the standalone
+    /// DynamicFogLayer (which reads this system's WeatherIntensity/CurrentWeather).
     ///
     /// Weather types:
     ///   Clear, Cloudy, Rain, Snow, Storm, Fog, Sandstorm, Hail, LeafFall, Heatwave
     ///
     /// Features (grounded in Godot 2D best practices — shader fakes, not 3D volumetric):
     /// • Precipitation via CpuParticles2D (rain/snow/hail/leaves).
-    /// • Procedural fog/sandstorm/heatwave overlay via a canvas_item shader.
     /// • Ambient lighting via CanvasModulate (dark for storms, warm for heatwave, etc.).
     /// • Lightning flashes: random full-screen ColorRect brightness bursts during Storm.
     /// • Wind force (Vector2) that gameplay components can read for leaf-drift, projectile drift, etc.
     /// • AutoCycle mode: rotates through weather types on a configurable timer.
     /// • Smooth ambient-color transitions (tween) when switching weather.
     ///
-    /// Sources: WeatherSystem2D asset pattern; Godot 4.7 canvas_item shaders for fog;
-    /// community consensus that 2D uses shader fakes rather than 3D volumetric.
+    /// Sources: WeatherSystem2D asset pattern; community consensus that 2D uses
+    /// shader fakes rather than 3D volumetric.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -47,6 +47,55 @@ namespace Beep.ECS
         [Export] public double CycleInterval { get; set; } = 60.0;
         [Export] public int ParticleCount { get; set; } = 250;
         [Export] public Material? ParticleMaterial { get; set; }
+
+        // ── Particle sprites ──
+        // Nothing ever assigned CpuParticles2D.Texture, so every weather type rendered as
+        // Godot's default white square — the motion, colour and scale below were all tuned,
+        // but rain didn't look like rain. These default to the bundled Kenney CC0 sprites
+        // (see textures/particles/CREDITS.md); clear one to fall back to plain squares, or
+        // point it at your own art.
+        // Left null: assigning here would mean GD.Load in a field initializer, which runs
+        // during construction — including when the editor probes the class and when
+        // beep.component_info reflects over it — and loading resources that early is
+        // fragile. The bundled sprite is resolved lazily in ConfigureParticles instead, so
+        // leaving these empty still gives you textured weather out of the box.
+        [ExportGroup("Particle Textures")]
+        /// <summary>Rain and Storm. Empty = the bundled streak (a streak reads as falling
+        /// water; a blob doesn't).</summary>
+        [Export] public Texture2D? RainTexture { get; set; }
+
+        /// <summary>Snow. Empty = the bundled soft round flake.</summary>
+        [Export] public Texture2D? SnowTexture { get; set; }
+
+        /// <summary>Hail. Empty = the bundled hard circle (tighter than snow).</summary>
+        [Export] public Texture2D? HailTexture { get; set; }
+
+        /// <summary>Sandstorm. Empty = the bundled grit mote.</summary>
+        [Export] public Texture2D? SandTexture { get; set; }
+
+        /// <summary>LeafFall. No bundled default — the pack has no leaf sprite, and a circle
+        /// reads as snow, not foliage. Supply your own, or leaves stay untextured.</summary>
+        [Export] public Texture2D? LeafTexture { get; set; }
+
+        /// <summary>Set false to use no sprite at all unless you assign one explicitly
+        /// (particles fall back to Godot's default white point).</summary>
+        [Export] public bool UseBundledParticleTextures { get; set; } = true;
+
+        // Loaded on first use and shared by every instance — these are small CC0 sprites
+        // (textures/particles/CREDITS.md) and Godot caches the resource anyway.
+        private const string TexDir = "res://addons/beep_game_builder_cs/textures/particles/";
+        private static readonly System.Collections.Generic.Dictionary<string, Texture2D?> _bundledCache = new();
+
+        private static Texture2D? Bundled(string file)
+        {
+            if (_bundledCache.TryGetValue(file, out var cached)) return cached;
+            string path = TexDir + file;
+            // Cache the miss too, so a missing file warns once rather than every weather change.
+            Texture2D? tex = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+            if (tex == null) GD.PushWarning($"[Weather] Bundled particle texture not found: {path}");
+            _bundledCache[file] = tex;
+            return tex;
+        }
 
         // ── Public read-only state for HUDs / forecast UIs ──
         /// <summary>Seconds remaining before AutoCycle switches weather (0 if not cycling).</summary>
@@ -86,20 +135,6 @@ namespace Beep.ECS
         [Export] public Vector2 WindForce { get; set; } = Vector2.Zero;
         [Export] public float WindChangeSpeed { get; set; } = 0.5f;
         [Export] public float MaxWindMagnitude { get; set; } = 3f;
-
-        [ExportGroup("Fog Overlay")]
-        [Export] public float FogDensity { get; set; } = 0.4f;
-        [Export] public float FogScrollSpeed { get; set; } = 0.3f;
-        /// <summary>FBM octave count for the fog shader. More = finer detail, higher cost.</summary>
-        [Export] public int FogOctaves { get; set; } = 5;
-        /// <summary>Fog drift direction + speed in UV space. Warm X = rightward wind.</summary>
-        [Export] public Vector2 FogVelocity { get; set; } = new(0.15f, 0.05f);
-        /// <summary>
-        /// Optional noise texture (FastNoiseLite sampler2D). When set, the fog
-        /// samples this instead of the in-shader hash — higher quality, matches
-        /// the godotshaders.com 2D Fog Overlay pattern. Leave null for procedural.
-        /// </summary>
-        [Export] public Texture2D? NoiseTexture { get; set; }
 
         [ExportGroup("Overlays")]
         /// <summary>
@@ -148,10 +183,11 @@ namespace Beep.ECS
         // ── Internal nodes ──
         private CanvasLayer? _overlayLayer;   // screen-space container for fog/clouds/flash
         private CpuParticles2D? _particles;
-        private CanvasModulate? _ambient;
-        private ColorRect? _fogOverlay;
+        // Weather no longer owns a CanvasModulate — it contributes its tint to the shared
+        // AmbientController, which composes it with the day/night tint. See AmbientController.
+        private AmbientController? _ambient;
+        private const string AmbientKey = "weather";
         private ColorRect? _flashOverlay;
-        private ShaderMaterial? _fogMat;
         private Node2D? _boltContainer;  // cached container for lightning bolts
         private readonly System.Collections.Generic.List<Node> _activeLightningBolts = new();  // track active bolts for cleanup
 
@@ -162,15 +198,7 @@ namespace Beep.ECS
         private double _lightningTimer;
         private bool _lightningActive;
         private double _lightningFlashTime;
-        private float _fogScroll;
         private Tween? _weatherTransitionTween;
-
-        // Fog shader state cache — only update uniforms on change
-        private float _cachedFogDensity = -1f;
-        private Color _cachedFogTint = new(-1f, -1f, -1f, -1f);
-        private Vector2 _cachedFogVelocity = new(-1f, -1f);
-        private int _cachedFogOctaves = -1;
-        private Texture2D? _cachedNoiseTexture;
 
         /// <summary>
         /// Frame-lerp rate for the weather→ambient transition. Higher = snappier.
@@ -180,77 +208,6 @@ namespace Beep.ECS
         /// </summary>
         private const float TransitionLerpRate = 2.0f;
 
-        // ── Fog shader ──
-        // FBM-based fog overlay. Supports an optional FastNoiseLite sampler2D
-        // (godotshaders.com 2D Fog Overlay pattern); when null, falls back to an
-        // in-shader simplex-ish noise so it still works with zero assets.
-        // Domain warping + a vec2 velocity give the fog a swirling, self-churning
-        // motion rather than a flat linear scroll.
-        private const string FogShader = @"
-shader_type canvas_item;
-uniform float density   : hint_range(0.0, 1.0) = 0.4;
-uniform vec4  tint      : source_color = vec4(0.8, 0.8, 0.8, 1.0);
-uniform vec2  velocity  = vec2(0.15, 0.05);   // drift direction + speed (UV/s)
-uniform float octaves   = 5.0;
-uniform float time_v    = 0.0;
-uniform float heat_distortion = 0.0;           // >0 for heatwave ripple
-uniform sampler2D noise_tex : hint_default_white; // optional FastNoiseLite
-
-// ---- Procedural value noise (used when noise_tex is the default white) ----
-float hash21(vec2 p){
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-float vnoise(vec2 p){
-    vec2 i = floor(p); vec2 f = fract(p);
-    float a = hash21(i);
-    float b = hash21(i + vec2(1.0, 0.0));
-    float c = hash21(i + vec2(0.0, 1.0));
-    float d = hash21(i + vec2(1.0, 1.0));
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
-
-// Fractal Brownian Motion — the core of naturalistic fog.
-float fbm(vec2 p, float oct){
-    float v = 0.0, a = 0.5;
-    for (int i = 0; i < 8; i++) {
-        if (float(i) >= oct) break;
-        v += a * vnoise(p);
-        p *= 2.02;
-        a *= 0.5;
-    }
-    return v;
-}
-
-void fragment(){
-    vec2 uv = UV;
-
-    // Heatwave: warp UV vertically with a traveling sine to fake refraction.
-    if (heat_distortion > 0.0)
-        uv.y += sin(uv.x * 30.0 + time_v * 5.0) * heat_distortion * 0.01;
-
-    // Flow: drift the sample point along the velocity vector, and warp it with
-    // a second noise field so the fog churns on itself instead of sliding.
-    vec2 flow = uv + velocity * time_v;
-    vec2 warp = vec2(
-        fbm(uv * 2.0 + velocity * 0.5 * time_v, 3.0),
-        fbm(uv * 2.0 + vec2(5.2, 1.3) + velocity * 0.5 * time_v, 3.0)
-    ) - 0.5;
-
-    // Sample the optional noise texture (FastNoiseLite) at a scaled + warped UV;
-    // default_white sampler means this returns 1.0 when no texture is assigned,
-    // in which case the procedural fbm() below takes over via the mix weight.
-    float tex_n = texture(noise_tex, (uv + warp * 0.4) * 4.0 + velocity * time_v).r;
-    float proc_n = fbm((uv + warp * 0.4) * 4.0 + flow, octaves);
-    // If a real texture is bound, it's almost always non-1.0 → bias toward it.
-    float tex_weight = step(abs(tex_n - 1.0), 0.001) > 0.5 ? 0.0 : 0.7;
-    float n = mix(proc_n, tex_n, tex_weight);
-
-    float fog = smoothstep(1.0 - density, 1.0 - density * 0.3, n);
-    COLOR = vec4(tint.rgb, fog * density);
-}
-";
-
         public override void _Ready()
         {
             base._Ready();
@@ -259,8 +216,9 @@ void fragment(){
             if (info != null)
             {
                 CurrentWeather = info.DefaultWeather;
-                EnableDayNightCycle = info.EnableDayNightCycle;
                 IsActive = info.EnableWeather;
+                // info.EnableDayNightCycle now configures the standalone DayNightCycleComponent,
+                // not this one — day/night was moved out. See BeepGenreScene / DayNightCycleComponent.
             }
             // Register in the discovery group so WindFieldComponent and
             // WeatherHUDComponent can auto-find this system without a NodePath.
@@ -270,8 +228,14 @@ void fragment(){
 
         private void DeferredInit()
         {
+            // Runtime only. EnsureNodes spawns WeatherParticles and the overlay layer into
+            // the PARENT, so in the editor it injected runtime-only nodes into whatever
+            // scene you opened (this component is in all ten genre main scenes) and warned
+            // about a missing CanvasModulate every time. Only SetWeather was guarded.
+            if (Engine.IsEditorHint()) return;
+
             EnsureNodes();
-            if (!Engine.IsEditorHint() && IsActive) SetWeather(CurrentWeather);
+            if (IsActive) SetWeather(CurrentWeather);
         }
 
         private void EnsureNodes()
@@ -294,18 +258,11 @@ void fragment(){
             }
             ConfigureParticleEmitter();
 
-            // Ambient lighting modulator (world-space — tints everything below it).
-            // Godot only allows ONE CanvasModulate per viewport. Search for existing instead of creating.
-            _ambient = parent.GetNodeOrNull<CanvasModulate>("WeatherAmbient");
-            if (_ambient == null)
-            {
-                // Check if any CanvasModulate exists in the scene tree
-                _ambient = GetTree().Root.FindChild(nameof(CanvasModulate), true, false) as CanvasModulate;
-            }
-            if (_ambient == null)
-            {
-                GD.PushWarning("[Weather] No CanvasModulate found in scene. Add one to the scene root for weather ambient tinting. Weather will render without tint.");
-            }
+            // Ambient tint goes through the shared AmbientController, which owns the one
+            // CanvasModulate and composes weather with the day/night cycle. (Weather used to
+            // grab its own CanvasModulate here and multiply in day/night itself, which is why
+            // it fought the standalone day/night component over the single allowed modulate.)
+            _ambient = AmbientController.ForTree(this);
 
             // ── Screen-space overlay layer ──
             // All full-screen overlays (fog, clouds, lightning flash) live inside a
@@ -321,23 +278,9 @@ void fragment(){
             else _overlayLayer.Layer = OverlayLayerIndex;
             Node overlayRoot = _overlayLayer;
 
-            // Fog overlay (shader-based, full-screen ColorRect).
-            _fogOverlay = overlayRoot.GetNodeOrNull<ColorRect>("WeatherFogOverlay");
-            if (_fogOverlay == null)
-            {
-                _fogOverlay = new ColorRect
-                {
-                    Name = "WeatherFogOverlay",
-                    MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                    Color = new Color(0, 0, 0, 0)
-                };
-                _fogOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-                overlayRoot.AddChild(_fogOverlay);
-            }
-            var shader = new Shader { Code = FogShader };
-            _fogMat = new ShaderMaterial { Shader = shader };
-            _fogOverlay.Material = _fogMat;
-            ApplyFogShaderParams();
+            // Fog is drawn by DynamicFogLayer now, not here — it was rendered twice (weather
+            // had its own overlay AND the scene had a Fog node). DynamicFogLayer reads this
+            // system's WeatherIntensity/CurrentWeather.
 
             // Lightning flash overlay (full-screen ColorRect for brief brightness bursts).
             _flashOverlay = overlayRoot.GetNodeOrNull<ColorRect>("WeatherFlash");
@@ -391,54 +334,11 @@ void fragment(){
             _particles.LocalCoords = true;
         }
 
-        /// <summary>Push fog-shader uniforms only when they change (GPU state cache).</summary>
-        private void ApplyFogShaderParams()
-        {
-            if (_fogMat == null) return;
-
-            if (!Mathf.IsEqualApprox(FogDensity, _cachedFogDensity))
-            {
-                _fogMat.SetShaderParameter("density", FogDensity);
-                _cachedFogDensity = FogDensity;
-            }
-
-            Color fogTint = GetFogTintFor(CurrentWeather);
-            if (fogTint != _cachedFogTint)
-            {
-                _fogMat.SetShaderParameter("tint", fogTint);
-                _cachedFogTint = fogTint;
-            }
-
-            if (FogVelocity != _cachedFogVelocity)
-            {
-                _fogMat.SetShaderParameter("velocity", FogVelocity);
-                _cachedFogVelocity = FogVelocity;
-            }
-
-            int clampedOctaves = Mathf.Clamp(FogOctaves, 1, 8);
-            if (clampedOctaves != _cachedFogOctaves)
-            {
-                _fogMat.SetShaderParameter("octaves", clampedOctaves);
-                _cachedFogOctaves = clampedOctaves;
-            }
-
-            if (NoiseTexture != _cachedNoiseTexture)
-            {
-                if (NoiseTexture != null)
-                    _fogMat.SetShaderParameter("noise_tex", NoiseTexture);
-                _cachedNoiseTexture = NoiseTexture;
-            }
-        }
-
         public override void _Process(double delta)
         {
             if (!IsActive) return;
 
-            // Always apply fog shader params so live-edits to NoiseTexture/FogOctaves take effect.
-            ApplyFogShaderParams();
-
-            // Day-night progression (also drives sky clear color + emits hour signal).
-            ProcessDayNight(delta);
+            // (Day/night progression moved to DayNightCycleComponent.)
 
             // Intensity engine — scales particles/fog/wind, publishes global
             // shader uniforms. MUST run before the ambient tint below so the
@@ -452,17 +352,15 @@ void fragment(){
             {
                 Color weatherTarget = GetTintFor(CurrentWeather);
                 _weatherTintCurrent = _weatherTintCurrent.Lerp(weatherTarget, (float)delta * TransitionLerpRate);
-                // Intensity gates how far toward the weather tint we go.
+                // Intensity gates how far toward the weather tint we go. The day/night
+                // multiply is no longer done here — the AmbientController composes this
+                // weather layer with the day/night layer, so a storm at midnight still
+                // reads dark without the two systems fighting over the CanvasModulate.
                 Color intensityTint = new Color(
                     Mathf.Lerp(ClearTint.R, _weatherTintCurrent.R, _intensityCurrent),
                     Mathf.Lerp(ClearTint.G, _weatherTintCurrent.G, _intensityCurrent),
                     Mathf.Lerp(ClearTint.B, _weatherTintCurrent.B, _intensityCurrent), 1f);
-                Color dayNight = GetDayNightTint();
-                _ambient.Color = new Color(
-                    intensityTint.R * dayNight.R,
-                    intensityTint.G * dayNight.G,
-                    intensityTint.B * dayNight.B,
-                    1f);
+                _ambient.SetContribution(AmbientKey, intensityTint);
             }
 
             // Auto-cycle.
@@ -477,8 +375,7 @@ void fragment(){
                 }
             }
 
-            // Wind drift — affects both particle gravity AND the fog velocity
-            // so a strong wind visibly pushes the fog/clouds too.
+            // Wind drift — pushes particle gravity (clouds read WindForce in ProcessClouds).
             if (EnableWind)
             {
                 WindForce = new Vector2(
@@ -488,17 +385,6 @@ void fragment(){
                 WindForce = WindForce.LimitLength(MaxWindMagnitude);
                 if (_particles != null)
                     _particles.Gravity = new Vector2(WindForce.X * 100f, _particles.Gravity.Y);
-                if (_fogMat != null)
-                    _fogMat.SetShaderParameter("velocity", new Vector2(
-                        FogVelocity.X + WindForce.X * 0.1f,
-                        FogVelocity.Y + WindForce.Y * 0.05f));
-            }
-
-            // Fog shader animation — advance the time uniform used by the FBM.
-            if (_fogMat != null && _fogOverlay != null && _fogOverlay.Visible)
-            {
-                _fogScroll += (float)delta * FogScrollSpeed;
-                _fogMat.SetShaderParameter("time_v", _fogScroll);
             }
 
             // Re-fit the particle emitter if the viewport was resized.
@@ -546,25 +432,6 @@ void fragment(){
                 }
             }
 
-            // Fog overlay — cross-fade rather than snap. We keep the overlay
-            // always visible (alpha 0 when unused) and tween modulate so the
-            // old weather's fog dissolves while the new one's fades in.
-            bool usesFog = type is WeatherType.Fog or WeatherType.Sandstorm or WeatherType.Heatwave;
-            if (_fogMat != null && usesFog)
-            {
-                _fogMat.SetShaderParameter("density", type == WeatherType.Heatwave ? FogDensity * 0.3f : FogDensity);
-                _fogMat.SetShaderParameter("tint", GetFogTintFor(type));
-                _fogMat.SetShaderParameter("velocity", FogVelocity);
-                _fogMat.SetShaderParameter("heat_distortion", type == WeatherType.Heatwave ? 1.0f : 0f);
-            }
-            if (_fogOverlay != null)
-            {
-                _fogOverlay.Visible = true; // alpha tween handles hiding
-                _weatherTransitionTween?.Kill();
-                _weatherTransitionTween = CreateTween();
-                _weatherTransitionTween.TweenProperty(_fogOverlay, "modulate:a", usesFog ? 1f : 0f, TransitionDuration);
-            }
-
             // Lightning enabled only for Storm.
             _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
             _lightningActive = false;
@@ -575,6 +442,24 @@ void fragment(){
         private void ConfigureParticles(WeatherType type)
         {
             if (_particles == null) return;
+
+            // The sprite, alongside the motion/colour each case tunes below. Without this
+            // every weather type drew as a white square no matter how well-tuned the rest
+            // was. An explicit export always wins; otherwise fall back to the bundled
+            // sprite (unless that's switched off).
+            _particles.Texture = type switch
+            {
+                WeatherType.Rain or WeatherType.Storm => RainTexture ?? Fallback("trace_01.png"),
+                WeatherType.Snow                      => SnowTexture ?? Fallback("circle_05.png"),
+                WeatherType.Hail                      => HailTexture ?? Fallback("circle_02.png"),
+                WeatherType.Sandstorm                 => SandTexture ?? Fallback("dirt_02.png"),
+                // No bundled leaf sprite exists — a circle would read as snow.
+                WeatherType.LeafFall                  => LeafTexture,
+                _                                     => null
+            };
+
+            Texture2D? Fallback(string file) => UseBundledParticleTextures ? Bundled(file) : null;
+
             switch (type)
             {
                 case WeatherType.Rain:
@@ -764,14 +649,6 @@ void fragment(){
             WeatherType.LeafFall => LeafFallTint,
             WeatherType.Heatwave => HeatwaveTint,
             _ => ClearTint
-        };
-
-        private Color GetFogTintFor(WeatherType type) => type switch
-        {
-            WeatherType.Fog => new Color(FogTint.R, FogTint.G, FogTint.B, 1f),
-            WeatherType.Sandstorm => new Color(0.85f, 0.65f, 0.35f, 1f),
-            WeatherType.Heatwave => new Color(1f, 0.85f, 0.6f, 1f),
-            _ => new Color(0.8f, 0.8f, 0.8f, 1f)
         };
 
         public override void _ExitTree()

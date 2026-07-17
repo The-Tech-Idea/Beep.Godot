@@ -18,6 +18,11 @@
     "character.tscn",
     "quests.tscn"
   ],
+  "nav_wiring": {
+    "inventory": "inventory.tscn",
+    "character": "character.tscn",
+    "quests": "quests.tscn"
+  },
   "tuning": {
     "inventory_columns": 6,
     "dialogue_speed": 0.04,

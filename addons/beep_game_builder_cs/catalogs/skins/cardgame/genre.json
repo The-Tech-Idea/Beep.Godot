@@ -18,6 +18,11 @@
     "card_battle.tscn",
     "collection.tscn"
   ],
+  "nav_wiring": {
+    "deck_builder": "deck_builder.tscn",
+    "card_battle": "card_battle.tscn",
+    "collection": "collection.tscn"
+  },
   "tuning": {
     "hand_limit": 10,
     "card_hover_scale": 1.12,

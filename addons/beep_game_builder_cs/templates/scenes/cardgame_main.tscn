@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 
 [node name="CardGameMain" type="Node2D"]
 
@@ -45,3 +46,13 @@ text = "Gold: 0"
 
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="DeckBuilderScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "deck_builder"
+OpenAction = "build"
+
+[node name="CollectionScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "collection"
+OpenAction = "inventory"

@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 
 [node name="StrategyMain" type="Node2D"]
 
@@ -45,3 +46,18 @@ text = "Units: 10"
 
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="ResearchScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "research"
+OpenAction = "research"
+
+[node name="DiplomacyScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "diplomacy"
+OpenAction = "quests"
+
+[node name="UnitPanelScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "unit_panel"
+OpenAction = "character"

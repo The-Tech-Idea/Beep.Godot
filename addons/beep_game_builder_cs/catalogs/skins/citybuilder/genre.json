@@ -18,6 +18,11 @@
     "economy.tscn",
     "districts.tscn"
   ],
+  "nav_wiring": {
+    "build": "build_menu.tscn",
+    "economy": "economy.tscn",
+    "districts": "districts.tscn"
+  },
   "tuning": {
     "build_grid_size": 32,
     "resource_slots": 6,

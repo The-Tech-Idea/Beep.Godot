@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TemperatureComponent.cs" id="5_temperature"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="7_forecast"]
@@ -53,3 +54,18 @@ text = "Hunger: 75 %"
 
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="CraftingScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "crafting"
+OpenAction = "crafting"
+
+[node name="InventoryScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "inventory"
+OpenAction = "inventory"
+
+[node name="MapScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "map"
+OpenAction = "map"

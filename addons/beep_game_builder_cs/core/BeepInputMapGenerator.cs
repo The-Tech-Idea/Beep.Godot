@@ -25,7 +25,21 @@ public static class BeepInputMapGenerator
         AddJoy("pause", JoyButton.Start); AddJoy("ui_accept", JoyButton.A);
         AddJoy("ui_cancel", JoyButton.B);
 
-        var actions = new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","crouch","pause","ui_accept","ui_cancel" };
+        // Genre screen actions. GenreScreenComponent opens a genre's own screens (inventory,
+        // crafting, deck builder…) on these; without them registered, the component has
+        // nothing to listen for. Registered for every genre rather than per-genre: an action
+        // no scene listens for costs nothing, and a missing one silently breaks the screen.
+        AddKey("inventory", Key.I); AddJoy("inventory", JoyButton.Y);
+        AddKey("crafting", Key.C);
+        AddKey("character", Key.P);
+        AddKey("quests", Key.J);
+        AddKey("map", Key.M);
+        AddKey("build", Key.B);
+        AddKey("research", Key.R);
+        AddKey("codex", Key.K);
+
+        var actions = new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","crouch","pause","ui_accept","ui_cancel",
+                                         "inventory","crafting","character","quests","map","build","research","codex" };
 
         // The InputMap calls above only mutate the *runtime* singleton. Godot rebuilds
         // InputMap from ProjectSettings on every launch and never writes back, so without

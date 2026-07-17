@@ -99,6 +99,28 @@ public partial class GameInfo : Resource
     [Export] public string LevelCompletePath { get; set; } = "res://scenes/ui/puzzle/level_complete.tscn";
     [Export] public string LevelFailedPath { get; set; } = "res://scenes/ui/puzzle/level_failed.tscn";
 
+    /// <summary>Genre screens with no dedicated property above, keyed by their nav_wiring
+    /// name (e.g. "inventory" → "res://scenes/ui/rpg/inventory.tscn"). Populated at
+    /// generation time from genre.json, and read by GenreScreenComponent.
+    ///
+    /// The named properties above cover platformer, shooter and puzzle only — the three
+    /// original genres. That made nav_wiring structurally unable to describe an inventory, a
+    /// crafting bench or a deck builder: those keys named no GameInfo property, so
+    /// ApplyNavWiring rejected them. Seven genres therefore shipped 14 screens that were
+    /// generated onto disk and could not be reached by any route, and no genre.json edit
+    /// could fix it. This is the open half, so "adding a genre = drop a folder" holds for
+    /// genres the original four didn't anticipate.
+    ///
+    /// Kept alongside the named properties rather than replacing them: those are referenced
+    /// by name throughout the scene scripts and are worth keeping discoverable in the
+    /// inspector.</summary>
+    [Export] public Godot.Collections.Dictionary<string, string> GenreScenePaths { get; set; } = new();
+
+    /// <summary>Resolve a genre screen by nav_wiring key. Empty when the genre doesn't
+    /// declare one — which is a real, documented state meaning "no such screen here".</summary>
+    public string GetGenreScenePath(string key)
+        => !string.IsNullOrEmpty(key) && GenreScenePaths.TryGetValue(key, out var p) ? p : "";
+
     // ── Genre tuning (controllers read the values relevant to them) ──
     [ExportGroup("Platformer")]
     [Export] public float Gravity { get; set; } = 980f;

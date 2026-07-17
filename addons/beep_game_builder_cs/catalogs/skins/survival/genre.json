@@ -18,6 +18,11 @@
     "backpack.tscn",
     "world_map.tscn"
   ],
+  "nav_wiring": {
+    "crafting": "crafting.tscn",
+    "inventory": "backpack.tscn",
+    "map": "world_map.tscn"
+  },
   "tuning": {
     "quick_slots": 8,
     "warning_threshold": 0.25,

@@ -118,6 +118,11 @@ public static class BeepGenreGenerator
         foreach (string property in GenreScenePathProperties)
             info.Set(property, "");
 
+        // Clear the open registry for the same reason: nav_wiring must be the ONLY source,
+        // so re-generating for a different genre can't leave the previous genre's screens
+        // resolvable.
+        info.GenreScenePaths.Clear();
+
         foreach (var key in genre.NavWiring.Keys)
         {
             string property = key.AsString();
@@ -128,13 +133,16 @@ public static class BeepGenreGenerator
                 ? target
                 : $"res://scenes/ui/{genre.Id}/{target}";
 
-            // Fail loudly on a typo'd property rather than silently doing nothing.
-            if (!HasGameInfoProperty(info, property))
-            {
-                GD.PushWarning($"[Beep Genre] nav_wiring: '{genre.Id}' names unknown GameInfo property '{property}' — ignored.");
-                continue;
-            }
-            info.Set(property, path);
+            // A key naming a GameInfo property sets it; anything else is a genre screen with
+            // no dedicated property and goes in the open registry. That distinction is what
+            // lets a genre declare screens the original four never had — previously an
+            // unknown key was rejected outright, so cardgame/citybuilder/rpg/strategy/
+            // survival/topdown could not route to ANY of their own screens, and no
+            // genre.json could express it.
+            if (HasGameInfoProperty(info, property))
+                info.Set(property, path);
+            else
+                info.GenreScenePaths[property] = path;
         }
     }
 

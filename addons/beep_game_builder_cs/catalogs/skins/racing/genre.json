@@ -19,7 +19,9 @@
     "race_results.tscn"
   ],
   "nav_wiring": {
-    "LevelCompletePath": "race_results.tscn"
+    "LevelCompletePath": "race_results.tscn",
+    "garage": "garage.tscn",
+    "vehicle_select": "vehicle_select.tscn"
   },
   "tuning": {
     "speedometer_max": 320,

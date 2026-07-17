@@ -1,6 +1,7 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="6_forecast"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LevelLoaderComponent.cs" id="10_loader"]
@@ -49,3 +50,18 @@ text = "Level: 1"
 
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="InventoryScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "inventory"
+OpenAction = "inventory"
+
+[node name="CharacterScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "character"
+OpenAction = "character"
+
+[node name="QuestsScreen" type="Node" parent="."]
+script = ExtResource("30_screen")
+ScreenKey = "quests"
+OpenAction = "quests"

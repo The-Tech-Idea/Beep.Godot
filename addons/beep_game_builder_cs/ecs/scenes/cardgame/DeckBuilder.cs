@@ -10,7 +10,7 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Margin/VBox/Header/StartBattleButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
+            GetNode<Button>("Margin/VBox/Header/StartBattleButton").Pressed += () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

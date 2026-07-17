@@ -18,6 +18,11 @@
     "research.tscn",
     "diplomacy.tscn"
   ],
+  "nav_wiring": {
+    "unit_panel": "unit_panel.tscn",
+    "research": "research.tscn",
+    "diplomacy": "diplomacy.tscn"
+  },
   "tuning": {
     "resource_slots": 5,
     "unit_card_width": 220,

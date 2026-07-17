@@ -39,5 +39,29 @@ namespace Beep.ECS.UI
             if (err != Error.Ok)
                 GD.PushError($"[{caller.Name}] Failed to change scene to {path}: {err}");
         }
+
+        /// <summary>Close a screen that may be either the current scene or an overlay.
+        ///
+        /// As an overlay — instanced over a live game by GenreScreenComponent or
+        /// SettingsOverlay — navigating away would free the run underneath: the player's
+        /// position, health and progress, thrown away by closing an inventory. Freeing
+        /// ourselves just reveals the game again, still paused.
+        ///
+        /// As the current scene there is nothing behind us, so we navigate to
+        /// <paramref name="fallbackPath"/>.
+        ///
+        /// This is SettingsMenu.OnClosePressed's logic, promoted here once the genre screens
+        /// became reachable as overlays: all 14 of them closed with a bare
+        /// ChangeScene(GameScenePath), which was harmless only because nothing could open
+        /// them.</summary>
+        public static void CloseOrReturn(Node caller, string? fallbackPath)
+        {
+            if (caller.GetTree()?.CurrentScene != caller)
+            {
+                caller.QueueFree();
+                return;
+            }
+            ChangeScene(caller, fallbackPath);
+        }
     }
 }

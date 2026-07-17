@@ -9,9 +9,26 @@ be present** — and make the "must not" checkable rather than folklore.
 
 ## The rule that generates every table
 
-**A component belongs on an entity only if the entity *does* that thing.** A sword does not
-attack — **its wielder does**. A sword's damage is *data the wielder reads*. That single
-sentence is why this is a `Resource` hierarchy (Phase 1) and not a `SwordComponent`.
+**Give an archetype a component only if that representation of it does that thing.**
+
+Note *representation*. A sword is not one object — it is a **definition** (a `.tres`: what
+stacks, saves, appears in a shop) and an **instance** (a node in the world: wielded, or lying
+on the ground). Only the instance can carry components at all; the definition is not in the
+scene tree. See Phase 1.
+
+So the question is never "can a sword have `AttackComponent`?" — it is **"does *this* sword,
+in *this* representation, attack?"**
+
+- A **wielded** sword swinging at an orc: **yes**, `AttackComponent` belongs on it
+  (`ecs/AttackComponent.cs:33` needs only a `Node2D` parent). Its wielder delegates.
+- A sword **on the ground** waiting to be picked up: **no** — it is a collectible, and its
+  only verb is *be collected*.
+- A sword **row in a save file**: not a node. The question doesn't apply.
+
+Same for damage: a sword that **can break** should carry durability — `HealthComponent` is
+blind (no parent cast), so HP-as-durability composes cleanly and `Died` = it breaks. A sword
+that cannot break should not, because **a component whose behaviour never happens is this
+repo's signature defect.**
 
 This is not pedantry; wrong-component-on-wrong-archetype ships today and fails **silently**:
 
@@ -57,15 +74,31 @@ Nothing in the repo documents or demonstrates this, and both shipped templates g
 
 ## The archetype tables
 
-### Item in the world (sword, shield, potion, coin) — `Area2D`
+### Item **lying in the world**, waiting to be collected — `Area2D`
+
+Its only verb is *be collected*.
 
 | | |
 |---|---|
 | **REQUIRED** | `PickupComponent` (+ `Item` = a `BeepItem` `.tres`, per Phase 4) |
 | **OPTIONAL** | `BobComponent`, `RotateComponent`, `LifetimeComponent`, `ParticleComponent`, `AudioComponent` |
-| **MUST NOT** | `HealthComponent` — not alive, and a bullet would "hit" it and be consumed (`ProjectileComponent.cs:78` finds any `HealthComponent`). `MovementComponent` / any controller — doesn't move, and an `Area2D` isn't a `CharacterBody2D`. `AttackComponent` — **the sword does not attack**. `InventoryComponent` — it is an item, not a container. `FlashComponent` / `HealthBarComponent` — both resolve a sibling `HealthComponent` and silently no-op. |
+| **OPTIONAL — if it can be destroyed** | `HealthComponent`. Legitimate (a fireball burns the dropped sword), but know the cost: `ProjectileComponent.cs:78` finds **any** `HealthComponent`, so every bullet that touches it is consumed on it. Needs collision layers, not just a component. Omit unless the game really destroys ground loot. |
+| **MUST NOT** | `AttackComponent` — a sword on the floor does not swing at anyone. `MovementComponent` / any controller — it doesn't move, and an `Area2D` isn't a `CharacterBody2D`. `InventoryComponent` — it is an item, not a container. `FlashComponent` / `HealthBarComponent` **without** a sibling `HealthComponent` — both resolve one and silently no-op. |
 
-**This row is the answer to "what does a sword need?"** — one component and one resource.
+### Item **wielded** — `Node2D` (the `WieldScene`, instanced into the hand)
+
+Its verbs are *attack* and possibly *wear out*.
+
+| | |
+|---|---|
+| **REQUIRED** | nothing intrinsic — it is the weapon's own scene |
+| **OPTIONAL** | `AttackComponent` — **allowed and often correct**; needs only a `Node2D` parent. The wielder delegates the swing to it. *(But see Phase 1: its melee is a point query at the cursor, and `Range` is never read — it does not yet hit what it touches.)* |
+| **OPTIONAL** | `HealthComponent` as **durability** — blind component, HP = condition, `Died` = it breaks. Store the value per-instance, never on the shared `.tres`. |
+| **OPTIONAL** | `TrailComponent`, `ParticleComponent`, `AudioComponent` |
+| **MUST NOT** | `PickupComponent` — it is held, not lying there. `MovementComponent` / any controller — the wielder moves; the weapon follows the hand. |
+
+**Together these two rows answer "what does a sword need?"** — and the answer depends on which
+sword you mean. That is the whole point of the rule above.
 
 ### Player — `CharacterBody2D`
 

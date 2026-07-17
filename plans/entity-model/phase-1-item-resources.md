@@ -1,10 +1,66 @@
 # Phase 1 — Item resources
 
-**Goal:** an item is authored data, not a string and not a component. A developer makes
-`sword_iron.tres` in the inspector, drags it onto an `[Export]`, and the framework knows its
-damage, its type, and which slot it occupies.
+**Goal:** an item is authored data, not a string. A developer makes `sword_iron.tres` in the
+inspector, drags it onto an `[Export]`, and the framework knows its damage, its type, and
+which slot it occupies.
 
 **Depends on:** nothing. This is the foundation for Phases 2–4.
+
+---
+
+## A sword has two representations — this is the crux
+
+An earlier draft of this plan said a sword is *only* data and must never carry
+`AttackComponent` or be damageable. **That was too absolute.** The code disagrees:
+
+- `AttackComponent` requires only a **`Node2D`** parent (`ecs/AttackComponent.cs:33` —
+  `_body = GetParent() as Node2D`), not a `CharacterBody2D`. **It can live on a sword.**
+- `HealthComponent` is genuinely **blind** — it performs no parent cast at all. **A sword can
+  have HP**, and durability-as-health is a real, working composition: `Died` = it breaks.
+
+The distinction that actually matters is **where the sword is**:
+
+| The sword is… | It is… | Can it have components? |
+|---|---|---|
+| Wielded, or lying in the world | a **node** in the scene tree | **Yes** — `AttackComponent`, durability, a hitbox |
+| In an inventory, a save file, a shop list | **not in the tree** | **No** — components only exist on nodes |
+
+So it is **both**, and neither half is optional:
+
+- **`BeepWeapon : Resource`** — the *definition*: id, icon, base damage, damage type, slot, and
+  **`[Export] PackedScene? WieldScene`**. This is what stacks, serialises, and appears in a
+  shop. 99 potions cannot be 99 nodes.
+- **`WieldScene`** — the *instance*: a `Node2D` carrying `AttackComponent`, a hitbox, and
+  optionally `HealthComponent` for durability. Instanced by `EquipmentComponent` (Phase 2)
+  into the wielder's hand when equipped.
+
+**This is the pattern the repo already uses.** `AttackComponent.ProjectileScene` is a
+`PackedScene` whose instance carries `ProjectileComponent` — definition points at scene, scene
+carries components. A weapon is the same shape as a bullet.
+
+### Revised rule
+
+Not *"a sword must not have `AttackComponent`"* but:
+
+> **Give an archetype a component only if that representation of it does that thing.**
+> A *wielded* sword attacks → `AttackComponent` belongs. A sword *entry in a save file* does
+> not attack, cannot, and is not a node. A sword that **can break** should have durability; a
+> sword that cannot, should not — a component whose behaviour never happens is this repo's
+> signature defect.
+
+### Two things to know before building it this way
+
+1. **`AttackComponent` does not swing.** `DealMeleeDamage` is an `IntersectPoint` **point query
+   at a target position** (`ecs/AttackComponent.cs:92-93`), and **`Range` is never read**. So a
+   sword carrying `AttackComponent` hits *where you clicked*, not *what it touches*. A real
+   weapon entity needs an `Area2D` hitbox component — which does not exist (Phase 6 §2, the
+   same gap as `HazardComponent`). **Decide this before Phase 2**: either the wielder keeps
+   `AttackComponent` and the weapon only supplies numbers, or the weapon gets a hitbox and
+   `AttackComponent` stays on the wielder for unarmed.
+2. **Durability is per-instance, and a `.tres` is shared by reference.** Two swords pointing at
+   `sword_iron.tres` share it — writing durability onto the resource would degrade *every* iron
+   sword at once. It lives on the instance (the `WieldScene`'s `HealthComponent`) or in the
+   inventory slot, never on the definition.
 
 ---
 

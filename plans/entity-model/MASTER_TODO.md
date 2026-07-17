@@ -41,8 +41,21 @@ armor to drive them. Nothing does.
 ## The approach
 
 **Classes + inheritance for item data (Godot `Resource` subclasses), components for
-behaviour.** A sword is a `BeepWeapon` resource; the thing on the ground is an `Area2D` +
-`PickupComponent` holding that resource. It has no `HealthComponent` — it is not alive.
+behaviour — and a sword is *both*, because it has two representations.**
+
+- **Definition** — `BeepWeapon : Resource` (`.tres`). What stacks, saves, and appears in a
+  shop. Not in the scene tree, so it cannot carry components. 99 potions cannot be 99 nodes.
+- **Instance** — a node in the world. **This one can carry components**, and often should:
+  a *wielded* sword may legitimately have `AttackComponent` (it needs only a `Node2D` parent)
+  and `HealthComponent` as durability (it is a blind component; `Died` = it breaks). The
+  definition points at it via `[Export] PackedScene? WieldScene`.
+
+This mirrors what the repo already does for bullets: `ProjectileScene` is a `PackedScene`
+whose instance carries `ProjectileComponent`. A weapon is the same shape.
+
+**The rule is therefore not "a sword is only data"** — an earlier draft said that and it was
+wrong. It is: *give an archetype a component only if **that representation** of it does that
+thing.* A sword on the floor doesn't swing; a wielded one does; a save-file row isn't a node.
 
 **Equipment reaches combat through the pattern the codebase already uses.**
 `AttackComponent` resolves an *optional* sibling and asks it for a modifier

@@ -205,10 +205,17 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       catalog. (5) `Load()` re-resolves ids via the catalog and warns on a miss; **per-instance
       durability/socket persistence deferred to Phase 7** (nothing mutates them before then — the
       Save note says so). Build + validator green. → `phase-1-item-resources.md`
-- [ ] **Phase 2 — Stats & equipment** — `Stat`/`StatModifier`; refactor `StatusEffectComponent`
-      onto it (and fold in its turn-based decrement off `TurnManager.TurnEnded` — "not twice");
-      `EquipmentComponent` contributes modifiers. **Unblocked** — Phase 7 decided the time axis, so
-      `StatModifier.Duration` (genre-axis units, `< 0` = permanent) is now well-defined.
+- [~] **Phase 2 — Stats & equipment** — **2a foundation done.** `ecs/stats/`: `StatModifier`
+      (`Stat` id, `Op` Add/Multiply, `Amount`, `Duration` clock-units `< 0`=permanent, `Source`
+      GodotObject for identity-withdrawal), `Stat` (BaseValue + modifiers → cached idempotent
+      `Value` = (base+adds)×muls, `Changed` signal), and **`StatsComponent`** — the entity's one
+      stat block: `GetValue`/`AddModifier`/`RemoveBySource`, and **the single duration ticker**
+      (clock-driven like `WorkComponent`: `TurnEnded` if a `TurnManager` is present, else `_Process`).
+      Producers only add/remove; they never tick — resolves the Duration-ownership tension.
+      Build-clean. **Still to do:** 2b — refactor `StatusEffectComponent` onto `Stat` (replace the
+      magic-string `GetModifier` API; move its 3 call sites: `AttackComponent`/`ShooterController`/
+      `HealthComponent`; keep `speed_boost`+`damage_reduction` working — the regression test), and
+      2c — `EquipmentComponent` (contributes item modifiers by Source, withdraws on unequip).
       → `phase-2-equipment.md`
 - [ ] **Phase 3 — Damage packet, then combat integration** — **3a blocks 3b.** Includes the
       melee-hitbox fix that makes `GameWeapon.Range` real. → `phase-3-combat-integration.md`

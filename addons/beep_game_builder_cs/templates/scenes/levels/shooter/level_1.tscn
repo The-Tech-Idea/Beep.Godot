@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/SpawnerComponent.cs" id="4_spawner"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/enemy_template.tscn" id="5_enemy"]
 
 [node name="Level1" type="Node2D"]
 
@@ -23,6 +24,8 @@ color = Color(0.02, 0.02, 0.06, 1)
 
 [node name="EnemySpawner" type="Node" parent="Enemies"]
 script = ExtResource("4_spawner")
+SpawnScene = ExtResource("5_enemy")
+SpawnRandomRange = Vector2(600, 300)
 
 [node name="Pickups" type="Node2D" parent="."]
 

@@ -17,7 +17,12 @@ namespace Beep.ECS
         [Export] public float ProjectileDamage { get; set; } = 10f;
         [Export] public float ProjectileSpeed { get; set; } = 500f;
         [Export] public string FireAction { get; set; } = "attack";
-        [Export] public NodePath MuzzlePath { get; set; } = new("Muzzle");
+        /// <summary>Where shots originate. Relative to THIS node. Default "../Muzzle": the
+        /// house layout puts the controller and the muzzle marker side by side under the
+        /// player (see shooter_main.tscn), so the old "Muzzle" default resolved to
+        /// Player/Controller/Muzzle — which never exists. GetNodeOrNull made that silent, and
+        /// shots fell back to the body's center, quietly ignoring the marker's offset.</summary>
+        [Export] public NodePath MuzzlePath { get; set; } = new("../Muzzle");
         [Export] public PackedScene? ProjectileScene { get; set; }
         [Export] public bool StunBlocksMovement { get; set; } = true;
 
@@ -32,7 +37,9 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = ResolveBody2D();
-            _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
+            // Fall back to a Marker2D named "Muzzle" on the body, so either layout works
+            // (marker beside the controller, or under it) without editing every scene.
+            _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath) ?? _body?.GetNodeOrNull<Marker2D>("Muzzle");
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { MoveSpeed = info.MoveSpeed; FireRate = info.FireRate; }

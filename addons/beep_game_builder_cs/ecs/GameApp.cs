@@ -238,6 +238,10 @@ namespace Beep.ECS
             SessionScore = 0;
             CurrentLevel = -1;
             SelectedCharacter = "";
+            // Was omitted while its structural twin SelectedCharacter (declared one line
+            // apart, same per-run selection role) was cleared — a racing game calling
+            // ResetSession between races kept the previous run's vehicle.
+            SelectedVehicle = "";
             SessionPlaytimeSeconds = 0;
             SessionStartTicks = 0;
             EmitSignal(SignalName.SessionScoreChanged, SessionScore);

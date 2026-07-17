@@ -114,3 +114,4 @@ text = "100 / 100"
 
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("4_flow")
+PauseMenuPathOverride = "res://scenes/ui/topdown/pause_subscreen.tscn"

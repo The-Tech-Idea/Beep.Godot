@@ -1,6 +1,7 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ShooterController.cs" id="1_player"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/projectile_template.tscn" id="11_projectile"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="3_flow"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
@@ -29,6 +30,7 @@ position = Vector2(640, 560)
 
 [node name="Controller" type="Node" parent="Player"]
 script = ExtResource("1_player")
+ProjectileScene = ExtResource("11_projectile")
 
 [node name="PlaceholderVisual" type="ColorRect" parent="Player"]
 offset_left = -16.0

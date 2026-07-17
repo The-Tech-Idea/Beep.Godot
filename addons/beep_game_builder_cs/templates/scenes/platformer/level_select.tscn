@@ -80,7 +80,8 @@ metadata/action = "level_1_2"
 [node name="Level3Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
 custom_minimum_size = Vector2(100, 100)
 text = "1-3
-★"
+🔒"
+disabled = true
 metadata/action = "level_1_3"
 
 [node name="Level4Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]

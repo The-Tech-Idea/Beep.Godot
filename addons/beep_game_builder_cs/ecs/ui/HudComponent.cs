@@ -48,13 +48,21 @@ namespace Beep.ECS.UI
                 OnLivesChanged(flow.Lives);
             }
 
-            // Health lives on the player, not the HUD parent.
+            // Health lives on the player, not the HUD parent. Find it by TYPE, not by a
+            // node named "HealthComponent" — no shipped scene names it that (they all use
+            // "Health"), so the health readout silently never bound.
             var player = parent.GetNodeOrNull<Node>(PlayerPath);
-            if (player != null && player.HasNode("HealthComponent"))
+            if (player != null)
             {
-                var health = player.GetNode<HealthComponent>("HealthComponent");
-                health.HealthChanged += OnHealthChanged;
-                OnHealthChanged(health.CurrentHealth, health.MaxHealth);
+                HealthComponent? health = null;
+                foreach (var child in player.GetChildren())
+                    if (child is HealthComponent hc) { health = hc; break; }
+
+                if (health != null)
+                {
+                    health.HealthChanged += OnHealthChanged;
+                    OnHealthChanged(health.CurrentHealth, health.MaxHealth);
+                }
             }
         }
 

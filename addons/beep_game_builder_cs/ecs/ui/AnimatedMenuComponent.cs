@@ -29,6 +29,12 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _container = GetParent() as Container;
+            // Same silent-cast trap as ThemePresetComponent: this animates the children of
+            // GetParent(), so a non-Container parent means it never runs. Both scenes that
+            // ship it parent it at the root (a Control / a CanvasLayer), so it has never
+            // animated anything. Reparent under the VBoxContainer holding the buttons.
+            if (_container == null && !Engine.IsEditorHint())
+                GD.PushWarning($"[{Name}] AnimatedMenuComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Container — no menu animation will play. Reparent it under the container holding the items to animate.");
             if (AnimateOnReady) CallDeferred(nameof(ShowAnimated));
         }
 

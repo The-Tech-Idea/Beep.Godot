@@ -18,7 +18,9 @@ namespace Beep.ECS.UI
 			get => _presetName;
 			// Palette options depend on the selected theme — refresh the list so the
 			// PaletteName dropdown re-cascades.
-			set { _presetName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
+			// Bail when unchanged: GameInfoBinder pushes four of these in a row, and each
+			// setter rebuilds the entire theme.
+			set { if (_presetName == value) return; _presetName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _presetName = "modern";
 
@@ -30,7 +32,7 @@ namespace Beep.ECS.UI
 			get => _genreName;
 			// Theme/palette/geometry options all hang off the genre — refresh the list
 			// so those dropdowns re-cascade.
-			set { _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
+			set { if (_genreName == value) return; _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _genreName = "platformer";
 
@@ -44,7 +46,7 @@ namespace Beep.ECS.UI
 		public string PaletteName
 		{
 			get => _paletteName;
-			set { _paletteName = value; if (IsInsideTree()) ApplyTheme(); }
+			set { if (_paletteName == value) return; _paletteName = value; if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _paletteName = "Default";
 
@@ -56,7 +58,7 @@ namespace Beep.ECS.UI
 		public string GeometryProfileName
 		{
 			get => _geometryProfileName;
-			set { _geometryProfileName = value; if (IsInsideTree()) ApplyTheme(); }
+			set { if (_geometryProfileName == value) return; _geometryProfileName = value; if (IsInsideTree()) ApplyTheme(); }
 		}
 		private string _geometryProfileName = "As-Authored";
 
@@ -82,7 +84,7 @@ namespace Beep.ECS.UI
 		public UISkin? Skin
 		{
 			get => _skin;
-			set { _skin = value; if (IsInsideTree()) ApplyTheme(); }
+			set { if (_skin == value) return; _skin = value; if (IsInsideTree()) ApplyTheme(); }
 		}
 		private UISkin? _skin;
 
@@ -126,7 +128,15 @@ namespace Beep.ECS.UI
 		{
 			base._Ready();
 			_targetControl = GetParent() as Godot.Control;
-			if (_targetControl != null) ApplyTheme();
+			if (_targetControl != null) { ApplyTheme(); return; }
+
+			// Say so. This component themes GetParent()'s subtree, so a non-Control parent
+			// means it does nothing at all — and it used to do that in silence. Every scene
+			// whose root is a CanvasLayer (pause, settings, game over, and most genre
+			// screens) parents this at the root and has therefore never been themed. Move
+			// this node under the Control you want themed (the panel, not the dim).
+			if (!Engine.IsEditorHint())
+				GD.PushWarning($"[{Name}] ThemePresetComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Control — nothing will be themed. Reparent it under the Control whose subtree should be themed.");
 		}
 
 		public override void _ExitTree()
@@ -599,6 +609,20 @@ namespace Beep.ECS.UI
 		// Animations
 		// ═══════════════════════════════════════════════
 
+		/// <summary>Marks a button whose hover/press handlers this component has already
+		/// attached, so a re-theme doesn't attach a second set.</summary>
+		private const string AnimatedMeta = "_beep_theme_animated";
+
+		/// <summary>Marks a button that already owns a RippleComponent child.</summary>
+		private const string RippledMeta = "_beep_theme_rippled";
+
+		/// <summary>Attach per-button chrome. MUST be idempotent: ApplyTheme is public and
+		/// every one of this component's setters calls it, so a single scene load runs it
+		/// several times (GameInfoBinder alone pushes genre, preset, palette and geometry in
+		/// sequence). It previously wasn't — each pass added another RippleComponent child
+		/// and another full set of hover/press handlers, so buttons ended up with a stack of
+		/// ripples and several tweens racing on every hover. The meta flags live on the
+		/// button, so they're freed with it and need no bookkeeping here.</summary>
 		private void InjectIntoButtons(Godot.Control root)
 		{
 			foreach (var btn in FindAllButtons(root))
@@ -610,6 +634,9 @@ namespace Beep.ECS.UI
 
 		private void SetupButtonAnimations(Button btn)
 		{
+			if (btn.HasMeta(AnimatedMeta)) return;
+			btn.SetMeta(AnimatedMeta, true);
+
 			var anim = _presetInstance!.Animation;
 			btn.MouseEntered += () =>
 			{
@@ -667,6 +694,9 @@ namespace Beep.ECS.UI
 
 		private void SetupRipple(Button btn)
 		{
+			if (btn.HasMeta(RippledMeta)) return;
+			btn.SetMeta(RippledMeta, true);
+
 			// Ripple uses the theme's primary accent so it matches the chosen theme/palette.
 			var c = _presetInstance!.Colors;
 			btn.AddChild(new RippleComponent

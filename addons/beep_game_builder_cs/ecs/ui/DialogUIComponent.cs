@@ -84,7 +84,16 @@ namespace Beep.ECS.UI
 
         private void BuildLayout()
         {
-            if (GetParent() is not Godot.Control parent) return;
+            if (GetParent() is not Godot.Control parent)
+            {
+                // Same silent-cast trap as ThemePresetComponent/AnimatedMenuComponent: this
+                // builds its UI under GetParent(), so a non-Control parent leaves _panel null
+                // and every entry point (Start, _Process, _UnhandledInput) quietly bails.
+                // dialog_template.tscn parents it at its CanvasLayer root, so it is inert.
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] DialogUIComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Control — no dialog UI will be built. Reparent it under a Control.");
+                return;
+            }
 
             // PanelContainer — the themed frame.
             _panel = new PanelContainer { Name = "DialogPanel" };

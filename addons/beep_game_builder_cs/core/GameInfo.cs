@@ -163,6 +163,13 @@ public partial class GameInfo : Resource
     [Export] public bool EnableWeatherForecast { get; set; } = true;
     [Export] public int ForecastDays { get; set; } = 7;
 
+    [ExportGroup("Time")]
+    /// <summary>The genre's time axis: "realtime" (default) or "turns", set from genre.json
+    /// tuning.time_axis. Real-time genres tick durations per frame (using Engine.time_scale);
+    /// turn-based genres tick them per turn via the TurnManager autoload. One axis per game —
+    /// nothing mixes — so a Duration needs no unit tag. See phase-7 in the plans.</summary>
+    [Export] public string TimeAxis { get; set; } = "realtime";
+
     [ExportGroup("Save/Load")]
     [Export] public bool EnableGameStateManager { get; set; } = true;
     [Export] public int MaxSaveSlots { get; set; } = 5;

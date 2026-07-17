@@ -213,6 +213,12 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("max_save_slots", out var mss)) info.MaxSaveSlots = mss.AsInt32();
         if (genre.Tuning.TryGetValue("autosave_enabled", out var ae)) info.AutosaveEnabled = ae.AsBool();
         if (genre.Tuning.TryGetValue("autosave_interval_seconds", out var ais)) info.AutosaveIntervalSeconds = ais.AsSingle();
+        if (genre.Tuning.TryGetValue("time_axis", out var tax))
+        {
+            string axis = tax.AsString().ToLowerInvariant();
+            if (axis == "realtime" || axis == "turns") info.TimeAxis = axis;
+            else GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.time_axis = '{tax.AsString()}' is neither 'realtime' nor 'turns' — ignored, defaulting to realtime.");
+        }
 
         WarnUnknownTuning(genre);
     }
@@ -227,6 +233,7 @@ public static class BeepGenreGenerator
         "enable_temperature", "ambient_temperature",
         "enable_forecast", "forecast_days",
         "enable_save_load", "max_save_slots", "autosave_enabled", "autosave_interval_seconds",
+        "time_axis",
     };
 
     /// <summary>Report tuning keys nothing reads. Several genres ship blocks that look like
@@ -269,6 +276,13 @@ public static class BeepGenreGenerator
         // It discovers ISaveables from GetTree().Root, so an autoload works unchanged.
         if (info.EnableGameStateManager)
             EnsureAutoload("GameStateManager", "res://addons/beep_game_builder_cs/ecs/GameStateManagerComponent.cs");
+
+        // Turn-based genres get the TurnManager autoload; real-time ones must NOT (its presence
+        // in the tree is exactly how durational components detect the turn axis). Gated on the
+        // genre's time_axis, the same file-based principle as every other tuning flag.
+        if (info.TimeAxis == "turns")
+            EnsureAutoload("TurnManager", "res://addons/beep_game_builder_cs/ecs/TurnManager.cs");
+
         WriteGameInfoTres(info);
         // GameInfo is a Resource, not a Node — it CANNOT be autoloaded directly.
         // Instead, GameApp (the Node autoload above) loads game_info.tres in its

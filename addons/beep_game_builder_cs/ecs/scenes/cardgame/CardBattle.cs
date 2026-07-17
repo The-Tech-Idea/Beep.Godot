@@ -33,6 +33,12 @@ namespace Beep.ECS.Scenes
         {
             if (!_playerTurn) return;
 
+            // Advance the genre's turn clock. Durational effects (buffs, cooldowns, production)
+            // decrement off TurnManager.TurnEnded; this is the one place that fires it, so they
+            // all share a single edge instead of inventing their own. TurnChanged (below) stays
+            // as this screen's UI signal.
+            TurnManager.Instance?.EndTurn();
+
             _playerTurn = false;
             // Lock End Turn while the opponent "acts". Leaving it live let a second press
             // inside the 0.6s window run EndOpponentTurn immediately without cancelling the

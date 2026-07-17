@@ -44,9 +44,14 @@ namespace Beep.ECS
 
         [Signal] public delegate void SeasonChangedEventHandler(int season);
 
-        private double _seasonTimer = 0;
         private Tween? _seasonTransitionTween;
         private Color _currentSeasonColor;
+        // The day/night clock is the source of in-game days. Seasons advance every DaysPerSeason
+        // in-game days — NOT every DaysPerSeason real seconds, which is what the old _seasonTimer
+        // (real delta compared against a "days" value) did: seasons rotated every 7 seconds.
+        private DayNightCycleComponent? _dayNight;
+        private int _seasonStartDay;
+        private bool _warnedNoClock;
 
         public override void _Ready()
         {
@@ -59,24 +64,32 @@ namespace Beep.ECS
 
         private void DeferredInit()
         {
-            // Auto-cycle seasons if enabled
-            if (!Engine.IsEditorHint() && AutoCycle)
-                _seasonTimer = 0;
+            if (Engine.IsEditorHint()) return;
+            _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(GetTree().Root, true);
+            _seasonStartDay = _dayNight?.DaysElapsed ?? 0;
         }
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (!IsActive || Engine.IsEditorHint() || !AutoCycle) return;
 
-            // Auto-cycle seasons based on timer
-            if (AutoCycle)
+            if (_dayNight == null)
             {
-                _seasonTimer += delta;
-                if (_seasonTimer >= DaysPerSeason)
+                if (!_warnedNoClock)
                 {
-                    _seasonTimer = 0;
-                    SetSeason((Season)(((int)CurrentSeason + 1) % 4));
+                    _warnedNoClock = true;
+                    GD.PushWarning(
+                        $"[{Name}] AutoCycle is on but there is no DayNightCycleComponent in the tree — " +
+                        "seasons derive from in-game days and cannot advance without it. Add a " +
+                        "DayNightCycleComponent, or set seasons manually via SetSeason().");
                 }
+                return;
+            }
+
+            if (_dayNight.DaysElapsed - _seasonStartDay >= DaysPerSeason)
+            {
+                _seasonStartDay = _dayNight.DaysElapsed;
+                SetSeason((Season)(((int)CurrentSeason + 1) % 4));
             }
         }
 
@@ -88,7 +101,8 @@ namespace Beep.ECS
             if (CurrentSeason == newSeason) return;
 
             CurrentSeason = newSeason;
-            _seasonTimer = 0;
+            // Reset the day marker so a manual SetSeason() also restarts the season's day count.
+            _seasonStartDay = _dayNight?.DaysElapsed ?? _seasonStartDay;
 
             Color targetColor = GetColorForSeason(newSeason);
             _seasonTransitionTween?.Kill();

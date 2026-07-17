@@ -30,6 +30,12 @@ namespace Beep.ECS
         /// <summary>Real seconds for a full 24-hour day.</summary>
         [Export] public float DayLengthSeconds { get; set; } = 120f;
 
+        /// <summary>Whole in-game days elapsed since start — incremented each time
+        /// <see cref="TimeOfDay"/> wraps past midnight. This is the derived day clock:
+        /// SeasonalComponent reads it to advance seasons per in-game DAY, not per real second
+        /// (the bug it used to have). A pure function of elapsed time, so it needs no clock type.</summary>
+        public int DaysElapsed { get; private set; }
+
         [ExportGroup("Sky Key Colors")]
         // Sampled across the day and lerped between adjacent keys so dawn/dusk ramp smoothly.
         [Export] public Color NightSky { get; set; } = new(0.05f, 0.06f, 0.15f, 1f);   // 00:00
@@ -70,6 +76,9 @@ namespace Beep.ECS
 
             float prev = TimeOfDay;
             TimeOfDay = (TimeOfDay + (float)delta * (24f / DayLengthSeconds)) % 24f;
+
+            // Wrapped past midnight (new value fell below the old) → a whole in-game day passed.
+            if (TimeOfDay < prev) DaysElapsed++;
 
             // Fire the hour signal only when crossing a whole-hour boundary, so label
             // listeners don't get spammed every frame.

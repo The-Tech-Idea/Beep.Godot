@@ -40,6 +40,7 @@
     "enable_save_load": true,
     "max_save_slots": 5,
     "autosave_enabled": true,
-    "autosave_interval_seconds": 300
+    "autosave_interval_seconds": 300,
+    "time_axis": "turns"
   }
 }

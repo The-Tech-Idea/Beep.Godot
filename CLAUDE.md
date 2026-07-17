@@ -4,12 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Beep.Godot** is a production-ready Godot 4.7 (.NET 8) game builder addon framework. It ships as two independent addons:
+**Beep.Godot** is a Godot 4.7 (.NET 8) game builder addon **framework**. It ships as two independent addons:
 
-1. **`beep_ui`** (GDScript) — UI theming engine: 22 presets, 11 effects, 84+ drag-and-drop widgets. Self-contained; runs in any Godot 4.7+ project.
-2. **`beep_game_builder_cs`** (C#) — Game building layer: ~146 categorized components, file-based skin system (4 genres × 5 themes × palettes), scene templates, weather system, day/night cycle, translations, MCP bridge for AI agents.
+1. **`beep_ui`** (GDScript) — UI theming engine: 22 presets, 11 effects, 114 drag-and-drop widgets. Self-contained; runs in any Godot 4.7+ project.
+2. **`beep_game_builder_cs`** (C#) — Game building layer: ~146 categorized components, file-based skin system (10 genres × themes × palettes), scene templates, weather system, day/night cycle, translations, MCP bridge for AI agents.
 
 Both addons live in `addons/` and are enabled via Project Settings → Plugins. `beep_game_builder_cs` requires a **.NET-enabled Godot project**.
+
+## Scope: we build the framework, not the games
+
+**The customer is a Godot developer.** We ship reusable components, wiring, and scaffolding that follow current Godot 4.7 syntax and idiomatic Godot practice. The developer builds their game on top.
+
+**Ours** — must work, generically, in any project:
+- Components (`ecs/`) — correct, composable, and silent about nothing.
+- The generator, skin catalog, nav wiring, save/load, input map.
+- Scene *templates* as working starting points: correct structure, wired components, sensible defaults.
+- Godot-idiomatic API surface: `[Export]`s, `[Signal]`s, `[GlobalClass]`, groups, NodePaths.
+
+**Theirs** — do NOT build these, and do not treat their absence as a bug:
+- Game content: level layout, terrain/TileSets, entity placement, encounter design, balance.
+- Assets: art, audio, fonts, textures. The addon ships none, and there is no sensible default for "rain".
+- Genre-specific rules: what a card does, what an upgrade grants, what a vehicle handles like.
+- Calling gameplay verbs at the right moment (`AddScore`, `TriggerLevelComplete`) — we provide them and demonstrate one path; the game decides when.
+
+The line: **a component that cannot work is our bug; a template with no content is the developer's canvas.** `player_template` not moving was ours (`MovementComponent` applied nothing). `level_1.tscn` having no terrain is not — an empty level is a starting point, by design.
+
+When a seam is deliberately the developer's, **say so in code** (a doc comment and, where it would otherwise fail silently, a `PushWarning`). Silence is indistinguishable from breakage — that is what made most of the defects in this repo survive.
+
+> Per-genre polish (does the racing HUD show a real speed? does the deck builder deal cards?) is **out of scope**. Genre mains and levels are scaffolding to be replaced.
 
 ## Build & Development
 
@@ -41,13 +63,13 @@ Beep.Godot/
 │   │   ├── ui/               ← Editor dock (BeepGameBuilderDock.cs)
 │   │   ├── mcp/              ← MCP bridge for AI agents (WebSocket, auto-enabled)
 │   │   ├── catalogs/         ← JSON data (skins, shaders, tweens, particles, projectiles)
-│   │   │   └── skins/        ← genre/{platformer,topdown,shooter,puzzle}/(genre.json, geometry.json, themes/)
+│   │   │   └── skins/        ← genre/{platformer,topdown,shooter,puzzle,rpg,survival,racing,citybuilder,strategy,cardgame}/(genre.json, geometry.json, themes/)
 │   │   ├── templates/        ← Scene & script templates (auto-copied by generator)
 │   │   └── generated/        ← Output folder (populated when user runs generators via dock)
 │   └── beep_ui/
 │       ├── theme/            ← Theme system (BeepPreset, 22 preset_*.gd presets, theme_applier.gd)
 │       ├── effects/          ← 11 effect types (Fade, Scale, Tint, Blur, Shake, Glow, etc.)
-│       ├── widgets/          ← 84 widget factory entries (drag-and-drop UI prefabs)
+│       ├── widgets/          ← 114 widget factory entries (drag-and-drop UI prefabs)
 │       └── editor/           ← Theme Studio dock (theme_studio.gd)
 └── docs/                     ← Architecture reference
     ├── ARCHITECTURE.md       ← Layer diagram, data flow, 2-addon shape
@@ -100,13 +122,67 @@ Per the user's codebase rules:
 - **Why**: Generated scenes need to be themeable in the editor via the dock's "Apply to all ThemePresetComponents" action.
 
 ### Godot 4.7 C# API Traps
-(From project memory; verify against Godot 4.7 docs before use.)
+Verify against Godot 4.7 before trusting any entry here — this list has been wrong before (see `GD.Randf()`).
 - No `BorderWidthAll` → use individual `BorderWidthLeft`, `BorderWidthRight`, etc.
 - No `SetCornerRadiusIndividual()` → use properties `CornerRadiusTopLeft`, etc.
 - No `NotifyThemeChanged()` on Control → use `ThemeChanged?.Invoke()` if needed.
-- `GD.Randf()` returns `float` — **no cast needed**. (This list previously claimed `double`. It's wrong: `BeepServiceLocator.cs` does `float angle = GD.Randf() * Mathf.Tau;` uncast and the project builds clean, which a `double` could not. The belief produced several redundant `(float)GD.Randf()` casts.)
+- `GD.Randf()` returns `float` — **no cast needed**. (This list previously claimed `double`. It's false: `BeepServiceLocator.cs` does `float angle = GD.Randf() * Mathf.Tau;` uncast and builds clean, which a `double` could not. The belief produced several redundant `(float)GD.Randf()` casts.)
 - `GodotObject.IsInstanceValid(obj)` — use full qualified name (static method, not inherited).
-- `GetParent<T>()` throws InvalidCastException if wrong type → use `GetParent() as T` for safe cast.
+- `GetParent<T>()` throws InvalidCastException if wrong type → use `GetParent() as T` for safe cast — **but see "Never fail silently" below**: the null branch must warn.
+- Throwing `GetNode<T>(path)` defeats a following `if (x != null)` guard — it throws first, so the guard is unreachable. Use `GetNodeOrNull<T>`.
+- `CallDeferred(MethodName.X)` relies on the generator registering `X`; `Callable.From(X).CallDeferred()` doesn't. Prefer the latter.
+
+### `[Export]` properties are PascalCase in `.tscn` — ALWAYS
+Godot registers a C# export under its **exact PascalCase name**. The source generator emits:
+```csharp
+public new static readonly StringName @TitleLabelPath = "TitleLabelPath";
+if (name == PropertyName.@TitleLabelPath) { this.@TitleLabelPath = ...; return true; }
+```
+A scene line written GDScript-style (`title_label_path = ...`) matches nothing, `SetGodotClassPropertyValue` returns false, and **the assignment is silently discarded** — the scene loads, the node runs on defaults, nothing is logged.
+
+```gdscript
+MaxHealth = 100.0                  # ✅ C# [Export] — PascalCase
+custom_minimum_size = Vector2(...) # ✅ Godot built-in — snake_case, correct
+title_label_path = NodePath("...") # ❌ C# [Export] written snake_case — DROPPED
+```
+This cost 67 dead assignments across 33 scenes (every `GameInfoBinder`, `AnimatedMenuComponent`, `SceneTransitionComponent` ran unconfigured). `validate_scenes.sh` now enforces it — **run it after touching any `.tscn`**.
+
+To inspect what Godot actually registers:
+`dotnet build -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=<dir OUTSIDE the project>`
+(Emitting inside the project makes the SDK compile the generated files as sources → thousands of duplicate-definition errors.)
+
+### Animating a Control: use the offset transform layer
+Never tween `position` / `scale` / `rotation` on a Control inside a Container — the container re-sorts its children every layout pass and overwrites the tween. Godot 4.7's `offset_transform_*` ([GH-87081](https://github.com/godotengine/godot/pull/87081), landed in 4.7 dev 3) is a render-only transform containers don't touch.
+
+```csharp
+ctrl.OffsetTransformEnabled = true;
+tween.TweenProperty(ctrl, "offset_transform_position", Vector2.Zero, dur);  // ✅
+tween.TweenProperty(ctrl, "position", endPos, dur);                          // ❌ container wins
+```
+Offsets are relative to the laid-out position, so neutral is always `Vector2.Zero` / `Vector2.One` — there is nothing to capture or restore. Used by `theme_applier.gd`, `ui_effect.gd`, `AnimatedMenuComponent`, `ThemePresetComponent`.
+
+### Never fail silently
+The dominant defect class in this repo, by a wide margin. A component resolves a collaborator, the cast fails, it early-returns, and **nothing says anything** — so it looks fine for months.
+
+```csharp
+_target = GetParent() as Control;   // null against a CanvasLayer root → component does nothing
+if (_target == null) return;        // ❌ silent
+```
+Every such branch must `GD.PushWarning` naming what it got, what it needed, and what to do. This pattern alone hid: unthemed pause/settings/game-over in all 10 genres, a menu animation that never played, an inert dialog template, and a HUD that never bound.
+
+Corollaries:
+- A `null` export that disables a feature (`ProjectileScene`, `SpawnScene`, `NoiseTexture`) must warn or have a working default. Prefer a default — a shipped feature shouldn't need an asset nobody supplies.
+- An unbound `sampler2D` samples **black**, silently. Always bind something.
+- Parse/IO failures must return `bool`, not a default-constructed object (a corrupt save loaded as success and overwrote the good file).
+
+### Public API must be idempotent
+`ApplyTheme()` is public and every setter calls it, so one scene load ran it 5× — and it wasn't idempotent (`AddChild(new RippleComponent)` per pass, `+=` handlers never removed). Anything callable more than once must be safe to. Guard with a meta flag on the target node (freed with it, no bookkeeping) and bail from setters when the value is unchanged.
+
+### Scene layer conventions
+- `ThemePresetComponent` themes `GetParent()`'s subtree → parent it to the **content Control** (`Center` / `Panel` / `Margin`), never the `CanvasLayer` root or the `Dim` overlay.
+- `AnimatedMenuComponent` animates `GetParent()`'s children → parent it to the **Container** holding the items.
+- Screens that sit over a running game are **overlays**: instance them and `QueueFree()` to close. `ChangeScene` frees the run behind them. Use `SceneNav.CloseOrReturn` (handles both overlay and current-scene cases) and `SettingsOverlay` / `GenreScreenComponent` to open.
+- Genre screens resolve through `GameInfo.GenreScenePaths` (open key→path registry from `nav_wiring`); the named `*Path` properties cover only platformer/shooter/puzzle.
 
 ### File-Based Skin System
 **Zero C# changes needed to add content.** All JSON keys are **snake_case**:
@@ -167,7 +243,21 @@ Components have no "magic" — just overrides of `_Ready()`, `_Process()`, `_Phy
 
 ## Testing
 
-No formal test suite. Verify changes by opening a scene and running it (F5), and watch the **Output → C#** panel for build/runtime errors.
+Two automated gates, then your eyes. Run both after any change:
+
+| Gate | Command | Catches |
+|---|---|---|
+| Build | `dotnet build` | compile errors. ~148 nullable warnings are pre-existing noise. |
+| Scene validator | `cd addons/beep_game_builder_cs/templates/scenes && ./validate_scenes.sh` | undeclared Ext/SubResources, bad parent paths, duplicate sibling names, missing scripts, atmosphere placement, **and `[Export]` names that Godot would silently drop** |
+
+`validate_scenes.sh`'s header is the rule: **every check exists because it caught a real bug.** Add one when you fix a class of defect — and make it fail before you trust it (a check you've only seen pass is not evidence).
+
+**Neither gate runs the game.** Compile-clean + validator-PASS says the code loads, not that it works. Anything touching input, physics, shaders, or scene structure needs a real editor pass:
+1. Generate a project → open `scenes/ui/main_menu.tscn` → F5.
+2. New Game → play → Save → restart → Load.
+3. Watch **Output → C#** — most of this framework's failures now announce themselves as warnings rather than doing nothing.
+
+> **A ✅ in this repo's docs has historically meant "I wrote it", not "I ran it."** `SESSION_SUMMARY.md` claimed "Save/load flow tested end-to-end" for a system where `Save()` was a hard no-op — nothing called `NewGame()`, so state was permanently null. `WEATHER_SYSTEM_INTEGRATION_REPORT.md` cited `puzzle/genre.json` as proof of `enable_weather: true`; puzzle has `false`. Both are corrected now, and both are why: **do not claim tested unless you ran it. Say "compile-verified" and mean it.**
 
 ## Commit Conventions
 

@@ -26,7 +26,7 @@ uses the 1-arg overload (`:77`) which hardcodes Physical:
 
 **Consequence:** `ResistanceComponent`'s `Fire`/`Ice`/`Poison`/`Holy`/`Dark`/`Lightning`/`True`
 (`ecs/ResistanceComponent.cs:16-22`) can never fire. Only `Physical` is reachable. A
-`BeepArmor` with fire resistance would be decorative.
+`GameArmor` with fire resistance would be decorative.
 
 ### The decision this forces
 
@@ -37,7 +37,7 @@ Damage currently crosses every hop as a **bare float** (`AttackComponent.cs:84`,
 the 2-arg `TakeDamage(amount, type)`. Small, uses what exists, no new concepts. But the
 weapon's type must be pushed onto that component on equip, and the source is still lost.
 
-**Option B — damage packet.** Introduce a `BeepDamage` struct/resource (`Amount`, `Type`,
+**Option B — damage packet.** Introduce a `GameDamage` struct/resource (`Amount`, `Type`,
 `Source`, `IsCrit`) threaded through `Attack → Projectile → TakeDamage`. Solves type, source
 (fixes the projectile self-hit exclusion, `ProjectileComponent.cs:31`/`:70`), on-hit effects,
 and damage numbers in one move. Larger, and touches every combat signature.
@@ -96,16 +96,16 @@ writing the field. Writing it would fight the inspector value and go stale.
 - **Query, never cache on the consumer.** `AttackComponent` must not copy `DamageBonus` at
   `_Ready`; equipment changes at runtime. Phase 2 caches on the owner, where invalidation is
   possible.
-- **Warn, don't no-op.** A `BeepWeapon` equipped with no `AttackComponent` to use it →
+- **Warn, don't no-op.** A `GameWeapon` equipped with no `AttackComponent` to use it →
   `PushWarning` (`CLAUDE.md` § *Never fail silently*).
 
 ### Out of scope — record, don't fix
 
 - **`AttackComponent.Range` is never read.** `DealMeleeDamage` is a **point query at the
-  cursor** (`:92-93`) — no arc, no reach. So `BeepWeapon.Range` cannot work without
-  reworking melee hit detection. **Do not add `Range` to `BeepWeapon` in Phase 1** until this
+  cursor** (`:92-93`) — no arc, no reach. So `GameWeapon.Range` cannot work without
+  reworking melee hit detection. **Do not add `Range` to `GameWeapon` in Phase 1** until this
   is decided; a field that silently does nothing is this repo's signature defect.
-- `BeepWeapon.IsRanged`/`ProjectileScene` **replace** rather than add to
+- `GameWeapon.IsRanged`/`ProjectileScene` **replace** rather than add to
   `AttackComponent`'s exports (a bow *is* the range; it doesn't add to a fist). Needs the
   same decision. Damage is the only cleanly additive stat — ship that first.
 
@@ -113,7 +113,7 @@ writing the field. Writing it would fight the inspector value and go stale.
 
 - `dotnet build` → 0 errors.
 - Editor, end-to-end: `AttackComponent(Damage=10)` + `EquipmentComponent` vs a dummy with
-  `HealthComponent` → 10. Equip `BeepWeapon(Damage=+15)` → 25. Give the dummy `BeepArmor`
+  `HealthComponent` → 10. Equip `GameWeapon(Damage=+15)` → 25. Give the dummy `GameArmor`
   with `Physical = 0.5` → ~12.5. Unequip → 10.
 - **Typing check (3a):** give the attacker a `DamageTypeComponent(Fire)` and the dummy
   `ResistanceComponent(Fire = 0)` → **0 damage**. Today this test is impossible to pass.

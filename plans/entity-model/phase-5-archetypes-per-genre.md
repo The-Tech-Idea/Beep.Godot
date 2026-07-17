@@ -80,7 +80,7 @@ Its only verb is *be collected*.
 
 | | |
 |---|---|
-| **REQUIRED** | `PickupComponent` (+ `Item` = a `BeepItem` `.tres`, per Phase 4) |
+| **REQUIRED** | `PickupComponent` (+ `Item` = a `GameItem` `.tres`, per Phase 4) |
 | **OPTIONAL** | `BobComponent`, `RotateComponent`, `LifetimeComponent`, `ParticleComponent`, `AudioComponent` |
 | **OPTIONAL — if it can be destroyed** | `HealthComponent`. Legitimate (a fireball burns the dropped sword), but know the cost: `ProjectileComponent.cs:78` finds **any** `HealthComponent`, so every bullet that touches it is consumed on it. Needs collision layers, not just a component. Omit unless the game really destroys ground loot. |
 | **MUST NOT** | `AttackComponent` — a sword on the floor does not swing at anyone. `MovementComponent` / any controller — it doesn't move, and an `Area2D` isn't a `CharacterBody2D`. `InventoryComponent` — it is an item, not a container. `FlashComponent` / `HealthBarComponent` **without** a sibling `HealthComponent` — both resolve one and silently no-op. |

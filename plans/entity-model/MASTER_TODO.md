@@ -14,8 +14,8 @@
 
 ## The problem
 
-A sword is not a component problem, it is a **data** problem, and the framework has no way to
-say so.
+A sword is **both** a data problem and a composition problem, and the framework has no way to
+express either half.
 
 - **There is no weapon, equipment, armor, or shield component.** Verified: nothing in
   `ecs/` matches `weapon|equip|item|gear|armor|shield`.
@@ -43,7 +43,7 @@ armor to drive them. Nothing does.
 **Classes + inheritance for item data (Godot `Resource` subclasses), components for
 behaviour — and a sword is *both*, because it has two representations.**
 
-- **Definition** — `BeepWeapon : Resource` (`.tres`). What stacks, saves, and appears in a
+- **Definition** — `GameWeapon : Resource` (`.tres`). What stacks, saves, and appears in a
   shop. Not in the scene tree, so it cannot carry components. 99 potions cannot be 99 nodes.
 - **Instance** — a node in the world. **This one can carry components**, and often should:
   a *wielded* sword may legitimately have `AttackComponent` (it needs only a `Node2D` parent)
@@ -57,6 +57,33 @@ whose instance carries `ProjectileComponent`. A weapon is the same shape.
 wrong. It is: *give an archetype a component only if **that representation** of it does that
 thing.* A sword on the floor doesn't swing; a wielded one does; a save-file row isn't a node.
 
+### One base, with the traits that decide composition
+
+```
+GameItem : Resource        Id, Icon, Rarity, MaxStack, WorldScene
+                           IsStatic        — stays put (anvil, chest, rock) vs carried
+                           IsDestructible  — can be broken   (+ MaxDurability)
+  ├── GameEquipment        Slot, WieldScene
+  │     ├── GameWeapon     Damage, DamageType, IsRanged, ProjectileScene
+  │     ├── GameShield     Defense, BlockChance, Resistances
+  │     └── GameArmor      Defense, Resistances
+  ├── GameLiquid           Volume, IsDrinkable, HealAmount   (potion, fuel, oil)
+  └── GameConsumable       HealAmount, StatusEffectId, Duration
+```
+
+`IsStatic` / `IsDestructible` are the load-bearing part. They make the archetype rules
+**derivable from the data** rather than remembered from a table:
+
+| | | implies | forbids |
+|---|---|---|---|
+| anvil | static, indestructible | — | `MovementComponent`, `HealthComponent`, `PickupComponent` |
+| rock | static, destructible | `HealthComponent` | `MovementComponent`, `PickupComponent` |
+| sword | carried, destructible | `PickupComponent` (grounded), `HealthComponent` (durability) | — |
+| potion | carried, indestructible | `PickupComponent` (grounded) | `HealthComponent` |
+
+Four rows, four compositions, no folklore — and a validator can check a `WorldScene` against
+its own `GameItem`'s traits (Phase 5).
+
 **Equipment reaches combat through the pattern the codebase already uses.**
 `AttackComponent` resolves an *optional* sibling and asks it for a modifier
 (`ecs/AttackComponent.cs:51-56`, via `StatusEffectComponent.GetModifier`,
@@ -67,13 +94,13 @@ entity without equipment is unaffected and nothing existing breaks.
 
 ## Progress
 
-- [ ] **Phase 1 — Item resources** — `BeepItem` hierarchy as `[Tool][GlobalClass] Resource`;
+- [ ] **Phase 1 — Item resources** — `GameItem` hierarchy as `[Tool][GlobalClass] Resource`;
       `InventoryComponent` stores them. → `phase-1-item-resources.md`
 - [ ] **Phase 2 — Equipment** — `EquipmentComponent`: slots, equip/unequip, modifier query.
       → `phase-2-equipment.md`
 - [ ] **Phase 3 — Damage typing, then combat integration** — **3a blocks 3b.**
       → `phase-3-combat-integration.md`
-- [ ] **Phase 4 — Pickups & drops** — carry a `BeepItem`, not a string; wire the missing
+- [ ] **Phase 4 — Pickups & drops** — carry a `GameItem`, not a string; wire the missing
       `Collected → AddItem` edge. → `phase-4-pickups-and-drops.md`
 - [ ] **Phase 5 — Archetypes per genre** — required / optional / **must not have**, and make
       "must not" checkable. → `phase-5-archetypes-per-genre.md`
@@ -90,7 +117,7 @@ Four parallel audits, hand-verified. Three findings reshaped the plan:
    This became Phase **3a**, a prerequisite — the original plan assumed a pipeline that isn't
    there.
 2. **`AttackComponent.Range` is never read** — melee is a point query at the cursor. So
-   `BeepWeapon.Range` must **not** be added in Phase 1 until melee hit detection is decided; a
+   `GameWeapon.Range` must **not** be added in Phase 1 until melee hit detection is decided; a
    field that silently does nothing is this repo's signature defect.
 3. **The item edges don't exist.** `Pickup.Collected → Inventory.AddItem`: **0 connections**.
    `Died → DropTable.Roll`: never. `Craft()` **deducts materials and grants nothing** — the
@@ -103,15 +130,28 @@ inert in every genre (Phase 6, §1).
 
 ## Decisions
 
-- **Data = Resource subclasses, behaviour = components.** One `BeepWeapon` resource, not a
-  `SwordComponent`, `AxeComponent`, `BowComponent`.
+- **`GameItem`, not `BeepItem`.** The repo splits its namespaces: `Game*` is the model
+  (`GameInfo`, `GameStateData` — both `Resource`s), `Beep*` is tooling (`BeepFileUtils`,
+  `BeepGenreGenerator`). An item is model.
+- **Variation by inheritance, never by a component per kind.** One `GameWeapon`, not a
+  `SwordComponent` / `AxeComponent` / `BowComponent`. Kinds that differ in *fields* are
+  subclasses (`GameShield` has `BlockChance`; `GameLiquid` has `Volume`); kinds that differ
+  only in *values* are `.tres` files of the same class.
+- **The base carries traits, and the traits drive composition.** `IsStatic` and
+  `IsDestructible` on `GameItem` determine what the world instance may be built from — an
+  anvil (`static, indestructible`), a rock (`static, destructible`), a sword
+  (`carried, destructible`), a potion (`carried, indestructible`) each compose differently,
+  and **the data says how**. This is what makes Phase 5 checkable instead of folklore.
+- **Two representations.** Definition = `Resource` (stacks, saves, shops). Instance = a node
+  (`WorldScene` / `WieldScene`) that **may** carry `AttackComponent`, durability, a hitbox.
+  Same shape the repo already uses for bullets (`ProjectileScene` + `ProjectileComponent`).
 - **Equipment is an optional sibling.** No entity is required to have it; combat components
   query it if present, exactly as they already query `StatusEffectComponent`.
 - **Additive, not a rewrite.** Existing `[Export]`s on `AttackComponent` stay as the base
   values; equipment modifies them. A project with no equipment behaves identically.
-- **`MUST NOT HAVE` is part of the contract.** Saying a sword must not have
-  `HealthComponent` is as much framework guidance as saying it needs `PickupComponent` — and
-  it is checkable (see Phase 5).
+- **`MUST NOT HAVE` is part of the contract** — but it is **conditional, not absolute**. A
+  sword that cannot break must not have `HealthComponent`; one that can, should. The test is
+  always *"does this representation of this thing do that?"*, never *"is it a sword?"*
 
 ## Verification
 

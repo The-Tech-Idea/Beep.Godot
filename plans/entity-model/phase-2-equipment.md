@@ -1,9 +1,9 @@
 # Phase 2 — Equipment
 
-**Goal:** an entity can hold a `BeepWeapon` in MainHand and a shield (`BeepArmor`, OffHand),
+**Goal:** an entity can hold a `GameWeapon` in MainHand and a shield (`GameArmor`, OffHand),
 and something can ask "what does that add to my damage?"
 
-**Depends on:** Phase 1 (`BeepEquipment`, `EquipSlot`).
+**Depends on:** Phase 1 (`GameEquipment`, `EquipSlot`).
 
 ---
 
@@ -31,22 +31,22 @@ equipment is **unaffected**, nothing existing breaks, and Phase 3 is additive.
 ```
 EquipmentComponent : GameplayComponent      [Tool][GlobalClass]
 
-  Equip(BeepEquipment item) -> BeepEquipment?   // returns what was displaced
-  Unequip(EquipSlot slot)   -> BeepEquipment?
-  Get(EquipSlot slot)       -> BeepEquipment?
-  BeepWeapon? MainWeapon    // convenience — the common query
+  Equip(GameEquipment item) -> GameEquipment?   // returns what was displaced
+  Unequip(EquipSlot slot)   -> GameEquipment?
+  Get(EquipSlot slot)       -> GameEquipment?
+  GameWeapon? MainWeapon    // convenience — the common query
 
-  [Signal] Equipped(EquipSlot slot, BeepEquipment item)
-  [Signal] Unequipped(EquipSlot slot, BeepEquipment item)
+  [Signal] Equipped(EquipSlot slot, GameEquipment item)
+  [Signal] Unequipped(EquipSlot slot, GameEquipment item)
 
   // The query Phase 3 consumes:
-  float DamageBonus                     // sum of equipped BeepWeapon.Damage
-  float DefenseBonus                    // sum of equipped BeepArmor.Defense
+  float DamageBonus                     // sum of equipped GameWeapon.Damage
+  float DefenseBonus                    // sum of equipped GameArmor.Defense
   float ResistanceFor(DamageTypeComponent.Type)   // product of equipped multipliers
 ```
 
 **Slots hold one item each**, keyed by `EquipSlot`. Backed by a
-`Dictionary<EquipSlot, BeepEquipment>`; expose an `[Export]` array of starting equipment so a
+`Dictionary<EquipSlot, GameEquipment>`; expose an `[Export]` array of starting equipment so a
 template can ship an entity pre-armed from the inspector.
 
 ## Design decisions

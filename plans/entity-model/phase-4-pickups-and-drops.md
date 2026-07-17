@@ -4,7 +4,7 @@
 inventory; equipping it makes you hit harder. This closes the loop from world → inventory →
 equipment → combat.
 
-**Depends on:** Phase 1 (`BeepItem`), and Phase 2 for the equip half.
+**Depends on:** Phase 1 (`GameItem`), and Phase 2 for the equip half.
 
 ---
 
@@ -35,7 +35,7 @@ Phases 1–3 reachable.
 **1. `PickupComponent` — carry the item.**
 
 ```
-[Export] public BeepItem? Item { get; set; }     // what this is
+[Export] public GameItem? Item { get; set; }     // what this is
 [Export] public int Quantity { get; set; } = 1;  // how many (stays)
 ```
 
@@ -44,7 +44,7 @@ existing scenes and the coin case (an id with no resource) keep working — this
 bitten enough by silent breakage. Emit the resource alongside the id so a receiver can use
 either.
 
-**2. `InventoryComponent.AddItem` — accept a `BeepItem`, and be connected to.**
+**2. `InventoryComponent.AddItem` — accept a `GameItem`, and be connected to.**
 It currently rebuilds from a template lookup and falls back to `template?.X ?? default`
 (`ecs/InventoryComponent.cs:143-149`), so an unregistered item restores with no icon, name,
 or rarity. With the resource in hand there is nothing to look up and nothing to lose.
@@ -59,7 +59,7 @@ that cannot be picked up is not a composition choice.
 `InventoryComponent` as a parameter.
 
 **3. `DropTableComponent` — drop items, not strings.**
-Same change: entries reference a `BeepItem`. It composes with `HealthComponent.Died` — which
+Same change: entries reference a `GameItem`. It composes with `HealthComponent.Died` — which
 **currently has no listener anywhere** (an already-known gap), so the drop-on-death path is
 worth wiring as the demonstration of the loop.
 

@@ -27,7 +27,7 @@ The distinction that actually matters is **where the sword is**:
 
 So it is **both**, and neither half is optional:
 
-- **`BeepWeapon : Resource`** — the *definition*: id, icon, base damage, damage type, slot, and
+- **`GameWeapon : Resource`** — the *definition*: id, icon, base damage, damage type, slot, and
   **`[Export] PackedScene? WieldScene`**. This is what stacks, serialises, and appears in a
   shop. 99 potions cannot be 99 nodes.
 - **`WieldScene`** — the *instance*: a `Node2D` carrying `AttackComponent`, a hitbox, and
@@ -89,49 +89,86 @@ Every other data shape in this repo already does it properly:
 
 ## The hierarchy
 
-New file `ecs/items/BeepItem.cs` (+ one file per subclass — filename must match the class,
-see `CLAUDE.md` § *[GlobalClass] Components*).
+New files under `ecs/items/` — one per class, filename matching the class name (registration
+is filename-driven; `CLAUDE.md` § *[GlobalClass] Components*).
+
+**Named `Game*`, not `Beep*`.** The repo already splits these: `Game*` is the game model —
+`GameInfo`, `GameStateData` (both `Resource`s), `GameApp`, `GameFlowComponent` — while `Beep*`
+is tooling (`BeepFileUtils`, `BeepGenreGenerator`, `BeepCommandHistory`). An item is model.
 
 ```
-BeepItem : Resource                  [Tool][GlobalClass]
-    Id, DisplayName, Description, Icon, MaxStack, Rarity
+GameItem : Resource                     [Tool][GlobalClass]
+    Id, DisplayName, Description, Icon, Rarity, MaxStack
+    IsStatic        : bool              — stays put (anvil, chest, rock) vs carried
+    IsDestructible  : bool              — can be broken
+    MaxDurability   : float             — meaningful only when IsDestructible
+    WorldScene      : PackedScene?      — how it exists as a node, when it does
     │
-    ├── BeepEquipment : BeepItem     [Tool][GlobalClass]
-    │       Slot : EquipSlot         (MainHand, OffHand, Head, Body, Accessory)
+    ├── GameEquipment : GameItem        [Tool][GlobalClass]
+    │       Slot : EquipSlot            (MainHand, OffHand, Head, Body, Accessory)
+    │       WieldScene : PackedScene?   — the instance held in the hand
     │       │
-    │       ├── BeepWeapon : BeepEquipment
-    │       │       Damage, DamageType (DamageTypeComponent.Type), Range,
+    │       ├── GameWeapon : GameEquipment
+    │       │       Damage, DamageType (DamageTypeComponent.Type),
     │       │       AttackSpeedMultiplier, IsRanged, ProjectileScene
     │       │
-    │       └── BeepArmor : BeepEquipment
+    │       ├── GameShield : GameEquipment
+    │       │       Defense, BlockChance, Resistances
+    │       │
+    │       └── GameArmor : GameEquipment
     │               Defense, Resistances (per DamageTypeComponent.Type)
     │
-    └── BeepConsumable : BeepItem    [Tool][GlobalClass]
+    ├── GameLiquid : GameItem           [Tool][GlobalClass]
+    │       Volume, IsDrinkable, HealAmount, StatusEffectId
+    │       (potion, fuel, lamp oil, water — a liquid is not always drinkable)
+    │
+    └── GameConsumable : GameItem       [Tool][GlobalClass]
             HealAmount, StatusEffectId, Duration
 ```
 
-**A shield is `BeepArmor` with `Slot = OffHand`** — not its own class. It differs by data,
-not by behaviour, which is the whole point of the steer.
-
-`Rarity` moves from the nested `InventoryComponent.ItemRarity` to `BeepItem`. `ItemType` (the
-string) is **deleted** — the class *is* the type. `Stats` (the bag) is **deleted** — the
-subclass fields are the stats.
+`Rarity` moves from the nested `InventoryComponent.ItemRarity` onto `GameItem`. `ItemType`
+(the string) is **deleted** — **the class is the type**. `Stats` (the `Variant` bag) is
+**deleted** — the subclass fields are the stats, typed.
 
 `DamageType` reuses the existing `DamageTypeComponent.Type` enum
 (`ecs/DamageTypeComponent.cs:15`) rather than inventing a parallel one, so a weapon's type
-already lines up with `ResistanceComponent`'s per-type multipliers.
+already lines up with `ResistanceComponent`'s per-type multipliers. *(Note Phase 3a: that enum
+is currently unreachable — every hit is Physical.)*
+
+`Range` is deliberately **absent** from `GameWeapon` — see the note at the end of this doc.
+
+### The traits on the base are the point
+
+`IsStatic` and `IsDestructible` are not decoration. **They determine what the world instance
+may be composed of**, which turns Phase 5's archetype tables from folklore into something
+derived from data:
+
+| Trait | The instance must be | Components it implies | Components it forbids |
+|---|---|---|---|
+| `IsStatic = true` | `StaticBody2D` / `Node2D` | — | `MovementComponent`, any `ControllerComponent`, `PickupComponent` (it isn't collected) |
+| `IsStatic = false` | `Area2D` (collectible) or `Node2D` (wielded) | `PickupComponent` when on the ground | — |
+| `IsDestructible = true` | — | `HealthComponent` as durability (`MaxHealth = MaxDurability`; `Died` = it breaks) | — |
+| `IsDestructible = false` | — | — | **`HealthComponent`** — it cannot be broken, so HP is behaviour that never happens |
+
+An anvil is `IsStatic = true, IsDestructible = false`. A rock is `true, true`. A sword is
+`false, true`. A potion is `false, false`. **Each of those four rows composes differently, and
+the data says how** — the developer doesn't have to remember a table.
+
+This is also what makes the "must not" list checkable (Phase 5): a validator can compare a
+`WorldScene` against its `GameItem`'s traits and flag a `HealthComponent` on an
+`IsDestructible = false` item, or a `MovementComponent` on an `IsStatic = true` one.
 
 ## Work
 
-1. **`ecs/items/BeepItem.cs`** — base. `Id` is the stacking/save key.
-2. **`ecs/items/BeepEquipment.cs`** — adds `EquipSlot`. Declare `EquipSlot` here; Phase 2's
+1. **`ecs/items/GameItem.cs`** — base. `Id` is the stacking/save key.
+2. **`ecs/items/GameEquipment.cs`** — adds `EquipSlot`. Declare `EquipSlot` here; Phase 2's
    `EquipmentComponent` uses it.
-3. **`ecs/items/BeepWeapon.cs`**, **`ecs/items/BeepArmor.cs`**, **`ecs/items/BeepConsumable.cs`**.
-4. **`InventoryComponent`** — `InventoryItem[] Slots` becomes `BeepItem[]`; drop the nested
+3. **`ecs/items/GameWeapon.cs`**, **`ecs/items/GameArmor.cs`**, **`ecs/items/GameConsumable.cs`**.
+4. **`InventoryComponent`** — `InventoryItem[] Slots` becomes `GameItem[]`; drop the nested
    class, `ItemType`, and `Stats`. Keep `Quantity`/`SlotIndex` — but they are *per-slot state*,
    not item identity, so they belong in the slot, not on the shared resource. **A `.tres` is
    shared by reference**: writing `Quantity` onto the resource would make every sword in the
-   world share one count. Use a small `InventorySlot { BeepItem Item; int Quantity; }`.
+   world share one count. Use a small `InventorySlot { GameItem Item; int Quantity; }`.
 5. **Save/load** — `ISaveable` on `InventoryComponent` currently writes
    `Items[id] = quantity` (`ecs/InventoryComponent.cs:322`). Keep persisting **id + quantity**
    and re-resolve the resource on load; do **not** serialize the resource itself. Saves stay
@@ -150,7 +187,7 @@ already lines up with `ResistanceComponent`'s per-type multipliers.
 ## Verification
 
 - `dotnet build` → 0 errors.
-- In the editor: **Create Resource → BeepWeapon** appears; save `sword_iron.tres`; its
+- In the editor: **Create Resource → GameWeapon** appears; save `sword_iron.tres`; its
   `Damage`/`DamageType` show in the inspector; re-open and the values persist.
 - `validate_scenes.sh` → PASS (no scene changes expected this phase).
 </content>

@@ -104,7 +104,7 @@ Per the user's codebase rules:
 - No `BorderWidthAll` → use individual `BorderWidthLeft`, `BorderWidthRight`, etc.
 - No `SetCornerRadiusIndividual()` → use properties `CornerRadiusTopLeft`, etc.
 - No `NotifyThemeChanged()` on Control → use `ThemeChanged?.Invoke()` if needed.
-- `GD.Randf()` returns `double` → cast to `float`.
+- `GD.Randf()` returns `float` — **no cast needed**. (This list previously claimed `double`. It's wrong: `BeepServiceLocator.cs` does `float angle = GD.Randf() * Mathf.Tau;` uncast and the project builds clean, which a `double` could not. The belief produced several redundant `(float)GD.Randf()` casts.)
 - `GodotObject.IsInstanceValid(obj)` — use full qualified name (static method, not inherited).
 - `GetParent<T>()` throws InvalidCastException if wrong type → use `GetParent() as T` for safe cast.
 

@@ -11,7 +11,7 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/BackButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelMapPath ?? "res://scenes/ui/puzzle/level_map.tscn");
+            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/BackButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelMapPath);
             GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/PlayButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
 
             // Boosters are optional pre-level pickers: toggle them on, and the choice is
@@ -35,23 +35,7 @@ namespace Beep.ECS.Scenes
             button.Toggled += on => GameStateManagerComponent.Instance?.SetGameData(key, on);
         }
 
-        /// <summary>Navigate to a scene. Reports why it failed instead of doing nothing —
-        /// a missing/unset target used to make the button appear dead.</summary>
-        private void ChangeScene(string? path)
-        {
-            if (string.IsNullOrEmpty(path))
-            {
-                GD.PushError($"[{Name}] Navigation target is not set (check GameInfo scene paths).");
-                return;
-            }
-            if (!ResourceLoader.Exists(path))
-            {
-                GD.PushError($"[{Name}] Navigation target does not exist: {path}");
-                return;
-            }
-            Error err = GetTree().ChangeSceneToFile(path);
-            if (err != Error.Ok)
-                GD.PushError($"[{Name}] Failed to change scene to {path}: {err}");
-        }
+        // Shared helper: this method was byte-identical in all 33 screen scripts.
+        private void ChangeScene(string? path) => UI.SceneNav.ChangeScene(this, path);
     }
 }

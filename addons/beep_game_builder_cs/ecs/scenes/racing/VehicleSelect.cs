@@ -10,6 +10,11 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
+            // The one navigation in ecs/scenes/ that doesn't route through GameApp/GameInfo:
+            // there is no GameInfo property for the garage (the Genre Scenes group covers only
+            // platformer/shooter/puzzle). This literal matches the generator's
+            // res://scenes/ui/{genre.Id}/{scene} convention, so it is correct but invisible to
+            // nav_wiring — relocating garage.tscn breaks it silently.
             GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene("res://scenes/ui/racing/garage.tscn");
             GetNode<Button>("Margin/VBox/VehicleGrid/Car1/Car1VBox/Car1Button").Pressed += () => SelectVehicle("Car1");
             GetNode<Button>("Margin/VBox/VehicleGrid/Car2/Car2VBox/Car2Button").Pressed += () => SelectVehicle("Car2");
@@ -24,23 +29,7 @@ namespace Beep.ECS.Scenes
             ChangeScene(GameApp.Instance?.GameScenePath);
         }
 
-        /// <summary>Navigate to a scene. Reports why it failed instead of doing nothing —
-        /// a missing/unset target used to make the button appear dead.</summary>
-        private void ChangeScene(string? path)
-        {
-            if (string.IsNullOrEmpty(path))
-            {
-                GD.PushError($"[{Name}] Navigation target is not set (check GameInfo scene paths).");
-                return;
-            }
-            if (!ResourceLoader.Exists(path))
-            {
-                GD.PushError($"[{Name}] Navigation target does not exist: {path}");
-                return;
-            }
-            Error err = GetTree().ChangeSceneToFile(path);
-            if (err != Error.Ok)
-                GD.PushError($"[{Name}] Failed to change scene to {path}: {err}");
-        }
+        // Shared helper: this method was byte-identical in all 33 screen scripts.
+        private void ChangeScene(string? path) => UI.SceneNav.ChangeScene(this, path);
     }
 }

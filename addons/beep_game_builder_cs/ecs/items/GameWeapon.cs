@@ -40,5 +40,13 @@ namespace Beep.ECS
         [Export] public GameItem? AmmoItem { get; set; }
 
         [Export] public int AmmoPerUse { get; set; } = 1;
+
+        /// <summary>Adds this weapon's <see cref="Damage"/> to the wielder's "damage" stat while
+        /// equipped. (The DamageType reaches combat separately — AttackComponent reads the equipped
+        /// MainWeapon's type — since a type is not a number a stat can hold.)</summary>
+        public override System.Collections.Generic.IEnumerable<StatModifier> GetIntrinsicModifiers()
+        {
+            yield return new StatModifier { Stat = "damage", Op = StatOp.Add, Amount = Damage, Duration = -1f };
+        }
     }
 }

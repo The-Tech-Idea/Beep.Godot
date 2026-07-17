@@ -25,12 +25,14 @@ namespace Beep.ECS
 
         private HealthComponent? _health;
         private Node2D? _body;
+        private EquipmentComponent? _equipment;
 
         public override void _Ready()
         {
             base._Ready();
             _health = GetSiblingComponent<HealthComponent>();
             _body = GetParent() as Node2D;
+            _equipment = GetSiblingComponent<EquipmentComponent>();
         }
 
         public override void _Process(double delta)
@@ -53,13 +55,17 @@ namespace Beep.ECS
             var stats = GetSiblingComponent<StatsComponent>();
             float finalDamage = stats?.GetValue("damage", Damage) ?? Damage;
 
+            // The equipped weapon decides the damage type, so a fire sword's hits meet a target's
+            // fire resistance. Unarmed (no weapon) falls back to Physical.
+            DamageType dtype = _equipment?.MainWeapon?.DamageType ?? DamageType.Physical;
+
             if (IsRanged && ProjectileScene != null)
             {
                 SpawnProjectile(target, finalDamage);
             }
             else if (_body != null)
             {
-                DealMeleeDamage(target, finalDamage);
+                DealMeleeDamage(target, finalDamage, dtype);
             }
 
             EmitSignal(SignalName.Attacked, target, finalDamage);
@@ -84,7 +90,7 @@ namespace Beep.ECS
             }
         }
 
-        private void DealMeleeDamage(Vector2 target, float damage)
+        private void DealMeleeDamage(Vector2 target, float damage, DamageType type)
         {
             if (_body == null) return;
             var areas = _body.GetWorld2D().DirectSpaceState.IntersectPoint(
@@ -97,7 +103,7 @@ namespace Beep.ECS
                     var health = EntityComponent.FindComponent<HealthComponent>(collider, false);
                     if (health != null)
                     {
-                        health.TakeDamage(new GameDamage(damage, DamageType.Physical, _body));
+                        health.TakeDamage(new GameDamage(damage, type, _body));
                         var knockback = EntityComponent.FindComponent<KnockbackComponent>(collider, false);
                         if (knockback != null) knockback.ApplyKnockback(_body.GlobalPosition);
                     }

@@ -28,11 +28,24 @@ namespace Beep.ECS
         /// actually socketed are per-instance (on the inventory slot) — Phase 7 (composition).</summary>
         [Export] public int SocketCount { get; set; } = 0;
 
-        /// <summary>The stat modifiers this piece contributes while equipped — a sword's
-        /// <c>{damage, Add, 10}</c>, a ring's <c>{move_speed, Multiply, 1.1}</c>. Authored on the
-        /// `.tres`; EquipmentComponent DUPLICATES them per wearer (so two entities holding the same
-        /// `.tres` don't share modifier state) and withdraws them by source on unequip. Equipment
-        /// modifiers are normally permanent (Duration &lt; 0).</summary>
+        /// <summary>Extra, freely-authored stat modifiers this piece contributes while equipped —
+        /// a ring's <c>{move_speed, Multiply, 1.1}</c>, an enchantment's <c>{crit_chance, Add, 5}</c>.
+        /// These are IN ADDITION to the intrinsic ones a subclass derives from its typed fields
+        /// (see <see cref="GetIntrinsicModifiers"/>). Authored on the `.tres`; EquipmentComponent
+        /// DUPLICATES them per wearer and withdraws them by source on unequip. Normally permanent
+        /// (Duration &lt; 0).</summary>
         [Export] public StatModifier[] Modifiers { get; set; } = System.Array.Empty<StatModifier>();
+
+        /// <summary>Stat modifiers derived from this piece's TYPED fields — a weapon's Damage into
+        /// the "damage" stat, an armor's Defense into "armor". Distinct from the authored
+        /// <see cref="Modifiers"/> array so the class's own fields reach combat without the author
+        /// re-typing them as modifiers. Freshly built each call (not shared), so EquipmentComponent
+        /// tags them with the item as Source and adds them directly. Base equipment contributes none.
+        ///
+        /// NOTE: these route into the entity's stats, so an entity that uses stats should author its
+        /// base combat values (damage, armor) on its StatsComponent — not also on HealthComponent.
+        /// Armor / AttackComponent.Damage, which are the fallbacks for entities WITHOUT a StatsComponent.</summary>
+        public virtual System.Collections.Generic.IEnumerable<StatModifier> GetIntrinsicModifiers()
+            => System.Array.Empty<StatModifier>();
     }
 }

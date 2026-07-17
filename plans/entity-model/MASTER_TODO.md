@@ -223,8 +223,17 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       3; `speed_boost` was read by `Shooter`+`AI`+`Platformer`+`TopDown` controllers, plus
       `Attack`/`Health`). Behaviour preserved (removed API returned constants; fallbacks match).
       → `phase-2-equipment.md`
-- [ ] **Phase 3 — Damage packet, then combat integration** — **3a blocks 3b.** Includes the
-      melee-hitbox fix that makes `GameWeapon.Range` real. → `phase-3-combat-integration.md`
+- [~] **Phase 3 — Damage packet, then combat integration** — **3a done** (item 8: `GameDamage`
+      packet). **3b core done:** equipment now injects its typed fields into the wearer's stats via
+      `GameEquipment.GetIntrinsicModifiers()` — `GameWeapon` → `{damage, Add, Damage}`,
+      `GameArmor`/`GameShield` → `{armor, Add, Defense}` — so `AttackComponent`/`HealthComponent`
+      (which read the stats since 2b) reflect equipment, and unequip withdraws by `Source`.
+      `AttackComponent` melee now carries the equipped `MainWeapon.DamageType`, so a fire sword meets
+      fire resistance. Build-clean. **Still open in 3b:** the melee **hitbox** (replace the cursor
+      point-query with an `AreaTrigger`-derived reach → makes `GameWeapon.Range` real — the base is
+      ready from item 7), ammo consumption (`GameWeapon.AmmoItem`), ranged/projectile typing +
+      `ShooterController` weapon integration (`ProjectileDamage`/`IsRanged`/`FireRate`), and
+      `ResistanceComponent` per-type → `resist_*` stats. → `phase-3-combat-integration.md`
 - [x] **Phase 4 — Pickups & drops** — **done.** `PickupComponent.ItemId` (string) → `[Export]
       GameItem? Item` (null = valid score-only pickup); `Collect` adds the item directly and warns
       when an Item is set but the collector has no inventory. `Collected → AddItem` was already

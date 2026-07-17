@@ -28,5 +28,13 @@ namespace Beep.ECS
         [Export] public float Dark { get; set; } = 1f;
         [Export] public float Lightning { get; set; } = 1f;
         [Export] public float True { get; set; } = 1f;
+
+        /// <summary>Adds this shield's <see cref="Defense"/> to the wielder's "armor" stat while
+        /// equipped. BlockChance and per-type resistances are read by the combat/defense components
+        /// directly (a later 3b step); they are not a single stat number.</summary>
+        public override System.Collections.Generic.IEnumerable<StatModifier> GetIntrinsicModifiers()
+        {
+            yield return new StatModifier { Stat = "armor", Op = StatOp.Add, Amount = Defense, Duration = -1f };
+        }
     }
 }

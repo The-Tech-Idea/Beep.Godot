@@ -70,24 +70,25 @@ namespace Beep.ECS
 
         private void Contribute(GameEquipment item)
         {
-            if (item.Modifiers.Length == 0) return;
+            // Authored Modifiers are shared on the .tres, so DUPLICATE them per wearer (two entities
+            // holding the same sword must not share modifier state, and ticking must not
+            // double-decrement one instance). Intrinsic modifiers are built fresh per call, so they
+            // are added directly. Both carry Source = item, so Unequip removes exactly these by identity.
+            var toAdd = new List<StatModifier>();
+            foreach (var mod in item.Modifiers)
+                if (mod != null) { var c = (StatModifier)mod.Duplicate(); c.Source = item; toAdd.Add(c); }
+            foreach (var mod in item.GetIntrinsicModifiers())
+                if (mod != null) { mod.Source = item; toAdd.Add(mod); }
+
+            if (toAdd.Count == 0) return;
             if (_stats == null)
             {
                 GD.PushWarning(
-                    $"[{Name}] '{item.DisplayName}' contributes {item.Modifiers.Length} stat modifier(s) " +
+                    $"[{Name}] '{item.DisplayName}' contributes {toAdd.Count} stat modifier(s) " +
                     "but there is no sibling StatsComponent — they do nothing. Add a StatsComponent to this entity.");
                 return;
             }
-            foreach (var mod in item.Modifiers)
-            {
-                if (mod == null) continue;
-                // Duplicate so two entities holding the same .tres don't share modifier state
-                // (and ticking never double-decrements one shared instance). Source = the item, so
-                // Unequip removes exactly these by identity.
-                var copy = (StatModifier)mod.Duplicate();
-                copy.Source = item;
-                _stats.AddModifier(copy);
-            }
+            foreach (var m in toAdd) _stats.AddModifier(m);
         }
 
         // ── ISaveable ──

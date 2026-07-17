@@ -20,8 +20,18 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class CoroutineHostComponent : UIComponent, ISaveable
     {
+        /// <summary>Include this host's jobs in saves. Off by default: GameStateData holds one
+        /// slot per feature, so a second participating host would overwrite the first.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [Signal] public delegate void JobStartedEventHandler(string jobId);
         [Signal] public delegate void JobCompletedEventHandler(string jobId);
+
+        public override void _Ready()
+        {
+            base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
+        }
 
         private struct Job
         {

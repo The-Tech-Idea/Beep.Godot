@@ -52,6 +52,11 @@ namespace Beep.ECS
         [Export] public int MaxSlots { get; set; } = 20;
         [Export] public bool AutoStack { get; set; } = true;
 
+        /// <summary>Include this inventory in saves. Tick it on the player's inventory only —
+        /// GameStateData keeps a single Inventory slot, so a chest or shop inventory saving
+        /// too would overwrite the player's.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [ExportGroup("Grid Display")]
         [Export] public int Columns { get; set; } = 5;
         [Export] public Vector2I SlotSize { get; set; } = new(48, 48);
@@ -86,6 +91,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             Slots = new InventoryItem[MaxSlots];
             CallDeferred(nameof(BuildUI));
         }
@@ -320,7 +326,12 @@ namespace Beep.ECS
             {
                 if (Slots[i] != null)
                 {
-                    state.Inventory.Items[Slots[i]!.Id] = Slots[i]!.Quantity;
+                    // Accumulate, don't assign. Items is keyed by item id, so two stacks of
+                    // the same item in different slots collapsed to whichever slot came last
+                    // — 99 + 99 potions restored as 99.
+                    string id = Slots[i]!.Id;
+                    state.Inventory.Items.TryGetValue(id, out int existing);
+                    state.Inventory.Items[id] = existing + Slots[i]!.Quantity;
                 }
             }
         }

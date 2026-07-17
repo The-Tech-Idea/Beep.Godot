@@ -7,26 +7,31 @@ namespace Beep.ECS
 	/// Interface for components that participate in save/load via feature-based architecture.
 	/// Implement this on any component that needs to be persisted (Movement, Combat, Inventory, etc).
 	///
-	/// Best Practice Pattern (from Godot community):
-	/// Each feature (movement, combat, inventory) has its own state class.
-	/// Components implement ISaveable to sync their local state with the global GameStateData.
+	/// IMPORTANT — implementing this is not enough. A component only participates once it has
+	/// joined the <see cref="SaveableHelper.Group"/> group, which the ISaveable components do
+	/// in _Ready when their ParticipatesInSave export is on.
+	///
+	/// Why: GameStateData is deliberately player-centric — Combat, Movement and Inventory are
+	/// single slots, not per-entity. Discovery used to walk the whole tree and call Save() on
+	/// every ISaveable, so every enemy's HealthComponent wrote the same state.Combat.Health
+	/// (last one scanned won) and Load then set *every* entity to that value. Opting in keeps
+	/// the one player's components as the only writers, matching the format's shape.
+	///
+	/// If you later need enemies/chests to persist individually, that's a per-entity key on
+	/// this interface plus a reshaped GameStateData — not a wider scan.
 	///
 	/// Example (Combat Component):
 	///   public partial class HealthComponent : GameplayComponent, ISaveable
 	///   {
-	///       private GameBuilder.GameStateData _state;
-	///
 	///       public void Save(GameBuilder.GameStateData state)
 	///       {
-	///           _state = state;
-	///           _state.Combat.Health = CurrentHealth;
-	///           _state.Combat.MaxHealth = MaxHealth;
+	///           state.Combat.Health = CurrentHealth;
+	///           state.Combat.MaxHealth = MaxHealth;
 	///       }
 	///
 	///       public void Load(GameBuilder.GameStateData state)
 	///       {
-	///           _state = state;
-	///           SetHealth(_state.Combat.Health);
+	///           SetHealth(state.Combat.Health);
 	///       }
 	///   }
 	/// </summary>
@@ -46,34 +51,36 @@ namespace Beep.ECS
 	// No [GlobalClass]: this is a plain static utility, not a registrable Godot type.
 	public static partial class SaveableHelper
 	{
-		/// <summary>Find all ISaveable components in a node tree.</summary>
+		/// <summary>Components in this group are the ones a save is built from. Joined in
+		/// _Ready by ISaveable components whose ParticipatesInSave export is on.</summary>
+		public const string Group = "saveables";
+
+		/// <summary>The ISaveable components taking part in saves.
+		///
+		/// Group membership, not a tree walk: walking the tree collected every enemy's
+		/// HealthComponent alongside the player's, and they all write the same single
+		/// state.Combat slot. See the note on ISaveable.</summary>
 		public static List<ISaveable> FindAllSaveables(Node root)
 		{
 			var saveables = new List<ISaveable>();
-			Collect(root, saveables);
+			var tree = root.GetTree();
+			if (tree == null) return saveables;
+
+			foreach (var node in tree.GetNodesInGroup(Group))
+				if (node is ISaveable saveable)
+					saveables.Add(saveable);
+
 			return saveables;
 		}
 
-		/// <summary>Find all ISaveable of a specific component type (e.g., HealthComponent).</summary>
+		/// <summary>Participating ISaveables of a specific component type (e.g. HealthComponent).</summary>
 		public static List<T> FindSaveablesOfType<T>(Node root) where T : class, ISaveable
 		{
 			var result = new List<T>();
-			foreach (var node in root.GetChildren())
-			{
-				if (node is T typed)
+			foreach (var saveable in FindAllSaveables(root))
+				if (saveable is T typed)
 					result.Add(typed);
-				result.AddRange(FindSaveablesOfType<T>(node));
-			}
 			return result;
-		}
-
-		private static void Collect(Node node, List<ISaveable> list)
-		{
-			if (node is ISaveable saveable)
-				list.Add(saveable);
-
-			foreach (var child in node.GetChildren())
-				Collect(child, list);
 		}
 	}
 }

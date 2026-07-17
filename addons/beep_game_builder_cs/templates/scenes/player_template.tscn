@@ -18,6 +18,7 @@ shape = SubResource("RectangleShape2D_body")
 script = ExtResource("1_health")
 MaxHealth = 100.0
 CurrentHealth = 100.0
+ParticipatesInSave = true
 
 [node name="Movement" type="Node" parent="."]
 script = ExtResource("2_movement")

@@ -22,6 +22,10 @@ namespace Beep.ECS.UI
         [Export] public bool AutoRefresh { get; set; } = true;
         [Export] public double PollInterval { get; set; } = 0.1;
 
+        /// <summary>Include this binder's state in saves. Off by default: GameStateData holds
+        /// one slot per feature, so several participating binders would overwrite each other.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [Signal] public delegate void BindingRefreshedEventHandler(string sourceProperty, Variant newValue);
         [Signal] public delegate void BindingCreatedEventHandler(string sourceProperty);
         [Signal] public delegate void BindingRemovedEventHandler(string sourceProperty);
@@ -68,6 +72,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _pollTimer = 0;
         }
 

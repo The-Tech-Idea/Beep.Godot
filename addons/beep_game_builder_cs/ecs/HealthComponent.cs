@@ -18,6 +18,13 @@ namespace Beep.ECS
         [Export] public bool TemperatureAffectsHealth { get; set; } = true;
         [Export] public bool HungerAffectsHealth { get; set; } = true;
 
+        /// <summary>Include this entity's health in saves. Tick it on the player only.
+        ///
+        /// Off by default because this component is blind (see the class note): GameStateData
+        /// keeps one Combat slot, so if every enemy's health saved too, the last one scanned
+        /// would win and loading would set the player and every enemy to that value.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [Signal] public delegate void DamagedEventHandler(float amount, float newHealth);
         [Signal] public delegate void HealedEventHandler(float amount, float newHealth);
         [Signal] public delegate void DiedEventHandler();
@@ -34,6 +41,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _hunger = GetSiblingComponent<HungerStaminaComponent>();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();

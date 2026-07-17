@@ -22,8 +22,18 @@ namespace Beep.ECS.UI
     {
         [Export] public bool CaptureInput { get; set; } = true;
 
+        /// <summary>Include these keybinds in saves. Off by default: GameStateData holds one
+        /// slot per feature, so a second participating manager would overwrite the first.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [Signal] public delegate void KeybindTriggeredEventHandler(string keybindId);
         [Signal] public delegate void KeybindReboundEventHandler(string keybindId, string newKeyDisplay);
+
+        public override void _Ready()
+        {
+            base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
+        }
 
         private class RegisteredKeybind
         {

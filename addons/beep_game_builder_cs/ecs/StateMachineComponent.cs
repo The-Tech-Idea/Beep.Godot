@@ -23,6 +23,10 @@ namespace Beep.ECS
     {
         [Export] public string InitialState { get; set; } = "idle";
 
+        /// <summary>Include this state machine in saves. Off by default: GameStateData holds
+        /// one slot per feature, so every state machine in the scene saving would collide.</summary>
+        [Export] public bool ParticipatesInSave { get; set; } = false;
+
         [Signal] public delegate void StateChangedEventHandler(string from, string to);
         [Signal] public delegate void StateEnteredEventHandler(string state);
         [Signal] public delegate void StateExitedEventHandler(string state);
@@ -37,6 +41,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _fsm = new GameBuilder.BeepStateMachine();
             _initialized = false;
         }

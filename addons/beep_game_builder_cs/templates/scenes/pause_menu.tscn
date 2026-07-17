@@ -65,11 +65,11 @@ script = ExtResource("3_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("4_binder")
-theme_component_path = NodePath("Theme")
+ThemeComponentPath = NodePath("Theme")
 
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("5_transition")
-duration = 0.4
+Duration = 0.4
 
 [node name="SaveLoadManager" type="Node" parent="."]
 script = ExtResource("7_saveload")

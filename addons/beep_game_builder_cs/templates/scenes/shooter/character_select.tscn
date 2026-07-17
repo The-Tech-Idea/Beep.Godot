@@ -160,11 +160,11 @@ script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
-theme_component_path = NodePath("Theme")
-append_game_name = true
+TitleLabelPath = NodePath("Margin/VBox/Header/TitleLabel")
+ThemeComponentPath = NodePath("Theme")
+AppendGameName = true
 
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("3_anim")
-animate_on_ready = true
+AnimateOnReady = true
 

@@ -74,5 +74,5 @@ script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-theme_component_path = NodePath("Theme")
+ThemeComponentPath = NodePath("Theme")
 

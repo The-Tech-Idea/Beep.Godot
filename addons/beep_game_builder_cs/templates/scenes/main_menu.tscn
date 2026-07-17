@@ -86,21 +86,21 @@ script = ExtResource("2_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("3_binder")
-title_label_path = NodePath("Center/MenuVBox/TitleLabel")
-version_label_path = NodePath("Center/MenuVBox/VersionLabel")
-theme_component_path = NodePath("Theme")
-set_window_title = true
+TitleLabelPath = NodePath("Center/MenuVBox/TitleLabel")
+VersionLabelPath = NodePath("Center/MenuVBox/VersionLabel")
+ThemeComponentPath = NodePath("Theme")
+SetWindowTitle = true
 
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("4_transition")
-duration = 0.4
+Duration = 0.4
 
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("5_anim")
-entry_direction = 1
-duration = 0.3
-stagger_delay = 0.05
-animate_on_ready = true
+EntryDirection = 1
+Duration = 0.3
+StaggerDelay = 0.05
+AnimateOnReady = true
 
 [node name="SaveLoadManager" type="Node" parent="."]
 script = ExtResource("7_saveload")

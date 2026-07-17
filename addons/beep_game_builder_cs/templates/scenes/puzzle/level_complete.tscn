@@ -88,9 +88,9 @@ script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-theme_component_path = NodePath("Theme")
+ThemeComponentPath = NodePath("Theme")
 
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("3_anim")
-animate_on_ready = true
+AnimateOnReady = true
 

@@ -49,15 +49,15 @@ script = ExtResource("2_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("3_binder")
-title_label_path = NodePath("Center/GameOverVBox/TitleLabel")
-theme_component_path = NodePath("Theme")
-append_game_name = true
+TitleLabelPath = NodePath("Center/GameOverVBox/TitleLabel")
+ThemeComponentPath = NodePath("Theme")
+AppendGameName = true
 
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("4_transition")
-duration = 0.4
+Duration = 0.4
 
 [node name="MenuAnimation" type="Node" parent="."]
 script = ExtResource("5_anim")
-animate_on_ready = true
+AnimateOnReady = true
 

@@ -66,5 +66,6 @@ script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-title_label_path = NodePath("Margin/VBox/Header/TitleLabel")
-theme_component_path = NodePath("Theme")
+TitleLabelPath = NodePath("Margin/VBox/Header/TitleLabel")
+AppendGameName = true
+ThemeComponentPath = NodePath("Theme")

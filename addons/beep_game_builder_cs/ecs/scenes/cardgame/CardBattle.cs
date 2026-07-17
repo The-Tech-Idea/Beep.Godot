@@ -10,6 +10,7 @@ namespace Beep.ECS.Scenes
         [Signal] public delegate void TurnChangedEventHandler(bool playerTurn, int turnNumber);
 
         private Label? _banner;
+        private Button? _endTurnButton;
         private bool _playerTurn = true;
         private int _turnNumber = 1;
 
@@ -18,7 +19,8 @@ namespace Beep.ECS.Scenes
             if (Engine.IsEditorHint()) return;
 
             _banner = GetNodeOrNull<Label>("Center/Panel/Margin/VBox/BannerLabel");
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/EndTurnButton").Pressed += OnEndTurn;
+            _endTurnButton = GetNodeOrNull<Button>("Center/Panel/Margin/VBox/ButtonRow/EndTurnButton");
+            if (_endTurnButton != null) _endTurnButton.Pressed += OnEndTurn;
             GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/ForfeitButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
 
             UpdateBanner();
@@ -29,25 +31,31 @@ namespace Beep.ECS.Scenes
         /// The turn STATE machine is real and complete; the per-card actions are the game's.</summary>
         private void OnEndTurn()
         {
-            if (_playerTurn)
-            {
-                _playerTurn = false;
-                UpdateBanner();
-                EmitSignal(SignalName.TurnChanged, false, _turnNumber);
-                // Hand back to the player after the opponent "acts". A game replaces this
-                // timer with real opponent AI, but the turn hand-off itself works today.
-                GetTree().CreateTimer(0.6).Timeout += EndOpponentTurn;
-            }
-            else
-            {
-                EndOpponentTurn();
-            }
+            if (!_playerTurn) return;
+
+            _playerTurn = false;
+            // Lock End Turn while the opponent "acts". Leaving it live let a second press
+            // inside the 0.6s window run EndOpponentTurn immediately without cancelling the
+            // pending timer — which then fired too, advancing the turn twice and emitting
+            // TurnChanged twice for one hand-off.
+            if (_endTurnButton != null) _endTurnButton.Disabled = true;
+            UpdateBanner();
+            EmitSignal(SignalName.TurnChanged, false, _turnNumber);
+            // Hand back to the player after the opponent "acts". A game replaces this
+            // timer with real opponent AI, but the turn hand-off itself works today.
+            GetTree().CreateTimer(0.6).Timeout += EndOpponentTurn;
         }
 
         private void EndOpponentTurn()
         {
+            // Belt-and-braces against a re-entrant hand-back (the timer surviving a
+            // QueueFree'd button, a game calling this directly): only the opponent's turn
+            // can hand back to the player.
+            if (_playerTurn) return;
+
             _playerTurn = true;
             _turnNumber++;
+            if (_endTurnButton != null) _endTurnButton.Disabled = false;
             UpdateBanner();
             EmitSignal(SignalName.TurnChanged, true, _turnNumber);
         }

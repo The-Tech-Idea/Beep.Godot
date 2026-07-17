@@ -3,8 +3,9 @@ extends VBoxContainer
 
 ## Beep UI — Theme Studio dock.
 ## Tab 1 "Themes": visual gallery of all 22 presets + swatches + one-click apply.
-## Tab 2 "Widgets": all 84 Beep widgets, searchable; click to drop a real themed
-## widget under the current selection.
+## Tab 2 "Widgets": every widget in BeepWidgetFactory.catalog(), searchable; click
+## to drop a real themed widget under the current selection. (Deliberately no count
+## here — it said 84 while the catalog held 114.)
 
 const THEME_APPLIER_SCRIPT := preload("res://addons/beep_ui/theme/theme_applier.gd")
 # BeepWidgetFactory is referenced via its global class_name declared in
@@ -146,7 +147,11 @@ func _build_themes_tab(tabs: TabContainer) -> void:
 func _refresh_theme_grid(filter: String) -> void:
 	if _theme_grid == null:
 		return
+	# remove_child first: queue_free() is deferred to end-of-frame, so the old cards were
+	# still children when the new ones were added below. This refresh runs on every
+	# keystroke, so the grid re-flowed holding both sets.
 	for c in _theme_grid.get_children():
+		_theme_grid.remove_child(c)
 		c.queue_free()
 	var f := filter.to_lower()
 	for pname in BeepPreset.preset_names():
@@ -157,6 +162,11 @@ func _refresh_theme_grid(filter: String) -> void:
 
 func _make_theme_card(preset_name: String) -> Control:
 	var p: BeepPreset = BeepPreset.get_preset(preset_name)
+	# get_preset() returns null on an unknown name or a failed load, and this runs in a loop
+	# from _refresh_theme_grid — so without this guard one bad preset_*.gd took the whole
+	# dock down on the swatch read below. _update_preview() already guards the same call.
+	if p == null:
+		return Label.new()
 	var card := VBoxContainer.new()
 	card.add_theme_constant_override("separation", 2)
 
@@ -299,7 +309,9 @@ func _build_widgets_tab(tabs: TabContainer) -> void:
 func _refresh_widget_grid(filter: String) -> void:
 	if _widget_grid == null:
 		return
+	# Same deferred-free hazard as _refresh_theme_grid: remove immediately, then free.
 	for c in _widget_grid.get_children():
+		_widget_grid.remove_child(c)
 		c.queue_free()
 	var f := filter.to_lower()
 	var last_cat := ""

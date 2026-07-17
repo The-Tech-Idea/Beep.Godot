@@ -79,7 +79,9 @@ namespace Beep.ECS.UI
 
 				if (slotDict.TryGetValue(i, out var meta))
 				{
-					var time = new System.DateTime((long)meta.Timestamp);
+					// Metadata.Timestamp is Unix seconds. It was read as DateTime ticks
+					// (100ns since year 1), so every slot rendered as year 0001.
+					var time = System.DateTimeOffset.FromUnixTimeSeconds(meta.Timestamp).LocalDateTime;
 					button.Text = $"Slot {i + 1} - {meta.SaveName} ({time:MM/dd/yyyy})";
 				}
 				else

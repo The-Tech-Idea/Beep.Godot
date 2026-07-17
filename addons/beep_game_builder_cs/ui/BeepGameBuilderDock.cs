@@ -47,6 +47,15 @@ public partial class BeepGameBuilderDock : VBoxContainer
         BuildUI();
     }
 
+    /// <summary>Drop the static callbacks. They capture `this`, and the plugin QueueFrees the
+    /// dock on _ExitTree — leaving BeepFileUtils holding lambdas that write to a freed node.</summary>
+    public override void _ExitTree()
+    {
+        BeepFileUtils.LogCallback = _ => { };
+        BeepFileUtils.ErrorCallback = _ => { };
+        base._ExitTree();
+    }
+
     private void BuildUI()
     {
         var title = new Label
@@ -217,7 +226,9 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
         var info = LoadGameInfoFromDisk() ?? new GameInfo();
         info.GameName = string.IsNullOrWhiteSpace(_gameName.Text) ? "My Game" : _gameName.Text;
-        info.Version = "0.1.0";
+        // Was hardcoded to "0.1.0", which discarded whatever the user typed in the Version
+        // box and reset an existing game_info.tres back to 0.1.0 on every generate.
+        info.Version = string.IsNullOrWhiteSpace(_version.Text) ? "0.1.0" : _version.Text;
         info.GenreId = gid;
         info.DefaultThemePreset = tid;
         info.PaletteName = pid;
@@ -253,6 +264,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         var info = LoadGameInfoFromDisk();
         if (info == null) { Log($"No {GameInfo.TresPath} found."); return; }
         _gameName.Text = info.GameName;
+        _version.Text = info.Version;
         _resW.Value = info.TargetResolutionWidth;
         _resH.Value = info.TargetResolutionHeight;
         _targetFps.Value = info.TargetFps;
@@ -274,6 +286,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
     {
         var info = LoadGameInfoFromDisk() ?? new GameInfo();
         info.GameName = string.IsNullOrWhiteSpace(_gameName.Text) ? "My Game" : _gameName.Text;
+        if (!string.IsNullOrWhiteSpace(_version.Text)) info.Version = _version.Text;
         info.TargetResolutionWidth = (int)_resW.Value;
         info.TargetResolutionHeight = (int)_resH.Value;
         info.TargetFps = (int)_targetFps.Value;

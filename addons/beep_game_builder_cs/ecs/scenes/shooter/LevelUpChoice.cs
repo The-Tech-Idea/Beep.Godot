@@ -6,32 +6,45 @@ namespace Beep.ECS.Scenes
     [GlobalClass]
     public partial class LevelUpChoice : CanvasLayer
     {
+        /// <summary>GameData key holding the chosen upgrade's action id ("pick_1"…).
+        /// Applying the upgrade is the game's job — this screen only records the choice.</summary>
+        public const string PickKey = "levelup_pick";
+
         public override void _Ready()
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/VBox/CardRow/Card1/Card1VBox/Pick1").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
-            GetNode<Button>("Center/VBox/CardRow/Card2/Card2VBox/Pick2").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
-            GetNode<Button>("Center/VBox/CardRow/Card3/Card3VBox/Pick3").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
+            // All three handlers used to be byte-identical, so the choice was discarded —
+            // the same bug CharacterSelect and VehicleSelect document as fixed on their side.
+            // Each card carries its own metadata/action ("pick_1".."pick_3"); read it rather
+            // than hardcoding, so re-ordering the cards in the scene can't desync the picks.
+            WirePick("Center/VBox/CardRow/Card1/Card1VBox/Pick1");
+            WirePick("Center/VBox/CardRow/Card2/Card2VBox/Pick2");
+            WirePick("Center/VBox/CardRow/Card3/Card3VBox/Pick3");
         }
 
-        /// <summary>Navigate to a scene. Reports why it failed instead of doing nothing —
-        /// a missing/unset target used to make the button appear dead.</summary>
-        private void ChangeScene(string? path)
+        private void WirePick(string nodePath)
         {
-            if (string.IsNullOrEmpty(path))
+            if (GetNodeOrNull<Button>(nodePath) is not { } button) return;
+
+            string action = button.HasMeta("action") ? button.GetMeta("action").AsString() : "";
+            if (string.IsNullOrEmpty(action))
             {
-                GD.PushError($"[{Name}] Navigation target is not set (check GameInfo scene paths).");
+                GD.PushWarning($"[{Name}] {nodePath} has no metadata/action — its pick cannot be recorded.");
                 return;
             }
-            if (!ResourceLoader.Exists(path))
-            {
-                GD.PushError($"[{Name}] Navigation target does not exist: {path}");
-                return;
-            }
-            Error err = GetTree().ChangeSceneToFile(path);
-            if (err != Error.Ok)
-                GD.PushError($"[{Name}] Failed to change scene to {path}: {err}");
+
+            button.Pressed += () => OnPicked(action);
+        }
+
+        private void OnPicked(string action)
+        {
+            GameStateManagerComponent.Instance?.SetGameData(PickKey, action);
+
+            // Dismiss, don't navigate. This is an overlay (CanvasLayer layer=30 over a dim);
+            // ChangeScene(GameScenePath) reloaded the game scene underneath it, so levelling
+            // up restarted the run — the hazard SettingsOverlay exists to avoid.
+            QueueFree();
         }
     }
 }

@@ -20,7 +20,10 @@ signal effect_completed
 signal effect_looped(loop_count: int)
 
 # ── Core ──
-@export var effect: EffectType = EffectType.SLIDE
+# Setter, not a bare export: _validate_property only re-runs when the object notifies a
+# property-list change, so without this the per-effect group promised in the header stayed
+# stale until you deselected and reselected the node.
+@export var effect: EffectType = EffectType.SLIDE : set = _set_effect
 @export var scope: ScopeType = ScopeType.SELF
 
 # ── Timing ──
@@ -452,6 +455,13 @@ func _stop_typewriter() -> void:
 # ════════════════════════════════════════════════════════════════
 # Conditional inspector property visibility (port of _ValidateProperty)
 # ════════════════════════════════════════════════════════════════
+
+func _set_effect(value: EffectType) -> void:
+	effect = value
+	# Ask the inspector to re-query the property list so _validate_property below runs
+	# again for the newly-selected effect.
+	notify_property_list_changed()
+
 
 func _validate_property(property: Dictionary) -> void:
 	var n: String = property["name"]

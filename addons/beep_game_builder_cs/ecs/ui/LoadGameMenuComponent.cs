@@ -58,6 +58,25 @@ namespace Beep.ECS.UI
 			}
 		}
 
+		/// <summary>The slot rows the scene actually has, capped at MaxSlots. Mirrors
+		/// SaveGameMenuComponent.SlotButtons: GetChild&lt;PanelContainer&gt;(i) up to MaxSlots
+		/// indexed past the child count and hard-cast, so it threw before the `== null`
+		/// check below could ever run — a scene with a different row count, or a plain
+		/// separator among the rows, took the menu down.</summary>
+		private System.Collections.Generic.List<PanelContainer> SlotContainers()
+		{
+			var list = new System.Collections.Generic.List<PanelContainer>();
+			if (_slotsVBox == null) return list;
+			foreach (var child in _slotsVBox.GetChildren())
+			{
+				if (child is PanelContainer p) list.Add(p);
+				if (list.Count >= MaxSlots) break;
+			}
+			if (list.Count == 0)
+				GD.PushWarning($"[{Name}] No slot rows found under SlotsVBox — check the scene.");
+			return list;
+		}
+
 		private void PopulateSlots()
 		{
 			if (_slotsVBox == null || _gameStateManager == null) return;
@@ -69,16 +88,15 @@ namespace Beep.ECS.UI
 				_slotMetadata[slot] = meta;
 			}
 
-			for (int i = 0; i < MaxSlots; i++)
+			var containers = SlotContainers();
+			for (int i = 0; i < containers.Count; i++)
 			{
-				var container = _slotsVBox.GetChild<PanelContainer>(i);
-				if (container == null) continue;
+				var container = containers[i];
 
 				var slotButton = container.FindChild("SlotButton", owned: false) as Button;
 				var nameLabel = container.FindChild("SlotNameLabel", owned: false) as Label;
 				var levelLabel = container.FindChild("SlotLevelLabel", owned: false) as Label;
 				var timeLabel = container.FindChild("SlotPlaytimeLabel", owned: false) as Label;
-				var deleteButton = container.FindChild("DeleteButton", owned: false) as Button;
 
 				if (_slotMetadata.TryGetValue(i, out var meta))
 				{
@@ -99,31 +117,25 @@ namespace Beep.ECS.UI
 					if (levelLabel != null) levelLabel.Text = "Level: --";
 					if (timeLabel != null) timeLabel.Text = "Time: --";
 				}
-
-				// Wire up delete button
-				if (deleteButton != null)
-				{
-					int slot = i;
-					deleteButton.Pressed += () => OnDeletePressed(slot);
-				}
 			}
 		}
 
+		/// <summary>Wire the per-row buttons. Called once from _Ready — PopulateSlots used to
+		/// subscribe the delete buttons on every call and OnDeletePressed re-invoked both, so
+		/// handlers accumulated with each delete and later presses emitted DeleteConfirmed
+		/// once per accumulated subscription.</summary>
 		private void WireSlotButtons()
 		{
-			if (_slotsVBox == null) return;
-
-			for (int i = 0; i < MaxSlots; i++)
+			var containers = SlotContainers();
+			for (int i = 0; i < containers.Count; i++)
 			{
-				var container = _slotsVBox.GetChild<PanelContainer>(i);
-				if (container == null) continue;
+				int slot = i;
 
-				var slotButton = container.FindChild("SlotButton", owned: false) as Button;
-				if (slotButton != null)
-				{
-					int slot = i;
+				if (containers[i].FindChild("SlotButton", owned: false) is Button slotButton)
 					slotButton.Pressed += () => OnSlotSelected(slot);
-				}
+
+				if (containers[i].FindChild("DeleteButton", owned: false) is Button deleteButton)
+					deleteButton.Pressed += () => OnDeletePressed(slot);
 			}
 		}
 
@@ -135,18 +147,11 @@ namespace Beep.ECS.UI
 			if (_loadButton != null)
 				_loadButton.Disabled = !hasData;
 
-			if (_slotsVBox != null)
+			var containers = SlotContainers();
+			for (int i = 0; i < containers.Count; i++)
 			{
-				for (int i = 0; i < MaxSlots; i++)
-				{
-					var container = _slotsVBox.GetChild<PanelContainer>(i);
-					if (container != null)
-					{
-						var panel = container as PanelContainer;
-						panel?.AddThemeStyleboxOverride("panel",
-							i == slot ? new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.6f) } : new StyleBoxFlat());
-					}
-				}
+				containers[i].AddThemeStyleboxOverride("panel",
+					i == slot ? new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.6f) } : new StyleBoxFlat());
 			}
 		}
 
@@ -162,8 +167,8 @@ namespace Beep.ECS.UI
 			if (!_slotMetadata.ContainsKey(slot)) return;
 			EmitSignal(SignalName.DeleteConfirmed, slot);
 			_slotMetadata.Remove(slot);
+			// Refresh labels only — the buttons are already wired from _Ready.
 			PopulateSlots();
-			WireSlotButtons();
 		}
 
 		private void OnCancelPressed()

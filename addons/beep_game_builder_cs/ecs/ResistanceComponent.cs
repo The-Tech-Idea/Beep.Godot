@@ -21,24 +21,24 @@ namespace Beep.ECS
         [Export] public float Lightning { get; set; } = 1f;
         [Export] public float True { get; set; } = 1f;
 
-        [Signal] public delegate void ResistanceBrokenEventHandler(DamageTypeComponent.Type type);
+        [Signal] public delegate void ResistanceBrokenEventHandler(DamageType type);
 
         /// <summary>Get the multiplier for a damage type (0 = immune, 1 = normal).</summary>
-        public float GetMultiplier(DamageTypeComponent.Type type) => type switch
+        public float GetMultiplier(DamageType type) => type switch
         {
-            DamageTypeComponent.Type.Physical => Physical,
-            DamageTypeComponent.Type.Fire => Fire,
-            DamageTypeComponent.Type.Ice => Ice,
-            DamageTypeComponent.Type.Poison => Poison,
-            DamageTypeComponent.Type.Holy => Holy,
-            DamageTypeComponent.Type.Dark => Dark,
-            DamageTypeComponent.Type.Lightning => Lightning,
-            DamageTypeComponent.Type.True => True,
+            DamageType.Physical => Physical,
+            DamageType.Fire => Fire,
+            DamageType.Ice => Ice,
+            DamageType.Poison => Poison,
+            DamageType.Holy => Holy,
+            DamageType.Dark => Dark,
+            DamageType.Lightning => Lightning,
+            DamageType.True => True,
             _ => 1f
         };
 
         /// <summary>Apply resistance to incoming damage. Returns modified amount.</summary>
-        public float ApplyResistance(float amount, DamageTypeComponent.Type type)
+        public float ApplyResistance(float amount, DamageType type)
         {
             float mult = GetMultiplier(type);
             return amount * mult;

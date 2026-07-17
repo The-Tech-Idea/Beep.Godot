@@ -177,7 +177,7 @@ namespace Beep.ECS
 
             if (damage > 0 && _health != null)
             {
-                _health.TakeDamage(damage);
+                _health.TakeDamage(new GameDamage(damage, DamageType.Physical));
                 EmitSignal(SignalName.TemperatureDamage, damage);
             }
         }

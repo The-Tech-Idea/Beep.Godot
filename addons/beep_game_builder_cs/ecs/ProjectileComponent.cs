@@ -78,10 +78,10 @@ namespace Beep.ECS
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)
             {
-                health.TakeDamage(Damage);
+                health.TakeDamage(new GameDamage(Damage, DamageType.Physical, _owner));
 
                 var knockback = EntityComponent.FindComponent<KnockbackComponent>(n, false);
-                if (knockback != null && n is Node2D hitNode)
+                if (knockback != null && n is Node2D)
                     knockback.ApplyKnockback(_area.GlobalPosition);
             }
 

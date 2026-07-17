@@ -71,19 +71,21 @@ namespace Beep.ECS
             }
 
             if (passiveDamage > 0)
-                TakeDamage(passiveDamage);
+                TakeDamage(new GameDamage(passiveDamage, DamageType.Physical));
         }
 
-        public void TakeDamage(float amount) => TakeDamage(amount, DamageTypeComponent.Type.Physical);
-
-        /// <summary>Apply typed damage. A sibling <see cref="ResistanceComponent"/> (if present)
+        /// <summary>Apply a damage packet. A sibling <see cref="ResistanceComponent"/> (if present)
         /// scales the incoming amount by its per-type multiplier first — 0 = immune, 2 = weak —
-        /// so an immune target (multiplier 0) takes nothing. Armor + status reduction apply after.</summary>
-        public void TakeDamage(float amount, DamageTypeComponent.Type type)
+        /// so an immune target (multiplier 0) takes nothing. Armor + status reduction apply after.
+        ///
+        /// There is no float overload: every caller states the <see cref="DamageType"/> via a
+        /// <see cref="GameDamage"/>. The old 1-arg convenience is what made every hit Physical.</summary>
+        public void TakeDamage(GameDamage damage)
         {
             if (!IsActive || IsDead) return;
 
-            if (_resistance != null) amount = _resistance.ApplyResistance(amount, type);
+            float amount = damage.Amount;
+            if (_resistance != null) amount = _resistance.ApplyResistance(amount, damage.Type);
             if (amount <= 0f) return; // resisted to nothing (immunity)
 
             float armorReduction = Mathf.Clamp(Armor, 0f, MaxArmor) * 0.01f;

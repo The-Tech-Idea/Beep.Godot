@@ -99,7 +99,7 @@ namespace Beep.ECS
                     var health = EntityComponent.FindComponent<HealthComponent>(collider, false);
                     if (health != null)
                     {
-                        health.TakeDamage(damage);
+                        health.TakeDamage(new GameDamage(damage, DamageType.Physical, _body));
                         var knockback = EntityComponent.FindComponent<KnockbackComponent>(collider, false);
                         if (knockback != null) knockback.ApplyKnockback(_body.GlobalPosition);
                     }

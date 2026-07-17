@@ -59,6 +59,10 @@ Beep.Godot/                                    ← this repo (dev/build harness 
 │   │   │   ├── EntityComponent.cs             ← base class for ~60 components
 │   │   │   ├── EntitySystem.cs                ← base class for system runners
 │   │   │   ├── + 47 *.cs components (Player, Enemy, AI, Camera, Particles, etc)
+│   │   ├── ecs/atmosphere/                     ← weather + day/night + ambient + fog + seasons
+│   │   │   ├── WeatherSystemComponent(.cs + .DayNight/.Intensity/.Overlays partials)
+│   │   │   ├── DayNightCycleComponent.cs, DynamicFogLayer.cs, SeasonalComponent.cs
+│   │   │   ├── AmbientController.cs, AmbientAudioComponent.cs, WeatherAudioController.cs, LightningBoltComponent.cs
 │   │   ├── ecs/ui/                            ← UI components (~60 .cs files)
 │   │   │   ├── ThemePresetComponent.cs        ← C# theming entry (the `IThemePreset` runtime)
 │   │   │   ├── ThemePresetComponent.NodeTheming.cs  ← per-node-type theming methods

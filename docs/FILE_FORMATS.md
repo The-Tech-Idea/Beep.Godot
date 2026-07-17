@@ -38,6 +38,11 @@ the loader picks it up.
   "default_geometry": "platformer",         // matches the geometry.json id
   "main_scene":      "platformer_main.tscn",
   "scenes":          ["level_select.tscn", "level_results.tscn"],
+  "nav_wiring": {                          // GameInfo property -> this genre's screen
+    "LevelSelectPath":   "level_select.tscn",
+    "LevelResultsPath":  "level_results.tscn",
+    "LevelCompletePath": "level_results.tscn"
+  },
   "tuning": {                              // free-form dictionary consumed by the genre code
     "gravity":       980,
     "jump_velocity": -400,
@@ -56,7 +61,32 @@ the loader picks it up.
 | `default_geometry`| string   | no       | `GeometryProfile.ByName` lookup |
 | `main_scene`      | string   | no       | `GameInfo` |
 | `scenes`          | string[] | no       | `GameInfo` |
+| `nav_wiring`      | object   | no       | `BeepGenreGenerator.ApplyNavWiring` → `GameInfo` |
 | `tuning`          | object   | no       | `GameApp.GenreTuning` |
+
+### `nav_wiring`
+
+Points `GameInfo`'s **genre-specific** scene paths at this genre's own screens. Key = a
+`GameInfo` property name (PascalCase, exactly as declared in `core/GameInfo.cs`); value = a
+scene filename relative to this genre's UI folder (`res://scenes/ui/<genre>/`), or a full
+`res://` path used verbatim. Applied at generation time and baked into `game_info.tres`.
+
+Wireable properties:
+`LevelSelectPath`, `LevelResultsPath`, `CharacterSelectPath`, `LevelUpPath`,
+`RunResultsPath`, `CodexPath`, `LevelMapPath`, `PreLevelPath`, `LevelCompletePath`,
+`LevelFailedPath`.
+
+Shared paths (`MainMenuPath`, `GameScenePath`, `SettingsScenePath`, `GameOverScenePath`,
+`PauseMenuPath`) are **not** wireable here — every genre uses the same ones.
+
+> **Undeclared means "this genre has no such screen."** The generator clears all genre paths
+> before applying `nav_wiring`, so anything you omit ends up empty and the flow falls through
+> (e.g. level-complete → game over). This matters: those properties are *declared* with the
+> four original genres' scenes as defaults, so before `nav_wiring` was applied, every genre —
+> platformer included — finished a level on the **puzzle** end screen, because
+> `LevelCompletePath` was never empty and shadowed the fallback.
+
+An unknown property name is ignored with a warning rather than failing silently.
 
 ---
 

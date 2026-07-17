@@ -89,10 +89,42 @@ wired via `MenuComponent` + `NavigationComponent` (exported PackedScene paths).
 
 GameInfo is a Resource (not an autoload) — loaded by GameApp from `game_info.tres`.
 
-## MCP bridge
+## AI agent commands (optional)
 
-Optional AI agent bridge over WebSocket. Auto-enabled on plugin load.
-See [MCP README →](mcp/README.md).
+The MCP bridge itself lives in the separate **`godot_mcp`** addon — see
+[its README →](../godot_mcp/README.md). This addon depends on it for nothing; if
+`godot_mcp` isn't enabled, the registration below is an inert dictionary write.
+
+Enable both and `mcp/BeepMcpCommands.cs` contributes these to an agent
+(invoke via the bridge's `game.command`; `status.get` lists them):
+
+| Command | Where | Does |
+|---|---|---|
+| `beep.list_genres` | editor + runtime | every genre in the skin catalog |
+| `beep.list_themes` | editor + runtime | themes in a genre |
+| `beep.list_palettes` | editor + runtime | palettes in a genre+theme |
+| `beep.catalog` | editor + runtime | the whole genre→theme→palette tree in one call |
+| `beep.list_components` | editor + runtime | all 146 components, grouped by category (`category`/`search` filters) |
+| `beep.component_info` | editor + runtime | a component's exported properties (with types, enum values, defaults) + signals |
+| `beep.add_component` | editor | attach a component to a node in the open scene (needs `allow_editor_writes`) |
+| `beep.apply_skin` | editor | re-skin every `ThemePresetComponent` in the open scene |
+| `beep.generate_project` | editor | stamp a starter project (needs `allow_editor_writes`) |
+| `beep.game_state` | runtime | live `GameApp` session state |
+
+Components are found by **reflection**, not a hand-maintained list — add a new
+`EntityComponent` subclass and it appears automatically, no edit here.
+
+Typical agent flow:
+
+```
+beep.list_components  {"category": "GameplayComponent", "search": "health"}
+beep.component_info   {"type": "HealthComponent"}
+beep.add_component    {"node": "Player", "type": "HealthComponent",
+                       "properties": {"MaxHealth": 150}}
+```
+
+Once attached, the bridge's generic `node.set_property` / `node.call_method` drive it —
+nothing Beep-specific is needed for that.
 
 ## Further reading
 

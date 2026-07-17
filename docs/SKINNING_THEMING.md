@@ -794,7 +794,7 @@ Two effects run in `_process(delta)`: `BOB` (per-frame sine wave on `position.y`
 | `RippleComponent` | Click ripple animation (color from active accent) | added by `ThemePresetComponent.SetupRipple` |
 | `ToggleSwitchComponent` | Themed on/off switch | `ThemePresetComponent` for its base colors |
 | `TabGroupComponent` | Click tab headers to switch panels | uses `ActiveShapes.Separator.Separation` indirectly |
-| `CarouselComponent`, `MarqueeComponent`, `TypewriterComponent`, … | 50+ others | use the theme cascade — no manual theming |
+| `CarouselComponent`, `MarqueeComponent`, `AccordionComponent`, … | 50+ others | use the theme cascade — no manual theming |
 
 Every `[GlobalClass]` component in `ecs/ui/` is auto-themed via the parent's `ThemePresetComponent.Theme` cascade. Components rarely reference `_presetInstance` directly.
 

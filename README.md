@@ -9,12 +9,17 @@ day/night cycle, translations, and an MCP bridge for AI agents.
 code paths. Everything is either a component (drop in the editor) or a
 data file (drop in `catalogs/`).
 
-The project ships **two independent addons**, split by language and purpose:
+The project ships **three independent addons**, split by language and purpose:
 
 | Addon | Language | Use it for |
 |---|---|---|
 | **`beep_ui`** | GDScript | UI theming (22 presets, 11 effects, 84+ widgets). Runs in any Godot 4.7+ project. |
-| **`beep_game_builder_cs`** | C# (.NET 8) | Game building: file-based skin system, 177 categorized ECS components, weather system, day/night cycle, scene templates, translations, MCP bridge. Requires a **.NET** Godot project. |
+| **`beep_game_builder_cs`** | C# (.NET 8) | Game building: file-based skin system, categorized components, weather system, day/night cycle, scene templates, translations. Requires a **.NET** Godot project. |
+| **`godot_mcp`** | C# (.NET 8) | Optional AI-agent bridge to a local FastMCP server. Project-agnostic — usable in any C# Godot project on its own. |
+
+Each works standalone. Enable `beep_game_builder_cs` **and** `godot_mcp` together and the
+game builder additionally exposes `beep.*` commands to an agent (list the skin catalog,
+apply a skin, generate a project, read live game state).
 
 You can use either or both. `beep_ui` is self-contained and does **not** depend on
 the C# addon.
@@ -28,7 +33,9 @@ the C# addon.
 3. **Project → Project Settings → Plugins** → enable the addon(s).
 4. **Create a new scene** (File → New Scene → Node2D root).
 5. **Add a `BeepGenreScene` component** (Add Node → Beep → GenreScene).
-6. **Set `GenreId`** in the inspector: `"platformer"`, `"topdown"`, `"shooter"`, or `"puzzle"`.
+6. **Set `GenreId`** in the inspector — a dropdown listing every genre folder under
+   `catalogs/skins/`: `cardgame`, `citybuilder`, `platformer`, `puzzle`, `racing`, `rpg`,
+   `shooter`, `strategy`, `survival`, `topdown`.
 7. **Run** the scene. The genre's already-wired main scene is auto-instantiated
    as a child, `GameApp.Info` is populated, and any sibling `ThemePresetComponent`
    is driven from the resolved theme.

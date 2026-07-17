@@ -53,6 +53,11 @@ namespace Beep.ECS
             if (GameApp.Instance != null)
                 GameApp.Instance.SetGameRunning(true);
 
+            // Every gameplay entry point comes through here, so this is where a run's state
+            // is established: apply a save queued by Continue/Load, or seed fresh state for
+            // a new run. Without it nothing ever called NewGame() and every save no-opped.
+            GameStateManagerComponent.Instance?.BeginSession();
+
             // Seed from GameInfo tuning if available (target score, etc.).
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) TargetScore = info.TargetScore;

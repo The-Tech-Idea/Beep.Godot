@@ -184,6 +184,11 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            // Inert as an autoload (those don't run in-editor), but [GlobalClass] means this is
+            // droppable into a scene — where writing the CurrentFPS/SessionPlaytimeSeconds
+            // exports every frame dirties it continuously.
+            if (Engine.IsEditorHint()) return;
+
             // Track FPS
             CurrentFPS = (int)Engine.GetFramesPerSecond();
 

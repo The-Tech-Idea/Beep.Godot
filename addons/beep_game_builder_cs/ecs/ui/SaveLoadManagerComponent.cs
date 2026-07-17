@@ -159,7 +159,17 @@ namespace Beep.ECS.UI
 			if (_gameStateManager == null) return;
 
 			_gameStateManager.SyncAllSaveables(); // Sync all components' state
-			_gameStateManager.GetCurrentState()!.Metadata.SaveName = saveName;
+
+			// SyncAllSaveables early-returns when there is no state; it does not create one.
+			// The null-forgiving ! here was a live NullReferenceException on the pause menu's
+			// Save button whenever a run started without state being seeded.
+			var state = _gameStateManager.GetCurrentState();
+			if (state == null)
+			{
+				GD.PushError("[SaveLoad] No game state to save — is GameFlowComponent in the scene?");
+				return;
+			}
+			state.Metadata.SaveName = saveName;
 			bool success = _gameStateManager.Save(slot);
 
 			if (success)
@@ -177,10 +187,12 @@ namespace Beep.ECS.UI
 		{
 			if (_gameStateManager == null) return;
 
-			bool success = _gameStateManager.Load(slot);
+			// Queue the restore rather than applying it now — the scene change below frees
+			// this scene, so anything restored here would be thrown away. GameFlowComponent
+			// in the incoming gameplay scene applies it via BeginSession().
+			bool success = _gameStateManager.LoadForSceneChange(slot);
 			if (success)
 			{
-				_gameStateManager.RestoreAllSaveables(); // Restore all components' state
 				GD.Print($"[SaveLoad] Game loaded from slot {slot}");
 				EmitSignal(SignalName.LoadCompleted, slot);
 

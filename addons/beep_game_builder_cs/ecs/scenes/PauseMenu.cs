@@ -12,7 +12,10 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            _saveLoadManager = GetNode<UI.SaveLoadManagerComponent>("SaveLoadManager");
+            // GetNodeOrNull to match the tolerance already expressed below, where the Save and
+            // Load buttons are fetched with GetNodeOrNull: stripping save/load from a pause
+            // menu is a natural edit, and throwing here killed Resume/Restart/Quit with it.
+            _saveLoadManager = GetNodeOrNull<UI.SaveLoadManagerComponent>("SaveLoadManager");
 
             GetNode<Button>("Panel/PauseVBox/ResumeButton").Pressed   += () => { GetTree().Paused = false; QueueFree(); };
             // Open settings OVER the paused game. This used to unpause and ChangeScene,

@@ -124,10 +124,16 @@ namespace Beep.GameBuilder
 		/// </summary>
 		public Dictionary<string, Variant> GameData { get; set; } = new();
 
+		/// <summary>Bumped when the on-disk shape changes in a way FromJsonString can't
+		/// infer. Missing keys already degrade gracefully; a key whose *meaning* changed
+		/// cannot be detected without this, and it can't be retrofitted once saves exist.</summary>
+		public const int SaveFormatVersion = 1;
+
 		public virtual string ToJson()
 		{
 			var dict = new Godot.Collections.Dictionary
 			{
+				{ "version", SaveFormatVersion },
 				{ "metadata", Metadata.ToDict() },
 				{ "movement", Movement.ToDict() },
 				{ "combat", Combat.ToDict() },
@@ -140,10 +146,24 @@ namespace Beep.GameBuilder
 			return Json.Stringify(dict, "  ");
 		}
 
-		public virtual void FromJsonString(string json)
+		/// <summary>Populate from JSON. Returns false on a corrupt/unparseable file so the
+		/// caller can refuse the load — silently returning a default-constructed state made
+		/// a corrupt save look like a successful one, dropping the player into a fresh game
+		/// that the next save then wrote over the still-recoverable file.</summary>
+		public virtual bool FromJsonString(string json)
 		{
 			var j = new Json();
-			if (j.Parse(json) != Error.Ok) return;
+			if (j.Parse(json) != Error.Ok)
+			{
+				GD.PushError($"[GameStateData] Save file is not valid JSON (line {j.GetErrorLine()}): {j.GetErrorMessage()}");
+				return false;
+			}
+
+			if (j.Data.VariantType != Variant.Type.Dictionary)
+			{
+				GD.PushError("[GameStateData] Save file root is not a JSON object.");
+				return false;
+			}
 
 			var root = j.Data.AsGodotDictionary();
 			if (root.ContainsKey("metadata")) Metadata = SaveMetadata.FromDict(root["metadata"].AsGodotDictionary());
@@ -154,6 +174,7 @@ namespace Beep.GameBuilder
 			if (root.ContainsKey("world")) World = WorldStateData.FromDict(root["world"].AsGodotDictionary());
 			if (root.ContainsKey("features")) Features = GodotConv.ToVariantDict(root["features"].AsGodotDictionary());
 			if (root.ContainsKey("game_data")) GameData = GodotConv.ToVariantDict(root["game_data"].AsGodotDictionary());
+			return true;
 		}
 	}
 

@@ -77,7 +77,12 @@ namespace Beep.ECS
         {
             if (ProjectileScene == null) return;
             var root = GetTree().CurrentScene;
-            var pool = root.GetNodeOrNull<Node>("Projectiles") ?? root;
+            // Recursive: the Projectiles pool is provided by the LEVEL, which the loader
+            // instances under LevelContainer — so it sits at
+            // Main/LevelContainer/Level1/Projectiles. A direct child lookup never found it
+            // and silently fell back to the scene root, where bullets then outlived the
+            // level that spawned them.
+            var pool = root.FindChild("Projectiles", recursive: true, owned: false) ?? root;
             var proj = ProjectileScene.Instantiate();
             pool.AddChild(proj);
             if (proj is Node2D n2d)
@@ -90,6 +95,10 @@ namespace Beep.ECS
                 {
                     projComp.Damage = ProjectileDamage;
                     projComp.Speed = ProjectileSpeed;
+                    // Tell it who fired: it lives under the pool, not under us, so it cannot
+                    // infer this — and without it the bullet spawns overlapping our own
+                    // hurtbox and damages us on every shot.
+                    projComp.Shooter = _body;
                     projComp.Launch(dir);
                 }
             }

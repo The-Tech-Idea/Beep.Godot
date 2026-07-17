@@ -1,26 +1,24 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LifetimeComponent.cs" id="1_lifetime"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/FlashComponent.cs" id="2_flash"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ProjectileComponent.cs" id="1_projectile"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_projectile"]
 size = Vector2(16, 4)
 
 [node name="ProjectileTemplate" type="Area2D"]
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="PlaceholderVisual" type="ColorRect" parent="."]
+offset_left = -8.0
+offset_top = -2.0
+offset_right = 8.0
+offset_bottom = 2.0
+color = Color(1, 0.85, 0.3, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_projectile")
 
-[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
-position = Vector2(0, 0)
-
-[node name="Lifetime" type="Node" parent="."]
-script = ExtResource("1_lifetime")
-Lifetime = 3.0
-FadeOut = true
-FadeStartPercent = 0.5
-
-[node name="Flash" type="Node" parent="."]
-script = ExtResource("2_flash")
+[node name="Projectile" type="Node" parent="."]
+script = ExtResource("1_projectile")
+Speed = 500.0
+Damage = 10.0
+MaxLifetime = 3.0

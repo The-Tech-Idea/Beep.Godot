@@ -20,6 +20,16 @@ namespace Beep.ECS
         [Signal] public delegate void HitEventHandler(Node? hitNode, Vector2 point);
         [Signal] public delegate void ExpiredEventHandler();
 
+        /// <summary>Who fired this. Set by the shooter before <see cref="Launch"/>; the
+        /// projectile and everything under it is excluded from collision, so a shooter can't
+        /// hit itself.
+        ///
+        /// Must be explicit because projectiles are normally parented to a pool node, not to
+        /// the shooter — inferring the owner from GetParent() yields the pool, and the
+        /// exclusion silently never matches. Falls back to the parent for the case where a
+        /// projectile IS spawned as a child of its shooter.</summary>
+        public Node2D? Shooter { get; set; }
+
         private Vector2 _velocity;
         private float _lifetime;
         private Area2D? _area;
@@ -35,7 +45,6 @@ namespace Beep.ECS
                 return;
             }
 
-            _owner = _area.GetParent() as Node2D;
             _area.BodyEntered += OnBodyEntered;
             _area.AreaEntered += OnAreaEntered;
         }
@@ -50,9 +59,21 @@ namespace Beep.ECS
             OnCollision(n);
         }
 
+        /// <summary>Whether a collided node belongs to whoever fired this. Covers descendants,
+        /// not just the shooter node itself — a hurtbox/hitbox Area2D is a CHILD of the body,
+        /// so an identity check alone would let a shooter hit its own hurtbox.
+        ///
+        /// Resolved here rather than in _Ready: AddChild fires _Ready, so a spawner can only
+        /// set Shooter after that. By first collision it is always set.</summary>
+        private bool IsOwnedByShooter(Node n)
+        {
+            _owner ??= Shooter ?? _area?.GetParent() as Node2D;
+            return _owner != null && (n == _owner || _owner.IsAncestorOf(n));
+        }
+
         private void OnCollision(Node n)
         {
-            if (n == _owner || _area == null) return;
+            if (_area == null || IsOwnedByShooter(n)) return;
 
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)

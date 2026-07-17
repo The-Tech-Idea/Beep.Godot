@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://b7c5oyk0xrjgu"
+
+[deps]
+
+files=["res://addons/beep_game_builder_cs/templates/i18n/translations.en.translation", "res://addons/beep_game_builder_cs/templates/i18n/translations.es.translation", "res://addons/beep_game_builder_cs/templates/i18n/translations.ja.translation"]
+
+source_file="res://addons/beep_game_builder_cs/templates/i18n/translations.csv"
+dest_files=["res://addons/beep_game_builder_cs/templates/i18n/translations.en.translation", "res://addons/beep_game_builder_cs/templates/i18n/translations.es.translation", "res://addons/beep_game_builder_cs/templates/i18n/translations.ja.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

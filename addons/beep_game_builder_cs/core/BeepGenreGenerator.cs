@@ -24,14 +24,6 @@ public static class BeepGenreGenerator
     private const string I18nTemplatePath = "res://addons/beep_game_builder_cs/templates/i18n/translations.csv";
     private const string I18nTargetPath = "res://i18n/translations.csv";
 
-    /// <summary>Meta key stamped on every generated scene so we can detect
-    /// unmodified scenes on regeneration (safe to overwrite) vs user-edited
-    /// ones (should not be overwritten).</summary>
-    private const string GeneratedMetaKey = "_beep_generated";
-    /// <summary>Version of the generator — bump when templates change.
-    /// Scenes stamped with an older version are "stale" and get refreshed.</summary>
-    private const string GeneratorVersion = "0.5.0";
-
     /// <summary>Regeneration mode passed to CreateProject.</summary>
     public enum RegenMode
     {
@@ -75,7 +67,7 @@ public static class BeepGenreGenerator
             return new List<string> { $"ERROR: Genre '{genreId}' not found." };
         }
 
-        info.Genre = GameInfo.GenreFromId(genreId);
+        info.GenreId = genreId;
 
         // Default theme from genre.json if user didn't pick one.
         if (string.IsNullOrEmpty(info.DefaultThemePreset) || info.DefaultThemePreset == "Modern")
@@ -88,7 +80,81 @@ public static class BeepGenreGenerator
         // Apply tuning defaults from genre.json (only if user hasn't overridden).
         ApplyTuning(info, genre);
 
+        // Point GameInfo's genre-specific scene paths at THIS genre's screens.
+        ApplyNavWiring(info, genre);
+
         return StampProject(info, genre, mode);
+    }
+
+    /// <summary>
+    /// Point GameInfo's genre-specific scene paths at this genre's own screens, using the
+    /// <c>nav_wiring</c> block in genre.json.
+    ///
+    /// Why this is data and not a default: GameInfo's genre paths are hardcoded to the four
+    /// original genres, so e.g. LevelCompletePath defaulted to the PUZZLE end screen. Since
+    /// it is never empty, GameFlowComponent's "LevelCompletePath, else LevelResultsPath"
+    /// fallback could never reach the second branch — every genre, platformer included,
+    /// finished a level on the puzzle screen. Declaring the routes per genre means adding a
+    /// genre stays "drop a folder": no new C# properties, no more drift.
+    ///
+    /// Shape — GameInfo property name to a scene, relative to this genre's UI folder
+    /// (a full res:// path is used verbatim):
+    /// <code>
+    ///   "nav_wiring": {
+    ///     "LevelCompletePath": "level_results.tscn",
+    ///     "LevelSelectPath":   "level_select.tscn"
+    ///   }
+    /// </code>
+    /// Applied at generation time and saved into game_info.tres — and also at runtime by
+    /// BeepGenreScene, which is the entry point the README's quick start uses. Both callers
+    /// must go through here: when only the generator applied it, a project set up the
+    /// README way kept the hardcoded genre-path defaults and still sent every genre to the
+    /// puzzle end screen. Uses no editor API, so it is safe to call while the game runs.
+    /// </summary>
+    public static void ApplyNavWiring(GameInfo info, Beep.ECS.UI.GenreDef genre)
+    {
+        // Clear every genre-specific path first so nav_wiring is the ONLY source. Their
+        // defaults point at the four original genres' scenes, so anything left undeclared
+        // would silently inherit another genre's screen — that is exactly how every genre
+        // ended up on the puzzle level-complete screen. Undeclared now means "this genre
+        // has no such screen", and GameFlowComponent falls through to game over.
+        foreach (string property in GenreScenePathProperties)
+            info.Set(property, "");
+
+        foreach (var key in genre.NavWiring.Keys)
+        {
+            string property = key.AsString();
+            string target = genre.NavWiring[key].AsString();
+            if (string.IsNullOrEmpty(property) || string.IsNullOrEmpty(target)) continue;
+
+            string path = target.StartsWith("res://")
+                ? target
+                : $"res://scenes/ui/{genre.Id}/{target}";
+
+            // Fail loudly on a typo'd property rather than silently doing nothing.
+            if (!HasGameInfoProperty(info, property))
+            {
+                GD.PushWarning($"[Beep Genre] nav_wiring: '{genre.Id}' names unknown GameInfo property '{property}' — ignored.");
+                continue;
+            }
+            info.Set(property, path);
+        }
+    }
+
+    /// <summary>GameInfo's genre-specific scene paths. Shared paths (main menu, game,
+    /// settings, game over, pause) are deliberately NOT here — every genre uses those.</summary>
+    private static readonly string[] GenreScenePathProperties =
+    {
+        "LevelSelectPath", "LevelResultsPath",
+        "CharacterSelectPath", "LevelUpPath", "RunResultsPath", "CodexPath",
+        "LevelMapPath", "PreLevelPath", "LevelCompletePath", "LevelFailedPath"
+    };
+
+    private static bool HasGameInfoProperty(GameInfo info, string property)
+    {
+        foreach (var entry in info.GetPropertyList())
+            if (entry["name"].AsString() == property) return true;
+        return false;
     }
 
     /// <summary>Apply tuning values from genre.json (gravity, move_speed, fire_rate, etc.).</summary>
@@ -116,6 +182,10 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("ambient_temperature", out var at)) info.AmbientTemperature = at.AsSingle();
         if (genre.Tuning.TryGetValue("enable_forecast", out var ef)) info.EnableWeatherForecast = ef.AsBool();
         if (genre.Tuning.TryGetValue("forecast_days", out var fd)) info.ForecastDays = fd.AsInt32();
+        if (genre.Tuning.TryGetValue("enable_save_load", out var esl)) info.EnableGameStateManager = esl.AsBool();
+        if (genre.Tuning.TryGetValue("max_save_slots", out var mss)) info.MaxSaveSlots = mss.AsInt32();
+        if (genre.Tuning.TryGetValue("autosave_enabled", out var ae)) info.AutosaveEnabled = ae.AsBool();
+        if (genre.Tuning.TryGetValue("autosave_interval_seconds", out var ais)) info.AutosaveIntervalSeconds = ais.AsSingle();
     }
 
     /// <summary>
@@ -137,6 +207,14 @@ public static class BeepGenreGenerator
         EnsureAutoload("GameApp", "res://addons/beep_game_builder_cs/ecs/GameApp.cs");
         EnsureAutoload("Settings", "res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs");
         EnsureAutoload("Locale", "res://addons/beep_game_builder_cs/ecs/ui/LocalizationComponent.cs");
+
+        // GameStateManager must outlive scene changes: the save/load menus live in
+        // main_menu.tscn, while gameplay is a different scene. As a per-scene node it
+        // was never in the tree at the same time as the menus that call it, so
+        // SaveLoadManager could never find it ("GameStateManager not found").
+        // It discovers ISaveables from GetTree().Root, so an autoload works unchanged.
+        if (info.EnableGameStateManager)
+            EnsureAutoload("GameStateManager", "res://addons/beep_game_builder_cs/ecs/GameStateManagerComponent.cs");
         WriteGameInfoTres(info);
         // GameInfo is a Resource, not a Node — it CANNOT be autoloaded directly.
         // Instead, GameApp (the Node autoload above) loads game_info.tres in its
@@ -153,6 +231,21 @@ public static class BeepGenreGenerator
         CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", mode, log);
         CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
         CopyUiScene("hud.tscn", "res://scenes/ui/hud.tscn", mode, log);
+        CopyUiScene("save_game_menu.tscn", "res://scenes/ui/save_game_menu.tscn", mode, log);
+        CopyUiScene("load_game_menu.tscn", "res://scenes/ui/load_game_menu.tscn", mode, log);
+
+        // 4b) Building-block templates (player, enemy, pickup, ...). These shipped in the
+        // addon but were never copied, so they sat in addons/ where nobody would find them
+        // — while CreateStandardFolders dutifully created res://scenes/player, /npc and
+        // /projectiles and left them empty. Copy each into the folder made for it.
+        // They keep their _template suffix: they are starting points to duplicate, not
+        // scenes the game loads by path.
+        CopyUiScene("player_template.tscn", "res://scenes/player/player_template.tscn", mode, log);
+        CopyUiScene("enemy_template.tscn", "res://scenes/npc/enemy_template.tscn", mode, log);
+        CopyUiScene("robot_npc_template.tscn", "res://scenes/npc/robot_npc_template.tscn", mode, log);
+        CopyUiScene("projectile_template.tscn", "res://scenes/projectiles/projectile_template.tscn", mode, log);
+        CopyUiScene("pickup_template.tscn", "res://scenes/effects/pickup_template.tscn", mode, log);
+        CopyUiScene("dialog_template.tscn", "res://scenes/ui/dialog_template.tscn", mode, log);
 
         // 5) All genre-specific UI scenes and gameplay scenes (not just the selected genre).
         foreach (var g in Beep.ECS.UI.SkinCatalog.AllGenres.Values)
@@ -183,36 +276,14 @@ public static class BeepGenreGenerator
         => CopyUiSceneFromPath($"{SceneTemplatesDir}/{templateName}", targetPath, mode, log);
 
     /// <summary>
-    /// Load a .tscn template, stamp it with the generator version, and save to dst.
-    /// The RegenMode controls what happens when dst already exists:
-    ///   SkipExisting       → don't touch it
-    ///   UpdateUnmodified   → overwrite ONLY if it still has the _beep_generated stamp
-    ///   OverwriteAll       → always overwrite
+    /// Load a .tscn template and save it to dst, always. A scene's script wiring
+    /// lives entirely in the template — there is no per-project variant worth
+    /// preserving — so every generation always copies fresh rather than risk a
+    /// stale, scriptless copy silently surviving a regen. The mode parameter is
+    /// kept for other generator steps and intentionally unused here.
     /// </summary>
     private static void CopyUiSceneFromPath(string src, string dst, RegenMode mode, List<string> log)
     {
-        // Check if the target already exists.
-        if (FileAccess.FileExists(dst))
-        {
-            if (mode == RegenMode.SkipExisting)
-            {
-                log.Add($"Skipped (exists): {dst}");
-                return;
-            }
-            if (mode == RegenMode.UpdateUnmodified)
-            {
-                // Only overwrite if the existing scene is still stamped as generated
-                // (i.e. the user hasn't edited it). If the stamp is gone, the user
-                // modified the scene and we preserve their work.
-                if (!IsSceneGenerated(dst))
-                {
-                    log.Add($"Skipped (user-modified): {dst}");
-                    return;
-                }
-            }
-            // OverwriteAll falls through to the copy below.
-        }
-
         EnsureDir(dst);
 
         // Just COPY the .tscn file — no instantiate, no pack, no owner issues.
@@ -233,36 +304,7 @@ public static class BeepGenreGenerator
         string content = srcFile.GetAsText();
 
         bool ok = BeepFileUtils.SafeWriteText(dst, content, overwrite: true);
-        if (ok)
-        {
-            StampGenerated(dst);
-            log.Add($"Copied: {dst}");
-        }
-        else
-            log.Add($"WARN copy failed: {dst}");
-    }
-
-    /// <summary>
-    /// Check if a generated file is unmodified. Uses a sidecar .beep marker file:
-    /// when we copy a scene, we also write &lt;scene&gt;.beep. If the user edits
-    /// and saves the scene in the editor, the .beep marker is stale (older mtime
-    /// than the scene), meaning the user modified it.
-    /// </summary>
-    private static bool IsSceneGenerated(string scenePath)
-    {
-        string markerPath = scenePath + ".beep";
-        if (!FileAccess.FileExists(markerPath)) return false;
-        // If the scene was modified after the marker, the user edited it.
-        var sceneTime = FileAccess.GetModifiedTime(scenePath);
-        var markerTime = FileAccess.GetModifiedTime(markerPath);
-        return sceneTime <= markerTime;
-    }
-
-    /// <summary>Write a .beep sidecar marker so we can detect unmodified scenes on regen.</summary>
-    private static void StampGenerated(string scenePath)
-    {
-        string markerPath = scenePath + ".beep";
-        BeepFileUtils.SafeWriteText(markerPath, GeneratorVersion, overwrite: true);
+        log.Add(ok ? $"Copied: {dst}" : $"WARN copy failed: {dst}");
     }
 
     /// <summary>Copy the genre's main gameplay scene. Source filename comes from genre.json's main_scene.</summary>
@@ -330,8 +372,16 @@ public static class BeepGenreGenerator
             log.Add($"Skipped (exists): {I18nTargetPath}");
         }
 
-        // Register the translation path in project settings so Godot imports it.
-        // Set the translation flag — saved by the single SaveAll() at the end of generation.
-        BeepProjectDefaults.Set("internationalization/locale/translations", true);
+        // No project setting is written here on purpose.
+        //
+        // This used to do Set("internationalization/locale/translations", true). That key
+        // expects a PackedStringArray of *.translation files (what Godot's CSV importer
+        // produces) — a bool is meaningless there and registered nothing.
+        //
+        // The addon doesn't use Godot's importer anyway: the Locale autoload
+        // (LocalizationComponent) parses the CSV itself at runtime and registers a
+        // Translation per language column with the TranslationServer. Its TranslationPaths
+        // defaults to I18nTargetPath, so the file stamped just above is picked up with no
+        // project setting involved.
     }
 }

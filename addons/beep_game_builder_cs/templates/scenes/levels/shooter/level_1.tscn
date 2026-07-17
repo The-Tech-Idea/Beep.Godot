@@ -1,0 +1,29 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/SpawnerComponent.cs" id="4_spawner"]
+
+[node name="Level1" type="Node2D"]
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(640, 560)
+
+[node name="Background" type="ParallaxBackground" parent="."]
+
+[node name="StarsLayer" type="ParallaxLayer" parent="Background"]
+motion_scale = Vector2(0.1, 0.1)
+
+[node name="StarsRect" type="ColorRect" parent="Background/StarsLayer"]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.02, 0.02, 0.06, 1)
+
+[node name="Projectiles" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="EnemySpawner" type="Node" parent="Enemies"]
+script = ExtResource("4_spawner")
+
+[node name="Pickups" type="Node2D" parent="."]
+
+[node name="WorldBounds" type="Area2D" parent="."]

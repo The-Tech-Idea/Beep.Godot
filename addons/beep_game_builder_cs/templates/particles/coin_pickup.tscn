@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/particles/star_04.png" id="tex"]
 
 [sub_resource type="ParticleProcessMaterial" id="1"]
 spread = 60.0
@@ -10,6 +12,7 @@ scale_max = 1.2
 color = Color(1, 0.84, 0, 1)
 
 [node name="CoinPickup" type="GPUParticles2D"]
+texture = ExtResource("tex")
 amount = 12
 one_shot = true
 explosiveness = 0.9

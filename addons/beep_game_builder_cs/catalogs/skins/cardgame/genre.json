@@ -22,15 +22,19 @@
     "hand_limit": 10,
     "card_hover_scale": 1.12,
     "card_fan_angle": 18,
-    "enable_weather": true,
+    "enable_weather": false,
     "default_weather": "Clear",
     "enable_day_night": false,
-    "enable_seasons": true,
+    "enable_seasons": false,
     "default_season": "Spring",
     "days_per_season": 7,
     "enable_temperature": false,
     "ambient_temperature": 20,
-    "enable_forecast": true,
-    "forecast_days": 7
+    "enable_forecast": false,
+    "forecast_days": 7,
+    "enable_save_load": true,
+    "max_save_slots": 5,
+    "autosave_enabled": true,
+    "autosave_interval_seconds": 300
   }
 }

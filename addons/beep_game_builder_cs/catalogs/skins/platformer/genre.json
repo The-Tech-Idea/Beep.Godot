@@ -8,6 +8,11 @@
   "themes": ["cartoon", "modern", "retro80s", "pixel8bit", "nature"],
   "main_scene": "platformer_main.tscn",
   "scenes": ["level_select.tscn", "level_results.tscn"],
+  "nav_wiring": {
+    "LevelSelectPath": "level_select.tscn",
+    "LevelResultsPath": "level_results.tscn",
+    "LevelCompletePath": "level_results.tscn"
+  },
   "tuning": {
     "gravity": 980,
     "jump_velocity": -400,
@@ -21,6 +26,10 @@
     "enable_temperature": false,
     "ambient_temperature": 20,
     "enable_forecast": true,
-    "forecast_days": 7
+    "forecast_days": 7,
+    "enable_save_load": true,
+    "max_save_slots": 5,
+    "autosave_enabled": true,
+    "autosave_interval_seconds": 300
   }
 }

@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/particles/trace_01.png" id="tex"]
 
 [sub_resource type="ParticleProcessMaterial" id="1"]
 spread = 180.0
@@ -10,6 +12,7 @@ scale_max = 1.0
 color = Color(0.7, 0.8, 1, 0.6)
 
 [node name="RainDrops" type="GPUParticles2D"]
+texture = ExtResource("tex")
 amount = 200
 lifetime = 1.2
 process_material = SubResource(1)

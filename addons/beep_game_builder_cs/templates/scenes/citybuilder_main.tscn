@@ -1,25 +1,8 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/WeatherSystemComponent.cs" id="2_weather"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/SeasonalComponent.cs" id="3_seasonal"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/WeatherAudioController.cs" id="4_weather_audio"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/DynamicFogLayer.cs" id="5_fog"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="6_forecast"]
 
 [node name="CityBuilderMain" type="Node2D"]
-
-[node name="Weather" type="Node" parent="."]
-script = ExtResource("2_weather")
-
-[node name="Seasonal" type="Node" parent="."]
-script = ExtResource("3_seasonal")
-
-[node name="WeatherAudio" type="Node" parent="."]
-script = ExtResource("4_weather_audio")
-
-[node name="Fog" type="Node" parent="."]
-script = ExtResource("5_fog")
 
 [node name="Background" type="ColorRect" parent="."]
 anchors_preset = 15
@@ -41,15 +24,6 @@ text = "City Builder gameplay placeholder"
 horizontal_alignment = 1
 
 [node name="HUD" type="CanvasLayer" parent="."]
-
-[node name="WeatherForecast" type="Control" parent="HUD"]
-anchors_preset = 1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 100
-offset_right = -640
-offset_bottom = -600
-script = ExtResource("6_forecast")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD"]
 anchors_preset = 1

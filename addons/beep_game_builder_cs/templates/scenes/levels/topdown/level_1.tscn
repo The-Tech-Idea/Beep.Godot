@@ -1,0 +1,20 @@
+[gd_scene load_steps=1 format=3]
+
+[node name="Level1" type="Node2D"]
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(640, 360)
+
+[node name="Ground" type="TileMapLayer" parent="."]
+
+[node name="Walls" type="TileMapLayer" parent="."]
+
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
+
+[node name="NPCs" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="TransitionZones" type="Node2D" parent="."]
+
+[node name="Items" type="Node2D" parent="."]

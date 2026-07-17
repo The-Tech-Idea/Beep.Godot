@@ -6,8 +6,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="5_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/GameOver.cs" id="6_scene"]
 
-[node name="GameOver" type="CanvasLayer"
-script = ExtResource("6_scene")]
+[node name="GameOver" type="CanvasLayer"]
+script = ExtResource("6_scene")
 layer = 10
 
 [node name="Dim" type="ColorRect" parent="."]

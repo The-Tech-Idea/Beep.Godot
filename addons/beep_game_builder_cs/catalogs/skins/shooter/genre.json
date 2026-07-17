@@ -8,6 +8,13 @@
   "themes": ["scifi", "cyberpunk", "military", "space", "toxic"],
   "main_scene": "shooter_main.tscn",
   "scenes": ["character_select.tscn", "level_up_choice.tscn", "run_results.tscn", "codex.tscn"],
+  "nav_wiring": {
+    "CharacterSelectPath": "character_select.tscn",
+    "LevelUpPath": "level_up_choice.tscn",
+    "RunResultsPath": "run_results.tscn",
+    "CodexPath": "codex.tscn",
+    "LevelCompletePath": "run_results.tscn"
+  },
   "tuning": {
     "move_speed": 200,
     "fire_rate": 0.2,
@@ -20,6 +27,10 @@
     "enable_temperature": false,
     "ambient_temperature": 20,
     "enable_forecast": true,
-    "forecast_days": 7
+    "forecast_days": 7,
+    "enable_save_load": true,
+    "max_save_slots": 5,
+    "autosave_enabled": true,
+    "autosave_interval_seconds": 300
   }
 }

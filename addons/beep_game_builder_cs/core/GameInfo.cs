@@ -14,25 +14,22 @@ namespace Beep.GameBuilder;
 [GlobalClass]
 public partial class GameInfo : Resource
 {
-    public enum GameGenre { Platformer, TopDown, Shooter, Puzzle }
-
-    /// <summary>Convert a genre id string ("platformer", "topdown", ...) to the enum.
-    /// Uses Enum.Parse so any new genre added to the enum + a matching genre.json
-    /// folder works without editing this method. Falls back to Platformer.</summary>
-    public static GameGenre GenreFromId(string genreId)
-    {
-        // Title-case the id ("platformer" → "Platformer") to match enum member names.
-        if (string.IsNullOrEmpty(genreId)) return GameGenre.Platformer;
-        string pascal = char.ToUpperInvariant(genreId[0]) + genreId[1..].ToLowerInvariant();
-        return System.Enum.TryParse<GameGenre>(pascal, ignoreCase: true, out var g) ? g : GameGenre.Platformer;
-    }
-
     // ── Identity ──
     /// <summary>Displayed in the main-menu title and the OS window title.</summary>
     [Export] public string GameName { get; set; } = "My Game";
     [Export] public string Version { get; set; } = "0.1.0";
     [Export] public string Developer { get; set; } = "";
-    [Export] public GameGenre Genre { get; set; } = GameGenre.Platformer;
+    /// <summary>Genre id — the folder name under <c>catalogs/skins/</c>. Comes from the
+    /// skin catalog, so adding a genre is still just dropping a folder; there is no
+    /// hardcoded genre list to keep in sync. Cascade root for the theme/palette/
+    /// geometry dropdowns below.</summary>
+    [Export]
+    public string GenreId
+    {
+        get => _genreId;
+        set { _genreId = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+    }
+    private string _genreId = "platformer";
     [Export] public string Description { get; set; } = "";
 
     // ── Display ──
@@ -47,7 +44,14 @@ public partial class GameInfo : Resource
     // ── Theme (all resolved from the file-based skin catalog: skins/<genre>/...) ──
     /// <summary>Theme preset id (e.g. "cartoon", "modern"). Must match a theme.json
     /// in the selected genre's themes/ folder.</summary>
-    [Export] public string DefaultThemePreset { get; set; } = "modern";
+    [Export]
+    public string DefaultThemePreset
+    {
+        // Palette options depend on the selected theme — refresh so it re-cascades.
+        get => _defaultThemePreset;
+        set { _defaultThemePreset = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); }
+    }
+    private string _defaultThemePreset = "modern";
 
     /// <summary>Palette id (e.g. "warm", "cool"). Must match a palette .json in the
     /// selected theme's folder. "Default" = no tint.</summary>
@@ -62,13 +66,24 @@ public partial class GameInfo : Resource
     /// "As-Authored" = use the theme's own geometry.</summary>
     [Export] public string GeometryProfileName { get; set; } = "As-Authored";
 
-    // ── Scene paths (consumed by NavigationComponent + GameFlowComponent) ──
+    // ── Shared scene paths — every genre uses these. Read by the per-scene navigation
+    //    scripts in ecs/scenes/ and by GameFlowComponent. (NavigationComponent does NOT
+    //    consume them; it is not attached to any scene.) ──
     [Export] public string MainMenuPath { get; set; } = "res://scenes/ui/main_menu.tscn";
     [Export] public string GameScenePath { get; set; } = "res://scenes/main/main.tscn";
     [Export] public string SettingsScenePath { get; set; } = "res://scenes/ui/settings_menu.tscn";
     [Export] public string GameOverScenePath { get; set; } = "res://scenes/ui/game_over.tscn";
 
-    // ── Genre-specific scene paths (set by BeepGenreScene's nav_wiring at runtime) ──
+    /// <summary>Pause overlay, instanced on top of gameplay by GameFlowComponent when the
+    /// "pause" action fires — not navigated to, so the game scene stays loaded underneath.</summary>
+    [Export] public string PauseMenuPath { get; set; } = "res://scenes/ui/pause_menu.tscn";
+
+    // ── Genre-specific scene paths.
+    //    Set at GENERATION time from the selected genre's `nav_wiring` block in genre.json
+    //    (BeepGenreGenerator.ApplyNavWiring), which clears them all first and then applies
+    //    only what that genre declares. The defaults below are placeholders for the
+    //    inspector — do NOT rely on them: a genre that omits a path leaves it empty, which
+    //    means "this genre has no such screen". See docs/FILE_FORMATS.md#nav_wiring. ──
     [ExportGroup("Genre Scenes")]
     // Platformer
     [Export] public string LevelSelectPath { get; set; } = "res://scenes/ui/platformer/level_select.tscn";
@@ -112,6 +127,13 @@ public partial class GameInfo : Resource
     [Export] public bool EnableWeatherForecast { get; set; } = true;
     [Export] public int ForecastDays { get; set; } = 7;
 
+    [ExportGroup("Save/Load")]
+    [Export] public bool EnableGameStateManager { get; set; } = true;
+    [Export] public int MaxSaveSlots { get; set; } = 5;
+    [Export] public string SaveDirectory { get; set; } = "user://saves";
+    [Export] public bool AutosaveEnabled { get; set; } = true;
+    [Export] public float AutosaveIntervalSeconds { get; set; } = 300f;
+
     /// <summary>Grid dimensions as a Vector2I (built from exported ints).</summary>
     public Vector2I GridSize => new(GridWidth, GridHeight);
 
@@ -138,22 +160,50 @@ public partial class GameInfo : Resource
     /// </summary>
     public static GameInfo? Instance => ECS.GameApp.Instance?.Info;
 
-    /// <summary>Genre → the default theme id from the file-based skin catalog's genre.json.</summary>
-    public static string RecommendedTheme(GameGenre genre)
-    {
-        var g = Beep.ECS.UI.SkinCatalog.GetGenre(genre.ToString().ToLowerInvariant());
-        return g?.DefaultTheme ?? "modern";
-    }
+    /// <summary>Genre → the default theme id, straight from that genre's genre.json.
+    /// Returns "" when the genre isn't in the catalog — there is no hardcoded theme to
+    /// fall back to, since themes are whatever folders exist.</summary>
+    public static string RecommendedTheme(string genreId)
+        => Beep.ECS.UI.SkinCatalog.GetGenre(genreId)?.DefaultTheme ?? "";
 
-    /// <summary>Genre → theme id shortlist from the file-based skin catalog.
-    /// Read from genre.json's themes[] array. The dock's theme picker shows these.</summary>
-    public static string[] RecommendedThemes(GameGenre genre)
+    /// <summary>Genre → every theme id the catalog found in that genre's themes/ folder.
+    /// Empty when the genre isn't in the catalog.</summary>
+    public static string[] RecommendedThemes(string genreId)
     {
-        var g = Beep.ECS.UI.SkinCatalog.GetGenre(genre.ToString().ToLowerInvariant());
-        if (g == null) return new[] { "modern" };
+        var g = Beep.ECS.UI.SkinCatalog.GetGenre(genreId);
+        if (g == null) return System.Array.Empty<string>();
         var result = new System.Collections.Generic.List<string>();
         foreach (var t in g.Themes.Values)
             result.Add(t.Id);
         return result.ToArray();
+    }
+
+    // ── Inspector dropdowns ─────────────────────────────────────────────────
+    // Every option below is read from the skin catalog's folder tree at edit time —
+    // nothing here is hardcoded. GenreId is the cascade root.
+
+    public override void _ValidateProperty(Godot.Collections.Dictionary property)
+    {
+        base._ValidateProperty(property);
+
+        switch ((string)property["name"])
+        {
+            case nameof(GenreId):
+                Beep.ECS.UI.SkinPropertyHints.ApplyEnum(property,
+                    Beep.ECS.UI.SkinPropertyHints.GenreHint(_genreId));
+                break;
+            case nameof(DefaultThemePreset):
+                Beep.ECS.UI.SkinPropertyHints.ApplyEnum(property,
+                    Beep.ECS.UI.SkinPropertyHints.ThemeHint(_genreId, _defaultThemePreset));
+                break;
+            case nameof(PaletteName):
+                Beep.ECS.UI.SkinPropertyHints.ApplyEnum(property,
+                    Beep.ECS.UI.SkinPropertyHints.PaletteHint(_genreId, _defaultThemePreset, PaletteName));
+                break;
+            case nameof(GeometryProfileName):
+                Beep.ECS.UI.SkinPropertyHints.ApplyEnum(property,
+                    Beep.ECS.UI.SkinPropertyHints.GeometryHint(_genreId, GeometryProfileName));
+                break;
+        }
     }
 }

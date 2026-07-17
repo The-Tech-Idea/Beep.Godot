@@ -54,6 +54,11 @@ public static class BeepProjectDefaults
         if (!string.IsNullOrEmpty(info.MainMenuPath))
             Set("application/run/main_scene", info.MainMenuPath);
 
-        Engine.MaxFps = info.TargetFps;
+        // Write the project setting rather than Engine.MaxFps. This runs in the editor at
+        // generation time, so assigning Engine.MaxFps capped the EDITOR's framerate and
+        // never reached the generated game (it isn't persisted). The project setting is
+        // saved to project.godot and applies when the game runs.
+        if (info.TargetFps > 0)
+            Set("application/run/max_fps", info.TargetFps);
     }
 }

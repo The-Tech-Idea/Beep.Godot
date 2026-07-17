@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/particles/smoke_04.png" id="tex"]
 
 [sub_resource type="ParticleProcessMaterial" id="1"]
 spread = 20.0
@@ -12,6 +14,7 @@ damping_min = 0.8
 damping_max = 2.0
 
 [node name="SmokePuff" type="GPUParticles2D"]
+texture = ExtResource("tex")
 amount = 10
 one_shot = true
 explosiveness = 0.6

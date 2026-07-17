@@ -81,7 +81,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _palettePicker = AddDropdown(b, "Palette");
         // Geometry is per-genre (geometry.json) — applied automatically.
 
-        _skinPicker = new EditorResourcePicker { ResourceType = "Beep.ECS.UI.UISkin", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _skinPicker = new EditorResourcePicker { BaseType = "UISkin", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         b.AddChild(Row("Texture Skin (optional)", _skinPicker));
 
         _genrePicker.ItemSelected += OnGenreItemSelected;
@@ -191,20 +191,34 @@ public partial class BeepGameBuilderDock : VBoxContainer
     // One-click generate
     // ════════════════════════════════════════════════════════════════
 
+    /// <summary>The genre's declared default theme, or any theme folder it actually has.
+    /// Null when the genre ships no themes at all.</summary>
+    private static string? FirstAvailableTheme(GenreDef? genre)
+    {
+        if (genre == null || genre.Themes.Count == 0) return null;
+        if (!string.IsNullOrEmpty(genre.DefaultTheme) && genre.Themes.ContainsKey(genre.DefaultTheme))
+            return genre.DefaultTheme;
+        foreach (var t in genre.Themes.Values) return t.Id;
+        return null;
+    }
+
     private void GenerateFullProject()
     {
         string gid = GetSelectedGenreId();
         if (gid == null) { Log("[ERROR] No genre selected."); return; }
 
         var genre = SkinCatalog.GetGenre(gid);
-        string tid = GetSelectedThemeId() ?? genre?.DefaultTheme ?? "modern";
+        // Fall back through the catalog only — the genre's declared default, then whatever
+        // theme folder actually exists. Never guess a theme name that may not be there.
+        string tid = GetSelectedThemeId() ?? FirstAvailableTheme(genre);
+        if (tid == null) { Log($"[ERROR] Genre '{gid}' has no themes in the skin catalog."); return; }
         string pid = (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
             ? _paletteIds[_palettePicker.Selected] : "default";
 
         var info = LoadGameInfoFromDisk() ?? new GameInfo();
         info.GameName = string.IsNullOrWhiteSpace(_gameName.Text) ? "My Game" : _gameName.Text;
         info.Version = "0.1.0";
-        info.Genre = GameInfo.GenreFromId(gid);
+        info.GenreId = gid;
         info.DefaultThemePreset = tid;
         info.PaletteName = pid;
         info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
@@ -246,7 +260,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _skinPicker.EditedResource = info.Skin;
 
         // Select genre → cascades
-        string gid = info.Genre.ToString().ToLowerInvariant();
+        string gid = info.GenreId;
         int gi = _genreIds.IndexOf(gid);
         if (gi >= 0) { _genrePicker.Select(gi); OnGenreChanged(); }
 
@@ -266,7 +280,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.PixelArt = _pixelArt.ButtonPressed;
         info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
         string gid = GetSelectedGenreId();
-        if (gid != null) info.Genre = GameInfo.GenreFromId(gid);
+        if (gid != null) info.GenreId = gid;
         string tid = GetSelectedThemeId();
         if (tid != null) info.DefaultThemePreset = tid;
         return info;

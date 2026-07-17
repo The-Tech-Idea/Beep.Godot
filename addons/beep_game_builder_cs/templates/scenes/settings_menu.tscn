@@ -5,8 +5,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs" id="4_settings"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/SettingsMenu.cs" id="5_scene"]
 
-[node name="SettingsMenu" type="CanvasLayer"
-script = ExtResource("5_scene")]
+[node name="SettingsMenu" type="CanvasLayer"]
+script = ExtResource("5_scene")
 layer = 10
 
 [node name="Dim" type="ColorRect" parent="."]

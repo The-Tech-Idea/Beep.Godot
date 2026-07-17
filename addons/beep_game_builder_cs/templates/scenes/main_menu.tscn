@@ -1,13 +1,14 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="4_transition"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="5_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/MainMenu.cs" id="6_scene"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SaveLoadManagerComponent.cs" id="7_saveload"]
 
-[node name="MainMenu" type="Control"
-script = ExtResource("6_scene")]
+[node name="MainMenu" type="Control"]
+script = ExtResource("6_scene")
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -60,6 +61,11 @@ custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Continue"
 
+[node name="SaveGameButton" type="Button" parent="Center/MenuVBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Save Game"
+
 [node name="LoadGameButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
@@ -69,11 +75,6 @@ text = "Load Game"
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Settings"
-
-[node name="CreditsButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
-layout_mode = 2
-text = "Credits"
 
 [node name="QuitButton" type="Button" parent="Center/MenuVBox"]
 custom_minimum_size = Vector2(220, 0)
@@ -100,4 +101,7 @@ entry_direction = 1
 duration = 0.3
 stagger_delay = 0.05
 animate_on_ready = true
+
+[node name="SaveLoadManager" type="Node" parent="."]
+script = ExtResource("7_saveload")
 

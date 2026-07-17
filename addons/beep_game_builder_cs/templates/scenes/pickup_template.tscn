@@ -17,6 +17,7 @@ shape = SubResource("CircleShape2D_pickup")
 script = ExtResource("1_pickup")
 ItemId = "coin"
 Quantity = 1
+ScoreValue = 100
 FloatAmplitude = 5.0
 FloatSpeed = 2.0
 AutoRotate = true

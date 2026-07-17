@@ -27,5 +27,12 @@ namespace Beep.ECS
         /// <summary>How many sockets this piece has. The COUNT is on the definition; the gems
         /// actually socketed are per-instance (on the inventory slot) — Phase 7 (composition).</summary>
         [Export] public int SocketCount { get; set; } = 0;
+
+        /// <summary>The stat modifiers this piece contributes while equipped — a sword's
+        /// <c>{damage, Add, 10}</c>, a ring's <c>{move_speed, Multiply, 1.1}</c>. Authored on the
+        /// `.tres`; EquipmentComponent DUPLICATES them per wearer (so two entities holding the same
+        /// `.tres` don't share modifier state) and withdraws them by source on unequip. Equipment
+        /// modifiers are normally permanent (Duration &lt; 0).</summary>
+        [Export] public StatModifier[] Modifiers { get; set; } = System.Array.Empty<StatModifier>();
     }
 }

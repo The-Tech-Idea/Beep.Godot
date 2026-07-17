@@ -150,6 +150,33 @@ void fragment() {
             }
         }
 
+        /// <summary>Procedural fallback for <see cref="NoiseTexture"/>, built once on demand.
+        ///
+        /// The fog is entirely noise-driven — the shader does
+        /// `smoothstep(0.3, 0.7, texture(noise_texture, uv).r)`. An unbound sampler2D samples
+        /// black, so a null NoiseTexture meant noise = 0, smoothstep = 0, and fog that could
+        /// never render at any density. Nothing in the repo ever set the texture, so the fog
+        /// has always been invisible, silently, in all six weather-enabled genres. A shipped
+        /// component's headline feature shouldn't depend on an asset nobody supplies.</summary>
+        private static Texture2D DefaultNoise()
+        {
+            if (_defaultNoise != null) return _defaultNoise;
+            _defaultNoise = new NoiseTexture2D
+            {
+                Width = 256,
+                Height = 256,
+                Seamless = true,          // fog scrolls and repeats; a seam would band across it
+                Noise = new FastNoiseLite
+                {
+                    NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth,
+                    Frequency = 0.008f,   // broad, slow drifts rather than static-like speckle
+                    FractalOctaves = 3,
+                },
+            };
+            return _defaultNoise;
+        }
+        private static Texture2D? _defaultNoise;
+
         private void ApplyFogShaderParams()
         {
             if (_fogMat == null) return;
@@ -157,8 +184,9 @@ void fragment() {
             _fogMat.SetShaderParameter("density", _currentDensity);
             _fogMat.SetShaderParameter("animation_speed", AnimationSpeed);
 
-            if (NoiseTexture != null)
-                _fogMat.SetShaderParameter("noise_texture", NoiseTexture);
+            // Always bind something: an authored texture when given, otherwise the procedural
+            // default. Skipping the assignment is what made the failure silent.
+            _fogMat.SetShaderParameter("noise_texture", NoiseTexture ?? DefaultNoise());
         }
 
         public override void _ExitTree()

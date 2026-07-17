@@ -44,6 +44,18 @@ namespace Beep.ECS
             // Without this, merely opening a main scene mutated the EDITOR's audio buses
             // and littered the scene with runtime-only children.
             if (Engine.IsEditorHint()) return;
+
+            // The tracks are deliberately yours to supply — the addon ships no audio assets,
+            // and there is no sensible default for "rain". But shipping silently meant this
+            // built an audio bus and four players to mix silence in every weather-enabled
+            // genre, looking for all the world like working weather audio. Say it once, up
+            // front, rather than leaving it to be discovered by listening.
+            if (RainLoop == null && WindLoop == null && AmbientLoop == null
+                && (ThunderVariants == null || ThunderVariants.Length == 0))
+            {
+                GD.PushWarning($"[{Name}] No weather audio tracks assigned (RainLoop / WindLoop / ThunderVariants / AmbientLoop are all empty) — weather will be silent. These are yours to supply; the addon ships no audio.");
+            }
+
             CallDeferred(nameof(Setup));
         }
 

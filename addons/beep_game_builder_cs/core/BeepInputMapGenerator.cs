@@ -24,8 +24,34 @@ public static class BeepInputMapGenerator
         AddJoy("crouch", JoyButton.RightShoulder);
         AddJoy("pause", JoyButton.Start); AddJoy("ui_accept", JoyButton.A);
         AddJoy("ui_cancel", JoyButton.B);
+
+        var actions = new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","crouch","pause","ui_accept","ui_cancel" };
+
+        // The InputMap calls above only mutate the *runtime* singleton. Godot rebuilds
+        // InputMap from ProjectSettings on every launch and never writes back, so without
+        // this every generated game lost its controls the moment the editor restarted —
+        // while the log still said "Input map configured".
+        foreach (string action in actions) Persist(action);
+
         // Don't call ProjectSettings.Save() here — the generator saves once at the end.
-        return new List<string> { "move_up","move_down","move_left","move_right","jump","attack","interact","dash","crouch","pause","ui_accept","ui_cancel" };
+        return actions;
+    }
+
+    /// <summary>Mirror an action from the runtime InputMap into ProjectSettings, which is
+    /// what persists to project.godot. Reads the events back out of InputMap so the dedup
+    /// in AddKey/AddMouse/AddJoy stays the single source of truth.</summary>
+    private static void Persist(string action)
+    {
+        if (!InputMap.HasAction(action)) return;
+
+        var events = new Godot.Collections.Array();
+        foreach (var e in InputMap.ActionGetEvents(action)) events.Add(e);
+
+        ProjectSettings.SetSetting($"input/{action}", new Godot.Collections.Dictionary
+        {
+            ["deadzone"] = InputMap.ActionGetDeadzone(action),
+            ["events"] = events,
+        });
     }
 
     private static void AddKey(string action, Key key)

@@ -29,9 +29,6 @@ public static class BeepGenreGenerator
     {
         /// <summary>Don't touch any existing file (safest — current default).</summary>
         SkipExisting,
-        /// <summary>Only overwrite scenes that still have the _beep_generated stamp
-        /// (user hasn't edited them). Preserves user-modified scenes.</summary>
-        UpdateUnmodified,
         /// <summary>Overwrite everything (nuclear — destroys user edits).</summary>
         OverwriteAll,
     }
@@ -303,8 +300,14 @@ public static class BeepGenreGenerator
         }
         string content = srcFile.GetAsText();
 
-        bool ok = BeepFileUtils.SafeWriteText(dst, content, overwrite: true);
-        log.Add(ok ? $"Copied: {dst}" : $"WARN copy failed: {dst}");
+        // Honor the caller's mode. Both real callers ask for SkipExisting, and these
+        // destinations are scenes the user is meant to edit in place (player_template
+        // and enemy_template are documented as "duplicate me" starting points) — an
+        // unconditional overwrite silently discarded their work on every regenerate.
+        bool ok = BeepFileUtils.SafeWriteText(dst, content, overwrite: mode == RegenMode.OverwriteAll);
+        if (ok) log.Add($"Copied: {dst}");
+        else if (FileAccess.FileExists(dst)) log.Add($"Skipped (exists): {dst}");
+        else log.Add($"WARN copy failed: {dst}");
     }
 
     /// <summary>Copy the genre's main gameplay scene. Source filename comes from genre.json's main_scene.</summary>

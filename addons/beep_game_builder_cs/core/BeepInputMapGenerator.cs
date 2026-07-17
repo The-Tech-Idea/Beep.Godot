@@ -29,10 +29,13 @@ public static class BeepInputMapGenerator
         // crafting, deck builder…) on these; without them registered, the component has
         // nothing to listen for. Registered for every genre rather than per-genre: an action
         // no scene listens for costs nothing, and a missing one silently breaks the screen.
+        // Keys chosen to not collide with the gameplay bindings above — note `attack` is
+        // already on J, so the quest log takes L. Escape (pause + ui_cancel) and Space
+        // (jump + ui_accept) are shared deliberately; these must not add to that.
         AddKey("inventory", Key.I); AddJoy("inventory", JoyButton.Y);
         AddKey("crafting", Key.C);
         AddKey("character", Key.P);
-        AddKey("quests", Key.J);
+        AddKey("quests", Key.L);
         AddKey("map", Key.M);
         AddKey("build", Key.B);
         AddKey("research", Key.R);

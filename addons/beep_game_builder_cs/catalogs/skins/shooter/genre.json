@@ -9,6 +9,7 @@
   "main_scene": "shooter_main.tscn",
   "scenes": ["character_select.tscn", "level_up_choice.tscn", "run_results.tscn", "codex.tscn"],
   "nav_wiring": {
+    "NewGameScenePath": "character_select.tscn",
     "CharacterSelectPath": "character_select.tscn",
     "LevelUpPath": "level_up_choice.tscn",
     "RunResultsPath": "run_results.tscn",

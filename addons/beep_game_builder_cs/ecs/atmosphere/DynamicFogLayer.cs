@@ -34,7 +34,12 @@ namespace Beep.ECS
         private const string FogShaderCode = @"
 shader_type canvas_item;
 
-uniform sampler2D noise_texture : repeat_enable, filter_nearest;
+// filter_linear, not nearest: the noise is 256x256 stretched over the whole viewport, so at
+// 1080p one texel covers ~7.5 px. Nearest gives hard-edged blocks — which contradicts the
+// smooth simplex the component generates, and smoothstep softens the ramp but not the texel
+// edges. Nobody saw this while the texture was unbound and the fog invisible; it only became
+// a visible choice once fog rendered at all. A uniform's filter hint overrides the texture's.
+uniform sampler2D noise_texture : repeat_enable, filter_linear;
 uniform vec4 fog_color : source_color = vec4(0.5, 0.5, 0.5, 1.0);
 uniform float density : hint_range(0.0, 1.0) = 0.3;
 uniform vec2 animation_speed = vec2(0.02, 0.01);

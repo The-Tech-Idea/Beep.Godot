@@ -85,6 +85,20 @@ public partial class GameInfo : Resource
     //    inspector — do NOT rely on them: a genre that omits a path leaves it empty, which
     //    means "this genre has no such screen". See docs/FILE_FORMATS.md#nav_wiring. ──
     [ExportGroup("Genre Scenes")]
+
+    /// <summary>Where "New Game" leads. Empty = straight into GameScenePath.
+    ///
+    /// Several genres want a screen BETWEEN the menu and the game — racing's garage,
+    /// shooter's character select, puzzle's level map. There was no way to express that:
+    /// MainMenu went directly to GameScenePath, so those three screens were built, themed,
+    /// scripted, and unreachable. They are full scenes (Control roots, Back → main menu,
+    /// Play → the game), so they are entry screens, not overlays — GenreScreenComponent is
+    /// the wrong tool for them.
+    ///
+    /// Declared per genre in nav_wiring; blanked for genres that don't, so New Game keeps
+    /// going straight to the game.</summary>
+    [Export] public string NewGameScenePath { get; set; } = "";
+
     // Platformer
     [Export] public string LevelSelectPath { get; set; } = "res://scenes/ui/platformer/level_select.tscn";
     [Export] public string LevelResultsPath { get; set; } = "res://scenes/ui/platformer/level_results.tscn";

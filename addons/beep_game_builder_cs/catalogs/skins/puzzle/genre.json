@@ -9,6 +9,7 @@
   "main_scene": "puzzle_main.tscn",
   "scenes": ["level_map.tscn", "pre_level.tscn", "level_complete.tscn", "level_failed.tscn"],
   "nav_wiring": {
+    "NewGameScenePath": "level_map.tscn",
     "LevelMapPath": "level_map.tscn",
     "PreLevelPath": "pre_level.tscn",
     "LevelCompletePath": "level_complete.tscn",

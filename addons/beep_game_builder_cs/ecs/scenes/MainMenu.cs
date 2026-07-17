@@ -17,7 +17,7 @@ namespace Beep.ECS.Scenes
             // node lost *every* button — New Game, Settings, Quit — not just save/load.
             _saveLoadManager = GetNodeOrNull<UI.SaveLoadManagerComponent>("SaveLoadManager");
 
-            GetNode<Button>("Center/MenuVBox/NewGameButton").Pressed  += () => ChangeScene(GameApp.Instance?.GameScenePath);
+            GetNode<Button>("Center/MenuVBox/NewGameButton").Pressed += OnNewGamePressed;
 
             // Continue resumes the newest save. It used to be byte-identical to New Game,
             // so a player with a save silently started over. Hidden when nothing is saved.
@@ -34,6 +34,18 @@ namespace Beep.ECS.Scenes
             GetNode<Button>("Center/MenuVBox/LoadGameButton").Pressed += OnLoadGamePressed;
             GetNode<Button>("Center/MenuVBox/SettingsButton").Pressed += () => ChangeScene(GameApp.Instance?.SettingsScenePath);
             GetNode<Button>("Center/MenuVBox/QuitButton").Pressed     += () => GetTree().Quit();
+        }
+
+        /// <summary>Start a new run — via the genre's entry screen when it declares one.
+        ///
+        /// Racing wants its garage, shooter its character select, puzzle its level map. This
+        /// used to go straight to GameScenePath, which is why those three screens shipped
+        /// fully built and unreachable. A genre that declares no NewGameScenePath still goes
+        /// directly to the game.</summary>
+        private void OnNewGamePressed()
+        {
+            string? entry = GameBuilder.GameInfo.Instance?.NewGameScenePath;
+            ChangeScene(!string.IsNullOrEmpty(entry) ? entry : GameApp.Instance?.GameScenePath);
         }
 
         private void OnSaveGamePressed()

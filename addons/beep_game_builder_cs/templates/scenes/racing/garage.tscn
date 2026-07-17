@@ -57,6 +57,10 @@ text = "Top Speed: 280 km/h, Acceleration: 8.5, Handling: 7.2"
 custom_minimum_size = Vector2(0, 20)
 size_flags_vertical = 3
 
+[node name="VehicleSelectButton" type="Button" parent="Margin/VBox"]
+custom_minimum_size = Vector2(0, 40)
+text = "Select Vehicle"
+
 [node name="RaceButton" type="Button" parent="Margin/VBox"]
 custom_minimum_size = Vector2(0, 48)
 text = "Start Race"

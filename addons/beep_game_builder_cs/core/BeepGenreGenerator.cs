@@ -150,6 +150,9 @@ public static class BeepGenreGenerator
     /// settings, game over, pause) are deliberately NOT here — every genre uses those.</summary>
     private static readonly string[] GenreScenePathProperties =
     {
+        // Shared concept, per-genre target: where New Game leads. Blanked like the rest, so
+        // a genre that doesn't declare one sends New Game straight to the game.
+        "NewGameScenePath",
         "LevelSelectPath", "LevelResultsPath",
         "CharacterSelectPath", "LevelUpPath", "RunResultsPath", "CodexPath",
         "LevelMapPath", "PreLevelPath", "LevelCompletePath", "LevelFailedPath"

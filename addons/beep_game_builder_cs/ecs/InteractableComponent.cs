@@ -3,12 +3,16 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Interactable component. Blind — attach to any Area2D to make it interactive.
+    /// Interactable component. Blind — attach to an Area2D to make it interactive.
     /// Works for doors, switches, NPCs, chests, terminals, levers.
+    ///
+    /// Parent resolution + body-signal wiring live in <see cref="AreaTriggerComponent"/>.
+    /// This used to do <c>GetParent() as Area2D</c> itself, so on the CharacterBody2D
+    /// parents in the shipped scenes it silently did nothing; the base now warns instead.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class InteractableComponent : GameplayComponent
+    public partial class InteractableComponent : AreaTriggerComponent
     {
         [Export] public string PromptText { get; set; } = "Press E to interact";
         [Export] public string InputAction { get; set; } = "interact";
@@ -22,43 +26,47 @@ namespace Beep.ECS
 
         private bool _playerInRange;
         private DialogComponent? _dialog;
-        private Area2D? _area;
+        private UI.InteractionPromptComponent? _prompt;
+        private bool _promptResolved;
 
         public override void _Ready()
         {
             base._Ready();
-            _area = GetParent() as Area2D;
             _dialog = GetSiblingComponent<DialogComponent>();
+        }
 
-            if (_area != null)
-            {
-                _area.BodyEntered += OnBodyEntered;
-                _area.BodyExited += OnBodyExited;
-            }
+        /// <summary>Resolve the HUD prompt lazily and once. It is a CROSS-TREE collaborator
+        /// (prompt on the HUD CanvasLayer, this on a world Area2D), so a sibling lookup won't
+        /// reach it — search from the scene root, the pattern WeatherHUDComponent uses. A null
+        /// result is fine: a prompt is optional UI; interaction still fires without one.</summary>
+        private UI.InteractionPromptComponent? Prompt()
+        {
+            if (_promptResolved) return _prompt;
+            _promptResolved = true;
+            _prompt = FindComponent<UI.InteractionPromptComponent>(GetTree().Root);
+            return _prompt;
         }
 
         /// <summary>Is this body the player? Accepts either the "players" group or a node
-        /// named "Player" — nothing in the addon joins the group, and the generated scenes
-        /// name the body "Player" (same convention DoorSwitchComponent uses), so relying on
-        /// the group alone meant the prompt never fired.</summary>
+        /// named "Player" — the generated scenes name the body "Player" (same convention
+        /// DoorSwitchComponent uses), and only some are grouped, so relying on the group
+        /// alone meant the prompt never fired.</summary>
         private static bool IsPlayer(Node n) => n.IsInGroup("players") || n.Name == "Player";
 
-        private void OnBodyEntered(Node n)
+        protected override void OnBodyEntered(Node2D body)
         {
-            if (IsPlayer(n))
-            {
-                _playerInRange = true;
-                EmitSignal(SignalName.PlayerEnteredRange);
-            }
+            if (!IsPlayer(body)) return;
+            _playerInRange = true;
+            Prompt()?.Show(PromptText);
+            EmitSignal(SignalName.PlayerEnteredRange);
         }
 
-        private void OnBodyExited(Node n)
+        protected override void OnBodyExited(Node2D body)
         {
-            if (IsPlayer(n))
-            {
-                _playerInRange = false;
-                EmitSignal(SignalName.PlayerExitedRange);
-            }
+            if (!IsPlayer(body)) return;
+            _playerInRange = false;
+            Prompt()?.Hide();
+            EmitSignal(SignalName.PlayerExitedRange);
         }
 
         public override void _Input(InputEvent @event)
@@ -69,23 +77,13 @@ namespace Beep.ECS
                 GetViewport().SetInputAsHandled();
                 EmitSignal(SignalName.Interacted);
 
-                if (_dialog != null)
-                    _dialog.Interact();
+                _dialog?.Interact();
 
                 if (Toggleable)
                 {
                     IsToggled = !IsToggled;
                     EmitSignal(SignalName.Toggled, IsToggled);
                 }
-            }
-        }
-
-        public override void _ExitTree()
-        {
-            if (_area != null)
-            {
-                _area.BodyEntered -= OnBodyEntered;
-                _area.BodyExited -= OnBodyExited;
             }
         }
     }

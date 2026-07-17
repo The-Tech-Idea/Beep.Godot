@@ -3,15 +3,19 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Switch/lever + key-gated door. Attach to an Area2D (the switch trigger) or an
-    /// AnimatableBody2D (the door). When a body enters the switch zone and (optionally)
-    /// holds the required key item, the door opens (becomes non-colliding + hides or animates).
-    /// Emits SwitchToggled(isOpen). Can be wired to other components via the signal.
-    /// Replaces door_switch.gd.template.
+    /// Switch/lever + key-gated door. Attach to the Area2D switch trigger; point
+    /// <see cref="DoorPath"/> at the door body (StaticBody2D/AnimatableBody2D). When a body
+    /// enters the switch zone and (optionally) holds the required key item, the door opens
+    /// (becomes non-colliding + hides or animates). Emits SwitchToggled(isOpen). Can be wired
+    /// to other components via the signal. Replaces door_switch.gd.template.
+    ///
+    /// Parent resolution + body-signal wiring live in <see cref="AreaTriggerComponent"/>; this
+    /// used to hand-roll a guarded <c>GetParent() is Area2D</c> that no-opped in silence when
+    /// the parent was wrong.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class DoorSwitchComponent : WorldComponent
+    public partial class DoorSwitchComponent : AreaTriggerComponent
     {
         /// <summary>NodePath to the door body this switch controls. The door should be
         /// a CollisionObject2D (StaticBody2D/AnimatableBody2D).</summary>
@@ -37,11 +41,10 @@ namespace Beep.ECS
             base._Ready();
             if (!DoorPath.IsEmpty)
                 _door = GetNodeOrNull<CollisionObject2D>(DoorPath);
-            if (GetParent() is Area2D area)
-                area.BodyEntered += _ => _inRange = true;
-            if (GetParent() is Area2D a2)
-                a2.BodyExited += _ => _inRange = false;
         }
+
+        protected override void OnBodyEntered(Node2D body) => _inRange = true;
+        protected override void OnBodyExited(Node2D body) => _inRange = false;
 
         public override void _UnhandledInput(InputEvent @event)
         {

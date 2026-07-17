@@ -122,5 +122,46 @@ for f in $(find . -name "*.tscn" | sort); do
     && { echo "  $f -> references ecs/atmosphere/ directly (should instance atmosphere.tscn)"; found=1; fail=1; }
 done; [ $found -eq 0 ] && echo "  ok"
 
+# Godot registers a C# [Export] under its exact PascalCase name — the source generator
+# emits `StringName @TitleLabelPath = "TitleLabelPath"` and SetGodotClassPropertyValue
+# compares against that. A .tscn line written GDScript-style (`title_label_path = ...`)
+# matches nothing, returns false, and is dropped in silence: the scene loads, the node
+# runs on defaults, and nothing anywhere says so. That is exactly how every
+# GameInfoBinder / AnimatedMenuComponent / SceneTransitionComponent in this folder sat
+# inert across 67 assignments — no titles bound, no window title, no transition timing.
+#
+# Built-in Godot properties ARE snake_case (anchors_preset, custom_minimum_size) and are
+# not the target here: both checks below only fire on names that correspond to a real
+# [Export] in the C# addon, which no built-in does.
+echo "--- C# export properties are PascalCase in scenes (Godot silently drops snake_case) ---"; found=0
+# NB: grep -E is POSIX ERE — no \s. Use [[:space:]].
+# Covers both `[Export] public T Name` on one line and [Export] on its own line.
+EXPORTS=$(grep -rh -A1 -E '\[Export' ../../ecs ../../core 2>/dev/null \
+  | grep -oE 'public[[:space:]]+[A-Za-z0-9_.<>?,[:space:]]*[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]' \
+  | grep -oE '[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]$' \
+  | sed -E 's/[[:space:]]*[{;=]$//' | sort -u | grep -v '^$')
+
+EXPORT_LIST=$(mktemp); printf '%s\n' "$EXPORTS" > "$EXPORT_LIST"
+for f in $(find . -name "*.tscn" | sort); do
+  out=$(awk -v F="$f" -v EL="$EXPORT_LIST" '
+    BEGIN { while ((getline line < EL) > 0) if (line != "") known[line]=1 }
+    /^\[node /            { scripted=0 }
+    /^script = ExtResource\(/ { scripted=1 }
+    /^[A-Za-z_][A-Za-z0-9_]* = / {
+      if (!scripted || seen[$1]++) next
+      key=$1
+      if (key ~ /_/) {                       # snake_case: only a bug if it names a real export
+        n=split(key, part, "_"); pascal=""
+        for (i=1; i<=n; i++) pascal = pascal toupper(substr(part[i],1,1)) substr(part[i],2)
+        if (pascal in known)
+          print "  " F " -> \x27" key "\x27 is silently ignored; Godot expects \x27" pascal "\x27"
+      } else if (key ~ /^[A-Z]/) {           # PascalCase on a scripted node must name a real export
+        if (!(key in known))
+          print "  " F " -> \x27" key "\x27 matches no [Export] in the addon (stale or typo; ignored at load)"
+      }
+    }' "$f")
+  [ -n "$out" ] && { echo "$out"; found=1; fail=1; }
+done; rm -f "$EXPORT_LIST"; [ $found -eq 0 ] && echo "  ok"
+
 [ $fail -eq 0 ] && echo "PASS: all scenes valid" || echo "FAIL: see above"
 exit $fail

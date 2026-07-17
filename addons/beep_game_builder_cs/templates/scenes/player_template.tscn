@@ -25,7 +25,6 @@ script = ExtResource("2_movement")
 Speed = 200.0
 Acceleration = 1800.0
 Friction = 1400.0
-CanDash = false
 
 [node name="Attack" type="Node" parent="."]
 script = ExtResource("3_attack")

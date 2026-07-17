@@ -39,8 +39,17 @@ namespace Beep.ECS.UI
 
         /// <summary>Pause the tree while the screen is open. On for anything the player reads
         /// or manages at leisure (inventory, crafting); off for a screen meant to sit over
-        /// live action.</summary>
+        /// live action.
+        ///
+        /// Only ever undoes its OWN pause — if something else (the pause menu, another
+        /// screen) already paused, closing this leaves the tree paused.</summary>
         [Export] public bool PauseWhileOpen { get; set; } = true;
+
+        /// <summary>CanvasLayer layer for the hosted screen. Default 20 puts it above the
+        /// game, its HUD (layer 0), and the pause menu (layer 10), so a screen stays readable
+        /// whatever it is opened over. Only used for Control-rooted screens, which get a host
+        /// layer; a screen that is already a CanvasLayer keeps its own.</summary>
+        [Export] public int ScreenLayer { get; set; } = 20;
 
         /// <summary>Pressing the action again closes an open screen.</summary>
         [Export] public bool Toggle { get; set; } = true;
@@ -49,6 +58,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ScreenClosedEventHandler();
 
         private Node? _open;
+        private Node? _host;
 
         public override void _Ready()
         {
@@ -112,12 +122,46 @@ namespace Beep.ECS.UI
             // Parent to the current scene so it dies with it rather than leaking to /root and
             // surviving scene changes — same reasoning as SettingsOverlay.
             Node parent = GetTree()?.CurrentScene ?? this;
-            parent.AddChild(overlay);
+
+            // Host a Control-rooted screen in a CanvasLayer of our own. SettingsOverlay can
+            // AddChild straight onto the scene because settings_menu/pause_menu are
+            // CanvasLayer-rooted; the genre screens are Control-rooted, and the genre mains
+            // are Node2D. A Control parented under a Node2D joins the WORLD canvas: it
+            // anchors against its parent's (empty) rect instead of the viewport, rides the
+            // Camera2D transform, and draws beneath the scene's own HUD layer — i.e. the
+            // screen opens as an invisible, unclickable, zero-sized node. The CanvasLayer
+            // gives it the viewport-anchored, camera-independent space it was authored for.
+            Node host = overlay;
+            if (overlay is not CanvasLayer)
+            {
+                var layer = new CanvasLayer { Name = $"{ScreenKey}ScreenLayer", Layer = ScreenLayer, ProcessMode = ProcessModeEnum.Always };
+                parent.AddChild(layer);
+                layer.AddChild(overlay);
+                host = layer;
+            }
+            else
+            {
+                parent.AddChild(overlay);
+            }
+            _host = host;
             _open = overlay;
 
-            if (PauseWhileOpen && GetTree() is { } tree) tree.Paused = true;
+            // Only pause if the tree isn't already paused — and remember that we did, so we
+            // only ever undo our own pause. GetTree().Paused is one global bool with no
+            // refcount and several owners (PauseComponent, GameFlowComponent, us). Unpausing
+            // unconditionally on close would resume the game underneath a still-open pause
+            // menu, or underneath another genre screen.
+            _pausedByUs = false;
+            if (PauseWhileOpen && GetTree() is { } tree && !tree.Paused)
+            {
+                tree.Paused = true;
+                _pausedByUs = true;
+            }
 
-            // The screen frees itself on close; unpause when it does.
+            // Watch the SCREEN, not the host: every screen closes itself via
+            // SceneNav.CloseOrReturn → QueueFree() on its own root. Watching the host would
+            // miss that entirely — the host would outlive the screen, its TreeExited would
+            // never fire, and the game would stay paused behind an empty CanvasLayer.
             overlay.TreeExited += OnScreenClosed;
 
             EmitSignal(SignalName.ScreenOpened);
@@ -133,13 +177,32 @@ namespace Beep.ECS.UI
         private void OnScreenClosed()
         {
             _open = null;
-            if (PauseWhileOpen && GetTree() is { } tree) tree.Paused = false;
+            // The screen freed itself; take the host layer with it rather than leaving an
+            // empty CanvasLayer behind on every open/close cycle.
+            if (_host != null && GodotObject.IsInstanceValid(_host) && !_host.IsQueuedForDeletion())
+                _host.QueueFree();
+            _host = null;
+
+            ReleasePause();
             EmitSignal(SignalName.ScreenClosed);
         }
+
+        /// <summary>Undo our pause, and only ours. Unconditionally clearing Paused here is
+        /// what would resume the game under a still-open pause menu or a second screen.</summary>
+        private void ReleasePause()
+        {
+            if (!_pausedByUs) return;
+            _pausedByUs = false;
+            if (GetTree() is { } tree) tree.Paused = false;
+        }
+        private bool _pausedByUs;
 
         public override void _ExitTree()
         {
             if (IsOpen()) _open!.TreeExited -= OnScreenClosed;
+            // Leaving the tree with our screen still open would otherwise strand the game
+            // paused forever, with nothing left alive to release it.
+            ReleasePause();
             base._ExitTree();
         }
     }

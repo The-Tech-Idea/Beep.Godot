@@ -82,6 +82,16 @@ namespace Beep.ECS
             Velocity = _body.Velocity;
         }
 
+        /// <summary>Accelerate toward <paramref name="direction"/>, or decelerate to rest when
+        /// it is zero. Called every physics frame by <see cref="_PhysicsProcess"/>; safe to
+        /// call directly if you drive movement yourself.
+        ///
+        /// Moved fires every frame you are moving — it carries the direction, so a listener
+        /// can track facing as it changes. Stopped fires ONCE, on coming to rest: it is an
+        /// edge, and a listener kills a footstep loop or starts an idle animation off it.
+        /// Emitting it on every frame a body is merely still would fire 60x/sec forever on
+        /// any idle entity — latent while Move() had no callers, live once this drove it
+        /// per-frame.</summary>
         public void Move(Vector2 direction, double delta)
         {
             if (!IsActive) return;
@@ -90,13 +100,19 @@ namespace Beep.ECS
             if (direction.Length() > 0)
             {
                 Velocity = Velocity.MoveToward(direction * Speed, Acceleration * (float)delta);
+                _isMoving = true;
                 EmitSignal(SignalName.Moved, direction, Speed);
             }
             else
             {
                 Velocity = Velocity.MoveToward(Vector2.Zero, Friction * (float)delta);
-                if (Velocity.Length() < 1f) EmitSignal(SignalName.Stopped);
+                if (_isMoving && Velocity.Length() < 1f)
+                {
+                    _isMoving = false;
+                    EmitSignal(SignalName.Stopped);
+                }
             }
         }
+        private bool _isMoving;
     }
 }

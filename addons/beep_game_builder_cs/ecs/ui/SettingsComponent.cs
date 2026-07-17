@@ -162,8 +162,50 @@ namespace Beep.ECS.UI
             ApplyDisplaySettings();
         }
 
-        /// <summary>Write all settings to disk.</summary>
-        public void SaveSettings() => _config.Save(SettingsPath);
+        /// <summary>Persist all settings. Coalesced: the write happens shortly after changes
+        /// stop, not on every call.
+        ///
+        /// Every property setter routes through Set(), which calls this — fine for a
+        /// checkbox, wrong for a slider. Dragging a volume slider emits value_changed every
+        /// frame, so this was writing user://settings.cfg ~60x/sec for the length of the
+        /// drag. Debouncing here fixes it for every caller, rather than making each UI site
+        /// remember to be careful.
+        ///
+        /// Call <see cref="FlushSettings"/> for an immediate write.</summary>
+        public void SaveSettings()
+        {
+            _saveDirty = true;
+            _saveTimer = SaveDebounceSeconds;
+        }
+
+        /// <summary>Write now, skipping the debounce. Used on exit, where there is no later.</summary>
+        public void FlushSettings()
+        {
+            _saveDirty = false;
+            _saveTimer = 0f;
+            _config.Save(SettingsPath);
+        }
+
+        /// <summary>How long changes must be quiet before the write lands.</summary>
+        [Export] public float SaveDebounceSeconds { get; set; } = 0.4f;
+
+        private bool _saveDirty;
+        private float _saveTimer;
+
+        public override void _Process(double delta)
+        {
+            if (Engine.IsEditorHint() || !_saveDirty) return;
+            _saveTimer -= (float)delta;
+            if (_saveTimer <= 0f) FlushSettings();
+        }
+
+        /// <summary>Land any pending write before we go — a debounced save must never lose a
+        /// change to someone quitting within the debounce window.</summary>
+        public override void _ExitTree()
+        {
+            if (_saveDirty && !Engine.IsEditorHint()) FlushSettings();
+            base._ExitTree();
+        }
 
         // ════════════════════════════════════════════════════════════════
         // Apply to engine

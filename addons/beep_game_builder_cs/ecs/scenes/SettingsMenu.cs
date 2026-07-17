@@ -87,23 +87,22 @@ namespace Beep.ECS.Scenes
             };
         }
 
-        /// <summary>Bind a slider to a stored value. Applies on every change so the volume
-        /// moves under the player's finger, but persists only on release — ValueChanged fires
-        /// continuously while dragging, and saving there would rewrite settings.cfg every
-        /// frame of the drag.</summary>
+        /// <summary>Bind a slider to a stored value. Applies on every change, so the volume
+        /// moves under the player's finger.
+        ///
+        /// No explicit save here, deliberately: every SettingsComponent setter persists via
+        /// Set(), and that write is debounced at the source. An earlier version of this saved
+        /// on DragEnded to avoid per-frame writes — which achieved nothing, since the apply
+        /// callback was already writing to disk on every change, and DragEnded only fires for
+        /// mouse drags (keyboard and wheel adjustments would have skipped it entirely).</summary>
         private void Bind(string path, float current, System.Action<float> apply)
         {
             if (GetNodeOrNull<Godot.Range>(path) is not { } slider) return;
 
-            // Seed before subscribing: assigning Value emits ValueChanged, which would
-            // otherwise write the scene's literal straight back over the stored setting.
+            // Seed before subscribing: assigning Value emits ValueChanged synchronously,
+            // which would otherwise write the scene's literal back over the stored setting.
             slider.Value = current;
             slider.ValueChanged += value => apply((float)value);
-
-            if (slider is Slider s)
-                s.DragEnded += _ => UI.SettingsComponent.Instance?.SaveSettings();
-            else
-                slider.ValueChanged += _ => UI.SettingsComponent.Instance?.SaveSettings();
         }
 
         /// <summary>Close correctly whether we are the current scene or an overlay.

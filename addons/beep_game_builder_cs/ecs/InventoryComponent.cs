@@ -9,6 +9,8 @@ namespace Beep.ECS
     /// (drag-and-drop, right-click split, hover tooltip, sort). Drop this single
     /// node under any Control to get a fully functional inventory.
     ///
+    /// Implements ISaveable for state persistence (save/load).
+    ///
     /// Split into partial files for organization:
     ///   InventoryComponent.cs          — data model + core logic (add/remove/move/stack/sort)
     ///   InventoryComponent.Display.cs  — grid rendering, slot visuals, tooltip
@@ -19,7 +21,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class InventoryComponent : GameplayComponent
+    public partial class InventoryComponent : GameplayComponent, ISaveable
     {
         // ════════════════════════════════════════════════════════════════
         //  Item data model
@@ -301,6 +303,37 @@ namespace Beep.ECS
             if (Slots == null) return -1;
             for (int i = 0; i < MaxSlots; i++) if (Slots[i] == null) return i;
             return -1;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  ISaveable Implementation (auto-called by GameStateManagerComponent)
+        // ════════════════════════════════════════════════════════════════
+
+        public void Save(GameBuilder.GameStateData state)
+        {
+            state.Inventory.Items.Clear();
+            state.Inventory.MaxSlots = MaxSlots;
+
+            if (Slots == null) return;
+
+            for (int i = 0; i < MaxSlots; i++)
+            {
+                if (Slots[i] != null)
+                {
+                    state.Inventory.Items[Slots[i]!.Id] = Slots[i]!.Quantity;
+                }
+            }
+        }
+
+        public void Load(GameBuilder.GameStateData state)
+        {
+            MaxSlots = state.Inventory.MaxSlots;
+            Slots = new InventoryItem[MaxSlots];
+
+            foreach (var (itemId, quantity) in state.Inventory.Items)
+            {
+                AddItem(itemId, quantity);
+            }
         }
     }
 }

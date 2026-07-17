@@ -5,10 +5,11 @@ namespace Beep.ECS
     /// <summary>
     /// Health component for any entity that can take damage or be destroyed.
     /// Blind — doesn't know if parent is player, enemy, or destructible object.
+    /// Implements ISaveable for state persistence (save/load).
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class HealthComponent : GameplayComponent
+    public partial class HealthComponent : GameplayComponent, ISaveable
     {
         [Export] public float MaxHealth { get; set; } = 100f;
         [Export] public float CurrentHealth { get; set; } = 100f;
@@ -28,6 +29,7 @@ namespace Beep.ECS
         private TemperatureComponent? _temperature;
         private HungerStaminaComponent? _hunger;
         private StatusEffectComponent? _statusEffects;
+        private ResistanceComponent? _resistance;
 
         public override void _Ready()
         {
@@ -35,6 +37,7 @@ namespace Beep.ECS
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _hunger = GetSiblingComponent<HungerStaminaComponent>();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _resistance = GetSiblingComponent<ResistanceComponent>();
         }
 
         public override void _Process(double delta)
@@ -63,9 +66,17 @@ namespace Beep.ECS
                 TakeDamage(passiveDamage);
         }
 
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount) => TakeDamage(amount, DamageTypeComponent.Type.Physical);
+
+        /// <summary>Apply typed damage. A sibling <see cref="ResistanceComponent"/> (if present)
+        /// scales the incoming amount by its per-type multiplier first — 0 = immune, 2 = weak —
+        /// so an immune target (multiplier 0) takes nothing. Armor + status reduction apply after.</summary>
+        public void TakeDamage(float amount, DamageTypeComponent.Type type)
         {
             if (!IsActive || IsDead) return;
+
+            if (_resistance != null) amount = _resistance.ApplyResistance(amount, type);
+            if (amount <= 0f) return; // resisted to nothing (immunity)
 
             float armorReduction = Mathf.Clamp(Armor, 0f, MaxArmor) * 0.01f;
             float actual = Mathf.Max(0.1f, amount * (1f - armorReduction));
@@ -85,6 +96,20 @@ namespace Beep.ECS
             if (!IsActive || IsDead) return;
             CurrentHealth = Mathf.Min(MaxHealth, CurrentHealth + amount);
             EmitSignal(SignalName.Healed, amount, CurrentHealth);
+            EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
+        }
+
+        // ── ISaveable Implementation (auto-called by GameStateManagerComponent) ──
+        public void Save(GameBuilder.GameStateData state)
+        {
+            state.Combat.Health = CurrentHealth;
+            state.Combat.MaxHealth = MaxHealth;
+        }
+
+        public void Load(GameBuilder.GameStateData state)
+        {
+            CurrentHealth = state.Combat.Health;
+            MaxHealth = state.Combat.MaxHealth;
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
         }
     }

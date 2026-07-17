@@ -95,24 +95,59 @@ The audits established these; genre docs should cite, not rediscover:
 - **Three false friends:** `PlayerStatsComponent` is a **soccer** stat block;
   `NavigationComponent` is a scene-transition button wirer, not pathfinding;
   `TrainingComponent`/`ContractComponent` are football-manager residue.
+- **`WorkComponent` has never run.** `StartWork`/`Tick` have **0 callers** and it has no
+  `_Process`, so it does not tick itself. A correct production model (furnaces, workbenches,
+  labs) that has never executed — needs wiring, not design.
+- **A real A\* already exists**, unused: `BeepPathfindingGrid`
+  (`core/BeepEncryptionPathfinding.cs:68`) — 0 callers, not a Node, not `[GlobalClass]`, so
+  not usable as-is. Know it is there before writing another.
 
-## Index
+## Index — and what each genre actually earned
 
-| Genre | Needs items? | Doc |
-|---|---|---|
-| rpg | heavily — the reference case | `rpg.md` |
-| survival | heavily — tools + materials | `survival.md` |
-| shooter | yes — weapons | `shooter.md` |
-| platformer | lightly — pickups | `platformer.md` |
-| topdown | yes — keys, consumables | `topdown.md` |
-| racing | no items; needs a **spec** | `racing.md` |
-| strategy | no items; needs **specs** | `strategy.md` |
-| citybuilder | no items; needs a **spec** | `citybuilder.md` |
-| puzzle | **no** — board-driven | `puzzle.md` |
-| cardgame | no items; needs a **card** | `cardgame.md` |
+| Genre | Items? | New classes earned | Doc |
+|---|---|---|---|
+| **rpg** | heavily — the reference case | **none** | `rpg.md` |
+| **survival** | heavily — the loop *is* the item loop | `GameTool : GameWeapon`, `GameFood : GameConsumable` | `survival.md` |
+| **shooter** | yes — weapons | **none** | `shooter.md` |
+| **platformer** | lightly — pickups | **none** | `platformer.md` |
+| **topdown** | yes — a strict subset of rpg | **none** | `topdown.md` |
+| **racing** | no | `VehicleSpec` (sibling) + `VehicleController` | `racing.md` |
+| **strategy** | no | `UnitSpec`, `TechNode` (+ **shares** `BuildingSpec`) | `strategy.md` |
+| **citybuilder** | no | `BuildingSpec` (sibling) | `citybuilder.md` |
+| **cardgame** | no | `GameCard` — a **sibling**, not a subclass | `cardgame.md` |
+| **puzzle** | **no** | **none — no items, no specs** | `puzzle.md` |
 
-> Half of these genres do not want an item tree at all — they want a **spec** (a `.tres`
-> describing a vehicle, a building, a unit, a card). That is the same idea one level over:
-> data by inheritance, instanced through a `PackedScene`. Where a genre says "no items", the
-> doc says what it wants **instead**, and does not force it into `GameItem`.
+### What the ten docs settled
+
+**The spine survived its hardest test unchanged.** rpg — weapons, armour, shields, potions,
+scrolls, keys, quest items, materials, currency, chests, anvils — earned **zero** new
+classes. `GameKey` and `GameQuestItem` were proposed and rejected on a clean argument: the
+**door** names the key (`DoorSwitchComponent.RequiredItem`) and the **objective** names the
+item (`QuestObjective.TargetId`), so neither would add a field. Shooter, platformer and
+topdown likewise earned nothing. **Four of the five item genres needed no new class** — which
+is the outcome that says the model is right.
+
+**Survival earned two**, both by the rule: `GameTool` adds `ToolClass` + `HarvestPower` — a
+tier gate `Damage` cannot express, and "Axe" is not a `DamageType`; `GameFood` adds
+`HungerRestore`, which `HungerStaminaComponent.ConsumeFood` already demands and the spine
+cannot supply. `GameMaterial`, `GameStation` and a `WarmthRating` were all rejected —
+the last because `TemperatureComponent` reads no resistances, so it would be a dead field.
+
+**Half the genres wanted a *sibling*, not a subclass** — and argued it field-by-field rather
+than by taste. A card is not carried, not destructible, not in the world:
+`IsStatic`/`IsDestructible`/`MaxDurability`/`WorldScene` would all be permanently null, so
+subclassing would inherit what the child must suppress — **the inverse of the rule**. Same
+for a vehicle: 1 of 10 spine fields fits. `BuildingSpec` is **shared** between strategy and
+citybuilder rather than forked.
+
+**Puzzle earned nothing at all, and that is the sharpest result.** `GemSpec` was considered
+and rejected — decisively because `Match3BoardComponent` **grows `GemTypeCount` at runtime**
+for the difficulty ramp (`Mathf.Min(GemTypeCount + (level-1)/2, 8)`). An `int` scales; an
+authored array does not. **The bare int is correct, not lazy.**
+
+> Recurring finding across every doc: the genre `tuning` keys are inert.
+> `inventory_columns`, `quick_slots`, `dialogue_speed`, `tooltip_delay`,
+> `status_decay_seconds`, `hand_limit`, `card_fan_angle`, `lap_count`, `speedometer_max`,
+> `resource_slots`, `build_grid_size` are read by nothing, and several are duplicated as
+> literals in the scenes. A `GameItem`/spec tree is where those values should live.
 </content>

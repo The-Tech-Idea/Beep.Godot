@@ -43,15 +43,16 @@ Shape: Area2D-parented, on `BodyEntered` call `HealthComponent.TakeDamage(amount
 `Continuous`/`OneShot`, `Cooldown`, `InstantKill`. Composes with `KnockbackComponent` the same
 way `ProjectileComponent` already does (`:83-85`).
 
-### 3. The three inert verbs
+### 3. The inert verbs
 
-Shipped on templates, **zero callers**, verified by grep:
+Shipped, **zero callers**, verified by grep:
 
 | Verb | Consequence |
 |---|---|
 | `AttackComponent.Attack()` (`:45`) | Nothing ever attacks. The whole melee/ranged pipeline is un-triggered. `AIController` emits `InAttackRange` (`:97`) and never calls it. |
 | `AggroComponent.AddThreat()` (`:27`) | Threat table always empty, `CurrentTarget` always null. `HealthComponent.Damaged` is never routed to it. |
 | `DestructibleComponent.TakeDamage(int)` (`:31`) | Every destructible is invulnerable — damage only lands on `HealthComponent`. |
+| `WorkComponent.StartWork()` / `.Tick()` | **0 callers, and the component has no `_Process`** — so it never ticks itself either. An earlier draft of this plan called it "a usable production model today" and "the genre's one real asset". **That was wrong.** It is a *correct model that has never run*: the design needs no work, the wiring is entirely absent. Its value is that it needs designing, not that it functions. |
 
 These are **edges**, not components: `Damaged → AddThreat`, `AIController.InAttackRange →
 Attack`, and either unifying `DestructibleComponent` behind `HealthComponent` or teaching
@@ -85,7 +86,7 @@ Phase 4 covers the first; the rest belong here.
 | `Match3InputComponent` + `Match3ViewComponent` | puzzle | **The board is headless.** `Swap()` has 0 callers and nothing subscribes to `CellChanged` — no input path, no renderer. The sim is complete and correct; it is simply not connected to anything. Also: `ScoreChanged` → `GameFlow.AddScore` is a **signal connection, not a component** — that one edge makes `target_score` real and `level_complete.tscn` reachable. |
 | `VehicleController` + `VehicleSpec : Resource` | racing | **Confirmed: none exists.** No `ControllerComponent` subclass models a vehicle; grep for `throttle` → 0 hits. `MovementComponent` is the *wrong model*, not just redundant — it accelerates omnidirectionally with no heading, turn rate, or lateral grip. A car that can strafe sideways is not a car. `GameApp.SelectedVehicle` is written by `VehicleSelect` and **read by nothing**. |
 | `LapGateComponent` + `LapTrackerComponent` | racing | **`CheckpointComponent` cannot count laps** — three independent blockers: it latches `_activated` permanently (so lap 2 through the same gate is ignored, and `SingleUse` does *not* gate the latch); it stores a **level index**, not order or position, so reverse/skip crossings are indistinguishable; and `HealOnActivate` defaults true — respawn semantics, not a lap gate. |
-| `SelectableComponent` + `SelectionManagerComponent` + `CommandComponent` | strategy | No unit selection, orders, or formation exist at all. (`WorkComponent` **is** a usable production/barracks model today — the genre's one real asset.) |
+| `SelectableComponent` + `SelectionManagerComponent` + `CommandComponent` | strategy | No unit selection, orders, or formation exist at all. |
 | `GridPlacementComponent` + `EconomyTickComponent` + `BuildingSpec` | citybuilder | Nothing exists. Keep the grid as **data**, per Phase 5 — a Node per cell would be a regression from what `Match3BoardComponent` already demonstrates. |
 
 ### 6. The refactor worth considering

@@ -71,6 +71,31 @@ not ride along with the item model. **Decide before writing code.**
 The receiving half is **built and idle**: `HealthComponent.Armor` (`:16`) and
 `ResistanceComponent`'s per-type floats. Nothing writes either.
 
+### ⚠ There are TWO damage paths, not one — the shooter bypasses `AttackComponent` entirely
+
+An earlier draft of this phase assumed all damage flows through `AttackComponent`. **It does
+not.** `ShooterController` spawns projectiles itself (`SpawnProjectile`) and holds **no
+reference to `AttackComponent`** — verified: its only sibling lookup is
+`StatusEffectComponent` (`ecs/ShooterController.cs:43`), consulted for **`speed_boost` only**
+(`:55`). Damage is never modified by anything.
+
+So "`AttackComponent` queries `EquipmentComponent`" would leave the **entire shooter genre
+inert** — the one genre whose central noun is a weapon.
+
+**Both paths must query.** Put the lookup in one place (a small shared helper, or a protected
+method on `GameplayComponent`) and call it from `AttackComponent.Attack` **and**
+`ShooterController.SpawnProjectile`. Two copies of the same query will drift; this repo has
+the receipts (`ApplyTuning` forked between the generator and `BeepGenreScene` and silently
+dropped 14 of 21 keys).
+
+**Second shooter constraint:** `ShooterController._Ready` does
+`MoveSpeed = info.MoveSpeed; FireRate = info.FireRate` (`:45`) — **unconditionally, from
+`GameInfo`**. That is a *per-project* value overwriting a *per-weapon* one, so a `GameWeapon`
+setting `FireRate` is clobbered on every scene load. Fix it as part of this phase: make the
+`GameInfo` values a **fallback** (apply only when the export is unset), not an override.
+Otherwise weapon fire-rate silently cannot work, which is the exact defect class this plan
+keeps finding.
+
 ### Work
 
 **1. `AttackComponent`** — beside the existing `StatusEffectComponent` block (`:51-56`),
@@ -82,6 +107,9 @@ finalDamage = (Damage + equipment?.DamageBonus ?? 0) * statusMultiplier
 
 Additive base, multiplicative buffs — a +10 sword and a ×1.5 rage buff compose as expected.
 `Damage` stays the entity's own contribution (a punch).
+
+**1b. `ShooterController`** — same query, same helper, applied to `ProjectileDamage` before it
+is handed to the projectile. Without this the shooter has no equipment at all.
 
 **2. `HealthComponent`** — add `equipment?.DefenseBonus` to `Armor` **at use** (`:89`), not by
 writing the field. Writing it would fight the inspector value and go stale.

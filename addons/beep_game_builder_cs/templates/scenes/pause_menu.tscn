@@ -60,12 +60,12 @@ text = "Quit"
 [node name="PauseController" type="Node" parent="."]
 script = ExtResource("1_pause")
 
-[node name="Theme" type="Node" parent="."]
+[node name="Theme" type="Node" parent="Panel"]
 script = ExtResource("3_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("4_binder")
-ThemeComponentPath = NodePath("Theme")
+ThemeComponentPath = NodePath("Panel/Theme")
 
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("5_transition")

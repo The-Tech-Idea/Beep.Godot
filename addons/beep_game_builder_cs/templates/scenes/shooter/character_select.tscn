@@ -164,7 +164,7 @@ TitleLabelPath = NodePath("Margin/VBox/Header/TitleLabel")
 ThemeComponentPath = NodePath("Theme")
 AppendGameName = true
 
-[node name="MenuAnimation" type="Node" parent="."]
+[node name="MenuAnimation" type="Node" parent="Margin/VBox"]
 script = ExtResource("3_anim")
 AnimateOnReady = true
 

@@ -69,10 +69,10 @@ custom_minimum_size = Vector2(120, 0)
 text = "Retry (❤)"
 metadata/action = "retry"
 
-[node name="Theme" type="Node" parent="."]
+[node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-ThemeComponentPath = NodePath("Theme")
+ThemeComponentPath = NodePath("Center/Theme")
 

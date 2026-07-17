@@ -95,7 +95,7 @@ SetWindowTitle = true
 script = ExtResource("4_transition")
 Duration = 0.4
 
-[node name="MenuAnimation" type="Node" parent="."]
+[node name="MenuAnimation" type="Node" parent="Center/MenuVBox"]
 script = ExtResource("5_anim")
 EntryDirection = 1
 Duration = 0.3

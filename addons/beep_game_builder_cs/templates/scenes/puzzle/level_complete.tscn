@@ -83,14 +83,14 @@ custom_minimum_size = Vector2(120, 0)
 text = "Next ▶"
 metadata/action = "next"
 
-[node name="Theme" type="Node" parent="."]
+[node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-ThemeComponentPath = NodePath("Theme")
+ThemeComponentPath = NodePath("Center/Theme")
 
-[node name="MenuAnimation" type="Node" parent="."]
+[node name="MenuAnimation" type="Node" parent="Center/Panel/Margin/VBox"]
 script = ExtResource("3_anim")
 AnimateOnReady = true
 

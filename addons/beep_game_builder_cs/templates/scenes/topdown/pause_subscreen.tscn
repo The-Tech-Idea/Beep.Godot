@@ -168,10 +168,10 @@ metadata/action = "save"
 text = "(Saves are managed by the SaveManager autoload.)"
 
 
-[node name="Theme" type="Node" parent="."]
+[node name="Theme" type="Node" parent="Margin"]
 script = ExtResource("1_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-ThemeComponentPath = NodePath("Theme")
+ThemeComponentPath = NodePath("Margin/Theme")
 

@@ -44,20 +44,20 @@ text = "Retry"
 custom_minimum_size = Vector2(220, 0)
 text = "Main Menu"
 
-[node name="Theme" type="Node" parent="."]
+[node name="Theme" type="Node" parent="Center"]
 script = ExtResource("2_theme")
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("3_binder")
 TitleLabelPath = NodePath("Center/GameOverVBox/TitleLabel")
-ThemeComponentPath = NodePath("Theme")
+ThemeComponentPath = NodePath("Center/Theme")
 AppendGameName = true
 
 [node name="Transition" type="Node" parent="."]
 script = ExtResource("4_transition")
 Duration = 0.4
 
-[node name="MenuAnimation" type="Node" parent="."]
+[node name="MenuAnimation" type="Node" parent="Center/GameOverVBox"]
 script = ExtResource("5_anim")
 AnimateOnReady = true
 

@@ -126,14 +126,52 @@ must not. `DoorSwitchComponent` for gates — note its `RequiredItem` check find
 (`ecs/DoorSwitchComponent.cs:55`): rename or nest the player and every gated door silently
 stops working.
 
-### UI-shaped genres
+### The genres whose honest archetype count is ~zero
 
-**cardgame** needs *no* entity archetypes — it disables every world system in its `genre.json`
-and ships no `LevelContainer` or levels. A card is a `Control`; `HealthComponent` /
+**Resist the pressure to invent archetypes here.** For three genres the right answer is "almost
+none", and in two of them that is a sign the design is *right*.
+
+**puzzle — the board is one logic Node; a gem is a *view*.** `Match3BoardComponent` holds the
+whole game in an `int[,]` and implements swap, match, clear, gravity, refill and cascade with
+**no Node per cell**. That is correct and must not be entity-ized. A gem has a type integer and
+a screen position — **zero components belong on it**. `HealthComponent` **must not**: a gem is
+not damaged, it is *cleared*, and only the board decides that; HP would be a second, conflicting
+source of truth for "is this cell empty". `MovementComponent` **must not**: gem falling is
+`ApplyGravity()` rewriting the array, not physics — a physically-moving gem would drift out of
+sync with its own cell. Fall animation is a tween of a view toward a board-dictated cell.
+
+> Puzzle's gap is **wiring, not archetypes**, and it is stark: `Swap()` has **0 callers** and
+> nothing subscribes to `CellChanged` — the board shuffles itself at `_Ready` and then sits
+> inert forever, headless, with no input path and no renderer. Its `ScoreChanged` reaches
+> neither the HUD nor `GameFlow`, so `target_score` can never be hit and
+> `level_complete.tscn` is unreachable from play. Verified: 0 references outside the
+> component's own file.
+
+**citybuilder — one archetype: Building.** A grid cell is **data** (`Vector2I` keys in a
+placement component), not a Node — at `build_grid_size: 32` a Node per cell is thousands of
+Nodes for zero benefit, and `Match3BoardComponent` already demonstrates the right pattern
+(grid-as-array + a `CellChanged` signal, rendering left to the game). A citizen is a **scalar**,
+not an agent: `"Population: 250"` is an aggregate, and spawning 250 Nodes to make a label say
+250 would be a design error. Buildings **must not** have `MovementComponent` (static, and it
+needs `CharacterBody2D`) or `HealthComponent`/`HealthBarComponent` (no combat; demolition is an
+action, not HP depletion — contrast strategy, where building HP *is* correct).
+
+**cardgame — no entity archetypes.** It disables every world system in its `genre.json` and
+ships no `LevelContainer` or levels. A card is a `Control`; `HealthComponent` /
 `MovementComponent` / `AttackComponent` / `PickupComponent` are all **must not** (a Control can
 never be an `Area2D` or `CharacterBody2D`). Its needs are a `CardDef : Resource` hierarchy and
-a hand/deck — data, not entities. Same shape for **puzzle** (board-driven) and **citybuilder**
-(grid/UI-driven); confirm against the fourth genre report before finalising.
+a hand/deck — data, not entities.
+
+### Two false friends — do not plan around the name
+
+- **`NavigationComponent` is not pathfinding.** It is a scene-transition button auto-wirer.
+  Nothing in the addon touches `NavigationAgent2D` or A*, so the `NavigationRegion2D` in the
+  topdown levels is decorative. Putting it on a unit silently hijacks Buttons in the parent tree.
+- **`MarqueeComponent` is not an RTS drag-select marquee.** It is a scrolling text ticker on a
+  `Label`.
+- Also: **`TrainingComponent` and `ContractComponent` are football-manager residue**
+  (`WeeklyWage`, `ReleaseClause`, `ContractExpiry`, `TrainingFocus`) — not RTS production, despite
+  reading like it. Same trap as `PlayerStatsComponent`.
 
 ---
 

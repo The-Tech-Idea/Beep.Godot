@@ -82,7 +82,11 @@ Phase 4 covers the first; the rest belong here.
 | `HarvestableComponent` | survival | "requires tool class X, yields item Y ×N". Currently `DestructibleComponent` + a code-only drop table + a pickup that doesn't reach the bag = three broken links for one loop. |
 | `ContainerComponent` | rpg/survival | Chest = a second inventory + transfer. Nothing supports two inventories. |
 | `CardDef : Resource` + deck/hand | cardgame | The genre is data-shaped; `hand_limit`/`card_fan_angle`/`card_hover_scale` are all inert. |
-| vehicle controller | racing | None exists. *(Confirm against the racing/strategy/citybuilder/puzzle report.)* |
+| `Match3InputComponent` + `Match3ViewComponent` | puzzle | **The board is headless.** `Swap()` has 0 callers and nothing subscribes to `CellChanged` — no input path, no renderer. The sim is complete and correct; it is simply not connected to anything. Also: `ScoreChanged` → `GameFlow.AddScore` is a **signal connection, not a component** — that one edge makes `target_score` real and `level_complete.tscn` reachable. |
+| `VehicleController` + `VehicleSpec : Resource` | racing | **Confirmed: none exists.** No `ControllerComponent` subclass models a vehicle; grep for `throttle` → 0 hits. `MovementComponent` is the *wrong model*, not just redundant — it accelerates omnidirectionally with no heading, turn rate, or lateral grip. A car that can strafe sideways is not a car. `GameApp.SelectedVehicle` is written by `VehicleSelect` and **read by nothing**. |
+| `LapGateComponent` + `LapTrackerComponent` | racing | **`CheckpointComponent` cannot count laps** — three independent blockers: it latches `_activated` permanently (so lap 2 through the same gate is ignored, and `SingleUse` does *not* gate the latch); it stores a **level index**, not order or position, so reverse/skip crossings are indistinguishable; and `HealOnActivate` defaults true — respawn semantics, not a lap gate. |
+| `SelectableComponent` + `SelectionManagerComponent` + `CommandComponent` | strategy | No unit selection, orders, or formation exist at all. (`WorkComponent` **is** a usable production/barracks model today — the genre's one real asset.) |
+| `GridPlacementComponent` + `EconomyTickComponent` + `BuildingSpec` | citybuilder | Nothing exists. Keep the grid as **data**, per Phase 5 — a Node per cell would be a regression from what `Match3BoardComponent` already demonstrates. |
 
 ### 6. The refactor worth considering
 

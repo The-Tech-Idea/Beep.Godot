@@ -129,6 +129,10 @@ namespace Beep.ECS
 			if (slot < 0 || slot >= MaxSaveSlots) return false;
 
 			EnsureState();
+			// Sync here rather than trusting callers to do it first. It was the caller's job,
+			// and the autosave timer forgot — it wrote whatever _currentState last held, so
+			// timed autosaves persisted stale values. Callers that still sync are harmless.
+			SyncAllSaveables();
 			_currentSlot = slot;
 			_currentState!.Metadata.Timestamp = Now();
 			_currentState.Metadata.PlaytimeSeconds = GameApp.Instance?.SessionPlaytimeSeconds ?? 0f;
@@ -149,6 +153,9 @@ namespace Beep.ECS
 		public bool SaveAutosave()
 		{
 			EnsureState();
+			// Same reason as Save(int): the _Process timer calls straight in here without
+			// syncing, which is exactly the caller that must not be trusted to remember.
+			SyncAllSaveables();
 			_currentState!.Metadata.Timestamp = Now();
 			_currentState.Metadata.PlaytimeSeconds = GameApp.Instance?.SessionPlaytimeSeconds ?? 0f;
 			_currentState.Metadata.CurrentLevel = GetTree()?.CurrentScene?.SceneFilePath ?? "unknown";

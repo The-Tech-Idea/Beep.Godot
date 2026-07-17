@@ -22,7 +22,12 @@ namespace Beep.ECS.Scenes
         private void OnNextPressed()
         {
             var app = GameApp.Instance;
-            app?.SetLevel(app.CurrentLevel + 1);
+            if (app != null)
+            {
+                // Reaching this screen IS the completion — record it before advancing.
+                app.CompleteLevel(app.CurrentLevel);
+                app.SetLevel(app.CurrentLevel + 1);
+            }
             ChangeScene(app?.GameScenePath);
         }
 

@@ -23,7 +23,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GameApp : Node
+    public partial class GameApp : Node, ISaveable
     {
         public enum Difficulty { Easy, Normal, Hard, Nightmare }
         public enum PerformanceMode { Low, Normal, High }
@@ -149,6 +149,12 @@ namespace Beep.ECS
             // Load the UI skin from GameInfo if not already set in the inspector.
             if (Skin == null)
                 Skin = Info?.Skin;
+
+            // Persist progression — but only the autoload. Instance resolves /root/GameApp
+            // specifically, and [GlobalClass] means a second GameApp can be dropped into a
+            // scene; that copy must not join and overwrite the real one's Progression.
+            if (!Engine.IsEditorHint() && Instance == this)
+                AddToGroup(SaveableHelper.Group);
         }
 
         // ── Convenience accessors (so callers can do GameApp.Instance.GameName etc.) ──
@@ -207,17 +213,24 @@ namespace Beep.ECS
             EmitSignal(SignalName.SessionScoreChanged, SessionScore);
         }
 
+        /// <summary>Move to a level. Navigation only — this does NOT mark it completed.
+        ///
+        /// It used to: entering level 5 immediately added it to the completed set and emitted
+        /// LevelCompleted, so IsLevelCompleted(5) was true the moment the player arrived and
+        /// had beaten nothing. Call <see cref="CompleteLevel"/> when the level is actually
+        /// finished.</summary>
         public void SetLevel(int level)
         {
             CurrentLevel = level;
             if (level > MaxLevelReached) MaxLevelReached = level;
             EmitSignal(SignalName.LevelChanged, level);
+        }
 
-            if (!_completedLevels.Contains(level))
-            {
-                _completedLevels.Add(level);
-                EmitSignal(SignalName.LevelCompleted, level);
-            }
+        /// <summary>Mark a level beaten. Idempotent — re-completing emits nothing.</summary>
+        public void CompleteLevel(int level)
+        {
+            if (!_completedLevels.Add(level)) return;
+            EmitSignal(SignalName.LevelCompleted, level);
         }
 
         public void ResetSession()
@@ -326,5 +339,49 @@ namespace Beep.ECS
         public bool IsLevelCompleted(int level) => _completedLevels.Contains(level);
         public int TotalLevelsCompleted => _completedLevels.Count;
         public List<string> GetUnlockedAchievements() => new(_unlockedAchievements);
+
+        // ════════════════════════════════════════════════════════════════
+        //  ISaveable — progression persistence
+        //
+        //  GameApp tracked the level, completed levels, achievements and lifetime stats
+        //  purely in memory: _completedLevels and _unlockedAchievements were plain HashSets
+        //  and nothing wrote them to disk, so every achievement and every beaten level was
+        //  lost on quit. CurrentLevel likewise came back as -1 after a load, which
+        //  LevelLoaderComponent clamps to FirstLevelIndex — so every save reopened on
+        //  level 1 regardless of where the player had got to.
+        //
+        //  Joins the saveables group from _Ready (see below) rather than via an opt-in
+        //  export: this is the autoload, there is exactly one, so it cannot collide.
+        // ════════════════════════════════════════════════════════════════
+
+        public void Save(GameBuilder.GameStateData state)
+        {
+            var p = state.Progression;
+            p.CurrentLevel = CurrentLevel;
+            p.MaxLevelReached = MaxLevelReached;
+            p.CompletedLevels = new List<int>(_completedLevels);
+            p.UnlockedAchievements = new List<string>(_unlockedAchievements);
+            p.GamesPlayedTotal = GamesPlayedTotal;
+            p.GamesWonTotal = GamesWonTotal;
+            p.GamesLostTotal = GamesLostTotal;
+            p.BestScore = BestScore;
+            p.TotalPlaytimeMinutes = TotalPlaytimeMinutes;
+        }
+
+        public void Load(GameBuilder.GameStateData state)
+        {
+            var p = state.Progression;
+            MaxLevelReached = p.MaxLevelReached;
+            _completedLevels = new HashSet<int>(p.CompletedLevels);
+            _unlockedAchievements = new HashSet<string>(p.UnlockedAchievements);
+            GamesPlayedTotal = p.GamesPlayedTotal;
+            GamesWonTotal = p.GamesWonTotal;
+            GamesLostTotal = p.GamesLostTotal;
+            BestScore = p.BestScore;
+            TotalPlaytimeMinutes = p.TotalPlaytimeMinutes;
+
+            // Last, and via SetLevel, so LevelChanged fires for anything listening.
+            SetLevel(p.CurrentLevel);
+        }
     }
 }

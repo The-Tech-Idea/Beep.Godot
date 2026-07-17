@@ -25,6 +25,13 @@ namespace Beep.GameBuilder
 			return a;
 		}
 
+		public static Godot.Collections.Array ToArray(IEnumerable<int> src)
+		{
+			var a = new Godot.Collections.Array();
+			foreach (var i in src) a.Add(i);
+			return a;
+		}
+
 		public static Godot.Collections.Dictionary ToDict(IDictionary<string, float> src)
 		{
 			var d = new Godot.Collections.Dictionary();
@@ -410,13 +417,40 @@ namespace Beep.GameBuilder
 		public int Level { get; set; } = 1;
 		public int Experience { get; set; } = 0;
 
+		/// <summary>The level the player is on. Distinct from Level, which is the player's
+		/// experience level. Nothing recorded this, so GameApp.CurrentLevel came back as -1
+		/// after a load and LevelLoaderComponent clamped it to FirstLevelIndex — every save
+		/// reopened on level 1.</summary>
+		public int CurrentLevel { get; set; } = -1;
+
+		/// <summary>Levels actually beaten. Was a plain in-memory HashSet on GameApp that no
+		/// ISaveable persisted, so all progression was lost on quit.</summary>
+		public List<int> CompletedLevels { get; set; } = new();
+
+		public int MaxLevelReached { get; set; } = 0;
+
+		// ── Lifetime stats (GameApp tracked these and nothing wrote them to disk) ──
+		public int GamesPlayedTotal { get; set; } = 0;
+		public int GamesWonTotal { get; set; } = 0;
+		public int GamesLostTotal { get; set; } = 0;
+		public int BestScore { get; set; } = 0;
+		public int TotalPlaytimeMinutes { get; set; } = 0;
+
 		public Godot.Collections.Dictionary ToDict() => new()
 		{
 			{ "completed_quests", GodotConv.ToArray(CompletedQuests) },
 			{ "unlocked_achievements", GodotConv.ToArray(UnlockedAchievements) },
 			{ "unlocks", GodotConv.ToDict(Unlocks) },
 			{ "level", Level },
-			{ "experience", Experience }
+			{ "experience", Experience },
+			{ "current_level", CurrentLevel },
+			{ "completed_levels", GodotConv.ToArray(CompletedLevels) },
+			{ "max_level_reached", MaxLevelReached },
+			{ "games_played_total", GamesPlayedTotal },
+			{ "games_won_total", GamesWonTotal },
+			{ "games_lost_total", GamesLostTotal },
+			{ "best_score", BestScore },
+			{ "total_playtime_minutes", TotalPlaytimeMinutes }
 		};
 
 		public static ProgressionStateData FromDict(Godot.Collections.Dictionary d) => new()
@@ -425,7 +459,15 @@ namespace Beep.GameBuilder
 			UnlockedAchievements = new List<string>(d.TryGetValue("unlocked_achievements", out var ua) ? ua.AsStringArray() : Array.Empty<string>()),
 			Unlocks = GodotConv.ToBoolDict(d.TryGetValue("unlocks", out var u) ? u.AsGodotDictionary() : new()),
 			Level = d.TryGetValue("level", out var l) ? (int)l : 1,
-			Experience = d.TryGetValue("experience", out var e) ? (int)e : 0
+			Experience = d.TryGetValue("experience", out var e) ? (int)e : 0,
+			CurrentLevel = d.TryGetValue("current_level", out var cl) ? (int)cl : -1,
+			CompletedLevels = new List<int>(d.TryGetValue("completed_levels", out var cls) ? cls.AsInt32Array() : Array.Empty<int>()),
+			MaxLevelReached = d.TryGetValue("max_level_reached", out var mlr) ? (int)mlr : 0,
+			GamesPlayedTotal = d.TryGetValue("games_played_total", out var gp) ? (int)gp : 0,
+			GamesWonTotal = d.TryGetValue("games_won_total", out var gw) ? (int)gw : 0,
+			GamesLostTotal = d.TryGetValue("games_lost_total", out var gl) ? (int)gl : 0,
+			BestScore = d.TryGetValue("best_score", out var bs) ? (int)bs : 0,
+			TotalPlaytimeMinutes = d.TryGetValue("total_playtime_minutes", out var tp) ? (int)tp : 0
 		};
 	}
 }

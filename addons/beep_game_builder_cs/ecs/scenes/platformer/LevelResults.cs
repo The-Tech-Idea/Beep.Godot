@@ -21,7 +21,14 @@ namespace Beep.ECS.Scenes
         /// advancing, so it just replayed the current level.</summary>
         private void OnNextLevel()
         {
-            if (GameApp.Instance is { } app) app.SetLevel(app.CurrentLevel + 1);
+            if (GameApp.Instance is { } app)
+            {
+                // Reaching this screen IS the completion — record it before advancing.
+                // SetLevel used to mark its argument completed, so this marked the level the
+                // player was about to start and never the one they just beat.
+                app.CompleteLevel(app.CurrentLevel);
+                app.SetLevel(app.CurrentLevel + 1);
+            }
             ChangeScene(GameApp.Instance?.GameScenePath);
         }
 

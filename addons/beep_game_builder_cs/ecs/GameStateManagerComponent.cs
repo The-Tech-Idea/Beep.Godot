@@ -246,6 +246,15 @@ namespace Beep.ECS
 		public bool LoadForSceneChange(int slot)
 		{
 			if (!Load(slot)) return false;
+
+			// Restore the autoload's progression NOW rather than with the rest. GameApp
+			// survives the scene change, and the incoming scene's LevelLoaderComponent reads
+			// GameApp.CurrentLevel in its _Ready to decide which level to instance — a
+			// deferred restore lands after that read, so every load reopened on level 1.
+			// Safe to do early precisely because it is an autoload: no scene component's
+			// _Ready writes over it, which is the hazard the deferral exists for.
+			if (_currentState != null) GameApp.Instance?.Load(_currentState);
+
 			_pendingRestore = true;
 			return true;
 		}

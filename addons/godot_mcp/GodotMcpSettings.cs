@@ -26,20 +26,43 @@ public static class GodotMcpSettings
 
     public static void EnsureProjectSettings()
     {
-        // Force-write URL so upgrades pick up the correct port (overrides stale cached value)
-        ProjectSettings.SetSetting(Url, DefaultUrl);
-        EnsureString(Token, GenerateTokenIfNeeded());
-        EnsureBool(AutoConnectEditor, true);
-        EnsureBool(AutoConnectRuntime, true);
-        EnsureFloat(ReconnectSeconds, 2.0f);
-        EnsureBool(VerboseLogging, true);
+        bool dirty = false;
+
+        // Migrate a stale URL from an older version, but only when it actually differs.
+        // This used to write unconditionally, which re-saved project.godot on every
+        // launch and made an open editor prompt "reload from disk?" each time.
+        if (ProjectSettings.HasSetting(Url))
+        {
+            if (ProjectSettings.GetSetting(Url).AsString() != DefaultUrl)
+            {
+                ProjectSettings.SetSetting(Url, DefaultUrl);
+                dirty = true;
+            }
+        }
+        else
+        {
+            ProjectSettings.SetSetting(Url, DefaultUrl);
+            dirty = true;
+        }
+
+        dirty |= EnsureString(Token, GenerateTokenIfNeeded());
+        dirty |= EnsureBool(AutoConnectEditor, true);
+        dirty |= EnsureBool(AutoConnectRuntime, true);
+        dirty |= EnsureFloat(ReconnectSeconds, 2.0f);
+        dirty |= EnsureBool(VerboseLogging, true);
 
         // Safe defaults: reads and connection work immediately; writes require explicit opt-in.
-        EnsureBool(AllowEditorWrites, false);
-        EnsureBool(AllowRuntimeWrites, false);
-        EnsureBool(AllowNodeMethodCalls, false);
-        EnsureString(ScreenshotDirectory, DefaultScreenshotDirectory);
-        ProjectSettings.Save();
+        dirty |= EnsureBool(AllowEditorWrites, false);
+        dirty |= EnsureBool(AllowRuntimeWrites, false);
+        dirty |= EnsureBool(AllowNodeMethodCalls, false);
+        dirty |= EnsureString(ScreenshotDirectory, DefaultScreenshotDirectory);
+
+        // Persist ONLY from the editor, and only when something actually changed.
+        // This also runs from the GodotMcpRuntime autoload inside the running game,
+        // where writing project.godot would dirty the file under the open editor
+        // (and wouldn't persist in an exported build anyway).
+        if (dirty && Engine.IsEditorHint())
+            ProjectSettings.Save();
     }
 
     public static string GetUrl()
@@ -83,13 +106,22 @@ public static class GodotMcpSettings
     public static void SetString(string key, string value)
     {
         ProjectSettings.SetSetting(key, value ?? string.Empty);
-        ProjectSettings.Save();
+        SaveIfEditor();
     }
 
     public static void SetBool(string key, bool value)
     {
         ProjectSettings.SetSetting(key, value);
-        ProjectSettings.Save();
+        SaveIfEditor();
+    }
+
+    /// <summary>Persist project.godot only from the editor. Writing it from the running
+    /// game changes the file under an open editor, which triggers a "reload from disk?"
+    /// prompt — and it wouldn't persist in an exported build anyway.</summary>
+    private static void SaveIfEditor()
+    {
+        if (Engine.IsEditorHint())
+            ProjectSettings.Save();
     }
 
     private static string GenerateTokenIfNeeded()
@@ -103,39 +135,57 @@ public static class GodotMcpSettings
         return Guid.NewGuid().ToString("N");
     }
 
-    private static void EnsureString(string key, string defaultValue)
+    /// <summary>Seed the setting if absent. Returns true when it actually wrote, so the
+    /// caller only saves project.godot when something really changed.
+    /// AddPropertyInfo is editor metadata only and never dirties the file.</summary>
+    private static bool EnsureString(string key, string defaultValue)
     {
+        bool wrote = false;
         if (!ProjectSettings.HasSetting(key))
+        {
             ProjectSettings.SetSetting(key, defaultValue);
+            wrote = true;
+        }
 
         ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
         {
             ["name"] = key,
             ["type"] = (int)Variant.Type.String
         });
+        return wrote;
     }
 
-    private static void EnsureBool(string key, bool defaultValue)
+    private static bool EnsureBool(string key, bool defaultValue)
     {
+        bool wrote = false;
         if (!ProjectSettings.HasSetting(key))
+        {
             ProjectSettings.SetSetting(key, defaultValue);
+            wrote = true;
+        }
 
         ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
         {
             ["name"] = key,
             ["type"] = (int)Variant.Type.Bool
         });
+        return wrote;
     }
 
-    private static void EnsureFloat(string key, float defaultValue)
+    private static bool EnsureFloat(string key, float defaultValue)
     {
+        bool wrote = false;
         if (!ProjectSettings.HasSetting(key))
+        {
             ProjectSettings.SetSetting(key, defaultValue);
+            wrote = true;
+        }
 
         ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
         {
             ["name"] = key,
             ["type"] = (int)Variant.Type.Float
         });
+        return wrote;
     }
 }

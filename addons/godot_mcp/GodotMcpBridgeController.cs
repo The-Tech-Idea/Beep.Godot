@@ -155,8 +155,19 @@ public partial class GodotMcpBridgeController : Node
             ["editor_hint"] = Engine.IsEditorHint(),
             ["connected"] = _client?.IsConnected ?? false,
             ["allow_editor_writes"] = GodotMcpSettings.GetBool(GodotMcpSettings.AllowEditorWrites, false),
-            ["allow_runtime_writes"] = GodotMcpSettings.GetBool(GodotMcpSettings.AllowRuntimeWrites, false)
+            ["allow_runtime_writes"] = GodotMcpSettings.GetBool(GodotMcpSettings.AllowRuntimeWrites, false),
+            // Project-specific commands contributed by other addons, so an agent can
+            // discover them via status.get instead of guessing names.
+            ["project_commands"] = ToJsonArray(McpCommandRegistry.CommandNames()),
+            ["project_states"] = ToJsonArray(McpCommandRegistry.StateNames())
         };
+    }
+
+    private static JsonArray ToJsonArray(System.Collections.Generic.List<string> values)
+    {
+        var array = new JsonArray();
+        foreach (string v in values) array.Add(v);
+        return array;
     }
 
     private JsonObject StatusGet() => Ping();
@@ -427,17 +438,26 @@ public partial class GodotMcpBridgeController : Node
     private JsonNode? ExecuteGameCommand(JsonObject p)
     {
         RequireRuntimeWritesOrRuntimeRole();
-        McpGameAdapter adapter = RequireGameAdapter();
         string command = RequiredString(p, "command");
         JsonObject args = p["args"] as JsonObject ?? new JsonObject();
-        return adapter.ExecuteCommand(command, args);
+
+        // Static registry first: it's the only option in the editor, where the
+        // McpGameAdapter autoload doesn't exist. Falls back to the adapter so
+        // existing adapter-registered commands keep working.
+        if (McpCommandRegistry.TryExecute(command, args, out JsonNode? result))
+            return result;
+
+        return RequireGameAdapter().ExecuteCommand(command, args);
     }
 
     private JsonNode? ReadGameState(JsonObject p)
     {
-        McpGameAdapter adapter = RequireGameAdapter();
         string name = p["name"]?.GetValue<string>() ?? "game";
-        return adapter.ReadState(name);
+
+        if (McpCommandRegistry.TryReadState(name, out JsonNode? result))
+            return result;
+
+        return RequireGameAdapter().ReadState(name);
     }
 
     private JsonNode ProjectSettingGet(JsonObject p)

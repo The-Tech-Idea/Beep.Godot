@@ -13,7 +13,5 @@ namespace Beep.ECS.Scenes
             GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
         }
 
-        // Shared helper: this method was byte-identical in all 33 screen scripts.
-        private void ChangeScene(string? path) => UI.SceneNav.ChangeScene(this, path);
     }
 }

@@ -8,14 +8,16 @@ namespace Beep.ECS
     /// • Straight — constant velocity (the default, basically no modifier).
     /// • Homing — steers toward the nearest node in TargetGroup.
     /// • Bounce — reflects velocity off collision normals (bounces off walls).
-    /// • Spread — fans out N projectiles on spawn (used by the spawner, not the projectile).
     /// Replaces projectile_variants.gd.template.
+    ///
+    /// (A "Spread" mode was removed: fanning N projectiles is a spawn-time concern, not a
+    /// per-projectile mode — it had no switch case and silently behaved as Straight.)
     /// </summary>
     [Tool]
     [GlobalClass]
     public partial class ProjectileModifierComponent : GameplayComponent
     {
-        public enum ModifierMode { Straight, Homing, Bounce, Spread }
+        public enum ModifierMode { Straight, Homing, Bounce }
 
         [Export] public ModifierMode Mode { get; set; } = ModifierMode.Straight;
         [Export] public float Speed { get; set; } = 400f;

@@ -7,7 +7,7 @@ namespace Beep.ECS.UI
     /// <summary>
     /// Builds PropertyHint.Enum hint strings for the four skin-catalog-backed concepts
     /// (genre, theme, palette, geometry). Single source of truth for the inspector
-    /// dropdowns on ThemePresetComponent, BeepGenreScene, GameInfoNode and GameInfo.
+    /// dropdowns on ThemePresetComponent, BeepGenreScene and GameInfo.
     ///
     /// The catalog is JSON loaded at runtime, so the valid values cannot be expressed
     /// as a compile-time [Export(PropertyHint.Enum, "a,b,c")] literal — they are built

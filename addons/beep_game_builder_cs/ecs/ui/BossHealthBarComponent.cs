@@ -3,10 +3,9 @@ using Godot;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Segmented boss health bar with multi-phase colors. Slides in at the top
-    /// of the screen when the boss takes damage, shows phase-based color
-    /// transitions, and slides out on death.
-    /// Listens to sibling HealthComponent.
+    /// Segmented boss health bar at the top of the screen with multi-phase colors:
+    /// phase-based color transitions driven by a sibling HealthComponent.
+    /// (No slide animation — the old SlideDuration export was never wired to anything.)
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -14,7 +13,6 @@ namespace Beep.ECS.UI
     {
         [Export] public int PhaseCount { get; set; } = 3;
         [Export] public Color BarColor { get; set; } = new(0.8f, 0.1f, 0.1f, 1f);
-        [Export] public float SlideDuration { get; set; } = 0.5f;
 
         [Signal] public delegate void PhaseChangedEventHandler(int phase);
 

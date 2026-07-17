@@ -18,7 +18,6 @@ namespace Beep.ECS
         [Signal] public delegate void FlashedEventHandler();
 
         private CanvasItem? _canvas;
-        private ShaderMaterial? _flashMaterial;
         private Tween? _tween;
         private HealthComponent? _health;
         // Held so _ExitTree can actually detach it — a fresh `-= (a,h)=>Flash()` lambda is a
@@ -29,8 +28,6 @@ namespace Beep.ECS
         {
             base._Ready();
             _canvas = GetParent() as CanvasItem;
-            if (_canvas != null && _canvas.Material is ShaderMaterial sm)
-                _flashMaterial = sm;
 
             _health = GetSiblingComponent<HealthComponent>();
             if (FlashOnDamage && _health != null)

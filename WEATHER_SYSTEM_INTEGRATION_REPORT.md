@@ -108,7 +108,23 @@ The weather system (`WeatherSystemComponent` + supporting infrastructure) is **f
 
 ### 4. Genre Configuration ✅
 
-**All 10 genres verified** — each genre.json includes:
+> **Correction (2026-07-17).** "All 10 genres... `enable_weather: true`" is not what the
+> files say, and the ✅ list below cited `puzzle/genre.json` as an example — puzzle has
+> `enable_weather: false`. The cited evidence contradicts the claim, which is how you can
+> tell the check wasn't run.
+>
+> **The actual split is 6/4, and it is correct** — the implementation is right and only
+> this report is wrong:
+>
+> | weather enabled | weather disabled |
+> |---|---|
+> | platformer, racing, rpg, shooter, survival, topdown | cardgame, citybuilder, puzzle, strategy |
+>
+> `enable_weather`/`enable_seasons` are `false` for exactly the four genres whose main
+> scene does not instance `atmosphere.tscn` — a perfect 1:1 match. Rain in a card game
+> would be silly; the split is a deliberate design decision, not a gap.
+
+A weather-enabled genre.json includes:
 ```json
 "enable_weather": true,
 "default_weather": "Clear",
@@ -122,27 +138,26 @@ The weather system (`WeatherSystemComponent` + supporting infrastructure) is **f
 "forecast_days": 7
 ```
 
-**Genres Checked:**
-- ✅ `platformer/genre.json`
-- ✅ `rpg/genre.json`
-- ✅ `puzzle/genre.json`
-- ✅ (All 10 follow same pattern)
-
 ---
 
 ### 5. Scene Templates ✅
 
-**All 10 genre main scenes** include WeatherSystemComponent node:
+> **Correction (2026-07-17).** No main scene contains a `[node name="Weather"]` script node
+> — that snippet does not exist anywhere in the repo. Weather is instanced as a whole
+> `atmosphere.tscn` sub-scene, which is a better factoring than what this claimed, and the
+> scene validator has an "atmosphere scripts only in atmosphere.tscn" rule enforcing it.
+> It is present in **6 of 10** mains, matching the 6 genres with `enable_weather: true`
+> exactly. `puzzle_main.tscn` is again cited as ✅ below and is one of the four without it.
+
+The six weather-enabled mains instance the atmosphere sub-scene:
 ```gdscript
-[node name="Weather" type="Node" parent="."]
-script = ExtResource("X_weather")
+[node name="Atmosphere" parent="." instance=ExtResource("..._atmosphere")]
 ```
 
-**Templates Verified:**
-- ✅ `platformer_main.tscn`
-- ✅ `rpg_main.tscn`
-- ✅ `puzzle_main.tscn`
-- ✅ (All 10 follow same pattern)
+**Actually present in:** `platformer_main.tscn`, `racing_main.tscn`, `rpg_main.tscn`,
+`shooter_main.tscn`, `survival_main.tscn`, `topdown_main.tscn`.
+**Correctly absent from:** `cardgame_main.tscn`, `citybuilder_main.tscn`,
+`puzzle_main.tscn`, `strategy_main.tscn`.
 
 **Associated Components Auto-Added:**
 - ✅ SeasonalComponent (day/night cycling)

@@ -41,9 +41,9 @@ namespace Beep.ECS
                     // Right-click: split stack in half.
                     if (!IsSlotEmpty(slot))
                     {
-                        var item = GetItemAt(slot);
-                        if (item != null && item.Quantity > 1)
-                            SplitStack(slot, item.Quantity / 2);
+                        var entry = GetItemAt(slot);
+                        if (entry != null && entry.Quantity > 1)
+                            SplitStack(slot, entry.Quantity / 2);
                     }
                 }
             }

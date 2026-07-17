@@ -1,0 +1,32 @@
+using Godot;
+
+namespace Beep.ECS
+{
+    /// <summary>
+    /// An off-hand shield. Earns its class over GameArmor with <see cref="BlockChance"/> — a
+    /// real field, an active-block probability that armor has no notion of. `buckler.tres`,
+    /// `tower_shield.tres` are `.tres` of this class.
+    ///
+    /// Resistance fields mirror <see cref="ResistanceComponent"/> (1 = no effect, 0 = immune),
+    /// same as <see cref="GameArmor"/> — Phase 3b turns them into Stat contributions.
+    /// </summary>
+    [Tool]
+    [GlobalClass]
+    public partial class GameShield : GameEquipment
+    {
+        [Export] public float Defense { get; set; } = 0f;
+
+        /// <summary>Probability (0–1) that an incoming hit is blocked outright.</summary>
+        [Export] public float BlockChance { get; set; } = 0f;
+
+        [ExportGroup("Resistances")]
+        [Export] public float Physical { get; set; } = 1f;
+        [Export] public float Fire { get; set; } = 1f;
+        [Export] public float Ice { get; set; } = 1f;
+        [Export] public float Poison { get; set; } = 1f;
+        [Export] public float Holy { get; set; } = 1f;
+        [Export] public float Dark { get; set; } = 1f;
+        [Export] public float Lightning { get; set; } = 1f;
+        [Export] public float True { get; set; } = 1f;
+    }
+}

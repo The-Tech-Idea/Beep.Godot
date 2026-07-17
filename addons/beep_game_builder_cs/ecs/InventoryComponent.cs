@@ -16,8 +16,8 @@ namespace Beep.ECS
     ///   InventoryComponent.Display.cs  — grid rendering, slot visuals, tooltip
     ///   InventoryComponent.Interact.cs — drag-and-drop, right-click, hover, sort buttons
     ///
-    /// Usage: drag this onto a Control node. Call RegisterItem() once per item type,
-    /// then AddItem() to populate. The grid builds itself.
+    /// Usage: author <see cref="GameItem"/> `.tres` files, then AddItem(gameItem) to populate.
+    /// The grid builds itself. Items are shared definitions; per-instance state lives on the slot.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -27,21 +27,21 @@ namespace Beep.ECS
         //  Item data model
         // ════════════════════════════════════════════════════════════════
 
-        public class InventoryItem
+        /// <summary>One occupied slot. The <see cref="Item"/> is a SHARED definition (a `.tres`);
+        /// everything else is PER-INSTANCE and must live here, never on the resource, or every
+        /// sword pointing at the same `.tres` would share one count, wear out together, and hold
+        /// the same gems. This is the load-bearing distinction of the item model.</summary>
+        public class InventorySlot
         {
-            public string Id = "";
-            public string DisplayName = "";
-            public string Description = "";
-            public Texture2D? Icon;
+            public GameItem Item = null!;
             public int Quantity = 1;
-            public int MaxStack = 99;
-            public ItemRarity Rarity = ItemRarity.Common;
-            public string ItemType = "misc";
-            public Godot.Collections.Dictionary<string, Variant> Stats = new();
-            public int SlotIndex = -1;
+            /// <summary>Current durability — the CAP is <see cref="GameItem.MaxDurability"/> on the
+            /// definition. Mutated/persisted from Phase 7; initialised to the cap.</summary>
+            public float Durability;
+            /// <summary>Gems socketed into THIS instance — Phase 7 (composition). Empty until then.</summary>
+            public GameItem[] Socketed = System.Array.Empty<GameItem>();
         }
 
-        public enum ItemRarity { Common, Uncommon, Rare, Epic, Legendary }
         public enum SortMode { ByType, ByRarity, ByName, ByQuantity }
 
         // ════════════════════════════════════════════════════════════════
@@ -81,10 +81,9 @@ namespace Beep.ECS
         //  Data (the single source of truth)
         // ════════════════════════════════════════════════════════════════
 
-        public InventoryItem?[] Slots { get; private set; } = null!;
-        private readonly Dictionary<string, InventoryItem> _itemTemplates = new();
+        public InventorySlot?[] Slots { get; private set; } = null!;
 
-        public int UsedSlots { get { int c = 0; if (Slots != null) foreach (var i in Slots) if (i != null) c++; return c; } }
+        public int UsedSlots { get { int c = 0; if (Slots != null) foreach (var s in Slots) if (s != null) c++; return c; } }
         public int FreeSlots => MaxSlots - UsedSlots;
         public bool IsFull => UsedSlots >= MaxSlots;
 
@@ -92,7 +91,7 @@ namespace Beep.ECS
         {
             base._Ready();
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
-            Slots = new InventoryItem[MaxSlots];
+            Slots = new InventorySlot[MaxSlots];
             CallDeferred(nameof(BuildUI));
         }
 
@@ -101,31 +100,31 @@ namespace Beep.ECS
             ProcessInteraction(delta);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Item registration
-        // ════════════════════════════════════════════════════════════════
-
-        public void RegisterItem(string itemId, string displayName, string description,
-            Texture2D? icon, int maxStack = 99, ItemRarity rarity = ItemRarity.Common,
-            string itemType = "misc")
+        private static InventorySlot NewSlot(GameItem item, int quantity) => new()
         {
-            _itemTemplates[itemId] = new InventoryItem
-            {
-                Id = itemId, DisplayName = displayName, Description = description,
-                Icon = icon, MaxStack = maxStack, Rarity = rarity, ItemType = itemType
-            };
-        }
-
-        public InventoryItem? GetTemplate(string itemId)
-            => _itemTemplates.TryGetValue(itemId, out var t) ? t : null;
+            Item = item,
+            Quantity = quantity,
+            Durability = item.MaxDurability,
+            Socketed = System.Array.Empty<GameItem>()
+        };
 
         // ════════════════════════════════════════════════════════════════
         //  Core operations
         // ════════════════════════════════════════════════════════════════
 
-        public bool AddItem(string itemId, int quantity = 1)
+        /// <summary>Add a stack of an authored item. Stacks into existing slots first (respecting
+        /// <see cref="GameItem.MaxStack"/>), then fills empty slots. Returns false if it ran out
+        /// of room (emitting InventoryFull) — partial adds still keep what fit.</summary>
+        public bool AddItem(GameItem item, int quantity = 1)
         {
             if (!IsActive || Slots == null) return false;
+            if (item == null)
+            {
+                GD.PushWarning($"[{Name}] AddItem called with a null GameItem — nothing added.");
+                return false;
+            }
+            if (string.IsNullOrEmpty(item.Id))
+                GD.PushWarning($"[{Name}] AddItem: '{item.DisplayName}' has an empty Id — it will not stack or survive a save/load round-trip. Set GameItem.Id.");
 
             int originalQuantity = quantity;
 
@@ -133,14 +132,14 @@ namespace Beep.ECS
             {
                 for (int i = 0; i < MaxSlots; i++)
                 {
-                    if (Slots[i] != null && Slots[i]!.Id == itemId && Slots[i]!.Quantity < Slots[i]!.MaxStack)
+                    if (Slots[i] != null && Slots[i]!.Item.Id == item.Id && Slots[i]!.Quantity < Slots[i]!.Item.MaxStack)
                     {
-                        int space = Slots[i]!.MaxStack - Slots[i]!.Quantity;
+                        int space = Slots[i]!.Item.MaxStack - Slots[i]!.Quantity;
                         int toAdd = Mathf.Min(space, quantity);
                         Slots[i]!.Quantity += toAdd;
                         quantity -= toAdd;
                         EmitSignal(SignalName.SlotUpdated, i);
-                        if (quantity <= 0) { EmitSignal(SignalName.ItemAdded, itemId, originalQuantity); EmitSignal(SignalName.InventoryChanged); return true; }
+                        if (quantity <= 0) { EmitSignal(SignalName.ItemAdded, item.Id, originalQuantity); EmitSignal(SignalName.InventoryChanged); return true; }
                     }
                 }
             }
@@ -149,32 +148,26 @@ namespace Beep.ECS
             {
                 int slot = FindEmptySlot();
                 if (slot < 0) { EmitSignal(SignalName.InventoryFull); EmitSignal(SignalName.InventoryChanged); return false; }
-                var template = GetTemplate(itemId);
-                int maxStack = template?.MaxStack ?? 99;
-                int toAdd = Mathf.Min(maxStack, quantity);
-                Slots[slot] = new InventoryItem
-                {
-                    Id = itemId, DisplayName = template?.DisplayName ?? itemId,
-                    Description = template?.Description ?? "", Icon = template?.Icon,
-                    Quantity = toAdd, MaxStack = maxStack, Rarity = template?.Rarity ?? ItemRarity.Common,
-                    ItemType = template?.ItemType ?? "misc", SlotIndex = slot
-                };
+                int toAdd = Mathf.Min(item.MaxStack, quantity);
+                Slots[slot] = NewSlot(item, toAdd);
                 quantity -= toAdd;
                 EmitSignal(SignalName.SlotUpdated, slot);
             }
 
-            EmitSignal(SignalName.ItemAdded, itemId, originalQuantity);
+            EmitSignal(SignalName.ItemAdded, item.Id, originalQuantity);
             EmitSignal(SignalName.InventoryChanged);
             return true;
         }
 
+        /// <summary>Remove a quantity of an item by its id, across stacks. Returns false if the
+        /// inventory does not hold that many.</summary>
         public bool RemoveItem(string itemId, int quantity = 1)
         {
             if (!HasItem(itemId, quantity)) return false;
             int remaining = quantity;
             for (int i = 0; i < MaxSlots && remaining > 0; i++)
             {
-                if (Slots?[i] != null && Slots[i]!.Id == itemId)
+                if (Slots?[i] != null && Slots[i]!.Item.Id == itemId)
                 {
                     int take = Mathf.Min(Slots[i]!.Quantity, remaining);
                     Slots[i]!.Quantity -= take;
@@ -203,10 +196,10 @@ namespace Beep.ECS
             if (Slots == null || fromSlot < 0 || toSlot < 0 || fromSlot >= MaxSlots || toSlot >= MaxSlots) return;
             if (Slots[fromSlot] == null) return;
 
-            if (Slots[toSlot] != null && Slots[toSlot]!.Id == Slots[fromSlot]!.Id
-                && Slots[toSlot]!.Quantity < Slots[toSlot]!.MaxStack)
+            if (Slots[toSlot] != null && Slots[toSlot]!.Item.Id == Slots[fromSlot]!.Item.Id
+                && Slots[toSlot]!.Quantity < Slots[toSlot]!.Item.MaxStack)
             {
-                int space = Slots[toSlot]!.MaxStack - Slots[toSlot]!.Quantity;
+                int space = Slots[toSlot]!.Item.MaxStack - Slots[toSlot]!.Quantity;
                 int move = Mathf.Min(space, Slots[fromSlot]!.Quantity);
                 Slots[toSlot]!.Quantity += move;
                 Slots[fromSlot]!.Quantity -= move;
@@ -217,8 +210,6 @@ namespace Beep.ECS
                 (Slots[toSlot], Slots[fromSlot]) = (Slots[fromSlot], Slots[toSlot]);
             }
 
-            if (Slots[fromSlot] != null) Slots[fromSlot]!.SlotIndex = fromSlot;
-            if (Slots[toSlot] != null) Slots[toSlot]!.SlotIndex = toSlot;
             EmitSignal(SignalName.SlotUpdated, fromSlot);
             EmitSignal(SignalName.SlotUpdated, toSlot);
             EmitSignal(SignalName.ItemMoved, fromSlot, toSlot);
@@ -233,11 +224,12 @@ namespace Beep.ECS
             if (targetSlot < 0) return false;
 
             var original = Slots[fromSlot]!;
-            Slots[targetSlot] = new InventoryItem
+            Slots[targetSlot] = new InventorySlot
             {
-                Id = original.Id, DisplayName = original.DisplayName, Description = original.Description,
-                Icon = original.Icon, Quantity = amount, MaxStack = original.MaxStack,
-                Rarity = original.Rarity, ItemType = original.ItemType, SlotIndex = targetSlot
+                Item = original.Item,
+                Quantity = amount,
+                Durability = original.Durability,
+                Socketed = System.Array.Empty<GameItem>()
             };
             original.Quantity -= amount;
             EmitSignal(SignalName.SlotUpdated, fromSlot);
@@ -249,20 +241,20 @@ namespace Beep.ECS
         public void Sort(SortMode mode = SortMode.ByType)
         {
             if (Slots == null) return;
-            var items = new List<InventoryItem>();
-            foreach (var item in Slots) if (item != null) items.Add(item);
+            var items = new List<InventorySlot>();
+            foreach (var slot in Slots) if (slot != null) items.Add(slot);
             items.Sort((a, b) => mode switch
             {
-                SortMode.ByType => string.Compare(a.ItemType, b.ItemType, System.StringComparison.Ordinal),
-                SortMode.ByRarity => ((int)a.Rarity).CompareTo((int)b.Rarity),
-                SortMode.ByName => string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.Ordinal),
+                // The class IS the type now (there is no ItemType string): sort by the resource's type.
+                SortMode.ByType => string.Compare(a.Item.GetType().Name, b.Item.GetType().Name, System.StringComparison.Ordinal),
+                SortMode.ByRarity => ((int)a.Item.Rarity).CompareTo((int)b.Item.Rarity),
+                SortMode.ByName => string.Compare(a.Item.DisplayName, b.Item.DisplayName, System.StringComparison.Ordinal),
                 SortMode.ByQuantity => b.Quantity.CompareTo(a.Quantity),
                 _ => 0
             });
             for (int i = 0; i < MaxSlots; i++)
             {
                 Slots[i] = i < items.Count ? items[i] : null;
-                if (Slots[i] != null) Slots[i]!.SlotIndex = i;
                 EmitSignal(SignalName.SlotUpdated, i);
             }
             EmitSignal(SignalName.InventoryChanged);
@@ -272,23 +264,17 @@ namespace Beep.ECS
         //  Queries
         // ════════════════════════════════════════════════════════════════
 
-        public bool HasItem(string itemId, int quantity = 1)
-        {
-            int total = 0;
-            if (Slots == null) return false;
-            foreach (var item in Slots) if (item != null && item.Id == itemId) total += item.Quantity;
-            return total >= quantity;
-        }
+        public bool HasItem(string itemId, int quantity = 1) => CountItem(itemId) >= quantity;
 
         public int CountItem(string itemId)
         {
             int total = 0;
             if (Slots == null) return 0;
-            foreach (var item in Slots) if (item != null && item.Id == itemId) total += item.Quantity;
+            foreach (var slot in Slots) if (slot != null && slot.Item.Id == itemId) total += slot.Quantity;
             return total;
         }
 
-        public InventoryItem? GetItemAt(int slot)
+        public InventorySlot? GetItemAt(int slot)
             => (Slots != null && slot >= 0 && slot < MaxSlots) ? Slots[slot] : null;
 
         public bool IsSlotEmpty(int slot)
@@ -296,8 +282,8 @@ namespace Beep.ECS
 
         public void Resize(int newMaxSlots)
         {
-            if (Slots == null) { MaxSlots = newMaxSlots; Slots = new InventoryItem[newMaxSlots]; return; }
-            var newSlots = new InventoryItem[newMaxSlots];
+            if (Slots == null) { MaxSlots = newMaxSlots; Slots = new InventorySlot[newMaxSlots]; return; }
+            var newSlots = new InventorySlot[newMaxSlots];
             for (int i = 0; i < Mathf.Min(MaxSlots, newMaxSlots); i++) newSlots[i] = Slots[i];
             Slots = newSlots;
             MaxSlots = newMaxSlots;
@@ -329,21 +315,31 @@ namespace Beep.ECS
                     // Accumulate, don't assign. Items is keyed by item id, so two stacks of
                     // the same item in different slots collapsed to whichever slot came last
                     // — 99 + 99 potions restored as 99.
-                    string id = Slots[i]!.Id;
+                    string id = Slots[i]!.Item.Id;
                     state.Inventory.Items.TryGetValue(id, out int existing);
                     state.Inventory.Items[id] = existing + Slots[i]!.Quantity;
                 }
             }
+            // NOTE: per-instance durability/sockets are NOT persisted yet — nothing mutates them
+            // before Phase 7. When Phase 7 lands, this becomes a per-slot record
+            // ({id, quantity, durability, socketed[ids]}) so a saved sword keeps its wear and gems.
         }
 
         public void Load(GameBuilder.GameStateData state)
         {
             MaxSlots = state.Inventory.MaxSlots;
-            Slots = new InventoryItem[MaxSlots];
+            Slots = new InventorySlot[MaxSlots];
 
             foreach (var (itemId, quantity) in state.Inventory.Items)
             {
-                AddItem(itemId, quantity);
+                var item = GameItemCatalog.Resolve(itemId);
+                if (item == null)
+                {
+                    GD.PushWarning($"[{Name}] Load: no GameItem catalogued for id '{itemId}' — that stack was dropped. " +
+                                   "Ensure the item's .tres is under GameItemCatalog.ItemsRoot, or Register() it before loading.");
+                    continue;
+                }
+                AddItem(item, quantity);
             }
         }
     }

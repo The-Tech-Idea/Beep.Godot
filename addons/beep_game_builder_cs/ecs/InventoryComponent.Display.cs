@@ -76,17 +76,17 @@ namespace Beep.ECS
             foreach (var c in slot.GetChildren()) c.QueueFree();
             _slotQtyLabels.Remove(index);
 
-            var item = GetItemAt(index);
-            if (item != null)
+            var entry = GetItemAt(index);
+            if (entry != null)
             {
                 slot.AddThemeStyleboxOverride("panel",
                     new StyleBoxFlat { BgColor = SlotColorOccupied, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 });
 
-                if (item.Icon != null)
+                if (entry.Item.Icon != null)
                 {
                     var tex = new TextureRect
                     {
-                        Texture = item.Icon,
+                        Texture = entry.Item.Icon,
                         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                         CustomMinimumSize = SlotSize,
                         StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered
@@ -94,11 +94,11 @@ namespace Beep.ECS
                     slot.AddChild(tex);
                 }
 
-                if (item.Quantity > 1)
+                if (entry.Quantity > 1)
                 {
                     var qty = new Label
                     {
-                        Text = item.Quantity.ToString(),
+                        Text = entry.Quantity.ToString(),
                         HorizontalAlignment = HorizontalAlignment.Right,
                         Position = new Vector2(SlotSize.X - 22, SlotSize.Y - 16)
                     };
@@ -150,10 +150,10 @@ namespace Beep.ECS
         private void ShowTooltip(int slot)
         {
             if (_tooltipPanel == null || _tooltipLabel == null) return;
-            var item = GetItemAt(slot);
-            if (item == null) { _tooltipPanel.Visible = false; return; }
+            var entry = GetItemAt(slot);
+            if (entry == null) { _tooltipPanel.Visible = false; return; }
 
-            string rarity = item.Rarity switch
+            string rarity = entry.Item.Rarity switch
             {
                 ItemRarity.Uncommon => "[Uncommon] ",
                 ItemRarity.Rare => "[Rare] ",
@@ -161,7 +161,9 @@ namespace Beep.ECS
                 ItemRarity.Legendary => "[Legendary] ",
                 _ => ""
             };
-            _tooltipLabel.Text = $"{rarity}{item.DisplayName}\nType: {item.ItemType}  x{item.Quantity}\n{item.Description}";
+            // The class is the type: "GameWeapon" -> "Weapon". No ItemType string anymore.
+            string type = entry.Item.GetType().Name.Replace("Game", "");
+            _tooltipLabel.Text = $"{rarity}{entry.Item.DisplayName}\nType: {type}  x{entry.Quantity}\n{entry.Item.Description}";
             _tooltipPanel.Visible = true;
             _tooltipPanel.Position = (_tooltipPanel.GetViewport()?.GetMousePosition() ?? Vector2.Zero) + new Vector2(16, 16);
         }

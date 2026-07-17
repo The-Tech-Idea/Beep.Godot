@@ -21,25 +21,34 @@ namespace Beep.ECS
         public bool CanCraft(CraftingRecipe recipe, InventoryComponent inventory)
         {
             foreach (var input in recipe.InputItems)
-                if (!inventory.HasItem(input.ItemId, input.Count))
+                if (input.Item == null || !inventory.HasItem(input.Item.Id, input.Count))
                     return false;
             return true;
         }
 
-        /// <summary>Craft a recipe: deduct materials, emit result. Returns true on success.</summary>
+        /// <summary>Craft a recipe: deduct materials, grant the output, emit result. Returns true
+        /// on success.</summary>
         public bool Craft(CraftingRecipe recipe, InventoryComponent inventory)
         {
             if (!IsActive) return false;
+            if (recipe.OutputItem == null)
+            {
+                GD.PushWarning($"[{Name}] Recipe '{recipe.RecipeName}' has no OutputItem — nothing to grant. Set CraftingRecipe.OutputItem.");
+                EmitSignal(SignalName.CraftFailed, "Recipe has no output");
+                return false;
+            }
             if (!CanCraft(recipe, inventory))
             {
                 EmitSignal(SignalName.CraftFailed, "Missing materials");
                 return false;
             }
-            // Deduct materials.
+            // Deduct materials (CanCraft guaranteed every input.Item is non-null).
             foreach (var input in recipe.InputItems)
-                inventory.RemoveItem(input.ItemId, input.Count);
-            // Grant result.
-            EmitSignal(SignalName.Crafted, recipe.OutputItem);
+                inventory.RemoveItem(input.Item!.Id, input.Count);
+            // Grant result. Without this the recipe consumed the inputs and produced nothing —
+            // crafting was a material shredder.
+            inventory.AddItem(recipe.OutputItem, recipe.OutputCount);
+            EmitSignal(SignalName.Crafted, recipe.OutputItem.Id);
             return true;
         }
     }
@@ -54,17 +63,17 @@ namespace Beep.ECS
     {
         [Export] public string RecipeName { get; set; } = "New Recipe";
         [Export] public CraftingIngredient[] InputItems { get; set; } = System.Array.Empty<CraftingIngredient>();
-        [Export] public string OutputItem { get; set; } = "";
+        [Export] public GameItem? OutputItem { get; set; }
         [Export] public int OutputCount { get; set; } = 1;
         [Export] public float CraftTime { get; set; } = 0f;
     }
 
-    /// <summary>A single ingredient in a crafting recipe.</summary>
+    /// <summary>A single ingredient in a crafting recipe — a GameItem `.tres` and a count.</summary>
     [Tool]
     [GlobalClass]
     public partial class CraftingIngredient : Resource
     {
-        [Export] public string ItemId { get; set; } = "";
+        [Export] public GameItem? Item { get; set; }
         [Export] public int Count { get; set; } = 1;
     }
 }

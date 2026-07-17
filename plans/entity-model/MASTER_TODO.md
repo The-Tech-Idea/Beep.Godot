@@ -107,6 +107,22 @@ entity without equipment is unaffected and nothing existing breaks.
 - [ ] **Phase 6 — Missing components** — ranked by leverage; `EntityTagComponent` first.
       → `phase-6-missing-components.md`
 
+### Per-genre item trees → `items/`
+
+`items/README.md` is the **shared spine** and the rule for what may become a class; one doc
+per genre beside it. Read the README first — the genre docs conform to it.
+
+The rule, because it is the whole game: **a class earns existence only by adding a field or
+behaviour its parent cannot express.** `sword_iron.tres`, `axe.tres` and `dagger.tres` are
+`.tres` files of `GameWeapon` — a `SwordClass` would be a rename. A genre never gets a class
+for being that genre; it earns one only by introducing a *kind of thing* the spine cannot
+describe.
+
+**Half the genres want no item tree at all.** They want a **spec** — a `.tres` describing a
+vehicle, a building, a unit, a card — which is the same idea one level over: data by
+inheritance, instanced through a `PackedScene`. Where a genre says "no items", its doc says
+what it wants instead rather than forcing it into `GameItem`.
+
 ## What the analysis changed
 
 Four parallel audits, hand-verified. Three findings reshaped the plan:

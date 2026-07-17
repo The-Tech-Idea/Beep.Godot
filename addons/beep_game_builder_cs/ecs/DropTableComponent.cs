@@ -22,21 +22,20 @@ namespace Beep.ECS
         [Export] public int MaxPlacementAttempts { get; set; } = 3;
         [Export] public float MinimumSpacing { get; set; } = 20f;
 
-        [Signal] public delegate void DropSpawnedEventHandler(PackedScene scene, Vector2 position);
+        /// <summary>
+        /// The weighted loot entries, authored in the inspector as an array of
+        /// <see cref="DropTableEntry"/> .tres. Previously a private list with no [Export], fillable
+        /// only by an AddEntry() nothing called — so Roll() always returned empty.
+        /// </summary>
+        [Export] public DropTableEntry[] Entries { get; set; } = System.Array.Empty<DropTableEntry>();
+
+        [Signal] public delegate void DropSpawnedEventHandler(GameItem item, Vector2 position);
         [Signal] public delegate void TableRolledEventHandler(int dropCount);
 
-        private readonly List<DropEntry> _entries = new();
         private readonly List<Node2D> _spawnedDrops = new();
         private SeasonalComponent? _seasonal;
         private WeatherSystemComponent? _weather;
-
-        public class DropEntry
-        {
-            public PackedScene? Scene;
-            public float Weight = 1f;
-            public SeasonalComponent.Season? RestrictToSeason;      // null = all seasons
-            public WeatherSystemComponent.WeatherType? RestrictToWeather;  // null = all weather
-        }
+        private HealthComponent? _health;
 
         public override void _Ready()
         {
@@ -45,25 +44,18 @@ namespace Beep.ECS
             var root = GetTree().Root;
             _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
             _weather = EntityComponent.FindComponent<WeatherSystemComponent>(root, true);
-        }
 
-        public void AddEntry(PackedScene scene, float weight = 1f,
-            SeasonalComponent.Season? restrictToSeason = null,
-            WeatherSystemComponent.WeatherType? restrictToWeather = null)
-        {
-            _entries.Add(new DropEntry
-            {
-                Scene = scene,
-                Weight = weight,
-                RestrictToSeason = restrictToSeason,
-                RestrictToWeather = restrictToWeather
-            });
+            // Loot-on-death: a sibling HealthComponent's Died rolls the table. This is the drop
+            // half of the loop — DestructibleComponent breaks the body, this drops the loot, both
+            // off the same Died, no double-roll. An entity with no HealthComponent (a chest opened
+            // by interaction) simply calls Roll() itself.
+            _health = GetSiblingComponent<HealthComponent>();
+            if (_health != null) _health.Died += Roll;
         }
-
-        public void Clear() => _entries.Clear();
 
         public override void _ExitTree()
         {
+            if (_health != null) _health.Died -= Roll;
             // Clean up any lingering spawned drops
             foreach (var drop in _spawnedDrops)
                 drop?.QueueFree();
@@ -73,7 +65,15 @@ namespace Beep.ECS
 
         public void Roll()
         {
-            if (!IsActive || _entries.Count == 0) return;
+            if (!IsActive) return;
+            if (Entries.Length == 0)
+            {
+                GD.PushWarning(
+                    $"DropTableComponent ('{Name}'): Roll() called with no Entries — nothing to " +
+                    "drop. Assign at least one DropTableEntry .tres in the inspector, or remove " +
+                    "the component from this entity.");
+                return;
+            }
             if (GD.Randf() > DropChance) return;
 
             int count = (int)GD.RandRange(MinDrops, MaxDrops + 1);
@@ -85,11 +85,25 @@ namespace Beep.ECS
             for (int i = 0; i < count; i++)
             {
                 var entry = PickWeighted();
-                if (entry?.Scene == null) continue;
+                if (entry?.Item == null) continue;
 
-                var inst = entry.Scene.Instantiate<Node2D>();
+                var scene = entry.Item.WorldScene;
+                if (scene == null)
+                {
+                    GD.PushWarning(
+                        $"[{Name}] Drop '{entry.Item.DisplayName}' has no WorldScene — it has no " +
+                        "node form to drop. Set GameItem.WorldScene (e.g. an Area2D with a PickupComponent).");
+                    continue;
+                }
+
+                var inst = scene.Instantiate<Node2D>();
                 var spawnPos = FindGoodSpawnPoint(centerPos);
                 inst.GlobalPosition = spawnPos;
+
+                // Stamp the dropped node so collecting it yields THIS item. Without this a generic
+                // world scene would drop, be picked up, and add nothing (or the wrong thing).
+                var pickup = EntityComponent.FindComponent<PickupComponent>(inst, true);
+                if (pickup != null) pickup.Item = entry.Item;
 
                 parent?.GetParent()?.AddChild(inst);
                 _spawnedDrops.Add(inst);
@@ -97,7 +111,7 @@ namespace Beep.ECS
                 // Schedule auto-cleanup after lifetime
                 ScheduleDropCleanup(inst);
 
-                EmitSignal(SignalName.DropSpawned, entry.Scene, inst.GlobalPosition);
+                EmitSignal(SignalName.DropSpawned, entry.Item, inst.GlobalPosition);
             }
         }
 
@@ -146,12 +160,14 @@ namespace Beep.ECS
             timer.Start();
         }
 
-        private DropEntry? PickWeighted()
+        private DropTableEntry? PickWeighted()
         {
-            // Filter entries by current season/weather
-            var validEntries = _entries.Where(e =>
-                (e.RestrictToSeason == null || e.RestrictToSeason == _seasonal?.CurrentSeason) &&
-                (e.RestrictToWeather == null || e.RestrictToWeather == _weather?.CurrentWeather))
+            // Filter entries by current season/weather. An unrestricted entry (AnySeason /
+            // AnyWeather) always passes; a restricted one passes only when it matches the live
+            // system, or when no such system exists to contradict it.
+            var validEntries = Entries.Where(e => e != null &&
+                (e.AnySeason || _seasonal == null || e.Season == _seasonal.CurrentSeason) &&
+                (e.AnyWeather || _weather == null || e.Weather == _weather.CurrentWeather))
                 .ToList();
 
             if (validEntries.Count == 0) return null;

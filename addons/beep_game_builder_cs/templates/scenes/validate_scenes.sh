@@ -91,11 +91,16 @@ for f in $(find . -name "*.tscn" | sort); do
       if (match($0,/id="[^"]+"/))   id=substr($0,RSTART+4,RLENGTH-5)
       if (match($0,/path="[^"]+"/)) p=substr($0,RSTART+6,RLENGTH-7)
       script[id]=p; next }
-    /^\[node / { curtype=""; curname=""
+    /^\[node / { innode=1; curtype=""; curname=""
       if (match($0,/type="[^"]+"/)) curtype=substr($0,RSTART+6,RLENGTH-7)
       if (match($0,/name="[^"]+"/)) curname=substr($0,RSTART+6,RLENGTH-7)
       next }
+    # Any other section header (sub_resource, gd_scene, ...) leaves node context. A
+    # [sub_resource type="Resource"] legitimately carries a `script =` line (a scripted
+    # custom Resource like GameItem) — that is not a node, so the node-script rule must skip it.
+    /^\[/ { innode=0; next }
     /^script = ExtResource\(/ {
+      if (!innode) next
       id=""
       if (match($0,/ExtResource\("[^"]+"\)/)) id=substr($0,RSTART+13,RLENGTH-15)
       if (!(id in script)) next

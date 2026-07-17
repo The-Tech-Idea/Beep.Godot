@@ -10,7 +10,12 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class PickupComponent : GameplayComponent
     {
-        [Export] public string ItemId { get; set; } = "coin";
+        /// <summary>What this pickup IS — the authored item added to the collector's inventory.
+        /// Null is valid: a score-only pickup (a coin that just awards <see cref="ScoreValue"/>)
+        /// needs no item. Replaced the old string ItemId, which could name a sword but never
+        /// carry its stats.</summary>
+        [Export] public GameItem? Item { get; set; }
+
         [Export] public int Quantity { get; set; } = 1;
         [Export] public float FloatAmplitude { get; set; } = 5f;
         [Export] public float FloatSpeed { get; set; } = 2f;
@@ -49,7 +54,7 @@ namespace Beep.ECS
             if (_area != null) _area.BodyEntered += OnBodyEntered;
         }
 
-        private void OnBodyEntered(Node2D body) => Collect();
+        private void OnBodyEntered(Node2D body) => Collect(body);
 
         public override void _Process(double delta)
         {
@@ -90,20 +95,43 @@ namespace Beep.ECS
         }
         private GameFlowComponent? _flow;
 
-        private void Collect()
+        private void Collect(Node2D? collector = null)
         {
             if (_collected || !IsActive) return;
             _collected = true;
-            EmitSignal(SignalName.Collected, ItemId, Quantity);
+            EmitSignal(SignalName.Collected, Item?.Id ?? "", Quantity);
+
+            // Put the item in the collector's inventory. This is the edge that gave the item
+            // economy a source — Collect() used to emit Collected and touch no inventory, so
+            // nothing a player walked over ever entered their bag. A pickup with no Item is still
+            // valid (a score-only coin) and simply skips this; an Item set on a collector with no
+            // inventory warns rather than vanishing silently.
+            if (collector != null && Item != null)
+            {
+                var inventory = EntityComponent.FindComponent<InventoryComponent>(collector, true);
+                if (inventory != null) inventory.AddItem(Item, Quantity);
+                else GD.PushWarning($"[{Name}] Item '{Item.DisplayName}' is set but the collector '{collector.Name}' has no InventoryComponent — collected, but not stored.");
+            }
 
             if (ScoreValue > 0)
             {
                 var flow = ResolveGameFlow();
                 if (flow != null) flow.AddScore(ScoreValue);
                 else GD.PushWarning($"[{Name}] ScoreValue is {ScoreValue} but no GameFlowComponent was found — the points go nowhere. Add one to the scene, or set GameFlowPath.");
+
+                // Pop the floating "+100" if the template ships one. Its ShowText() had no
+                // callers, so the label was instantiated and never displayed anything.
+                GetSiblingComponent<FloatingTextComponent>()?.ShowText($"+{ScoreValue}");
             }
-            if (GetParent() is Node2D p) { p.Visible = false; p.ProcessMode = ProcessModeEnum.Disabled; }
-            if (RespawnSeconds > 0) _respawnTimer = RespawnSeconds;
+
+            if (RespawnSeconds > 0)
+            {
+                // Only hide the visual — do NOT disable the parent's processing. ProcessMode is
+                // inherited, so disabling the parent stops THIS component's _Process too, and the
+                // respawn timer would never tick. Hiding leaves _Process running to count down.
+                if (GetParent() is Node2D p) p.Visible = false;
+                _respawnTimer = RespawnSeconds;
+            }
             else if (GetParent() is Node parent) parent.QueueFree();
         }
 
@@ -111,7 +139,7 @@ namespace Beep.ECS
         {
             _collected = false;
             _time = 0;
-            if (GetParent() is Node2D p) { p.Visible = true; p.ProcessMode = ProcessModeEnum.Inherit; p.Position = _startPos; }
+            if (GetParent() is Node2D p) { p.Visible = true; p.Position = _startPos; }
             EmitSignal(SignalName.Respawned);
         }
 

@@ -1,10 +1,17 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/PickupComponent.cs" id="1_pickup"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/FloatingTextComponent.cs" id="2_float"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/items/GameItem.cs" id="3_gameitem"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pickup"]
 radius = 12.0
+
+[sub_resource type="Resource" id="Resource_coin"]
+script = ExtResource("3_gameitem")
+Id = "coin"
+DisplayName = "Coin"
+MaxStack = 99
 
 [node name="PickupTemplate" type="Area2D"]
 
@@ -15,7 +22,7 @@ shape = SubResource("CircleShape2D_pickup")
 
 [node name="Pickup" type="Node" parent="."]
 script = ExtResource("1_pickup")
-ItemId = "coin"
+Item = SubResource("Resource_coin")
 Quantity = 1
 ScoreValue = 100
 FloatAmplitude = 5.0

@@ -89,8 +89,6 @@ var _pending_tween_count: int = 0
 var _is_playing: bool = false
 var _loop_count: int = 0
 var _process_time: float = 0.0
-var _original_positions: Dictionary = {}
-var _original_scales: Dictionary = {}
 var _tw_states: Dictionary = {}
 
 
@@ -107,8 +105,8 @@ func _process(delta: float) -> void:
 		_process_time += delta
 		var offset: float = sin(_process_time * bob_speed) * bob_height
 		for c in _targets:
-			if is_instance_valid(c) and _original_positions.has(c):
-				c.position = _original_positions[c] + Vector2(0, offset)
+			if is_instance_valid(c):
+				c.offset_transform_position = Vector2(0, offset)
 	if effect == EffectType.TYPEWRITER:
 		_process_typewriter(delta)
 
@@ -123,8 +121,6 @@ func _exit_tree() -> void:
 
 func _resolve_targets() -> void:
 	_targets.clear()
-	_original_positions.clear()
-	_original_scales.clear()
 	match scope:
 		ScopeType.SELF:
 			var parent = get_parent()
@@ -142,10 +138,18 @@ func _resolve_targets() -> void:
 		ScopeType.GLOBAL:
 			if is_inside_tree():
 				_collect_controls(get_tree().root, _targets)
+	# Animate the offset transform layer, not position/scale. Godot 4.7's
+	# offset_transform_* (GH-87081) is a render transform that containers do not
+	# overwrite — the same fix theme_applier.gd documents and uses. Animating
+	# position/scale directly meant any VBox/HBox/GridContainer re-sorted the control
+	# out from under the tween, and BOB (which writes every _process tick) fought the
+	# container every frame. Almost everything widget_factory builds is a container.
+	#
+	# The offsets are relative to the layout position, so "original" is always
+	# Vector2.ZERO / Vector2.ONE — there is nothing to capture or restore.
 	for c in _targets:
 		if is_instance_valid(c):
-			_original_positions[c] = c.position
-			_original_scales[c] = c.scale
+			c.offset_transform_enabled = true
 
 
 func _add_target(c: Control) -> void:
@@ -209,10 +213,10 @@ func reset() -> void:
 	stop()
 	for c in _targets:
 		if is_instance_valid(c):
-			if _original_positions.has(c):
-				c.position = _original_positions[c]
-			if _original_scales.has(c):
-				c.scale = _original_scales[c]
+			# Zero the offset layer rather than restoring captured values — the layout
+			# position is untouched throughout, so neutral IS zero/one.
+			c.offset_transform_position = Vector2.ZERO
+			c.offset_transform_scale = Vector2.ONE
 			c.modulate = Color.WHITE
 
 
@@ -222,16 +226,20 @@ func reset() -> void:
 
 func _execute_effect() -> void:
 	effect_started.emit()
+	# Drop dead tweens first. Finished tweens were never removed — only stop() cleared
+	# the list — so a looping effect appended one per target per cycle on top of every
+	# dead tween from every prior cycle and grew without bound. theme_applier.gd prunes
+	# its own map for the same reason.
+	_active_tweens = _active_tweens.filter(func(t): return is_instance_valid(t) and t.is_running())
 	# Remember how many tweens existed before the effect spawns new ones, so we
 	# only wire completion for the tweens spawned by THIS invocation.
 	var tween_base := _active_tweens.size()
 	for c in _targets:
 		if not is_instance_valid(c):
 			continue
-		if not _original_positions.has(c):
-			_original_positions[c] = c.position
-		if not _original_scales.has(c):
-			_original_scales[c] = c.scale
+		# The offset layer must be on for any of the transform effects to render.
+		# Re-asserted here because targets can be re-resolved after _ready.
+		c.offset_transform_enabled = true
 		match effect:
 			EffectType.SLIDE: _play_slide(c)
 			EffectType.SHAKE: _play_shake(c)
@@ -286,23 +294,21 @@ func _on_delay_fired(timer: Timer) -> void:
 # ════════════════════════════════════════════════════════════════
 
 func _play_slide(c: Control) -> void:
-	var orig: Vector2 = _original_positions.get(c, c.position)
 	var offset: Vector2 = Vector2.ZERO
 	match slide_dir:
 		SlideDirection.LEFT: offset = Vector2(-slide_distance, 0)
 		SlideDirection.RIGHT: offset = Vector2(slide_distance, 0)
 		SlideDirection.UP: offset = Vector2(0, -slide_distance)
 		SlideDirection.DOWN: offset = Vector2(0, slide_distance)
-	c.position = orig + offset
+	c.offset_transform_position = offset
 	c.modulate = Color(1, 1, 1, 0)
 	var t := c.create_tween().set_parallel(true)
-	t.tween_property(c, "position", orig, duration).set_ease(easing).set_trans(transition)
+	t.tween_property(c, "offset_transform_position", Vector2.ZERO, duration).set_ease(easing).set_trans(transition)
 	t.tween_property(c, "modulate:a", 1.0, duration * 0.6)
 	_active_tweens.append(t)
 
 
 func _play_shake(c: Control) -> void:
-	var orig: Vector2 = _original_positions.get(c, c.position)
 	var steps := shake_vibrato
 	var t := c.create_tween()
 	for i in steps:
@@ -310,8 +316,8 @@ func _play_shake(c: Control) -> void:
 		var decay: float = 1.0 - fraction
 		var x_off: float = (randf() * 2.0 - 1.0) * shake_intensity * decay
 		var y_off: float = (randf() * 2.0 - 1.0) * shake_intensity * decay
-		t.tween_property(c, "position", orig + Vector2(x_off, y_off), duration / float(steps))
-	t.tween_property(c, "position", orig, duration / float(steps))
+		t.tween_property(c, "offset_transform_position", Vector2(x_off, y_off), duration / float(steps))
+	t.tween_property(c, "offset_transform_position", Vector2.ZERO, duration / float(steps))
 	_active_tweens.append(t)
 
 
@@ -319,15 +325,15 @@ func _play_pulse(c: Control) -> void:
 	var half: float = duration / 2.0
 	if pulse_loops <= 0:
 		var t := c.create_tween().set_loops()
-		t.tween_property(c, "scale", Vector2(pulse_max_scale, pulse_max_scale), half).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
-		t.tween_property(c, "scale", Vector2(pulse_min_scale, pulse_min_scale), half).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
+		t.tween_property(c, "offset_transform_scale", Vector2(pulse_max_scale, pulse_max_scale), half).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		t.tween_property(c, "offset_transform_scale", Vector2(pulse_min_scale, pulse_min_scale), half).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
 		_active_tweens.append(t)
 	else:
 		var t := c.create_tween()
 		for i in pulse_loops:
-			t.tween_property(c, "scale", Vector2(pulse_max_scale, pulse_max_scale), half).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
-			t.tween_property(c, "scale", Vector2(pulse_min_scale, pulse_min_scale), half).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
-		t.tween_property(c, "scale", _original_scales.get(c, Vector2.ONE), half)
+			t.tween_property(c, "offset_transform_scale", Vector2(pulse_max_scale, pulse_max_scale), half).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+			t.tween_property(c, "offset_transform_scale", Vector2(pulse_min_scale, pulse_min_scale), half).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
+		t.tween_property(c, "offset_transform_scale", Vector2.ONE, half)
 		_active_tweens.append(t)
 
 
@@ -342,8 +348,6 @@ func _play_flash(c: Control) -> void:
 
 
 func _play_glitch(c: Control) -> void:
-	var orig_pos: Vector2 = _original_positions.get(c, c.position)
-	var orig_scale: Vector2 = _original_scales.get(c, c.scale)
 	var seg: float = duration / float(glitch_segments)
 	var t := c.create_tween()
 	for i in glitch_segments:
@@ -351,16 +355,16 @@ func _play_glitch(c: Control) -> void:
 		var y_off: float = (randf() * 2.0 - 1.0) * glitch_intensity
 		var s_off: float = 1.0 + (randf() * 2.0 - 1.0) * glitch_intensity * 0.01
 		var r_off: float = (randf() * 2.0 - 1.0) * glitch_intensity * 0.02
-		t.tween_property(c, "position", orig_pos + Vector2(x_off, y_off), seg * 0.5)
-		t.tween_property(c, "scale", Vector2(s_off, s_off), seg * 0.5)
-		t.tween_property(c, "rotation", r_off, seg * 0.5)
+		t.tween_property(c, "offset_transform_position", Vector2(x_off, y_off), seg * 0.5)
+		t.tween_property(c, "offset_transform_scale", Vector2(s_off, s_off), seg * 0.5)
+		t.tween_property(c, "offset_transform_rotation", r_off, seg * 0.5)
 		if i < glitch_segments - 1:
-			t.tween_property(c, "position", orig_pos, seg * 0.5)
-			t.tween_property(c, "scale", orig_scale, seg * 0.5)
-			t.tween_property(c, "rotation", 0.0, seg * 0.5)
-	t.tween_property(c, "position", orig_pos, seg)
-	t.tween_property(c, "scale", orig_scale, seg)
-	t.tween_property(c, "rotation", 0.0, seg)
+			t.tween_property(c, "offset_transform_position", Vector2.ZERO, seg * 0.5)
+			t.tween_property(c, "offset_transform_scale", Vector2.ONE, seg * 0.5)
+			t.tween_property(c, "offset_transform_rotation", 0.0, seg * 0.5)
+	t.tween_property(c, "offset_transform_position", Vector2.ZERO, seg)
+	t.tween_property(c, "offset_transform_scale", Vector2.ONE, seg)
+	t.tween_property(c, "offset_transform_rotation", 0.0, seg)
 	_active_tweens.append(t)
 
 
@@ -368,18 +372,18 @@ func _play_rotate(c: Control) -> void:
 	match rotate_axis:
 		RotateAxis.X:
 			var t := c.create_tween()
-			t.tween_property(c, "scale:y", 0.0, duration * 0.5)
-			t.tween_property(c, "scale:y", 1.0, duration * 0.5)
+			t.tween_property(c, "offset_transform_scale:y", 0.0, duration * 0.5)
+			t.tween_property(c, "offset_transform_scale:y", 1.0, duration * 0.5)
 			_active_tweens.append(t)
 		RotateAxis.Y:
 			var t := c.create_tween()
-			t.tween_property(c, "scale:x", 0.0, duration * 0.5)
-			t.tween_property(c, "scale:x", 1.0, duration * 0.5)
+			t.tween_property(c, "offset_transform_scale:x", 0.0, duration * 0.5)
+			t.tween_property(c, "offset_transform_scale:x", 1.0, duration * 0.5)
 			_active_tweens.append(t)
 		RotateAxis.Z:
 			var radians: float = deg_to_rad(rotate_angle)
 			var t := c.create_tween()
-			t.tween_property(c, "rotation", radians, duration).set_ease(easing).set_trans(transition)
+			t.tween_property(c, "offset_transform_rotation", radians, duration).set_ease(easing).set_trans(transition)
 			_active_tweens.append(t)
 
 
@@ -398,19 +402,21 @@ func _play_fade(c: Control) -> void:
 
 
 func _play_bounce(c: Control) -> void:
-	var orig: Vector2 = _original_positions.get(c, c.position)
 	var per: float = duration / float(bounce_count)
 	var t := c.create_tween()
 	for i in bounce_count:
 		var h: float = bounce_height * (1.0 - float(i) / float(bounce_count))
-		t.tween_property(c, "position:y", orig.y - h, per * 0.4).set_ease(Tween.EASE_OUT)
-		t.tween_property(c, "position:y", orig.y, per * 0.6).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BOUNCE)
+		t.tween_property(c, "offset_transform_position:y", -h, per * 0.4).set_ease(Tween.EASE_OUT)
+		t.tween_property(c, "offset_transform_position:y", 0.0, per * 0.6).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BOUNCE)
 	_active_tweens.append(t)
 
 
 func _play_offset(c: Control) -> void:
+	# offset_target is now relative to the layout position rather than an absolute
+	# screen position — which is what "offset" always implied, and the only reading
+	# that survives a container re-sorting its children.
 	var t := c.create_tween()
-	t.tween_property(c, "position", offset_target, duration).set_ease(easing).set_trans(transition)
+	t.tween_property(c, "offset_transform_position", offset_target, duration).set_ease(easing).set_trans(transition)
 	_active_tweens.append(t)
 
 

@@ -28,7 +28,7 @@ scripts, no legacy compatibility code.**
 | `templates/scenes/hud.tscn` | Score/Lives/Health labels + HudComponent | shared | no |
 | `templates/scenes/game_over.tscn` | Title + ScoreSummary + Retry/MainMenu | shared | no |
 | `templates/scenes/dialog_template.tscn` | CanvasLayer + Panel + NameLabel + TextLabel (BBCode) | shared | no |
-| `templates/scenes/enemy_template.tscn` | CharacterBody2D + AnimatedSprite2D + DetectionArea + HitboxArea + HealthBar (no components — add your own) | shared | no |
+| `templates/scenes/enemy_template.tscn` | CharacterBody2D with Health + Aggro + AIController (detect/chase/attack) + Attack + DespawnOnDeath + HealthBar — a working enemy that pursues and attacks the "players" group and despawns on death | shared | no |
 | `templates/scenes/player_template.tscn` | CharacterBody2D + Sprite2D + CollisionShape2D (no components — add your own) | shared | no |
 | `templates/scenes/robot_npc_template.tscn` | same shape as player_template | shared | no |
 | `templates/scenes/pickup_template.tscn` | Area2D + Sprite2D + CollisionShape2D | shared | no |

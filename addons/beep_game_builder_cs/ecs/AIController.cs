@@ -31,16 +31,19 @@ namespace Beep.ECS
         private StatusEffectComponent? _statusEffects;
         private StatsComponent? _stats;
         private AggroComponent? _aggro;
+        private AttackComponent? _attack;
         private Vector2 _moveDir;
         private int _waypointIndex;
         private Node2D? _currentTarget;
         private Node2D? _lastTarget;
         private AIMode _lastMode = AIMode.Idle;
+        private AIMode _baseMode;   // the mode to return to when a chase ends
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _baseMode = Mode;
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _stats = GetSiblingComponent<StatsComponent>();
             // Being hit makes a wandering/patrolling enemy turn and chase its attacker: a sibling
@@ -48,6 +51,14 @@ namespace Beep.ECS
             // nearest-in-group pick below.
             _aggro = GetSiblingComponent<AggroComponent>();
             if (_aggro != null) _aggro.TargetAcquired += OnAggroTarget;
+            // The attack verb — called from UpdateChase when adjacent. Without this the enemy
+            // pursued its target and emitted InAttackRange but never actually swung.
+            _attack = GetSiblingComponent<AttackComponent>();
+
+            // AIController owns Velocity + MoveAndSlide; a sibling MovementComponent would integrate
+            // the body a second time each frame. Warn (MovementComponent warns the other way too).
+            if (GetSiblingComponent<MovementComponent>() != null)
+                GD.PushWarning($"[{Name}] AIController and a sibling MovementComponent both drive the body — remove the MovementComponent (AIController owns movement) or they will fight over MoveAndSlide.");
         }
 
         private void OnAggroTarget(Node2D target) => Mode = AIMode.Chase;
@@ -62,6 +73,13 @@ namespace Beep.ECS
         {
             if (_body == null || !IsActive) return;
 
+            bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
+
+            // Proactively enter Chase when a target comes within DetectionRange — not only after
+            // being hit. Without this a Wander/Patrol enemy walked right past the player.
+            if (!isStunned && Mode != AIMode.Chase && Mode != AIMode.Flee && FindNearestInGroup(TargetGroup) != null)
+                Mode = AIMode.Chase;
+
             // Reset state on mode change.
             if (Mode != _lastMode)
             {
@@ -69,7 +87,6 @@ namespace Beep.ECS
                 _lastMode = Mode;
             }
 
-            bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             if (!isStunned)
                 UpdateAI((float)delta);
 
@@ -110,7 +127,11 @@ namespace Beep.ECS
                     _lastTarget = _currentTarget;
                 }
                 if (_body!.GlobalPosition.DistanceTo(_currentTarget.GlobalPosition) < AttackRange)
+                {
                     EmitSignal(SignalName.InAttackRange, _currentTarget);
+                    _attack?.Attack(_currentTarget.GlobalPosition);   // actually swing (AttackComponent honors its own cooldown)
+                    _moveDir = Vector2.Zero;                          // stop to attack when adjacent
+                }
             }
             else
             {
@@ -120,6 +141,7 @@ namespace Beep.ECS
                     _lastTarget = null;
                 }
                 _moveDir = Vector2.Zero;
+                Mode = _baseMode;   // nothing to chase — resume patrol/wander
             }
         }
 

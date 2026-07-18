@@ -52,6 +52,8 @@ namespace Beep.ECS
             if (GetParent() is Node2D parent) _startPos = parent.Position;
             _area = GetParent() as Area2D;
             if (_area != null) _area.BodyEntered += OnBodyEntered;
+            else if (!Engine.IsEditorHint())
+                GD.PushWarning($"[{Name}] PickupComponent needs an Area2D parent to detect a collector walking over it; got '{GetParent()?.GetType().Name ?? "null"}'. It can never be collected. Parent it to an Area2D.");
         }
 
         private void OnBodyEntered(Node2D body) => Collect(body);

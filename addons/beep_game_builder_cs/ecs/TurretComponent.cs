@@ -37,6 +37,10 @@ namespace Beep.ECS
             _turret = GetParent() as Node2D;
             if (_turret == null)
                 GD.PushWarning($"[{Name}] parent is not a Node2D — the turret has no position to fire from and will do nothing. Parent it to the turret body.");
+            // A null ProjectileScene means the turret acquires, aims, and ticks cooldown but Fire()
+            // returns silently forever — it looks alive but shoots nothing. Say so up front.
+            if (ProjectileScene == null)
+                GD.PushWarning($"[{Name}] has no ProjectileScene — the turret will aim at targets but never fire. Assign a projectile scene.");
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
             _pool = GetSiblingComponent<ObjectPoolComponent>();
         }

@@ -32,7 +32,13 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            // Prefer a sibling DialogComponent, but fall back to anywhere in the entity's subtree.
+            // Interactables are often parented under a DetectionArea, so a DialogComponent placed on
+            // the NPC root (the intuitive spot) is NOT a sibling — the sibling-only lookup silently
+            // missed it, and the "Talk" prompt led nowhere.
             _dialog = GetSiblingComponent<DialogComponent>();
+            if (_dialog == null && Owner is Node owner)
+                _dialog = EntityComponent.FindComponent<DialogComponent>(owner, true);
         }
 
         /// <summary>Resolve the HUD prompt lazily and once. It is a CROSS-TREE collaborator

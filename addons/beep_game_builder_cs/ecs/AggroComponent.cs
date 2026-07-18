@@ -11,7 +11,9 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class AggroComponent : GameplayComponent
     {
-        [Export] public float AggroRange { get; set; } = 300f;
+        /// <summary>Distance beyond which a target is dropped from the threat table (it fled /
+        /// broke line of sight). Proximity DETECTION of new targets is AIController's job
+        /// (DetectionRange) — this is a threat table, so its one spatial rule is letting go.</summary>
         [Export] public float DeaggroRange { get; set; } = 500f;
         [Export] public float ThreatDecayRate { get; set; } = 10f;
 
@@ -22,7 +24,13 @@ namespace Beep.ECS
         public Dictionary<Node2D, float> ThreatTable { get; private set; } = new();
         public Node2D? CurrentTarget { get; private set; }
 
-        public override void _Ready() { base._Ready(); }
+        private Node2D? _body;
+
+        public override void _Ready()
+        {
+            base._Ready();
+            _body = GetParent() as Node2D;
+        }
 
         public void AddThreat(Node2D source, float amount)
         {
@@ -56,8 +64,12 @@ namespace Beep.ECS
             var toRemove = new List<Node2D>();
             foreach (var kv in ThreatTable)
             {
+                // Drop a freed target, a decayed one, or one that fled beyond DeaggroRange.
+                bool fled = _body != null && GodotObject.IsInstanceValid(kv.Key)
+                            && _body.GlobalPosition.DistanceTo(kv.Key.GlobalPosition) > DeaggroRange;
                 ThreatTable[kv.Key] -= ThreatDecayRate * (float)delta;
-                if (ThreatTable[kv.Key] <= 0) toRemove.Add(kv.Key);
+                if (!GodotObject.IsInstanceValid(kv.Key) || ThreatTable[kv.Key] <= 0 || fled)
+                    toRemove.Add(kv.Key);
             }
             foreach (var k in toRemove) ThreatTable.Remove(k);
             if (toRemove.Count > 0) UpdateTarget();

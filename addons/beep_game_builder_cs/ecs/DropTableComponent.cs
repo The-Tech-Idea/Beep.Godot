@@ -109,8 +109,10 @@ namespace Beep.ECS
                 // world scene would drop, be picked up, and add nothing (or the wrong thing).
                 var pickup = EntityComponent.FindComponent<PickupComponent>(inst, true);
                 if (pickup != null) pickup.Item = entry.Item;
+                else GD.PushWarning($"[{Name}] '{entry.Item?.DisplayName}' dropped, but its WorldScene has no PickupComponent — the drop can't be collected. Add a PickupComponent to the item's WorldScene.");
 
-                parent?.GetParent()?.AddChild(inst);
+                if (parent?.GetParent() is { } dropParent) dropParent.AddChild(inst);
+                else { GD.PushWarning($"[{Name}] nowhere to place the drop (owner has no Node2D grandparent) — freeing it."); inst.QueueFree(); continue; }
                 _spawnedDrops.Add(inst);
 
                 // Schedule auto-cleanup after lifetime

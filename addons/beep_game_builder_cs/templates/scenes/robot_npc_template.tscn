@@ -31,7 +31,6 @@ Friction = 600.0
 
 [node name="Aggro" type="Node" parent="."]
 script = ExtResource("2_aggro")
-AggroRange = 300.0
 DeaggroRange = 500.0
 ThreatDecayRate = 5.0
 

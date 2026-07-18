@@ -90,6 +90,10 @@ namespace Beep.ECS
 
         private void OnSpawnedExiting(Node inst)
         {
+            // A spawned enemy can outlive the spawner (it's reparented up to the level, then the
+            // spawner is freed on scene teardown) — its TreeExiting would then fire this on a
+            // disposed spawner. Bail if we're gone.
+            if (!GodotObject.IsInstanceValid(this)) return;
             _activeSpawned.Remove(inst);
             _spawnedCount--;
             if (_spawnedCount <= 0) EmitSignal(SignalName.AllDespawned);

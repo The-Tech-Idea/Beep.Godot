@@ -303,7 +303,7 @@ namespace Beep.ECS.UI
                 timer.Timeout += () =>
                 {
                     timer.QueueFree();
-                    ExecuteEffect();
+                    if (_isPlaying) ExecuteEffect();   // a Stop() during the delay must cancel it
                 };
                 AddChild(timer);
                 timer.Start();
@@ -389,7 +389,7 @@ namespace Beep.ECS.UI
                 if (LoopDelay > 0f)
                 {
                     var timer = new Timer { OneShot = true, WaitTime = LoopDelay };
-                    timer.Timeout += () => { timer.QueueFree(); ExecuteEffect(); };
+                    timer.Timeout += () => { timer.QueueFree(); if (_isPlaying) ExecuteEffect(); };
                     AddChild(timer);
                     timer.Start();
                 }

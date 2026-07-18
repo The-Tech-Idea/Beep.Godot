@@ -18,15 +18,27 @@ namespace Beep.ECS
         [Export] public bool FollowParent { get; set; } = false;
         [Export] public Vector2 Offset { get; set; } = Vector2.Zero;
 
+        /// <summary>Burst automatically when a sibling <see cref="HealthComponent"/> dies — the death
+        /// puff that <see cref="Burst"/> (0 callers before this) never had. The component owns its
+        /// own wire, so HealthComponent stays unaware of it.</summary>
+        [Export] public bool BurstOnDeath { get; set; } = false;
+
         [Signal] public delegate void BurstPlayedEventHandler();
         [Signal] public delegate void FinishedEventHandler();
 
         private GpuParticles2D? _particles;
+        private HealthComponent? _health;
 
         public override void _Ready()
         {
             base._Ready();
             CallDeferred(nameof(SetupParticles));
+            if (BurstOnDeath && !Engine.IsEditorHint())
+            {
+                _health = GetSiblingComponent<HealthComponent>();
+                if (_health != null) _health.Died += Burst;
+                else GD.PushWarning($"[{Name}] BurstOnDeath is on but there is no sibling HealthComponent — nothing will trigger the burst.");
+            }
         }
 
         private void SetupParticles()
@@ -75,6 +87,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            if (_health != null) _health.Died -= Burst;
             if (_particles != null && GodotObject.IsInstanceValid(_particles))
                 _particles.QueueFree();
         }

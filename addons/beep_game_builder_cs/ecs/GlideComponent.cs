@@ -59,8 +59,9 @@ namespace Beep.ECS
                 float targetX = inputX * GlideAirSpeed;
                 float newX = Mathf.MoveToward(_body.Velocity.X, targetX, GlideAccel * dt);
 
-                // Set fall speed to glide speed (clamped to prevent upward movement).
-                _body.Velocity = new Vector2(newX, Mathf.Max(GlideFallSpeed, _body.Velocity.Y));
+                // CAP the descent at GlideFallSpeed. +Y is down, so this must be Min: Max let any
+                // faster fall through, so gliding never actually slowed the fall.
+                _body.Velocity = new Vector2(newX, Mathf.Min(GlideFallSpeed, _body.Velocity.Y));
             }
             else if (_isGliding)
             {

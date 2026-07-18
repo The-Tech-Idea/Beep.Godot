@@ -57,5 +57,14 @@ namespace Beep.ECS.UI
             _tween.TweenProperty(_rect, "color:a", 0f, Duration * 0.6f);
             _tween.Finished += () => EmitSignal(SignalName.FlashComplete);
         }
+
+        public override void _ExitTree()
+        {
+            // The overlay is parented to /root, not to this component, so it must be freed here or a
+            // dead "ScreenFlash" CanvasLayer accumulates on root every scene change.
+            _tween?.Kill();
+            if (_layer != null && GodotObject.IsInstanceValid(_layer)) _layer.QueueFree();
+            base._ExitTree();
+        }
     }
 }

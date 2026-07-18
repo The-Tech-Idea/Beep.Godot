@@ -20,6 +20,7 @@ namespace Beep.ECS
 
         private bool _frozen;
         private float _freezeTimer;
+        private double _priorTimeScale = 1.0;   // restore THIS, not a literal 1, so slow-mo/pause survives
 
         public override void _Ready()
         {
@@ -40,6 +41,7 @@ namespace Beep.ECS
             if (_frozen) return;
             _frozen = true;
             _freezeTimer = FreezeDuration;
+            _priorTimeScale = Engine.TimeScale;   // capture what was running (slow-mo, etc.)
             Engine.TimeScale = 0f;
             EmitSignal(SignalName.HitStopTriggered);
         }
@@ -52,12 +54,16 @@ namespace Beep.ECS
             if (_freezeTimer <= 0)
             {
                 _frozen = false;
-                Engine.TimeScale = 1f;
+                Engine.TimeScale = _priorTimeScale;   // restore what was running, not a literal 1
             }
         }
 
         public override void _ExitTree()
         {
+            // If this entity is freed mid-freeze (e.g. it took the hit and died), _Process stops and
+            // TimeScale would be stuck at 0, freezing the whole game. Restore it here.
+            if (_frozen) { Engine.TimeScale = _priorTimeScale; _frozen = false; }
+
             var health = GetSiblingComponent<HealthComponent>();
             if (health != null)
                 health.Damaged -= OnDamaged;

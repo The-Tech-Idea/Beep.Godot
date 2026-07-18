@@ -41,6 +41,16 @@ namespace Beep.ECS.UI
             _drawerConnected = true;
         }
 
+        public override void _ExitTree()
+        {
+            // Detach from the parent's Draw, or a surviving canvas keeps calling DrawCrosshair on
+            // this freed component (every other component here disconnects in _ExitTree; this didn't).
+            if (_drawerConnected && GodotObject.IsInstanceValid(_canvas))
+                _canvas!.Draw -= DrawCrosshair;
+            _drawerConnected = false;
+            base._ExitTree();
+        }
+
         public override void _Process(double delta)
         {
             if (!IsActive) return;

@@ -35,6 +35,7 @@ namespace Beep.ECS.UI
 
             _menu = new PopupMenu();
             _menu.Name = "ContextMenu";
+            _menu.IndexPressed += OnMenuItemPressed;   // once — Clear() in RebuildMenu drops items, not connections
             RebuildMenu();
             _control.AddChild(_menu);
 
@@ -48,7 +49,8 @@ namespace Beep.ECS.UI
             _cachedItems = MenuItems.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < _cachedItems.Length; i++)
                 _menu.AddItem(_cachedItems[i].Trim(), i);
-            _menu.IndexPressed += OnMenuItemPressed;
+            // IndexPressed is connected ONCE in _Ready. Re-subscribing here (RebuildMenu runs on
+            // every SetItems) stacked a new handler each call, firing MenuItemSelected N+1 times.
         }
 
         private void OnMenuItemPressed(long idx)

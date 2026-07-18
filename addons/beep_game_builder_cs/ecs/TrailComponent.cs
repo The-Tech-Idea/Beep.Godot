@@ -40,6 +40,10 @@ namespace Beep.ECS
                 WidthCurve = CreateWidthFadeCurve()
             };
             _line.Points = new Vector2[0];
+            // TopLevel so the line lives in WORLD space, not glued to the moving parent — otherwise
+            // every stored point translated with the parent and the "trail" was a fixed shape
+            // dragged along with the sprite instead of a streak left behind.
+            _line.TopLevel = true;
             GetParent().AddChild(_line);
             if (GetParent().IsInsideTree())
                 _line.Owner = GetParent().Owner;
@@ -57,8 +61,9 @@ namespace Beep.ECS
         {
             if (_line == null || GetParent() is not Node2D parent2D || !IsActive) return;
 
-            // Add current position.
-            var points = new System.Collections.Generic.List<Vector2>(_line.Points) { parent2D.Position };
+            // Record the parent's GLOBAL position (the line is TopLevel/world-space now); Position
+            // was the parent's local coord in a different space and moved the whole trail with it.
+            var points = new System.Collections.Generic.List<Vector2>(_line.Points) { parent2D.GlobalPosition };
             if (points.Count > MaxPoints) points.RemoveAt(0);
             _line.Points = points.ToArray();
         }

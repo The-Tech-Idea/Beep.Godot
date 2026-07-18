@@ -68,7 +68,9 @@ namespace Beep.ECS
                 // Decelerate during slide.
                 float currentSpeed = Mathf.MoveToward(Mathf.Abs(_body.Velocity.X), 0, SlideDeceleration * dt);
                 _body.Velocity = new Vector2(_slideDirection * currentSpeed, _body.Velocity.Y);
-                _body.MoveAndSlide();
+                // Only SET velocity — the sibling controller owns MoveAndSlide. Calling it here too
+                // integrated the body twice per frame (~2× slide distance), like Jump/Glide/WallJump
+                // which correctly only set Velocity.
 
                 if (_slideTimer <= 0 || !_body.IsOnFloor())
                     EndSlide();

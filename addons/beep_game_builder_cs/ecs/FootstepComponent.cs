@@ -53,8 +53,12 @@ namespace Beep.ECS
 
         private void PlayStep()
         {
-            var sound = Sounds[(int)GD.RandRange(0, Sounds.Length - 1)];
-            _player!.Stream = sound;
+            if (Sounds.Length == 0 || _player == null) return;
+            // GD.RandRange(int,int) is INCLUSIVE; the old (int)RandRange(0, Length-1) truncated the
+            // DOUBLE overload's [0, Length-1) so the last sound never played (with 2 sounds, index 1
+            // never). (There is no GD.RandiRange in the C# API.)
+            var sound = Sounds[GD.RandRange(0, Sounds.Length - 1)];
+            _player.Stream = sound;
             _player.PitchScale = 1f + (float)GD.RandRange(-PitchVariation, PitchVariation);
             _player.Play();
         }

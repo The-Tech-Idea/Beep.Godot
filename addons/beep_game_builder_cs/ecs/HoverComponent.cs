@@ -54,8 +54,9 @@ namespace Beep.ECS
                     _isHovering = true;
                     EmitSignal(SignalName.HoverStarted);
                 }
-                // Apply light hover gravity (very low upward force).
-                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Max(HoverGravity, _body.Velocity.Y));
+                // CAP the descent at HoverGravity (+Y is down): Max let a fast fall through, so
+                // hover never floated. Min holds the fall speed to the gentle hover value.
+                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Min(HoverGravity, _body.Velocity.Y));
                 _hoverTimer += dt;
             }
             else if (_isHovering)

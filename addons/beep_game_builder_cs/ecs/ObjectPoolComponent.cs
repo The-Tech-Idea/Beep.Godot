@@ -19,7 +19,10 @@ namespace Beep.ECS
         [Export] public int MaxSize { get; set; } = 50;
 
         private readonly Queue<Node> _pool = new();
-        private int _poolCount;
+        // TOTAL live instances (checked-out + idle), not the idle-queue size — MaxSize caps this.
+        // The old _poolCount tracked only the idle queue (it equalled _pool.Count), so once every
+        // instance was checked out it read 0 and Expand minted a fresh node on every Get(), unbounded.
+        private int _totalAllocated;
 
         public override void _Ready()
         {
@@ -31,25 +34,24 @@ namespace Beep.ECS
 
         private void Expand()
         {
-            if (Scene == null || _poolCount >= MaxSize) return;
+            if (Scene == null || _totalAllocated >= MaxSize) return;
             var inst = Scene.Instantiate();
             GetParent().AddChild(inst);
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
             _pool.Enqueue(inst);
-            _poolCount++;
+            _totalAllocated++;
         }
 
-        /// <summary>Get an instance from the pool (or instantiate a new one if empty).
-        /// Returns null if no Scene is set.</summary>
+        /// <summary>Get an instance from the pool (or instantiate a new one if under MaxSize).
+        /// Returns null if no Scene is set, or if the pool is at MaxSize with none idle.</summary>
         public Node? Get()
         {
             if (!IsActive || Scene == null) return null;
-            if (_pool.Count == 0 && _poolCount < MaxSize) Expand();
-            if (_pool.Count == 0) return null;
+            if (_pool.Count == 0) Expand();      // self-caps at MaxSize; no-op when at the ceiling
+            if (_pool.Count == 0) return null;   // at cap and everything is checked out
 
-            var inst = _pool.Dequeue();
-            _poolCount--;
+            var inst = _pool.Dequeue();          // total unchanged — it's still alive, just checked out
             if (inst is CanvasItem ci) ci.Visible = true;
             if (inst is Node2D n2d) n2d.SetProcess(true);
             return inst;
@@ -61,8 +63,7 @@ namespace Beep.ECS
             if (inst == null || !GodotObject.IsInstanceValid(inst)) return;
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
-            _pool.Enqueue(inst);
-            _poolCount++;
+            _pool.Enqueue(inst);   // already counted in _totalAllocated when it was created
         }
 
         public int Available => _pool.Count;

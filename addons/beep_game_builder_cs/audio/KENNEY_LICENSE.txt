@@ -1,1 +1,19 @@
-This work is licensed under Attribution 4.0 International. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
+Audio assets bundled with beep_game_builder_cs
+================================================
+
+All audio in this folder is licensed under the Creative Commons Attribution 4.0
+International license (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+Source: Kenney Game Assets All-in-1 (kenney.nl), which bundles the following
+CC BY 4.0 audio packs used here:
+
+  weather/    — "Weather Elements" (rain / wind / thunder loops and one-shots)
+  ui/         — "UI Audio" (click / hover / toggle)
+  footsteps/  — "Impact Sounds" (footstep_concrete / footstep_grass)
+  combat/     — "Impact Sounds" (impactPunch / impactMetal, used as hit sounds)
+
+Attribution: "Sound effects by Kenney (kenney.nl), licensed CC BY 4.0."
+
+CC BY 4.0 requires that this attribution be retained. Games built with this
+addon that ship these sounds must credit the source as above. Replace any of
+these files with your own assets to drop the attribution requirement.

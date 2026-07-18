@@ -19,6 +19,12 @@ namespace Beep.ECS
         [Export] public AudioStream[]? ThunderVariants { get; set; }
         [Export] public AudioStream? AmbientLoop { get; set; }
 
+        /// <summary>OPTIONAL heavier rain/wind loops. When assigned, the mix crosses over from the
+        /// light loop to the heavy one as weather intensity climbs (drizzle → downpour), instead of
+        /// just turning the single loop up. Leave null to keep the single-loop behaviour.</summary>
+        [Export] public AudioStream? RainLoopHeavy { get; set; }
+        [Export] public AudioStream? WindLoopHeavy { get; set; }
+
         [ExportGroup("Audio Config")]
         [Export] public string BusName { get; set; } = "Weather";
         [Export] public float RainMaxVolume { get; set; } = -10f;  // dB
@@ -29,7 +35,9 @@ namespace Beep.ECS
         [Export] public NodePath? WeatherSystemPath { get; set; }
 
         private AudioStreamPlayer? _rainPlayer;
+        private AudioStreamPlayer? _rainHeavyPlayer;
         private AudioStreamPlayer? _windPlayer;
+        private AudioStreamPlayer? _windHeavyPlayer;
         private AudioStreamPlayer? _thunderPlayer;
         private AudioStreamPlayer? _ambientPlayer;
         private WeatherSystemComponent? _weather;
@@ -80,6 +88,9 @@ namespace Beep.ECS
             _rainPlayer = CreatePlayer("RainPlayer", RainLoop);
             _windPlayer = CreatePlayer("WindPlayer", WindLoop);
             _ambientPlayer = CreatePlayer("AmbientPlayer", AmbientLoop);
+            // Heavy layers are optional; only spawn them when a heavy loop is supplied.
+            if (RainLoopHeavy != null) _rainHeavyPlayer = CreatePlayer("RainHeavyPlayer", RainLoopHeavy);
+            if (WindLoopHeavy != null) _windHeavyPlayer = CreatePlayer("WindHeavyPlayer", WindLoopHeavy);
 
             _thunderPlayer = new AudioStreamPlayer
             {
@@ -122,13 +133,21 @@ namespace Beep.ECS
 
             intensity = Mathf.Clamp(intensity, 0f, 1f);
 
-            // Fade rain volume with intensity
-            var rainTarget = intensity > 0.3f ? Mathf.Lerp(-80f, RainMaxVolume, intensity) : -80f;
-            FadePlayerVolume(_rainPlayer, rainTarget);
+            // Rain: ramps in above 0.3. When a heavy loop is present, the light loop attenuates as
+            // the heavy loop crosses in over the upper band, so drizzle becomes a downpour rather
+            // than just a louder drizzle. No heavy loop → heavyMix stays 0 and only the light plays.
+            float rainBase = intensity > 0.3f ? Mathf.Lerp(-80f, RainMaxVolume, Mathf.Clamp((intensity - 0.3f) / 0.4f, 0f, 1f)) : -80f;
+            float rainHeavyMix = _rainHeavyPlayer != null ? Mathf.Clamp((intensity - 0.55f) / 0.35f, 0f, 1f) : 0f;
+            FadePlayerVolume(_rainPlayer, Mathf.Lerp(rainBase, -80f, rainHeavyMix));
+            if (_rainHeavyPlayer != null)
+                FadePlayerVolume(_rainHeavyPlayer, Mathf.Lerp(-80f, RainMaxVolume, rainHeavyMix));
 
-            // Fade wind volume with intensity
-            var windTarget = intensity > 0.2f ? Mathf.Lerp(-80f, WindMaxVolume, intensity) : -80f;
-            FadePlayerVolume(_windPlayer, windTarget);
+            // Wind: same crossfade, starting a touch earlier (wind is audible before rain).
+            float windBase = intensity > 0.2f ? Mathf.Lerp(-80f, WindMaxVolume, Mathf.Clamp((intensity - 0.2f) / 0.4f, 0f, 1f)) : -80f;
+            float windHeavyMix = _windHeavyPlayer != null ? Mathf.Clamp((intensity - 0.5f) / 0.4f, 0f, 1f) : 0f;
+            FadePlayerVolume(_windPlayer, Mathf.Lerp(windBase, -80f, windHeavyMix));
+            if (_windHeavyPlayer != null)
+                FadePlayerVolume(_windHeavyPlayer, Mathf.Lerp(-80f, WindMaxVolume, windHeavyMix));
 
             // Fade ambient with inverse intensity (quiet when storm is loud)
             var ambientTarget = Mathf.Lerp(AmbientMaxVolume, -80f, intensity);
@@ -183,7 +202,9 @@ namespace Beep.ECS
         {
             foreach (var t in _fades.Values) if (GodotObject.IsInstanceValid(t)) t.Kill();
             if (_rainPlayer != null && _rainPlayer.Playing) _rainPlayer.Stop();
+            if (_rainHeavyPlayer != null && _rainHeavyPlayer.Playing) _rainHeavyPlayer.Stop();
             if (_windPlayer != null && _windPlayer.Playing) _windPlayer.Stop();
+            if (_windHeavyPlayer != null && _windHeavyPlayer.Playing) _windHeavyPlayer.Stop();
             if (_ambientPlayer != null && _ambientPlayer.Playing) _ambientPlayer.Stop();
             if (_thunderPlayer != null && _thunderPlayer.Playing) _thunderPlayer.Stop();
             if (_weather != null)

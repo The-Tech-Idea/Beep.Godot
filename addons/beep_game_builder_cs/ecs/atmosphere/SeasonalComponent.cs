@@ -168,6 +168,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();   // let EntityComponent clean up group memberships (siblings all chain this)
             _seasonTransitionTween?.Kill();
             _ambient?.SetContribution(ContributionKey, null);   // withdraw the season tint
         }

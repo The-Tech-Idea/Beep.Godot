@@ -33,6 +33,7 @@ namespace Beep.ECS
         [Signal] public delegate void DamagedEventHandler(float amount, float newHealth);
         [Signal] public delegate void HealedEventHandler(float amount, float newHealth);
         [Signal] public delegate void DiedEventHandler();
+        [Signal] public delegate void RevivedEventHandler(float newHealth);
         [Signal] public delegate void HealthChangedEventHandler(float current, float max);
 
         public bool IsDead => CurrentHealth <= 0f;
@@ -142,6 +143,19 @@ namespace Beep.ECS
             if (!IsActive || IsDead) return;
             CurrentHealth = Mathf.Min(MaxHealth, CurrentHealth + amount);
             EmitSignal(SignalName.Healed, amount, CurrentHealth);
+            EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
+        }
+
+        /// <summary>Bring the entity back to life at <paramref name="toHealth"/> (default full).
+        /// <see cref="Heal"/> deliberately no-ops while IsDead so damage/heal can't resurrect by
+        /// accident — so respawn/revive flows (e.g. RespawnComponent) call this instead. Idempotent
+        /// on a living entity (just tops up to the target).</summary>
+        public void Revive(float toHealth = -1f)
+        {
+            if (!IsActive) return;
+            float target = toHealth > 0f ? Mathf.Min(toHealth, MaxHealth) : MaxHealth;
+            CurrentHealth = Mathf.Max(1f, target);
+            EmitSignal(SignalName.Revived, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
         }
 

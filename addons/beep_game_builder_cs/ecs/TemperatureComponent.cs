@@ -101,15 +101,21 @@ namespace Beep.ECS
             if (_health == null)
                 GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
             _stats = GetSiblingComponent<StatsComponent>();
-            // Resolve the scene's atmosphere so weather/season/night can drive ambient temperature.
-            // They live in the instanced atmosphere.tscn under the same scene root.
+            CallDeferred(nameof(SetupVignette));
+        }
+
+        /// <summary>Resolve the scene's atmosphere so weather/season/night can drive ambient
+        /// temperature. Deferred (from SetupVignette) rather than done in _Ready: the atmosphere is
+        /// often instanced into the scene AFTER this entity, so a synchronous _Ready lookup returned
+        /// null and temperature silently fell back to the flat AmbientTemp.</summary>
+        private void ResolveAtmosphere()
+        {
             if (GetTree()?.CurrentScene is { } scene)
             {
                 _weather = EntityComponent.FindComponent<WeatherSystemComponent>(scene, true);
                 _seasonal = EntityComponent.FindComponent<SeasonalComponent>(scene, true);
                 _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(scene, true);
             }
-            CallDeferred(nameof(SetupVignette));
         }
 
         // Meta key on the shared layer counting how many temperature entities use it.
@@ -117,6 +123,7 @@ namespace Beep.ECS
 
         private void SetupVignette()
         {
+            ResolveAtmosphere();   // deferred, so the atmosphere is in the tree by now
             // One shared vignette layer, adopted if the scene already has it — several
             // temperature entities (player + companions) would otherwise each stack their
             // own full-screen ColorRect at the same layer index and fight. Named so the

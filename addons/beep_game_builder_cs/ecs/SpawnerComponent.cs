@@ -37,6 +37,10 @@ namespace Beep.ECS
         {
             base._Ready();
             _timer = SpawnOnStart ? 0 : SpawnInterval;
+            // SpawnScene is explicitly named in CLAUDE.md as a must-warn null export: a spawner with
+            // no scene sits inert on its timer and used to say nothing.
+            if (!Engine.IsEditorHint() && SpawnScene == null)
+                GD.PushWarning($"[{Name}] SpawnerComponent has no SpawnScene assigned — it will spawn nothing. Assign a scene to spawn.");
         }
 
         public override void _Process(double delta)
@@ -61,24 +65,31 @@ namespace Beep.ECS
             if (SpawnScene == null || !IsActive) return null;
             if (_spawnedCount >= MaxSpawned) { EmitSignal(SignalName.SpawnLimitReached); return null; }
 
-            var inst = SpawnScene.Instantiate<Node>();
-            if (GetParent() is Node2D parent)
+            // A Node2D parent spawns into the GRANDPARENT (so the instance is a world sibling, not glued
+            // to the spawner); a non-Node2D parent spawns as its own child. Resolve the target first so
+            // we don't count/emit for an instance that never entered the tree (spawner at scene root).
+            var parent = GetParent();
+            var addTarget = parent is Node2D ? parent.GetParent() : parent;
+            if (addTarget == null)
             {
-                // Parent FIRST, then set GlobalPosition. Setting it before AddChild made it a LOCAL
-                // position that the new parent's transform then re-derived, so a spawner under a
-                // level container offset from origin spawned everything shifted by that offset.
-                parent.GetParent()?.AddChild(inst);
-                if (inst is Node2D n2d)
-                {
-                    Vector2 randomOffset = SpawnRandomRange == Vector2.Zero ? Vector2.Zero :
-                        new Vector2(
-                            (float)(GD.Randf() * 2 - 1) * SpawnRandomRange.X,
-                            (float)(GD.Randf() * 2 - 1) * SpawnRandomRange.Y
-                        );
-                    n2d.GlobalPosition = parent.GlobalPosition + SpawnOffset + randomOffset;
-                }
+                GD.PushWarning($"[{Name}] SpawnerComponent's parent has no parent to spawn into (is the spawner at the scene root?) — cannot spawn.");
+                return null;
             }
-            else GetParent()?.AddChild(inst);
+
+            var inst = SpawnScene.Instantiate<Node>();
+            // Parent FIRST, then set GlobalPosition. Setting it before AddChild made it a LOCAL
+            // position the new parent's transform re-derived, so a spawner under a level container
+            // offset from origin spawned everything shifted by that offset.
+            addTarget.AddChild(inst);
+            if (parent is Node2D parent2D && inst is Node2D n2d)
+            {
+                Vector2 randomOffset = SpawnRandomRange == Vector2.Zero ? Vector2.Zero :
+                    new Vector2(
+                        (GD.Randf() * 2f - 1f) * SpawnRandomRange.X,
+                        (GD.Randf() * 2f - 1f) * SpawnRandomRange.Y
+                    );
+                n2d.GlobalPosition = parent2D.GlobalPosition + SpawnOffset + randomOffset;
+            }
 
             inst.AddToGroup(SpawnGroup);
             _activeSpawned.Add(inst);

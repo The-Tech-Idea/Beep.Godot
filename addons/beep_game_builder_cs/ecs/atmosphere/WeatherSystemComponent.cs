@@ -662,10 +662,15 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _weatherTransitionTween?.Kill();
             foreach (var bolt in _activeLightningBolts)
                 bolt?.QueueFree();
             _activeLightningBolts.Clear();
+            // Withdraw the weather tint (DayNight and Seasonal both do this). Without it, removing
+            // the weather node while the AmbientController persists leaves the last weather tint as a
+            // permanent multiplicative dimming layer with nothing left to clear it.
+            _ambient?.SetContribution(AmbientKey, null);
         }
     }
 }

@@ -125,7 +125,7 @@ namespace Beep.ECS
             // WeatherIntensity directly — see DynamicFogLayer.FogWeightFor.)
 
             // ── Publish global shader uniforms so any shader can react ──
-            if (PublishGlobalShaderParams) PublishGlobals();
+            if (PublishGlobalShaderParams) PublishGlobals(delta);
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Beep.ECS
         /// uniforms. Registers the parameter names on first call (idempotent).
         /// Consuming shaders declare e.g. `global uniform float beep_puddle_depth;`.
         /// </summary>
-        private void PublishGlobals()
+        private void PublishGlobals(double delta)
         {
             if (!_globalsRegistered)
             {
@@ -158,13 +158,16 @@ namespace Beep.ECS
             // Puddle depth grows during rain/storm and slowly evaporates otherwise.
             // Snow accumulation grows during snow and melts otherwise. Both are
             // eased per-frame so they feel like a slow environmental response.
+            // Ease at a per-SECOND rate (× delta), not a baked-in per-frame step — the old
+            // 0.05f * 0.016f assumed 60 fps, so accumulation drifted with framerate. (0.016×60 ≈ 1,
+            // so the per-second coefficients below match the old feel.)
             float puddleTarget = CurrentWeather is WeatherType.Rain or WeatherType.Storm
                 ? _intensityCurrent : 0f;
-            _puddleDepth = Mathf.MoveToward(_puddleDepth, puddleTarget, 0.05f * 0.016f);
+            _puddleDepth = Mathf.MoveToward(_puddleDepth, puddleTarget, 0.05f * (float)delta);
             RenderingServer.GlobalShaderParameterSet(ParamPuddleDepth, _puddleDepth);
 
             float snowTarget = CurrentWeather == WeatherType.Snow ? _intensityCurrent : 0f;
-            _snowAccumulation = Mathf.MoveToward(_snowAccumulation, snowTarget, 0.02f * 0.016f);
+            _snowAccumulation = Mathf.MoveToward(_snowAccumulation, snowTarget, 0.02f * (float)delta);
             RenderingServer.GlobalShaderParameterSet(ParamSnowAccumulation, _snowAccumulation);
         }
 

@@ -42,7 +42,11 @@ namespace Beep.ECS
 
         private void OnBodyEntered(Node body)
         {
-            if (!IsActive || _activated) return;
+            if (!IsActive) return;
+            // Gate re-entry on SingleUse, not on a permanent latch. The old `|| _activated` blocked
+            // EVERY checkpoint after its first activation, so SingleUse=false (re-heal on backtrack)
+            // behaved identically to SingleUse=true.
+            if (SingleUse && _activated) return;
             _activated = true;
 
             Vector2 pos = _area?.GlobalPosition ?? Vector2.Zero;

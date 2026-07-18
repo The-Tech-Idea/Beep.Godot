@@ -42,6 +42,11 @@ namespace Beep.ECS
         private AudioStreamPlayer? _ambientPlayer;
         private WeatherSystemComponent? _weather;
         private int _weatherBusIndex = -1;
+        // Which precipitation layers the CURRENT weather type wants audible — so the rain loop
+        // doesn't keep hissing through Snow/Sandstorm/Clear. Set by OnWeatherChanged, read by
+        // SetWeatherIntensity. Default true so the mix behaves until the first WeatherChanged.
+        private bool _rainWanted = true;
+        private bool _windWanted = true;
         // One tween PER player: a single shared field killed sibling fades — SetWeatherIntensity's
         // three back-to-back Fades (rain, wind, ambient) all cancelled but the last.
         private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
@@ -111,6 +116,7 @@ namespace Beep.ECS
             if (_weather != null)
             {
                 _weather.WeatherChanged += OnWeatherChanged;
+                OnWeatherChanged((int)_weather.CurrentWeather);   // seed rain/wind-wanted for the current type
                 // Drive the audio mix from the weather's smooth intensity. Nothing called
                 // SetWeatherIntensity before, so the rain/wind/ambient levels never moved and
                 // the whole controller mixed at -80 dB forever. IntensityChanged is emitted
@@ -129,22 +135,33 @@ namespace Beep.ECS
         /// </summary>
         public void SetWeatherIntensity(float intensity)
         {
-            if (!IsActive || _weatherBusIndex < 0) return;
+            if (_weatherBusIndex < 0) return;
+            if (!IsActive)
+            {
+                // Deactivated → fade everything to silence rather than stranding whatever level the
+                // loops last faded to (the old early-return left them playing at their last volume).
+                FadePlayerVolume(_rainPlayer, -80f);
+                FadePlayerVolume(_rainHeavyPlayer, -80f);
+                FadePlayerVolume(_windPlayer, -80f);
+                FadePlayerVolume(_windHeavyPlayer, -80f);
+                FadePlayerVolume(_ambientPlayer, -80f);
+                return;
+            }
 
             intensity = Mathf.Clamp(intensity, 0f, 1f);
 
             // Rain: ramps in above 0.3. When a heavy loop is present, the light loop attenuates as
             // the heavy loop crosses in over the upper band, so drizzle becomes a downpour rather
             // than just a louder drizzle. No heavy loop → heavyMix stays 0 and only the light plays.
-            float rainBase = intensity > 0.3f ? Mathf.Lerp(-80f, RainMaxVolume, Mathf.Clamp((intensity - 0.3f) / 0.4f, 0f, 1f)) : -80f;
-            float rainHeavyMix = _rainHeavyPlayer != null ? Mathf.Clamp((intensity - 0.55f) / 0.35f, 0f, 1f) : 0f;
+            float rainBase = _rainWanted && intensity > 0.3f ? Mathf.Lerp(-80f, RainMaxVolume, Mathf.Clamp((intensity - 0.3f) / 0.4f, 0f, 1f)) : -80f;
+            float rainHeavyMix = _rainWanted && _rainHeavyPlayer != null ? Mathf.Clamp((intensity - 0.55f) / 0.35f, 0f, 1f) : 0f;
             FadePlayerVolume(_rainPlayer, Mathf.Lerp(rainBase, -80f, rainHeavyMix));
             if (_rainHeavyPlayer != null)
                 FadePlayerVolume(_rainHeavyPlayer, Mathf.Lerp(-80f, RainMaxVolume, rainHeavyMix));
 
             // Wind: same crossfade, starting a touch earlier (wind is audible before rain).
-            float windBase = intensity > 0.2f ? Mathf.Lerp(-80f, WindMaxVolume, Mathf.Clamp((intensity - 0.2f) / 0.4f, 0f, 1f)) : -80f;
-            float windHeavyMix = _windHeavyPlayer != null ? Mathf.Clamp((intensity - 0.5f) / 0.4f, 0f, 1f) : 0f;
+            float windBase = _windWanted && intensity > 0.2f ? Mathf.Lerp(-80f, WindMaxVolume, Mathf.Clamp((intensity - 0.2f) / 0.4f, 0f, 1f)) : -80f;
+            float windHeavyMix = _windWanted && _windHeavyPlayer != null ? Mathf.Clamp((intensity - 0.5f) / 0.4f, 0f, 1f) : 0f;
             FadePlayerVolume(_windPlayer, Mathf.Lerp(windBase, -80f, windHeavyMix));
             if (_windHeavyPlayer != null)
                 FadePlayerVolume(_windHeavyPlayer, Mathf.Lerp(-80f, WindMaxVolume, windHeavyMix));
@@ -194,8 +211,17 @@ namespace Beep.ECS
         private void OnWeatherChanged(int weatherType)
         {
             if (!IsActive) return;
-            // Weather intensity is handled by SetWeatherIntensity() calls from WeatherSystemComponent
-            // This signal handler is reserved for future use (e.g., special sound cues)
+            // Gate the precipitation layers by weather TYPE (intensity drives their level). Rain hisses
+            // only for Rain/Storm; wind for the windy types. Everything else mutes those loops so the
+            // rain loop no longer plays generically through Snow/Sandstorm/Clear.
+            var type = (WeatherSystemComponent.WeatherType)weatherType;
+            _rainWanted = type is WeatherSystemComponent.WeatherType.Rain
+                              or WeatherSystemComponent.WeatherType.Storm;
+            _windWanted = type is WeatherSystemComponent.WeatherType.Storm
+                              or WeatherSystemComponent.WeatherType.Sandstorm
+                              or WeatherSystemComponent.WeatherType.Snow;
+            // Re-apply so the layers mute/unmute immediately for the new type.
+            if (_weather != null) SetWeatherIntensity(_weather.WeatherIntensity);
         }
 
         public override void _ExitTree()

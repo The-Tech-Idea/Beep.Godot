@@ -18,6 +18,12 @@ namespace Beep.ECS
         [Export] public float PauseDuration { get; set; } = 0.5f;
         [Export] public bool AutoStart { get; set; } = true;
 
+        /// <summary>Fired each time the platform arrives at a waypoint (its index into the waypoint
+        /// list). Lets gameplay react — open a door, play a clunk, trigger a trap.</summary>
+        [Signal] public delegate void WaypointReachedEventHandler(int index);
+        /// <summary>Fired when a Once-mode platform reaches its final waypoint and stops.</summary>
+        [Signal] public delegate void RunCompletedEventHandler();
+
         private AnimatableBody2D? _body;
         private Vector2[] _points;
         private int _target;
@@ -71,6 +77,7 @@ namespace Beep.ECS
             if (pos.DistanceTo(dest) <= step)
             {
                 _body.GlobalPosition = dest;
+                EmitSignal(SignalName.WaypointReached, _target);
                 AdvanceTarget();
                 _paused = true;
                 _pauseTimer = PauseDuration;
@@ -103,7 +110,7 @@ namespace Beep.ECS
             else // Once
             {
                 if (_target < _points.Length - 1) _target++;
-                else IsActive = false; // reached end, stop
+                else { IsActive = false; EmitSignal(SignalName.RunCompleted); } // reached end, stop
             }
         }
     }

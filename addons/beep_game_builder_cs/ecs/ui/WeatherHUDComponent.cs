@@ -104,10 +104,28 @@ namespace Beep.ECS.UI
 
             // React to weather/season changes immediately; the forecast/intensity/
             // time values are polled in _Process because they change continuously.
+            // Detach first so a repeated Bind() (it's public) doesn't stack duplicate handlers.
+            _ws.WeatherChanged -= OnWeatherChanged;
             _ws.WeatherChanged += OnWeatherChanged;
-            if (_seasonalComp != null) _seasonalComp.SeasonChanged += OnSeasonChanged;
+            if (_seasonalComp != null)
+            {
+                _seasonalComp.SeasonChanged -= OnSeasonChanged;
+                _seasonalComp.SeasonChanged += OnSeasonChanged;
+            }
             OnWeatherChanged((int)_ws.CurrentWeather);
             RefreshAll();
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Detach from the atmosphere producers. Without this, a HUD freed while the weather/
+            // seasonal components outlive it (HUD toggled off, or on a separate CanvasLayer torn
+            // down first) leaves the producer calling WeatherChanged/SeasonChanged into a freed HUD.
+            if (_ws != null && GodotObject.IsInstanceValid(_ws))
+                _ws.WeatherChanged -= OnWeatherChanged;
+            if (_seasonalComp != null && GodotObject.IsInstanceValid(_seasonalComp))
+                _seasonalComp.SeasonChanged -= OnSeasonChanged;
         }
 
         public override void _Process(double delta)

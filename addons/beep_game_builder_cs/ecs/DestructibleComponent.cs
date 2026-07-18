@@ -47,13 +47,25 @@ namespace Beep.ECS
             if (_broken) return;
             _broken = true;
 
-            if (GetParent() is not Node2D parent2D) return;
+            if (GetParent() is not Node2D parent2D)
+            {
+                // Break() positions debris/the Destroyed signal off the parent's world transform — a
+                // non-Node2D parent (plain Node/Control) makes the whole break a silent no-op and the
+                // latch then blocks retry. Attach to the StaticBody2D/AnimatableBody2D the doc names.
+                GD.PushWarning($"[{Name}] DestructibleComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Node2D — it cannot break. Attach it to the 2D body.");
+                return;
+            }
 
             if (DebrisScene != null)
             {
-                var debris = DebrisScene.Instantiate<Node2D>();
-                parent2D.GetParent()?.AddChild(debris);
-                debris.GlobalPosition = parent2D.GlobalPosition;
+                var debris = DebrisScene.InstantiateOrNull<Node2D>();
+                if (debris != null)
+                {
+                    parent2D.GetParent()?.AddChild(debris);
+                    debris.GlobalPosition = parent2D.GlobalPosition;
+                }
+                else
+                    GD.PushWarning($"[{Name}] DestructibleComponent's DebrisScene '{DebrisScene.ResourcePath}' does not root a Node2D — no debris spawned.");
             }
 
             // Loot is not this component's job — a sibling DropTableComponent rolls off the same

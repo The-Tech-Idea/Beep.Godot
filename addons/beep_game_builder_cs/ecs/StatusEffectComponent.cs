@@ -77,7 +77,10 @@ namespace Beep.ECS
                         return;
 
                     case StackBehavior.Stack:
-                        if (!existing.CanStack) return;  // Hit stack limit
+                        // Each stack is a separate ActiveEffect (StackCount stays 1), so cap on the
+                        // COUNT of this id, not existing.CanStack (which, at StackCount 1, was always
+                        // true and let stacks grow unbounded).
+                        if (ActiveEffects.Count(e => e.Id == id) >= maxStacks) return;
                         break;
                 }
             }

@@ -92,12 +92,15 @@ namespace Beep.ECS
             if (IsActive) Apply();   // the tint/clear-colour is what EnableDayNightCycle toggles
         }
 
-        /// <summary>Jump to a specific hour (save data, a "sleep" action, etc.).</summary>
+        /// <summary>Jump to a specific hour (save data, a "sleep" action, etc.). A forward jump past
+        /// midnight (e.g. 22:00 → 06:00) counts one day, so sleeping advances seasons.</summary>
         public void SetTimeOfDay(float hours)
         {
+            float prev = TimeOfDay;
             TimeOfDay = ((hours % 24f) + 24f) % 24f;
+            if (TimeOfDay < prev) DaysElapsed++;   // wrapped forward past midnight
             EmitSignal(SignalName.TimeOfDayChanged, TimeOfDay);
-            Apply();
+            if (IsActive) Apply();
         }
 
         /// <summary>Time of day normalised to 0..1, for HUDs and forecast bars.</summary>

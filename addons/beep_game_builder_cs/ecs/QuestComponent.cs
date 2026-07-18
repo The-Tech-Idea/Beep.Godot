@@ -22,17 +22,41 @@ namespace Beep.ECS
 
         public bool IsComplete { get; private set; }
 
+        // Per-instance progress, indexed to Objectives. Lives HERE, not on the QuestObjective
+        // resources — those are shared, authored definitions; writing progress onto them would make
+        // two quests sharing an objective share a count, and bake run state into the .tres.
+        private int[] _counts = System.Array.Empty<int>();
+
+        public override void _Ready()
+        {
+            base._Ready();
+            EnsureCounts();
+        }
+
+        private void EnsureCounts()
+        {
+            if (_counts.Length != Objectives.Length) _counts = new int[Objectives.Length];
+        }
+
+        /// <summary>Current progress toward objective <paramref name="index"/>.</summary>
+        public int GetProgress(int index) => (index >= 0 && index < _counts.Length) ? _counts[index] : 0;
+
+        /// <summary>Whether objective <paramref name="index"/> has met its RequiredCount.</summary>
+        public bool IsObjectiveComplete(int index)
+            => index >= 0 && index < Objectives.Length && GetProgress(index) >= Objectives[index].RequiredCount;
+
         /// <summary>Progress an objective by its target ID. Auto-completes when count met.</summary>
         public void ProgressObjective(string targetId, int amount = 1)
         {
             if (!IsActive || IsComplete) return;
+            EnsureCounts();
             for (int i = 0; i < Objectives.Length; i++)
             {
-                if (Objectives[i].TargetId == targetId && !Objectives[i].IsComplete)
+                if (Objectives[i].TargetId == targetId && !IsObjectiveComplete(i))
                 {
-                    Objectives[i].CurrentCount += amount;
-                    EmitSignal(SignalName.ObjectiveProgress, i, Objectives[i].CurrentCount, Objectives[i].RequiredCount);
-                    if (Objectives[i].IsComplete)
+                    _counts[i] += amount;
+                    EmitSignal(SignalName.ObjectiveProgress, i, _counts[i], Objectives[i].RequiredCount);
+                    if (IsObjectiveComplete(i))
                     {
                         EmitSignal(SignalName.ObjectiveCompleted, i);
                         CheckAllComplete();
@@ -46,9 +70,10 @@ namespace Beep.ECS
         public void CompleteObjective(int index)
         {
             if (index < 0 || index >= Objectives.Length) return;
-            if (!Objectives[index].IsComplete)
+            EnsureCounts();
+            if (!IsObjectiveComplete(index))
             {
-                Objectives[index].CurrentCount = Objectives[index].RequiredCount;
+                _counts[index] = Objectives[index].RequiredCount;
                 EmitSignal(SignalName.ObjectiveCompleted, index);
                 CheckAllComplete();
             }
@@ -56,8 +81,8 @@ namespace Beep.ECS
 
         private void CheckAllComplete()
         {
-            foreach (var obj in Objectives)
-                if (!obj.IsComplete) return;
+            for (int i = 0; i < Objectives.Length; i++)
+                if (!IsObjectiveComplete(i)) return;
             IsComplete = true;
             EmitSignal(SignalName.QuestCompleted);
         }
@@ -76,9 +101,9 @@ namespace Beep.ECS
         [Export] public ObjectiveType Type { get; set; } = ObjectiveType.Kill;
         [Export] public string TargetId { get; set; } = "";
         [Export] public int RequiredCount { get; set; } = 1;
-        [Export] public int CurrentCount { get; set; } = 0;
 
-        public bool IsComplete => CurrentCount >= RequiredCount;
-        public float Progress => RequiredCount > 0 ? Mathf.Clamp((float)CurrentCount / RequiredCount, 0f, 1f) : 1f;
+        // No CurrentCount / IsComplete / Progress here: this is the shared DEFINITION. Per-instance
+        // progress lives on QuestComponent (GetProgress / IsObjectiveComplete), because a `.tres`
+        // shared across quests must not carry run state.
     }
 }

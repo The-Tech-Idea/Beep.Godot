@@ -37,6 +37,9 @@ namespace Beep.ECS
         private float _lifetime;
         private Area2D? _area;
         private Node2D? _owner;
+        // When a ProjectileModifierComponent sibling owns movement (Homing/Bounce/Straight), THIS
+        // component must not also translate the node, or the projectile travels at ~2× speed.
+        private bool _movementDelegated;
 
         public override void _Ready()
         {
@@ -48,6 +51,7 @@ namespace Beep.ECS
                 return;
             }
 
+            _movementDelegated = GetSiblingComponent<ProjectileModifierComponent>() != null;
             _area.BodyEntered += OnBodyEntered;
             _area.AreaEntered += OnAreaEntered;
         }
@@ -102,8 +106,11 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint()) return;
             if (_area == null || !IsActive) return;
-            if (UseGravity) _velocity.Y += GravityStrength * (float)delta;
-            _area.Position += _velocity * (float)delta;
+            if (!_movementDelegated)   // a ProjectileModifierComponent sibling, if present, owns motion
+            {
+                if (UseGravity) _velocity.Y += GravityStrength * (float)delta;
+                _area.Position += _velocity * (float)delta;
+            }
             _lifetime -= (float)delta;
             if (_lifetime <= 0)
             {

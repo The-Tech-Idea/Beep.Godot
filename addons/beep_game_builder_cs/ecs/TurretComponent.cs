@@ -35,6 +35,8 @@ namespace Beep.ECS
         {
             base._Ready();
             _turret = GetParent() as Node2D;
+            if (_turret == null)
+                GD.PushWarning($"[{Name}] parent is not a Node2D — the turret has no position to fire from and will do nothing. Parent it to the turret body.");
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
             _pool = GetSiblingComponent<ObjectPoolComponent>();
         }
@@ -100,18 +102,13 @@ namespace Beep.ECS
             Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _turret.GlobalPosition;
             Vector2 dir = Vector2.FromAngle(_turret.Rotation);
 
-            Node proj;
-            if (_pool != null)
-            {
-                proj = _pool.Get() ?? ProjectileScene.Instantiate();
-                var root = GetTree().CurrentScene.GetNodeOrNull("Projectiles") ?? GetTree().CurrentScene;
-                if (proj.GetParent() == null) root.AddChild(proj);
-            }
-            else
-            {
-                proj = ProjectileScene.Instantiate();
-                GetTree().CurrentScene.AddChild(proj);
-            }
+            Node proj = _pool?.Get() ?? ProjectileScene.Instantiate();
+            // Recursive lookup: the Projectiles pool is nested under the level (LevelContainer/
+            // Level1/Projectiles), so a direct-child GetNodeOrNull never found it and bullets fell
+            // back to the scene root and outlived their level. Matches ShooterController.
+            var host = GetTree().CurrentScene.FindChild("Projectiles", recursive: true, owned: false)
+                       ?? GetTree().CurrentScene;
+            if (proj.GetParent() == null) host.AddChild(proj);
 
             if (proj is Node2D n2d)
             {

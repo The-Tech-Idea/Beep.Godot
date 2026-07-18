@@ -56,7 +56,9 @@ namespace Beep.ECS.UI
             if (_control == null) return;
             _showing = true;
 
-            _tooltipPanel = new Panel();
+            // TopLevel so an absolutely-positioned popup isn't re-laid-out (and mispositioned) when
+            // the control's parent is a Container.
+            _tooltipPanel = new Panel { TopLevel = true };
             var label = new Label { Text = TooltipText, AutowrapMode = TextServer.AutowrapMode.Word };
             label.AddThemeColorOverride("font_color", Colors.White);
             label.AddThemeFontSizeOverride("font_size", 12);

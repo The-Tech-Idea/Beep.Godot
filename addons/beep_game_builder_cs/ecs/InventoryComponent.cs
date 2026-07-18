@@ -341,8 +341,13 @@ namespace Beep.ECS
 
         public void Load(GameBuilder.GameStateData state)
         {
+            bool capacityChanged = MaxSlots != state.Inventory.MaxSlots;
             MaxSlots = state.Inventory.MaxSlots;
             Slots = new InventorySlot[MaxSlots];
+
+            // The grid was built for the pre-load MaxSlots in _Ready; if the save carries a different
+            // capacity, rebuild it or slots past the old count have no cell to render into.
+            if (capacityChanged) Callable.From(RebuildGrid).CallDeferred();
 
             foreach (var (itemId, quantity) in state.Inventory.Items)
             {

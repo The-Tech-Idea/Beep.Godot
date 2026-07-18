@@ -69,6 +69,16 @@ namespace Beep.ECS
             InventoryChanged += RefreshAllSlots;
         }
 
+        /// <summary>Rebuild the grid to the current MaxSlots/Columns and repaint. Used after a Load
+        /// that changed the capacity, so every slot has a cell.</summary>
+        private void RebuildGrid()
+        {
+            if (_grid == null) return;
+            _grid.Columns = Columns;
+            BuildSlots();
+            RefreshAllSlots();
+        }
+
         private void OnSlotUpdated(int slot) => RefreshSlot(slot);
 
         /// <summary>Refresh every slot from Slots[]. Called on InventoryChanged.</summary>

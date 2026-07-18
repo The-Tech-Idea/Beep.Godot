@@ -70,6 +70,8 @@ namespace Beep.ECS.UI
             _bar.MaxValue = max;
             _bar.Value = current;
 
+            if (max <= 0f || PhaseCount <= 0) return;   // guard 0/0 → NaN on a degenerate config
+
             // Phase transition: divide health into equal segments.
             int phase = Mathf.CeilToInt((current / max) * PhaseCount);
             if (phase != _currentPhase)

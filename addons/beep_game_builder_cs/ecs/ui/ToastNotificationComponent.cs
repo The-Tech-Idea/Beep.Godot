@@ -46,7 +46,9 @@ namespace Beep.ECS.UI
         {
             if (!IsActive) return;
 
-            var toast = new Panel();
+            // TopLevel so the absolutely-positioned toast isn't re-laid-out when this component is
+            // parented under a Container.
+            var toast = new Panel { TopLevel = true };
             toast.Size = ToastSize;
             toast.Position = new Vector2((GetViewport().GetVisibleRect().Size.X - ToastSize.X) / 2f, -ToastSize.Y);
 

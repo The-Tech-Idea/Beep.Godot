@@ -15,6 +15,11 @@ namespace Beep.ECS
         [Export] public float CurrentHealth { get; set; } = 100f;
         [Export] public float Armor { get; set; } = 0f;
         [Export] public float MaxArmor { get; set; } = 100f;
+
+        /// <summary>XP this entity is worth when killed. 0 = grants none. On death the killer —
+        /// the <see cref="GameDamage.Source"/> of the fatal hit — has its LevelingComponent (if any)
+        /// awarded this. This is the caller AddXp never had, so leveling can actually happen.</summary>
+        [Export] public float XpReward { get; set; } = 0f;
         [Export] public bool TemperatureAffectsHealth { get; set; } = true;
         [Export] public bool HungerAffectsHealth { get; set; } = true;
 
@@ -98,7 +103,14 @@ namespace Beep.ECS
             CurrentHealth = Mathf.Max(0, CurrentHealth - actual);
             EmitSignal(SignalName.Damaged, actual, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
-            if (CurrentHealth <= 0) EmitSignal(SignalName.Died);
+            if (CurrentHealth <= 0)
+            {
+                // Award the killer XP before announcing death. The fatal hit's Source is the killer;
+                // grant its LevelingComponent (if it has one) this entity's XpReward.
+                if (XpReward > 0f && damage.Source != null)
+                    EntityComponent.FindComponent<LevelingComponent>(damage.Source, false)?.AddXp(XpReward);
+                EmitSignal(SignalName.Died);
+            }
         }
 
         public void Heal(float amount)

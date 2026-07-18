@@ -276,8 +276,13 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       `ResistanceComponent`). Build-clean. **Still genuinely new / open:** `LapGate`/`LapTracker`
       (racing — another `AreaTrigger` subclass), `VehicleController` (racing), `SelectableComponent`
       (strategy/citybuilder), `GridPlacementComponent` (over the existing `BeepPathfindingGrid` A*),
-      `Match3Input`/`Match3View` (puzzle wiring), `CharacterStatsComponent`. **Read Phase 0 first** —
+      `Match3Input`/`Match3View` (puzzle wiring). **Read Phase 0 first** —
       9 of the original 16 proposals already existed. → `phase-6-missing-components.md`
+      **Also wired the dead `LevelingComponent`** (`AddXp`/`SpendPoints` had 0 callers, `StatPoints`
+      had no destination): a kill grants the killer XP via `GameDamage.Source` +
+      `HealthComponent.XpReward`, and `SpendPoints(stat, n)` allocates a permanent `StatModifier` to
+      the entity's `StatsComponent` — so kill→XP→level→spend→stat-rises is now reachable. This makes
+      the proposed `CharacterStatsComponent` unneeded: `StatsComponent` is the destination.
 - [~] **Phase 7 — Dependencies & time** — **Part B (time) done; this unblocks Phase 2.** New
       `TurnManager` autoload (a Lamport clock: `CurrentTurn` + `TurnEnded` + `EndTurn()`, static
       `Instance`), registered by the generator **only when** `genre.json tuning.time_axis == "turns"`

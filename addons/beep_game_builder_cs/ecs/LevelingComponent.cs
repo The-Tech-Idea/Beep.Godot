@@ -27,6 +27,14 @@ namespace Beep.ECS
         public int StatPoints { get; set; }
         public bool IsMaxLevel => Level >= MaxLevel;
 
+        private StatsComponent? _stats;
+
+        public override void _Ready()
+        {
+            base._Ready();
+            _stats = GetSiblingComponent<StatsComponent>();
+        }
+
         /// <summary>Grant XP. Automatically levels up if threshold exceeded.</summary>
         public void AddXp(float amount)
         {
@@ -47,11 +55,26 @@ namespace Beep.ECS
                 EmitSignal(SignalName.MaxLevelReached);
         }
 
-        /// <summary>Spend stat points. Returns true if successful.</summary>
-        public bool SpendPoints(int amount)
+        /// <summary>Spend stat points to PERMANENTLY raise a stat — the destination StatPoints never
+        /// had. Adds a permanent <see cref="StatModifier"/> (<c>{stat, Add, points × amountPerPoint}</c>,
+        /// Duration &lt; 0) to the entity's <see cref="StatsComponent"/>. Returns false if there aren't
+        /// enough points, or if there is no StatsComponent to raise (warns rather than eating the
+        /// points silently).</summary>
+        public bool SpendPoints(StringName stat, int points, float amountPerPoint = 1f)
         {
-            if (StatPoints < amount) return false;
-            StatPoints -= amount;
+            if (points <= 0 || StatPoints < points) return false;
+            if (_stats == null)
+            {
+                GD.PushWarning(
+                    $"[{Name}] SpendPoints: no sibling StatsComponent — the points have nowhere to go. " +
+                    $"Add a StatsComponent to raise '{stat}'.");
+                return false;
+            }
+            StatPoints -= points;
+            _stats.AddModifier(new StatModifier
+            {
+                Stat = stat, Op = StatOp.Add, Amount = points * amountPerPoint, Duration = -1f, Source = this
+            });
             return true;
         }
     }

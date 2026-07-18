@@ -57,7 +57,8 @@ namespace Beep.ECS.UI
             if (show != null)
             {
                 show.Visible = true;
-                show.Scale = new Vector2(-show.Scale.X, show.Scale.Y);
+                // No scale negation: the container's own scale:x tween (1→0→1) already produces the
+                // flip. Negating each face's X here mirrored the revealed face every other flip.
             }
         }
 

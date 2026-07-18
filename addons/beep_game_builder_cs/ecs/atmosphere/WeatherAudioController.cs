@@ -34,7 +34,9 @@ namespace Beep.ECS
         private AudioStreamPlayer? _ambientPlayer;
         private WeatherSystemComponent? _weather;
         private int _weatherBusIndex = -1;
-        private Tween? _fadeTween;
+        // One tween PER player: a single shared field killed sibling fades — SetWeatherIntensity's
+        // three back-to-back Fades (rain, wind, ambient) all cancelled but the last.
+        private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
 
         public override void _Ready()
         {
@@ -152,9 +154,10 @@ namespace Beep.ECS
         private void FadePlayerVolume(AudioStreamPlayer? player, float targetDb)
         {
             if (player == null) return;
-            _fadeTween?.Kill();
-            _fadeTween = CreateTween();
-            _fadeTween.TweenProperty(player, "volume_db", targetDb, CrossFadeDuration);
+            if (_fades.TryGetValue(player, out var old) && GodotObject.IsInstanceValid(old)) old.Kill();
+            var tw = CreateTween();
+            tw.TweenProperty(player, "volume_db", targetDb, CrossFadeDuration);
+            _fades[player] = tw;
         }
 
         private void OnWeatherChanged(int weatherType)
@@ -166,7 +169,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            _fadeTween?.Kill();
+            foreach (var t in _fades.Values) if (GodotObject.IsInstanceValid(t)) t.Kill();
             if (_rainPlayer != null && _rainPlayer.Playing) _rainPlayer.Stop();
             if (_windPlayer != null && _windPlayer.Playing) _windPlayer.Stop();
             if (_ambientPlayer != null && _ambientPlayer.Playing) _ambientPlayer.Stop();

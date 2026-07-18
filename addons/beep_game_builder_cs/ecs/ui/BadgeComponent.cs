@@ -50,6 +50,10 @@ namespace Beep.ECS.UI
 
             _control.AddChild(_badgePanel);
             _badgePanel.ZIndex = 10;
+
+            // Render the scene-authored Count now. _Ready's UpdateBadge ran before this deferred
+            // build, so the panel existed to draw into only from here — an initial Count showed blank.
+            UpdateBadge();
         }
 
         public void SetCount(int count)

@@ -25,7 +25,10 @@ namespace Beep.ECS
         private AudioStreamPlayer? _thunderPlayer;
         private bool _inCombat;
         private WeatherSystemComponent? _weather;
-        private Tween? _crossfadeTween;
+        // One tween PER player: a single shared field killed the previous fade on every call, so
+        // EnterCombat's two Crossfades (duck ambient, raise combat) cancelled each other — only the
+        // last player ever faded.
+        private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
 
         public override void _Ready()
         {
@@ -114,9 +117,10 @@ namespace Beep.ECS
         private void Crossfade(AudioStreamPlayer? player, float targetDb)
         {
             if (player == null) return;
-            _crossfadeTween?.Kill();
-            _crossfadeTween = CreateTween();
-            _crossfadeTween.TweenProperty(player, "volume_db", targetDb, CrossfadeDuration);
+            if (_fades.TryGetValue(player, out var old) && GodotObject.IsInstanceValid(old)) old.Kill();
+            var tw = CreateTween();
+            tw.TweenProperty(player, "volume_db", targetDb, CrossfadeDuration);
+            _fades[player] = tw;
         }
 
         private void OnLightningStruck()
@@ -128,7 +132,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            _crossfadeTween?.Kill();
+            foreach (var t in _fades.Values) if (GodotObject.IsInstanceValid(t)) t.Kill();
             if (_ambientPlayer != null && _ambientPlayer.Playing) _ambientPlayer.Stop();
             if (_combatPlayer != null && _combatPlayer.Playing) _combatPlayer.Stop();
             if (_thunderPlayer != null && _thunderPlayer.Playing) _thunderPlayer.Stop();

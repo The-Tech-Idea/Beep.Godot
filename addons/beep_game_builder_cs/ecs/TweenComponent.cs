@@ -76,6 +76,7 @@ namespace Beep.ECS
                     var startPos = node.Get("position").AsVector2();
                     for (int i = 0; i < 5; i++)
                         _tween.TweenProperty(node, "position", startPos + new Vector2(GD.Randf() * 8 - 4, GD.Randf() * 8 - 4), 0.04f);
+                    _tween.TweenProperty(node, "position", startPos, 0.04f);   // settle back, or the node stayed offset
                     break;
                 case Preset.Pulse:
                     _tween.SetLoops(0);
@@ -94,6 +95,10 @@ namespace Beep.ECS
                     _tween.TweenProperty(node, "offset_transform_rotation", 0f, 0.1f);
                     break;
                 default:
+                    // ~10 enum presets (SlideOut, ScaleUp/Down, RotateIn/Out, Flip, Float, …) have no
+                    // case and land here, producing a generic scale-reset that looks nothing like the
+                    // chosen preset. Warn rather than fail silently until they're implemented.
+                    GD.PushWarning($"[{Name}] Animation preset '{Animation}' is not implemented — using a scale reset. Pick a defined preset or implement it.");
                     _tween.TweenProperty(node, "scale", Vector2.One, Duration);
                     break;
             }

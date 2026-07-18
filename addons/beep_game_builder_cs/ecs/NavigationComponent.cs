@@ -59,12 +59,13 @@ namespace Beep.ECS
                     string name = btn.Name.ToString().ToLowerInvariant();
                     if (ButtonNameToAction.TryGetValue(name, out string action))
                     {
-                        // Only connect if not already connected (avoid double-firing).
-                        if (!btn.IsConnected(Button.SignalName.Pressed, new Callable(this, nameof(Dispatch))))
-                        {
-                            string a = action; // capture for lambda
-                            btn.Pressed += () => Dispatch(a);
-                        }
+                        // If the scene already wired this button's Pressed (an explicit .tscn
+                        // [connection]), respect it and don't add a second handler. The old guard
+                        // tested IsConnected(Dispatch), but the auto-wire connects a lambda, so it
+                        // never matched — a button with a .tscn connection fired twice.
+                        if (btn.GetSignalConnectionList(Button.SignalName.Pressed).Count > 0) return;
+                        string a = action; // capture for lambda
+                        btn.Pressed += () => Dispatch(a);
                     }
                 }
             });

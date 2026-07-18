@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            _displayValue = Mathf.Lerp(_displayValue, Value / MaxValue, AnimSpeed * (float)delta);
+            _displayValue = Mathf.Lerp(_displayValue, MaxValue > 0f ? Value / MaxValue : 0f, AnimSpeed * (float)delta);
             QueueRedraw();
         }
 

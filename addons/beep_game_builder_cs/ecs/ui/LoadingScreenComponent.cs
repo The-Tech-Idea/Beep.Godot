@@ -78,12 +78,27 @@ namespace Beep.ECS.UI
             if (_bar != null && progress.Count > 0)
                 _bar.Value = progress[0].AsSingle() * 100f;
 
+            if (status is ResourceLoader.ThreadLoadStatus.Failed or ResourceLoader.ThreadLoadStatus.InvalidResource)
+            {
+                // Don't sit on the loading screen forever with nothing logged (the old code only
+                // handled Loaded). Report and give up.
+                GD.PushError($"[{Name}] Threaded load of '{_pendingPath}' failed ({status}).");
+                _pendingPath = null;
+                Hide();
+                return;
+            }
+
             if (status == ResourceLoader.ThreadLoadStatus.Loaded && _minTimer <= 0)
             {
                 // Loading complete + minimum display time elapsed → swap scene.
+                if (ResourceLoader.LoadThreadedGet(_pendingPath) is not PackedScene packed)
+                {
+                    GD.PushError($"[{Name}] '{_pendingPath}' loaded but is not a PackedScene.");
+                    _pendingPath = null;
+                    Hide();
+                    return;
+                }
                 EmitSignal(SignalName.LoadComplete);
-                var packed = (PackedScene)ResourceLoader.LoadThreadedGet(_pendingPath);
-                string p = _pendingPath;
                 _pendingPath = null;
                 GetTree().ChangeSceneToPacked(packed);
             }

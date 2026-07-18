@@ -10,7 +10,9 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class ScreenShakeComponent : ControllerComponent
     {
-        [Export] public float DefaultIntensity { get; set; } = 5f;
+        // 40 (not 5): shake is (trauma/MaxTrauma)^2 * 20px, so a trauma of 5 on the 0..100 scale is
+        // ~0.05px — invisible. 40 gives a moderate, visible default shake.
+        [Export] public float DefaultIntensity { get; set; } = 40f;
         [Export] public float DefaultDuration { get; set; } = 0.3f;
         [Export] public float MaxTrauma { get; set; } = 100f;
 
@@ -20,6 +22,7 @@ namespace Beep.ECS
         private Camera2D? _cam;
         private float _trauma;
         private float _traumaDuration = 1f;
+        private float _decayPerSec = 1f;
 
         public override void _Ready()
         {
@@ -34,6 +37,9 @@ namespace Beep.ECS
             float amount = intensity > 0 ? intensity : DefaultIntensity;
             _trauma = Mathf.Clamp(_trauma + amount, 0f, MaxTrauma);
             _traumaDuration = duration > 0 ? duration : DefaultDuration;
+            // Decay so the shake lasts _traumaDuration REGARDLESS of magnitude. The old fixed
+            // delta/duration made time-to-zero = trauma * duration, so Shake(100, 0.3) ran ~30s.
+            _decayPerSec = _traumaDuration > 0 ? _trauma / _traumaDuration : _trauma;
             EmitSignal(SignalName.ShakeStarted, _trauma, _traumaDuration);
         }
 
@@ -41,7 +47,7 @@ namespace Beep.ECS
         {
             if (_cam == null || _trauma <= 0) return;
 
-            _trauma = Mathf.Max(0, _trauma - (float)delta / _traumaDuration);
+            _trauma = Mathf.Max(0, _trauma - _decayPerSec * (float)delta);
             float trauma01 = _trauma / MaxTrauma;
             float shake = trauma01 * trauma01;
             _cam.Offset = new Vector2(

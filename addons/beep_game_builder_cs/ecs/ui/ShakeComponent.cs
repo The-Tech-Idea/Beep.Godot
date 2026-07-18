@@ -21,6 +21,9 @@ namespace Beep.ECS.UI
         // Each target shakes around its own original position.
         private readonly Dictionary<Godot.Control, Vector2> _origPos = new();
         private float _elapsed;
+        // The ACTIVE shake's values — a one-shot Shake(50) must not overwrite the configured Intensity.
+        private float _activeIntensity = 10f;
+        private float _activeDuration = 0.3f;
 
         public void Shake(float intensity = -1, float duration = -1)
         {
@@ -30,26 +33,26 @@ namespace Beep.ECS.UI
                 if (GodotObject.IsInstanceValid(c))
                     _origPos[c] = c.Position;
             _elapsed = 0;
-            Intensity = intensity > 0 ? intensity : Intensity;
-            Duration = duration > 0 ? duration : Duration;
+            _activeIntensity = intensity > 0 ? intensity : Intensity;   // don't clobber the exports
+            _activeDuration = duration > 0 ? duration : Duration;
             EmitSignal(SignalName.ShakeStarted);
         }
 
         public override void _Process(double delta)
         {
-            if (_elapsed >= Duration || _origPos.Count == 0) return;
+            if (_elapsed >= _activeDuration || _origPos.Count == 0) return;
             _elapsed += (float)delta;
-            float decay = 1f - (_elapsed / Duration);
+            float decay = 1f - (_elapsed / _activeDuration);
 
             foreach (var (c, orig) in _origPos)
             {
                 if (!GodotObject.IsInstanceValid(c)) continue;
-                float x = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
-                float y = (float)(GD.Randf() * 2 - 1) * Intensity * decay;
+                float x = (float)(GD.Randf() * 2 - 1) * _activeIntensity * decay;
+                float y = (float)(GD.Randf() * 2 - 1) * _activeIntensity * decay;
                 c.Position = orig + new Vector2(x, y);
             }
 
-            if (_elapsed >= Duration)
+            if (_elapsed >= _activeDuration)
             {
                 foreach (var (c, orig) in _origPos)
                     if (GodotObject.IsInstanceValid(c)) c.Position = orig;

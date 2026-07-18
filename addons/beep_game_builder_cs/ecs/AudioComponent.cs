@@ -42,7 +42,13 @@ namespace Beep.ECS
             if (AutoPlay) Play();
         }
 
-        private void OnPlayerFinished() => EmitSignal(SignalName.Finished);
+        private void OnPlayerFinished()
+        {
+            EmitSignal(SignalName.Finished);
+            // Honour the Loop export (it was previously exported and never read): replay when the
+            // stream ends. Works for any stream without needing per-format loop flags.
+            if (Loop && IsActive && _player != null) _player.Play();
+        }
 
         public void Play()
         {

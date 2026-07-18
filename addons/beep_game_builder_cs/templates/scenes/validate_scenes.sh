@@ -168,5 +168,38 @@ for f in $(find . -name "*.tscn" | sort); do
   [ -n "$out" ] && { echo "$out"; found=1; fail=1; }
 done; rm -f "$EXPORT_LIST"; [ $found -eq 0 ] && echo "  ok"
 
+# Archetype: some components resolve their parent as an Area2D (BodyEntered/BodyExited) and
+# do nothing at all when the parent is a different node — silently. This caught the live
+# InteractableComponent-on-a-CharacterBody2D bug that made the topdown player unable to
+# interact with anything. Resolve each script-bearing node's PARENT type and flag the mismatch.
+echo "--- Area2D-parented components actually have an Area2D parent ---"; found=0
+for f in $(find . -name "*.tscn" | sort); do
+  out=$(awk -v F="$f" '
+    /^\[ext_resource type="Script"/ {
+      id=""; p=""
+      if (match($0,/id="[^"]+"/))   id=substr($0,RSTART+4,RLENGTH-5)
+      if (match($0,/path="[^"]+"/)) { p=substr($0,RSTART+6,RLENGTH-7); sub(/.*\//,"",p) }
+      script[id]=p; next }
+    /^\[node / {
+      name=""; type=""; parent="__ROOT__"
+      if (match($0,/name="[^"]+"/))    name=substr($0,RSTART+6,RLENGTH-7)
+      if (match($0,/type="[^"]+"/))    type=substr($0,RSTART+6,RLENGTH-7)
+      if (match($0,/parent="[^"]*"/))  parent=substr($0,RSTART+8,RLENGTH-9)
+      if (parent=="__ROOT__") { nodeType["."]=type }
+      else { mypath=(parent=="." ? name : parent"/"name); nodeType[mypath]=type }
+      curParent=parent; curName=name; next }
+    /^script = ExtResource\(/ {
+      id=""
+      if (match($0,/ExtResource\("[^"]+"\)/)) id=substr($0,RSTART+13,RLENGTH-15)
+      base=(id in script)?script[id]:""
+      if (base ~ /^(Pickup|Interactable|DoorSwitch|Checkpoint|Projectile)Component\.cs$/ && curParent!="__ROOT__") {
+        ptype=(curParent in nodeType)?nodeType[curParent]:""     # "" = instanced/untyped parent, cannot judge
+        if (ptype!="" && ptype!="Area2D")
+          print "  " F ": node \"" curName "\" (" base ") needs an Area2D parent but its parent is " ptype
+      }
+    }' "$f")
+  [ -n "$out" ] && { echo "$out"; found=1; fail=1; }
+done; [ $found -eq 0 ] && echo "  ok"
+
 [ $fail -eq 0 ] && echo "PASS: all scenes valid" || echo "FAIL: see above"
 exit $fail

@@ -253,8 +253,16 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       `[sub_resource]`; it now tracks node context (verified it still catches a real
       script-on-CharacterBody2D). ⚠ The scripted sub-resource itself needs an editor pass to confirm
       it instantiates (CLI can't run Godot). → `phase-4-pickups-and-drops.md`
-- [ ] **Phase 5 — Archetypes per genre** — required / optional / **must not have**, and make
-      "must not" checkable. → `phase-5-archetypes-per-genre.md`
+- [~] **Phase 5 — Archetypes per genre** — **the "must not" is now checkable.** `validate_scenes.sh`
+      gained an archetype check: it resolves each script-bearing node's **parent type** and flags an
+      Area2D-required component (`Pickup`/`Interactable`/`DoorSwitch`/`Checkpoint`/`Projectile`) whose
+      parent isn't an `Area2D` — proven to fail on a synthetic bad scene. It **caught the two live
+      bugs** the plan named: `InteractableComponent` on a `CharacterBody2D` in `robot_npc_template`
+      (reparented under its `DetectionArea` Area2D — its semantics were right) and `topdown_main`
+      (removed from the Player — the player is the interactor, not the interactable). Validator PASS.
+      **Still open:** `docs/ARCHETYPES.md` reference tables (the developer-facing doc), more checks
+      (e.g. `HealthComponent` on a projectile node), and `_Ready` warnings for the remaining silent
+      Area2D casts. → `phase-5-archetypes-per-genre.md`
 - [ ] **Phase 6 — Missing components** — ranked by leverage. **Read Phase 0 first** — 9 of the 16
       proposals already exist. → `phase-6-missing-components.md`
 - [~] **Phase 7 — Dependencies & time** — **Part B (time) done; this unblocks Phase 2.** New

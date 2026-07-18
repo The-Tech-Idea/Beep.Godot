@@ -35,12 +35,6 @@ AggroRange = 300.0
 DeaggroRange = 500.0
 ThreatDecayRate = 5.0
 
-[node name="Interactable" type="Node" parent="."]
-script = ExtResource("4_interact")
-PromptText = "Talk"
-InputAction = "interact"
-Toggleable = false
-
 [node name="HealthBar" type="Node" parent="."]
 script = ExtResource("5_healthbar")
 
@@ -48,3 +42,9 @@ script = ExtResource("5_healthbar")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
 shape = SubResource("CircleShape2D_detection")
+
+[node name="Interactable" type="Node" parent="DetectionArea"]
+script = ExtResource("4_interact")
+PromptText = "Talk"
+InputAction = "interact"
+Toggleable = false

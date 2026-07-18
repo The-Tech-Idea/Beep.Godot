@@ -173,6 +173,10 @@ func play() -> void:
 	if _targets.is_empty():
 		_resolve_targets()
 	if _targets.is_empty():
+		# Nothing to animate — most often a SELF/CHILDREN scope on a non-Control parent.
+		# Say so rather than returning in silence (theme_applier.gd warns in the same case).
+		if not Engine.is_editor_hint():
+			push_warning("[%s] BeepUIEffect.play() resolved no targets (scope=%d) — nothing will animate. For SELF/CHILDREN the parent must be a Control; otherwise use SCENE/GLOBAL scope." % [name, scope])
 		return
 	stop()
 	_is_playing = true

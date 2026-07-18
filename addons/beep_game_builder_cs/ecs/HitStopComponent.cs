@@ -19,20 +19,26 @@ namespace Beep.ECS
         [Signal] public delegate void HitStopTriggeredEventHandler();
 
         private bool _frozen;
-        private float _freezeTimer;
+        private ulong _freezeEndMsec;
         private double _priorTimeScale = 1.0;   // restore THIS, not a literal 1, so slow-mo/pause survives
+        private HealthComponent? _health;
 
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(WireToHealth));
+            if (Engine.IsEditorHint()) return;
+            Callable.From(WireToHealth).CallDeferred();
         }
 
         private void WireToHealth()
         {
-            var health = GetSiblingComponent<HealthComponent>();
-            if (health != null)
-                health.Damaged += OnDamaged;
+            _health = GetSiblingComponent<HealthComponent>();
+            if (_health != null)
+                _health.Damaged += OnDamaged;
+            else
+                // Entirely signal-driven — with no Health sibling it produces zero hit-stop and used
+                // to do so in silence. Add it beside a HealthComponent on the same entity.
+                GD.PushWarning($"[{Name}] HitStopComponent found no sibling HealthComponent — no hit-stop will ever trigger. Add it beside a HealthComponent.");
         }
 
         private void OnDamaged(float amount, float newHealth)
@@ -40,7 +46,10 @@ namespace Beep.ECS
             if (!IsActive || amount < MinDamageThreshold) return;
             if (_frozen) return;
             _frozen = true;
-            _freezeTimer = FreezeDuration;
+            // Wall-clock deadline (Time.GetTicksMsec is unscaled), so the freeze lasts the same real
+            // duration at any framerate — the old fixed -0.016f/frame decrement made it ~2× longer at
+            // 30 fps and half as long at 120 fps, and delta itself is 0 while TimeScale is 0.
+            _freezeEndMsec = Time.GetTicksMsec() + (ulong)(FreezeDuration * 1000f);
             _priorTimeScale = Engine.TimeScale;   // capture what was running (slow-mo, etc.)
             Engine.TimeScale = 0f;
             EmitSignal(SignalName.HitStopTriggered);
@@ -49,9 +58,7 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (!_frozen) return;
-            // delta is 0 when time scale is 0, so use a fixed real-time decrement.
-            _freezeTimer -= 0.016f;
-            if (_freezeTimer <= 0)
+            if (Time.GetTicksMsec() >= _freezeEndMsec)
             {
                 _frozen = false;
                 Engine.TimeScale = _priorTimeScale;   // restore what was running, not a literal 1
@@ -64,9 +71,8 @@ namespace Beep.ECS
             // TimeScale would be stuck at 0, freezing the whole game. Restore it here.
             if (_frozen) { Engine.TimeScale = _priorTimeScale; _frozen = false; }
 
-            var health = GetSiblingComponent<HealthComponent>();
-            if (health != null)
-                health.Damaged -= OnDamaged;
+            if (_health != null)
+                _health.Damaged -= OnDamaged;
         }
     }
 }

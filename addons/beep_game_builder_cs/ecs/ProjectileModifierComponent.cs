@@ -28,6 +28,7 @@ namespace Beep.ECS
         private Node2D? _body;
         private Vector2 _velocity;
         private int _bounces;
+        private bool _warnedBounceParent;
 
         public override void _Ready()
         {
@@ -35,6 +36,10 @@ namespace Beep.ECS
             _body = GetParent() as Node2D;
             if (_body != null)
                 _velocity = Vector2.FromAngle(_body.Rotation) * Speed;
+            else if (!Engine.IsEditorHint())
+                // Every mode moves _body — a non-Node2D parent makes this modifier a silent no-op
+                // (and if a sibling ProjectileComponent delegated motion to it, the projectile freezes).
+                GD.PushWarning($"[{Name}] ProjectileModifierComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Node2D — the projectile will not move. Parent it under the projectile Area2D/CharacterBody2D.");
         }
 
         /// <summary>Called by <see cref="ProjectileComponent.Launch"/> so a spawner's fire
@@ -79,6 +84,18 @@ namespace Beep.ECS
                         {
                             cb.QueueFree();
                         }
+                    }
+                    else
+                    {
+                        // Bounce needs a CharacterBody2D (MoveAndSlide + collision normals). On an
+                        // Area2D it can't detect walls — rather than freeze the projectile silently,
+                        // fly straight and say so once so the misconfig is visible, not invisible.
+                        if (!_warnedBounceParent)
+                        {
+                            _warnedBounceParent = true;
+                            GD.PushWarning($"[{Name}] Bounce mode requires a CharacterBody2D parent for wall reflection; parent is {_body.GetType().Name} — flying straight instead.");
+                        }
+                        _body.GlobalPosition += _velocity * (float)delta;
                     }
                     break;
 

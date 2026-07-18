@@ -28,8 +28,20 @@ from Kenney if you need them; they drop straight into this folder.
 | `trace_01.png` | `rain_drops.tscn`, weather Rain/Storm |
 | `circle_05.png` | `simple_burst_particles.tscn`, weather Snow |
 | `circle_02.png` | weather Hail |
-| `dirt_02.png` | `blood_splatter.tscn`, weather Sandstorm |
+| `dirt_02.png` | `blood_splatter.tscn`, `dust_puff.tscn`, weather Sandstorm |
 | `light_02.png` | spare — glows/pickups |
+| `muzzle_01.png` | `muzzle_flash.tscn` |
+| `smoke_07.png` | `death_smoke.tscn` |
+| `flare_01.png` | `heal_glow.tscn` |
+| `star_04.png` | also `sparkle_pickup.tscn` |
+
+## Explosion flipbook (`../explosions/`)
+
+Source: **Kenney "Platformer Art: Pixel Redux / Explosions"** (kenney.nl), CC0 1.0.
+`regularExplosion00.png … regularExplosion08.png` — a 9-frame animation used by
+`templates/particles/explosion_anim.tscn` (an `AnimatedSprite2D`), driven by
+`SpriteEffectComponent`. Unlike the GPUParticles2D presets, this is a hand-drawn
+frame animation for a punchier one-shot blast.
 
 ## Notes
 

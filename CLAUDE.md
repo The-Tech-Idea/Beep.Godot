@@ -57,18 +57,18 @@ Beep.Godot/
 ├── project.godot             ← Godot editor config (both plugins enabled)
 ├── addons/
 │   ├── beep_game_builder_cs/
-│   │   ├── core/             ← Generators (Project, Scene, Script, Shader, Tween, Particle, Projectile, InputMap)
+│   │   ├── core/             ← Generators (Genre, Project, InputMap) + core utilities (state machine, data grid, form builder, GameInfo, …). No separate Scene/Script/Shader/Tween/Particle/Projectile generators — the Genre generator emits those as output, and particle/projectile content ships as .tscn templates.
 │   │   ├── ecs/              ← ~60 gameplay components (Health, Movement, AI, Projectile, etc.)
 │   │   ├── ecs/ui/           ← ~60 UI components (Menu, Dialog, Table, Toast, Carousel, Accordion, etc.)
 │   │   ├── ui/               ← Editor dock (BeepGameBuilderDock.cs)
 │   │   ├── mcp/              ← MCP bridge for AI agents (WebSocket, auto-enabled)
-│   │   ├── catalogs/         ← JSON data (skins, shaders, tweens, particles, projectiles)
+│   │   ├── catalogs/         ← JSON data (skins/ only; shaders/tweens/particles/projectiles ship as .tscn templates, not JSON catalogs)
 │   │   │   └── skins/        ← genre/{platformer,topdown,shooter,puzzle,rpg,survival,racing,citybuilder,strategy,cardgame}/(genre.json, geometry.json, themes/)
 │   │   ├── templates/        ← Scene & script templates (auto-copied by generator)
 │   │   └── generated/        ← Output folder (populated when user runs generators via dock)
 │   └── beep_ui/
 │       ├── theme/            ← Theme system (BeepPreset, 22 preset_*.gd presets, theme_applier.gd)
-│       ├── effects/          ← 11 effect types (Fade, Scale, Tint, Blur, Shake, Glow, etc.)
+│       ├── effects/          ← ui_effect.gd: 11 effect types (Slide, Shake, Pulse, Bob, Flash, Glitch, Rotate, Fade, Typewriter, Bounce, Offset)
 │       ├── widgets/          ← 114 widget factory entries (drag-and-drop UI prefabs)
 │       └── editor/           ← Theme Studio dock (theme_studio.gd)
 └── docs/                     ← Architecture reference

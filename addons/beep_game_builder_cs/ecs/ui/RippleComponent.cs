@@ -22,8 +22,9 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;   // don't wire GuiInput / spawn ColorRects at edit time
             // After ResolveTargets runs (deferred), hook GuiInput on each target.
-            CallDeferred(nameof(HookInputs));
+            Callable.From(HookInputs).CallDeferred();
         }
 
         private void HookInputs()

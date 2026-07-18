@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/particles/smoke_07.png" id="tex"]
+
+[sub_resource type="ParticleProcessMaterial" id="1"]
+emission_shape = 0
+spread = 40.0
+direction = Vector3(0, -1, 0)
+gravity = Vector3(0, -40, 0)
+initial_velocity_min = 30.0
+initial_velocity_max = 90.0
+scale_min = 0.6
+scale_max = 1.6
+color = Color(0.25, 0.25, 0.28, 0.75)
+damping_min = 1.0
+damping_max = 2.5
+
+[node name="DeathSmoke" type="GPUParticles2D"]
+texture = ExtResource("tex")
+amount = 16
+one_shot = true
+explosiveness = 0.85
+lifetime = 0.9
+process_material = SubResource(1)

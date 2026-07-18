@@ -31,8 +31,10 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            // Defer so the parent's full subtree is in the tree before we scan it.
-            CallDeferred(nameof(ResolveTargets));
+            // Defer so the parent's full subtree is in the tree before we scan it. Callable.From
+            // binds the delegate directly, so it doesn't depend on the source generator registering
+            // the method name (CLAUDE.md's stated preference over CallDeferred(nameof(...))).
+            Callable.From(ResolveTargets).CallDeferred();
         }
 
         /// <summary>Populate <see cref="Targets"/>: the parent alone, or the parent

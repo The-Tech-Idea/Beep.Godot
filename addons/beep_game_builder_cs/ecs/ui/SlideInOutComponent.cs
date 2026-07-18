@@ -21,6 +21,11 @@ namespace Beep.ECS.UI
         [Export] public float Distance { get; set; } = 100f;
         [Export] public bool HiddenOnStart { get; set; } = true;
 
+        /// <summary>Auto-play SlideIn() once on load. On by default so a component dropped on a menu
+        /// with the default HiddenOnStart reveals itself, instead of hiding the parent forever with
+        /// nothing to un-hide it. Turn off to drive SlideIn()/SlideOut() purely from code.</summary>
+        [Export] public bool PlayOnReady { get; set; } = true;
+
         [Signal] public delegate void SlidInEventHandler();
         [Signal] public delegate void SlidOutEventHandler();
 
@@ -34,7 +39,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(InitTargets));
+            Callable.From(InitTargets).CallDeferred();
         }
 
         private void InitTargets()
@@ -53,6 +58,13 @@ namespace Beep.ECS.UI
                     c.Visible = false;
                 }
             }
+
+            // Reveal on load by default. Without this, HiddenOnStart hid the parent and nothing ever
+            // un-hid it unless game code called SlideIn() — a menu with the component read as broken.
+            if (PlayOnReady)
+                Callable.From(SlideIn).CallDeferred();
+            else if (HiddenOnStart)
+                GD.PushWarning($"[{Name}] SlideInOutComponent hid its target(s) (HiddenOnStart) with PlayOnReady off — they stay invisible until something calls SlideIn().");
         }
 
         public void SlideIn()

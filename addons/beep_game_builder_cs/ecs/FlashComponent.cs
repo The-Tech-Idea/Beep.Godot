@@ -38,6 +38,10 @@ namespace Beep.ECS
                 _damagedHandler = (amount, health) => Flash();
                 _health.Damaged += _damagedHandler;
             }
+            else if (FlashOnDamage && !Engine.IsEditorHint())
+                // FlashOnDamage is on by default, so an entity with no Health sibling silently never
+                // flashes on damage. Add a HealthComponent beside this, or turn FlashOnDamage off.
+                GD.PushWarning($"[{Name}] FlashOnDamage is on but there is no sibling HealthComponent — it will never flash on damage. Add a HealthComponent or disable FlashOnDamage.");
         }
 
         public void Flash()

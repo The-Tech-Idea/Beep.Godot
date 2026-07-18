@@ -41,11 +41,14 @@ namespace Beep.ECS
 
             public float Progress => TotalDuration > 0 ? 1f - (Duration / TotalDuration) : 1f;
 
-            /// <summary>A negative authored Duration means permanent: it never ticks down and
-            /// never expires. This is the channel a level-up upgrade / equipment modifier lives
-            /// in — a duration-0 status was the only "modifier" shape before, and it expired on
-            /// the first frame. (Duration == 0 remains a valid instantaneous effect.)</summary>
-            public bool IsPermanent => Duration < 0f;
+            /// <summary>A negative AUTHORED duration (TotalDuration) means permanent: it never ticks
+            /// down and never expires. This must read TotalDuration, NOT the live Duration — the live
+            /// value is decremented every frame and overshoots 0 into a small negative on the final
+            /// tick (float delta never lands exactly on 0), which, when permanence was read off
+            /// Duration, reclassified every finite effect as permanent one tick before it expired, so
+            /// stuns/poisons/buffs became eternal and EffectExpired never fired. (Duration == 0 remains
+            /// a valid instantaneous effect: TotalDuration 0 → not permanent → expires on first tick.)</summary>
+            public bool IsPermanent => TotalDuration < 0f;
             public bool IsExpired => !IsPermanent && Duration <= 0f;
             public bool CanStack => StackCount < MaxStacks;
             public float RemainingPercent => Mathf.Clamp(Duration / TotalDuration, 0f, 1f);
@@ -102,8 +105,11 @@ namespace Beep.ECS
 
         public void RemoveEffect(string id)
         {
-            ActiveEffects.RemoveAll(e => e.Id == id);
-            EmitSignal(SignalName.EffectExpired, id);
+            // Only announce expiry if something was actually removed — emitting unconditionally
+            // fired EffectExpired for ids that were never active, tricking HUD badges into
+            // clearing/animating a state they never held.
+            if (ActiveEffects.RemoveAll(e => e.Id == id) > 0)
+                EmitSignal(SignalName.EffectExpired, id);
         }
 
         public bool HasEffect(string id) => ActiveEffects.Any(e => e.Id == id);

@@ -109,6 +109,8 @@ func _apply_if_possible() -> void:
 
 	var p: BeepPreset = BeepPreset.get_preset(preset)
 	if p == null:
+		# Unknown/typo'd preset id → nothing is themed, and it used to happen silently.
+		push_warning("[Beep UI] BeepThemeApplier at \"%s\": preset \"%s\" did not resolve — nothing themed. Check the preset name against BeepPreset's registered presets." % [str(get_path()), str(preset)])
 		return
 
 	# Prune freed buttons from the injected map so it can't grow unbounded in

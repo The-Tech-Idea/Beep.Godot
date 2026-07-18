@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="1_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AggroComponent.cs" id="2_aggro"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AIController.cs" id="5_ai"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/DespawnOnDeathComponent.cs" id="6_despawn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HitSoundComponent.cs" id="7_hitsound"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/SpriteEffectComponent.cs" id="8_deatheffect"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(28, 44)
@@ -49,6 +50,11 @@ DespawnDelay = 0.0
 
 [node name="HitSound" type="Node" parent="."]
 script = ExtResource("7_hitsound")
+
+[node name="DeathEffect" type="Node" parent="."]
+script = ExtResource("8_deatheffect")
+PlayOnDeath = true
+EffectScale = 0.75
 
 [node name="HealthBar" type="Node" parent="."]
 script = ExtResource("4_healthbar")

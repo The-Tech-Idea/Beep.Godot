@@ -239,6 +239,8 @@ namespace Beep.ECS.UI
                 case ScopeType.Self:
                     var parent = GetParent() as Godot.Control;
                     if (parent != null) AddTarget(parent);
+                    else if (!Engine.IsEditorHint())
+                        GD.PushWarning($"[{Name}] UIEffectComponent Scope=Self but parent is {GetParent()?.GetType().Name ?? "null"}, not a Control — nothing to animate. Reparent under the Control to affect, or use Scope=Scene/Global.");
                     break;
 
                 case ScopeType.Children:
@@ -248,6 +250,8 @@ namespace Beep.ECS.UI
                         AddTarget(root);
                         CollectAllControls(root, _targets, skipRoot: true);
                     }
+                    else if (!Engine.IsEditorHint())
+                        GD.PushWarning($"[{Name}] UIEffectComponent Scope=Children but parent is {GetParent()?.GetType().Name ?? "null"}, not a Control — no children to animate. Reparent under the Control whose children to affect.");
                     break;
 
                 case ScopeType.Scene:
@@ -291,7 +295,15 @@ namespace Beep.ECS.UI
 
         public void Play()
         {
-            if (!IsActive || _targets.Count == 0) return;
+            if (!IsActive) return;
+            if (_targets.Count == 0)
+            {
+                // Nothing resolved (non-Control parent for Self/Children, or an empty Scene/Global
+                // sweep) — say so instead of returning in silence, the repo's dominant defect class.
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] UIEffectComponent.Play() has no targets (Scope={Scope}) — nothing will animate.");
+                return;
+            }
             Stop();
             _isPlaying = true;
             _loopCount = 0;
@@ -347,6 +359,14 @@ namespace Beep.ECS.UI
 
         private void ExecuteEffect()
         {
+            // Clear the prior cycle's tweens before starting a new one. A looping effect re-enters
+            // here from OnAllCompleted, and only Stop()/Play() cleared the list — so over a long loop
+            // it accumulated one (finished, auto-freed) tween reference every cycle. Killing here is
+            // safe: on re-entry the previous tweens have finished.
+            foreach (var t in _activeTweens)
+                if (t != null && GodotObject.IsInstanceValid(t)) t.Kill();
+            _activeTweens.Clear();
+
             EmitSignal(SignalName.EffectStarted);
 
             foreach (var c in _targets)

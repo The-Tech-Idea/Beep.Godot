@@ -12,11 +12,9 @@ namespace Beep.ECS
     {
         [Export] public int MaxPoints { get; set; } = 20;
         [Export] public Color TrailColor { get; set; } = new(1, 1, 1, 0.5f);
-        [Export] public float FadeSpeed { get; set; } = 5f;
         [Export] public float Width { get; set; } = 4f;
 
         private Line2D? _line;
-        private float _accumulate;
 
         public override void _Ready()
         {
@@ -28,7 +26,13 @@ namespace Beep.ECS
 
         private void SetupTrail()
         {
-            if (GetParent() is not Node2D) return;
+            if (GetParent() is not Node2D)
+            {
+                // The trail records the parent's global position each frame — a non-Node2D parent
+                // has none, so it would render nothing, silently. Reparent under the moving Node2D.
+                GD.PushWarning($"[{Name}] TrailComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Node2D — no trail will render. Parent it under the moving Node2D.");
+                return;
+            }
             _line = new Line2D
             {
                 Name = "TrailLine",

@@ -461,6 +461,12 @@ namespace Beep.ECS
                 _                                     => null
             };
 
+            // LeafFall is the one type with no bundled fallback (a circle would read as snow), so an
+            // unset LeafTexture leaves CpuParticles2D drawing plain squares. Cosmetic, but say so
+            // rather than let it surprise — fired only on a weather change, so it isn't spammy.
+            if (type == WeatherType.LeafFall && LeafTexture == null)
+                GD.PushWarning($"[{Name}] LeafFall weather has no LeafTexture assigned — falling leaves render as plain squares (the addon ships no leaf sprite). Assign LeafTexture to fix.");
+
             Texture2D? Fallback(string file) => UseBundledParticleTextures ? Bundled(file) : null;
 
             switch (type)

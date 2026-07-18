@@ -27,7 +27,12 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _cam = GetParent() as Camera2D;
+            if (_cam == null)
+                // Shake() writes _cam.Offset — a non-Camera2D parent makes every Shake() a silent
+                // no-op. Parent this under the Camera2D it should shake.
+                GD.PushWarning($"[{Name}] ScreenShakeComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Camera2D — Shake() will do nothing. Parent it under a Camera2D.");
             if (!IsInGroup("screen_shake")) AddToGroup("screen_shake");
         }
 
@@ -50,9 +55,10 @@ namespace Beep.ECS
             _trauma = Mathf.Max(0, _trauma - _decayPerSec * (float)delta);
             float trauma01 = _trauma / MaxTrauma;
             float shake = trauma01 * trauma01;
+            // GD.Randf() already returns float — no cast (per CLAUDE.md's API note).
             _cam.Offset = new Vector2(
-                (float)(GD.Randf() * 2 - 1) * shake * 20f,
-                (float)(GD.Randf() * 2 - 1) * shake * 20f);
+                (GD.Randf() * 2f - 1f) * shake * 20f,
+                (GD.Randf() * 2f - 1f) * shake * 20f);
 
             if (_trauma <= 0)
             {

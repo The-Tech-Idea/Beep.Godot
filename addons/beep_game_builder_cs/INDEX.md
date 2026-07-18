@@ -4,6 +4,11 @@ What's in the addon, organized for quick discovery. **All scenes are component-b
 (every attached script is a `[GlobalClass]` C# class). **No generators, no inline `.gd`
 scripts, no legacy compatibility code.**
 
+> **Composing an entity?** See [`docs/ARCHETYPES.md`](../../docs/ARCHETYPES.md) — which
+> components each archetype (player, enemy, item, projectile, destructible, …) requires, allows,
+> and must not have, plus the parent-type each needs. `validate_scenes.sh` enforces the parent-type
+> rules.
+
 ## Quick start
 
 1. Open your project in Godot 4.7 with the addon enabled.

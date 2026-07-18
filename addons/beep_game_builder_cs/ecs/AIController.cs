@@ -30,6 +30,7 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
         private StatsComponent? _stats;
+        private AggroComponent? _aggro;
         private Vector2 _moveDir;
         private int _waypointIndex;
         private Node2D? _currentTarget;
@@ -42,6 +43,19 @@ namespace Beep.ECS
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _stats = GetSiblingComponent<StatsComponent>();
+            // Being hit makes a wandering/patrolling enemy turn and chase its attacker: a sibling
+            // AggroComponent (fed by HealthComponent) names the threat, and its target overrides the
+            // nearest-in-group pick below.
+            _aggro = GetSiblingComponent<AggroComponent>();
+            if (_aggro != null) _aggro.TargetAcquired += OnAggroTarget;
+        }
+
+        private void OnAggroTarget(Node2D target) => Mode = AIMode.Chase;
+
+        public override void _ExitTree()
+        {
+            if (_aggro != null) _aggro.TargetAcquired -= OnAggroTarget;
+            base._ExitTree();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -85,7 +99,8 @@ namespace Beep.ECS
 
         private void UpdateChase()
         {
-            _currentTarget = FindNearestInGroup(TargetGroup);
+            // Chase the thing that hurt us if aggro named one; otherwise the nearest in the group.
+            _currentTarget = (_aggro?.CurrentTarget) ?? FindNearestInGroup(TargetGroup);
             if (_currentTarget != null && GodotObject.IsInstanceValid(_currentTarget))
             {
                 _moveDir = (_currentTarget.GlobalPosition - _body!.GlobalPosition).Normalized();

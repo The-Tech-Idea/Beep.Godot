@@ -283,6 +283,10 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       `HealthComponent.XpReward`, and `SpendPoints(stat, n)` allocates a permanent `StatModifier` to
       the entity's `StatsComponent` — so kill→XP→level→spend→stat-rises is now reachable. This makes
       the proposed `CharacterStatsComponent` unneeded: `StatsComponent` is the destination.
+      **Also wired the dead `AggroComponent`** (`AddThreat` had 0 callers): `HealthComponent` feeds it
+      the attacker (`GameDamage.Source`) + damage as threat on every hit, and `AIController` subscribes
+      to `TargetAcquired` (→ switches to Chase) and prefers `AggroComponent.CurrentTarget` over
+      nearest-in-group — so an enemy now turns and chases whoever hit it.
 - [~] **Phase 7 — Dependencies & time** — **Part B (time) done; this unblocks Phase 2.** New
       `TurnManager` autoload (a Lamport clock: `CurrentTurn` + `TurnEnded` + `EndTurn()`, static
       `Instance`), registered by the generator **only when** `genre.json tuning.time_axis == "turns"`

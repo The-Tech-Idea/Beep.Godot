@@ -42,6 +42,7 @@ namespace Beep.ECS
         private HungerStaminaComponent? _hunger;
         private StatsComponent? _stats;
         private ResistanceComponent? _resistance;
+        private AggroComponent? _aggro;
 
         public override void _Ready()
         {
@@ -51,6 +52,7 @@ namespace Beep.ECS
             _hunger = GetSiblingComponent<HungerStaminaComponent>();
             _stats = GetSiblingComponent<StatsComponent>();
             _resistance = GetSiblingComponent<ResistanceComponent>();
+            _aggro = GetSiblingComponent<AggroComponent>();
         }
 
         public override void _Process(double delta)
@@ -103,6 +105,11 @@ namespace Beep.ECS
             CurrentHealth = Mathf.Max(0, CurrentHealth - actual);
             EmitSignal(SignalName.Damaged, actual, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
+
+            // Aggro whoever hit us (threat = damage dealt). This is the producer AggroComponent's
+            // threat table never had, so an enemy now reacts to being attacked.
+            if (damage.Source != null) _aggro?.AddThreat(damage.Source, actual);
+
             if (CurrentHealth <= 0)
             {
                 // Award the killer XP before announcing death. The fatal hit's Source is the killer;

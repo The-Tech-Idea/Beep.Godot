@@ -13,6 +13,9 @@ namespace Beep.ECS
         [Export] public float Speed { get; set; } = 400f;
         [Export] public float MaxLifetime { get; set; } = 5f;
         [Export] public float Damage { get; set; } = 10f;
+        /// <summary>The damage type this projectile deals, met by a target's ResistanceComponent.
+        /// A ranged weapon sets it from GameWeapon.DamageType when it spawns the shot.</summary>
+        [Export] public DamageType DamageType { get; set; } = DamageType.Physical;
         [Export] public bool UseGravity { get; set; } = false;
         [Export] public float GravityStrength { get; set; } = 980f;
         [Export] public bool Pierce { get; set; } = false;
@@ -78,7 +81,7 @@ namespace Beep.ECS
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)
             {
-                health.TakeDamage(new GameDamage(Damage, DamageType.Physical, _owner));
+                health.TakeDamage(new GameDamage(Damage, DamageType, _owner));
 
                 var knockback = EntityComponent.FindComponent<KnockbackComponent>(n, false);
                 if (knockback != null && n is Node2D)

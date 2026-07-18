@@ -235,10 +235,14 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       multiplicatively by `ResistanceComponent` across equipped pieces — so a fire-resist armor
       actually resists fire (they were decorative). Done NOT via `resist_*` stats: multiplicative
       resistances can't default to a base-0 stat, so the component reads equipped pieces directly.
-      Build-clean. **Still open in 3b (needs an editor pass / more work):** the melee **hitbox**
-      (replace the cursor point-query with an `AreaTrigger`-derived reach → makes `GameWeapon.Range`
-      real — base ready from item 7, but physics needs the running game), and `ShooterController`
-      ranged-weapon integration (`ProjectileDamage`/`IsRanged`/`FireRate` from the equipped weapon).
+      Build-clean. **Shooter/ranged integration done:** `ProjectileComponent` gained a `DamageType`
+      (ranged hits are now typed); `ShooterController` lets an equipped weapon drive the fire interval
+      (`Cooldown`), damage (from the "damage" stat), `ProjectileScene`, and type — and `GameInfo` is
+      now a **fallback** (seeds only a still-default `MoveSpeed`/`FireRate`), fixing the clobber that
+      made a weapon's fire-rate impossible. `AttackComponent`'s ranged path types its projectiles too.
+      **Only remaining in 3b (needs an editor pass):** the melee **hitbox** — replace the cursor
+      point-query with an `AreaTrigger`-derived reach to make `GameWeapon.Range` real (base ready from
+      item 7, but the physics/`Area2D` overlap needs the running game to verify).
       → `phase-3-combat-integration.md`
 - [x] **Phase 4 — Pickups & drops** — **done.** `PickupComponent.ItemId` (string) → `[Export]
       GameItem? Item` (null = valid score-only pickup); `Collect` adds the item directly and warns

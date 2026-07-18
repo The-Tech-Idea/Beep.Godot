@@ -32,6 +32,7 @@ namespace Beep.ECS
         private Marker2D? _muzzle;
         private StatusEffectComponent? _statusEffects;
         private StatsComponent? _stats;
+        private EquipmentComponent? _equipment;
         private double _cooldown;
 
         public override void _Ready()
@@ -43,8 +44,16 @@ namespace Beep.ECS
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath) ?? _body?.GetNodeOrNull<Marker2D>("Muzzle");
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _stats = GetSiblingComponent<StatsComponent>();
+            _equipment = GetSiblingComponent<EquipmentComponent>();
             var info = GameBuilder.GameInfo.Instance;
-            if (info != null) { MoveSpeed = info.MoveSpeed; FireRate = info.FireRate; }
+            if (info != null)
+            {
+                // GameInfo is the PROJECT default — a fallback, not an override. Only seed a value
+                // the scene left at its type-default, so a scene-authored FireRate/MoveSpeed (and,
+                // at fire time, an equipped weapon's rate) is not clobbered on every scene load.
+                if (Mathf.IsEqualApprox(MoveSpeed, 250f)) MoveSpeed = info.MoveSpeed;
+                if (Mathf.IsEqualApprox(FireRate, 0.2f)) FireRate = info.FireRate;
+            }
         }
 
         public override void _PhysicsProcess(double delta)
@@ -69,17 +78,21 @@ namespace Beep.ECS
             if (Input.IsActionPressed(FireAction) && _cooldown < 0)
             {
                 GetViewport().SetInputAsHandled();
-                _cooldown = 1.0 / FireRate;
+                // An equipped weapon drives the fire interval (its Cooldown) and the shot; unarmed
+                // uses the controller's own FireRate/ProjectileScene.
+                var weapon = _equipment?.MainWeapon;
+                _cooldown = weapon != null && weapon.Cooldown > 0f ? weapon.Cooldown : 1.0 / FireRate;
                 Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _body.GlobalPosition;
                 Vector2 dir = Vector2.FromAngle(_body.Rotation);
                 EmitSignal(SignalName.FireFired, muzzlePos, dir);
-                SpawnProjectile(muzzlePos, dir);
+                SpawnProjectile(muzzlePos, dir, weapon);
             }
         }
 
-        private void SpawnProjectile(Vector2 pos, Vector2 dir)
+        private void SpawnProjectile(Vector2 pos, Vector2 dir, GameWeapon? weapon)
         {
-            if (ProjectileScene == null) return;
+            var scene = weapon?.ProjectileScene ?? ProjectileScene;
+            if (scene == null) return;
             var root = GetTree().CurrentScene;
             // Recursive: the Projectiles pool is provided by the LEVEL, which the loader
             // instances under LevelContainer — so it sits at
@@ -87,7 +100,7 @@ namespace Beep.ECS
             // and silently fell back to the scene root, where bullets then outlived the
             // level that spawned them.
             var pool = root.FindChild("Projectiles", recursive: true, owned: false) ?? root;
-            var proj = ProjectileScene.Instantiate();
+            var proj = scene.Instantiate();
             pool.AddChild(proj);
             if (proj is Node2D n2d)
             {
@@ -97,7 +110,10 @@ namespace Beep.ECS
                 var projComp = EntityComponent.FindComponent<ProjectileComponent>(n2d, false);
                 if (projComp != null)
                 {
-                    projComp.Damage = ProjectileDamage;
+                    // Damage from the "damage" stat (equipment contributes the weapon's Damage),
+                    // typed by the equipped weapon — the same stat channel AttackComponent reads.
+                    projComp.Damage = _stats?.GetValue("damage", ProjectileDamage) ?? ProjectileDamage;
+                    projComp.DamageType = weapon?.DamageType ?? DamageType.Physical;
                     projComp.Speed = ProjectileSpeed;
                     // Tell it who fired: it lives under the pool, not under us, so it cannot
                     // infer this — and without it the bullet spawns overlapping our own

@@ -69,7 +69,7 @@ namespace Beep.ECS
 
             if (IsRanged && ProjectileScene != null)
             {
-                SpawnProjectile(target, finalDamage);
+                SpawnProjectile(target, finalDamage, dtype);
             }
             else if (_body != null)
             {
@@ -79,7 +79,7 @@ namespace Beep.ECS
             EmitSignal(SignalName.Attacked, target, finalDamage);
         }
 
-        private void SpawnProjectile(Vector2 target, float damage)
+        private void SpawnProjectile(Vector2 target, float damage, DamageType type)
         {
             if (_body == null || ProjectileScene == null) return;
             var proj = ProjectileScene.Instantiate<Node>();
@@ -94,6 +94,7 @@ namespace Beep.ECS
             {
                 projComp.Speed = ProjectileSpeed;
                 projComp.Damage = damage;
+                projComp.DamageType = type;
                 projComp.Launch(direction);
             }
         }

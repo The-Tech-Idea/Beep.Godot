@@ -78,8 +78,13 @@ namespace Beep.ECS
             // GetNodeOrNull, not GetNode: the throwing variant meant the "../Health" absent
             // case errored before the "?? .." fallback could run.
             _health = GetNodeOrNull<HealthComponent>("../Health") ?? GetSiblingComponent<HealthComponent>();
+            if (_health == null)
+                GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
             CallDeferred(nameof(SetupVignette));
         }
+
+        // Meta key on the shared layer counting how many temperature entities use it.
+        private const string VignetteRefMeta = "beep_temp_vignette_refs";
 
         private void SetupVignette()
         {
@@ -92,7 +97,6 @@ namespace Beep.ECS
             if (_vignetteLayer != null)
             {
                 _vignetteRect = _vignetteLayer.GetNodeOrNull<ColorRect>("VignetteRect");
-                if (_vignetteRect != null) return;   // already built by another instance
             }
             else
             {
@@ -100,14 +104,23 @@ namespace Beep.ECS
                 root.AddChild(_vignetteLayer);
             }
 
-            _vignetteRect = new ColorRect
+            if (_vignetteRect == null)
             {
-                Name = "VignetteRect",
-                Color = new Color(1, 1, 1, 0),
-                MouseFilter = Control.MouseFilterEnum.Ignore
-            };
-            _vignetteRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            _vignetteLayer.AddChild(_vignetteRect);
+                _vignetteRect = new ColorRect
+                {
+                    Name = "VignetteRect",
+                    Color = new Color(1, 1, 1, 0),
+                    MouseFilter = Control.MouseFilterEnum.Ignore
+                };
+                _vignetteRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+                _vignetteLayer.AddChild(_vignetteRect);
+            }
+
+            // Reference-count users of the shared layer. It lives on the window root, so
+            // without this it leaks across every scene change (and stays tinted in the
+            // menus). _ExitTree frees it when the last temperature entity is gone.
+            int refs = (int)_vignetteLayer.GetMeta(VignetteRefMeta, 0);
+            _vignetteLayer.SetMeta(VignetteRefMeta, refs + 1);
         }
 
         public override void _Process(double delta)
@@ -204,6 +217,28 @@ namespace Beep.ECS
         public void ApplyTemperatureChange(float delta_temp)
         {
             CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, MinTemp, MaxTemp);
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            if (_vignetteLayer == null || !GodotObject.IsInstanceValid(_vignetteLayer)) return;
+
+            int refs = (int)_vignetteLayer.GetMeta(VignetteRefMeta, 1) - 1;
+            if (refs <= 0)
+            {
+                // Last temperature entity left — free the root overlay instead of leaking it.
+                _vignetteLayer.QueueFree();
+            }
+            else
+            {
+                _vignetteLayer.SetMeta(VignetteRefMeta, refs);
+                // Clear the shared tint so this departing entity doesn't leave the screen colored.
+                if (_vignetteRect != null && GodotObject.IsInstanceValid(_vignetteRect))
+                    _vignetteRect.Color = new Color(1, 1, 1, 0);
+            }
+            _vignetteLayer = null;
+            _vignetteRect = null;
         }
     }
 }

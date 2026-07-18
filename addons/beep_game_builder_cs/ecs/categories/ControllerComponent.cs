@@ -31,6 +31,29 @@ namespace Beep.ECS
             GD.PushWarning($"[{Name}] No CharacterBody2D parent — add this controller as a child of the body.");
             return null;
         }
+
+        private bool _missingInputWarned;
+
+        /// <summary>True only when every named input action exists in the InputMap. Reading an
+        /// absent action via Input.GetAxis/IsActionPressed spams a per-frame Godot error, so
+        /// controllers gate their input on this and skip the frame when it's false — warning
+        /// once, helpfully, the way GenreScreenComponent does (rather than the raw error spam).
+        /// The generator installs these actions, so this only trips when a template is run
+        /// before a project is generated.</summary>
+        protected bool InputActionsAvailable(params string[] actions)
+        {
+            foreach (var action in actions)
+            {
+                if (InputMap.HasAction(action)) continue;
+                if (!_missingInputWarned)
+                {
+                    GD.PushWarning($"[{Name}] Input action '{action}' is not in the InputMap — {GetType().Name} can't read input and will stay idle. Generate a project (the generator installs the input map) or add the action.");
+                    _missingInputWarned = true;
+                }
+                return false;
+            }
+            return true;
+        }
     }
 
 }

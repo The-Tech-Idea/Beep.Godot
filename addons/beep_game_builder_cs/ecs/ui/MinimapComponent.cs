@@ -32,9 +32,16 @@ namespace Beep.ECS.UI
                 CallDeferred(nameof(ResolvePlayer));
         }
 
+        private bool _playerWarned;
+
         private void ResolvePlayer()
         {
             _player = GetNodeOrNull<Node2D>(PlayerPath);
+            if (_player == null && !_playerWarned && !PlayerPath.IsEmpty)
+            {
+                GD.PushWarning($"[{Name}] MinimapComponent's PlayerPath '{PlayerPath}' did not resolve to a Node2D — the minimap draws its frame but no player/blips. Point PlayerPath at the player.");
+                _playerWarned = true;
+            }
         }
 
         public override void _Process(double delta)

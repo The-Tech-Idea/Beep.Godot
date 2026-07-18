@@ -1,0 +1,66 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/LevelSummary.cs" id="1_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_title"]
+font_size = 28
+
+[node name="LevelSummary" type="CanvasLayer"]
+script = ExtResource("1_script")
+layer = 20
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(420, 0)
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 16
+
+[node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+text = "Level Complete!"
+horizontal_alignment = 1
+label_settings = SubResource("LabelSettings_title")
+
+[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="ContinueButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(140, 0)
+text = "Continue ▶"
+
+[node name="MenuButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Main Menu"
+
+[node name="Theme" type="Node" parent="Center"]
+script = ExtResource("2_theme")
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+ThemeComponentPath = NodePath("Center/Theme")

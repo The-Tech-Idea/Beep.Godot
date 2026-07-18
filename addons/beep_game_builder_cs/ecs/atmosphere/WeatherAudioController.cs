@@ -98,7 +98,15 @@ namespace Beep.ECS
                     if (n is WeatherSystemComponent w) { _weather = w; break; }
             }
             if (_weather != null)
+            {
                 _weather.WeatherChanged += OnWeatherChanged;
+                // Drive the audio mix from the weather's smooth intensity. Nothing called
+                // SetWeatherIntensity before, so the rain/wind/ambient levels never moved and
+                // the whole controller mixed at -80 dB forever. IntensityChanged is emitted
+                // every time the weather eases toward its target.
+                _weather.IntensityChanged += SetWeatherIntensity;
+                SetWeatherIntensity(_weather.WeatherIntensity);   // seed to the current value
+            }
         }
 
         /// <summary>
@@ -174,7 +182,11 @@ namespace Beep.ECS
             if (_windPlayer != null && _windPlayer.Playing) _windPlayer.Stop();
             if (_ambientPlayer != null && _ambientPlayer.Playing) _ambientPlayer.Stop();
             if (_thunderPlayer != null && _thunderPlayer.Playing) _thunderPlayer.Stop();
-            if (_weather != null) _weather.WeatherChanged -= OnWeatherChanged;
+            if (_weather != null)
+            {
+                _weather.WeatherChanged -= OnWeatherChanged;
+                _weather.IntensityChanged -= SetWeatherIntensity;
+            }
         }
     }
 }

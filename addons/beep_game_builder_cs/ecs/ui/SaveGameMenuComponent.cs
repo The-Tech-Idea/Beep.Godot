@@ -59,6 +59,12 @@ namespace Beep.ECS.UI
 					}
 				}
 			}
+
+			// Keep the menu's row cap in step with the manager's actual slot count, so the
+			// player can't select a slot the manager will reject on Save (Save(int) bounds-checks
+			// against MaxSaveSlots and silently returns false past it).
+			if (_gameStateManager != null && _gameStateManager.MaxSaveSlots > 0)
+				MaxSlots = _gameStateManager.MaxSaveSlots;
 		}
 
 		private void PopulateSlots()

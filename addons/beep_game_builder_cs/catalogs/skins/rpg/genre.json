@@ -21,7 +21,8 @@
   "nav_wiring": {
     "inventory": "inventory.tscn",
     "character": "character.tscn",
-    "quests": "quests.tscn"
+    "quests": "quests.tscn",
+    "LevelCompletePath": "res://scenes/ui/level_summary.tscn"
   },
   "tuning": {
     "inventory_columns": 6,

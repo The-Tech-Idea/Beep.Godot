@@ -39,6 +39,17 @@ namespace Beep.ECS.UI
             public BindingMode Mode;
             public Func<object, object> Formatter;
 
+            // Latch so a broken binding reports itself once instead of either spamming every
+            // frame or (as before) failing completely silently.
+            private bool _warned;
+
+            private void WarnOnce(string direction, System.Exception ex)
+            {
+                if (_warned) return;
+                _warned = true;
+                GD.PushWarning($"[DataBinder] {direction} binding {SourceProp} <-> {TargetProp} failed and is now inert: {ex.Message}");
+            }
+
             public void Refresh()
             {
                 if (Source == null || Target == null) return;
@@ -50,7 +61,7 @@ namespace Beep.ECS.UI
                     if (Formatter != null) val = Formatter(val);
                     Target.Set(TargetProp, Variant.From(val));
                 }
-                catch { /* Silent fail on missing property */ }
+                catch (System.Exception ex) { WarnOnce("Source→Target", ex); }
             }
 
             public void RefreshTwoWay()
@@ -62,7 +73,7 @@ namespace Beep.ECS.UI
                     var val = Target.Get(TargetProp);
                     Source.GetType().GetProperty(SourceProp)?.SetValue(Source, val.Obj);
                 }
-                catch { /* Silent fail */ }
+                catch (System.Exception ex) { WarnOnce("Target→Source", ex); }
             }
         }
 

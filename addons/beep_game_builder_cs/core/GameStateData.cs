@@ -119,6 +119,10 @@ namespace Beep.GameBuilder
 		/// <summary>Game progression state (quests, achievements, unlocks, level).</summary>
 		public ProgressionStateData Progression { get; set; } = new();
 
+		/// <summary>Current run's session state (score, difficulty, selected character/vehicle,
+		/// game mode). Distinct from Progression, which is lifetime/cross-run.</summary>
+		public SessionStateData Session { get; set; } = new();
+
 		/// <summary>World/level state (entities, switches, environmental data).</summary>
 		public WorldStateData World { get; set; } = new();
 
@@ -146,6 +150,7 @@ namespace Beep.GameBuilder
 				{ "combat", Combat.ToDict() },
 				{ "inventory", Inventory.ToDict() },
 				{ "progression", Progression.ToDict() },
+				{ "session", Session.ToDict() },
 				{ "world", World.ToDict() },
 				{ "features", GodotConv.ToDict(Features) },
 				{ "game_data", GodotConv.ToDict(GameData) }
@@ -178,6 +183,7 @@ namespace Beep.GameBuilder
 			if (root.ContainsKey("combat")) Combat = PlayerCombatStateData.FromDict(root["combat"].AsGodotDictionary());
 			if (root.ContainsKey("inventory")) Inventory = InventoryStateData.FromDict(root["inventory"].AsGodotDictionary());
 			if (root.ContainsKey("progression")) Progression = ProgressionStateData.FromDict(root["progression"].AsGodotDictionary());
+			if (root.ContainsKey("session")) Session = SessionStateData.FromDict(root["session"].AsGodotDictionary());
 			if (root.ContainsKey("world")) World = WorldStateData.FromDict(root["world"].AsGodotDictionary());
 			if (root.ContainsKey("features")) Features = GodotConv.ToVariantDict(root["features"].AsGodotDictionary());
 			if (root.ContainsKey("game_data")) GameData = GodotConv.ToVariantDict(root["game_data"].AsGodotDictionary());
@@ -468,6 +474,40 @@ namespace Beep.GameBuilder
 			GamesLostTotal = d.TryGetValue("games_lost_total", out var gl) ? (int)gl : 0,
 			BestScore = d.TryGetValue("best_score", out var bs) ? (int)bs : 0,
 			TotalPlaytimeMinutes = d.TryGetValue("total_playtime_minutes", out var tp) ? (int)tp : 0
+		};
+	}
+
+	/// <summary>Current-run session state. These live on GameApp and change every run;
+	/// without persisting them, loading a save mid-run reset the score to 0 and dropped
+	/// the player's chosen character/vehicle/difficulty back to defaults.</summary>
+	public partial class SessionStateData
+	{
+		public int SessionScore { get; set; } = 0;
+		public string SelectedCharacter { get; set; } = "";
+		public string SelectedVehicle { get; set; } = "";
+		/// <summary>GameApp.Difficulty enum as an int.</summary>
+		public int Difficulty { get; set; } = 1;   // Normal
+		public string GameMode { get; set; } = "Story";
+		public float DifficultyMultiplier { get; set; } = 1.0f;
+
+		public Godot.Collections.Dictionary ToDict() => new()
+		{
+			{ "session_score", SessionScore },
+			{ "selected_character", SelectedCharacter },
+			{ "selected_vehicle", SelectedVehicle },
+			{ "difficulty", Difficulty },
+			{ "game_mode", GameMode },
+			{ "difficulty_multiplier", DifficultyMultiplier }
+		};
+
+		public static SessionStateData FromDict(Godot.Collections.Dictionary d) => new()
+		{
+			SessionScore = d.TryGetValue("session_score", out var sc) ? (int)sc : 0,
+			SelectedCharacter = d.TryGetValue("selected_character", out var ch) ? ch.AsString() : "",
+			SelectedVehicle = d.TryGetValue("selected_vehicle", out var ve) ? ve.AsString() : "",
+			Difficulty = d.TryGetValue("difficulty", out var df) ? (int)df : 1,
+			GameMode = d.TryGetValue("game_mode", out var gm) ? gm.AsString() : "Story",
+			DifficultyMultiplier = d.TryGetValue("difficulty_multiplier", out var dm) ? (float)dm : 1.0f
 		};
 	}
 }

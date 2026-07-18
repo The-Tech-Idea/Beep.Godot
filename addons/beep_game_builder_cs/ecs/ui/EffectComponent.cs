@@ -40,7 +40,12 @@ namespace Beep.ECS.UI
         protected void ResolveTargets()
         {
             Targets.Clear();
-            if (GetParent() is not Godot.Control parent) return;
+            if (GetParent() is not Godot.Control parent)
+            {
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] {GetType().Name} needs a Control parent to affect; got '{GetParent()?.GetType().Name ?? "null"}'. Its Shake()/SlideIn()/etc. will do nothing until reparented under a Control.");
+                return;
+            }
 
             AddTarget(parent);
             if (ApplyToChildren)

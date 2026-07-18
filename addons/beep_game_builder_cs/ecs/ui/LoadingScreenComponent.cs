@@ -38,19 +38,29 @@ namespace Beep.ECS.UI
             if (GetParent() is not Node parent) return;
             _bar = parent.GetNodeOrNull<ProgressBar>(ProgressBarPath);
             _label = parent.GetNodeOrNull<Label>(LabelPath);
+            if (_bar == null)
+                GD.PushWarning($"[{Name}] LoadingScreenComponent found no ProgressBar at '{ProgressBarPath}' under its parent — the progress bar won't fill.");
             if (_bar != null) _bar.Value = 0;
             if (_label != null) _label.Text = LoadingText;
             Hide();
         }
 
-        private void Hide()
-        {
-            if (GetParent() is Godot.Control c) c.Visible = false;
-        }
+        // Show/Hide toggle the parent's visibility. Handle both a Control parent and a
+        // CanvasLayer parent (the doc invites either) — CanvasLayer also has Visible. Doing
+        // only Control meant a CanvasLayer-hosted loading screen never showed or hid.
+        private void Hide() => SetParentVisible(false);
+        private void Show() => SetParentVisible(true);
 
-        private void Show()
+        private void SetParentVisible(bool visible)
         {
-            if (GetParent() is Godot.Control c) c.Visible = true;
+            switch (GetParent())
+            {
+                case Godot.Control c: c.Visible = visible; break;
+                case CanvasLayer cl: cl.Visible = visible; break;
+                default:
+                    GD.PushWarning($"[{Name}] LoadingScreenComponent's parent is '{GetParent()?.GetType().Name ?? "null"}' — it can't be shown/hidden. Parent it to a Control or CanvasLayer.");
+                    break;
+            }
         }
 
         /// <summary>Begin loading a scene asynchronously. Shows the loading screen,

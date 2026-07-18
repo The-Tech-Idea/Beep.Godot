@@ -98,8 +98,17 @@ namespace Beep.ECS
 
             // Manually push CharacterBody2Ds (they ignore area gravity).
             float dt = (float)delta;
-            foreach (var body in _characters)
+            // Iterate backwards so we can prune bodies freed inside the field. BodyExited
+            // does not always fire before a body is QueueFree'd (e.g. an enemy dies in the
+            // wind), which would leave a disposed reference here — touching it throws.
+            for (int i = _characters.Count - 1; i >= 0; i--)
             {
+                var body = _characters[i];
+                if (!GodotObject.IsInstanceValid(body))
+                {
+                    _characters.RemoveAt(i);
+                    continue;
+                }
                 if (OnlyPushAirborne && body.IsOnFloor()) continue;
                 // Apply horizontal wind push to the character's velocity with clamping.
                 var v = body.Velocity;

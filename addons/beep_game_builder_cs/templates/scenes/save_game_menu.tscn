@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SaveGameMenuComponent.cs" id="1_menu"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 24
@@ -33,6 +35,13 @@ offset_left = -300.0
 offset_top = -250.0
 offset_right = 300.0
 offset_bottom = 250.0
+
+[node name="Theme" type="Node" parent="PanelContainer"]
+script = ExtResource("2_theme")
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("3_binder")
+ThemeComponentPath = NodePath("PanelContainer/Theme")
 
 [node name="VBox" type="VBoxContainer" parent="PanelContainer"]
 layout_mode = 2

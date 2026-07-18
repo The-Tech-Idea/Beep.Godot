@@ -5,40 +5,16 @@
 
 [node name="DialogTemplate" type="CanvasLayer"]
 
-[node name="DialogUI" type="Node" parent="."]
-script = ExtResource("1_dialog")
-
-[node name="DialogEngine" type="Node" parent="."]
-script = ExtResource("2_dialog_engine")
-
-[node name="Panel" type="Panel" parent="."]
-anchor_left = 0.5
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -250.0
-offset_top = -180.0
-offset_right = 250.0
-offset_bottom = -40.0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel"]
+[node name="DialogRoot" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = -16.0
-offset_bottom = -12.0
+mouse_filter = 2
 
-[node name="NameLabel" type="Label" parent="Panel/VBoxContainer"]
-text = "Character Name"
+[node name="DialogUI" type="Node" parent="DialogRoot"]
+script = ExtResource("1_dialog")
+DialogEnginePath = NodePath("../DialogEngine")
 
-[node name="TextLabel" type="RichTextLabel" parent="Panel/VBoxContainer"]
-bbcode_enabled = true
-fit_content = true
-scroll_following = true
-size_flags_vertical = 3
-
-[node name="ChoicesContainer" type="VBoxContainer" parent="Panel/VBoxContainer"]
-
-[node name="ContinueIndicator" type="Label" parent="Panel/VBoxContainer"]
-text = "▼"
-horizontal_alignment = 1
+[node name="DialogEngine" type="Node" parent="DialogRoot"]
+script = ExtResource("2_dialog_engine")

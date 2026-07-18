@@ -31,6 +31,8 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _canvas = GetParent() as Godot.Control;
+            if (_canvas == null)
+                GD.PushWarning($"[{Name}] CrosshairComponent needs a Control parent to draw on; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a full-rect Control/CanvasLayer child.");
             ConnectDrawer();
         }
 

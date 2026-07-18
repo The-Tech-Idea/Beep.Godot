@@ -36,11 +36,17 @@ namespace Beep.ECS.UI
 
         private void EnsureLabel()
         {
-            if (GetParent() is Label existing) { _label = existing; return; }
+            var parent = GetParent();
+            if (parent is Label existing) { _label = existing; return; }
+            if (parent == null)
+            {
+                GD.PushWarning($"[{Name}] MatchTimerComponent has no parent to host its timer label.");
+                return;
+            }
             _label = new Label { Name = "TimerLabel" };
             _label.AddThemeFontSizeOverride("font_size", FontSize);
-            GetParent().AddChild(_label);
-            { var _p = GetParent(); if (_p != null && _p.IsInsideTree()) _label.Owner = _p.Owner; }
+            parent.AddChild(_label);
+            if (parent.IsInsideTree()) _label.Owner = parent.Owner;
         }
 
         public void Start()

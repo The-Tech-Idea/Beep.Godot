@@ -180,9 +180,11 @@ namespace Beep.ECS.UI
         private int _loopCount;
         private float _processTime;
 
-        // Position snapshots for reset
-        private readonly Dictionary<Godot.Control, Vector2> _originalPositions = new();
-        private readonly Dictionary<Godot.Control, Vector2> _originalScales = new();
+        // No position/scale snapshots: every transform effect animates the offset_transform_*
+        // layer (Godot 4.7 render transform that containers never overwrite — see CLAUDE.md and
+        // the GDScript twin ui_effect.gd). The offset is relative to the laid-out position, so
+        // neutral is always Vector2.Zero / Vector2.One — there is nothing to capture or restore.
+        // Animating raw position/scale here fought every VBox/HBox/GridContainer re-sort.
 
         // ═══════════════════════════════════════════════════════════════
         // Lifecycle
@@ -208,8 +210,8 @@ namespace Beep.ECS.UI
                 float offset = (float)Math.Sin(_processTime * BobSpeed) * BobHeight;
                 foreach (var c in _targets)
                 {
-                    if (c != null && GodotObject.IsInstanceValid(c) && _originalPositions.TryGetValue(c, out var orig))
-                        c.Position = orig + new Vector2(0, offset);
+                    if (c != null && GodotObject.IsInstanceValid(c))
+                        c.OffsetTransformPosition = new Vector2(0, offset);
                 }
             }
 
@@ -231,8 +233,6 @@ namespace Beep.ECS.UI
         private void ResolveTargets()
         {
             _targets.Clear();
-            _originalPositions.Clear();
-            _originalScales.Clear();
 
             switch (Scope)
             {
@@ -261,12 +261,12 @@ namespace Beep.ECS.UI
                     break;
             }
 
-            // Snapshot original state
+            // Enable the offset transform layer on every target so the transform effects
+            // render. Neutral is Vector2.Zero / Vector2.One — nothing to snapshot.
             foreach (var c in _targets)
             {
                 if (c == null || !GodotObject.IsInstanceValid(c)) continue;
-                _originalPositions[c] = c.Position;
-                _originalScales[c] = c.Scale;
+                c.OffsetTransformEnabled = true;
             }
         }
 
@@ -332,10 +332,11 @@ namespace Beep.ECS.UI
             foreach (var c in _targets)
             {
                 if (c == null || !GodotObject.IsInstanceValid(c)) continue;
-                if (_originalPositions.TryGetValue(c, out var pos))
-                    c.Position = pos;
-                if (_originalScales.TryGetValue(c, out var scl))
-                    c.Scale = scl;
+                // Zero the offset layer rather than restoring captured values — the layout
+                // position is untouched throughout, so neutral IS zero/one.
+                c.OffsetTransformPosition = Vector2.Zero;
+                c.OffsetTransformScale = Vector2.One;
+                c.OffsetTransformRotation = 0f;
                 c.Modulate = Colors.White;
             }
         }
@@ -351,8 +352,8 @@ namespace Beep.ECS.UI
             foreach (var c in _targets)
             {
                 if (c == null || !GodotObject.IsInstanceValid(c)) continue;
-                _originalPositions.TryAdd(c, c.Position);
-                _originalScales.TryAdd(c, c.Scale);
+                // Re-assert the offset layer — targets can be re-resolved after _Ready.
+                c.OffsetTransformEnabled = true;
 
                 switch (Effect)
                 {
@@ -411,7 +412,6 @@ namespace Beep.ECS.UI
 
         private void PlaySlide(Godot.Control c)
         {
-            var orig = _originalPositions.GetValueOrDefault(c, c.Position);
             Vector2 offset = SlideDir switch
             {
                 SlideDirection.Left => new Vector2(-SlideDistance, 0),
@@ -421,11 +421,11 @@ namespace Beep.ECS.UI
                 _ => Vector2.Zero
             };
 
-            c.Position = orig + offset;
+            c.OffsetTransformPosition = offset;
             c.Modulate = new Color(1, 1, 1, 0);
 
             var tween = c.CreateTween().SetParallel(true);
-            tween.TweenProperty(c, "position", orig, Duration).SetEase(Easing).SetTrans(Transition);
+            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, Duration).SetEase(Easing).SetTrans(Transition);
             tween.TweenProperty(c, "modulate:a", 1f, Duration * 0.6f);
             _activeTweens.Add(tween);
         }
@@ -436,8 +436,6 @@ namespace Beep.ECS.UI
 
         private void PlayShake(Godot.Control c)
         {
-            var orig = _originalPositions.GetValueOrDefault(c, c.Position);
-            float elapsed = 0f;
             int steps = ShakeVibrato;
 
             var tween = c.CreateTween();
@@ -445,11 +443,11 @@ namespace Beep.ECS.UI
             {
                 float fraction = (i + 1) / (float)steps;
                 float decay = 1f - fraction;
-                float xOff = (float)(GD.Randf() * 2 - 1) * ShakeIntensity * decay;
-                float yOff = (float)(GD.Randf() * 2 - 1) * ShakeIntensity * decay;
-                tween.TweenProperty(c, "position", orig + new Vector2(xOff, yOff), Duration / steps);
+                float xOff = (GD.Randf() * 2 - 1) * ShakeIntensity * decay;
+                float yOff = (GD.Randf() * 2 - 1) * ShakeIntensity * decay;
+                tween.TweenProperty(c, "offset_transform_position", new Vector2(xOff, yOff), Duration / steps);
             }
-            tween.TweenProperty(c, "position", orig, Duration / steps); // settle
+            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, Duration / steps); // settle
             _activeTweens.Add(tween);
         }
 
@@ -466,9 +464,9 @@ namespace Beep.ECS.UI
             {
                 // Infinite: use a looping tween
                 var tween = c.CreateTween().SetLoops(0);
-                tween.TweenProperty(c, "scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
+                tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
                     .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Sine);
-                tween.TweenProperty(c, "scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
+                tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
                     .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Sine);
                 _activeTweens.Add(tween);
             }
@@ -477,12 +475,12 @@ namespace Beep.ECS.UI
                 var tween = c.CreateTween();
                 for (int i = 0; i < loops; i++)
                 {
-                    tween.TweenProperty(c, "scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
+                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
                         .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Sine);
-                    tween.TweenProperty(c, "scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
+                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
                         .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Sine);
                 }
-                tween.TweenProperty(c, "scale", _originalScales.GetValueOrDefault(c, Vector2.One), halfDur);
+                tween.TweenProperty(c, "offset_transform_scale", Vector2.One, halfDur);
                 _activeTweens.Add(tween);
             }
         }
@@ -511,34 +509,32 @@ namespace Beep.ECS.UI
 
         private void PlayGlitch(Godot.Control c)
         {
-            var origPos = _originalPositions.GetValueOrDefault(c, c.Position);
-            var origScale = _originalScales.GetValueOrDefault(c, c.Scale);
             float segDur = Duration / GlitchSegments;
             var tween = c.CreateTween();
 
             for (int i = 0; i < GlitchSegments; i++)
             {
-                float xOff = (float)(GD.Randf() * 2 - 1) * GlitchIntensity;
-                float yOff = (float)(GD.Randf() * 2 - 1) * GlitchIntensity;
-                float sOff = 1f + (float)(GD.Randf() * 2 - 1) * GlitchIntensity * 0.01f;
-                float rOff = (float)(GD.Randf() * 2 - 1) * GlitchIntensity * 0.02f;
+                float xOff = (GD.Randf() * 2 - 1) * GlitchIntensity;
+                float yOff = (GD.Randf() * 2 - 1) * GlitchIntensity;
+                float sOff = 1f + (GD.Randf() * 2 - 1) * GlitchIntensity * 0.01f;
+                float rOff = (GD.Randf() * 2 - 1) * GlitchIntensity * 0.02f;
 
-                tween.TweenProperty(c, "position", origPos + new Vector2(xOff, yOff), segDur * 0.5f);
-                tween.TweenProperty(c, "scale", new Vector2(sOff, sOff), segDur * 0.5f);
-                tween.TweenProperty(c, "rotation", rOff, segDur * 0.5f);
+                tween.TweenProperty(c, "offset_transform_position", new Vector2(xOff, yOff), segDur * 0.5f);
+                tween.TweenProperty(c, "offset_transform_scale", new Vector2(sOff, sOff), segDur * 0.5f);
+                tween.TweenProperty(c, "offset_transform_rotation", rOff, segDur * 0.5f);
 
                 if (i < GlitchSegments - 1)
                 {
-                    tween.TweenProperty(c, "position", origPos, segDur * 0.5f);
-                    tween.TweenProperty(c, "scale", origScale, segDur * 0.5f);
-                    tween.TweenProperty(c, "rotation", 0f, segDur * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, segDur * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale", Vector2.One, segDur * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_rotation", 0f, segDur * 0.5f);
                 }
             }
 
             // Final settle
-            tween.TweenProperty(c, "position", origPos, segDur);
-            tween.TweenProperty(c, "scale", origScale, segDur);
-            tween.TweenProperty(c, "rotation", 0f, segDur);
+            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, segDur);
+            tween.TweenProperty(c, "offset_transform_scale", Vector2.One, segDur);
+            tween.TweenProperty(c, "offset_transform_rotation", 0f, segDur);
 
             _activeTweens.Add(tween);
         }
@@ -556,23 +552,23 @@ namespace Beep.ECS.UI
                 case RotateAxis.X:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "scale:y", 0f, Duration * 0.5f);
-                    tween.TweenProperty(c, "scale:y", 1f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:y", 0f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:y", 1f, Duration * 0.5f);
                     _activeTweens.Add(tween);
                     break;
                 }
                 case RotateAxis.Y:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "scale:x", 0f, Duration * 0.5f);
-                    tween.TweenProperty(c, "scale:x", 1f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:x", 0f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:x", 1f, Duration * 0.5f);
                     _activeTweens.Add(tween);
                     break;
                 }
                 case RotateAxis.Z:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "rotation", radians, Duration).SetEase(Easing).SetTrans(Transition);
+                    tween.TweenProperty(c, "offset_transform_rotation", radians, Duration).SetEase(Easing).SetTrans(Transition);
                     _activeTweens.Add(tween);
                     break;
                 }
@@ -698,16 +694,15 @@ namespace Beep.ECS.UI
 
         private void PlayBounce(Godot.Control c)
         {
-            var orig = _originalPositions.GetValueOrDefault(c, c.Position);
             float perBounce = Duration / BounceCount;
             var tween = c.CreateTween();
 
             for (int i = 0; i < BounceCount; i++)
             {
                 float height = BounceHeight * (1f - (float)i / BounceCount); // decay
-                tween.TweenProperty(c, "position:y", orig.Y - height, perBounce * 0.4f)
+                tween.TweenProperty(c, "offset_transform_position:y", -height, perBounce * 0.4f)
                     .SetEase(Tween.EaseType.Out);
-                tween.TweenProperty(c, "position:y", orig.Y, perBounce * 0.6f)
+                tween.TweenProperty(c, "offset_transform_position:y", 0f, perBounce * 0.6f)
                     .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Bounce);
             }
 
@@ -721,7 +716,7 @@ namespace Beep.ECS.UI
         private void PlayOffset(Godot.Control c)
         {
             var tween = c.CreateTween();
-            tween.TweenProperty(c, "position", OffsetTarget, Duration).SetEase(Easing).SetTrans(Transition);
+            tween.TweenProperty(c, "offset_transform_position", OffsetTarget, Duration).SetEase(Easing).SetTrans(Transition);
             _activeTweens.Add(tween);
         }
 

@@ -55,9 +55,16 @@ namespace Beep.ECS
             _forecastContainer.AddThemeConstantOverride("separation", (int)ItemSpacing);
             AddChild(_forecastContainer);
 
-            // Generate forecast if not already done
-            if (ForecastData != null)
-                ForecastData.GenerateForecast(CurrentDay);
+            // A null ForecastData used to leave the panel permanently empty and silent — the
+            // addon ships no default .tres and none of the genre mains set one. Since the
+            // resource can generate its own forecast, fall back to a working default instead
+            // of rendering nothing (the repo's "prefer a working default" rule).
+            if (ForecastData == null)
+            {
+                ForecastData = new Beep.GameBuilder.WeatherForecast();
+                GD.PushWarning($"[{Name}] No ForecastData assigned — using a self-generated default forecast. Assign a WeatherForecast resource to control it.");
+            }
+            ForecastData.GenerateForecast(CurrentDay);
 
             // Populate forecast items
             RefreshForecast();

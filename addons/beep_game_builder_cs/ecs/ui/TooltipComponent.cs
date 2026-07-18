@@ -29,6 +29,8 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _control = GetParent() as Godot.Control;
+            if (_control == null)
+                GD.PushWarning($"[{Name}] TooltipComponent needs a Control parent to show a tooltip for; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the hovered Control.");
             if (_control != null)
             {
                 _control.MouseEntered += OnMouseEntered;

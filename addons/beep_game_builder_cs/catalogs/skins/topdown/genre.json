@@ -8,6 +8,9 @@
   "themes": ["fantasy", "classic", "nature", "japan", "military"],
   "main_scene": "topdown_main.tscn",
   "scenes": ["pause_subscreen.tscn"],
+  "nav_wiring": {
+    "LevelCompletePath": "res://scenes/ui/level_summary.tscn"
+  },
   "tuning": {
     "move_speed": 200,
     "enable_weather": true,

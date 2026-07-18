@@ -62,6 +62,10 @@ namespace Beep.ECS.UI
                 _bar.Value = _health.CurrentHealth;
                 _bar.Visible = true;
             }
+            else
+            {
+                GD.PushWarning($"[{Name}] BossHealthBarComponent found no sibling HealthComponent — the bar will stay hidden/empty. Add a HealthComponent alongside it (as BuffBarComponent does).");
+            }
         }
 
         private void OnHealthChanged(float current, float max)

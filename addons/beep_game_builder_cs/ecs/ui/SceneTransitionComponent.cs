@@ -24,6 +24,11 @@ namespace Beep.ECS.UI
         private ColorRect? _rect;
         private Tween? _tween;
 
+        /// <summary>True when the fade can actually run (active and its rect exists). SceneNav
+        /// checks this before routing navigation through the fade, so a not-yet-ready transition
+        /// never stalls a scene change.</summary>
+        public bool CanPlay => IsActive && _rect != null;
+
         public override void _Ready()
         {
             base._Ready();

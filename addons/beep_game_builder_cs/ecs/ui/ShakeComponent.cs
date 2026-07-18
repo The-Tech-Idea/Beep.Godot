@@ -18,8 +18,11 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ShakeStartedEventHandler();
         [Signal] public delegate void ShakeFinishedEventHandler();
 
-        // Each target shakes around its own original position.
-        private readonly Dictionary<Godot.Control, Vector2> _origPos = new();
+        // Targets being shaken this run. Shake animates the offset_transform layer (Godot 4.7
+        // render transform that containers don't overwrite — see CLAUDE.md), so neutral is
+        // Vector2.Zero and there is nothing to snapshot/restore. Animating raw Position fought
+        // any VBox/HBox/GridContainer re-sort every frame.
+        private readonly List<Godot.Control> _shaking = new();
         private float _elapsed;
         // The ACTIVE shake's values — a one-shot Shake(50) must not overwrite the configured Intensity.
         private float _activeIntensity = 10f;
@@ -28,10 +31,13 @@ namespace Beep.ECS.UI
         public void Shake(float intensity = -1, float duration = -1)
         {
             if (!IsActive || Targets.Count == 0) return;
-            _origPos.Clear();
+            _shaking.Clear();
             foreach (var c in Targets)
                 if (GodotObject.IsInstanceValid(c))
-                    _origPos[c] = c.Position;
+                {
+                    c.OffsetTransformEnabled = true;
+                    _shaking.Add(c);
+                }
             _elapsed = 0;
             _activeIntensity = intensity > 0 ? intensity : Intensity;   // don't clobber the exports
             _activeDuration = duration > 0 ? duration : Duration;
@@ -40,22 +46,22 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (_elapsed >= _activeDuration || _origPos.Count == 0) return;
+            if (_elapsed >= _activeDuration || _shaking.Count == 0) return;
             _elapsed += (float)delta;
             float decay = 1f - (_elapsed / _activeDuration);
 
-            foreach (var (c, orig) in _origPos)
+            foreach (var c in _shaking)
             {
                 if (!GodotObject.IsInstanceValid(c)) continue;
-                float x = (float)(GD.Randf() * 2 - 1) * _activeIntensity * decay;
-                float y = (float)(GD.Randf() * 2 - 1) * _activeIntensity * decay;
-                c.Position = orig + new Vector2(x, y);
+                float x = (GD.Randf() * 2 - 1) * _activeIntensity * decay;
+                float y = (GD.Randf() * 2 - 1) * _activeIntensity * decay;
+                c.OffsetTransformPosition = new Vector2(x, y);
             }
 
             if (_elapsed >= _activeDuration)
             {
-                foreach (var (c, orig) in _origPos)
-                    if (GodotObject.IsInstanceValid(c)) c.Position = orig;
+                foreach (var c in _shaking)
+                    if (GodotObject.IsInstanceValid(c)) c.OffsetTransformPosition = Vector2.Zero;
                 EmitSignal(SignalName.ShakeFinished);
             }
         }

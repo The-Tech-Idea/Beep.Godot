@@ -637,15 +637,21 @@ namespace Beep.ECS.UI
 			if (btn.HasMeta(AnimatedMeta)) return;
 			btn.SetMeta(AnimatedMeta, true);
 
+			// Animate the offset_transform layer, not scale/position — these buttons sit in menu
+			// VBox/HBox/GridContainers that re-sort every layout pass and overwrote the raw
+			// scale/position tweens (the exact fix theme_applier.gd uses). Offsets are relative
+			// to the laid-out position, so neutral is Vector2.One / 0.
+			btn.OffsetTransformEnabled = true;
+
 			var anim = _presetInstance!.Animation;
 			btn.MouseEntered += () =>
 			{
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween().SetParallel(true);
-				t.TweenProperty(btn, "scale", new Vector2(anim.HoverScaleAmount, anim.HoverScaleAmount), anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
+				t.TweenProperty(btn, "offset_transform_scale", new Vector2(anim.HoverScaleAmount, anim.HoverScaleAmount), anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				if (anim.EnableShadowLift)
-					t.TweenProperty(btn, "position:y", btn.Position.Y - 2f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
+					t.TweenProperty(btn, "offset_transform_position:y", -2f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
 			btn.MouseExited += () =>
@@ -653,9 +659,9 @@ namespace Beep.ECS.UI
 				if (!IsActive || !EnableAnimations) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween().SetParallel(true);
-				t.TweenProperty(btn, "scale", Vector2.One, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
+				t.TweenProperty(btn, "offset_transform_scale", Vector2.One, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				if (anim.EnableShadowLift)
-					t.TweenProperty(btn, "position:y", btn.Position.Y + 2f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
+					t.TweenProperty(btn, "offset_transform_position:y", 0f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
 			btn.ButtonDown += () =>
@@ -663,7 +669,7 @@ namespace Beep.ECS.UI
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween();
-				t.TweenProperty(btn, "scale", new Vector2(anim.PressScaleAmount, anim.PressScaleAmount), anim.PressScaleDuration).SetEase(Tween.EaseType.In);
+				t.TweenProperty(btn, "offset_transform_scale", new Vector2(anim.PressScaleAmount, anim.PressScaleAmount), anim.PressScaleDuration).SetEase(Tween.EaseType.In);
 				_activeTweens[btn] = t;
 			};
 			btn.ButtonUp += () =>
@@ -671,7 +677,7 @@ namespace Beep.ECS.UI
 				if (!IsActive || !EnableAnimations) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween();
-				t.TweenProperty(btn, "scale", Vector2.One, anim.PressScaleDuration * 1.5f).SetEase(Tween.EaseType.Out);
+				t.TweenProperty(btn, "offset_transform_scale", Vector2.One, anim.PressScaleDuration * 1.5f).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
 			if (anim.EnableFocusGlow)

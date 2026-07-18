@@ -30,3 +30,6 @@ text = "100 / 100"
 
 [node name="Hud" type="Node" parent="."]
 script = ExtResource("1_hud")
+ScoreLabelPath = NodePath("TopLeft/StatsVBox/ScoreLabel")
+LivesLabelPath = NodePath("TopLeft/StatsVBox/LivesLabel")
+HealthLabelPath = NodePath("TopLeft/StatsVBox/HealthLabel")

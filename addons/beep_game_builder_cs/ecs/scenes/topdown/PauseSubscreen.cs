@@ -17,6 +17,10 @@ namespace Beep.ECS.Scenes
             GetNode<Button>("Margin/MainHBox/TabRail/QuestButton").Pressed += () => { tabs.CurrentTab = 2; };
             GetNode<Button>("Margin/MainHBox/TabRail/StatusButton").Pressed += () => { tabs.CurrentTab = 3; };
             GetNode<Button>("Margin/MainHBox/TabRail/SaveButton").Pressed += OnSavePressed;
+            // The Save tab's own button was never wired (only the TabRail SaveButton was), so it
+            // was a dead button. Wire it to the same save action.
+            if (GetNodeOrNull<Button>("Margin/MainHBox/ContentArea/Tabs/Save/SaveButton") is { } saveTabButton)
+                saveTabButton.Pressed += OnSavePressed;
             GetNode<Button>("Margin/MainHBox/TabRail/ResumeButton").Pressed += () => { GetTree().Paused = false; QueueFree(); };
             GetNode<Button>("Margin/MainHBox/TabRail/QuitButton").Pressed += () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); };
         }

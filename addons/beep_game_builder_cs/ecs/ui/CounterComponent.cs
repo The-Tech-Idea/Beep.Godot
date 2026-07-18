@@ -30,6 +30,8 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _label = GetParent() as Label;
+            if (_label == null)
+                GD.PushWarning($"[{Name}] CounterComponent needs a Label parent to display the count; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Label.");
             if (PlayOnReady) CountTo(StartValue);
         }
 

@@ -16,15 +16,21 @@ namespace Beep.ECS.UI
         [Export] public float Softness { get; set; } = 0.45f;
         [Export] public float Radius { get; set; } = 0.5f;
 
+        // Post-process overlay: sample the SCREEN behind this Control, not the
+        // Control's own (usually blank) TEXTURE. `texture(TEXTURE, UV)` darkened
+        // nothing because a plain overlay Control has no texture of its own. The
+        // node must cover the viewport (a full-rect ColorRect/Control) for the
+        // vignette to frame the whole scene.
         private const string ShaderCode = @"
 shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform float intensity : hint_range(0.0, 4.0) = 1.0;
 uniform vec4 tint : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float softness : hint_range(0.0, 1.0) = 0.45;
 uniform float radius : hint_range(0.0, 1.0) = 0.5;
 
 void fragment() {
-    vec4 col = texture(TEXTURE, UV);
+    vec4 col = texture(screen_tex, SCREEN_UV);
     float d = distance(UV, vec2(0.5));
     float v = smoothstep(radius, radius - softness, d);
     COLOR = mix(col, col * tint, intensity * (1.0 - v));
@@ -53,7 +59,11 @@ void fragment() {
 
         public void Apply()
         {
-            if (GetParent() is not CanvasItem ci) return;
+            if (GetParent() is not CanvasItem ci)
+            {
+                GD.PushWarning($"[{Name}] VignetteComponent needs a CanvasItem parent (a full-rect Control/ColorRect) to apply the shader to; got '{GetParent()?.GetType().Name ?? "null"}'.");
+                return;
+            }
             var shader = new Shader { Code = ShaderCode };
             _mat = new ShaderMaterial { Shader = shader };
             _mat.SetShaderParameter("intensity", Intensity);

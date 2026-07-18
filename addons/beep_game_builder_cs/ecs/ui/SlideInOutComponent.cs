@@ -24,10 +24,12 @@ namespace Beep.ECS.UI
         [Signal] public delegate void SlidInEventHandler();
         [Signal] public delegate void SlidOutEventHandler();
 
-        // Each target remembers its visible position; hidden position is offset from it.
-        private readonly Dictionary<Godot.Control, Vector2> _visiblePos = new();
+        // Targets slid this run. Animation drives the offset_transform layer (Godot 4.7 render
+        // transform containers don't overwrite — see CLAUDE.md), so the visible position is
+        // always neutral (Vector2.Zero) and the hidden position is OffsetFor(Direction). Raw
+        // Position tweens fought any VBox/HBox/GridContainer re-sort, so there is nothing to snapshot.
+        private readonly List<Godot.Control> _slideTargets = new();
         private readonly List<Tween> _activeTweens = new();
-        private int _finishCount;
 
         public override void _Ready()
         {
@@ -38,14 +40,15 @@ namespace Beep.ECS.UI
         private void InitTargets()
         {
             if (Engine.IsEditorHint()) return;
-            _visiblePos.Clear();
+            _slideTargets.Clear();
             foreach (var c in Targets)
             {
                 if (!GodotObject.IsInstanceValid(c)) continue;
-                _visiblePos[c] = c.Position;
+                c.OffsetTransformEnabled = true;
+                _slideTargets.Add(c);
                 if (HiddenOnStart)
                 {
-                    c.Position = HiddenPos(c);
+                    c.OffsetTransformPosition = OffsetFor(Direction);
                     if (Mode != SlideMode.SlideOnly) c.Modulate = new Color(1, 1, 1, 0);
                     c.Visible = false;
                 }
@@ -54,13 +57,13 @@ namespace Beep.ECS.UI
 
         public void SlideIn()
         {
-            if (!IsActive || _visiblePos.Count == 0) return;
+            if (!IsActive || _slideTargets.Count == 0) return;
             StartTweens(animateIn: true);
         }
 
         public void SlideOut()
         {
-            if (!IsActive || _visiblePos.Count == 0) return;
+            if (!IsActive || _slideTargets.Count == 0) return;
             StartTweens(animateIn: false);
         }
 
@@ -71,21 +74,17 @@ namespace Beep.ECS.UI
                 if (GodotObject.IsInstanceValid(t)) t.Kill();
             _activeTweens.Clear();
 
-            int total = 0;
-            _finishCount = 0;
-
-            foreach (var (c, visible) in _visiblePos)
+            foreach (var c in _slideTargets)
             {
                 if (!GodotObject.IsInstanceValid(c)) continue;
                 if (animateIn) c.Visible = true;
-                total++;
 
                 var tw = c.CreateTween().SetParallel(true);
                 if (Mode != SlideMode.FadeOnly)
                 {
-                    Vector2 target = animateIn ? visible : HiddenPos(c);
-                    Vector2 start = animateIn ? HiddenPos(c) : visible;
-                    tw.TweenProperty(c, "position", target, Duration)
+                    Vector2 target = animateIn ? Vector2.Zero : OffsetFor(Direction);
+                    Vector2 start = animateIn ? OffsetFor(Direction) : Vector2.Zero;
+                    tw.TweenProperty(c, "offset_transform_position", target, Duration)
                       .From(start)   // was computed but never applied — SlideIn from a non-hidden control tweened visible->visible (no motion)
                       .SetEase(animateIn ? Tween.EaseType.Out : Tween.EaseType.In)
                       .SetTrans(animateIn ? Tween.TransitionType.Back : Tween.TransitionType.Quad);
@@ -104,15 +103,12 @@ namespace Beep.ECS.UI
                 _activeTweens[0].Finished += () =>
                 {
                     if (!animateIn)
-                        foreach (var (c, _) in _visiblePos)
+                        foreach (var c in _slideTargets)
                             if (GodotObject.IsInstanceValid(c)) c.Visible = false;
                     EmitSignal(animateIn ? SignalName.SlidIn : SignalName.SlidOut);
                 };
             }
         }
-
-        private Vector2 HiddenPos(Godot.Control c) =>
-            _visiblePos.TryGetValue(c, out var v) ? v + OffsetFor(Direction) : c.Position + OffsetFor(Direction);
 
         private Vector2 OffsetFor(SlideDirection d) => d switch
         {

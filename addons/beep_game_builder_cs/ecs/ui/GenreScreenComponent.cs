@@ -54,27 +54,46 @@ namespace Beep.ECS.UI
         /// <summary>Pressing the action again closes an open screen.</summary>
         [Export] public bool Toggle { get; set; } = true;
 
+        /// <summary>Optional: a <see cref="Beep.ECS.LevelingComponent"/> whose <c>LevelUp</c>
+        /// signal opens this screen (in addition to / instead of an input action). Wire this to
+        /// the player's Leveling node to surface a level-up choice overlay when the player levels
+        /// — the level_up_choice screen was orphaned because nothing instanced it on level-up.</summary>
+        [Export] public NodePath OpenOnLevelUpPath { get; set; } = new("");
+
         [Signal] public delegate void ScreenOpenedEventHandler();
         [Signal] public delegate void ScreenClosedEventHandler();
 
         private Node? _open;
         private Node? _host;
+        private Beep.ECS.LevelingComponent? _levelingSource;
 
         public override void _Ready()
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
 
+            // Optional signal trigger: open when a LevelingComponent levels up.
+            if (!OpenOnLevelUpPath.IsEmpty)
+            {
+                _levelingSource = GetNodeOrNull<Beep.ECS.LevelingComponent>(OpenOnLevelUpPath);
+                if (_levelingSource != null)
+                    _levelingSource.LevelUp += OnLevelUpTrigger;
+                else
+                    GD.PushWarning($"[{Name}] OpenOnLevelUpPath '{OpenOnLevelUpPath}' did not resolve to a LevelingComponent — this screen won't open on level-up.");
+            }
+
             if (string.IsNullOrEmpty(ScreenKey))
                 GD.PushWarning($"[{Name}] GenreScreenComponent has no ScreenKey — it will never open anything.");
-            else if (string.IsNullOrEmpty(OpenAction))
-                GD.PushWarning($"[{Name}] GenreScreenComponent '{ScreenKey}' has no OpenAction — nothing can open it.");
-            else if (!InputMap.HasAction(OpenAction))
+            else if (string.IsNullOrEmpty(OpenAction) && OpenOnLevelUpPath.IsEmpty)
+                GD.PushWarning($"[{Name}] GenreScreenComponent '{ScreenKey}' has no OpenAction and no signal trigger — nothing can open it.");
+            else if (!string.IsNullOrEmpty(OpenAction) && !InputMap.HasAction(OpenAction))
                 GD.PushWarning($"[{Name}] GenreScreenComponent '{ScreenKey}' listens for input action '{OpenAction}', which is not in the input map — it can never fire.");
 
             // Process while paused so the action can CLOSE a screen that paused the tree.
             ProcessMode = ProcessModeEnum.Always;
         }
+
+        private void OnLevelUpTrigger(int newLevel, int statPoints) => Open();
 
         public override void _UnhandledInput(InputEvent @event)
         {
@@ -203,6 +222,8 @@ namespace Beep.ECS.UI
             // Leaving the tree with our screen still open would otherwise strand the game
             // paused forever, with nothing left alive to release it.
             ReleasePause();
+            if (_levelingSource != null && GodotObject.IsInstanceValid(_levelingSource))
+                _levelingSource.LevelUp -= OnLevelUpTrigger;
             base._ExitTree();
         }
     }

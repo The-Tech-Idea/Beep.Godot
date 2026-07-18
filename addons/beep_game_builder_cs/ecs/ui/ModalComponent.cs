@@ -7,6 +7,12 @@ namespace Beep.ECS.UI
     /// Modal dialog overlay component. Attach to any Control to make it a modal popup.
     /// Blind — works for dialogs, confirmations, settings, forms.
     /// Creates dark overlay behind the dialog, blocks input to background.
+    ///
+    /// The open/close pop animates the dialog's `scale`, which assumes the dialog is a
+    /// free-positioned Control (an overlay centered by anchors) — NOT a child of a layout
+    /// Container that would re-sort and overwrite the scale each pass. Modals are normally
+    /// absolute overlays, so this holds; if you must host one in a Container, animate the
+    /// offset_transform layer instead (see UIEffectComponent).
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -29,7 +35,11 @@ namespace Beep.ECS.UI
             base._Ready();
             if (Engine.IsEditorHint()) return;
             _dialog = GetParent() as Godot.Control;
-            if (_dialog == null) return;
+            if (_dialog == null)
+            {
+                GD.PushWarning($"[{Name}] ModalComponent needs a Control parent to show/hide; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the dialog Control.");
+                return;
+            }
 
             if (!StartVisible) _dialog.Visible = false;
         }

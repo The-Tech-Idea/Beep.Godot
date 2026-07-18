@@ -11,9 +11,9 @@
   "nav_wiring": {
     "NewGameScenePath": "character_select.tscn",
     "CharacterSelectPath": "character_select.tscn",
-    "LevelUpPath": "level_up_choice.tscn",
+    "level_up": "level_up_choice.tscn",
     "RunResultsPath": "run_results.tscn",
-    "CodexPath": "codex.tscn",
+    "codex": "codex.tscn",
     "LevelCompletePath": "run_results.tscn"
   },
   "tuning": {

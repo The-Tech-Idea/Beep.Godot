@@ -28,7 +28,11 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _container = GetParent() as Container;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] StepperComponent needs a Container parent to build steps; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to an HBoxContainer.");
+                return;
+            }
             BuildStepper();
             UpdateDisplay();
         }

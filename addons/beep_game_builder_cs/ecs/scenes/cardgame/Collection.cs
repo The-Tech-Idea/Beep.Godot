@@ -10,10 +10,10 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
+            // CloseOrReturn, not ChangeScene: Collection is opened as an overlay over the running
+            // cardgame (ScreenKey="collection"), so Back must free the overlay and reveal the game
+            // — ChangeScene(MainMenu) tore the live run down. Matches every sibling overlay screen.
+            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.MainMenuPath);
         }
-
-        // Shared helper: this method was byte-identical in all 33 screen scripts.
-        private void ChangeScene(string? path) => UI.SceneNav.ChangeScene(this, path);
     }
 }

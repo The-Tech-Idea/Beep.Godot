@@ -27,7 +27,15 @@ namespace Beep.ECS.UI
             base._Ready();
             if (Engine.IsEditorHint()) return;
             _label = GetParent() as Label;
-            if (_label != null) { _label.ClipContents = true; _pauseTimer = PauseAtStart; }
+            if (_label != null)
+            {
+                _label.ClipContents = true;
+                _pauseTimer = PauseAtStart;
+                // Scroll on the offset_transform layer so a container parent can't overwrite the
+                // Label's position each layout pass (which stopped the marquee dead).
+                _label.OffsetTransformEnabled = true;
+            }
+            else GD.PushWarning($"[{Name}] MarqueeComponent needs a Label parent to scroll; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Label.");
         }
 
         public override void _Process(double delta)
@@ -45,7 +53,7 @@ namespace Beep.ECS.UI
             }
 
             _scrollPos += Speed * (float)delta * (_forward ? 1 : -1);
-            _label.Position = new Vector2(-_scrollPos, _label.Position.Y);
+            _label.OffsetTransformPosition = new Vector2(-_scrollPos, 0);
 
             float maxScroll = Mathf.Max(0, textWidth - _label.Size.X);
             if (_scrollPos >= maxScroll && _forward)

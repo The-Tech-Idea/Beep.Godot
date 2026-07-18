@@ -26,7 +26,14 @@ namespace Beep.ECS.UI
             base._Ready();
             if (Engine.IsEditorHint()) return;
             _container = GetParent() as Container;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] FlipCardComponent needs a Container parent holding the front/back faces; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the card container.");
+                return;
+            }
+            // Flip on the offset_transform layer so a card-grid/HBox parent can't overwrite the
+            // scale mid-flip (the same container-stomp the other effects were migrated off of).
+            _container.OffsetTransformEnabled = true;
             var children = _container.GetChildren();
             if (children.Count >= 2) { _front = children[0] as Godot.Control; _back = children[1] as Godot.Control; }
             if (!StartFaceUp) { _showingFront = false; if (_front != null) _front.Visible = false; }
@@ -42,12 +49,16 @@ namespace Beep.ECS.UI
             var show = _showingFront ? _front : _back;
             var hide = _showingFront ? _back : _front;
 
-            // Scale X to 0, swap visibility, scale back
+            // Pivot at the card's horizontal center so the flip hinges in the middle, not the
+            // left edge. Size is settled by the time a flip is triggered at runtime.
+            _container.PivotOffset = new Vector2(_container.Size.X / 2f, _container.Size.Y / 2f);
+
+            // Scale X to 0 on the offset layer, swap visibility, scale back.
             _flipTween = _container.CreateTween();
 
-            _flipTween.TweenProperty(_container, "scale:x", 0f, Duration * 0.5f);
+            _flipTween.TweenProperty(_container, "offset_transform_scale:x", 0f, Duration * 0.5f);
             _flipTween.TweenCallback(Callable.From(() => OnFlipMidpoint(show, hide)));
-            _flipTween.TweenProperty(_container, "scale:x", 1f, Duration * 0.5f);
+            _flipTween.TweenProperty(_container, "offset_transform_scale:x", 1f, Duration * 0.5f);
             _flipTween.Finished += OnFlipFinished;
         }
 

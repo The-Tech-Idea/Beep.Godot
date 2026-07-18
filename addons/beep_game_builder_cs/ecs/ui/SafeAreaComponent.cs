@@ -23,6 +23,8 @@ namespace Beep.ECS.UI
             // parent Control, so in the editor it would re-lay-out the parent on scene open.
             if (Engine.IsEditorHint()) return;
             _control = GetParent() as Godot.Control;
+            if (_control == null)
+                GD.PushWarning($"[{Name}] SafeAreaComponent needs a Control parent to inset; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the HUD's root Control (not a CanvasLayer).");
             if (ApplyOnReady) Apply();
             if (TrackResize) GetViewport().SizeChanged += Apply;
         }

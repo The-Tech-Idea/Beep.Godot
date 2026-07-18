@@ -118,7 +118,14 @@ namespace Beep.ECS
                 GameApp.Instance.SetGameRunning(false);
 
             if (!AutoNavigateOnEnd) return;
-            NavigateToScene(GameBuilder.GameInfo.Instance?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn");
+            // Prefer a genre's LevelFailedPath (puzzle ships level_failed.tscn) when set, so a
+            // loss lands on the genre's fail screen instead of always the shared game_over.
+            // Mirrors OnLevelComplete's fallback chain. Only NavigationComponent read
+            // LevelFailedPath before, and nothing instances that, so level_failed was unreachable.
+            var info = GameBuilder.GameInfo.Instance;
+            string path = info?.LevelFailedPath;
+            if (string.IsNullOrEmpty(path)) path = info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
+            NavigateToScene(path);
         }
 
         /// <summary>Called when the LevelComplete signal fires. If AutoNavigateOnEnd is true,

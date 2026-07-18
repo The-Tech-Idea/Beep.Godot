@@ -18,13 +18,20 @@ namespace Beep.ECS.UI
         private Godot.Control? _control;
         private float _time;
         private ShaderMaterial? _shimmerMat;
+        // The parent's material before we overlaid the shimmer, so Stop() restores it instead
+        // of nulling out a material the Control legitimately had.
+        private Material? _priorMaterial;
 
         public override void _Ready()
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
             _control = GetParent() as Godot.Control;
-            if (_control == null) return;
+            if (_control == null)
+            {
+                GD.PushWarning($"[{Name}] SkeletonLoaderComponent needs a Control parent to overlay the shimmer on; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the placeholder Control.");
+                return;
+            }
 
             _shimmerMat = new ShaderMaterial();
             _shimmerMat.Shader = new Shader();
@@ -38,6 +45,7 @@ void fragment(){
 }";
             _shimmerMat.SetShaderParameter("base_color", BaseColor);
             _shimmerMat.SetShaderParameter("shimmer_color", ShimmerColor);
+            _priorMaterial = _control.Material;   // remember what was there, if anything
             _control.Material = _shimmerMat;
         }
 
@@ -48,6 +56,6 @@ void fragment(){
             _shimmerMat.SetShaderParameter("time", _time % 10f);
         }
 
-        public void Stop() { if (_control != null) _control.Material = null; }
+        public void Stop() { if (_control != null) _control.Material = _priorMaterial; }
     }
 }

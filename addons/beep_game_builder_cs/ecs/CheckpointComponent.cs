@@ -29,6 +29,15 @@ namespace Beep.ECS
             _area = GetParent() as Area2D;
             if (_area != null)
                 _area.BodyEntered += OnBodyEntered;
+            else
+                GD.PushWarning($"[{Name}] CheckpointComponent needs an Area2D parent to detect bodies; got '{GetParent()?.GetType().Name ?? "null"}'. It will never activate.");
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            if (_area != null && GodotObject.IsInstanceValid(_area))
+                _area.BodyEntered -= OnBodyEntered;
         }
 
         private void OnBodyEntered(Node body)
@@ -38,9 +47,9 @@ namespace Beep.ECS
 
             Vector2 pos = _area?.GlobalPosition ?? Vector2.Zero;
             var app = GameApp.Instance;
-            // Record THIS as the active respawn point. Was SetLevel(CurrentLevel) — a
-            // self-assignment no-op that stored nothing; SetCheckpoint persists it.
-            if (app != null) app.SetCheckpoint(app.CurrentLevel);
+            // Record THIS as the active respawn point — level AND world position. Storing only
+            // the level (the old SetCheckpoint(level)) left death-respawn with nowhere to go.
+            if (app != null) app.SetCheckpoint(app.CurrentLevel, pos);
 
             if (HealOnActivate && body is Node2D n2d)
             {

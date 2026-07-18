@@ -36,6 +36,9 @@ namespace Beep.ECS.UI
             _label = new Label { Name = "ComboLabel", Text = "", Visible = false };
             _label.AddThemeFontSizeOverride("font_size", BaseFontSize);
             _label.AddThemeColorOverride("font_color", ComboColor);
+            // Punch on the offset_transform layer so a container parent can't overwrite the
+            // scale (matches the other migrated effects).
+            _label.OffsetTransformEnabled = true;
             if (GetParent() is Node parent)
             {
                 parent.AddChild(_label);
@@ -65,9 +68,10 @@ namespace Beep.ECS.UI
             int fontSize = Mathf.Clamp(BaseFontSize + _count * 2, BaseFontSize, MaxFontSize);
             _label.AddThemeFontSizeOverride("font_size", fontSize);
             _punchTween?.Kill();
-            _label.Scale = new Vector2(1.3f, 1.3f);
+            _label.PivotOffset = _label.Size / 2f;   // punch from the center, not the corner
+            _label.OffsetTransformScale = new Vector2(1.3f, 1.3f);
             _punchTween = CreateTween();
-            _punchTween.TweenProperty(_label, "scale", Vector2.One, 0.15f).SetEase(Tween.EaseType.Out);
+            _punchTween.TweenProperty(_label, "offset_transform_scale", Vector2.One, 0.15f).SetEase(Tween.EaseType.Out);
             EmitSignal(SignalName.ComboChanged, _count);
         }
 

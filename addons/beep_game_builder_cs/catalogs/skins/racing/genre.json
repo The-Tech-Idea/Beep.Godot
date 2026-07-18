@@ -20,6 +20,7 @@
   ],
   "nav_wiring": {
     "NewGameScenePath": "garage.tscn",
+    "vehicle_select": "vehicle_select.tscn",
     "LevelCompletePath": "race_results.tscn"
   },
   "tuning": {

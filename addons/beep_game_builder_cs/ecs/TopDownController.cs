@@ -39,6 +39,7 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down")) return;
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             var input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");

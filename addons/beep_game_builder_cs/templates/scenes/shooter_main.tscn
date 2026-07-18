@@ -1,8 +1,11 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ShooterController.cs" id="1_player"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="21_codex"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LevelingComponent.cs" id="22_leveling"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/projectile_template.tscn" id="11_projectile"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="30_gameover"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="3_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="20_hud"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
@@ -58,6 +61,13 @@ position_smoothing_speed = 6.0
 [node name="Health" type="Node" parent="Player"]
 script = ExtResource("2_health")
 EntityGroup = "players"
+ParticipatesInSave = true
+
+[node name="GameOverOnDeath" type="Node" parent="Player"]
+script = ExtResource("30_gameover")
+
+[node name="Leveling" type="Node" parent="Player"]
+script = ExtResource("22_leveling")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -101,3 +111,14 @@ script = ExtResource("20_hud")
 ScoreLabelPath = NodePath("TopLeft/StatsVBox/ScoreLabel")
 LivesLabelPath = NodePath("TopLeft/StatsVBox/LivesLabel")
 HealthLabelPath = NodePath("TopLeft/StatsVBox/HealthLabel")
+
+[node name="CodexScreen" type="Node" parent="."]
+script = ExtResource("21_codex")
+ScreenKey = "codex"
+OpenAction = "codex"
+
+[node name="LevelUpScreen" type="Node" parent="."]
+script = ExtResource("21_codex")
+ScreenKey = "level_up"
+PauseWhileOpen = true
+OpenOnLevelUpPath = NodePath("../Player/Leveling")

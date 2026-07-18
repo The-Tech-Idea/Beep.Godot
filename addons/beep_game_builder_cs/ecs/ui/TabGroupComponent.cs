@@ -42,7 +42,11 @@ namespace Beep.ECS.UI
                 else if (child is Container c2 && _tabBar != null) { _contentArea = c2; break; }
             }
 
-            if (_tabBar == null) return;
+            if (_tabBar == null)
+            {
+                GD.PushWarning($"[{Name}] TabGroupComponent needs its parent to hold two Container children (a tab bar then a content area); found none. Nothing will be tabbed.");
+                return;
+            }
 
             // Collect tab buttons and their content panels
             foreach (var child in _tabBar.GetChildren())

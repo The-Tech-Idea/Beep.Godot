@@ -10,12 +10,10 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            // The one navigation in ecs/scenes/ that doesn't route through GameApp/GameInfo:
-            // there is no GameInfo property for the garage (the Genre Scenes group covers only
-            // platformer/shooter/puzzle). This literal matches the generator's
-            // res://scenes/ui/{genre.Id}/{scene} convention, so it is correct but invisible to
-            // nav_wiring — relocating garage.tscn breaks it silently.
-            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene("res://scenes/ui/racing/garage.tscn");
+            // Back returns to the garage, which racing wires as NewGameScenePath. Resolve it
+            // through GameInfo instead of a hardcoded literal (fallback keeps it working
+            // pre-generation).
+            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene(GaragePath());
             GetNode<Button>("Margin/VBox/VehicleGrid/Car1/Car1VBox/Car1Button").Pressed += () => SelectVehicle("Car1");
             GetNode<Button>("Margin/VBox/VehicleGrid/Car2/Car2VBox/Car2Button").Pressed += () => SelectVehicle("Car2");
             GetNode<Button>("Margin/VBox/VehicleGrid/Car3/Car3VBox/Car3Button").Pressed += () => SelectVehicle("Car3");
@@ -27,6 +25,12 @@ namespace Beep.ECS.Scenes
         {
             if (GameApp.Instance is { } app) app.SelectedVehicle = vehicle;
             ChangeScene(GameApp.Instance?.GameScenePath);
+        }
+
+        private static string GaragePath()
+        {
+            string p = Beep.GameBuilder.GameInfo.Instance?.NewGameScenePath ?? "";
+            return string.IsNullOrEmpty(p) ? "res://scenes/ui/racing/garage.tscn" : p;
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

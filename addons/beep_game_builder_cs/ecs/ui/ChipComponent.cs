@@ -25,7 +25,11 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _container = GetParent() as Container;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] ChipComponent needs a Container parent to hold chips; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to an HFlowContainer.");
+                return;
+            }
             BuildChip();
         }
 

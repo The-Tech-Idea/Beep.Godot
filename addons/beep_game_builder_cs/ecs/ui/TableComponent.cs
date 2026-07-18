@@ -41,7 +41,11 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _container = GetParent() as VBoxContainer;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] TableComponent needs a VBoxContainer parent to build header + rows; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a VBoxContainer.");
+                return;
+            }
             BuildHeader();
         }
 

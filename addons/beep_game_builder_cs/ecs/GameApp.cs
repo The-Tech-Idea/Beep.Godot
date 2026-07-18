@@ -79,6 +79,10 @@ namespace Beep.ECS
         [Export] public int TotalPlaytimeMinutes { get; set; } = 0;
         /// <summary>Last checkpoint level for quick resume.</summary>
         [Export] public int LastCheckpointLevel { get; set; } = -1;
+        /// <summary>World position of the last activated checkpoint. Death-respawn reads this;
+        /// CheckpointComponent writes it via SetCheckpoint. Was never stored, so respawning at
+        /// "the last checkpoint" had no position to go to.</summary>
+        [Export] public Vector2 LastCheckpointPosition { get; set; } = Vector2.Zero;
         /// <summary>Whether a quicksave exists.</summary>
         [Export] public bool HasQuicksave { get; set; } = false;
 
@@ -317,9 +321,14 @@ namespace Beep.ECS
 
         public bool HasAchievement(string achievementId) => _unlockedAchievements.Contains(achievementId);
 
-        public void SetCheckpoint(int level)
+        public void SetCheckpoint(int level) => SetCheckpoint(level, LastCheckpointPosition);
+
+        /// <summary>Record the active respawn point: which level, and the world position to
+        /// respawn at. Death-respawn reads LastCheckpointPosition.</summary>
+        public void SetCheckpoint(int level, Vector2 position)
         {
             LastCheckpointLevel = level;
+            LastCheckpointPosition = position;
             HasQuicksave = true;
             EmitSignal(SignalName.CheckpointReached, level);
         }
@@ -370,6 +379,17 @@ namespace Beep.ECS
             p.GamesLostTotal = GamesLostTotal;
             p.BestScore = BestScore;
             p.TotalPlaytimeMinutes = TotalPlaytimeMinutes;
+
+            // Current-run session state. Progression is lifetime; these reset each run and
+            // were being dropped — loading a mid-run save reset score to 0 and the chosen
+            // character/vehicle/difficulty/mode back to defaults.
+            var sess = state.Session;
+            sess.SessionScore = SessionScore;
+            sess.SelectedCharacter = SelectedCharacter;
+            sess.SelectedVehicle = SelectedVehicle;
+            sess.Difficulty = (int)CurrentDifficulty;
+            sess.GameMode = GameMode;
+            sess.DifficultyMultiplier = DifficultyMultiplier;
         }
 
         public void Load(GameBuilder.GameStateData state)
@@ -383,6 +403,19 @@ namespace Beep.ECS
             GamesLostTotal = p.GamesLostTotal;
             BestScore = p.BestScore;
             TotalPlaytimeMinutes = p.TotalPlaytimeMinutes;
+
+            // Restore the current-run session state (score, selection, difficulty, mode).
+            var sess = state.Session;
+            SessionScore = sess.SessionScore;
+            SelectedCharacter = sess.SelectedCharacter;
+            SelectedVehicle = sess.SelectedVehicle;
+            GameMode = sess.GameMode;
+            // Route difficulty through SetDifficulty so the multiplier and DifficultyChanged
+            // signal stay consistent; then honor a persisted non-standard multiplier if any.
+            CurrentDifficulty = (Difficulty)sess.Difficulty;
+            SetDifficulty(CurrentDifficulty);
+            if (sess.DifficultyMultiplier > 0f) DifficultyMultiplier = sess.DifficultyMultiplier;
+            EmitSignal(SignalName.SessionScoreChanged, SessionScore);
 
             // Last, and via SetLevel, so LevelChanged fires for anything listening.
             SetLevel(p.CurrentLevel);

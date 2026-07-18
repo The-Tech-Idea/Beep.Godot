@@ -26,6 +26,7 @@ script = ExtResource("1_health")
 MaxHealth = 30.0
 CurrentHealth = 30.0
 EntityGroup = "enemies"
+XpReward = 25.0
 
 [node name="Aggro" type="Node" parent="."]
 script = ExtResource("2_aggro")

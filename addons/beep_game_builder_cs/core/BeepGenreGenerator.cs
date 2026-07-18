@@ -298,6 +298,7 @@ public static class BeepGenreGenerator
         CopyUiScene("pause_menu.tscn", "res://scenes/ui/pause_menu.tscn", mode, log);
         CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", mode, log);
         CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
+        CopyUiScene("level_summary.tscn", "res://scenes/ui/level_summary.tscn", mode, log);
         CopyUiScene("hud.tscn", "res://scenes/ui/hud.tscn", mode, log);
         CopyUiScene("save_game_menu.tscn", "res://scenes/ui/save_game_menu.tscn", mode, log);
         CopyUiScene("load_game_menu.tscn", "res://scenes/ui/load_game_menu.tscn", mode, log);

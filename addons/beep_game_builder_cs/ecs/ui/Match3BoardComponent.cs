@@ -20,6 +20,12 @@ namespace Beep.ECS.UI
         [Export] public int GemTypeCount { get; set; } = 5;
         [Export] public int PointsPerGem { get; set; } = 10;
 
+        /// <summary>Optional GameFlow node. Empty = auto-find in the current scene. Match points
+        /// are forwarded to it via AddScore so the shared HUD (bound to GameFlow.Score) updates
+        /// and the target-score LevelComplete can fire — the board kept a private score that
+        /// nothing consumed, so the puzzle HUD stayed 0 and a level could never complete.</summary>
+        [Export] public NodePath GameFlowPath { get; set; } = new("");
+
         [Signal] public delegate void ScoreChangedEventHandler(int total);
         [Signal] public delegate void CellChangedEventHandler(int x, int y, int gemType);
         [Signal] public delegate void MatchesClearedEventHandler(int count, int points);
@@ -27,6 +33,7 @@ namespace Beep.ECS.UI
         private int[,]? _grid;
         private int _score;
         private bool _resolving;
+        private GameFlowComponent? _flow;
 
         public override void _Ready()
         {
@@ -99,8 +106,21 @@ namespace Beep.ECS.UI
                 _score += totalPoints;
                 EmitSignal(SignalName.MatchesCleared, totalCleared, totalPoints);
                 EmitSignal(SignalName.ScoreChanged, _score);
+                // Forward to GameFlow so the shared HUD updates and TargetScore can end the level.
+                ResolveGameFlow()?.AddScore(totalPoints);
             }
             _resolving = false;
+        }
+
+        // Same lookup PickupComponent uses: prefer an explicit path, else find GameFlow in the
+        // current scene (it sits on the main scene alongside the board). Cached once resolved.
+        private GameFlowComponent? ResolveGameFlow()
+        {
+            if (_flow != null && GodotObject.IsInstanceValid(_flow)) return _flow;
+            if (!GameFlowPath.IsEmpty) _flow = GetNodeOrNull<GameFlowComponent>(GameFlowPath);
+            if (_flow == null && GetTree()?.CurrentScene is { } scene)
+                _flow = EntityComponent.FindComponent<GameFlowComponent>(scene, true);
+            return _flow;
         }
 
         private System.Collections.Generic.List<Vector2I> FindMatches()

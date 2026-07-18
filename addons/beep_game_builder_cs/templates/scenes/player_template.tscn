@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="1_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/MovementComponent.cs" id="2_movement"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AttackComponent.cs" id="3_attack"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthBarComponent.cs" id="4_healthbar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="5_gameover"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(28, 44)
@@ -37,6 +38,10 @@ IsRanged = false
 [node name="HealthBar" type="Node" parent="."]
 script = ExtResource("4_healthbar")
 ShowOnlyWhenDamaged = true
+
+[node name="GameOverOnDeath" type="Node" parent="."]
+script = ExtResource("5_gameover")
+LivesToLose = 1
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position_smoothing_enabled = true

@@ -12,13 +12,19 @@ namespace Beep.ECS.Scenes
 
             GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
 
-            // The garage is the only route to vehicle select — VehicleSelect's Back returns
-            // here, and nothing else pointed at it, so it shipped unreachable. Same
-            // convention its own Back button uses.
+            // The garage is the only route to vehicle select. Resolve it through the nav
+            // registry ("vehicle_select" key) instead of a hardcoded literal, so relocating the
+            // file no longer breaks it silently.
             if (GetNodeOrNull<Button>("Margin/VBox/VehicleSelectButton") is { } vehicleSelect)
-                vehicleSelect.Pressed += () => ChangeScene("res://scenes/ui/racing/vehicle_select.tscn");
+                vehicleSelect.Pressed += () => ChangeScene(VehicleSelectPath());
 
             GetNode<Button>("Margin/VBox/RaceButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
+        }
+
+        private static string VehicleSelectPath()
+        {
+            string p = Beep.GameBuilder.GameInfo.Instance?.GetGenreScenePath("vehicle_select") ?? "";
+            return string.IsNullOrEmpty(p) ? "res://scenes/ui/racing/vehicle_select.tscn" : p;
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

@@ -22,7 +22,9 @@ namespace Beep.ECS.UI
 		private VBoxContainer? _slotsVBox;
 		private Button? _loadButton;
 		private Button? _cancelButton;
-		private int _selectedSlot = -1;
+		// int.MinValue = nothing selected. Plain -1 can't be the sentinel because -1 is the
+		// autosave slot's own number (GameStateManagerComponent.AutosaveSlot).
+		private int _selectedSlot = int.MinValue;
 		private GameStateManagerComponent? _gameStateManager;
 		private Dictionary<int, GameBuilder.SaveMetadata> _slotMetadata = new();
 
@@ -56,21 +58,35 @@ namespace Beep.ECS.UI
 					}
 				}
 			}
+
+			// Keep the menu's row cap in step with the manager's actual slot count. When these
+			// diverged, real saves in slots past MaxSlots were unreachable, or the menu showed
+			// "Empty" rows for slots the manager would reject on Save.
+			if (_gameStateManager != null && _gameStateManager.MaxSaveSlots > 0)
+				MaxSlots = _gameStateManager.MaxSaveSlots;
 		}
 
-		/// <summary>The slot rows the scene actually has, capped at MaxSlots. Mirrors
-		/// SaveGameMenuComponent.SlotButtons: GetChild&lt;PanelContainer&gt;(i) up to MaxSlots
-		/// indexed past the child count and hard-cast, so it threw before the `== null`
-		/// check below could ever run — a scene with a different row count, or a plain
-		/// separator among the rows, took the menu down.</summary>
-		private System.Collections.Generic.List<PanelContainer> SlotContainers()
+		/// <summary>The slot rows the scene has, paired with the save slot each maps to.
+		/// A row named "AutosaveContainer" maps to the autosave slot (-1) so the in-game
+		/// timed autosave is loadable; every other PanelContainer row maps to 0,1,2… in order,
+		/// capped at MaxSlots. Mapping by explicit slot number (not positional index) is what
+		/// lets the autosave row sit anywhere among the numbered rows without shifting them.</summary>
+		private System.Collections.Generic.List<(PanelContainer container, int slot)> SlotRows()
 		{
-			var list = new System.Collections.Generic.List<PanelContainer>();
+			var list = new System.Collections.Generic.List<(PanelContainer, int)>();
 			if (_slotsVBox == null) return list;
+			int numbered = 0;
 			foreach (var child in _slotsVBox.GetChildren())
 			{
-				if (child is PanelContainer p) list.Add(p);
-				if (list.Count >= MaxSlots) break;
+				if (child is not PanelContainer p) continue;
+				if (p.Name == "AutosaveContainer")
+				{
+					list.Add((p, GameStateManagerComponent.AutosaveSlot));
+					continue;
+				}
+				if (numbered >= MaxSlots) continue;   // extra numbered rows past the cap are ignored
+				list.Add((p, numbered));
+				numbered++;
 			}
 			if (list.Count == 0)
 				GD.PushWarning($"[{Name}] No slot rows found under SlotsVBox — check the scene.");
@@ -81,26 +97,26 @@ namespace Beep.ECS.UI
 		{
 			if (_slotsVBox == null || _gameStateManager == null) return;
 
-			var slots = _gameStateManager.GetSaveSlots();
+			// includeAutosave so the in-game/timed autosave appears when the scene has a row for it.
+			var slots = _gameStateManager.GetSaveSlots(includeAutosave: true);
 			_slotMetadata.Clear();
 			foreach (var (slot, meta) in slots)
 			{
 				_slotMetadata[slot] = meta;
 			}
 
-			var containers = SlotContainers();
-			for (int i = 0; i < containers.Count; i++)
+			foreach (var (container, slot) in SlotRows())
 			{
-				var container = containers[i];
-
 				var slotButton = container.FindChild("SlotButton", owned: false) as Button;
 				var nameLabel = container.FindChild("SlotNameLabel", owned: false) as Label;
 				var levelLabel = container.FindChild("SlotLevelLabel", owned: false) as Label;
 				var timeLabel = container.FindChild("SlotPlaytimeLabel", owned: false) as Label;
 
-				if (_slotMetadata.TryGetValue(i, out var meta))
+				string slotName = slot == GameStateManagerComponent.AutosaveSlot ? "Autosave" : $"Slot {slot + 1}";
+				if (slotButton != null) slotButton.Text = slotName;
+
+				if (_slotMetadata.TryGetValue(slot, out var meta))
 				{
-					if (slotButton != null) slotButton.Text = $"Slot {i + 1}";
 					if (nameLabel != null) nameLabel.Text = meta.SaveName;
 					if (levelLabel != null) levelLabel.Text = $"Level: {meta.CurrentLevel}";
 					if (timeLabel != null)
@@ -112,8 +128,7 @@ namespace Beep.ECS.UI
 				}
 				else
 				{
-					if (slotButton != null) slotButton.Text = $"Slot {i + 1}";
-					if (nameLabel != null) nameLabel.Text = "Empty Slot";
+					if (nameLabel != null) nameLabel.Text = slot == GameStateManagerComponent.AutosaveSlot ? "No autosave" : "Empty Slot";
 					if (levelLabel != null) levelLabel.Text = "Level: --";
 					if (timeLabel != null) timeLabel.Text = "Time: --";
 				}
@@ -126,15 +141,12 @@ namespace Beep.ECS.UI
 		/// once per accumulated subscription.</summary>
 		private void WireSlotButtons()
 		{
-			var containers = SlotContainers();
-			for (int i = 0; i < containers.Count; i++)
+			foreach (var (container, slot) in SlotRows())
 			{
-				int slot = i;
-
-				if (containers[i].FindChild("SlotButton", owned: false) is Button slotButton)
+				if (container.FindChild("SlotButton", owned: false) is Button slotButton)
 					slotButton.Pressed += () => OnSlotSelected(slot);
 
-				if (containers[i].FindChild("DeleteButton", owned: false) is Button deleteButton)
+				if (container.FindChild("DeleteButton", owned: false) is Button deleteButton)
 					deleteButton.Pressed += () => OnDeletePressed(slot);
 			}
 		}
@@ -142,22 +154,22 @@ namespace Beep.ECS.UI
 		private void OnSlotSelected(int slot)
 		{
 			bool hasData = _slotMetadata.ContainsKey(slot);
-			_selectedSlot = hasData ? slot : -1;
+			_selectedSlot = hasData ? slot : int.MinValue;
 
 			if (_loadButton != null)
 				_loadButton.Disabled = !hasData;
 
-			var containers = SlotContainers();
-			for (int i = 0; i < containers.Count; i++)
+			foreach (var (container, rowSlot) in SlotRows())
 			{
-				containers[i].AddThemeStyleboxOverride("panel",
-					i == slot ? new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.6f) } : new StyleBoxFlat());
+				container.AddThemeStyleboxOverride("panel",
+					rowSlot == slot ? new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.6f) } : new StyleBoxFlat());
 			}
 		}
 
 		private void OnLoadPressed()
 		{
-			if (_selectedSlot < 0 || !_slotMetadata.ContainsKey(_selectedSlot)) return;
+			// int.MinValue = nothing selected. A plain "< 0" here would reject the autosave (-1).
+			if (_selectedSlot == int.MinValue || !_slotMetadata.ContainsKey(_selectedSlot)) return;
 			EmitSignal(SignalName.LoadConfirmed, _selectedSlot);
 			QueueFree();
 		}

@@ -56,6 +56,11 @@ namespace Beep.ECS.UI
 
             if (GetParent() is not Node parent) return;
             FindButtonsRecursive(parent);
+
+            if (_buttons.Count == 0)
+                GD.PushWarning($"[{Name}] MenuComponent found no Button descendants under its parent — there is nothing to wire.");
+            else if (!_navWired)
+                GD.PushWarning($"[{Name}] MenuComponent found no sibling NavigationComponent — button presses emit ActionTriggered but nothing navigates. Add a NavigationComponent alongside it, or handle ActionTriggered yourself.");
         }
 
         private void FindButtonsRecursive(Node parent)

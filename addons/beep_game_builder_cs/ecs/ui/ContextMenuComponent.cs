@@ -31,7 +31,11 @@ namespace Beep.ECS.UI
             if (Engine.IsEditorHint()) return;
 
             _control = GetParent() as Godot.Control;
-            if (_control == null) return;
+            if (_control == null)
+            {
+                GD.PushWarning($"[{Name}] ContextMenuComponent needs a Control parent to catch right-clicks; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Control it should open on.");
+                return;
+            }
 
             _menu = new PopupMenu();
             _menu.Name = "ContextMenu";

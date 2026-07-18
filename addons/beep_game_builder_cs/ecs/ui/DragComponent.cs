@@ -36,6 +36,10 @@ namespace Beep.ECS.UI
                 _control.GuiInput += OnGuiInput;
                 _control.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
             }
+            else
+            {
+                GD.PushWarning($"[{Name}] DragComponent needs a Control parent to drag; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the draggable Control.");
+            }
         }
 
         private void OnGuiInput(InputEvent @event)

@@ -4,8 +4,17 @@ using System.Collections.Generic;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Horizontal card carousel. Attach to a Container with child Controls as slides.
-    /// Blind — works for image galleries, featured items, tutorials, card browsers.
+    /// Horizontal card carousel. Attach to a Container (or any Control) with child
+    /// Controls as slides. Blind — works for image galleries, featured items,
+    /// tutorials, card browsers.
+    ///
+    /// The carousel fully owns slide placement (absolute x fan-out + scale + fade),
+    /// so each slide is made <c>TopLevel</c> at startup to escape the parent's layout.
+    /// Without that, a sorting parent (VBox/HBox/GridContainer, or even the base
+    /// Container, which fits every child to its full rect) re-arranged the slides
+    /// every layout pass and overwrote the carousel's own positioning and tweens.
+    /// Slides are then positioned in global coordinates, anchored to the container's
+    /// on-screen rect.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -22,59 +31,94 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void SlideChangedEventHandler(int index);
 
-        private Container? _container;
+        private Control? _container;
         private int _currentIndex;
         private float _autoTimer;
-        private int _slideCount;
-        private readonly System.Collections.Generic.List<Tween> _activeTweens = new();
+        // The slides this carousel drives, and each slide's vertical baseline relative to the
+        // container (captured before it goes TopLevel, so its Y placement is preserved).
+        private readonly List<Godot.Control> _slides = new();
+        private readonly Dictionary<Godot.Control, float> _baseY = new();
+        private readonly List<Tween> _activeTweens = new();
 
         public override void _Ready()
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            _container = GetParent() as Container;
-            if (_container == null) return;
-            _slideCount = _container.GetChildCount();
-            if (_slideCount == 0) return;
+            _container = GetParent() as Control;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] CarouselComponent needs a Control parent whose children are the slides; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the slide container.");
+                return;
+            }
+            // Defer so the container has been laid out once — we read each slide's settled
+            // position to capture its vertical baseline before making it TopLevel.
+            CallDeferred(nameof(InitSlides));
+        }
+
+        private void InitSlides()
+        {
+            if (_container == null || !GodotObject.IsInstanceValid(_container)) return;
+
+            _slides.Clear();
+            _baseY.Clear();
+            foreach (var child in _container.GetChildren())
+            {
+                if (child is not Godot.Control slide) continue;
+                // Capture vertical baseline relative to the container, then escape its layout.
+                _baseY[slide] = slide.Position.Y;
+                slide.TopLevel = true;
+                _slides.Add(slide);
+            }
+
+            if (_slides.Count == 0)
+            {
+                GD.PushWarning($"[{Name}] CarouselComponent found no Control slides under its parent — nothing to show.");
+                return;
+            }
             GoToSlide(0, true);
         }
 
         public override void _Process(double delta)
         {
-            if (!AutoPlay || !IsActive) return;
+            if (!AutoPlay || !IsActive || _slides.Count == 0) return;
             _autoTimer += (float)delta;
             if (_autoTimer >= AutoPlayInterval) { _autoTimer = 0; Next(); }
         }
 
-        public void Next() => GoToSlide((_currentIndex + 1) % _slideCount);
-        public void Previous() => GoToSlide((_currentIndex - 1 + _slideCount) % _slideCount);
+        public void Next() => GoToSlide((_currentIndex + 1) % _slides.Count);
+        public void Previous() => GoToSlide((_currentIndex - 1 + _slides.Count) % _slides.Count);
 
         public void GoToSlide(int index, bool instant = false)
         {
-            if (_container == null || !IsActive || _slideCount == 0) return;
-            if (!Loop && (index < 0 || index >= _slideCount)) return;
-            if (!Loop) index = Mathf.Clamp(index, 0, _slideCount - 1);
+            if (_container == null || !IsActive || _slides.Count == 0) return;
+            if (!Loop && (index < 0 || index >= _slides.Count)) return;
+            if (!Loop) index = Mathf.Clamp(index, 0, _slides.Count - 1);
 
             foreach (var t in _activeTweens)
                 t?.Kill();
             _activeTweens.Clear();
 
-            _currentIndex = ((index % _slideCount) + _slideCount) % _slideCount;
+            _currentIndex = ((index % _slides.Count) + _slides.Count) % _slides.Count;
 
-            float centerX = _container.Size.X / 2f;
-            for (int i = 0; i < _slideCount; i++)
+            // Anchor to the container's on-screen rect (slides are TopLevel → global coords).
+            float centerX = _container.GlobalPosition.X + _container.Size.X / 2f;
+            float baseY = _container.GlobalPosition.Y;
+
+            for (int i = 0; i < _slides.Count; i++)
             {
-                if (_container.GetChild(i) is not Godot.Control slide) continue;
+                var slide = _slides[i];
+                if (!GodotObject.IsInstanceValid(slide)) continue;
 
                 float offset = (i - _currentIndex) * (CardWidth + Spacing);
                 float targetX = centerX - CardWidth / 2f + offset;
+                float targetY = baseY + _baseY.GetValueOrDefault(slide, 0f);
                 float distance = Mathf.Abs(i - _currentIndex);
                 float scale = distance < 1f ? 1f : InactiveScale;
                 float alpha = distance < 1f ? 1f : InactiveAlpha;
 
                 if (instant)
                 {
-                    slide.Position = new Vector2(targetX, slide.Position.Y);
+                    slide.GlobalPosition = new Vector2(targetX, targetY);
                     slide.Scale = new Vector2(scale, scale);
                     slide.Modulate = new Color(1, 1, 1, alpha);
                 }
@@ -82,7 +126,7 @@ namespace Beep.ECS.UI
                 {
                     var tween = slide.CreateTween().SetParallel(true);
                     _activeTweens.Add(tween);
-                    tween.TweenProperty(slide, "position:x", targetX, TransitionDuration).SetEase(Tween.EaseType.Out);
+                    tween.TweenProperty(slide, "global_position", new Vector2(targetX, targetY), TransitionDuration).SetEase(Tween.EaseType.Out);
                     tween.TweenProperty(slide, "scale", new Vector2(scale, scale), TransitionDuration);
                     tween.TweenProperty(slide, "modulate:a", alpha, TransitionDuration);
                 }

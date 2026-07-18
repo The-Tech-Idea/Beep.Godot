@@ -35,6 +35,11 @@ namespace Beep.ECS.UI
         [ExportGroup("Behavior")]
         [Export] public string AdvanceAction { get; set; } = "interact";
         [Export] public float TypewriterSpeed { get; set; } = 30f;
+        /// <summary>Optional DialogComponent whose <c>DialogStarted</c> signal drives this UI.
+        /// When set, the two halves auto-connect (DialogStarted → StartFromDialogComponent) so
+        /// the engine and the box work together with no hand-wiring — this was the missing link
+        /// that left dialog_template.tscn showing nothing when its engine ran.</summary>
+        [Export] public NodePath? DialogEnginePath { get; set; }
 
         [ExportGroup("Layout")]
         [Export] public DialogPosition Position { get; set; } = DialogPosition.Bottom;
@@ -71,11 +76,29 @@ namespace Beep.ECS.UI
         private Tween? _animationTween;
         private readonly System.Collections.Generic.List<Tween> _choiceTweens = new();
 
+        // The DialogComponent driving this UI (resolved from DialogEnginePath), so we can
+        // unsubscribe on exit.
+        private Beep.ECS.DialogComponent? _engine;
+
         public override void _Ready()
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
             CallDeferred(nameof(BuildLayout));
+            ConnectDialogEngine();
+        }
+
+        private void ConnectDialogEngine()
+        {
+            if (DialogEnginePath == null || DialogEnginePath.IsEmpty) return;
+            _engine = GetNodeOrNull<Beep.ECS.DialogComponent>(DialogEnginePath);
+            if (_engine == null)
+            {
+                GD.PushWarning($"[{Name}] DialogEnginePath '{DialogEnginePath}' did not resolve to a DialogComponent — the box won't be driven by an engine.");
+                return;
+            }
+            // Signal shapes match: DialogStarted(string speaker, string[] lines) → StartFromDialogComponent.
+            _engine.DialogStarted += StartFromDialogComponent;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -434,6 +457,8 @@ namespace Beep.ECS.UI
             foreach (var t in _choiceTweens)
                 t?.Kill();
             _choiceTweens.Clear();
+            if (_engine != null && GodotObject.IsInstanceValid(_engine))
+                _engine.DialogStarted -= StartFromDialogComponent;
         }
     }
 }

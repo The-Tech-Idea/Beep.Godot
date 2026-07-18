@@ -29,7 +29,11 @@ namespace Beep.ECS.UI
             base._Ready();
             if (Engine.IsEditorHint()) return;
             _container = GetParent() as Container;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] AccordionComponent needs a Container parent to lay out sections; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a VBoxContainer.");
+                return;
+            }
 
             var children = _container.GetChildren();
             if (children.Count == 0) return;
@@ -40,6 +44,10 @@ namespace Beep.ECS.UI
             {
                 _header.Pressed += Toggle;
                 UpdateHeaderText();
+            }
+            else
+            {
+                GD.PushWarning($"[{Name}] AccordionComponent's first child is '{children[0].GetType().Name}', not a Button — there's no header to toggle, so the section can't be expanded/collapsed by click. Make the first child a Button.");
             }
 
             if (!StartExpanded) SetExpanded(false, true);

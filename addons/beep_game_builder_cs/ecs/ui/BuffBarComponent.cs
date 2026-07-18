@@ -18,6 +18,8 @@ namespace Beep.ECS.UI
 
         private HBoxContainer? _container;
         private readonly Dictionary<string, ProgressRingComponent> _icons = new();
+        // Resolved once in Setup — walking the sibling list every _Process frame was pure waste.
+        private StatusEffectComponent? _status;
 
         public override void _Ready()
         {
@@ -41,21 +43,24 @@ namespace Beep.ECS.UI
                     _container.Owner = parent.Owner;
             }
 
-            var status = GetSiblingComponent<StatusEffectComponent>();
-            if (status != null)
+            _status = GetSiblingComponent<StatusEffectComponent>();
+            if (_status != null)
             {
-                status.EffectApplied += OnEffectApplied;
-                status.EffectExpired += OnEffectExpired;
-                status.EffectTicked += OnEffectTicked;
+                _status.EffectApplied += OnEffectApplied;
+                _status.EffectExpired += OnEffectExpired;
+                _status.EffectTicked += OnEffectTicked;
+            }
+            else
+            {
+                GD.PushWarning($"[{Name}] BuffBarComponent found no sibling StatusEffectComponent — it will display nothing. Add one alongside it.");
             }
         }
 
         public override void _Process(double delta)
         {
             // Update progress rings from active effects.
-            var status = GetSiblingComponent<StatusEffectComponent>();
-            if (status == null) return;
-            foreach (var effect in status.ActiveEffects)
+            if (_status == null || !GodotObject.IsInstanceValid(_status)) return;
+            foreach (var effect in _status.ActiveEffects)
             {
                 if (_icons.TryGetValue(effect.Id, out var ring))
                 {
@@ -71,11 +76,10 @@ namespace Beep.ECS.UI
             if (_container == null || _icons.ContainsKey(effectId)) return;
             if (_icons.Count >= MaxSlots) return;
 
-            var status = GetSiblingComponent<StatusEffectComponent>();
             bool isBuff = true;
-            if (status != null)
+            if (_status != null)
             {
-                var effect = status.ActiveEffects.Find(e => e.Id == effectId);
+                var effect = _status.ActiveEffects.Find(e => e.Id == effectId);
                 if (effect != null) isBuff = effect.IsBuff;
             }
 
@@ -99,5 +103,18 @@ namespace Beep.ECS.UI
         }
 
         private void OnEffectTicked(string effectId, float remaining) { /* optional tick visual */ }
+
+        public override void _ExitTree()
+        {
+            // Drop the sibling subscriptions so the freed StatusEffectComponent doesn't
+            // fire into a disposed buff bar (and this bar can be freed independently).
+            if (_status != null && GodotObject.IsInstanceValid(_status))
+            {
+                _status.EffectApplied -= OnEffectApplied;
+                _status.EffectExpired -= OnEffectExpired;
+                _status.EffectTicked -= OnEffectTicked;
+            }
+            _status = null;
+        }
     }
 }

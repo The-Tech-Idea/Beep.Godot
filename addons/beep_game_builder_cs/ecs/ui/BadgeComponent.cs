@@ -26,6 +26,8 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             _control = GetParent() as Godot.Control;
+            if (_control == null)
+                GD.PushWarning($"[{Name}] BadgeComponent needs a Control parent to anchor the badge to; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Control being badged.");
             CallDeferred(nameof(BuildBadge));
             UpdateBadge();
         }

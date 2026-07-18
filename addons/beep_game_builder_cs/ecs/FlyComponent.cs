@@ -37,11 +37,31 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private float _targetRotation;
         private float _boostTimer;
+        // Child sprite that gets the visual bank/lean. A 2D body can't roll, so banking
+        // is expressed as a Skew on the sprite — MaxBankAngle/BankSpeed drive it.
+        private Node2D? _bankSprite;
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+
+            if (EnableBanking && _body != null)
+            {
+                _bankSprite = FindBankSprite(_body);
+                if (_bankSprite == null)
+                    GD.PushWarning($"[{Name}] EnableBanking is on but the body has no Sprite2D/AnimatedSprite2D child to lean; banking will do nothing. Add a sprite child or turn EnableBanking off.");
+            }
+        }
+
+        // Prefer an actual sprite; fall back to the first Node2D child that isn't a body.
+        private Node2D? FindBankSprite(Node body)
+        {
+            foreach (var child in body.GetChildren())
+                if (child is Sprite2D or AnimatedSprite2D) return (Node2D)child;
+            foreach (var child in body.GetChildren())
+                if (child is Node2D n2d and not PhysicsBody2D) return n2d;
+            return null;
         }
 
         public override void _PhysicsProcess(double delta)
@@ -75,11 +95,25 @@ namespace Beep.ECS
                 _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, Friction * dt);
             }
 
-            // Banking — smoothly rotate the body toward the movement direction.
+            // Banking — smoothly rotate the body toward the movement direction, then
+            // lean the sprite into the turn (clamped to MaxBankAngle, eased at BankSpeed).
             if (EnableBanking && _body.Velocity.Length() > 1f)
             {
-                float bank = Mathf.LerpAngle(_body.Rotation, _targetRotation, TurnSpeed * dt);
-                _body.Rotation = bank;
+                _body.Rotation = Mathf.LerpAngle(_body.Rotation, _targetRotation, TurnSpeed * dt);
+
+                if (_bankSprite != null)
+                {
+                    // How sharply we're turning → lean amount, clamped to the max bank angle.
+                    float turnDelta = Mathf.AngleDifference(_body.Rotation, _targetRotation);
+                    float maxRad = Mathf.DegToRad(MaxBankAngle);
+                    float targetBank = Mathf.Clamp(turnDelta, -maxRad, maxRad);
+                    _bankSprite.Skew = Mathf.Lerp(_bankSprite.Skew, targetBank, BankSpeed * dt);
+                }
+            }
+            else if (_bankSprite != null && !Mathf.IsZeroApprox(_bankSprite.Skew))
+            {
+                // Level out when not turning/flying.
+                _bankSprite.Skew = Mathf.Lerp(_bankSprite.Skew, 0f, BankSpeed * dt);
             }
 
             _body.MoveAndSlide();

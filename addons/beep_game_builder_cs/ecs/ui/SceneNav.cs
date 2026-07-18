@@ -35,9 +35,42 @@ namespace Beep.ECS.UI
                 GD.PushError($"[{caller.Name}] Navigation target does not exist: {path}");
                 return;
             }
-            Error err = caller.GetTree().ChangeSceneToFile(path);
+
+            var tree = caller.GetTree();
+            if (tree == null) return;
+
+            // If the current scene ships a SceneTransitionComponent, fade out through it and
+            // swap scenes when the fade finishes. Without this the Transition node in the menus
+            // spawned its rect and never played — every navigation was a hard cut. CanPlay
+            // guards against a not-yet-ready transition stalling the change.
+            var transition = FindTransition(tree.CurrentScene);
+            if (transition is { CanPlay: true })
+            {
+                void OnFinished()
+                {
+                    transition.Finished -= OnFinished;
+                    Error e = tree.ChangeSceneToFile(path);
+                    if (e != Error.Ok)
+                        GD.PushError($"[{caller.Name}] Failed to change scene to {path}: {e}");
+                }
+                transition.Finished += OnFinished;
+                transition.TransitionIn();
+                return;
+            }
+
+            Error err = tree.ChangeSceneToFile(path);
             if (err != Error.Ok)
                 GD.PushError($"[{caller.Name}] Failed to change scene to {path}: {err}");
+        }
+
+        /// <summary>Depth-first search for a SceneTransitionComponent under the given scene root.</summary>
+        private static SceneTransitionComponent? FindTransition(Node? node)
+        {
+            if (node == null) return null;
+            if (node is SceneTransitionComponent t) return t;
+            foreach (var child in node.GetChildren())
+                if (FindTransition(child) is { } found) return found;
+            return null;
         }
 
         /// <summary>Close a screen that may be either the current scene or an overlay.

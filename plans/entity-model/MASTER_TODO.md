@@ -269,8 +269,15 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       linked from `INDEX.md`. Both Phase 5 Verification deliverables met. **Optional extras left:**
       more validator checks (e.g. `HealthComponent` on a projectile node) and `_Ready` warnings for
       the remaining silent Area2D casts. → `phase-5-archetypes-per-genre.md`
-- [ ] **Phase 6 — Missing components** — ranked by leverage. **Read Phase 0 first** — 9 of the 16
-      proposals already exist. → `phase-6-missing-components.md`
+- [~] **Phase 6 — Missing components** — several landed already: `EquipmentComponent` (Phase 2),
+      `AreaTriggerComponent` base (item 7), and now **`HazardComponent`** — the "damage on contact"
+      primitive, a ~40-line `AreaTriggerComponent` subclass firing a typed `GameDamage` packet
+      (repeats every `TickInterval` while a body stays inside, or `DamageOnce`; hits meet
+      `ResistanceComponent`). Build-clean. **Still genuinely new / open:** `LapGate`/`LapTracker`
+      (racing — another `AreaTrigger` subclass), `VehicleController` (racing), `SelectableComponent`
+      (strategy/citybuilder), `GridPlacementComponent` (over the existing `BeepPathfindingGrid` A*),
+      `Match3Input`/`Match3View` (puzzle wiring), `CharacterStatsComponent`. **Read Phase 0 first** —
+      9 of the original 16 proposals already existed. → `phase-6-missing-components.md`
 - [~] **Phase 7 — Dependencies & time** — **Part B (time) done; this unblocks Phase 2.** New
       `TurnManager` autoload (a Lamport clock: `CurrentTurn` + `TurnEnded` + `EndTurn()`, static
       `Instance`), registered by the generator **only when** `genre.json tuning.time_axis == "turns"`

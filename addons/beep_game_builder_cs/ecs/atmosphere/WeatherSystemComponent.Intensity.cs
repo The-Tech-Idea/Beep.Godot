@@ -137,14 +137,16 @@ namespace Beep.ECS
         {
             if (!_globalsRegistered)
             {
-                // ProjectSettings global_shader_parameter registration. Calling
-                // AddProperty is safe if the property already exists (no-op).
+                // Register each as an actual RENDERING global. Setting a plain ProjectSettings key
+                // does NOT create one, so GlobalShaderParameterSet below was a silent no-op and no
+                // shader ever received these values. GlobalShaderParameterAdd is what a shader's
+                // `global uniform float beep_puddle_depth;` resolves against.
                 foreach (var name in new[]{
                     ParamWindStrength, ParamWindX, ParamPuddleDepth,
                     ParamSnowAccumulation, ParamWeatherIntensity })
                 {
-                    if (!ProjectSettings.HasSetting(name))
-                        ProjectSettings.SetSetting(name, 0f);
+                    if (RenderingServer.GlobalShaderParameterGet(name).VariantType == Variant.Type.Nil)
+                        RenderingServer.GlobalShaderParameterAdd(name, RenderingServer.GlobalShaderParameterType.Float, 0f);
                 }
                 _globalsRegistered = true;
             }

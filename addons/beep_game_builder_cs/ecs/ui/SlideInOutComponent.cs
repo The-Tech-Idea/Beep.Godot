@@ -86,6 +86,7 @@ namespace Beep.ECS.UI
                     Vector2 target = animateIn ? visible : HiddenPos(c);
                     Vector2 start = animateIn ? HiddenPos(c) : visible;
                     tw.TweenProperty(c, "position", target, Duration)
+                      .From(start)   // was computed but never applied — SlideIn from a non-hidden control tweened visible->visible (no motion)
                       .SetEase(animateIn ? Tween.EaseType.Out : Tween.EaseType.In)
                       .SetTrans(animateIn ? Tween.TransitionType.Back : Tween.TransitionType.Quad);
                 }

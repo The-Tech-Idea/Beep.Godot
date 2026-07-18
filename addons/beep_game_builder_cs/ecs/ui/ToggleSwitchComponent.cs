@@ -19,7 +19,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void ToggledEventHandler(bool isOn);
 
-        private CheckBox? _checkbox;
+        private Button? _checkbox;   // Button, not CheckBox — covers both (CheckBox : Button); both have Text + Toggled
         private ColorRect? _bg;
         private ColorRect? _knob;
         private Tween? _tween;
@@ -27,16 +27,20 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _checkbox = GetParent() as CheckBox;
-            if (_checkbox != null)
+            _checkbox = GetParent() as Button;
+            if (_checkbox == null)
             {
-                // Hide default checkbox, build ours
-                _checkbox.Text = "";
-                _checkbox.AddThemeConstantOverride("icon_separation", 0);
-                BuildSwitch();
-                _checkbox.Toggled += OnCheckboxToggled;
-                SetState(_checkbox.ButtonPressed);
+                GD.PushWarning($"[{Name}] parent is not a Button/CheckBox — the toggle switch cannot build. Parent it to one.");
+                return;
             }
+            // Hide the default button chrome, build ours. Force ToggleMode so a plain Button parent
+            // (which defaults off) actually emits Toggled like a CheckBox does.
+            _checkbox.Text = "";
+            _checkbox.ToggleMode = true;
+            _checkbox.AddThemeConstantOverride("icon_separation", 0);
+            BuildSwitch();
+            _checkbox.Toggled += OnCheckboxToggled;
+            SetState(_checkbox.ButtonPressed);
         }
 
         private void OnCheckboxToggled(bool on) => SetState(on);

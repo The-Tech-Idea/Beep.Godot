@@ -229,11 +229,17 @@ Two ~1-line wins first — each switches on a chain that is **already fully code
       `GameArmor`/`GameShield` → `{armor, Add, Defense}` — so `AttackComponent`/`HealthComponent`
       (which read the stats since 2b) reflect equipment, and unequip withdraws by `Source`.
       `AttackComponent` melee now carries the equipped `MainWeapon.DamageType`, so a fire sword meets
-      fire resistance. Build-clean. **Still open in 3b:** the melee **hitbox** (replace the cursor
-      point-query with an `AreaTrigger`-derived reach → makes `GameWeapon.Range` real — the base is
-      ready from item 7), ammo consumption (`GameWeapon.AmmoItem`), ranged/projectile typing +
-      `ShooterController` weapon integration (`ProjectileDamage`/`IsRanged`/`FireRate`), and
-      `ResistanceComponent` per-type → `resist_*` stats. → `phase-3-combat-integration.md`
+      fire resistance. **Ammo done:** a `GameWeapon.AmmoItem` is spent from the wielder's inventory on
+      attack (refuses + keeps cooldown ready when empty; warns only on the no-inventory
+      misconfiguration). **Resistances done:** `GameArmor`/`GameShield.ResistFor` are combined
+      multiplicatively by `ResistanceComponent` across equipped pieces — so a fire-resist armor
+      actually resists fire (they were decorative). Done NOT via `resist_*` stats: multiplicative
+      resistances can't default to a base-0 stat, so the component reads equipped pieces directly.
+      Build-clean. **Still open in 3b (needs an editor pass / more work):** the melee **hitbox**
+      (replace the cursor point-query with an `AreaTrigger`-derived reach → makes `GameWeapon.Range`
+      real — base ready from item 7, but physics needs the running game), and `ShooterController`
+      ranged-weapon integration (`ProjectileDamage`/`IsRanged`/`FireRate` from the equipped weapon).
+      → `phase-3-combat-integration.md`
 - [x] **Phase 4 — Pickups & drops** — **done.** `PickupComponent.ItemId` (string) → `[Export]
       GameItem? Item` (null = valid score-only pickup); `Collect` adds the item directly and warns
       when an Item is set but the collector has no inventory. `Collected → AddItem` was already

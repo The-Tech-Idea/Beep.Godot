@@ -35,5 +35,20 @@ namespace Beep.ECS
         {
             yield return new StatModifier { Stat = "armor", Op = StatOp.Add, Amount = Defense, Duration = -1f };
         }
+
+        /// <summary>This armor's multiplier for a damage type (1 = no effect, 0.5 = halves it, 0 =
+        /// immune). Read by a wearer's ResistanceComponent and combined multiplicatively.</summary>
+        public float ResistFor(DamageType type) => type switch
+        {
+            DamageType.Physical => Physical,
+            DamageType.Fire => Fire,
+            DamageType.Ice => Ice,
+            DamageType.Poison => Poison,
+            DamageType.Holy => Holy,
+            DamageType.Dark => Dark,
+            DamageType.Lightning => Lightning,
+            DamageType.True => True,
+            _ => 1f
+        };
     }
 }

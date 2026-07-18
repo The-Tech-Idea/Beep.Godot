@@ -68,6 +68,10 @@ namespace Beep.ECS
 
         public GameEquipment? Get(EquipSlot slot) => _slots.TryGetValue(slot, out var i) ? i : null;
 
+        /// <summary>Every currently equipped piece, for consumers that aggregate across slots —
+        /// e.g. ResistanceComponent multiplying in each piece's per-type resistance.</summary>
+        public IEnumerable<GameEquipment> EquippedItems => _slots.Values;
+
         private void Contribute(GameEquipment item)
         {
             // Authored Modifiers are shared on the .tres, so DUPLICATE them per wearer (two entities

@@ -26,6 +26,7 @@ namespace Beep.ECS
         private HealthComponent? _health;
         private Node2D? _body;
         private EquipmentComponent? _equipment;
+        private InventoryComponent? _inventory;
 
         public override void _Ready()
         {
@@ -33,6 +34,7 @@ namespace Beep.ECS
             _health = GetSiblingComponent<HealthComponent>();
             _body = GetParent() as Node2D;
             _equipment = GetSiblingComponent<EquipmentComponent>();
+            _inventory = GetSiblingComponent<InventoryComponent>();
         }
 
         public override void _Process(double delta)
@@ -47,6 +49,12 @@ namespace Beep.ECS
         public void Attack(Vector2 target)
         {
             if (!CanAttack) return;
+
+            // A weapon that eats ammo refuses to fire when there's none, and does NOT start its
+            // cooldown (so the trigger can be pulled again the moment ammo arrives).
+            var weapon = _equipment?.MainWeapon;
+            if (weapon?.AmmoItem != null && !ConsumeAmmo(weapon)) return;
+
             CooldownRemaining = Cooldown;
 
             // Damage comes from the entity's "damage" stat when it has one — so equipment and
@@ -57,7 +65,7 @@ namespace Beep.ECS
 
             // The equipped weapon decides the damage type, so a fire sword's hits meet a target's
             // fire resistance. Unarmed (no weapon) falls back to Physical.
-            DamageType dtype = _equipment?.MainWeapon?.DamageType ?? DamageType.Physical;
+            DamageType dtype = weapon?.DamageType ?? DamageType.Physical;
 
             if (IsRanged && ProjectileScene != null)
             {
@@ -88,6 +96,23 @@ namespace Beep.ECS
                 projComp.Damage = damage;
                 projComp.Launch(direction);
             }
+        }
+
+        /// <summary>Spend a weapon's ammo from the wielder's inventory, or refuse. Warns only on
+        /// the misconfiguration (ammo required but no inventory) — an empty magazine is a normal
+        /// game state, not a bug, so it stays quiet.</summary>
+        private bool ConsumeAmmo(GameWeapon weapon)
+        {
+            if (_inventory == null)
+            {
+                GD.PushWarning(
+                    $"[{Name}] weapon '{weapon.DisplayName}' needs ammo '{weapon.AmmoItem!.Id}' but the " +
+                    "wielder has no InventoryComponent — it can never fire. Add an InventoryComponent, or clear GameWeapon.AmmoItem.");
+                return false;
+            }
+            if (!_inventory.HasItem(weapon.AmmoItem!.Id, weapon.AmmoPerUse)) return false;   // out of ammo
+            _inventory.RemoveItem(weapon.AmmoItem.Id, weapon.AmmoPerUse);
+            return true;
         }
 
         private void DealMeleeDamage(Vector2 target, float damage, DamageType type)

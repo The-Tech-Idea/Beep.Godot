@@ -23,8 +23,33 @@ namespace Beep.ECS
 
         [Signal] public delegate void ResistanceBrokenEventHandler(DamageType type);
 
-        /// <summary>Get the multiplier for a damage type (0 = immune, 1 = normal).</summary>
-        public float GetMultiplier(DamageType type) => type switch
+        private EquipmentComponent? _equipment;
+
+        public override void _Ready()
+        {
+            base._Ready();
+            _equipment = GetSiblingComponent<EquipmentComponent>();
+        }
+
+        /// <summary>Get the multiplier for a damage type (0 = immune, 1 = normal), combining this
+        /// entity's own resistance with each equipped armor/shield's — multiplicatively, so two
+        /// halving pieces stack to a quarter and equipping fire-resist gear actually resists fire.</summary>
+        public float GetMultiplier(DamageType type)
+        {
+            float m = BaseMultiplier(type);
+            if (_equipment != null)
+                foreach (var piece in _equipment.EquippedItems)
+                    m *= piece switch
+                    {
+                        GameArmor a => a.ResistFor(type),
+                        GameShield s => s.ResistFor(type),
+                        _ => 1f
+                    };
+            return m;
+        }
+
+        /// <summary>This entity's intrinsic per-type multiplier, before equipment.</summary>
+        private float BaseMultiplier(DamageType type) => type switch
         {
             DamageType.Physical => Physical,
             DamageType.Fire => Fire,

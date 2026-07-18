@@ -70,7 +70,10 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive || _seasonal == null || _currentStage == GrowthStage.Harvested) return;
+            // Stop once ready (Harvestable) or picked (Harvested): a ripe crop must not keep
+            // accumulating, or it re-crosses 1.0 each cycle and re-fires CropReadyForHarvest forever.
+            if (!IsActive || _seasonal == null ||
+                _currentStage == GrowthStage.Harvestable || _currentStage == GrowthStage.Harvested) return;
 
             // Apply seasonal growth multiplier
             float growthRate = GetSeasonalGrowthRate();

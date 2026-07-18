@@ -48,7 +48,17 @@ namespace Beep.ECS
             for (int i = 0; i < MaxSlots; i++)
             {
                 var slot = new PanelContainer { Name = $"Slot_{i}", CustomMinimumSize = SlotSize };
+                slot.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
                 slot.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = SlotColor, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 });
+
+                // Wire the interaction handlers (Interact partial). Without this, drag-to-move,
+                // right-click split, slot-click and hover tooltips were all built but never reached —
+                // the slots were rendered and inert. The lambdas die with the slot on rebuild.
+                int idx = i;
+                slot.GuiInput += e => OnSlotGuiInput(e, idx);
+                slot.MouseEntered += () => OnSlotMouseEntered(idx);
+                slot.MouseExited += OnSlotMouseExited;
+
                 _grid.AddChild(slot);
             }
         }

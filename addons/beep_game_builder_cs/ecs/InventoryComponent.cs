@@ -264,6 +264,20 @@ namespace Beep.ECS
         //  Queries
         // ════════════════════════════════════════════════════════════════
 
+        /// <summary>Whether <paramref name="quantity"/> of <paramref name="item"/> would fully fit —
+        /// room in existing stacks (when AutoStack) plus empty slots × MaxStack. Lets a producer
+        /// (crafting) refuse BEFORE consuming inputs, instead of shredding them into a full bag.</summary>
+        public bool CanFit(GameItem item, int quantity)
+        {
+            if (item == null || Slots == null) return false;
+            int space = 0;
+            if (AutoStack)
+                foreach (var s in Slots)
+                    if (s != null && s.Item.Id == item.Id) space += item.MaxStack - s.Quantity;
+            foreach (var s in Slots) if (s == null) space += item.MaxStack;
+            return space >= quantity;
+        }
+
         public bool HasItem(string itemId, int quantity = 1) => CountItem(itemId) >= quantity;
 
         public int CountItem(string itemId)

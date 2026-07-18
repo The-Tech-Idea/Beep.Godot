@@ -42,6 +42,13 @@ namespace Beep.ECS
                 EmitSignal(SignalName.CraftFailed, "Missing materials");
                 return false;
             }
+            // Refuse BEFORE consuming inputs if the product won't fit — otherwise the materials are
+            // shredded into a full inventory and nothing is produced.
+            if (!inventory.CanFit(recipe.OutputItem, recipe.OutputCount))
+            {
+                EmitSignal(SignalName.CraftFailed, "No room for the crafted item");
+                return false;
+            }
             // Deduct materials (CanCraft guaranteed every input.Item is non-null).
             foreach (var input in recipe.InputItems)
                 inventory.RemoveItem(input.Item!.Id, input.Count);

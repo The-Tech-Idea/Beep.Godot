@@ -20,13 +20,20 @@ namespace Beep.ECS.UI
         [Signal] public delegate void RatingChangedEventHandler(float newValue);
 
         private Container? _container;
-        private readonly Label[]? _stars;
+        // The committed rating. Value is only the DISPLAYED value and shows a preview while hovering;
+        // _committed is the truth, so moving the mouse away restores it instead of keeping the preview.
+        private float _committed;
 
         public override void _Ready()
         {
             base._Ready();
             _container = GetParent() as Container;
-            if (_container == null) return;
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] parent is not a Container — the star row cannot be built.");
+                return;
+            }
+            _committed = Value;
             BuildStars();
             UpdateDisplay();
         }
@@ -48,13 +55,14 @@ namespace Beep.ECS.UI
                     {
                         if (e is InputEventMouseButton mb && mb.Pressed)
                         {
-                            Value = idx + 1;
+                            _committed = idx + 1;        // commit the click
+                            Value = _committed;
                             UpdateDisplay();
                             EmitSignal(SignalName.RatingChanged, Value);
                         }
                     };
-                    label.MouseEntered += () => { Value = idx + 0.8f; UpdateDisplay(); };
-                    label.MouseExited += () => UpdateDisplay();
+                    label.MouseEntered += () => { Value = idx + 0.8f; UpdateDisplay(); };   // preview only
+                    label.MouseExited += () => { Value = _committed; UpdateDisplay(); };     // restore the committed rating
                 }
 
                 _container?.AddChild(label);
@@ -77,6 +85,6 @@ namespace Beep.ECS.UI
             }
         }
 
-        public void SetValue(float value) { Value = value; UpdateDisplay(); }
+        public void SetValue(float value) { Value = value; _committed = value; UpdateDisplay(); }
     }
 }

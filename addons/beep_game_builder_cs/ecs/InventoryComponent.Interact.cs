@@ -77,12 +77,14 @@ namespace Beep.ECS
             Sort(mode);
         }
 
-        /// <summary>Cycle through sort modes.</summary>
+        private SortMode _sortMode = SortMode.ByType;
+
+        /// <summary>Cycle through sort modes. Tracks the current mode so each press actually advances
+        /// (it used to reset to ByType every call and always sort ByRarity).</summary>
         public void CycleSortMode()
         {
-            // Sort with the next mode.
-            SortMode current = SortMode.ByType; // default; could be tracked
-            Sort((SortMode)(((int)current + 1) % 4));
+            _sortMode = (SortMode)(((int)_sortMode + 1) % 4);
+            Sort(_sortMode);
         }
     }
 }

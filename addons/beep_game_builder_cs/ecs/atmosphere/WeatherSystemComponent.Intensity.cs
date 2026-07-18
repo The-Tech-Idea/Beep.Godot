@@ -80,6 +80,7 @@ namespace Beep.ECS
             TargetIntensity = 0f;
             float half = Math.Max(0.05f, duration * 0.5f);
             await ToSignal(CreateTween().TweenInterval(half), "finished");
+            if (!GodotObject.IsInstanceValid(this)) return;   // scene freed mid-transition (async void)
 
             // Phase 2: switch at zero intensity (no visible pop).
             SetWeather(newWeather);
@@ -89,6 +90,7 @@ namespace Beep.ECS
             // Phase 3: fade in the new weather.
             TargetIntensity = targetIntensity;
             await ToSignal(CreateTween().TweenInterval(half), "finished");
+            if (!GodotObject.IsInstanceValid(this)) return;
 
             _transitioning = false;
             EmitSignal(SignalName.IntensityChanged, _intensityCurrent);

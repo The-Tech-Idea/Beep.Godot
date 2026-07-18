@@ -169,12 +169,16 @@ namespace Beep.ECS
                 _statusEffects?.RemoveEffect("thirsty");
             }
 
-            // Stamina critical
+            // Stamina critical — latch like hunger/thirst so it fires once on crossing the
+            // threshold, not every frame it stays low (which spammed any SFX/UI listener).
             if (CurrentStamina <= StaminaCriticalLevel)
             {
-                EmitSignal(SignalName.StaminaCritical);
+                if (!_staminaCriticalActive) { _staminaCriticalActive = true; EmitSignal(SignalName.StaminaCritical); }
             }
+            else _staminaCriticalActive = false;
         }
+
+        private bool _staminaCriticalActive;
 
         /// <summary>Consume food to restore hunger.</summary>
         public void ConsumeFood(float hungerRestore)

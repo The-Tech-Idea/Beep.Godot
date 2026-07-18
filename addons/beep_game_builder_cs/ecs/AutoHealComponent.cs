@@ -37,9 +37,26 @@ namespace Beep.ECS
 
             if (_health != null)
             {
-                _health.Damaged += (_, _) => _timeSinceLastDamage = 0;
-                _health.Died += () => IsActive = false;
+                // Hold the delegates so _ExitTree can detach them — a fresh lambda would be a
+                // different instance and wouldn't unsubscribe, leaking into a freed component.
+                _onDamaged = (_, _) => _timeSinceLastDamage = 0;
+                _onDied = () => IsActive = false;
+                _health.Damaged += _onDamaged;
+                _health.Died += _onDied;
             }
+        }
+
+        private HealthComponent.DamagedEventHandler? _onDamaged;
+        private HealthComponent.DiedEventHandler? _onDied;
+
+        public override void _ExitTree()
+        {
+            if (_health != null)
+            {
+                if (_onDamaged != null) _health.Damaged -= _onDamaged;
+                if (_onDied != null) _health.Died -= _onDied;
+            }
+            base._ExitTree();
         }
 
         public override void _Process(double delta)

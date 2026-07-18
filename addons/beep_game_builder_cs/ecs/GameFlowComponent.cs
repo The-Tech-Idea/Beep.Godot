@@ -49,6 +49,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;   // don't run session/GameInfo logic at design time (the other [Tool] components guard too)
             // Mark game as running
             if (GameApp.Instance != null)
                 GameApp.Instance.SetGameRunning(true);

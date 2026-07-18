@@ -45,7 +45,9 @@ namespace Beep.ECS
             if (tree != null)
             {
                 var timer = tree.CreateTimer(2f);
-                timer.Timeout += () => OnSparkTimeout(spark);
+                // Capture only the spark, NOT this component (via an instance method): the hit
+                // entity may die within 2s, and the timer would then fire into a freed component.
+                timer.Timeout += () => { if (GodotObject.IsInstanceValid(spark)) spark.QueueFree(); };
             }
         }
 

@@ -64,6 +64,10 @@ namespace Beep.ECS
             var inst = SpawnScene.Instantiate<Node>();
             if (GetParent() is Node2D parent)
             {
+                // Parent FIRST, then set GlobalPosition. Setting it before AddChild made it a LOCAL
+                // position that the new parent's transform then re-derived, so a spawner under a
+                // level container offset from origin spawned everything shifted by that offset.
+                parent.GetParent()?.AddChild(inst);
                 if (inst is Node2D n2d)
                 {
                     Vector2 randomOffset = SpawnRandomRange == Vector2.Zero ? Vector2.Zero :
@@ -73,7 +77,6 @@ namespace Beep.ECS
                         );
                     n2d.GlobalPosition = parent.GlobalPosition + SpawnOffset + randomOffset;
                 }
-                parent.GetParent()?.AddChild(inst);
             }
             else GetParent()?.AddChild(inst);
 

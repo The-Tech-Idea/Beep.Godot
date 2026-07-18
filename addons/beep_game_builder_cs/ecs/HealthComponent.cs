@@ -91,16 +91,25 @@ namespace Beep.ECS
         {
             if (!IsActive || IsDead) return;
 
-            float amount = damage.Amount;
-            if (_resistance != null) amount = _resistance.ApplyResistance(amount, damage.Type);
-            if (amount <= 0f) return; // resisted to nothing (immunity)
+            float actual;
+            if (damage.Type == DamageType.True)
+            {
+                // True damage bypasses resistance AND armor by contract (see DamageType).
+                actual = damage.Amount;
+            }
+            else
+            {
+                float amount = damage.Amount;
+                if (_resistance != null) amount = _resistance.ApplyResistance(amount, damage.Type);
+                if (amount <= 0f) return; // resisted to nothing (immunity)
 
-            // Armor comes from the entity's "armor" stat when it has one (so equipment/buffs raise
-            // it), otherwise this component's Armor export. The old status "damage_reduction" lookup
-            // is gone — reduction is a modifier on the armor stat now, one channel not two.
-            float armorValue = _stats?.GetValue("armor", Armor) ?? Armor;
-            float armorReduction = Mathf.Clamp(armorValue, 0f, MaxArmor) * 0.01f;
-            float actual = Mathf.Max(0.1f, amount * (1f - armorReduction));
+                // Armor comes from the entity's "armor" stat when it has one (so equipment/buffs raise
+                // it), otherwise this component's Armor export. The old status "damage_reduction" lookup
+                // is gone — reduction is a modifier on the armor stat now, one channel not two.
+                float armorValue = _stats?.GetValue("armor", Armor) ?? Armor;
+                float armorReduction = Mathf.Clamp(armorValue, 0f, MaxArmor) * 0.01f;
+                actual = Mathf.Max(0.1f, amount * (1f - armorReduction));
+            }
 
             CurrentHealth = Mathf.Max(0, CurrentHealth - actual);
             EmitSignal(SignalName.Damaged, actual, CurrentHealth);

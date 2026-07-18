@@ -31,7 +31,9 @@ namespace Beep.ECS
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _stats = GetSiblingComponent<StatsComponent>();
             var info = GameBuilder.GameInfo.Instance;
-            if (info != null) Speed = info.MoveSpeed;
+            // GameInfo is a fallback, not an override (matches ShooterController): seed Speed only
+            // when the scene left it at its type-default, so an inspector-authored value survives.
+            if (info != null && Mathf.IsEqualApprox(Speed, 220f)) Speed = info.MoveSpeed;
         }
 
         public override void _PhysicsProcess(double delta)

@@ -56,9 +56,11 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             if (_health != null) _health.Died -= Roll;
-            // Clean up any lingering spawned drops
-            foreach (var drop in _spawnedDrops)
-                drop?.QueueFree();
+            // Do NOT free the spawned drops here. They were reparented to the level and must OUTLIVE
+            // this component — which is freed the instant its dying entity is (a destructible's
+            // Break() QueueFrees the body on the same Died that rolled the loot). Freeing them here
+            // destroyed the loot the moment it dropped. The level frees them on scene change, and
+            // each carries its own SceneTreeTimer lifetime (see ScheduleDropCleanup).
             _spawnedDrops.Clear();
             base._ExitTree();
         }
@@ -76,7 +78,10 @@ namespace Beep.ECS
             }
             if (GD.Randf() > DropChance) return;
 
-            int count = (int)GD.RandRange(MinDrops, MaxDrops + 1);
+            // GD.RandRange(int, int) is INCLUSIVE on both ends, so MinDrops..MaxDrops is right —
+            // the old (int)RandRange(Min, Max+1) assumed the exclusive double overload and dropped
+            // one too many (a "max 3" table could drop 4).
+            int count = GD.RandRange(MinDrops, MaxDrops);
             EmitSignal(SignalName.TableRolled, count);
 
             var parent = GetParent() as Node2D;
@@ -124,11 +129,12 @@ namespace Beep.ECS
                 float distance = (float)GD.Randf() * ScatterRadius;
                 Vector2 candidate = center + direction * distance;
 
-                // Check if far enough from other drops
+                // Drop already-freed entries (their lifetime timer fired) before spacing against them.
+                _spawnedDrops.RemoveAll(d => !GodotObject.IsInstanceValid(d));
                 bool tooClose = false;
                 foreach (var drop in _spawnedDrops)
                 {
-                    if (drop != null && candidate.DistanceTo(drop.GlobalPosition) < MinimumSpacing)
+                    if (candidate.DistanceTo(drop.GlobalPosition) < MinimumSpacing)
                     {
                         tooClose = true;
                         break;
@@ -144,20 +150,17 @@ namespace Beep.ECS
 
         private void ScheduleDropCleanup(Node2D drop)
         {
-            var timer = new Timer();
-            AddChild(timer);
-            timer.WaitTime = DropLifetimeSeconds;
-            timer.OneShot = true;
+            // A SceneTreeTimer is owned by the tree, NOT by this component — so a drop's lifetime
+            // still elapses after the spawner that dropped it has died and been freed. A Timer node
+            // child of this component died with it, orphaning the drop forever. The stale entry in
+            // _spawnedDrops is pruned lazily in FindGoodSpawnPoint (touching it here can hit a
+            // disposed component after the spawner is gone).
+            var timer = GetTree().CreateTimer(DropLifetimeSeconds);
             timer.Timeout += () =>
             {
-                if (drop != null && !drop.IsQueuedForDeletion())
-                {
+                if (GodotObject.IsInstanceValid(drop) && !drop.IsQueuedForDeletion())
                     drop.QueueFree();
-                    _spawnedDrops.Remove(drop);
-                }
-                timer.QueueFree();
             };
-            timer.Start();
         }
 
         private DropTableEntry? PickWeighted()

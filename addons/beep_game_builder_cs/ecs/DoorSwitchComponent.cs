@@ -35,12 +35,14 @@ namespace Beep.ECS
         private bool _isOpen;
         private bool _inRange;
         private CollisionObject2D? _door;
+        private uint _doorLayer, _doorMask;   // saved so an opened door can be made solid again
 
         public override void _Ready()
         {
             base._Ready();
             if (!DoorPath.IsEmpty)
                 _door = GetNodeOrNull<CollisionObject2D>(DoorPath);
+            if (_door != null) { _doorLayer = _door.CollisionLayer; _doorMask = _door.CollisionMask; }
         }
 
         protected override void OnBodyEntered(Node2D body) => _inRange = true;
@@ -77,7 +79,11 @@ namespace Beep.ECS
             _isOpen = !_isOpen;
             if (_door != null)
             {
-                _door.SetDeferred("monitoring", !_isOpen);
+                // Actually make the door passable. `monitoring` is an Area2D-only property, so the
+                // old code left a StaticBody2D door invisible-but-solid; clear its collision
+                // layer/mask when open, restore them when closed. Deferred: safe inside a physics step.
+                _door.SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, _isOpen ? 0u : _doorLayer);
+                _door.SetDeferred(CollisionObject2D.PropertyName.CollisionMask, _isOpen ? 0u : _doorMask);
                 if (_door is CanvasItem ci)
                     ci.Visible = !_isOpen;
             }

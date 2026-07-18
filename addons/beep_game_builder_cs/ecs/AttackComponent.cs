@@ -67,9 +67,15 @@ namespace Beep.ECS
             // fire resistance. Unarmed (no weapon) falls back to Physical.
             DamageType dtype = weapon?.DamageType ?? DamageType.Physical;
 
-            if (IsRanged && ProjectileScene != null)
+            // An equipped weapon decides whether the attack is ranged and what it fires; unarmed
+            // uses this component's own IsRanged/ProjectileScene. (A bow makes you fire even if the
+            // component's IsRanged is false.)
+            bool ranged = weapon?.IsRanged ?? IsRanged;
+            PackedScene? projScene = weapon?.ProjectileScene ?? ProjectileScene;
+
+            if (ranged && projScene != null)
             {
-                SpawnProjectile(target, finalDamage, dtype);
+                SpawnProjectile(target, finalDamage, dtype, projScene);
             }
             else if (_body != null)
             {
@@ -79,15 +85,17 @@ namespace Beep.ECS
             EmitSignal(SignalName.Attacked, target, finalDamage);
         }
 
-        private void SpawnProjectile(Vector2 target, float damage, DamageType type)
+        private void SpawnProjectile(Vector2 target, float damage, DamageType type, PackedScene scene)
         {
-            if (_body == null || ProjectileScene == null) return;
-            var proj = ProjectileScene.Instantiate<Node>();
+            if (_body == null) return;
+            var proj = scene.Instantiate<Node>();
             if (proj is not Node2D projNode) return;
 
-            projNode.GlobalPosition = _body.GlobalPosition;
             Vector2 direction = (target - _body.GlobalPosition).Normalized();
-            GetParent()?.GetParent()?.AddChild(proj);
+            var pool = GetParent()?.GetParent();
+            if (pool == null) { proj.QueueFree(); return; }   // nowhere to place it — don't leak an orphan
+            pool.AddChild(proj);
+            projNode.GlobalPosition = _body.GlobalPosition;   // AFTER parenting, or it's re-derived by the pool's transform
 
             var projComp = EntityComponent.FindComponent<ProjectileComponent>(projNode, false);
             if (projComp != null)
@@ -95,6 +103,10 @@ namespace Beep.ECS
                 projComp.Speed = ProjectileSpeed;
                 projComp.Damage = damage;
                 projComp.DamageType = type;
+                // Without this, IsOwnedByShooter resolves the owner to the pool/level (the
+                // projectile's parent), which is an ancestor of every body — so every hit was
+                // treated as a self-hit and the shot dealt no damage.
+                projComp.Shooter = _body;
                 projComp.Launch(direction);
             }
         }

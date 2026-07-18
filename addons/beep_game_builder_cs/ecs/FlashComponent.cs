@@ -19,6 +19,7 @@ namespace Beep.ECS
 
         private CanvasItem? _canvas;
         private Tween? _tween;
+        private Color _resting = Colors.White;
         private HealthComponent? _health;
         // Held so _ExitTree can actually detach it — a fresh `-= (a,h)=>Flash()` lambda is a
         // different delegate instance and would not remove the one subscribed in _Ready.
@@ -28,6 +29,8 @@ namespace Beep.ECS
         {
             base._Ready();
             _canvas = GetParent() as CanvasItem;
+            if (_canvas != null) _resting = _canvas.Modulate;   // the tint/alpha to return to after a flash
+            else GD.PushWarning($"[{Name}] parent is not a CanvasItem — Flash() can never run. Parent this to the Sprite2D/Control it should flash.");
 
             _health = GetSiblingComponent<HealthComponent>();
             if (FlashOnDamage && _health != null)
@@ -46,7 +49,7 @@ namespace Beep.ECS
             for (int i = 0; i < FlashCount; i++)
             {
                 _tween.TweenProperty(_canvas, "modulate", FlashColor, FlashDuration * 0.5f);
-                _tween.TweenProperty(_canvas, "modulate", Colors.White, FlashDuration * 0.5f);
+                _tween.TweenProperty(_canvas, "modulate", _resting, FlashDuration * 0.5f);
             }
             _tween.Finished += OnTweenFinished;
         }

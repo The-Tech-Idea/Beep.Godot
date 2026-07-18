@@ -72,8 +72,12 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint() || !IsActive) return;
+            if (Engine.IsEditorHint()) return;
 
+            // Advance the CLOCK regardless of IsActive. SeasonalComponent derives in-game days from
+            // DaysElapsed, and day/night is disabled (EnableDayNightCycle=false) in every shipped
+            // genre — so gating the counter on IsActive silently froze seasons in the six genres
+            // that enable them. IsActive gates only the day/night VISUAL (the sky tint + horizon).
             float prev = TimeOfDay;
             TimeOfDay = (TimeOfDay + (float)delta * (24f / DayLengthSeconds)) % 24f;
 
@@ -85,7 +89,7 @@ namespace Beep.ECS
             if ((int)prev != (int)TimeOfDay)
                 EmitSignal(SignalName.TimeOfDayChanged, TimeOfDay);
 
-            Apply();
+            if (IsActive) Apply();   // the tint/clear-colour is what EnableDayNightCycle toggles
         }
 
         /// <summary>Jump to a specific hour (save data, a "sleep" action, etc.).</summary>

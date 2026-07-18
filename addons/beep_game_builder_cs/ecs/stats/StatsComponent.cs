@@ -28,25 +28,46 @@ namespace Beep.ECS
         private readonly Dictionary<StringName, Stat> _byId = new();
         private bool _turnBased;
 
+        private bool _loaded;
+
         public override void _Ready()
         {
             base._Ready();
-            _byId.Clear();
-            foreach (var s in Stats)
-                if (s != null && !s.Id.IsEmpty) _byId[s.Id] = s;
+            EnsureLoaded();
 
             if (Engine.IsEditorHint()) return;
             _turnBased = TurnManager.Instance != null;
             if (_turnBased) TurnManager.Instance!.TurnEnded += OnTurnEnded;
         }
 
+        /// <summary>Build this entity's OWN stat instances from the authored templates, once. Each
+        /// is a FRESH <see cref="Stat"/> (own modifier list, own cached value) — never the authored
+        /// resource itself, because entities instanced from one scene share their sub-resources, so
+        /// sharing a Stat would let a buff/equip on one entity move every clone's stat and tick each
+        /// duration N times. Same resource-sharing rule EquipmentComponent follows for modifiers.
+        ///
+        /// Lazy so it is order-independent: if an EquipmentComponent._Ready contributes a modifier
+        /// before this component's _Ready runs, the first AddModifier loads the templates first, so
+        /// nothing clobbers an already-populated stat.</summary>
+        private void EnsureLoaded()
+        {
+            if (_loaded) return;
+            _loaded = true;
+            foreach (var s in Stats)
+                if (s != null && !s.Id.IsEmpty && !_byId.ContainsKey(s.Id))
+                    _byId[s.Id] = new Stat { Id = s.Id, BaseValue = s.BaseValue };
+        }
+
         /// <summary>The stat resource for an id, or null if the entity has none.</summary>
-        public Stat? GetStat(StringName id) => _byId.TryGetValue(id, out var s) ? s : null;
+        public Stat? GetStat(StringName id) { EnsureLoaded(); return _byId.TryGetValue(id, out var s) ? s : null; }
 
         /// <summary>The computed value of a stat, or <paramref name="fallback"/> if the entity has
         /// no such stat (an entity with no modifiers behaves exactly as its base values).</summary>
         public float GetValue(StringName id, float fallback = 0f)
-            => _byId.TryGetValue(id, out var s) ? s.Value : fallback;
+        {
+            EnsureLoaded();
+            return _byId.TryGetValue(id, out var s) ? s.Value : fallback;
+        }
 
         /// <summary>Add a modifier, routing it to the stat it targets (creating that stat at base 0
         /// if the entity did not declare one, so a buff on an undeclared stat still works).</summary>
@@ -58,6 +79,7 @@ namespace Beep.ECS
                 GD.PushWarning($"[{Name}] AddModifier: modifier has an empty Stat id — it targets nothing and was ignored.");
                 return;
             }
+            EnsureLoaded();
             GetOrCreate(mod.Stat).AddModifier(mod);
         }
 
@@ -65,6 +87,7 @@ namespace Beep.ECS
         /// unequip and on effect expiry — the removal that must never match by value.</summary>
         public void RemoveBySource(GodotObject source)
         {
+            EnsureLoaded();
             foreach (var s in _byId.Values) s.RemoveBySource(source);
         }
 

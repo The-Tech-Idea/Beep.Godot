@@ -43,7 +43,16 @@ namespace Beep.ECS
             _stats = GetSiblingComponent<StatsComponent>();
             _knockback = GetSiblingComponent<KnockbackComponent>();
             var info = GameBuilder.GameInfo.Instance;
-            if (info != null) { Speed = info.MoveSpeed; Gravity = info.Gravity; JumpVelocity = info.JumpVelocity; }
+            // GameInfo is the project default — a FALLBACK, not an override. Seed only values the
+            // scene left at their type-default, so an inspector-authored Speed/Gravity/JumpVelocity
+            // survives scene load (matches ShooterController; the old unconditional copy silently
+            // discarded any tuned value).
+            if (info != null)
+            {
+                if (Mathf.IsEqualApprox(Speed, 300f)) Speed = info.MoveSpeed;
+                if (Mathf.IsEqualApprox(Gravity, 980f)) Gravity = info.Gravity;
+                if (Mathf.IsEqualApprox(JumpVelocity, -450f)) JumpVelocity = info.JumpVelocity;
+            }
             if (_body != null)
                 foreach (var child in _body.GetChildren())
                     if (child is JumpComponent jc) { _jumpComponent = jc; break; }

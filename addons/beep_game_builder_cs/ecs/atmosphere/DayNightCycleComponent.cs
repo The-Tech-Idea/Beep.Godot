@@ -53,6 +53,8 @@ namespace Beep.ECS
 
         private AmbientController? _ambient;
         private Phase _currentPhase = Phase.Day;
+        private Color _originalClearColor;
+        private bool _clearColorCaptured;
 
         public override void _Ready()
         {
@@ -61,6 +63,13 @@ namespace Beep.ECS
             // Honor the genre's enable flag (mirrors WeatherSystemComponent). Without this the
             // clock + DriveClearColor ran even when day/night was disabled.
             if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableDayNightCycle;
+            // Remember the viewport clear color so _ExitTree can restore it — otherwise the last
+            // day/night tint (SetDefaultClearColor is a global) lingers into the menus after the run.
+            if (DriveClearColor)
+            {
+                _originalClearColor = RenderingServer.GetDefaultClearColor();
+                _clearColorCaptured = true;
+            }
             CallDeferred(nameof(Init));
         }
 
@@ -157,6 +166,7 @@ namespace Beep.ECS
         {
             base._ExitTree();
             _ambient?.SetContribution(ContributionKey, null);
+            if (_clearColorCaptured) RenderingServer.SetDefaultClearColor(_originalClearColor);   // don't leak the tint into menus
         }
     }
 }

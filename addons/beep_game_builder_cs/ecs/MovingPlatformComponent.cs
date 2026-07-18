@@ -29,6 +29,8 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = GetParent() as AnimatableBody2D;
+            if (_body == null && !Engine.IsEditorHint())
+                GD.PushWarning($"[{Name}] MovingPlatformComponent needs an AnimatableBody2D parent to move (and to carry riders via SyncToPhysics); got '{GetParent()?.GetType().Name ?? "null"}'. It will do nothing.");
             CollectWaypoints();
             if (AutoStart && !Engine.IsEditorHint())
             {

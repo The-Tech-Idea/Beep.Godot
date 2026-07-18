@@ -35,8 +35,11 @@ namespace Beep.ECS
         private GrowthStage _currentStage = GrowthStage.Sprout;
         private float _growthProgress = 0f;  // 0-1, where 1.0 = maturity
         private SeasonalComponent? _seasonal;
+        private DayNightCycleComponent? _dayNight;
+        private WeatherSystemComponent? _weather;
         private DropTableComponent? _dropTable;
         private ColorRect? _visual;
+        private bool _warnedNoSeasonal;
 
         public override void _Ready()
         {
@@ -46,9 +49,13 @@ namespace Beep.ECS
             // it would add runtime-only nodes to the parent in the editor.
             if (Engine.IsEditorHint()) return;
 
-            // Auto-discover seasonal system
+            // Auto-discover the atmosphere systems that modulate growth: season (rate), the
+            // day/night clock (its DayLengthSeconds is the real day length — was hardcoded 120),
+            // and weather (rain/storm accelerate, snow slows).
             var root = GetTree().Root;
             _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
+            _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(root, true);
+            _weather = EntityComponent.FindComponent<WeatherSystemComponent>(root, true);
             _dropTable = GetSiblingComponent<DropTableComponent>();
 
             // Create visual representation if not present
@@ -72,16 +79,24 @@ namespace Beep.ECS
         {
             // Stop once ready (Harvestable) or picked (Harvested): a ripe crop must not keep
             // accumulating, or it re-crosses 1.0 each cycle and re-fires CropReadyForHarvest forever.
-            if (!IsActive || _seasonal == null ||
+            if (!IsActive ||
                 _currentStage == GrowthStage.Harvestable || _currentStage == GrowthStage.Harvested) return;
 
-            // Apply seasonal growth multiplier
-            float growthRate = GetSeasonalGrowthRate();
-            if (growthRate <= 0) return;  // No growth in off-season
+            if (_seasonal == null && !_warnedNoSeasonal)
+            {
+                _warnedNoSeasonal = true;
+                GD.PushWarning($"[{Name}] No SeasonalComponent found — the crop grows at a flat rate (no seasonal slowdown). Add the atmosphere (SeasonalComponent) for season-driven growth.");
+            }
 
-            // Simulate 1 in-game day as unit of growth
-            // Assuming DayNightCycleComponent runs ~120 seconds per in-game day
-            float dailyProgress = growthRate / (DaysToMaturity * 120f);  // Normalized to ~2min per day
+            // Season sets the base rate (winter = 0); weather scales it (rain/storm accelerate,
+            // snow slows). Off-season with no rain means no growth.
+            float growthRate = GetSeasonalGrowthRate() * WeatherGrowthMultiplier();
+            if (growthRate <= 0) return;
+
+            // One unit of growth == DaysToMaturity in-game days, timed off the ACTUAL day length
+            // (DayNightCycleComponent.DayLengthSeconds) rather than a hardcoded 120.
+            float dayLength = _dayNight?.DayLengthSeconds ?? 120f;
+            float dailyProgress = growthRate / (DaysToMaturity * dayLength);
             _growthProgress += (float)delta * dailyProgress;
 
             // Check for stage advancement
@@ -137,6 +152,21 @@ namespace Beep.ECS
 
         public GrowthStage GetCurrentStage() => _currentStage;
         public float GetGrowthProgress() => _growthProgress;
+
+        /// <summary>Weather scales growth: rain waters the crop (faster), snow/hail freezes it,
+        /// sandstorm parches it. Clear/cloudy/fog are neutral. 1.0 when no weather system.</summary>
+        private float WeatherGrowthMultiplier()
+        {
+            if (_weather == null) return 1f;
+            return _weather.CurrentWeather switch
+            {
+                WeatherSystemComponent.WeatherType.Rain => 1.4f,
+                WeatherSystemComponent.WeatherType.Storm => 1.2f,
+                WeatherSystemComponent.WeatherType.Snow or WeatherSystemComponent.WeatherType.Hail => 0.4f,
+                WeatherSystemComponent.WeatherType.Sandstorm => 0.6f,
+                _ => 1f
+            };
+        }
 
         private float GetSeasonalGrowthRate()
         {

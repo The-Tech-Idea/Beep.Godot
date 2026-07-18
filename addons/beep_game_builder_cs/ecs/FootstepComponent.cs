@@ -18,6 +18,17 @@ namespace Beep.ECS
         [Export] public float PitchVariation { get; set; } = 0.1f;
         [Export] public string Bus { get; set; } = "Master";
 
+        // The five bundled concrete-footstep clips, loaded if Sounds is left empty so a walking
+        // entity is audible with no per-scene wiring. Override with a surface-appropriate set.
+        private static readonly string[] _defaultPaths =
+        {
+            "res://addons/beep_game_builder_cs/audio/footsteps/footstep_concrete_000.ogg",
+            "res://addons/beep_game_builder_cs/audio/footsteps/footstep_concrete_001.ogg",
+            "res://addons/beep_game_builder_cs/audio/footsteps/footstep_concrete_002.ogg",
+            "res://addons/beep_game_builder_cs/audio/footsteps/footstep_concrete_003.ogg",
+            "res://addons/beep_game_builder_cs/audio/footsteps/footstep_concrete_004.ogg",
+        };
+
         private CharacterBody2D? _body;
         private AudioStreamPlayer? _player;
         private float _stepTimer;
@@ -26,7 +37,21 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = GetParent() as CharacterBody2D;
+            if (!Engine.IsEditorHint() && Sounds.Length == 0)
+                Sounds = LoadDefaults();
+            if (!Engine.IsEditorHint() && GetParent() is not CharacterBody2D)
+                // Reads _body's velocity/IsOnFloor — a non-body parent silently never steps.
+                GD.PushWarning($"[{Name}] FootstepComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a CharacterBody2D — no footsteps will play. Parent it under the moving body.");
             CallDeferred(nameof(SetupPlayer));
+        }
+
+        private static AudioStream[] LoadDefaults()
+        {
+            var list = new Godot.Collections.Array<AudioStream>();
+            foreach (var path in _defaultPaths)
+                if (ResourceLoader.Exists(path) && ResourceLoader.Load<AudioStream>(path) is { } s)
+                    list.Add(s);
+            return System.Linq.Enumerable.ToArray(list);
         }
 
         private void SetupPlayer()

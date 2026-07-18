@@ -79,6 +79,8 @@ void fragment() {
                     foreach (var n in GetTree().GetNodesInGroup("weather_system"))
                         if (n is WeatherSystemComponent w) { _weather = w; break; }
                 }
+                if (_weather == null)
+                    GD.PushWarning($"[{Name}] EnableWeatherIntegration is on but no WeatherSystemComponent was found (no 'weather_system' group member, no WeatherSystemPath) — the fog reads no intensity and stays invisible. Add a WeatherSystemComponent or turn off EnableWeatherIntegration.");
             }
         }
 

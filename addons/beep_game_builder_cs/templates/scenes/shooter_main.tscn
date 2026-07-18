@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ShooterController.cs" id="1_player"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="21_codex"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/projectile_template.tscn" id="11_projectile"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="30_gameover"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HitSoundComponent.cs" id="31_hitsound"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="3_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="20_hud"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
@@ -65,6 +66,9 @@ ParticipatesInSave = true
 
 [node name="GameOverOnDeath" type="Node" parent="Player"]
 script = ExtResource("30_gameover")
+
+[node name="HitSound" type="Node" parent="Player"]
+script = ExtResource("31_hitsound")
 
 [node name="Leveling" type="Node" parent="Player"]
 script = ExtResource("22_leveling")

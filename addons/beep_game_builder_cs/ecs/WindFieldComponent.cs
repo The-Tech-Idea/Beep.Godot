@@ -65,6 +65,8 @@ namespace Beep.ECS
             if (WeatherSystemPath != null)
                 _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
             _weather ??= FindWeatherSystem();
+            if (_weather == null)
+                GD.PushWarning($"[{Name}] No WeatherSystemComponent found (no 'weather_system' group member, no WeatherSystemPath) — this wind field mirrors the weather's WindForce, so it will push nothing. Add a WeatherSystemComponent to the scene.");
 
             // Combine so wind ADDS to normal downward gravity rather than replacing it.
             if (_area.GravitySpaceOverride == Area2D.SpaceOverride.Disabled)

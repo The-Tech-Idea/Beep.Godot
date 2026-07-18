@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/AmbientController.cs" id="1_ambient"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/DayNightCycleComponent.cs" id="2_daynight"]
@@ -6,6 +6,12 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/SeasonalComponent.cs" id="4_seasonal"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/WeatherAudioController.cs" id="5_weather_audio"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/atmosphere/DynamicFogLayer.cs" id="6_fog"]
+[ext_resource type="AudioStream" uid="uid://dceg61btarpta" path="res://addons/beep_game_builder_cs/audio/weather/rain_loop.mp3" id="7_rain"]
+[ext_resource type="AudioStream" uid="uid://dqorqvk6dg8s7" path="res://addons/beep_game_builder_cs/audio/weather/wind_loop.mp3" id="8_wind"]
+[ext_resource type="AudioStream" uid="uid://04pogjjmvfuq" path="res://addons/beep_game_builder_cs/audio/weather/ambient_rain.mp3" id="9_ambient"]
+[ext_resource type="AudioStream" uid="uid://doifbsrgyfjd5" path="res://addons/beep_game_builder_cs/audio/weather/thunder_1.wav" id="10_thunder1"]
+[ext_resource type="AudioStream" uid="uid://cbt0k54eiunkp" path="res://addons/beep_game_builder_cs/audio/weather/thunder_2.wav" id="11_thunder2"]
+[ext_resource type="AudioStream" uid="uid://bwrqhiol60mrf" path="res://addons/beep_game_builder_cs/audio/weather/thunder_3.wav" id="12_thunder3"]
 
 [node name="Atmosphere" type="Node2D"]
 
@@ -25,6 +31,10 @@ script = ExtResource("4_seasonal")
 
 [node name="WeatherAudio" type="Node" parent="."]
 script = ExtResource("5_weather_audio")
+RainLoop = ExtResource("7_rain")
+WindLoop = ExtResource("8_wind")
+AmbientLoop = ExtResource("9_ambient")
+ThunderVariants = Array[AudioStream]([ExtResource("10_thunder1"), ExtResource("11_thunder2"), ExtResource("12_thunder3")])
 
 [node name="Fog" type="Node" parent="."]
 script = ExtResource("6_fog")

@@ -39,6 +39,15 @@ namespace Beep.ECS.UI
 		[Export] public bool EnableAnimations { get; set; } = true;
 		[Export] public bool EnableRippleOnClick { get; set; } = true;
 
+		[ExportGroup("Button Sounds")]
+		/// <summary>Play a hover/press sound on every themed button. Falls back to the addon's
+		/// shipped UI clicks if the streams below are left unset (so a menu gets sound with no
+		/// per-scene wiring); assign HoverSound/PressSound to override, or turn this off.</summary>
+		[Export] public bool EnableButtonSounds { get; set; } = true;
+		[Export] public AudioStream? HoverSound { get; set; }
+		[Export] public AudioStream? PressSound { get; set; }
+		[Export(PropertyHint.Range, "-40,6,0.5")] public float ButtonSoundVolumeDb { get; set; } = -6f;
+
 		/// <summary>OPTIONAL color-palette variant. Resolved from the file-based skin
 		/// catalog (palettes live in skins/&lt;genre&gt;/themes/&lt;theme&gt;/&lt;palette&gt;.json).
 		/// Retints the whole theme in HSV space. "Default" = no tint.</summary>
@@ -127,6 +136,13 @@ namespace Beep.ECS.UI
 		public override void _Ready()
 		{
 			base._Ready();
+			// Fall back to the addon's shipped UI clicks when no sounds are assigned, so themed
+			// buttons make sound with zero per-scene wiring. Missing files just leave these null.
+			if (EnableButtonSounds && !Engine.IsEditorHint())
+			{
+				HoverSound ??= LoadIfExists("res://addons/beep_game_builder_cs/audio/ui/ui_hover.ogg");
+				PressSound ??= LoadIfExists("res://addons/beep_game_builder_cs/audio/ui/ui_click.ogg");
+			}
 			_targetControl = GetParent() as Godot.Control;
 			if (_targetControl != null) { ApplyTheme(); return; }
 
@@ -632,6 +648,24 @@ namespace Beep.ECS.UI
 			}
 		}
 
+		private AudioStreamPlayer? _uiAudio;
+
+		/// <summary>Play a short UI sound (hover/press). One reused player — fine for clicks.</summary>
+		private void PlayUiSound(AudioStream? sound)
+		{
+			if (!EnableButtonSounds || sound == null || !IsInsideTree()) return;
+			if (_uiAudio == null || !GodotObject.IsInstanceValid(_uiAudio))
+			{
+				_uiAudio = new AudioStreamPlayer { Name = "UiAudio", VolumeDb = ButtonSoundVolumeDb };
+				AddChild(_uiAudio);
+			}
+			_uiAudio.Stream = sound;
+			_uiAudio.Play();
+		}
+
+		private static AudioStream? LoadIfExists(string path)
+			=> ResourceLoader.Exists(path) ? ResourceLoader.Load<AudioStream>(path) : null;
+
 		private void SetupButtonAnimations(Button btn)
 		{
 			if (btn.HasMeta(AnimatedMeta)) return;
@@ -649,6 +683,7 @@ namespace Beep.ECS.UI
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween().SetParallel(true);
+				PlayUiSound(HoverSound);
 				t.TweenProperty(btn, "offset_transform_scale", new Vector2(anim.HoverScaleAmount, anim.HoverScaleAmount), anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				if (anim.EnableShadowLift)
 					t.TweenProperty(btn, "offset_transform_position:y", -2f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
@@ -669,6 +704,7 @@ namespace Beep.ECS.UI
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
 				var t = btn.CreateTween();
+				PlayUiSound(PressSound);
 				t.TweenProperty(btn, "offset_transform_scale", new Vector2(anim.PressScaleAmount, anim.PressScaleAmount), anim.PressScaleDuration).SetEase(Tween.EaseType.In);
 				_activeTweens[btn] = t;
 			};

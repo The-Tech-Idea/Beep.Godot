@@ -142,7 +142,7 @@ echo "--- C# export properties are PascalCase in scenes (Godot silently drops sn
 # NB: grep -E is POSIX ERE — no \s. Use [[:space:]].
 # Covers both `[Export] public T Name` on one line and [Export] on its own line.
 EXPORTS=$(grep -rh -A1 -E '\[Export' ../../ecs ../../core 2>/dev/null \
-  | grep -oE 'public[[:space:]]+[A-Za-z0-9_.<>?,[:space:]]*[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]' \
+  | grep -oE 'public[[:space:]]+[][A-Za-z0-9_.<>?,[:space:]]*[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]' \
   | grep -oE '[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]$' \
   | sed -E 's/[[:space:]]*[{;=]$//' | sort -u | grep -v '^$')
 

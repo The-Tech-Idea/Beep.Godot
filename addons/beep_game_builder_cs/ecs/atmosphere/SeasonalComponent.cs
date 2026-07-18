@@ -31,6 +31,11 @@ namespace Beep.ECS
         [Export] public Color SummerColor { get; set; } = new(0.3f, 0.9f, 0.3f, 1f);
         [Export] public Color FallColor { get; set; } = new(0.9f, 0.6f, 0.2f, 1f);
         [Export] public Color WinterColor { get; set; } = new(0.8f, 0.8f, 0.95f, 1f);
+        /// <summary>How strongly the season color washes the scene (0 = none, 1 = full). The season
+        /// colors are saturated; a low blend gives a seasonal cast without dyeing everything. The
+        /// season's visual output used to be computed and discarded — GetCurrentSeasonColor had no
+        /// callers; it now feeds the shared AmbientController like day/night and weather do.</summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float SeasonTintStrength { get; set; } = 0.22f;
 
         [ExportGroup("Foliage Wind")]
         [Export] public float SpringWindSpeed { get; set; } = 1.5f;
@@ -46,6 +51,8 @@ namespace Beep.ECS
 
         private Tween? _seasonTransitionTween;
         private Color _currentSeasonColor;
+        private AmbientController? _ambient;
+        private const string ContributionKey = "season";
         // The day/night clock is the source of in-game days. Seasons advance every DaysPerSeason
         // in-game days — NOT every DaysPerSeason real seconds, which is what the old _seasonTimer
         // (real delta compared against a "days" value) did: seasons rotated every 7 seconds.
@@ -67,11 +74,19 @@ namespace Beep.ECS
             if (Engine.IsEditorHint()) return;
             _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(GetTree().Root, true);
             _seasonStartDay = _dayNight?.DaysElapsed ?? 0;
+            _ambient = AmbientController.ForTree(this);
         }
 
         public override void _Process(double delta)
         {
-            if (!IsActive || Engine.IsEditorHint() || !AutoCycle) return;
+            if (!IsActive || Engine.IsEditorHint()) return;
+
+            // Apply the (eased) season tint to the shared AmbientController every frame so the
+            // season's visual output actually shows — softened toward white so it's a wash, not a
+            // heavy cast, and composed multiplicatively with day/night + weather by the controller.
+            _ambient?.SetContribution(ContributionKey, Colors.White.Lerp(_currentSeasonColor, SeasonTintStrength));
+
+            if (!AutoCycle) return;
 
             if (_dayNight == null)
             {
@@ -154,6 +169,7 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             _seasonTransitionTween?.Kill();
+            _ambient?.SetContribution(ContributionKey, null);   // withdraw the season tint
         }
     }
 }

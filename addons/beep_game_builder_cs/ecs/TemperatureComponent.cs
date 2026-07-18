@@ -55,6 +55,21 @@ namespace Beep.ECS
         [Export] public float TemperatureRecoveryRate { get; set; } = 0.5f;  // degrees per second
         [Export] public bool EnableAmbientTempInfluence { get; set; } = true;
 
+        [ExportGroup("Atmosphere Influence")]
+        /// <summary>When true, the ambient temperature the body drifts toward is modulated by the
+        /// scene's weather, season, and day/night — so snow/winter/night actually make it colder.
+        /// The atmosphere components are resolved from the current scene; when none are present the
+        /// flat <see cref="AmbientTemp"/> is used. Temperature was previously disconnected from the
+        /// atmosphere it shares a scene with — AmbientTemp was a static value nothing updated.</summary>
+        [Export] public bool EnableAtmosphereInfluence { get; set; } = true;
+        [Export] public float WinterTempOffset { get; set; } = -18f;
+        [Export] public float SummerTempOffset { get; set; } = 8f;
+        [Export] public float SnowTempOffset { get; set; } = -12f;
+        [Export] public float StormTempOffset { get; set; } = -6f;
+        [Export] public float RainTempOffset { get; set; } = -3f;
+        [Export] public float SandstormTempOffset { get; set; } = 12f;
+        [Export] public float NightTempOffset { get; set; } = -6f;
+
         [ExportGroup("Vignette")]
         /// <summary>CanvasLayer index for the full-screen warning vignette. Exported (was a
         /// hardcoded 200) so it can be set relative to other overlays.</summary>
@@ -67,6 +82,9 @@ namespace Beep.ECS
         private double _damageAccumulator = 0;
         private HealthComponent? _health;
         private StatsComponent? _stats;
+        private WeatherSystemComponent? _weather;
+        private SeasonalComponent? _seasonal;
+        private DayNightCycleComponent? _dayNight;
         private bool _speedWarned;
         private CanvasLayer? _vignetteLayer;
         private ColorRect? _vignetteRect;
@@ -83,6 +101,14 @@ namespace Beep.ECS
             if (_health == null)
                 GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
             _stats = GetSiblingComponent<StatsComponent>();
+            // Resolve the scene's atmosphere so weather/season/night can drive ambient temperature.
+            // They live in the instanced atmosphere.tscn under the same scene root.
+            if (GetTree()?.CurrentScene is { } scene)
+            {
+                _weather = EntityComponent.FindComponent<WeatherSystemComponent>(scene, true);
+                _seasonal = EntityComponent.FindComponent<SeasonalComponent>(scene, true);
+                _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(scene, true);
+            }
             CallDeferred(nameof(SetupVignette));
         }
 
@@ -130,10 +156,11 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint() || !IsActive) return;
 
-            // Update temperature toward ambient
+            // Update temperature toward the (possibly atmosphere-modulated) ambient
             if (EnableAmbientTempInfluence)
             {
-                float delta_temp = (AmbientTemp - CurrentTemp) * (float)delta * TemperatureRecoveryRate;
+                float ambient = EffectiveAmbient();
+                float delta_temp = (ambient - CurrentTemp) * (float)delta * TemperatureRecoveryRate;
                 CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, MinTemp, MaxTemp);
             }
 
@@ -156,6 +183,39 @@ namespace Beep.ECS
 
             // Update vignette color
             UpdateTemperatureVignette();
+        }
+
+        /// <summary>The ambient temperature the body drifts toward, modulated by the scene's
+        /// weather (snow/storm/rain colder, sandstorm hotter), season (winter colder, summer
+        /// warmer), and day/night (night colder). Falls back to the flat AmbientTemp when the
+        /// atmosphere isn't present or influence is off.</summary>
+        private float EffectiveAmbient()
+        {
+            float ambient = AmbientTemp;
+            if (!EnableAtmosphereInfluence) return ambient;
+
+            if (_seasonal != null)
+                ambient += _seasonal.CurrentSeason switch
+                {
+                    SeasonalComponent.Season.Winter => WinterTempOffset,
+                    SeasonalComponent.Season.Summer => SummerTempOffset,
+                    _ => 0f
+                };
+            if (_weather != null)
+                ambient += _weather.CurrentWeather switch
+                {
+                    WeatherSystemComponent.WeatherType.Snow or WeatherSystemComponent.WeatherType.Hail => SnowTempOffset,
+                    WeatherSystemComponent.WeatherType.Storm => StormTempOffset,
+                    WeatherSystemComponent.WeatherType.Rain => RainTempOffset,
+                    WeatherSystemComponent.WeatherType.Sandstorm => SandstormTempOffset,
+                    _ => 0f
+                };
+            if (_dayNight != null)
+            {
+                float t = _dayNight.TimeOfDay;       // 0..24; roughly night before 6am / after 8pm
+                if (t < 6f || t >= 20f) ambient += NightTempOffset;
+            }
+            return ambient;
         }
 
         public TemperatureState GetTemperatureState()

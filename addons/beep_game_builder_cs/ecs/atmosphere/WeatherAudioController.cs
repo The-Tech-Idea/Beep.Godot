@@ -106,6 +106,10 @@ namespace Beep.ECS
                 // every time the weather eases toward its target.
                 _weather.IntensityChanged += SetWeatherIntensity;
                 SetWeatherIntensity(_weather.WeatherIntensity);   // seed to the current value
+                // Play thunder on each lightning strike. PlayThunder had no caller — in the shipped
+                // atmosphere.tscn (which has this controller but not AmbientAudioComponent) the
+                // thunder path was dead. Now storms actually crack.
+                _weather.LightningStruck += PlayThunder;
             }
         }
 
@@ -186,6 +190,7 @@ namespace Beep.ECS
             {
                 _weather.WeatherChanged -= OnWeatherChanged;
                 _weather.IntensityChanged -= SetWeatherIntensity;
+                _weather.LightningStruck -= PlayThunder;
             }
         }
     }

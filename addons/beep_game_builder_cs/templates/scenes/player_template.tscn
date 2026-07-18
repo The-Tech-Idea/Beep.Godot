@@ -1,10 +1,12 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="1_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/MovementComponent.cs" id="2_movement"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AttackComponent.cs" id="3_attack"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthBarComponent.cs" id="4_healthbar"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="5_gameover"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HitSoundComponent.cs" id="6_hitsound"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/FootstepComponent.cs" id="7_footstep"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(28, 44)
@@ -44,6 +46,12 @@ ShowOnlyWhenDamaged = true
 [node name="GameOverOnDeath" type="Node" parent="."]
 script = ExtResource("5_gameover")
 LivesToLose = 1
+
+[node name="HitSound" type="Node" parent="."]
+script = ExtResource("6_hitsound")
+
+[node name="Footstep" type="Node" parent="."]
+script = ExtResource("7_footstep")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position_smoothing_enabled = true

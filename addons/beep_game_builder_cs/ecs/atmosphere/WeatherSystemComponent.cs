@@ -336,7 +336,10 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            // [Tool] component: don't run the intensity engine in the editor — ProcessIntensity
+            // registers RenderingServer global shader params and emits IntensityChanged at edit
+            // time. DeferredInit is already editor-skipped, so the nodes it drives are null anyway.
+            if (Engine.IsEditorHint() || !IsActive) return;
 
             // (Day/night progression moved to DayNightCycleComponent.)
 

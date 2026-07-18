@@ -66,6 +66,8 @@ namespace Beep.ECS
         private TemperatureState _currentState = TemperatureState.Normal;
         private double _damageAccumulator = 0;
         private HealthComponent? _health;
+        private StatsComponent? _stats;
+        private bool _speedWarned;
         private CanvasLayer? _vignetteLayer;
         private ColorRect? _vignetteRect;
 
@@ -80,6 +82,7 @@ namespace Beep.ECS
             _health = GetNodeOrNull<HealthComponent>("../Health") ?? GetSiblingComponent<HealthComponent>();
             if (_health == null)
                 GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
+            _stats = GetSiblingComponent<StatsComponent>();
             CallDeferred(nameof(SetupVignette));
         }
 
@@ -140,6 +143,7 @@ namespace Beep.ECS
             {
                 _currentState = newState;
                 EmitSignal(SignalName.TemperatureChanged, CurrentTemp, (int)_currentState);
+                ApplyMovementModifier();
             }
 
             // Apply damage over time
@@ -176,6 +180,27 @@ namespace Beep.ECS
                 TemperatureState.HeatStroke => HeatStrokeSpeedPenalty,
                 _ => 1.0f
             };
+        }
+
+        /// <summary>Push the current temperature speed penalty into the sibling StatsComponent as a
+        /// "move_speed" multiplier, so the controllers (which read that stat) actually slow down.
+        /// Previously GetMovementSpeedMultiplier() had zero callers — the documented cold/heat
+        /// slowdown never applied. Refreshed on every state change; removed by Source identity.</summary>
+        private void ApplyMovementModifier()
+        {
+            float mult = GetMovementSpeedMultiplier();
+            if (_stats == null)
+            {
+                if (mult < 1f && !_speedWarned)
+                {
+                    GD.PushWarning($"[{Name}] Temperature would apply a {mult:0.##}x movement penalty, but there is no sibling StatsComponent for it to affect — the cold/heat slowdown won't apply. Add a StatsComponent (the controllers read its move_speed stat).");
+                    _speedWarned = true;
+                }
+                return;
+            }
+            _stats.RemoveBySource(this);
+            if (mult < 1f)
+                _stats.AddModifier(new StatModifier { Stat = "move_speed", Op = StatOp.Multiply, Amount = mult, Duration = -1f, Source = this });
         }
 
         private void ApplyTemperatureDamage()
@@ -222,6 +247,8 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             base._ExitTree();
+            // Withdraw our move_speed penalty so it doesn't linger on a pooled/reused entity.
+            if (_stats != null && GodotObject.IsInstanceValid(_stats)) _stats.RemoveBySource(this);
             if (_vignetteLayer == null || !GodotObject.IsInstanceValid(_vignetteLayer)) return;
 
             int refs = (int)_vignetteLayer.GetMeta(VignetteRefMeta, 1) - 1;

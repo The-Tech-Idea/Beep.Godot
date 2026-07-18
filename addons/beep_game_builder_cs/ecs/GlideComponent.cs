@@ -28,15 +28,19 @@ namespace Beep.ECS
 
         public bool IsGliding => _isGliding;
 
+        private StatusEffectComponent? _statusEffects;
+
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no glide
             float dt = (float)delta;
 
             bool onFloor = _body.IsOnFloor();

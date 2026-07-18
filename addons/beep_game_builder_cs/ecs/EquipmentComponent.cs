@@ -29,6 +29,7 @@ namespace Beep.ECS
 
         private readonly Dictionary<EquipSlot, GameEquipment> _slots = new();
         private StatsComponent? _stats;
+        private InventoryComponent? _inventory;
 
         /// <summary>The weapon in MainHand, or null — the common query.</summary>
         public GameWeapon? MainWeapon => Get(EquipSlot.MainHand) as GameWeapon;
@@ -38,9 +39,31 @@ namespace Beep.ECS
             base._Ready();
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _stats = GetSiblingComponent<StatsComponent>();
+            _inventory = GetSiblingComponent<InventoryComponent>();
             if (Engine.IsEditorHint()) return;
             foreach (var item in StartingEquipment)
                 if (item != null) Equip(item);
+        }
+
+        /// <summary>Equip an item that is in the sibling inventory: take it out of the bag, equip
+        /// it, and return whatever it displaced to the bag. This is the inventory→equipment edge
+        /// that was missing — Equip() alone never touched inventory, so "equip from the bag" (the
+        /// natural flow after a pickup) had no wiring. Returns false if there is no inventory or
+        /// the item isn't in it.</summary>
+        public bool EquipFromInventory(GameEquipment item)
+        {
+            if (item == null) return false;
+            if (_inventory == null)
+            {
+                GD.PushWarning($"[{Name}] EquipFromInventory needs a sibling InventoryComponent — none found. Equip() the item directly, or add an InventoryComponent.");
+                return false;
+            }
+            if (!_inventory.HasItem(item.Id)) return false;
+
+            _inventory.RemoveItem(item.Id);
+            var displaced = Equip(item);
+            if (displaced != null) _inventory.AddItem(displaced);   // swap the old one back into the bag
+            return true;
         }
 
         /// <summary>Equip an item into its slot, returning whatever it displaced (or null). Its

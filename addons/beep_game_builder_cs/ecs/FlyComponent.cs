@@ -40,11 +40,17 @@ namespace Beep.ECS
         // Child sprite that gets the visual bank/lean. A 2D body can't roll, so banking
         // is expressed as a Skew on the sprite — MaxBankAngle/BankSpeed drive it.
         private Node2D? _bankSprite;
+        private StatusEffectComponent? _statusEffects;
+
+        /// <summary>Freeze flight while the "stun" status effect is active — matches the ground
+        /// controllers, which already honor stun (FlyComponent ignored it entirely before).</summary>
+        [Export] public bool StunBlocksMovement { get; set; } = true;
 
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
 
             if (EnableBanking && _body != null)
             {
@@ -67,13 +73,15 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down")) return;
             float dt = (float)delta;
 
             _boostTimer = Mathf.Max(0, _boostTimer - dt);
 
-            // Read 8-directional input.
-            float x = Input.GetAxis("move_left", "move_right");
-            float y = Input.GetAxis("move_up", "move_down");
+            // Read 8-directional input (zeroed while stunned, like the ground controllers).
+            bool stunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
+            float x = stunned ? 0f : Input.GetAxis("move_left", "move_right");
+            float y = stunned ? 0f : Input.GetAxis("move_up", "move_down");
             Vector2 inputDir = new(x, y);
 
             // Check for boost activation.

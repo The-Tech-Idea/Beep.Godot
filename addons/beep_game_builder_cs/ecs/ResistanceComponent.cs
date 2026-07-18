@@ -21,8 +21,6 @@ namespace Beep.ECS
         [Export] public float Lightning { get; set; } = 1f;
         [Export] public float True { get; set; } = 1f;
 
-        [Signal] public delegate void ResistanceBrokenEventHandler(DamageType type);
-
         private EquipmentComponent? _equipment;
 
         public override void _Ready()

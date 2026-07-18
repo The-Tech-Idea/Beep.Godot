@@ -35,10 +35,13 @@ namespace Beep.ECS
 
         public bool IsSliding => _slideTimer > 0;
 
+        private StatusEffectComponent? _statusEffects;
+
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             // Find the collision shape to shrink during slide.
             if (_body != null && ShrinkCollision)
             {
@@ -60,6 +63,7 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no slide
             float dt = (float)delta;
 
             if (_slideTimer > 0)

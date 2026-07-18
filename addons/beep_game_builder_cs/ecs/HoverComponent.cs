@@ -30,15 +30,19 @@ namespace Beep.ECS
 
         public bool IsHovering => _isHovering;
 
+        private StatusEffectComponent? _statusEffects;
+
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no hover
             float dt = (float)delta;
 
             _cooldownTimer = Mathf.Max(0, _cooldownTimer - dt);

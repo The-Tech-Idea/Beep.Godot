@@ -17,6 +17,13 @@ namespace Beep.ECS
         [Export] public float ProjectileSpeed { get; set; } = 400f;
         [Export] public PackedScene? ProjectileScene { get; set; }
 
+        /// <summary>Opt-in: fire Attack() on the AttackAction input, in the body's facing
+        /// direction. This is the demonstrated "player attacks" path — the verb was never invoked
+        /// by any shipped scene (like PickupComponent demonstrates scoring). Leave OFF for
+        /// enemies/traps, which call Attack() from their own AI/logic.</summary>
+        [Export] public bool AttackOnInput { get; set; } = false;
+        [Export] public string AttackAction { get; set; } = "attack";
+
         [Signal] public delegate void AttackedEventHandler(Vector2 target, float damage);
         [Signal] public delegate void CooldownReadyEventHandler();
 
@@ -27,6 +34,7 @@ namespace Beep.ECS
         private Node2D? _body;
         private EquipmentComponent? _equipment;
         private InventoryComponent? _inventory;
+        private Vector2 _lastFacing = Vector2.Right;   // for input-driven attacks when standing still
 
         public override void _Ready()
         {
@@ -43,6 +51,16 @@ namespace Beep.ECS
             {
                 CooldownRemaining -= (float)delta;
                 if (CooldownRemaining <= 0) EmitSignal(SignalName.CooldownReady);
+            }
+
+            if (AttackOnInput && !Engine.IsEditorHint())
+            {
+                // Track the last movement direction so a standing attack still faces somewhere.
+                if (_body is CharacterBody2D cb && cb.Velocity.LengthSquared() > 1f)
+                    _lastFacing = cb.Velocity.Normalized();
+
+                if (InputMap.HasAction(AttackAction) && Input.IsActionJustPressed(AttackAction))
+                    Attack((_body?.GlobalPosition ?? Vector2.Zero) + _lastFacing * Range);
             }
         }
 

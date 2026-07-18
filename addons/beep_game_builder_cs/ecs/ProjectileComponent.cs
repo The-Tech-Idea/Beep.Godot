@@ -98,8 +98,14 @@ namespace Beep.ECS
 
         public void Launch(Vector2 direction)
         {
-            _velocity = direction.Normalized() * Speed;
+            var dir = direction.Normalized();
+            _velocity = dir * Speed;
             _lifetime = MaxLifetime;
+            // If a ProjectileModifierComponent owns motion, hand it the spawner-set speed and
+            // fire direction — it initialized from its own default Speed in _Ready (before the
+            // spawner set Speed), so the weapon's projectile speed was silently dropped.
+            if (_movementDelegated)
+                GetSiblingComponent<ProjectileModifierComponent>()?.SetLaunch(dir, Speed);
         }
 
         public override void _Process(double delta)

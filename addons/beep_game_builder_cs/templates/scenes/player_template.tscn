@@ -34,6 +34,7 @@ Damage = 10.0
 Range = 50.0
 Cooldown = 0.5
 IsRanged = false
+AttackOnInput = true
 
 [node name="HealthBar" type="Node" parent="."]
 script = ExtResource("4_healthbar")

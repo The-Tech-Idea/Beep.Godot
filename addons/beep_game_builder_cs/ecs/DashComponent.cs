@@ -25,11 +25,21 @@ namespace Beep.ECS
         [ExportGroup("Invincibility")]
         [Export] public bool GrantIFrames { get; set; } = true;
 
+        /// <summary>Block dashing while the "stun" status effect is active — matches the
+        /// controllers and JumpComponent, which already honor stun.</summary>
+        [Export] public bool StunBlocksDash { get; set; } = true;
+
+        /// <summary>Stamina spent per dash. Only applies when a sibling HungerStaminaComponent is
+        /// present — then a dash is refused while exhausted and costs this much. Gives the stamina
+        /// system a real gate (it had none). 0 = free dash.</summary>
+        [Export] public float StaminaCost { get; set; } = 20f;
+
         [Signal] public delegate void DashStartedEventHandler(Vector2 direction);
         [Signal] public delegate void DashEndedEventHandler();
 
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
+        private HungerStaminaComponent? _stamina;
         private float _dashTimer;
         private float _cooldownTimer;
         private Vector2 _dashDirection;
@@ -43,6 +53,7 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            _stamina = GetSiblingComponent<HungerStaminaComponent>();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -53,9 +64,15 @@ namespace Beep.ECS
             if (_dashTimer > 0)
             {
                 _dashTimer -= dt;
-                // Apply dash velocity while preserving Y velocity from gravity.
-                _body.Velocity = new Vector2(_dashDirection.X * DashSpeed, _body.Velocity.Y);
-                _body.MoveAndSlide();
+                // Apply dash velocity. X always; Y only when the dash has vertical intent, so a
+                // platformer's horizontal dash still leaves gravity to control Y, while a
+                // top-down/fly vertical dash actually moves (the Y component used to be discarded).
+                float vx = _dashDirection.X * DashSpeed;
+                float vy = _dashDirection.Y != 0f ? _dashDirection.Y * DashSpeed : _body.Velocity.Y;
+                _body.Velocity = new Vector2(vx, vy);
+                // Set-only: the sibling controller owns MoveAndSlide. Calling it here too
+                // integrated the body twice per frame (~2x dash distance) — the same fix
+                // SlideComponent carries.
 
                 // Apply invincibility effect during dash.
                 if (GrantIFrames && _statusEffects != null && !_statusEffects.HasEffect("invincible"))
@@ -72,9 +89,13 @@ namespace Beep.ECS
             {
                 _cooldownTimer = Mathf.Max(0, _cooldownTimer - dt);
 
-                // Check for dash input.
-                if (Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0)
+                // Check for dash input (blocked while stunned).
+                bool stunned = StunBlocksDash && _statusEffects != null && _statusEffects.HasEffect("stun");
+                if (Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0 && !stunned)
                 {
+                    // Pay stamina if a HungerStaminaComponent is present — refuses when exhausted.
+                    if (_stamina != null && !_stamina.TryConsumeStamina(StaminaCost))
+                        return;
                     // Determine direction from input, fall back to facing.
                     float x = Input.GetAxis("move_left", "move_right");
                     float y = Input.GetAxis("move_up", "move_down");

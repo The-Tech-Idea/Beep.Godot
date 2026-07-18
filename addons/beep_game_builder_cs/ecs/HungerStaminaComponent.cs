@@ -198,6 +198,21 @@ namespace Beep.ECS
             CurrentStamina = Mathf.Min(CurrentStamina + (StaminaRecoverPerSecond * duration), 100f);
         }
 
+        /// <summary>Spend stamina for an action (e.g. a dash/sprint). Refuses — returns false —
+        /// when exhausted or the cost can't be paid, so an ability can actually gate on stamina.
+        /// This is the reader the "can't run below this" / IsExhausted stamina system was missing;
+        /// nothing consumed stamina for a discrete action before, so the gate never applied.</summary>
+        public bool TryConsumeStamina(float amount)
+        {
+            if (amount <= 0f) return true;
+            if (IsExhausted || CurrentStamina < amount) return false;
+            CurrentStamina -= amount;
+            EmitSignal(SignalName.StaminaChanged, CurrentStamina);
+            if (CurrentStamina <= StaminaCriticalLevel)
+                EmitSignal(SignalName.StaminaCritical);
+            return true;
+        }
+
         public bool IsHungry => CurrentHunger <= HungerCriticalLevel;
         public bool IsThirsty => CurrentThirst <= ThirstCriticalLevel;
         public bool IsExhausted => CurrentStamina <= StaminaCriticalLevel;

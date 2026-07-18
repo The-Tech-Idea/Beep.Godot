@@ -37,6 +37,16 @@ namespace Beep.ECS
                 _velocity = Vector2.FromAngle(_body.Rotation) * Speed;
         }
 
+        /// <summary>Called by <see cref="ProjectileComponent.Launch"/> so a spawner's fire
+        /// direction and the weapon's projectile speed drive this modifier — otherwise a
+        /// homing/bounce projectile flew at this component's own default Speed (the spawner set
+        /// ProjectileComponent.Speed, which this never read) in its rotation-derived direction.</summary>
+        public void SetLaunch(Vector2 direction, float speed)
+        {
+            Speed = speed;
+            _velocity = direction * speed;
+        }
+
         public override void _PhysicsProcess(double delta)
         {
             if (!IsActive || _body == null || Engine.IsEditorHint()) return;

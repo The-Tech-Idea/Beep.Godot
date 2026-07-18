@@ -43,6 +43,7 @@ namespace Beep.ECS
         private StatsComponent? _stats;
         private ResistanceComponent? _resistance;
         private AggroComponent? _aggro;
+        private StatusEffectComponent? _statusEffects;
 
         public override void _Ready()
         {
@@ -53,6 +54,7 @@ namespace Beep.ECS
             _stats = GetSiblingComponent<StatsComponent>();
             _resistance = GetSiblingComponent<ResistanceComponent>();
             _aggro = GetSiblingComponent<AggroComponent>();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
         }
 
         public override void _Process(double delta)
@@ -90,6 +92,12 @@ namespace Beep.ECS
         public void TakeDamage(GameDamage damage)
         {
             if (!IsActive || IsDead) return;
+
+            // Invincibility (i-frames) blocks all incoming damage, including True — this is the
+            // canonical "invincible" channel that DashComponent's i-frames and game code apply
+            // via a sibling StatusEffectComponent. Nothing honored it before, so dash i-frames
+            // (GrantIFrames, on by default) advertised protection and delivered none.
+            if (_statusEffects != null && _statusEffects.HasEffect("invincible")) return;
 
             float actual;
             if (damage.Type == DamageType.True)

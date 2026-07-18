@@ -40,10 +40,13 @@ namespace Beep.ECS
 
         public bool IsWallSliding => _isWallSliding;
 
+        private StatusEffectComponent? _statusEffects;
+
         public override void _Ready()
         {
             base._Ready();
             _body = ResolveBody2D();
+            _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             SetupWallRays();
         }
 
@@ -81,6 +84,7 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no wall-slide/jump
             float dt = (float)delta;
 
             _lockTimer = Mathf.Max(0, _lockTimer - dt);

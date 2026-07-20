@@ -32,7 +32,7 @@ namespace Beep.ECS
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            CallDeferred(nameof(InitializeApp));
+            Callable.From(InitializeApp).CallDeferred();
         }
 
         private void InitializeApp()
@@ -45,6 +45,10 @@ namespace Beep.ECS
                 settings.ApplyAudioSettings();
                 settings.ApplyDisplaySettings();
                 settings.ApplyLocaleSettings();
+            }
+            else
+            {
+                GD.PushWarning($"[{Name}] BootComponent found no SettingsComponent autoload — saved audio/display/language settings were not applied. Register the Settings autoload (generator adds it).");
             }
         }
 

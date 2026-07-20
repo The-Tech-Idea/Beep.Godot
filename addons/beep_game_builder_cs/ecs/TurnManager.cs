@@ -44,6 +44,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (Instance == this) Instance = null;
         }
 

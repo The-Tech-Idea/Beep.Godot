@@ -105,7 +105,6 @@ int BindingCount { get; }      // Number of active bindings
 ```csharp
 [Signal] BindingCreated(string sourceProperty)
 [Signal] BindingRemoved(string sourceProperty)
-[Signal] BindingRefreshed(string sourceProperty, Variant newValue)
 ```
 
 ---

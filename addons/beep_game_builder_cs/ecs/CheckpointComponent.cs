@@ -26,6 +26,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;   // don't wire BodyEntered at edit time
             _area = GetParent() as Area2D;
             if (_area != null)
                 _area.BodyEntered += OnBodyEntered;

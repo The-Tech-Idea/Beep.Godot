@@ -67,6 +67,17 @@ namespace Beep.ECS.UI
                 GD.PushWarning($"[{Name}] SlideInOutComponent hid its target(s) (HiddenOnStart) with PlayOnReady off — they stay invisible until something calls SlideIn().");
         }
 
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // The Finished lambda captures this (EmitSignal) and toggles target visibility. If
+            // the component is freed mid-slide while its targets outlive it, that callback runs
+            // on a freed component — kill the tweens first.
+            foreach (var t in _activeTweens)
+                if (GodotObject.IsInstanceValid(t)) t.Kill();
+            _activeTweens.Clear();
+        }
+
         public void SlideIn()
         {
             if (!IsActive || _slideTargets.Count == 0) return;

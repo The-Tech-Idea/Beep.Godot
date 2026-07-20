@@ -27,6 +27,10 @@ namespace Beep.ECS
     /// </summary>
     public partial class WeatherSystemComponent
     {
+        // Last CpuParticles2D.Amount actually applied — so ProcessIntensity only re-sets it on a
+        // change (each set reallocates the pool). Reset to -1 on emitter rebuild to force re-apply.
+        private int _lastParticleAmount = -1;
+
         // ── Intensity exports ──
         [ExportGroup("Intensity")]
         /// <summary>Current intensity 0..1. Read-only at runtime (driven by transitions).</summary>
@@ -117,9 +121,20 @@ namespace Beep.ECS
                 EmitSignal(SignalName.IntensityChanged, _intensityCurrent);
 
             // ── Particle count scales with intensity ──
-            // A rain at 30% intensity emits ~30% of the configured ParticleCount.
+            // A rain at 30% intensity emits ~30% of the configured ParticleCount. Assign ONLY on a
+            // change: CpuParticles2D.Amount reallocates + resets the whole pool on every set (no
+            // same-value early-out in Godot 4), so writing it each frame reset the pool every frame —
+            // precipitation flickered at the emitter and never fell (which also masked the per-type
+            // Lifetime tuning). Cache the last applied amount.
             if (_particles != null && _particles.Emitting)
-                _particles.Amount = Mathf.Max(1, (int)(ParticleCount * _intensityCurrent));
+            {
+                int amount = Mathf.Max(1, (int)(ParticleCount * _intensityCurrent));
+                if (amount != _lastParticleAmount)
+                {
+                    _particles.Amount = amount;
+                    _lastParticleAmount = amount;
+                }
+            }
 
             // (Fog density now lives in the standalone DynamicFogLayer, which reads
             // WeatherIntensity directly — see DynamicFogLayer.FogWeightFor.)

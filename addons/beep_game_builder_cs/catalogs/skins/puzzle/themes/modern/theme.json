@@ -4,19 +4,107 @@
   "category": "Modern",
   "description": "Clean minimal UI — soft shadow, rounded corners, neutral blue-grey surface, subtle transitions",
   "colors": {
-    "surface_primary": "#2E2E3AFF", "surface_hover": "#3D3D4DFF", "surface_pressed": "#21212EFF", "surface_disabled": "#1A1A26FF",
-    "text_primary": "#E8E8EDFF", "text_hover": "#FFFFFFFF", "text_disabled": "#666673FF", "text_on_dark": "#FFFFFFFF",
-    "accent_primary": "#4A8FD9FF", "accent_secondary": "#6BA3E3FF",
-    "border_normal": "#FFFFFF00", "border_hover": "#4A8FD94D", "border_focus": "#4A8FD9B3",
-    "border_bevel_light": "#FFFFFF00", "border_bevel_dark": "#FFFFFF00",
-    "shadow_color": "#00000038", "bg_panel": "#1F1F29F2", "bg_canvas": "#15151CFF",
-    "semantic_success": "#2EB859FF", "semantic_danger": "#D93838FF", "semantic_warning": "#E6AD23FF", "semantic_info": "#4A8FD9FF"
+    "surface_primary": "#2E2E3AFF",
+    "surface_hover": "#3D3D4DFF",
+    "surface_pressed": "#21212EFF",
+    "surface_disabled": "#1A1A26FF",
+    "text_primary": "#E8E8EDFF",
+    "text_hover": "#FFFFFFFF",
+    "text_disabled": "#666673FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#4A8FD9FF",
+    "accent_secondary": "#6BA3E3FF",
+    "border_normal": "#FFFFFF00",
+    "border_hover": "#4A8FD94D",
+    "border_focus": "#4A8FD9B3",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#00000038",
+    "bg_panel": "#1F1F29F2",
+    "bg_canvas": "#15151CFF",
+    "semantic_success": "#2EB859FF",
+    "semantic_danger": "#D93838FF",
+    "semantic_warning": "#E6AD23FF",
+    "semantic_info": "#4A8FD9FF"
   },
   "geometry": {
-    "corner_radius": 12, "border_left": 0, "border_top": 0, "border_right": 0, "border_bottom": 0,
-    "shadow_size": 8, "shadow_offset_x": 0, "shadow_offset_y": 4,
-    "pad_left": 16, "pad_right": 16, "pad_top": 8, "pad_bottom": 8,
+    "corner_radius": 12,
+    "border_left": 0,
+    "border_top": 0,
+    "border_right": 0,
+    "border_bottom": 0,
+    "shadow_size": 8,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 4,
+    "pad_left": 16,
+    "pad_right": 16,
+    "pad_top": 8,
+    "pad_bottom": 8,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.04, "hover_duration": 0.15, "press_scale": 0.96, "press_duration": 0.08, "shadow_lift": true, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.15,
+    "press_scale": 0.96,
+    "press_duration": 0.08,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/modern/button_normal.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/modern/button_hover.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/modern/button_pressed.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 20,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/modern/button_normal.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/modern/panel.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

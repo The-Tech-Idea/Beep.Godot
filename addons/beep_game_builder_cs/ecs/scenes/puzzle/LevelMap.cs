@@ -14,14 +14,14 @@ namespace Beep.ECS.Scenes
             // Settings opens as an overlay — navigating to it used to destroy this scene,
             // and Settings' Close always went to the main menu, so there was no way back
             // to the map.
-            GetNode<Button>("TopBar/SettingsButton").Pressed += () => UI.SettingsOverlay.Open(this);
-            GetNode<Button>("TopBar/BackButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
-            GetNode<Button>("Scroll/Path/Level1Row/Level1Button").Pressed += () => GoToLevel(1);
-            GetNode<Button>("Scroll/Path/Level2Row/Level2Button").Pressed += () => GoToLevel(2);
-            GetNode<Button>("Scroll/Path/Level3Row/Level3Button").Pressed += () => GoToLevel(3);
-            GetNode<Button>("Scroll/Path/Level4Row/Level4Button").Pressed += () => GoToLevel(4);
-            GetNode<Button>("Scroll/Path/Level5Row/Level5Button").Pressed += () => GoToLevel(5);
-            GetNode<Button>("Scroll/Path/Level6Row/Level6Button").Pressed += () => GoToLevel(6);
+            this.ConnectPressed("TopBar/SettingsButton", () => UI.SettingsOverlay.Open(this));
+            this.ConnectPressed("TopBar/BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectPressed("Scroll/Path/Level1Row/Level1Button", () => GoToLevel(1));
+            this.ConnectPressed("Scroll/Path/Level2Row/Level2Button", () => GoToLevel(2));
+            this.ConnectPressed("Scroll/Path/Level3Row/Level3Button", () => GoToLevel(3));
+            this.ConnectPressed("Scroll/Path/Level4Row/Level4Button", () => GoToLevel(4));
+            this.ConnectPressed("Scroll/Path/Level5Row/Level5Button", () => GoToLevel(5));
+            this.ConnectPressed("Scroll/Path/Level6Row/Level6Button", () => GoToLevel(6));
         }
 
         /// <summary>Record the chosen level, then go to the pre-level screen. The puzzle board

@@ -3,6 +3,25 @@
 Godot 4.7 (.NET 8) game builder addon: file-based skin system, 100+ categorized
 components, weather system, scene templates, project generation, and MCP bridge.
 
+## Themed UI textures (bring your own art)
+
+Every genre theme is **texture-ready**: its `theme.json` declares nine-patch slots
+(`button_normal`, `button_hover`, `button_pressed`, `button_disabled`, `panel`) pointing at
+`res://addons/beep_game_builder_cs/textures/<genre>/<theme>/`. The addon ships **no** UI art — until
+you drop files in, each slot falls back **cleanly** to the procedural `StyleBoxFlat` (no error).
+
+To skin a genre with your own art (any source — Kenney, itch.io, your own):
+1. Drop `button_normal.png` / `button_pressed.png` / `panel.png` into
+   `textures/<genre>/<theme>/` (the folder the theme already points at).
+2. In `catalogs/skins/<genre>/themes/<theme>/theme.json` → `textures{}`, set each slot's
+   `margin_*` to your art's corner size (9-patch), and `axis_stretch_*` (`0` stretch / `1` tile).
+3. Set `Filter = Nearest` in the Import dock for pixel art.
+
+A helper script that bulk-populates the slots from a Kenney-structured "UI assets" pack lives at
+`plans/ui-asset-integration/import_kenney.py` — point it at your local pack and run it (it copies
+into your project; it does not ship art with the addon). See `docs/FILE_FORMATS.md:230` for the full
+slot schema.
+
 ## Requirements
 
 - Godot 4.7+ with .NET 8 SDK
@@ -60,7 +79,7 @@ Adding content = drop a file, zero C# changes:
 ## Scene templates
 
 Generated per genre via the dock's Generate button:
-- **Shared**: main_menu, pause_menu, settings_menu, game_over, hud
+- **Shared**: main_menu (also the pause overlay), settings_menu, game_over, hud
 - **Platformer**: level_select, level_results + platformer_main
 - **TopDown**: pause_subscreen + topdown_main
 - **Shooter**: character_select, level_up_choice, run_results, codex + shooter_main

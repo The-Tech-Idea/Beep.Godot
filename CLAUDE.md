@@ -100,13 +100,13 @@ Beep.Godot/
 
 | Base | Location | Concrete subclasses |
 |---|---|---|
-| `UIComponent` | `ecs/categories/` | ~54 |
-| `GameplayComponent` | `ecs/categories/` | ~44 |
-| `WorldComponent` | `ecs/categories/` | ~21 |
-| `ControllerComponent` | `ecs/categories/` | ~18 |
-| `EffectComponent : UIComponent` | `ecs/ui/` | ~4 |
+| `UIComponent` | `ecs/categories/` | ~53 |
+| `GameplayComponent` | `ecs/categories/` | ~41 |
+| `WorldComponent` | `ecs/categories/` | ~18 |
+| `ControllerComponent` | `ecs/categories/` | 18 |
+| `EffectComponent : UIComponent` | `ecs/ui/` | 4 |
 
-~146 concrete components in total (199 files carry `[GlobalClass]` — the remainder are Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
+~134 concrete components in total (206 files carry `[GlobalClass]` — the remainder are Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
 
 ## Key Patterns & Rules
 

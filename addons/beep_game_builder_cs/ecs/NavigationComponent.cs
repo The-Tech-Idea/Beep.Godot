@@ -39,6 +39,7 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            base._Ready();   // EntityComponent group registration — every other component chains it
             AutoWireButtons();
         }
 
@@ -106,6 +107,11 @@ namespace Beep.ECS
         // ════════════════════════════════════════════════════════════════
 
         [Signal] public delegate void BeforeNavigateEventHandler(string toScene);
+        // Save/load have no scene target — they open an overlay, not a navigation. Dispatch("save_game"
+        // /"load_game") emits these so a menu wired purely through NavigationComponent actions can
+        // react. NOTE: the shipped MainMenu does NOT use this route — it calls
+        // SaveLoadManagerComponent.ShowSaveMenu()/ShowLoadMenu() directly, which is the canonical
+        // path. Connect these only if you drive save/load through nav actions instead.
         [Signal] public delegate void LoadGameRequestedEventHandler();
         [Signal] public delegate void SaveGameRequestedEventHandler();
         [Signal] public delegate void ResumeRequestedEventHandler();

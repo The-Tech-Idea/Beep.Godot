@@ -26,7 +26,6 @@ public partial class BeepDataGrid : VBoxContainer
     private int _selectedRow = -1;
 
     public event Action<int, object> RowSelected;
-    public event Action<int, object> RowDoubleClicked;
 
     [Export] public string HeaderFontSize { get; set; } = "16";
     [Export] public string RowFontSize { get; set; } = "14";
@@ -121,23 +120,28 @@ public partial class BeepDataGrid : VBoxContainer
                     SizeFlagsHorizontal = SizeFlags.ExpandFill
                 };
                 hdr.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.9f));
-                hdr.AddThemeFontSizeOverride("font_size", int.Parse(HeaderFontSize));
+                hdr.AddThemeFontSizeOverride("font_size", ParseSize(HeaderFontSize, 16));
                 _headerRow.AddChild(hdr);
             }
         }
 
-        // Build rows
+        // Build rows. The background stripe and the click target must OVERLAY the row, not sit inside
+        // the cell HBox — adding them as HBox children made the stripe a narrow left column and the
+        // click target one narrow right column. A PanelContainer stacks all its children into the same
+        // content rect (sized to the cell HBox), so bg / cells / button share the full row width.
         for (int i = 0; i < data.Count; i++)
         {
-            var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            var row = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            row.AddThemeStyleboxOverride("panel", new StyleBoxEmpty()); // no inset/border around the overlay
             var bgColor = i % 2 == 0 ? _evenRowColor : _oddRowColor;
 
-            var bg = new ColorRect { Color = bgColor, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ExpandFill };
-            row.AddChild(bg); bg.MoveToFront();
+            var bg = new ColorRect { Color = bgColor };
+            row.AddChild(bg); // added first → drawn behind the cells
 
             int idx = i; // capture for closure
             var item = data[i];
 
+            var cells = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
             foreach (var col in _columns)
             {
                 var val = col.GetValue(item)?.ToString() ?? "";
@@ -149,26 +153,29 @@ public partial class BeepDataGrid : VBoxContainer
                     SizeFlagsHorizontal = SizeFlags.ExpandFill,
                     ClipText = true
                 };
-                cell.AddThemeFontSizeOverride("font_size", int.Parse(RowFontSize));
-                row.AddChild(cell);
+                cell.AddThemeFontSizeOverride("font_size", ParseSize(RowFontSize, 14));
+                cells.AddChild(cell);
             }
+            row.AddChild(cells);
 
             if (Selectable)
             {
-                var btn = new Button { Flat = true, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ExpandFill };
+                var btn = new Button { Flat = true };
                 btn.Modulate = new Color(1, 1, 1, 0);
                 btn.Pressed += () => SelectRow(idx, item);
-                row.AddChild(btn);
+                row.AddChild(btn); // added last → on top, catches the whole-row click
             }
 
             _bodyContainer.AddChild(row);
         }
     }
 
+    private static int ParseSize(string s, int fallback) => int.TryParse(s, out var n) ? n : fallback;
+
     private void BuildRowsDynamic(object listObj)
     {
         var listType = listObj.GetType();
-        var count = (int)listType.GetProperty("Count")?.GetValue(listObj);
+        if (listType.GetProperty("Count")?.GetValue(listObj) is not int count) return; // not a countable list
         var indexer = listType.GetProperty("Item");
 
         ClearChildren(_bodyContainer);
@@ -193,7 +200,7 @@ public partial class BeepDataGrid : VBoxContainer
         int childIdx = 0;
         foreach (var child in _bodyContainer.GetChildren())
         {
-            if (child is HBoxContainer row && row.GetChildCount() > 0 && row.GetChild(0) is ColorRect bg)
+            if (child is PanelContainer row && row.GetChildCount() > 0 && row.GetChild(0) is ColorRect bg)
             {
                 bg.Color = childIdx == index ? _selectedColor : (childIdx % 2 == 0 ? _evenRowColor : _oddRowColor);
             }

@@ -26,6 +26,13 @@ namespace Beep.ECS.UI
         private Label? _lives;
         private Label? _health;
 
+        // Held so the subscriptions can be undone in _ExitTree. GameFlow and the player's
+        // HealthComponent outlive this HUD (a scene change / overlay close frees the HUD
+        // first), so a dangling += would fire OnScoreChanged/OnHealthChanged on freed
+        // Labels — an ObjectDisposedException on the next score/damage event.
+        private GameFlowComponent? _flow;
+        private HealthComponent? _boundHealth;
+
         public override void _Ready()
         {
             base._Ready();
@@ -39,13 +46,17 @@ namespace Beep.ECS.UI
             _lives = parent.GetNodeOrNull<Label>(LivesLabelPath);
             _health = parent.GetNodeOrNull<Label>(HealthLabelPath);
 
-            var flow = parent.GetNodeOrNull<GameFlowComponent>(GameFlowPath);
-            if (flow != null)
+            _flow = parent.GetNodeOrNull<GameFlowComponent>(GameFlowPath);
+            if (_flow != null)
             {
-                flow.ScoreChanged += OnScoreChanged;
-                flow.LivesChanged += OnLivesChanged;
-                OnScoreChanged(flow.Score);
-                OnLivesChanged(flow.Lives);
+                _flow.ScoreChanged += OnScoreChanged;
+                _flow.LivesChanged += OnLivesChanged;
+                OnScoreChanged(_flow.Score);
+                OnLivesChanged(_flow.Lives);
+            }
+            else
+            {
+                GD.PushWarning($"[{Name}] HudComponent found no GameFlowComponent at '{GameFlowPath}' (relative to '{parent.Name}'); score/lives will not update. Point GameFlowPath at the scene's GameFlowComponent.");
             }
 
             // Health lives on the player, not the HUD parent. Find it by TYPE, not by a
@@ -54,16 +65,37 @@ namespace Beep.ECS.UI
             var player = parent.GetNodeOrNull<Node>(PlayerPath);
             if (player != null)
             {
-                HealthComponent? health = null;
                 foreach (var child in player.GetChildren())
-                    if (child is HealthComponent hc) { health = hc; break; }
+                    if (child is HealthComponent hc) { _boundHealth = hc; break; }
 
-                if (health != null)
+                if (_boundHealth != null)
                 {
-                    health.HealthChanged += OnHealthChanged;
-                    OnHealthChanged(health.CurrentHealth, health.MaxHealth);
+                    _boundHealth.HealthChanged += OnHealthChanged;
+                    OnHealthChanged(_boundHealth.CurrentHealth, _boundHealth.MaxHealth);
+                }
+                else
+                {
+                    GD.PushWarning($"[{Name}] HudComponent found the player node '{player.Name}' but no HealthComponent child on it; the health readout will not update.");
                 }
             }
+            else
+            {
+                GD.PushWarning($"[{Name}] HudComponent found no player node at '{PlayerPath}' (relative to '{parent.Name}'); the health readout will not update. Point PlayerPath at the player, or clear it if this HUD shows no health.");
+            }
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            if (_flow != null && GodotObject.IsInstanceValid(_flow))
+            {
+                _flow.ScoreChanged -= OnScoreChanged;
+                _flow.LivesChanged -= OnLivesChanged;
+            }
+            if (_boundHealth != null && GodotObject.IsInstanceValid(_boundHealth))
+                _boundHealth.HealthChanged -= OnHealthChanged;
+            _flow = null;
+            _boundHealth = null;
         }
 
         private void OnScoreChanged(int score) { if (_score != null) _score.Text = score.ToString(); }

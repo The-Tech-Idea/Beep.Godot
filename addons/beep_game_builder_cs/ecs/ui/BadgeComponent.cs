@@ -29,7 +29,7 @@ namespace Beep.ECS.UI
             if (_control == null)
                 GD.PushWarning($"[{Name}] BadgeComponent needs a Control parent to anchor the badge to; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Control being badged.");
             CallDeferred(nameof(BuildBadge));
-            UpdateBadge();
+            UpdateBadge(emit: false);   // seed visuals without a spurious startup CountChanged
         }
 
         private void BuildBadge()
@@ -55,7 +55,7 @@ namespace Beep.ECS.UI
 
             // Render the scene-authored Count now. _Ready's UpdateBadge ran before this deferred
             // build, so the panel existed to draw into only from here — an initial Count showed blank.
-            UpdateBadge();
+            UpdateBadge(emit: false);
         }
 
         public void SetCount(int count)
@@ -66,7 +66,7 @@ namespace Beep.ECS.UI
 
         public void Increment(int amount = 1) { Count += amount; UpdateBadge(); }
 
-        private void UpdateBadge()
+        private void UpdateBadge(bool emit = true)
         {
             if (_badgePanel == null || _badgeLabel == null) return;
             bool show = Count > 0;
@@ -83,12 +83,17 @@ namespace Beep.ECS.UI
                     .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
             }
 
-            EmitSignal(SignalName.CountChanged, Count);
+            if (emit) EmitSignal(SignalName.CountChanged, Count);
         }
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _tween?.Kill();
+            // _badgePanel was AddChild'd to the parent Control, so freeing this component doesn't
+            // take it along — free it, or it's orphaned onscreen.
+            if (_badgePanel != null && GodotObject.IsInstanceValid(_badgePanel)) _badgePanel.QueueFree();
+            _badgePanel = null;
         }
     }
 }

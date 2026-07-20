@@ -7,6 +7,7 @@
 [node name="PauseSubscreen" type="CanvasLayer"]
 script = ExtResource("3_script")
 layer = 10
+process_mode = 3
 
 [node name="Background" type="ColorRect" parent="."]
 anchors_preset = 15

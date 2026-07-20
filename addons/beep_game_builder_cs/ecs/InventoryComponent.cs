@@ -90,14 +90,24 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             Slots = new InventorySlot[MaxSlots];
-            CallDeferred(nameof(BuildUI));
+            // Don't build the grid/tooltip in the editor — this [Tool] node lands in scenes the dev
+            // opens, and BuildUI injects Owner-stamped nodes into the parent that a scene save would
+            // then serialize (and re-add on each reopen). Matches Particle/Trail/Spawner's guard.
+            if (Engine.IsEditorHint()) return;
+            if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
+            Callable.From(BuildUI).CallDeferred();
         }
 
         public override void _Process(double delta)
         {
             ProcessInteraction(delta);
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            DisposeUI();   // free the grid + tooltip injected into the parent (Display partial)
         }
 
         private static InventorySlot NewSlot(GameItem item, int quantity) => new()
@@ -147,7 +157,13 @@ namespace Beep.ECS
             while (quantity > 0)
             {
                 int slot = FindEmptySlot();
-                if (slot < 0) { EmitSignal(SignalName.InventoryFull); EmitSignal(SignalName.InventoryChanged); return false; }
+                if (slot < 0)
+                {
+                    // Ran out of room mid-add — still announce the portion that DID fit, so a pickup
+                    // listener doesn't undercount on an overflow.
+                    if (quantity < originalQuantity) EmitSignal(SignalName.ItemAdded, item.Id, originalQuantity - quantity);
+                    EmitSignal(SignalName.InventoryFull); EmitSignal(SignalName.InventoryChanged); return false;
+                }
                 int toAdd = Mathf.Min(item.MaxStack, quantity);
                 Slots[slot] = NewSlot(item, toAdd);
                 quantity -= toAdd;

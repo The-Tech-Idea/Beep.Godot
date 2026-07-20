@@ -119,7 +119,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         b.AddChild(genBtn);
 
         b.AddChild(new HSeparator());
-        b.AddChild(new Label { Text = "After creating, open scenes/ui/main_menu.tscn as the main scene and press Play." });
+        b.AddChild(new Label { Text = "After creating, the main scene is set to scenes/ui/main_menu.tscn — just press Play (F5)." });
         var saveBtn = new Button { Text = "💾 Save current settings to game_info.tres" };
         saveBtn.Pressed += SaveGameInfo;
         b.AddChild(saveBtn);
@@ -243,7 +243,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         var log = BeepGenreGenerator.CreateProject(gid, info, overwrite: false);
         foreach (var line in log) Log(line);
 
-        Log("Done. Open scenes/ui/main_menu.tscn as the main scene (Project → Project Settings → Run) and press Play.");
+        Log("Done. The run/main scene is set to scenes/ui/main_menu.tscn — press Play (F5).");
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -279,6 +279,14 @@ public partial class BeepGameBuilderDock : VBoxContainer
         int ti = _themeIds.IndexOf(info.DefaultThemePreset.ToLowerInvariant());
         if (ti >= 0) { _themePicker.Select(ti); OnThemeChanged(); }
 
+        // Restore the palette LAST: OnThemeChanged's cascade rebuilds the palette list and resets it to
+        // "default", so a saved non-default palette must be re-selected after the theme cascade runs.
+        if (!string.IsNullOrEmpty(info.PaletteName))
+        {
+            int pi = _paletteIds.IndexOf(info.PaletteName.ToLowerInvariant());
+            if (pi >= 0) _palettePicker.Select(pi);
+        }
+
         Log($"Reloaded from {GameInfo.TresPath}.");
     }
 
@@ -296,6 +304,12 @@ public partial class BeepGameBuilderDock : VBoxContainer
         if (gid != null) info.GenreId = gid;
         string tid = GetSelectedThemeId();
         if (tid != null) info.DefaultThemePreset = tid;
+        // Save must persist the same fields Generate does — it previously dropped Palette and Geometry,
+        // so the two paths disagreed and a saved non-default palette was silently lost.
+        if (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
+            info.PaletteName = _paletteIds[_palettePicker.Selected];
+        var genre = gid != null ? SkinCatalog.GetGenre(gid) : null;
+        info.GeometryProfileName = genre?.Geometry?.DisplayName ?? info.GeometryProfileName;
         return info;
     }
 

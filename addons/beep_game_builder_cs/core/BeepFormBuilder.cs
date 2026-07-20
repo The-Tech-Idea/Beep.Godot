@@ -27,8 +27,6 @@ public partial class BeepFormBuilder : VBoxContainer
     public override void _Ready()
     {
         AddThemeConstantOverride("separation", 8);
-        _submitBtn = new Button { Text = SubmitText, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
-        _submitBtn.Pressed += OnSubmit;
     }
 
     /// <summary>Build form fields from an object's properties.</summary>
@@ -58,10 +56,14 @@ public partial class BeepFormBuilder : VBoxContainer
             row.AddChild(label);
 
             // Input based on type
+            var capturedProp = prop;
             Godot.Control input = CreateInputForType(prop.PropertyType, prop.GetValue(obj), (v) =>
             {
-                try { prop.SetValue(obj, Convert.ChangeType(v, prop.PropertyType)); }
-                catch { }
+                try { capturedProp.SetValue(obj, v is IConvertible ? Convert.ChangeType(v, capturedProp.PropertyType) : v); }
+                catch (Exception e)
+                {
+                    GD.PushWarning($"[BeepFormBuilder] could not set '{capturedProp.Name}' ({capturedProp.PropertyType.Name}) from '{v}': {e.Message}");
+                }
             });
 
             input.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -71,6 +73,10 @@ public partial class BeepFormBuilder : VBoxContainer
             _fields.Add(new FieldBinding { Property = prop, Input = input });
         }
 
+        // Recreate the submit button every build: ClearChildren above QueueFree'd the previous one, and
+        // re-adding a node already flagged for deletion makes it vanish at frame end (taking its handler).
+        _submitBtn = new Button { Text = SubmitText, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
+        _submitBtn.Pressed += OnSubmit;
         AddChild(_submitBtn);
     }
 
@@ -113,10 +119,13 @@ public partial class BeepFormBuilder : VBoxContainer
         if (type == typeof(Vector2))
         {
             var v2h = new HBoxContainer();
-            var x = new SpinBox { Value = ((Vector2)(currentValue ?? Vector2.Zero)).X, AllowGreater = true, AllowLesser = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            var y = new SpinBox { Value = ((Vector2)(currentValue ?? Vector2.Zero)).Y, AllowGreater = true, AllowLesser = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            x.ValueChanged += v => onChanged(new Vector2((float)v, ((Vector2)GetFormValue()).Y));
-            y.ValueChanged += v => onChanged(new Vector2(((Vector2)GetFormValue()).X, (float)v));
+            // Track the live vector in a captured local — GetFormValue() returns the whole form object,
+            // not this field's Vector2, so casting it here threw InvalidCastException on every edit.
+            var vec = (Vector2)(currentValue ?? Vector2.Zero);
+            var x = new SpinBox { Value = vec.X, AllowGreater = true, AllowLesser = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            var y = new SpinBox { Value = vec.Y, AllowGreater = true, AllowLesser = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            x.ValueChanged += v => { vec.X = (float)v; onChanged(vec); };
+            y.ValueChanged += v => { vec.Y = (float)v; onChanged(vec); };
             v2h.AddChild(x); v2h.AddChild(y);
             return v2h;
         }
@@ -125,8 +134,6 @@ public partial class BeepFormBuilder : VBoxContainer
         fallback.TextChanged += t => onChanged(t);
         return fallback;
     }
-
-    private object GetFormValue() => _dataObject;
 
     private void OnSubmit()
     {

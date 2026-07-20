@@ -10,11 +10,11 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
-            GetNode<Button>("Margin/VBox/CharGrid/MarineCard/MarineVBox/SelectButton").Pressed += () => SelectCharacter("Marine");
-            GetNode<Button>("Margin/VBox/CharGrid/PilotCard/PilotVBox/SelectButton").Pressed += () => SelectCharacter("Pilot");
-            GetNode<Button>("Margin/VBox/CharGrid/HunterCard/HunterVBox/SelectButton").Pressed += () => SelectCharacter("Hunter");
-            GetNode<Button>("Margin/VBox/CharGrid/BruiserCard/BruiserVBox/SelectButton").Pressed += () => SelectCharacter("Bruiser");
+            this.ConnectPressed("Margin/VBox/Header/BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectPressed("Margin/VBox/CharGrid/MarineCard/MarineVBox/SelectButton", () => SelectCharacter("Marine"));
+            this.ConnectPressed("Margin/VBox/CharGrid/PilotCard/PilotVBox/SelectButton", () => SelectCharacter("Pilot"));
+            this.ConnectPressed("Margin/VBox/CharGrid/HunterCard/HunterVBox/SelectButton", () => SelectCharacter("Hunter"));
+            this.ConnectPressed("Margin/VBox/CharGrid/BruiserCard/BruiserVBox/SelectButton", () => SelectCharacter("Bruiser"));
         }
 
         /// <summary>Record the picked character on GameApp, then start the run. Before, all four

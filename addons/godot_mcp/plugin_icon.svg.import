@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdbfv5cv4pq7x"
-path="res://.godot/imported/plugin_icon.svg-7d2cfafbafeab5c309f2d0aa9f75ef40.ctex"
+path="res://.godot/imported/plugin_icon.svg-164a36fc62f0692558f90c0bd174a03c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/beep_game_builder_cs/mcp/plugin_icon.svg"
-dest_files=["res://.godot/imported/plugin_icon.svg-7d2cfafbafeab5c309f2d0aa9f75ef40.ctex"]
+source_file="res://addons/godot_mcp/plugin_icon.svg"
+dest_files=["res://.godot/imported/plugin_icon.svg-164a36fc62f0692558f90c0bd174a03c.ctex"]
 
 [params]
 

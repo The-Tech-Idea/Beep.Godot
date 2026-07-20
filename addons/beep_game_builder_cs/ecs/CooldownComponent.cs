@@ -48,6 +48,13 @@ namespace Beep.ECS
         }
 
         /// <summary>Force the cooldown to end immediately.</summary>
-        public void Reset() => _timer = 0;
+        public void Reset()
+        {
+            bool wasCoolingDown = _timer > 0;
+            _timer = 0;
+            // Announce readiness so listeners gated on CooldownReady learn the ability is available
+            // after a forced reset (they otherwise only heard it via the natural _Process expiry).
+            if (wasCoolingDown) EmitSignal(SignalName.CooldownReady);
+        }
     }
 }

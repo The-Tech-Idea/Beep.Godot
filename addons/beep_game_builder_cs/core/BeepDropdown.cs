@@ -29,20 +29,32 @@ public partial class BeepDropdown : Button
         Alignment = HorizontalAlignment.Left;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
 
-        // Build popup
+        // Build popup: a search box over the item list. Without the LineEdit the "filter-as-you-type"
+        // claim was unreachable — the popup only ever showed the full list and Filter() had no UI caller.
         _popup = new PopupMenu();
+
+        _popupContent = new VBoxContainer();
+        _popupContent.SetAnchorsPreset(LayoutPreset.FullRect);
+
+        _searchBox = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _searchBox.TextChanged += t => Filter(t);
+        _popupContent.AddChild(_searchBox);
+
         _itemList = new ItemList { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _itemList.ItemSelected += OnItemClicked;
+        _popupContent.AddChild(_itemList);
 
-        _popup.AddChild(_itemList);
+        _popup.AddChild(_popupContent);
         AddChild(_popup);
 
         Pressed += () =>
         {
             _popup.Position = (Vector2I)GlobalPosition + new Vector2I(0, (int)Size.Y);
-            _popup.Size = new Vector2I((int)Size.X, 200);
+            _popup.Size = new Vector2I((int)Size.X, 220);
             _popup.Popup();
+            _searchBox.Clear();      // start unfiltered each open
             RefreshList("");
+            _searchBox.GrabFocus();
         };
     }
 

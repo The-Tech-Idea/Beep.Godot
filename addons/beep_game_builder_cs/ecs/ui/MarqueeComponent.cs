@@ -21,6 +21,10 @@ namespace Beep.ECS.UI
         private float _pauseTimer;
         private bool _pausing = true;
         private bool _forward = true;
+        private bool _running;
+
+        /// <summary>Whether the ticker is currently scrolling.</summary>
+        public bool IsRunning => _running;
 
         public override void _Ready()
         {
@@ -36,12 +40,19 @@ namespace Beep.ECS.UI
                 _label.OffsetTransformEnabled = true;
             }
             else GD.PushWarning($"[{Name}] MarqueeComponent needs a Label parent to scroll; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Label.");
+            _running = AutoStart;
         }
+
+        /// <summary>Begin scrolling. Use this when AutoStart is false (drive the ticker from code).</summary>
+        public void Start() => _running = true;
+
+        /// <summary>Stop scrolling. The ticker holds its current offset until Start() is called.</summary>
+        public void Stop() => _running = false;
 
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint()) return;
-            if (_label == null || !IsActive || !AutoStart) return;
+            if (_label == null || !IsActive || !_running) return;
 
             float textWidth = _label.GetThemeDefaultFont()?.GetStringSize(_label.Text, fontSize: _label.GetThemeFontSize("font_size")).X ?? _label.Size.X;
 

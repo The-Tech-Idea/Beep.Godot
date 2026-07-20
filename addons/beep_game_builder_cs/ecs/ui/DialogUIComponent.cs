@@ -123,6 +123,12 @@ namespace Beep.ECS.UI
             parent.AddChild(_panel);
             _panel.Owner = parent;
 
+            // AnimateIn/AnimateOut tween _panel.Position; a layout Container host re-sorts its
+            // children every layout pass and would overwrite the slide. Warn once (this runs
+            // just once, at build) — recommend a CanvasLayer/free Control host.
+            if (!Engine.IsEditorHint() && parent is Container)
+                GD.PushWarning($"[{Name}] DialogUIComponent's host is a {parent.GetType().Name} — it will re-sort the dialog panel and overwrite the slide-in/out animation. Host the dialog under a CanvasLayer or a free (non-Container) Control.");
+
             // MarginContainer — inner padding.
             var margin = new MarginContainer { Name = "DialogMargin" };
             margin.AddThemeConstantOverride("margin_left", ContentPadding);
@@ -215,7 +221,10 @@ namespace Beep.ECS.UI
                 }
                 n = n.GetParent();
             }
-            // No theme found — use Godot defaults.
+            // No theme found — use Godot defaults (plain white). Announce it, so an unthemed
+            // dialog box reads as a wiring gap rather than an intentional look.
+            if (!Engine.IsEditorHint())
+                GD.PushWarning($"[{Name}] DialogUIComponent found no ThemePresetComponent up the tree — the dialog falls back to unthemed white. Add a ThemePresetComponent to the dialog's content Control to theme it.");
             _themeFound = false;
             _cachedAccent = Colors.White;
             _cachedTextPrimary = Colors.White;
@@ -453,12 +462,16 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _animationTween?.Kill();
             foreach (var t in _choiceTweens)
                 t?.Kill();
             _choiceTweens.Clear();
             if (_engine != null && GodotObject.IsInstanceValid(_engine))
                 _engine.DialogStarted -= StartFromDialogComponent;
+            // _panel is AddChild'd to the parent Control — free it or the built dialog is orphaned.
+            if (_panel != null && GodotObject.IsInstanceValid(_panel)) _panel.QueueFree();
+            _panel = null;
         }
     }
 }

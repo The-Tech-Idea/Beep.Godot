@@ -75,6 +75,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_minusBtn != null)
                 _minusBtn.Pressed -= OnMinusPressed;
             if (_plusBtn != null)

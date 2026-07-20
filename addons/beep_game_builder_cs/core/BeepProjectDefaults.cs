@@ -30,8 +30,13 @@ public static class BeepProjectDefaults
     public static void RemoveAutoload(string name)
     {
         string key = $"autoload/{name}";
+        // Clear() actually removes the key. Set(key, "") left an EMPTY autoload entry behind, and
+        // HasSetting/HasAutoload still reported true for it — so EnsureAutoload (which only adds when
+        // !HasAutoload) would later REFUSE to re-register an autoload a subsequent genre needs, leaving
+        // it permanently empty. Clearing the key lets the re-enable path work and drops the dead entry
+        // from project.godot. Persisted by the caller's SaveAll().
         if (ProjectSettings.HasSetting(key))
-            Set(key, string.Empty);
+            ProjectSettings.Clear(key);
     }
 
     public static bool HasAutoload(string name) =>

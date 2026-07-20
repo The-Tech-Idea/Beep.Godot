@@ -13,10 +13,10 @@ namespace Beep.ECS.Scenes
             // Back returns to the garage, which racing wires as NewGameScenePath. Resolve it
             // through GameInfo instead of a hardcoded literal (fallback keeps it working
             // pre-generation).
-            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => ChangeScene(GaragePath());
-            GetNode<Button>("Margin/VBox/VehicleGrid/Car1/Car1VBox/Car1Button").Pressed += () => SelectVehicle("Car1");
-            GetNode<Button>("Margin/VBox/VehicleGrid/Car2/Car2VBox/Car2Button").Pressed += () => SelectVehicle("Car2");
-            GetNode<Button>("Margin/VBox/VehicleGrid/Car3/Car3VBox/Car3Button").Pressed += () => SelectVehicle("Car3");
+            this.ConnectPressed("Margin/VBox/Header/BackButton", () => ChangeScene(GaragePath()));
+            this.ConnectPressed("Margin/VBox/VehicleGrid/Car1/Car1VBox/Car1Button", () => SelectVehicle("Car1"));
+            this.ConnectPressed("Margin/VBox/VehicleGrid/Car2/Car2VBox/Car2Button", () => SelectVehicle("Car2"));
+            this.ConnectPressed("Margin/VBox/VehicleGrid/Car3/Car3VBox/Car3Button", () => SelectVehicle("Car3"));
         }
 
         /// <summary>Record the picked vehicle on GameApp, then start the race. Before, all three

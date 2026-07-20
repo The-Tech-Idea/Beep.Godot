@@ -101,6 +101,9 @@ namespace Beep.GameBuilder
 	/// This pattern allows different game types (platformer, RPG, shooter) to include
 	/// only the features they need, making it extensible without waste.
 	/// </summary>
+	// NOTE: [GlobalClass] Resource but the sub-state properties are plain C# (no [Export]), so
+	// ResourceSaver.Save(.tres) would persist an empty resource. Persistence goes through
+	// ToJsonString/FromJsonString (see below), NOT .tres — that is the intended save path.
 	[GlobalClass]
 	public partial class GameStateData : Resource
 	{
@@ -306,7 +309,9 @@ namespace Beep.GameBuilder
 
 		public Godot.Collections.Dictionary ToDict() => new()
 		{
-			{ "position", Position },
+			// Decompose to floats — Json.Stringify can't round-trip a Vector2 (see EntityStateData).
+			{ "position_x", Position.X },
+			{ "position_y", Position.Y },
 			{ "health", Health },
 			{ "max_health", MaxHealth },
 			{ "lives", Lives },
@@ -319,7 +324,9 @@ namespace Beep.GameBuilder
 
 		public static PlayerStateData FromDict(Godot.Collections.Dictionary d) => new()
 		{
-			Position = d.TryGetValue("position", out var pos) ? pos.AsVector2() : Vector2.Zero,
+			Position = new Vector2(
+				d.TryGetValue("position_x", out var px) ? (float)px : 0,
+				d.TryGetValue("position_y", out var py) ? (float)py : 0),
 			Health = d.TryGetValue("health", out var h) ? (float)h : 100,
 			MaxHealth = d.TryGetValue("max_health", out var mh) ? (float)mh : 100,
 			Lives = d.TryGetValue("lives", out var l) ? (int)l : 3,
@@ -395,7 +402,11 @@ namespace Beep.GameBuilder
 		{
 			{ "id", Id },
 			{ "type", Type },
-			{ "position", Position },
+			// Decompose to floats: Json.Stringify has no Vector2 encoding — it writes the "(x, y)" string
+			// form, and AsVector2() on a String returns Zero, so every saved position reloaded at the
+			// origin. Mirrors PlayerMovementStateData's position_x/position_y.
+			{ "position_x", Position.X },
+			{ "position_y", Position.Y },
 			{ "rotation", Rotation },
 			{ "health", Health },
 			{ "is_active", IsActive },
@@ -406,7 +417,9 @@ namespace Beep.GameBuilder
 		{
 			Id = d.TryGetValue("id", out var id) ? id.AsString() : "",
 			Type = d.TryGetValue("type", out var t) ? t.AsString() : "",
-			Position = d.TryGetValue("position", out var pos) ? pos.AsVector2() : Vector2.Zero,
+			Position = new Vector2(
+				d.TryGetValue("position_x", out var px) ? (float)px : 0,
+				d.TryGetValue("position_y", out var py) ? (float)py : 0),
 			Rotation = d.TryGetValue("rotation", out var r) ? (float)r : 0,
 			Health = d.TryGetValue("health", out var h) ? (float)h : -1,
 			IsActive = d.TryGetValue("is_active", out var ia) ? ia.AsBool() : true,

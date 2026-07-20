@@ -37,6 +37,8 @@ func _ready() -> void:
 	_build_ui()
 	_refresh_theme_grid("")
 	_refresh_widget_grid("")
+	# Populate the preview from the default selection so the panel isn't blank until the first click.
+	_update_preview()
 
 
 func _build_ui() -> void:

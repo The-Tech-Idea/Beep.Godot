@@ -127,6 +127,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_area != null)
             {
                 _area.BodyEntered -= OnBodyEntered;

@@ -11,7 +11,14 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class ChromaticAberrationComponent : UIComponent
     {
-        [Export] public float Strength { get; set; } = 0.004f;
+        [Export] public float Strength
+        {
+            get => _strength;
+            // Push to the live material so changing Strength at runtime actually updates the effect
+            // (previously only the editor _Process path wrote it, so runtime tweaks were ignored).
+            set { _strength = value; _mat?.SetShaderParameter("strength", value); }
+        }
+        private float _strength = 0.004f;
 
         // Post-process overlay: split the SCREEN behind this Control, not the
         // Control's own blank TEXTURE. Sample via hint_screen_texture / SCREEN_UV
@@ -32,6 +39,9 @@ void fragment() {
 ";
 
         private ShaderMaterial? _mat;
+        private CanvasItem? _ci;
+        private Material? _priorMaterial;
+        private bool _replaced;
 
         public override void _Ready()
         {
@@ -52,10 +62,20 @@ void fragment() {
                 GD.PushWarning($"[{Name}] ChromaticAberrationComponent needs a CanvasItem parent (a full-rect Control/ColorRect) to apply the shader to; got '{GetParent()?.GetType().Name ?? "null"}'.");
                 return;
             }
-            var shader = new Shader { Code = ShaderCode };
-            _mat = new ShaderMaterial { Shader = shader };
+            _ci = ci;
+            if (!_replaced) { _priorMaterial = ci.Material; _replaced = true; }   // remember once
+            _mat ??= new ShaderMaterial { Shader = new Shader { Code = ShaderCode } };   // reuse, don't rebuild each call
             _mat.SetShaderParameter("strength", Strength);
             ci.Material = _mat;
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Restore the parent's original material — otherwise the aberration shader stays stuck
+            // on the parent CanvasItem after this overlay is removed (mirrors Vignette/SkeletonLoader).
+            if (_replaced && _ci != null && GodotObject.IsInstanceValid(_ci))
+                _ci.Material = _priorMaterial;
         }
     }
 }

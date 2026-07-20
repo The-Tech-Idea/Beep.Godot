@@ -10,19 +10,23 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            var tabs = GetNode<TabContainer>("Margin/MainHBox/ContentArea/Tabs");
+            // GetNodeOrNull (not throwing) so a missing Tabs node warns and disables the tab buttons
+            // rather than aborting _Ready and killing Save/Resume/Quit too. The tab lambdas null-guard it.
+            var tabs = GetNodeOrNull<TabContainer>("Margin/MainHBox/ContentArea/Tabs");
+            if (tabs == null)
+                GD.PushWarning($"[{Name}] Tabs TabContainer not found — tab buttons will do nothing.");
 
-            GetNode<Button>("Margin/MainHBox/TabRail/InventoryButton").Pressed += () => { tabs.CurrentTab = 0; };
-            GetNode<Button>("Margin/MainHBox/TabRail/MapButton").Pressed += () => { tabs.CurrentTab = 1; };
-            GetNode<Button>("Margin/MainHBox/TabRail/QuestButton").Pressed += () => { tabs.CurrentTab = 2; };
-            GetNode<Button>("Margin/MainHBox/TabRail/StatusButton").Pressed += () => { tabs.CurrentTab = 3; };
-            GetNode<Button>("Margin/MainHBox/TabRail/SaveButton").Pressed += OnSavePressed;
+            this.ConnectPressed("Margin/MainHBox/TabRail/InventoryButton", () => { if (tabs != null) tabs.CurrentTab = 0; });
+            this.ConnectPressed("Margin/MainHBox/TabRail/MapButton", () => { if (tabs != null) tabs.CurrentTab = 1; });
+            this.ConnectPressed("Margin/MainHBox/TabRail/QuestButton", () => { if (tabs != null) tabs.CurrentTab = 2; });
+            this.ConnectPressed("Margin/MainHBox/TabRail/StatusButton", () => { if (tabs != null) tabs.CurrentTab = 3; });
+            this.ConnectPressed("Margin/MainHBox/TabRail/SaveButton", OnSavePressed);
             // The Save tab's own button was never wired (only the TabRail SaveButton was), so it
             // was a dead button. Wire it to the same save action.
             if (GetNodeOrNull<Button>("Margin/MainHBox/ContentArea/Tabs/Save/SaveButton") is { } saveTabButton)
                 saveTabButton.Pressed += OnSavePressed;
-            GetNode<Button>("Margin/MainHBox/TabRail/ResumeButton").Pressed += () => { GetTree().Paused = false; QueueFree(); };
-            GetNode<Button>("Margin/MainHBox/TabRail/QuitButton").Pressed += () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); };
+            this.ConnectPressed("Margin/MainHBox/TabRail/ResumeButton", () => { GetTree().Paused = false; QueueFree(); });
+            this.ConnectPressed("Margin/MainHBox/TabRail/QuitButton", () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); });
         }
 
         /// <summary>Write the autosave slot through the GameStateManager autoload. Was a

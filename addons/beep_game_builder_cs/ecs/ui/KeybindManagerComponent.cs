@@ -104,12 +104,17 @@ namespace Beep.ECS.UI
         /// <summary>Unregister a keybind.</summary>
         public void Unregister(string id) => _keybinds.Remove(id);
 
-        /// <summary>Rebind a keybind to a new key.</summary>
-        public void Rebind(string id, Key newKey)
+        /// <summary>
+        /// Rebind a keybind to a new key (and, optionally, a new modifier chord).
+        /// Pass <paramref name="modifiers"/> to set or clear the chord — the default
+        /// <see cref="Key.None"/> rebinds to a plain, unmodified key.
+        /// </summary>
+        public void Rebind(string id, Key newKey, Key modifiers = Key.None)
         {
             if (_keybinds.TryGetValue(id, out var kb))
             {
                 kb.Key = newKey;
+                kb.Modifiers = modifiers;
                 EmitSignal(SignalName.KeybindRebound, id, kb.GetDisplayString());
             }
         }

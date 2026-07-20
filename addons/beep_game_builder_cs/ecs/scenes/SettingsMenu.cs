@@ -10,8 +10,22 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/ContentVBox/CloseButton").Pressed += OnClosePressed;
+            this.ConnectPressed("Center/Panel/Margin/ContentVBox/CloseButton", OnClosePressed);
             WireSettingsWidgets();
+        }
+
+        // As a modal overlay (which it always is now — opened via SettingsOverlay.Open), close on the
+        // Cancel/Escape key and CONSUME it, so the same press doesn't also reach GameFlow's pause toggle
+        // and close the pause menu out from under this dialog. _Input runs before _UnhandledInput.
+        public override void _Input(InputEvent @event)
+        {
+            if (Engine.IsEditorHint()) return;
+            if (GetTree()?.CurrentScene == this) return;   // not an overlay — leave input alone
+            if (@event.IsActionPressed("ui_cancel"))
+            {
+                OnClosePressed();
+                GetViewport()?.SetInputAsHandled();
+            }
         }
 
         /// <summary>Bind the six controls to the Settings autoload. The scene has always

@@ -8,15 +8,24 @@ namespace Beep.ECS.UI
     /// Loads Godot-format CSV translation files (keys,en,es,ja,...), builds per-language
     /// <see cref="Translation"/> resources, and registers them with TranslationServer.
     /// When the locale is set, Godot auto-translates Label/Button/RichTextLabel text
-    /// that matches a translation key — no manual Tr() calls needed on UI nodes.
+    /// — no manual Tr() calls needed on UI nodes.
+    ///
+    /// KEY IT ON THE ON-SCREEN ENGLISH. Godot auto-translation uses a Control's <c>text</c> as the
+    /// lookup msgid, so the CSV's first column must be the exact string the scene renders. Symbolic
+    /// keys (MENU_PLAY) look tidy but match nothing — the shipped scenes say "New Game"/"Paused", so a
+    /// "MENU_PLAY" key never fires and switching language does nothing. The shipped CSV is therefore
+    /// keyed on the English chrome strings; the developer extends it with their OWN on-screen strings.
     ///
     /// Place as an autoload ("Locale") or in the boot scene. Other components access
     /// it via <see cref="Instance"/> or <see cref="SettingsComponent.ApplyLocaleSettings"/>.
     ///
-    /// CSV format (Godot standard):
+    /// CSV format (Godot standard) — first column is the source English, echoed in `en`:
     ///   keys,en,es,ja
-    ///   MENU_PLAY,Play,Jugar,プレイ
-    ///   MENU_SETTINGS,Settings,Ajustes,設定
+    ///   New Game,New Game,Nueva partida,ニューゲーム
+    ///   Settings,Settings,Ajustes,設定
+    ///
+    /// The shipped CSV covers framework menu chrome only. Dynamic strings ("Score: 0", slot rows) are
+    /// set from live data — localize those explicitly via <see cref="TrF"/> if desired.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -149,7 +158,11 @@ namespace Beep.ECS.UI
             GD.Print($"[Localization] Loaded {langCount} language(s) from {path}");
         }
 
-        /// <summary>Clear all loaded translations and reload from scratch.</summary>
+        /// <summary>Clear the tracked path/locale sets and reload from scratch. Intended as a
+        /// one-shot boot operation. NOTE: TranslationServer has no RemoveTranslation API, so the
+        /// previously-registered Translation resources are NOT unregistered — calling this
+        /// repeatedly at runtime will accrete duplicate translations on the server. Safe once at
+        /// boot; not for repeated runtime hot-reloads.</summary>
         public void ReloadAll()
         {
             var paths = new List<string>(_csvPaths);

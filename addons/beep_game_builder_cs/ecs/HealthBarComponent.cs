@@ -30,13 +30,17 @@ namespace Beep.ECS
             // without the guard, opening a scene that uses it would litter the scene with
             // runtime-only nodes in the editor.
             if (Engine.IsEditorHint()) return;
-            CallDeferred(nameof(SetupBar));
+            Callable.From(SetupBar).CallDeferred();
         }
 
         private void SetupBar()
         {
             _health = GetSiblingComponent<HealthComponent>();
-            if (_health == null) return;
+            if (_health == null)
+            {
+                GD.PushWarning($"[{Name}] HealthBarComponent found no sibling HealthComponent — the bar will not appear. Add it beside a HealthComponent on the same entity.");
+                return;
+            }
 
             _bar = new ProgressBar();
             _bar.CustomMinimumSize = Size;
@@ -88,7 +92,8 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_health != null)
+            base._ExitTree();
+            if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.HealthChanged -= OnHealthChanged;
             if (_bar != null && GodotObject.IsInstanceValid(_bar))
                 _bar.QueueFree();

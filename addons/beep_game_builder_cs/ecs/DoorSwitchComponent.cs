@@ -41,7 +41,11 @@ namespace Beep.ECS
         {
             base._Ready();
             if (!DoorPath.IsEmpty)
+            {
                 _door = GetNodeOrNull<CollisionObject2D>(DoorPath);
+                if (_door == null && !Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] DoorSwitch's DoorPath '{DoorPath}' did not resolve to a CollisionObject2D — Toggle() will emit SwitchToggled but control no door. Fix the path, or clear it for signal-only mode.");
+            }
             if (_door != null) { _doorLayer = _door.CollisionLayer; _doorMask = _door.CollisionMask; }
         }
 
@@ -57,7 +61,12 @@ namespace Beep.ECS
 
                 if (!string.IsNullOrEmpty(RequiredItem))
                 {
-                    var playerBody = GetTree().CurrentScene?.FindChild("Player", false, false);
+                    // Resolve the player via the "players" group, not a hardcoded node name — a
+                    // player named anything other than "Player" used to fail this gate silently
+                    // (EntityComponent.EntityGroup adds the body to the group; player_template uses it).
+                    var playerBody = GetTree().GetFirstNodeInGroup("players");
+                    if (playerBody == null)
+                        GD.PushWarning($"[{Name}] DoorSwitch has RequiredItem '{RequiredItem}' but found no node in the 'players' group to check. Put the player's HealthComponent (or another EntityComponent) in EntityGroup 'players'.");
                     // Compare against the actual carried item, not "has any inventory". Before,
                     // this only checked that *a* PickupComponent existed on the player, so any
                     // player opened any gated door — RequiredItem was never consulted.

@@ -4,19 +4,107 @@
   "category": "Retro",
   "description": "Synthwave / outrun UI — dark synth purple surface, hot pink accent, cyan neon glow border",
   "colors": {
-    "surface_primary": "#1A0033FF", "surface_hover": "#2E054DFF", "surface_pressed": "#0F0024FF", "surface_disabled": "#0F051FFF",
-    "text_primary": "#00FFFFFF", "text_hover": "#FF00FFFF", "text_disabled": "#4D3366FF", "text_on_dark": "#00FFFFFF",
-    "accent_primary": "#FF00FFFF", "accent_secondary": "#00FFFFFF",
-    "border_normal": "#00FFFFFF", "border_hover": "#FF00FFFF", "border_focus": "#00FFFFFF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#FF00FFFF", "bg_panel": "#120024FF", "bg_canvas": "#0A0017FF",
-    "semantic_success": "#00FF80FF", "semantic_danger": "#FF004DFF", "semantic_warning": "#FFFF00FF", "semantic_info": "#00FFFFFF"
+    "surface_primary": "#1A0033FF",
+    "surface_hover": "#2E054DFF",
+    "surface_pressed": "#0F0024FF",
+    "surface_disabled": "#0F051FFF",
+    "text_primary": "#00FFFFFF",
+    "text_hover": "#FF00FFFF",
+    "text_disabled": "#4D3366FF",
+    "text_on_dark": "#00FFFFFF",
+    "accent_primary": "#FF00FFFF",
+    "accent_secondary": "#00FFFFFF",
+    "border_normal": "#00FFFFFF",
+    "border_hover": "#FF00FFFF",
+    "border_focus": "#00FFFFFF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#FF00FFFF",
+    "bg_panel": "#120024FF",
+    "bg_canvas": "#0A0017FF",
+    "semantic_success": "#00FF80FF",
+    "semantic_danger": "#FF004DFF",
+    "semantic_warning": "#FFFF00FF",
+    "semantic_info": "#00FFFFFF"
   },
   "geometry": {
-    "corner_radius": 4, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 10, "shadow_offset_x": 0, "shadow_offset_y": 0,
-    "pad_left": 18, "pad_right": 18, "pad_top": 9, "pad_bottom": 9,
+    "corner_radius": 4,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 10,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 0,
+    "pad_left": 18,
+    "pad_right": 18,
+    "pad_top": 9,
+    "pad_bottom": 9,
     "font_size": 18
   },
-  "animation": { "hover_scale": 1.05, "hover_duration": 0.12, "press_scale": 0.95, "press_duration": 0.06, "shadow_lift": false, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.05,
+    "hover_duration": 0.12,
+    "press_scale": 0.95,
+    "press_duration": 0.06,
+    "shadow_lift": false,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/retro80s/button_normal.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/retro80s/button_hover.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/retro80s/button_pressed.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/retro80s/button_normal.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/retro80s/panel.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

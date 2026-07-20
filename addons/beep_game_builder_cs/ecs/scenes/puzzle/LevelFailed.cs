@@ -3,6 +3,10 @@ using Beep.GameBuilder;
 
 namespace Beep.ECS.Scenes
 {
+    /// <summary>Puzzle "out of moves" screen. The score/progress labels (e.g. "980 / 1500") show
+    /// scene placeholders — progress toward a level's target is a genre-specific scoring rule the
+    /// game supplies; the framework tracks only GameApp.SessionScore. The retry-bonus flow below IS
+    /// wired. See CLAUDE.md § Scope.</summary>
     [Tool]
     [GlobalClass]
     public partial class LevelFailed : CanvasLayer
@@ -11,9 +15,9 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/VBox/RetryBonusButton").Pressed += OnRetryWithBonus;
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/QuitButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelMapPath);
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/RetryButton").Pressed += OnRetry;
+            this.ConnectPressed("Center/Panel/Margin/VBox/RetryBonusButton", OnRetryWithBonus);
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/QuitButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/RetryButton", OnRetry);
         }
 
         private void OnRetry()

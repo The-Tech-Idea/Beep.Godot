@@ -188,7 +188,6 @@ namespace Beep.ECS
         public string MainMenuPath => Info?.MainMenuPath ?? "res://scenes/ui/main_menu.tscn";
         public string SettingsScenePath => Info?.SettingsScenePath ?? "res://scenes/ui/settings_menu.tscn";
         public string GameOverScenePath => Info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
-        public string PauseMenuPath => Info?.PauseMenuPath ?? "res://scenes/ui/pause_menu.tscn";
         public double CurrentSessionElapsed => ((long)Time.GetTicksMsec() - SessionStartTicks) / 1000.0;
         public float WinRate => GamesPlayedTotal > 0 ? (float)GamesWonTotal / GamesPlayedTotal * 100f : 0f;
 

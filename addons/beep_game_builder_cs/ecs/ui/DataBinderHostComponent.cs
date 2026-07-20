@@ -26,7 +26,6 @@ namespace Beep.ECS.UI
         /// one slot per feature, so several participating binders would overwrite each other.</summary>
         [Export] public bool ParticipatesInSave { get; set; } = false;
 
-        [Signal] public delegate void BindingRefreshedEventHandler(string sourceProperty, Variant newValue);
         [Signal] public delegate void BindingCreatedEventHandler(string sourceProperty);
         [Signal] public delegate void BindingRemovedEventHandler(string sourceProperty);
 
@@ -43,6 +42,10 @@ namespace Beep.ECS.UI
             // frame or (as before) failing completely silently.
             private bool _warned;
 
+            // Last raw value pushed, so Refresh only re-pushes on an actual change.
+            private object? _lastRaw;
+            private bool _hasLast;
+
             private void WarnOnce(string direction, System.Exception ex)
             {
                 if (_warned) return;
@@ -50,6 +53,8 @@ namespace Beep.ECS.UI
                 GD.PushWarning($"[DataBinder] {direction} binding {SourceProp} <-> {TargetProp} failed and is now inert: {ex.Message}");
             }
 
+            /// <summary>Push source→target only when the value changed, so a poll that finds no
+            /// change does nothing (no redundant Target.Set every tick).</summary>
             public void Refresh()
             {
                 if (Source == null || Target == null) return;
@@ -59,6 +64,9 @@ namespace Beep.ECS.UI
                     if (prop == null) return;
                     var val = prop.GetValue(Source);
                     if (Formatter != null) val = Formatter(val);
+                    if (_hasLast && Equals(val, _lastRaw)) return;
+                    _lastRaw = val;
+                    _hasLast = true;
                     Target.Set(TargetProp, Variant.From(val));
                 }
                 catch (System.Exception ex) { WarnOnce("Source→Target", ex); }
@@ -95,7 +103,10 @@ namespace Beep.ECS.UI
             if (_pollTimer < PollInterval) return;
             _pollTimer = 0;
 
-            RefreshAll();
+            RefreshAll();      // one-way: source → target
+            RefreshTwoWay();   // two-way: push UI edits back to the source (e.g. BindCheckBox);
+                               // without this, TwoWay bindings never wrote back unless a caller
+                               // manually invoked RefreshTwoWay().
         }
 
         public override void _ExitTree()
@@ -108,7 +119,11 @@ namespace Beep.ECS.UI
         public void Bind(object source, string sourceProp, Node target, string targetProp,
             BindingMode mode = BindingMode.OneWay, Func<object, object> formatter = null)
         {
-            if (source == null || target == null) return;
+            if (source == null || target == null)
+            {
+                GD.PushWarning($"[{Name}] Bind ignored: {(source == null ? "source" : "target")} is null (property '{sourceProp}' → '{targetProp}'). Nothing was bound.");
+                return;
+            }
 
             var binding = new Binding
             {
@@ -180,9 +195,7 @@ namespace Beep.ECS.UI
             foreach (var binding in _bindings)
             {
                 if (binding.Mode == BindingMode.OneWay || binding.Mode == BindingMode.OneWayToSource)
-                {
                     binding.Refresh();
-                }
             }
         }
 
@@ -209,14 +222,24 @@ namespace Beep.ECS.UI
         /// <summary>Remove all bindings for a given source object.</summary>
         public void Unbind(object source)
         {
-            _bindings.RemoveAll(b => b.Source == source);
+            // Emit BindingRemoved per removed binding — the event surface is uniform across
+            // Unbind(source), Unbind(source, prop) and Clear().
+            for (int i = _bindings.Count - 1; i >= 0; i--)
+            {
+                if (_bindings[i].Source == source)
+                {
+                    string prop = _bindings[i].SourceProp;
+                    _bindings.RemoveAt(i);
+                    EmitSignal(SignalName.BindingRemoved, prop);
+                }
+            }
         }
 
         /// <summary>Remove a specific binding.</summary>
         public void Unbind(object source, string sourceProp)
         {
-            _bindings.RemoveAll(b => b.Source == source && b.SourceProp == sourceProp);
-            EmitSignal(SignalName.BindingRemoved, sourceProp);
+            int removed = _bindings.RemoveAll(b => b.Source == source && b.SourceProp == sourceProp);
+            if (removed > 0) EmitSignal(SignalName.BindingRemoved, sourceProp);
         }
 
         /// <summary>Get the number of active bindings.</summary>
@@ -225,6 +248,7 @@ namespace Beep.ECS.UI
         /// <summary>Clear all bindings.</summary>
         public void Clear()
         {
+            foreach (var b in _bindings) EmitSignal(SignalName.BindingRemoved, b.SourceProp);
             _bindings.Clear();
         }
 

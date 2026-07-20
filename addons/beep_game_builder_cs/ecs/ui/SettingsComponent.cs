@@ -73,7 +73,10 @@ namespace Beep.ECS.UI
         [Export] public string Language
         {
             get => _language;
-            set { _language = value; Set(LocaleSection, "language", value); EmitChanged(); }
+            // Applies immediately, like Fullscreen/ResolutionIndex — otherwise the value is stored
+            // but the TranslationServer locale never changes unless something else calls
+            // ApplyLocaleSettings (BootComponent/SettingsMenu did; a direct set did nothing).
+            set { _language = value; Set(LocaleSection, "language", value); ApplyLocaleSettings(); EmitChanged(); }
         }
         private string _language = "en";
 
@@ -104,6 +107,10 @@ namespace Beep.ECS.UI
         }
         private bool _damageNumbers = true;
 
+        /// <summary>Fires after any setting changes and is persisted. Note the settings already
+        /// self-apply in their setters (audio/display/locale) — this is the external notification
+        /// hook for game UI that wants to react to a live change (e.g. re-read a value), not a
+        /// requirement for the change to take effect.</summary>
         [Signal] public delegate void SettingsChangedEventHandler();
 
         private static SettingsComponent? _instance;
@@ -146,7 +153,18 @@ namespace Beep.ECS.UI
         public void LoadSettings()
         {
             Error err = _config.Load(SettingsPath);
-            if (err != Error.Ok) return; // no file yet = use defaults
+            if (err != Error.Ok)
+            {
+                // A missing file is normal (fresh install → defaults). A file that EXISTS but fails
+                // to parse is corrupt — say so rather than silently discarding the player's settings.
+                if (Godot.FileAccess.FileExists(SettingsPath))
+                    GD.PushWarning($"[{Name}] settings file '{SettingsPath}' exists but failed to load ({err}) — falling back to defaults. The file may be corrupt; it will be overwritten on the next save.");
+                // Push the (default) field values to the engine so displayed defaults and actual
+                // audio/window state match on a fresh install / corrupt config.
+                ApplyAudioSettings();
+                ApplyDisplaySettings();
+                return;
+            }
 
             _master = (float)_config.GetValue(AudioSection, "master", 80f);
             _sfx = (float)_config.GetValue(AudioSection, "sfx", 90f);

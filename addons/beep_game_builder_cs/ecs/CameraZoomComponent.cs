@@ -31,6 +31,8 @@ namespace Beep.ECS
                 _targetZoom = _cam.Zoom;
                 _lastEmittedZoom = _cam.Zoom;
             }
+            else if (!Engine.IsEditorHint())
+                GD.PushWarning($"[{Name}] CameraZoomComponent needs a Camera2D parent to zoom; got '{GetParent()?.GetType().Name ?? "null"}'. Every zoom call will no-op. Parent it to the Camera2D.");
         }
 
         public override void _Input(InputEvent @event)

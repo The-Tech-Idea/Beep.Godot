@@ -40,8 +40,13 @@ public static class BeepFileUtils
     public static bool FileExists(string path) => Godot.FileAccess.FileExists(path);
     public static bool DirExists(string path) => DirAccess.DirExistsAbsolute(path);
 
-    public static void RefreshFilesystem() =>
-        EditorInterface.Singleton.GetResourceFilesystem().Scan();
+    public static void RefreshFilesystem()
+    {
+        // EditorInterface.Singleton is null outside the editor. StampProject/CreateProject are public and
+        // MCP-reachable, so this can be called at runtime — guard rather than NRE there.
+        if (Engine.IsEditorHint())
+            EditorInterface.Singleton.GetResourceFilesystem().Scan();
+    }
 
     public static void SaveCurrentScene() =>
         EditorInterface.Singleton.SaveScene();

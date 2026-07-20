@@ -283,6 +283,12 @@ void fragment(){
                 _cloudShadowOverlay.Material = _cloudShadowMat;
             }
             else _cloudShadowMat = ssm;
+
+            // The shadow was added AFTER the clouds, so it drew on top of them — the opposite of the
+            // "sits below the clouds" intent. Order the siblings so the shadow (dapple) renders under
+            // the cloud layer.
+            if (_cloudShadowOverlay.GetIndex() > _cloudOverlay.GetIndex())
+                parent.MoveChild(_cloudShadowOverlay, _cloudOverlay.GetIndex());
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -305,6 +311,12 @@ void fragment(){
             // smoothly rather than popping in when weather changes.
             _cloudAlphaCurrent = Mathf.Lerp(_cloudAlphaCurrent, targetCoverage, (float)delta * 0.6f);
             _cloudShadowAlphaCurrent = Mathf.Lerp(_cloudShadowAlphaCurrent, targetCoverage, (float)delta * 0.6f);
+
+            // Skip the fullscreen 5-octave FBM cloud fragment shader entirely when nothing shows
+            // (Clear weather) — a visible ColorRect with a material runs its fragment every frame
+            // regardless of whether we update its params. This is the system's most expensive draw.
+            if (_cloudOverlay != null) _cloudOverlay.Visible = _cloudAlphaCurrent > 0.001f;
+            if (_cloudShadowOverlay != null) _cloudShadowOverlay.Visible = _cloudShadowAlphaCurrent > 0.001f;
 
             // Camera position in screen-widths. The overlays are screen-space, so this is
             // what keeps the pattern tied to the world instead of to the viewport.

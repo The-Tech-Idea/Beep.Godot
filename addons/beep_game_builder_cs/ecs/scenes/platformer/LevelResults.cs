@@ -11,9 +11,15 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/NextButton").Pressed += OnNextLevel;
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/RetryButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/MapButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelSelectPath);
+            // Bind the framework-tracked score. Time/Coins/Deaths are genre-specific stats the
+            // framework does not track — the game fills those; the scene ships placeholders. (Scope.)
+            if (GameApp.Instance is { } app
+                && GetNodeOrNull<Label>("Center/Panel/Margin/VBox/StatsGrid/ScoreValue") is { } scoreValue)
+                scoreValue.Text = app.SessionScore.ToString();
+
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/NextButton", OnNextLevel);
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/MapButton", () => ChangeScene(GameInfo.Instance?.LevelSelectPath));
         }
 
         /// <summary>Advance to the next level, then reload the gameplay scene (its LevelLoader

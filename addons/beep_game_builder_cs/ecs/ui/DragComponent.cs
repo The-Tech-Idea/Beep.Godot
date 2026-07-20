@@ -35,6 +35,11 @@ namespace Beep.ECS.UI
             {
                 _control.GuiInput += OnGuiInput;
                 _control.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
+                // A layout Container re-sorts its children's Position every layout pass and will
+                // fight the drag (which moves _control.Position directly). Warn once; a real drag
+                // genuinely moves the node, so we don't switch to offset_transform — reparent it.
+                if (!Engine.IsEditorHint() && _control.GetParent() is Container)
+                    GD.PushWarning($"[{Name}] DragComponent's target '{_control.Name}' is inside a {_control.GetParent().GetType().Name} — the Container will re-sort it each layout pass and fight the drag. Parent the draggable Control to a non-Container (a plain Control/CanvasLayer).");
             }
             else
             {
@@ -92,8 +97,9 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _snapTween?.Kill();
-            if (_control != null)
+            if (_control != null && GodotObject.IsInstanceValid(_control))
                 _control.GuiInput -= OnGuiInput;
         }
     }

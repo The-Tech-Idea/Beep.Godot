@@ -41,6 +41,22 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# Disconnect the hover/press handlers we injected. Godot auto-severs on free, but a button reparented
+	# while still alive would otherwise keep firing into this (now-detached) applier.
+	for btn in _injected.keys():
+		if is_instance_valid(btn):
+			var entered := _on_btn_entered.bind(btn)
+			var exited := _on_btn_exited.bind(btn)
+			var down := _on_btn_down.bind(btn)
+			var up := _on_btn_up.bind(btn)
+			if btn.mouse_entered.is_connected(entered):
+				btn.mouse_entered.disconnect(entered)
+			if btn.mouse_exited.is_connected(exited):
+				btn.mouse_exited.disconnect(exited)
+			if btn.button_down.is_connected(down):
+				btn.button_down.disconnect(down)
+			if btn.button_up.is_connected(up):
+				btn.button_up.disconnect(up)
 	_injected.clear()
 
 

@@ -83,9 +83,10 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_menu != null && GodotObject.IsInstanceValid(_menu))
                 _menu.QueueFree();
-            if (_control != null)
+            if (_control != null && GodotObject.IsInstanceValid(_control))
                 _control.GuiInput -= OnControlGuiInput;
         }
     }

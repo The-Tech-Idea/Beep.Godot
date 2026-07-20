@@ -21,9 +21,10 @@ No buttons to click, no generators to run. The whole flow is data-driven.
 
 ```
 templates/scenes/
-├── main_menu.tscn              ← Shared UI scenes (already wired)
-├── pause_menu.tscn             Each is a Control tree with [GlobalClass]
-├── settings_menu.tscn          C# components only — no inline scripts.
+├── main_menu.tscn              ← Shared UI scenes (already wired). main_menu also
+│                                 doubles as the pause overlay (no separate pause menu).
+├── settings_menu.tscn          Each is a Control tree with [GlobalClass]
+│                                 C# components only — no inline scripts.
 ├── hud.tscn
 ├── game_over.tscn
 ├── player_template.tscn        ← Generic player/NPC/enemy shells

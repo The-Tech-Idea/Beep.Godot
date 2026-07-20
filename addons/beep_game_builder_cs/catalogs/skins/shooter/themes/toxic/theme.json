@@ -4,19 +4,107 @@
   "category": "Aesthetic",
   "description": "Nuclear / biohazard / slime UI — sludge dark green surface, toxic neon green accent, oozing border, green glow shadow",
   "colors": {
-    "surface_primary": "#1A290AFF", "surface_hover": "#263D0FFF", "surface_pressed": "#0F1A05FF", "surface_disabled": "#0F1A0AFF",
-    "text_primary": "#80FF00FF", "text_hover": "#B2FF4DFF", "text_disabled": "#335914FF", "text_on_dark": "#80FF00FF",
-    "accent_primary": "#80FF00FF", "accent_secondary": "#59B200FF",
-    "border_normal": "#4A8A00FF", "border_hover": "#80FF00FF", "border_focus": "#80FF00FF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#80FF00FF", "bg_panel": "#121F08FF", "bg_canvas": "#0A1405FF",
-    "semantic_success": "#59B200FF", "semantic_danger": "#CC261AFF", "semantic_warning": "#FFD900FF", "semantic_info": "#80FF00FF"
+    "surface_primary": "#1A290AFF",
+    "surface_hover": "#263D0FFF",
+    "surface_pressed": "#0F1A05FF",
+    "surface_disabled": "#0F1A0AFF",
+    "text_primary": "#80FF00FF",
+    "text_hover": "#B2FF4DFF",
+    "text_disabled": "#335914FF",
+    "text_on_dark": "#80FF00FF",
+    "accent_primary": "#80FF00FF",
+    "accent_secondary": "#59B200FF",
+    "border_normal": "#4A8A00FF",
+    "border_hover": "#80FF00FF",
+    "border_focus": "#80FF00FF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#80FF00FF",
+    "bg_panel": "#121F08FF",
+    "bg_canvas": "#0A1405FF",
+    "semantic_success": "#59B200FF",
+    "semantic_danger": "#CC261AFF",
+    "semantic_warning": "#FFD900FF",
+    "semantic_info": "#80FF00FF"
   },
   "geometry": {
-    "corner_radius": 8, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 8, "shadow_offset_x": 0, "shadow_offset_y": 0,
-    "pad_left": 16, "pad_right": 16, "pad_top": 8, "pad_bottom": 8,
+    "corner_radius": 8,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 8,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 0,
+    "pad_left": 16,
+    "pad_right": 16,
+    "pad_top": 8,
+    "pad_bottom": 8,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.04, "hover_duration": 0.14, "press_scale": 0.96, "press_duration": 0.07, "shadow_lift": false, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.14,
+    "press_scale": 0.96,
+    "press_duration": 0.07,
+    "shadow_lift": false,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/toxic/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/toxic/button_hover.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/toxic/button_pressed.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/toxic/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/toxic/panel.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

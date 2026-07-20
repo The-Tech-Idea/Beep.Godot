@@ -75,7 +75,8 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_health != null)
+            base._ExitTree();
+            if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
     }

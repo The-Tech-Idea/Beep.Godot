@@ -478,5 +478,7 @@ public static class BeepMcpCommands
     }
 
     private static string Str(JsonObject args, string key)
-        => args[key]?.GetValue<string>() ?? "";
+        // ToString() rather than GetValue<string>(): a non-string JSON value (number/bool) threw
+        // FormatException instead of coercing to a clean argument.
+        => args[key]?.ToString() ?? "";
 }

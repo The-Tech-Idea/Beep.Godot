@@ -26,7 +26,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(SetupAudioPlayer));
+            Callable.From(SetupAudioPlayer).CallDeferred();
         }
 
         private void SetupAudioPlayer()
@@ -39,7 +39,12 @@ namespace Beep.ECS
             _player.Finished += OnPlayerFinished;
             AddChild(_player);
 
-            if (AutoPlay) Play();
+            if (AutoPlay)
+            {
+                if (Stream == null)
+                    GD.PushWarning($"[{Name}] AudioComponent has AutoPlay on but no Stream assigned — it will play nothing. Assign an AudioStream (the addon ships no default audio).");
+                Play();
+            }
         }
 
         private void OnPlayerFinished()
@@ -80,6 +85,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_player != null)
             {
                 _player.Stop();

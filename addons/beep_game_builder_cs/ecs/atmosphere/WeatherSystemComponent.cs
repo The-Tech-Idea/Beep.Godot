@@ -160,11 +160,20 @@ namespace Beep.ECS
                 bool turningOn = value && !_enableClouds;
                 bool turningOff = !value && _enableClouds;
                 _enableClouds = value;
-                if (turningOn && _overlayLayer != null) EnsureCloudOverlays(_overlayLayer);
+                if (turningOn && _overlayLayer != null)
+                {
+                    EnsureCloudOverlays(_overlayLayer);
+                    // Clouds are added after the flash — keep the full-screen lightning flash topmost
+                    // (the build path does this too; the runtime toggle must repeat it).
+                    if (_flashOverlay != null && GodotObject.IsInstanceValid(_flashOverlay))
+                        _overlayLayer.MoveChild(_flashOverlay, -1);
+                }
                 if (turningOff)
                 {
-                    if (_cloudOverlay != null) _cloudOverlay.Modulate = new Color(1, 1, 1, 0);
-                    if (_cloudShadowOverlay != null) _cloudShadowOverlay.Modulate = new Color(1, 1, 1, 0);
+                    // Hide (not just fade) — ProcessClouds no longer runs to zero the alpha, and a
+                    // Visible ColorRect keeps executing its fragment shader. Visible=false stops it.
+                    if (_cloudOverlay != null) { _cloudOverlay.Modulate = new Color(1, 1, 1, 0); _cloudOverlay.Visible = false; }
+                    if (_cloudShadowOverlay != null) { _cloudShadowOverlay.Modulate = new Color(1, 1, 1, 0); _cloudShadowOverlay.Visible = false; }
                 }
             }
         }
@@ -198,7 +207,6 @@ namespace Beep.ECS
         private double _lightningTimer;
         private bool _lightningActive;
         private double _lightningFlashTime;
-        private Tween? _weatherTransitionTween;
 
         /// <summary>
         /// Frame-lerp rate for the weather→ambient transition. Higher = snappier.
@@ -305,6 +313,11 @@ namespace Beep.ECS
 
             // Cloud + cloud-shadow overlays (built/owned by the Overlays partial).
             if (EnableClouds) EnsureCloudOverlays(overlayRoot);
+
+            // The lightning flash was added before the clouds, so it drew UNDER them — a full-screen
+            // white-out must be topmost. Move it to the end after the cloud overlays exist.
+            if (_flashOverlay != null && GodotObject.IsInstanceValid(_flashOverlay))
+                overlayRoot.MoveChild(_flashOverlay, -1);
         }
 
         /// <summary>
@@ -328,10 +341,20 @@ namespace Beep.ECS
             _particles.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
             _particles.EmissionRectExtents = new Vector2(size.X * 0.6f, 8f);
 
-            // Local coords → the emitter stays at its parent's transform while
-            // particles fall through world space; as the camera scrolls, fresh
-            // rain keeps entering frame naturally.
+            // Local coords → emission is pinned to the emitter's transform; PositionEmitterAtCamera
+            // moves the emitter to the camera each frame so the field tracks the view.
             _particles.LocalCoords = true;
+        }
+
+        /// <summary>Center the emission strip on the active Camera2D, at the top of the visible
+        /// rect, so precipitation always fills the view as the camera scrolls. No-op when there is
+        /// no active camera (a fixed-view scene keeps the emitter at its parent origin).</summary>
+        private void PositionEmitterAtCamera()
+        {
+            if (_particles == null) return;
+            if (GetViewport()?.GetCamera2D() is not Camera2D cam) return;
+            Vector2 center = cam.GetScreenCenterPosition();
+            _particles.GlobalPosition = new Vector2(center.X, center.Y - _lastEmitSize.Y * 0.5f);
         }
 
         public override void _Process(double delta)
@@ -393,6 +416,12 @@ namespace Beep.ECS
             // Re-fit the particle emitter if the viewport was resized.
             ConfigureParticleEmitter();
 
+            // Follow the camera so precipitation covers the view in a scrolling level. LocalCoords
+            // keeps emission pinned to the emitter's transform, so without this the emitter sat at
+            // world origin and rain/snow/hail only fell near (0,0). Mirrors what the cloud/fog
+            // overlays already do via the camera offset. Position the strip at the top of the view.
+            PositionEmitterAtCamera();
+
             // Cloud drift + wind-direction sync.
             if (EnableClouds) ProcessClouds(delta);
 
@@ -431,6 +460,7 @@ namespace Beep.ECS
                 if (usesParticles)
                 {
                     _particles.Amount = ParticleCount;
+                    _lastParticleAmount = -1;   // force ProcessIntensity to re-apply the scaled amount
                     ConfigureParticles(type);
                 }
             }
@@ -529,6 +559,21 @@ namespace Beep.ECS
                     // turbulence not available in this binding
                     break;
             }
+
+            // Emission is a thin strip at the top of the view (PositionEmitterAtCamera), so each
+            // particle must LIVE long enough to fall across the whole viewport — otherwise slow
+            // types (snow/leaves) die near the top and only the top band is covered. Fast precip
+            // crosses quickly; the horizontal sandstorm crosses the width. Amount is fixed, so a
+            // longer lifetime just lowers density, which is correct for slow, sparse snow/leaves.
+            _particles.Lifetime = type switch
+            {
+                WeatherType.Rain or WeatherType.Storm => 1.6f,
+                WeatherType.Hail                      => 1.2f,
+                WeatherType.Snow                      => 12f,
+                WeatherType.LeafFall                  => 16f,
+                WeatherType.Sandstorm                 => 4f,
+                _                                     => 1f
+            };
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -638,8 +683,16 @@ namespace Beep.ECS
                     if (node is ScreenShakeComponent s) { shake = s; break; }
                 }
             }
-            shake?.Shake(LightningShakeIntensity * _intensityCurrent, 0.4f);
+            if (shake != null)
+                shake.Shake(LightningShakeIntensity * _intensityCurrent, 0.4f);
+            else if (!_shakeMissWarned)
+            {
+                _shakeMissWarned = true;
+                GD.PushWarning($"[{Name}] LightningShakeIntensity > 0 but no ScreenShakeComponent found (by node name or the 'screen_shake' group) — lightning won't shake the camera. Add a ScreenShakeComponent to the Camera2D (and put it in the 'screen_shake' group if you rename it).");
+            }
         }
+
+        private bool _shakeMissWarned;
 
         // ════════════════════════════════════════════════════════════════
         // Helpers
@@ -663,7 +716,6 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             base._ExitTree();
-            _weatherTransitionTween?.Kill();
             foreach (var bolt in _activeLightningBolts)
                 bolt?.QueueFree();
             _activeLightningBolts.Clear();
@@ -671,6 +723,12 @@ namespace Beep.ECS
             // the weather node while the AmbientController persists leaves the last weather tint as a
             // permanent multiplicative dimming layer with nothing left to clear it.
             _ambient?.SetContribution(AmbientKey, null);
+            // Reset the global shader params we published, so leaving a rainy scene doesn't strand
+            // beep_puddle_depth / beep_snow_accumulation / etc. at their last value app-wide (the same
+            // leak class DayNight's clear-colour restore addresses). Only if we ever registered them.
+            if (_globalsRegistered)
+                foreach (var name in new[]{ ParamWindStrength, ParamWindX, ParamPuddleDepth, ParamSnowAccumulation, ParamWeatherIntensity })
+                    RenderingServer.GlobalShaderParameterSet(name, 0f);
         }
     }
 }

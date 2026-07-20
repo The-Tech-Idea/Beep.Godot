@@ -21,7 +21,7 @@ namespace Beep.ECS
             base._Ready();
             // Runtime only: SetupTrail adds a Line2D to the parent.
             if (Engine.IsEditorHint()) return;
-            CallDeferred(nameof(SetupTrail));
+            Callable.From(SetupTrail).CallDeferred();
         }
 
         private void SetupTrail()
@@ -74,6 +74,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_line != null && GodotObject.IsInstanceValid(_line))
                 _line.QueueFree();
         }

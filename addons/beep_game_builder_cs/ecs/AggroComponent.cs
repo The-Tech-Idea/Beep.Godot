@@ -30,6 +30,8 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = GetParent() as Node2D;
+            if (!Engine.IsEditorHint() && _body == null)
+                GD.PushWarning($"[{Name}] AggroComponent needs a Node2D parent to measure the deaggro leash; got '{GetParent()?.GetType().Name ?? "null"}'. Threats will be tracked but the distance-based deaggro won't apply.");
         }
 
         public void AddThreat(Node2D source, float amount)

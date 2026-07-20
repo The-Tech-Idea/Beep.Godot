@@ -113,7 +113,9 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_health != null) _health.Died -= Burst;
+            base._ExitTree();
+            // _health is a sibling — its free order vs this node isn't guaranteed, so guard the -=.
+            if (_health != null && GodotObject.IsInstanceValid(_health)) _health.Died -= Burst;
             if (_particles != null && GodotObject.IsInstanceValid(_particles))
                 _particles.QueueFree();
         }

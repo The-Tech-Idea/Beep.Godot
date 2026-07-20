@@ -472,7 +472,12 @@ public partial class GodotMcpBridgeController : Node
         RequireWrites();
         string key = RequiredString(p, "key");
         ProjectSettings.SetSetting(key, McpJson.ToVariant(p["value"]));
-        ProjectSettings.Save();
+        // Only persist to project.godot from the editor. A runtime role (allow_runtime_writes) that saved
+        // here would rewrite project.godot under the open editor and trigger a "reload from disk?" prompt
+        // every launch — the same discipline the rest of this controller follows. The value still applies
+        // in-memory for this session either way.
+        if (Engine.IsEditorHint())
+            ProjectSettings.Save();
         return new JsonObject { ["key"] = key, ["updated"] = true };
     }
 

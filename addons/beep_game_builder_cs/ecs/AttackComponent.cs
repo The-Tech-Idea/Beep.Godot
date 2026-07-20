@@ -30,8 +30,8 @@ namespace Beep.ECS
         public float CooldownRemaining { get; private set; }
         public bool CanAttack => CooldownRemaining <= 0 && IsActive;
 
-        private HealthComponent? _health;
         private Node2D? _body;
+        private bool _rangedNoProjWarned;
         private EquipmentComponent? _equipment;
         private InventoryComponent? _inventory;
         private Vector2 _lastFacing = Vector2.Right;   // for input-driven attacks when standing still
@@ -39,10 +39,11 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _health = GetSiblingComponent<HealthComponent>();
             _body = GetParent() as Node2D;
             _equipment = GetSiblingComponent<EquipmentComponent>();
             _inventory = GetSiblingComponent<InventoryComponent>();
+            if (!Engine.IsEditorHint() && _body == null)
+                GD.PushWarning($"[{Name}] AttackComponent needs a Node2D parent to attack from; got '{GetParent()?.GetType().Name ?? "null"}'. Both melee and projectile attacks will no-op. Parent it to the attacker's body.");
         }
 
         public override void _Process(double delta)
@@ -91,16 +92,28 @@ namespace Beep.ECS
             bool ranged = weapon?.IsRanged ?? IsRanged;
             PackedScene? projScene = weapon?.ProjectileScene ?? ProjectileScene;
 
+            // A ranged attack with no projectile silently falls through to the melee point-check
+            // below (which usually hits nothing) — a null export disabling the feature. Warn once.
+            if (ranged && projScene == null && !_rangedNoProjWarned)
+            {
+                _rangedNoProjWarned = true;
+                GD.PushWarning($"[{Name}] ranged attack requested but no ProjectileScene is set (on the weapon or this component) — it falls back to a melee point-check that usually hits nothing. Assign a ProjectileScene.");
+            }
+
+            bool fired = false;
             if (ranged && projScene != null)
             {
-                SpawnProjectile(target, finalDamage, dtype, projScene);
+                if (_body != null) { SpawnProjectile(target, finalDamage, dtype, projScene); fired = true; }
             }
             else if (_body != null)
             {
                 DealMeleeDamage(target, finalDamage, dtype);
+                fired = true;
             }
 
-            EmitSignal(SignalName.Attacked, target, finalDamage);
+            // Only announce an attack that actually happened — a null body makes both paths no-op,
+            // and emitting Attacked anyway lied to listeners (attack counters, SFX).
+            if (fired) EmitSignal(SignalName.Attacked, target, finalDamage);
         }
 
         private void SpawnProjectile(Vector2 target, float damage, DamageType type, PackedScene scene)

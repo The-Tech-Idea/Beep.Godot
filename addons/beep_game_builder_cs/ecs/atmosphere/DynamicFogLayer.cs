@@ -112,10 +112,16 @@ void fragment() {
                 _layer.AddChild(_fogRect);
             }
 
-            // Create and assign shader material
-            var shader = new Shader { Code = FogShaderCode };
-            _fogMat = new ShaderMaterial { Shader = shader };
-            _fogRect.Material = _fogMat;
+            // Reuse an existing fog material if the ColorRect already has one — only build a fresh
+            // Shader + ShaderMaterial when there's none. Re-newing every call leaked the prior
+            // material if EnsureFogLayer were ever re-entered.
+            if (_fogRect.Material is ShaderMaterial existing)
+                _fogMat = existing;
+            else
+            {
+                _fogMat = new ShaderMaterial { Shader = new Shader { Code = FogShaderCode } };
+                _fogRect.Material = _fogMat;
+            }
             ApplyFogShaderParams();
         }
 

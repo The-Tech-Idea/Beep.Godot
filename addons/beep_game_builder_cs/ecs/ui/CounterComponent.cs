@@ -25,6 +25,10 @@ namespace Beep.ECS.UI
         private float _toValue;
         private float _elapsed;
         private bool _counting;
+        // The displayed value, tracked numerically. Re-parsing _label.Text failed once Format
+        // inserted thousands separators ("1,000") — TryParse choked and the next CountTo restarted
+        // from 0. Cache it instead of reading it back from the formatted string.
+        private float _currentValue;
 
         public override void _Ready()
         {
@@ -38,7 +42,7 @@ namespace Beep.ECS.UI
         public void CountTo(float target)
         {
             if (_label == null || !IsActive) return;
-            _fromValue = float.TryParse(_label.Text.Replace(Prefix, "").Replace(Suffix, ""), out float v) ? v : 0;
+            _fromValue = _currentValue;   // cached — not re-parsed from the formatted label text
             _toValue = target;
             _elapsed = 0;
             _counting = true;
@@ -49,6 +53,7 @@ namespace Beep.ECS.UI
         {
             _counting = false;
             _toValue = value;
+            _currentValue = value;
             if (_label != null) _label.Text = $"{Prefix}{value.ToString(Format)}{Suffix}";
         }
 
@@ -58,12 +63,13 @@ namespace Beep.ECS.UI
             _elapsed += (float)delta;
             float t = Mathf.Clamp(_elapsed / Duration, 0f, 1f);
             t = t * t * (3f - 2f * t); // Smoothstep
-            float current = Mathf.Lerp(_fromValue, _toValue, t);
-            _label.Text = $"{Prefix}{current.ToString(Format)}{Suffix}";
+            _currentValue = Mathf.Lerp(_fromValue, _toValue, t);
+            _label.Text = $"{Prefix}{_currentValue.ToString(Format)}{Suffix}";
 
             if (_elapsed >= Duration)
             {
                 _counting = false;
+                _currentValue = _toValue;
                 _label.Text = $"{Prefix}{_toValue.ToString(Format)}{Suffix}";
                 EmitSignal(SignalName.CountReached, _toValue);
             }

@@ -5,12 +5,20 @@ namespace Beep.ECS.UI
     /// <summary>
     /// Circular progress ring component. Extends Control to use _Draw().
     /// Works for loading spinners, cooldowns, timers, radial health.
+    /// Extends Control directly by design (not a category base) — it IS the drawable node.
     /// </summary>
     [Tool]
     [GlobalClass]
     public partial class ProgressRingComponent : Godot.Control
     {
-        [Export] public float Value { get; set; } = 0.7f;
+        private float _value = 0.7f;
+        // Backed property so a programmatic Value assignment also fires ValueChanged, matching
+        // SetValue — auto-property setters emitted nothing, so bindings missed direct writes.
+        [Export] public float Value
+        {
+            get => _value;
+            set { if (Mathf.IsEqualApprox(_value, value)) return; _value = value; EmitSignal(SignalName.ValueChanged, value); }
+        }
         [Export] public float MaxValue { get; set; } = 1f;
         [Export] public float RingThickness { get; set; } = 6f;
         [Export] public Color RingColor { get; set; } = new(0.3f, 0.6f, 1f, 1f);
@@ -25,6 +33,8 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
+            // Don't run the lerp/repaint loop at edit time — it would repaint every frame in-editor.
+            if (Engine.IsEditorHint()) return;
             _displayValue = Mathf.Lerp(_displayValue, MaxValue > 0f ? Value / MaxValue : 0f, AnimSpeed * (float)delta);
             QueueRedraw();
         }
@@ -39,6 +49,7 @@ namespace Beep.ECS.UI
             DrawArc(center, radius, angleFrom, angleTo, 64, RingColor, RingThickness, false);
         }
 
-        public void SetValue(float value) { Value = value; EmitSignal(SignalName.ValueChanged, value); }
+        // Value's setter already emits ValueChanged; assign through it (guarded against a no-op).
+        public void SetValue(float value) { Value = value; }
     }
 }

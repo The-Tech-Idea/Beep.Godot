@@ -42,7 +42,7 @@ namespace Beep.ECS
             if (!Engine.IsEditorHint() && GetParent() is not CharacterBody2D)
                 // Reads _body's velocity/IsOnFloor — a non-body parent silently never steps.
                 GD.PushWarning($"[{Name}] FootstepComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a CharacterBody2D — no footsteps will play. Parent it under the moving body.");
-            CallDeferred(nameof(SetupPlayer));
+            Callable.From(SetupPlayer).CallDeferred();
         }
 
         private static AudioStream[] LoadDefaults()

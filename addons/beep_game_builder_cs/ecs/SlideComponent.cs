@@ -81,12 +81,24 @@ namespace Beep.ECS
             }
             else
             {
-                // Start slide: crouch + moving.
-                if (Input.IsActionPressed(SlideAction) && _body.IsOnFloor() && Mathf.Abs(_body.Velocity.X) > 50f)
+                // Start slide: crouch + moving. Gate the input read so an absent action doesn't
+                // spam a per-frame error before the input map is generated.
+                if (InputActionsAvailable(SlideAction)
+                    && Input.IsActionPressed(SlideAction) && _body.IsOnFloor() && Mathf.Abs(_body.Velocity.X) > 50f)
                 {
                     StartSlide();
                 }
             }
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // StartSlide shrinks the CollisionShape2D's shape, which is a SHARED resource when
+            // several bodies reference the same .tres. Freed mid-slide, EndSlide never runs and
+            // the shape stays shrunk for every other instance. Restore it here.
+            if (ShrinkCollision && _slideTimer > 0 && _collision?.Shape is RectangleShape2D rect)
+                rect.Size = _originalShapeSize;
         }
 
         private void StartSlide()

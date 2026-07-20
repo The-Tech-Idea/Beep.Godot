@@ -38,12 +38,18 @@ public class BeepStateMachine
     {
         _previousState = null;
         _current = _states.GetValueOrDefault(name);
+        if (_current == null)
+            GD.PushWarning($"[BeepStateMachine] Start('{name}') — no such state registered; the machine has no current state.");
         _current?.OnEnter?.Invoke();
     }
 
     public void Transition(string to)
     {
-        if (_current == null || !_states.ContainsKey(to)) return;
+        if (_current == null || !_states.ContainsKey(to))
+        {
+            GD.PushWarning($"[BeepStateMachine] Transition to '{to}' ignored — {(_current == null ? "no current state (call Start first)" : $"'{to}' is not a registered state")}.");
+            return;
+        }
         _previousState = _current.Name;
         _current.OnExit?.Invoke();
         _current = _states[to];
@@ -92,10 +98,12 @@ public static class BeepEventBus
 
     public static void Emit(string eventName, object data = null)
     {
+        // Snapshot before dispatch: a listener that Subscribes/Unsubscribes while handling the event
+        // would otherwise mutate the list mid-iteration and throw.
         if (_listeners.TryGetValue(eventName, out var list))
-            foreach (var cb in list) cb?.Invoke(data);
+            foreach (var cb in list.ToArray()) cb?.Invoke(data);
         if (_simpleListeners.TryGetValue(eventName, out var slist))
-            foreach (var cb in slist) cb?.Invoke();
+            foreach (var cb in slist.ToArray()) cb?.Invoke();
     }
 
     public static void Clear() { _listeners.Clear(); _simpleListeners.Clear(); }

@@ -13,6 +13,13 @@ namespace Beep.ECS.UI
     {
         [Export] public int PhaseCount { get; set; } = 3;
         [Export] public Color BarColor { get; set; } = new(0.8f, 0.1f, 0.1f, 1f);
+        /// <summary>The name shown above the bar. Settable at runtime — updates the label live.</summary>
+        [Export] public string BossName
+        {
+            get => _bossName;
+            set { _bossName = value; if (_nameLabel != null) _nameLabel.Text = value; }
+        }
+        private string _bossName = "BOSS";
 
         [Signal] public delegate void PhaseChangedEventHandler(int phase);
 
@@ -38,7 +45,7 @@ namespace Beep.ECS.UI
                 ShowPercentage = false,
                 Visible = false
             };
-            _nameLabel = new Label { Name = "BossName", Text = "BOSS", HorizontalAlignment = HorizontalAlignment.Center };
+            _nameLabel = new Label { Name = "BossName", Text = _bossName, HorizontalAlignment = HorizontalAlignment.Center };
             _nameLabel.AddThemeFontSizeOverride("font_size", 18);
 
             _vbox = new VBoxContainer();
@@ -90,7 +97,8 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
-            if (_health != null)
+            base._ExitTree();
+            if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.HealthChanged -= OnHealthChanged;
             if (_vbox != null && GodotObject.IsInstanceValid(_vbox))
                 _vbox.QueueFree();

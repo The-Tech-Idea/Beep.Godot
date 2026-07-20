@@ -24,9 +24,22 @@ namespace Beep.ECS.UI
             if (Engine.IsEditorHint()) return;
             _control = GetParent() as Godot.Control;
             if (_control == null)
+            {
                 GD.PushWarning($"[{Name}] SafeAreaComponent needs a Control parent to inset; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the HUD's root Control (not a CanvasLayer).");
+                return;
+            }
             if (ApplyOnReady) Apply();
             if (TrackResize) GetViewport().SizeChanged += Apply;
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // The viewport outlives this HUD; without the -= its SizeChanged keeps calling
+            // Apply on a freed node after a scene change.
+            if (Engine.IsEditorHint()) return;
+            if (TrackResize && GetViewport() is { } vp)
+                vp.SizeChanged -= Apply;
         }
 
         public void Apply()

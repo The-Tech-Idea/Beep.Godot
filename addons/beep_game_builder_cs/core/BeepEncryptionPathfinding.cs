@@ -15,7 +15,7 @@ public static class BeepEncryptionHelper
     public static string Encrypt(string plainText, string password)
     {
         using var aes = Aes.Create();
-        var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
+        using var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
         aes.Key = key.GetBytes(32); aes.IV = key.GetBytes(16);
         using var ms = new MemoryStream();
         using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
@@ -28,7 +28,7 @@ public static class BeepEncryptionHelper
         try
         {
             using var aes = Aes.Create();
-            var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
+            using var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
             aes.Key = key.GetBytes(32); aes.IV = key.GetBytes(16);
             using var ms = new MemoryStream(Convert.FromBase64String(cipherText));
             using var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read);
@@ -38,12 +38,19 @@ public static class BeepEncryptionHelper
         catch { return null; }
     }
 
-    public static void SaveEncrypted<T>(string path, T data, string password)
+    public static bool SaveEncrypted<T>(string path, T data, string password)
     {
         var json = System.Text.Json.JsonSerializer.Serialize(data);
         var encrypted = Encrypt(json, password);
         using var f = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Write);
-        f?.StoreString(encrypted);
+        if (f == null)
+        {
+            // A null handle silently dropped the write — the caller thought the save succeeded.
+            GD.PushWarning($"[BeepEncryptionHelper] could not open '{path}' for writing (error {Godot.FileAccess.GetOpenError()}). Encrypted save NOT written.");
+            return false;
+        }
+        f.StoreString(encrypted);
+        return true;
     }
 
     public static T LoadEncrypted<T>(string path, string password) where T : class
@@ -95,7 +102,17 @@ public class BeepPathfindingGrid
             foreach (var neighbor in GetNeighbors(current))
             {
                 if (!InBounds(neighbor.X, neighbor.Y) || !_walkable[neighbor.X, neighbor.Y]) continue;
-                float tentativeG = gScore[current] + 1;
+
+                int dx = neighbor.X - current.X, dy = neighbor.Y - current.Y;
+                bool diagonal = dx != 0 && dy != 0;
+                // Don't cut corners: a diagonal step is only legal if both orthogonally-adjacent cells
+                // are walkable, otherwise the path clips through a blocked corner.
+                if (diagonal && (!_walkable[current.X + dx, current.Y] || !_walkable[current.X, current.Y + dy]))
+                    continue;
+
+                // Real step cost — diagonal is √2, not 1. With a cost of 1 the heuristic outweighed g and
+                // the search was neither admissible nor shortest-path.
+                float tentativeG = gScore[current] + (diagonal ? Sqrt2 : 1f);
                 if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])
                 {
                     cameFrom[neighbor] = current;
@@ -108,8 +125,17 @@ public class BeepPathfindingGrid
         return null; // no path
     }
 
+    private const float Sqrt2 = 1.41421356f;
+
     private bool InBounds(int x, int y) => x >= 0 && x < _width && y >= 0 && y < _height;
-    private static float Heuristic(Vector2I a, Vector2I b) => Mathf.Abs(a.X - b.X) + Mathf.Abs(a.Y - b.Y);
+
+    // Octile distance — the admissible heuristic for 8-way movement with a √2 diagonal cost. Manhattan
+    // (dx+dy) over-estimates once diagonals are allowed, which breaks A*'s shortest-path guarantee.
+    private static float Heuristic(Vector2I a, Vector2I b)
+    {
+        int dx = Mathf.Abs(a.X - b.X), dy = Mathf.Abs(a.Y - b.Y);
+        return (dx + dy) + (Sqrt2 - 2f) * Mathf.Min(dx, dy);
+    }
 
     private System.Collections.Generic.IEnumerable<Vector2I> GetNeighbors(Vector2I p)
     {

@@ -4,19 +4,107 @@
   "category": "Medieval",
   "description": "Medieval parchment & gold UI — parchment cream surface, ornate gold trim, magic purple accent",
   "colors": {
-    "surface_primary": "#F5E6C7FF", "surface_hover": "#FFF5DBFF", "surface_pressed": "#D9C7A6FF", "surface_disabled": "#B3A68CFF",
-    "text_primary": "#3D290FFF", "text_hover": "#241400FF", "text_disabled": "#8C7359FF", "text_on_dark": "#F5E6C7FF",
-    "accent_primary": "#8C6B14FF", "accent_secondary": "#9940A6FF",
-    "border_normal": "#8C6B14FF", "border_hover": "#B38C26FF", "border_focus": "#9940A6CC",
-    "border_bevel_light": "#FFFFFF00", "border_bevel_dark": "#FFFFFF00",
-    "shadow_color": "#3D290F40", "bg_panel": "#E6D4B3F2", "bg_canvas": "#CCBA99FF",
-    "semantic_success": "#4D8C40FF", "semantic_danger": "#B33326FF", "semantic_warning": "#D9A626FF", "semantic_info": "#9940A6FF"
+    "surface_primary": "#F5E6C7FF",
+    "surface_hover": "#FFF5DBFF",
+    "surface_pressed": "#D9C7A6FF",
+    "surface_disabled": "#B3A68CFF",
+    "text_primary": "#3D290FFF",
+    "text_hover": "#241400FF",
+    "text_disabled": "#8C7359FF",
+    "text_on_dark": "#F5E6C7FF",
+    "accent_primary": "#8C6B14FF",
+    "accent_secondary": "#9940A6FF",
+    "border_normal": "#8C6B14FF",
+    "border_hover": "#B38C26FF",
+    "border_focus": "#9940A6CC",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#3D290F40",
+    "bg_panel": "#E6D4B3F2",
+    "bg_canvas": "#CCBA99FF",
+    "semantic_success": "#4D8C40FF",
+    "semantic_danger": "#B33326FF",
+    "semantic_warning": "#D9A626FF",
+    "semantic_info": "#9940A6FF"
   },
   "geometry": {
-    "corner_radius": 8, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 4, "shadow_offset_x": 0, "shadow_offset_y": 3,
-    "pad_left": 18, "pad_right": 18, "pad_top": 9, "pad_bottom": 9,
+    "corner_radius": 8,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 4,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 3,
+    "pad_left": 18,
+    "pad_right": 18,
+    "pad_top": 9,
+    "pad_bottom": 9,
     "font_size": 18
   },
-  "animation": { "hover_scale": 1.03, "hover_duration": 0.20, "press_scale": 0.97, "press_duration": 0.10, "shadow_lift": true, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.03,
+    "hover_duration": 0.2,
+    "press_scale": 0.97,
+    "press_duration": 0.1,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/fantasy/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/fantasy/button_hover.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/fantasy/button_pressed.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/fantasy/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/fantasy/panel.png",
+      "margin_left": 24,
+      "margin_top": 24,
+      "margin_right": 24,
+      "margin_bottom": 24,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

@@ -21,7 +21,7 @@ namespace Beep.ECS.Scenes
             _banner = GetNodeOrNull<Label>("Center/Panel/Margin/VBox/BannerLabel");
             _endTurnButton = GetNodeOrNull<Button>("Center/Panel/Margin/VBox/ButtonRow/EndTurnButton");
             if (_endTurnButton != null) _endTurnButton.Pressed += OnEndTurn;
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/ForfeitButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/ForfeitButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
 
             UpdateBanner();
         }

@@ -2,6 +2,10 @@ using Godot;
 
 namespace Beep.ECS.Scenes
 {
+    /// <summary>Race results screen. The Time / Placement / Reward labels show scene placeholders:
+    /// lap time, finishing position and payout are racing-specific stats the framework does not
+    /// track (unlike GameApp.SessionScore). The game fills them from its own race state — this
+    /// screen ships the layout and the navigation, not the numbers. See CLAUDE.md § Scope.</summary>
     [Tool]
     [GlobalClass]
     public partial class RaceResults : CanvasLayer
@@ -10,8 +14,8 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/RetryButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/MenuButton").Pressed += () => ChangeScene(GameApp.Instance?.MainMenuPath);
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/MenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

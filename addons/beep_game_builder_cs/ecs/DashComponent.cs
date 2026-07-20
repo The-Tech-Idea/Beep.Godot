@@ -89,9 +89,11 @@ namespace Beep.ECS
             {
                 _cooldownTimer = Mathf.Max(0, _cooldownTimer - dt);
 
-                // Check for dash input (blocked while stunned).
+                // Check for dash input (blocked while stunned). Gate the reads so absent actions
+                // don't spam a per-frame error before the input map is generated.
                 bool stunned = StunBlocksDash && _statusEffects != null && _statusEffects.HasEffect("stun");
-                if (Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0 && !stunned)
+                if (InputActionsAvailable(DashAction, "move_left", "move_right", "move_up", "move_down")
+                    && Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0 && !stunned)
                 {
                     // Pay stamina if a HungerStaminaComponent is present — refuses when exhausted.
                     if (_stamina != null && !_stamina.TryConsumeStamina(StaminaCost))

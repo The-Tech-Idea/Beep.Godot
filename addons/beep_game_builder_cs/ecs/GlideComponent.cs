@@ -41,6 +41,8 @@ namespace Beep.ECS
         {
             if (_body == null || !IsActive) return;
             if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no glide
+            // Gate input reads so absent actions don't spam per-frame errors pre-generation.
+            if (!InputActionsAvailable(GlideAction, "move_left", "move_right")) return;
             float dt = (float)delta;
 
             bool onFloor = _body.IsOnFloor();

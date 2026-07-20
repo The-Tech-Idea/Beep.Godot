@@ -106,6 +106,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             // Drop the sibling subscriptions so the freed StatusEffectComponent doesn't
             // fire into a disposed buff bar (and this bar can be freed independently).
             if (_status != null && GodotObject.IsInstanceValid(_status))
@@ -115,6 +116,9 @@ namespace Beep.ECS.UI
                 _status.EffectTicked -= OnEffectTicked;
             }
             _status = null;
+            // _container was AddChild'd to the parent — free it or it's orphaned onscreen.
+            if (_container != null && GodotObject.IsInstanceValid(_container)) _container.QueueFree();
+            _container = null;
         }
     }
 }

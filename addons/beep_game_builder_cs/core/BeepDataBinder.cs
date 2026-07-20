@@ -21,6 +21,7 @@ public static class BeepDataBinder
         var b = new Binding { Source = source, SourceProp = sourceProp, Target = target, TargetProp = targetProp, Mode = mode };
         _bindings.Add(b);
         b.Refresh();
+        b.ConnectSourceWriteback(); // TwoWay / OneWayToSource: propagate target edits back to the source
         return b;
     }
 
@@ -78,8 +79,14 @@ public static class BeepDataBinder
         if (_pollTimer < PollInterval) return;
         _pollTimer = 0;
         foreach (var b in _bindings)
-            if (b.Mode == BindingMode.OneWay || b.Mode == BindingMode.OneWayToSource)
+        {
+            // OneWay/TwoWay poll source→target; OneWayToSource pulls target→source (the old code called
+            // Refresh() for it, which pushed the WRONG direction and clobbered the source value).
+            if (b.Mode == BindingMode.OneWay || b.Mode == BindingMode.TwoWay)
                 b.Refresh();
+            else if (b.Mode == BindingMode.OneWayToSource)
+                b.RefreshToSource();
+        }
     }
 
     /// <summary>Remove all bindings for a given source object.</summary>
@@ -117,13 +124,39 @@ public class Binding
         catch { /* silent fail on missing property */ }
     }
 
-    public void RefreshTwoWay()
+    /// <summary>Pull the target's value back into the source (TwoWay / OneWayToSource).</summary>
+    public void RefreshToSource()
     {
-        if (Mode == BindingMode.TwoWay)
+        if (Source == null || Target == null) return;
+        if (Mode != BindingMode.TwoWay && Mode != BindingMode.OneWayToSource) return;
+        var prop = Source.GetType().GetProperty(SourceProp);
+        if (prop == null || !prop.CanWrite) return;
+        try
         {
-            var val = Target.Get(TargetProp);
-            Source.GetType().GetProperty(SourceProp)?.SetValue(Source, val.Obj);
+            object raw = Target.Get(TargetProp).Obj;
+            if (raw != null && raw is IConvertible && prop.PropertyType != raw.GetType())
+                raw = Convert.ChangeType(raw, prop.PropertyType);
+            prop.SetValue(Source, raw);
         }
+        catch { /* type mismatch — leave the source untouched */ }
+    }
+
+    /// <summary>Connect the target's change signal so user edits write back to the source.</summary>
+    internal void ConnectSourceWriteback()
+    {
+        if (Target == null) return;
+        if (Mode != BindingMode.TwoWay && Mode != BindingMode.OneWayToSource) return;
+        StringName signal = TargetProp switch
+        {
+            "ButtonPressed" => BaseButton.SignalName.Toggled,
+            "Text"          => LineEdit.SignalName.TextChanged,
+            "Value"         => Godot.Range.SignalName.ValueChanged,
+            "Color"         => ColorPickerButton.SignalName.ColorChanged,
+            _               => null
+        };
+        if (signal == null || !Target.HasSignal(signal)) return;
+        // A 0-arg callable connected to a signal that carries args: Godot drops the extra args.
+        Target.Connect(signal, Callable.From(RefreshToSource));
     }
 
     public void Unbind() => BeepDataBinder._bindings.Remove(this);

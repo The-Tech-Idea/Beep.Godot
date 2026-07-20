@@ -42,11 +42,13 @@ namespace Beep.ECS
         private AudioStreamPlayer? _ambientPlayer;
         private WeatherSystemComponent? _weather;
         private int _weatherBusIndex = -1;
+        private bool _createdBus;
         // Which precipitation layers the CURRENT weather type wants audible — so the rain loop
         // doesn't keep hissing through Snow/Sandstorm/Clear. Set by OnWeatherChanged, read by
         // SetWeatherIntensity. Default true so the mix behaves until the first WeatherChanged.
         private bool _rainWanted = true;
         private bool _windWanted = true;
+        private bool _wasActive = true;   // watch IsActive transitions so reactivation re-seeds the mix
         // One tween PER player: a single shared field killed sibling fades — SetWeatherIntensity's
         // three back-to-back Fades (rain, wind, ambient) all cancelled but the last.
         private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
@@ -59,6 +61,11 @@ namespace Beep.ECS
             // Without this, merely opening a main scene mutated the EDITOR's audio buses
             // and littered the scene with runtime-only children.
             if (Engine.IsEditorHint()) return;
+
+            // Honor the genre's enable flag (mirrors WeatherSystemComponent/DynamicFogLayer) so a
+            // developer dropping this into a weather-off scene gets a silent, inactive controller
+            // rather than a live bus and players mixing nothing.
+            if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableWeather;
 
             // The tracks are deliberately yours to supply — the addon ships no audio assets,
             // and there is no sensible default for "rain". But shipping silently meant this
@@ -76,6 +83,10 @@ namespace Beep.ECS
 
         private void Setup()
         {
+            // Honor the enable flag: a weather-off scene shouldn't build the "Weather" bus + players
+            // (which would Play() their loops at -80 dB and keep decoding). This matches the _Ready
+            // comment's promise of "a silent, inactive controller".
+            if (!IsActive) return;
             // Create audio bus if it doesn't exist
             _weatherBusIndex = AudioServer.GetBusIndex(BusName);
             if (_weatherBusIndex == -1)
@@ -87,6 +98,7 @@ namespace Beep.ECS
                 AudioServer.SetBusName(_weatherBusIndex, BusName);
                 if (masterBus >= 0)
                     AudioServer.SetBusSend(_weatherBusIndex, "Master");
+                _createdBus = true;   // only a bus WE added is removed on exit
             }
 
             // Create audio players
@@ -130,6 +142,19 @@ namespace Beep.ECS
             }
         }
 
+        public override void _Process(double delta)
+        {
+            if (Engine.IsEditorHint()) return;
+            // Re-apply the mix when IsActive flips. The deactivate path in SetWeatherIntensity fades
+            // to silence, but IntensityChanged only fires while the weather is easing — so without
+            // this, toggling IsActive off then on at a stable intensity left every loop stuck at -80.
+            if (IsActive != _wasActive)
+            {
+                _wasActive = IsActive;
+                SetWeatherIntensity(_weather?.WeatherIntensity ?? 0f);
+            }
+        }
+
         /// <summary>
         /// Set overall weather audio intensity (0 = silent, 1 = full volume).
         /// </summary>
@@ -150,25 +175,39 @@ namespace Beep.ECS
 
             intensity = Mathf.Clamp(intensity, 0f, 1f);
 
+            // NOTE: SetWeatherIntensity is the per-frame IntensityChanged handler, and the weather
+            // system already EASES intensity across the transition — so set volume directly here.
+            // Tweening each frame churned ~200 short crossfade tweens per transition (and lagged the
+            // mix). The one-shot deactivate fade above still uses FadePlayerVolume.
+
             // Rain: ramps in above 0.3. When a heavy loop is present, the light loop attenuates as
             // the heavy loop crosses in over the upper band, so drizzle becomes a downpour rather
             // than just a louder drizzle. No heavy loop → heavyMix stays 0 and only the light plays.
             float rainBase = _rainWanted && intensity > 0.3f ? Mathf.Lerp(-80f, RainMaxVolume, Mathf.Clamp((intensity - 0.3f) / 0.4f, 0f, 1f)) : -80f;
             float rainHeavyMix = _rainWanted && _rainHeavyPlayer != null ? Mathf.Clamp((intensity - 0.55f) / 0.35f, 0f, 1f) : 0f;
-            FadePlayerVolume(_rainPlayer, Mathf.Lerp(rainBase, -80f, rainHeavyMix));
+            SetPlayerVolume(_rainPlayer, Mathf.Lerp(rainBase, -80f, rainHeavyMix));
             if (_rainHeavyPlayer != null)
-                FadePlayerVolume(_rainHeavyPlayer, Mathf.Lerp(-80f, RainMaxVolume, rainHeavyMix));
+                SetPlayerVolume(_rainHeavyPlayer, Mathf.Lerp(-80f, RainMaxVolume, rainHeavyMix));
 
             // Wind: same crossfade, starting a touch earlier (wind is audible before rain).
             float windBase = _windWanted && intensity > 0.2f ? Mathf.Lerp(-80f, WindMaxVolume, Mathf.Clamp((intensity - 0.2f) / 0.4f, 0f, 1f)) : -80f;
             float windHeavyMix = _windWanted && _windHeavyPlayer != null ? Mathf.Clamp((intensity - 0.5f) / 0.4f, 0f, 1f) : 0f;
-            FadePlayerVolume(_windPlayer, Mathf.Lerp(windBase, -80f, windHeavyMix));
+            SetPlayerVolume(_windPlayer, Mathf.Lerp(windBase, -80f, windHeavyMix));
             if (_windHeavyPlayer != null)
-                FadePlayerVolume(_windHeavyPlayer, Mathf.Lerp(-80f, WindMaxVolume, windHeavyMix));
+                SetPlayerVolume(_windHeavyPlayer, Mathf.Lerp(-80f, WindMaxVolume, windHeavyMix));
 
             // Fade ambient with inverse intensity (quiet when storm is loud)
             var ambientTarget = Mathf.Lerp(AmbientMaxVolume, -80f, intensity);
-            FadePlayerVolume(_ambientPlayer, ambientTarget);
+            SetPlayerVolume(_ambientPlayer, ambientTarget);
+        }
+
+        /// <summary>Set a player's volume immediately (killing any active fade tween). Used on the
+        /// per-frame intensity path, where the source intensity is already eased.</summary>
+        private void SetPlayerVolume(AudioStreamPlayer? player, float targetDb)
+        {
+            if (player == null) return;
+            if (_fades.TryGetValue(player, out var old) && GodotObject.IsInstanceValid(old)) old.Kill();
+            player.VolumeDb = targetDb;
         }
 
         /// <summary>
@@ -226,6 +265,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();   // chain group cleanup, like the sibling atmosphere components
             foreach (var t in _fades.Values) if (GodotObject.IsInstanceValid(t)) t.Kill();
             if (_rainPlayer != null && _rainPlayer.Playing) _rainPlayer.Stop();
             if (_rainHeavyPlayer != null && _rainHeavyPlayer.Playing) _rainHeavyPlayer.Stop();
@@ -238,6 +278,14 @@ namespace Beep.ECS
                 _weather.WeatherChanged -= OnWeatherChanged;
                 _weather.IntensityChanged -= SetWeatherIntensity;
                 _weather.LightningStruck -= PlayThunder;
+            }
+            // Remove the Weather bus we added, so it doesn't persist into menus after a run. Re-resolve
+            // by name (indices shift) and never touch Master (index 0). Only if we created it.
+            if (_createdBus)
+            {
+                int idx = AudioServer.GetBusIndex(BusName);
+                if (idx > 0) AudioServer.RemoveBus(idx);
+                _createdBus = false;
             }
         }
     }

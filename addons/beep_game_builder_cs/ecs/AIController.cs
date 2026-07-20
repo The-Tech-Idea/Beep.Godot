@@ -76,8 +76,10 @@ namespace Beep.ECS
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
 
             // Proactively enter Chase when a target comes within DetectionRange — not only after
-            // being hit. Without this a Wander/Patrol enemy walked right past the player.
-            if (!isStunned && Mode != AIMode.Chase && Mode != AIMode.Flee && FindNearestInGroup(TargetGroup) != null)
+            // being hit. Without this a Wander/Patrol enemy walked right past the player. Idle is
+            // excluded: an Idle NPC (sleeping/decorative/talk-to) should NOT auto-chase.
+            if (!isStunned && Mode != AIMode.Chase && Mode != AIMode.Flee && Mode != AIMode.Idle
+                && FindNearestInGroup(TargetGroup) != null)
                 Mode = AIMode.Chase;
 
             // Reset state on mode change.

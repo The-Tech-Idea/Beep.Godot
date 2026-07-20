@@ -34,10 +34,12 @@ namespace Beep.ECS.UI
         private int _score;
         private bool _resolving;
         private GameFlowComponent? _flow;
+        private bool _flowWarned;
 
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;   // don't build/rebuild the board at edit time
             var info = GameBuilder.GameInfo.Instance;
             if (info != null) { GridWidth = info.GridWidth; GridHeight = info.GridHeight; }
 
@@ -83,7 +85,9 @@ namespace Beep.ECS.UI
             CallDeferred(nameof(ResolveCascades));
         }
 
-        private async void ResolveCascades()
+        // Runs synchronously (no await) — the whole clear→gravity→refill cascade resolves in one
+        // frame. Not `async` (it had no awaits, which was a CS1998 warning).
+        private void ResolveCascades()
         {
             _resolving = true;
             int totalCleared = 0;
@@ -107,7 +111,13 @@ namespace Beep.ECS.UI
                 EmitSignal(SignalName.MatchesCleared, totalCleared, totalPoints);
                 EmitSignal(SignalName.ScoreChanged, _score);
                 // Forward to GameFlow so the shared HUD updates and TargetScore can end the level.
-                ResolveGameFlow()?.AddScore(totalPoints);
+                var flow = ResolveGameFlow();
+                if (flow != null) flow.AddScore(totalPoints);
+                else if (!_flowWarned)
+                {
+                    _flowWarned = true;
+                    GD.PushWarning($"[{Name}] Match3BoardComponent could not resolve a GameFlowComponent (set GameFlowPath, or add one to the scene) — the board's own score advances but the shared HUD and TargetScore win-condition won't update.");
+                }
             }
             _resolving = false;
         }

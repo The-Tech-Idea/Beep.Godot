@@ -102,6 +102,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             if (_input != null)
             {
                 _input.TextChanged -= OnTextChanged;

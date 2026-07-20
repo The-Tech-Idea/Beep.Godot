@@ -200,6 +200,12 @@ func _start_timer(delay: float) -> Timer:
 
 func stop() -> void:
 	_is_playing = false
+	# BOB drives offset_transform_position directly in _process (no tween), so stopping mid-cycle would
+	# otherwise strand the target at its last sine offset — only reset() zeroed it. Neutralise it here.
+	if effect == EffectType.BOB:
+		for c in _targets:
+			if is_instance_valid(c):
+				c.offset_transform_position = Vector2.ZERO
 	_process_time = 0.0
 	_stop_typewriter()
 	for t in _active_tweens:
@@ -443,19 +449,32 @@ func _play_typewriter(c: Control) -> void:
 
 
 func _process_typewriter(delta: float) -> void:
+	# Retire each entry the moment it finishes reveal-ing, and emit completion once the last one is
+	# done. Previously nothing removed finished entries, so the label's full text was re-assigned every
+	# frame forever and effect_completed never fired (TYPEWRITER spawns no tween, so the tween-based
+	# completion path in _execute_effect never applied to it).
+	var completed: Array = []
 	for c in _tw_states.keys():
 		if not is_instance_valid(c):
+			completed.append(c)
 			continue
 		var state: Dictionary = _tw_states[c]
 		state["elapsed"] = float(state["elapsed"]) + delta
 		var total: int = String(state["text"]).length()
 		var visible_n: int = clampi(int(float(state["elapsed"]) * typewriter_speed), 0, total)
+		var done: bool = visible_n >= total
 		var shown: String = String(state["text"]).substr(0, visible_n)
-		var cur: String = String(state["cursor"]) if visible_n < total else ""
+		var cur: String = String(state["cursor"]) if not done else ""
 		if state["rich"] and c is RichTextLabel:
 			(c as RichTextLabel).text = shown + cur
 		elif c is Label:
 			(c as Label).text = shown + cur
+		if done:
+			completed.append(c)
+	for c in completed:
+		_tw_states.erase(c)
+	if _tw_states.is_empty() and _is_playing and effect == EffectType.TYPEWRITER:
+		_on_all_completed()
 
 
 func _stop_typewriter() -> void:

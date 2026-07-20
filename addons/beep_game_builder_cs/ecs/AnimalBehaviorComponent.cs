@@ -36,7 +36,6 @@ namespace Beep.ECS
 
         [Signal] public delegate void BehaviorChangedEventHandler(int behavior);
         [Signal] public delegate void HuntedEventHandler();
-        [Signal] public delegate void FledEventHandler();
 
         private BehaviorState _currentBehavior = BehaviorState.Foraging;
         private SeasonalComponent? _seasonal;
@@ -50,6 +49,12 @@ namespace Beep.ECS
             _seasonal = EntityComponent.FindComponent<SeasonalComponent>(GetTree().Root, true);
             _weather = EntityComponent.FindComponent<WeatherSystemComponent>(GetTree().Root, true);
             _body = GetParent() as CharacterBody2D;
+
+            if (Engine.IsEditorHint()) return;
+            if (_body == null)
+                GD.PushWarning($"[{Name}] AnimalBehaviorComponent needs a CharacterBody2D parent to move; got '{GetParent()?.GetType().Name ?? "null"}'. The animal will stay inert.");
+            if (_seasonal == null)
+                GD.PushWarning($"[{Name}] AnimalBehaviorComponent found no SeasonalComponent in the scene; season-driven behavior (nesting/hibernating/foraging) will not change. Add a SeasonalComponent (see atmosphere.tscn).");
         }
 
         public override void _Process(double delta)
@@ -62,7 +67,7 @@ namespace Beep.ECS
 
             // Apply velocity based on current behavior
             _body.Velocity = _targetVelocity;
-            if (_body is CharacterBody2D cb) cb.MoveAndSlide();
+            _body.MoveAndSlide();
         }
 
         private void UpdateBehavior()
@@ -81,7 +86,7 @@ namespace Beep.ECS
             _targetVelocity = _currentBehavior switch
             {
                 BehaviorState.Foraging => Vector2.Zero.Lerp(
-                    Vector2.FromAngle((float)GD.Randf() * Mathf.Tau) * ForagingSpeed, 0.1f),
+                    Vector2.FromAngle(GD.Randf() * Mathf.Tau) * ForagingSpeed, 0.1f),
                 BehaviorState.Hibernating => Vector2.Zero,
                 BehaviorState.Migrating => MigrationDirection.Normalized() * MigrationSpeed,
                 BehaviorState.Fleeing => GetFleeDirection() * FleeSpeed,
@@ -112,7 +117,7 @@ namespace Beep.ECS
         private Vector2 GetFleeDirection()
         {
             // Flee in a random direction (away from current position)
-            return Vector2.FromAngle((float)GD.Randf() * Mathf.Tau);
+            return Vector2.FromAngle(GD.Randf() * Mathf.Tau);
         }
 
         /// <summary>Hunt this animal. Only succeeds during huntable season.</summary>

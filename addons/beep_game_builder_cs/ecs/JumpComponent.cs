@@ -57,6 +57,9 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (_body == null || !IsActive) return;
+            // Gate the "jump" reads so an absent action doesn't spam a per-frame error before the
+            // input map is generated (matches the controllers). No jump is possible without it anyway.
+            if (!InputActionsAvailable("jump")) return;
             float dt = (float)delta;
             bool onFloor = _body.IsOnFloor();
 
@@ -120,6 +123,7 @@ namespace Beep.ECS
         /// <summary>Manually trigger a jump (e.g. from a bounce pad).</summary>
         public void ForceJump(float force)
         {
+            if (!IsActive) return;
             if (_body == null) return;
             _body.Velocity = new Vector2(_body.Velocity.X, force);
         }

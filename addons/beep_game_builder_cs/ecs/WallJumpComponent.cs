@@ -33,6 +33,10 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private RayCast2D? _leftRay;
         private RayCast2D? _rightRay;
+        // Only the rays THIS component injected are freed on exit — a pre-existing WallRayLeft/Right
+        // authored in the scene is left alone.
+        private bool _createdLeftRay;
+        private bool _createdRightRay;
         private bool _isWallSliding;
         private float _stickTimer;
         private float _lockTimer;
@@ -67,6 +71,7 @@ namespace Beep.ECS
                 };
                 _body.AddChild(_leftRay);
                 _leftRay.Enabled = true;
+                _createdLeftRay = true;
             }
             if (_rightRay == null)
             {
@@ -78,7 +83,20 @@ namespace Beep.ECS
                 };
                 _body.AddChild(_rightRay);
                 _rightRay.Enabled = true;
+                _createdRightRay = true;
             }
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Free the rays we injected into the body so detaching the component doesn't orphan
+            // them (and re-adding a WallJumpComponent doesn't stack duplicates).
+            if (_createdLeftRay && _leftRay != null && GodotObject.IsInstanceValid(_leftRay))
+                _leftRay.QueueFree();
+            if (_createdRightRay && _rightRay != null && GodotObject.IsInstanceValid(_rightRay))
+                _rightRay.QueueFree();
+            _leftRay = _rightRay = null;
         }
 
         public override void _PhysicsProcess(double delta)
@@ -116,8 +134,9 @@ namespace Beep.ECS
                     _isWallSliding = false;
             }
 
-            // Wall jump.
-            if (_isWallSliding && Input.IsActionJustPressed("jump"))
+            // Wall jump. Gate the input read so an absent "jump" action doesn't spam a
+            // per-frame error before the input map is generated.
+            if (_isWallSliding && InputActionsAvailable("jump") && Input.IsActionJustPressed("jump"))
             {
                 _body.Velocity = new Vector2(-_wallDirection * WallJumpForceX, WallJumpForceY);
                 _isWallSliding = false;

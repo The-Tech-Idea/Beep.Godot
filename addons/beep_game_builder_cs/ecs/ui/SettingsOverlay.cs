@@ -38,6 +38,11 @@ namespace Beep.ECS.UI
             // Always: settings is opened from the pause menu while the tree is paused, and a
             // Pausable overlay would render with every control inert.
             overlay.ProcessMode = Node.ProcessModeEnum.Always;
+            // Sit above the pause overlay (GameFlow hosts that at CanvasLayer 100). Settings is often
+            // opened FROM the pause menu, and its own scene ships at a low layer (10) — without this it
+            // would render underneath the opaque pause menu and appear to do nothing.
+            if (overlay is CanvasLayer cl)
+                cl.Layer = 110;
 
             // Parent to the current scene so the overlay dies with it rather than leaking
             // to /root and surviving scene changes.

@@ -78,6 +78,8 @@ namespace Beep.ECS.UI
         /// </summary>
         public static ColorPalette? ByName(string name)
         {
+            if (string.IsNullOrEmpty(name))
+                return Default;
             // Search every theme's palettes in the loaded catalog.
             foreach (var genre in SkinCatalog.AllGenres.Values)
             {

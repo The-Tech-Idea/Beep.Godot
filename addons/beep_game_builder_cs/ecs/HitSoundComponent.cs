@@ -50,7 +50,7 @@ namespace Beep.ECS
             if (Sounds.Length == 0)
                 Sounds = LoadDefaults();
 
-            CallDeferred(nameof(Setup));
+            Callable.From(Setup).CallDeferred();
         }
 
         private void Setup()
@@ -89,7 +89,7 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             base._ExitTree();
-            if (_health != null)
+            if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
     }

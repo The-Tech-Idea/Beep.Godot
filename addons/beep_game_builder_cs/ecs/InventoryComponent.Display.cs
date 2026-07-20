@@ -69,6 +69,18 @@ namespace Beep.ECS
             InventoryChanged += RefreshAllSlots;
         }
 
+        /// <summary>Free the grid and tooltip this partial injected into the parent Control.
+        /// Without this, removing the inventory node while its parent survives orphans both
+        /// onscreen. Called from the component's _ExitTree.</summary>
+        private void DisposeUI()
+        {
+            if (_grid != null && GodotObject.IsInstanceValid(_grid)) _grid.QueueFree();
+            if (_tooltipPanel != null && GodotObject.IsInstanceValid(_tooltipPanel)) _tooltipPanel.QueueFree();
+            _grid = null;
+            _tooltipPanel = null;
+            _slotQtyLabels.Clear();
+        }
+
         /// <summary>Rebuild the grid to the current MaxSlots/Columns and repaint. Used after a Load
         /// that changed the capacity, so every slot has a cell.</summary>
         private void RebuildGrid()

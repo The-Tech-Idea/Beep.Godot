@@ -57,5 +57,15 @@ void fragment(){
         }
 
         public void Stop() { if (_control != null) _control.Material = _priorMaterial; }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Restore the parent's original material — otherwise a loader freed on the normal path
+            // (data arrives → skeleton removed, the same Control reused for real content) leaves the
+            // shimmer ShaderMaterial stuck on the parent. Mirrors VignetteComponent's restore.
+            if (_control != null && GodotObject.IsInstanceValid(_control))
+                _control.Material = _priorMaterial;
+        }
     }
 }

@@ -171,7 +171,7 @@ geometry, animation, and optional textures.
   "description":   "Bright playful UI — large pill corners, solid black outline, hard drop shadow, bouncy hover",
 
   "colors":      { /* 22 hex strings — see Colors block below */ },
-  "geometry":    { /* 12 numbers — see Geometry block below */ },
+  "geometry":    { /* 13 numbers — see Geometry block below */ },
   "animation":   { /* 6 fields — see Animation block below */ },
   "textures":    { /* per-node StyleBoxTexture specs — see Textures block below */ }
 }
@@ -196,10 +196,10 @@ dictionary key lookup in `LoadTheme()`, so typos silently produce white.
 Consumed by `ColorSchema` (see `IThemePreset.cs`) and threaded through every
 `Theme*()` method in `NodeTheming.cs`.
 
-### `geometry` — 12 numbers
+### `geometry` — 13 numbers
 
 Same shape as the geometry block inside `geometry.json` but reduced to the
-12 fields that vary per theme:
+13 fields that vary per theme:
 
 | Field             | Type | Consumed by |
 |-------------------|------|-------------|
@@ -243,9 +243,14 @@ Zero-initialised when missing — disables animation.
   "progress_fill":  { /* … */ },
   "slider_grabber": { /* … */ },
   "scroll_grabber": { /* … */ },
-  "separator":      { /* … */ }
+  "separator":      { /* … */ },
+  "dialog":         { /* … */ }
 }
 ```
+
+14 slots in total. `SkinCatalog.ParseTextureSlot` parses each into a `ThemeTextureSlots`
+field; a missing slot falls back to the procedural StyleBox for that node (the addon ships
+no textures — the developer supplies their own).
 
 Each slot is a `TextureSlotDef`:
 

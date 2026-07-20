@@ -17,23 +17,34 @@ namespace Beep.ECS.Scenes
             // node lost *every* button — New Game, Settings, Quit — not just save/load.
             _saveLoadManager = GetNodeOrNull<UI.SaveLoadManagerComponent>("SaveLoadManager");
 
-            GetNode<Button>("Center/MenuVBox/NewGameButton").Pressed += OnNewGamePressed;
+            this.ConnectPressed("Center/MenuVBox/NewGameButton", OnNewGamePressed);
 
             // Continue resumes the newest save. It used to be byte-identical to New Game,
             // so a player with a save silently started over. Hidden when nothing is saved.
-            var continueBtn = GetNode<Button>("Center/MenuVBox/ContinueButton");
-            continueBtn.Pressed += OnContinuePressed;
-            continueBtn.Visible = NewestSlot() != null;
+            // GetNodeOrNull (not the throwing GetNode) so a missing node warns instead of killing
+            // every button wired after it. It also carries visibility, so it can't use ConnectPressed.
+            if (GetNodeOrNull<Button>("Center/MenuVBox/ContinueButton") is { } continueBtn)
+            {
+                continueBtn.Pressed += OnContinuePressed;
+                continueBtn.Visible = NewestSlot() != null;
+            }
+            else GD.PushWarning($"[{Name}] ContinueButton not found — not connected.");
 
             // Saving needs a running game to capture, so from the main menu the save dialog's
             // button is permanently disabled. Hide the entry rather than ship a dead menu —
             // same treatment as Continue above.
-            var saveBtn = GetNode<Button>("Center/MenuVBox/SaveGameButton");
-            saveBtn.Pressed += OnSaveGamePressed;
-            saveBtn.Visible = false;
-            GetNode<Button>("Center/MenuVBox/LoadGameButton").Pressed += OnLoadGamePressed;
-            GetNode<Button>("Center/MenuVBox/SettingsButton").Pressed += () => ChangeScene(GameApp.Instance?.SettingsScenePath);
-            GetNode<Button>("Center/MenuVBox/QuitButton").Pressed     += () => GetTree().Quit();
+            if (GetNodeOrNull<Button>("Center/MenuVBox/SaveGameButton") is { } saveBtn)
+            {
+                saveBtn.Pressed += OnSaveGamePressed;
+                saveBtn.Visible = false;
+            }
+            else GD.PushWarning($"[{Name}] SaveGameButton not found — not connected.");
+            this.ConnectPressed("Center/MenuVBox/LoadGameButton", OnLoadGamePressed);
+            // Open Settings as an OVERLAY, not a scene change. As the pause overlay (this menu shown over
+            // a running game) a ChangeScene would tear the run down; the overlay keeps it alive and Esc
+            // resumes. As the startup menu it simply layers over the title — Close returns here either way.
+            this.ConnectPressed("Center/MenuVBox/SettingsButton", () => UI.SettingsOverlay.Open(this));
+            this.ConnectPressed("Center/MenuVBox/QuitButton", () => GetTree().Quit());
         }
 
         /// <summary>Start a new run — via the genre's entry screen when it declares one.

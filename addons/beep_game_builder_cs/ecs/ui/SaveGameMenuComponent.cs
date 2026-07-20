@@ -16,16 +16,24 @@ namespace Beep.ECS.UI
 		[Export] public int MaxSlots { get; set; } = 5;
 		[Export] public bool ShowAutosaveSlot { get; set; } = true;
 
+		/// <summary>Guard against clobbering an occupied slot. When true (default), the first Save
+		/// press on a slot that already holds a save arms a confirm state (the Save button reads
+		/// "Confirm Overwrite") and a second press commits. When false, saving over an occupied
+		/// slot is immediate.</summary>
+		[Export] public bool ConfirmOverwrite { get; set; } = true;
+
 		[Signal] public delegate void SaveConfirmedEventHandler(int slot, string saveName);
 		[Signal] public delegate void CancelPressedEventHandler();
-		[Signal] public delegate void OverwriteConfirmedEventHandler(int slot);
 
 		private LineEdit? _nameInput;
 		private VBoxContainer? _slotsVBox;
 		private Button? _saveButton;
 		private Button? _cancelButton;
 		private int _selectedSlot = -1;
+		private int _pendingOverwriteSlot = -1;
+		private readonly HashSet<int> _occupiedSlots = new();
 		private GameStateManagerComponent? _gameStateManager;
+		private readonly List<System.Action> _slotDisconnectors = new();
 
 		public override void _Ready()
 		{
@@ -43,6 +51,15 @@ namespace Beep.ECS.UI
 			PopulateSlots();
 			WireSlotButtons();
 			UpdateSaveButtonState();
+
+			// Grab initial focus so a controller/keyboard-only player can operate the menu.
+			Callable.From(GrabInitialFocus).CallDeferred();
+		}
+
+		private void GrabInitialFocus()
+		{
+			if (_nameInput != null) { _nameInput.GrabFocus(); return; }
+			foreach (var b in SlotButtons()) { b.GrabFocus(); return; }
 		}
 
 		private void FindGameStateManager()
@@ -73,8 +90,12 @@ namespace Beep.ECS.UI
 
 			var slots = _gameStateManager.GetSaveSlots();
 			var slotDict = new System.Collections.Generic.Dictionary<int, GameBuilder.SaveMetadata>();
+			_occupiedSlots.Clear();
 			foreach (var (slot, meta) in slots)
+			{
 				slotDict[slot] = meta;
+				_occupiedSlots.Add(slot);
+			}
 
 			// Drive the loop off the buttons the scene actually has, not MaxSlots —
 			// GetChild(i) beyond the child count throws, and the two must agree.
@@ -119,13 +140,18 @@ namespace Beep.ECS.UI
 			for (int i = 0; i < buttons.Count; i++)
 			{
 				int slot = i; // Capture for closure
-				buttons[i].Pressed += () => OnSlotSelected(slot);
+				var btn = buttons[i];
+				System.Action handler = () => OnSlotSelected(slot);
+				btn.Pressed += handler;
+				_slotDisconnectors.Add(() => { if (GodotObject.IsInstanceValid(btn)) btn.Pressed -= handler; });
 			}
 		}
 
 		private void OnSlotSelected(int slot)
 		{
 			_selectedSlot = slot;
+			// Selecting a different slot cancels any armed overwrite confirmation.
+			if (_pendingOverwriteSlot != slot) ResetOverwritePrompt();
 			var buttons = SlotButtons();
 			for (int i = 0; i < buttons.Count; i++)
 				buttons[i].SetPressed(i == slot);
@@ -139,12 +165,28 @@ namespace Beep.ECS.UI
 				return;
 			}
 
+			// Overwrite guard: the first press on an occupied slot arms a confirmation instead of
+			// clobbering the existing save. A second press (slot already armed) commits.
+			bool overwriting = _occupiedSlots.Contains(_selectedSlot);
+			if (overwriting && ConfirmOverwrite && _pendingOverwriteSlot != _selectedSlot)
+			{
+				_pendingOverwriteSlot = _selectedSlot;
+				if (_saveButton != null) _saveButton.Text = "Confirm Overwrite";
+				return;
+			}
+
 			string saveName = _nameInput?.Text ?? "Save Game";
 			if (string.IsNullOrEmpty(saveName))
 				saveName = $"Slot {_selectedSlot + 1}";
 
 			EmitSignal(SignalName.SaveConfirmed, _selectedSlot, saveName);
 			QueueFree();
+		}
+
+		private void ResetOverwritePrompt()
+		{
+			_pendingOverwriteSlot = -1;
+			if (_saveButton != null) _saveButton.Text = "Save";
 		}
 
 		private void OnCancelPressed()
@@ -165,8 +207,11 @@ namespace Beep.ECS.UI
 
 		public override void _ExitTree()
 		{
+			base._ExitTree();
 			if (_saveButton != null) _saveButton.Pressed -= OnSavePressed;
 			if (_cancelButton != null) _cancelButton.Pressed -= OnCancelPressed;
+			foreach (var disconnect in _slotDisconnectors) disconnect();
+			_slotDisconnectors.Clear();
 		}
 	}
 }

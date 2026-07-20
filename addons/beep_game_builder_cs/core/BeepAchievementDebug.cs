@@ -103,6 +103,7 @@ public partial class BeepDebugConsole : Godot.Control
     private bool _open;
     private List<string> _history = new();
     private int _historyIdx = -1;
+    private readonly List<string> _lines = new(); // raw BBCode lines — the trim source of truth
 
     [Export] public int MaxLines { get; set; } = 500;
     [Export] public Color BgColor { get; set; } = new(0,0,0,0.85f);
@@ -118,7 +119,7 @@ public partial class BeepDebugConsole : Godot.Control
         _box.CustomMinimumSize = new Vector2(0, 300);
         _box.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = BgColor, ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 4, ContentMarginBottom = 4 });
 
-        _output = new RichTextLabel { ScrollFollowing = true, SizeFlagsVertical = SizeFlags.ExpandFill };
+        _output = new RichTextLabel { ScrollFollowing = true, SizeFlagsVertical = SizeFlags.ExpandFill, BbcodeEnabled = true };
         _box.AddChild(_output);
 
         _input = new LineEdit { PlaceholderText = "Type command..." };
@@ -129,7 +130,7 @@ public partial class BeepDebugConsole : Godot.Control
 
         // Default commands
         RegisterCommand("help", _ => { Log("[b]Commands:[/b] " + string.Join(", ", _commands.Keys)); });
-        RegisterCommand("clear", _ => _output.Clear());
+        RegisterCommand("clear", _ => { _output.Clear(); _lines.Clear(); });
         RegisterCommand("fps", _ => Log($"[color=cyan]FPS: {Engine.GetFramesPerSecond()}[/color]"));
         RegisterCommand("time", _ => Log($"[color=cyan]Time: {Time.GetTimeStringFromSystem()}[/color]"));
     }
@@ -137,7 +138,7 @@ public partial class BeepDebugConsole : Godot.Control
     public void RegisterCommand(string name, Action<string[]> handler) => _commands[name.ToLower()] = handler;
     public void UnregisterCommand(string name) => _commands.Remove(name.ToLower());
 
-    public void Log(string message) { _output.AppendText(message + "\n"); Trim(); }
+    public void Log(string message) { _lines.Add(message); _output.AppendText(message + "\n"); Trim(); }
 
     public override void _Input(InputEvent e)
     {
@@ -148,9 +149,11 @@ public partial class BeepDebugConsole : Godot.Control
         }
         if (_open && e is InputEventKey k2 && k2.Pressed)
         {
-            if (k2.Keycode == Key.Up) { if (_history.Count > 0) { _historyIdx = Mathf.Min(_historyIdx + 1, _history.Count - 1); _input.Text = _history[_history.Count - 1 - _historyIdx]; _input.CaretColumn = _input.Text.Length; } }
-            else if (k2.Keycode == Key.Down) { _historyIdx = Mathf.Max(_historyIdx - 1, -1); _input.Text = _historyIdx < 0 ? "" : _history[_history.Count - 1 - _historyIdx]; _input.CaretColumn = _input.Text.Length; }
-            AcceptEvent();
+            // AcceptEvent() only for the history keys we actually handle. _Input runs BEFORE GUI input,
+            // so consuming every key here meant the LineEdit never received a keystroke — the console
+            // was untypeable. Up/Down are ours; let everything else fall through to the input field.
+            if (k2.Keycode == Key.Up) { if (_history.Count > 0) { _historyIdx = Mathf.Min(_historyIdx + 1, _history.Count - 1); _input.Text = _history[_history.Count - 1 - _historyIdx]; _input.CaretColumn = _input.Text.Length; } AcceptEvent(); }
+            else if (k2.Keycode == Key.Down) { _historyIdx = Mathf.Max(_historyIdx - 1, -1); _input.Text = _historyIdx < 0 ? "" : _history[_history.Count - 1 - _historyIdx]; _input.CaretColumn = _input.Text.Length; AcceptEvent(); }
         }
     }
 
@@ -179,10 +182,11 @@ public partial class BeepDebugConsole : Godot.Control
 
     private void Trim()
     {
-        var lines = _output.Text.Split('\n');
-        if (lines.Length <= MaxLines + 10) return;
-        var keep = new string[MaxLines];
-        Array.Copy(lines, lines.Length - MaxLines, keep, 0, MaxLines);
-        _output.Text = string.Join("\n", keep);
+        // Trim the raw BBCode buffer, not _output.Text — splitting/rejoining the rendered text and
+        // re-assigning it corrupted the markup. Re-render from the buffer only when we actually overflow.
+        if (_lines.Count <= MaxLines + 10) return;
+        _lines.RemoveRange(0, _lines.Count - MaxLines);
+        _output.Clear();
+        foreach (var line in _lines) _output.AppendText(line + "\n");
     }
 }

@@ -16,18 +16,28 @@ namespace Beep.ECS.UI
 	[GlobalClass]
 	public partial class SaveLoadManagerComponent : GameplayComponent
 	{
-		[Export] public NodePath? SaveMenuScenePath { get; set; }
-		[Export] public NodePath? LoadMenuScenePath { get; set; }
 		[Export] public string SaveMenuPrefab { get; set; } = "res://scenes/ui/save_game_menu.tscn";
 		[Export] public string LoadMenuPrefab { get; set; } = "res://scenes/ui/load_game_menu.tscn";
 
 		[Signal] public delegate void SaveStartedEventHandler();
 		[Signal] public delegate void SaveCompletedEventHandler(int slot);
-		[Signal] public delegate void LoadStartedEventHandler(int slot);
 		[Signal] public delegate void LoadCompletedEventHandler(int slot);
 
 		private GameStateManagerComponent? _gameStateManager;
 		private CanvasLayer? _uiLayer;
+
+		// The one save/load overlay currently open. Guards ShowSaveMenu/ShowLoadMenu against
+		// stacking a second overlay when called twice (both are public and idempotent).
+		private Node? _openMenu;
+
+		/// <summary>Load a menu scene from its prefab path, or PushError when it can't be loaded.</summary>
+		private PackedScene? ResolveMenuScene(string prefabPath, string which)
+		{
+			var scene = GD.Load<PackedScene>(prefabPath);
+			if (scene == null)
+				GD.PushError($"[{Name}] Cannot load {which} menu: '{prefabPath}'. Point {which}Prefab at a valid .tscn.");
+			return scene;
+		}
 
 		public override void _Ready()
 		{
@@ -62,6 +72,18 @@ namespace Beep.ECS.UI
 				return;
 			}
 			parent.AddChild(overlay);
+			_openMenu = overlay;
+			// Clear the guard when the overlay closes itself (QueueFree), so the next
+			// ShowSaveMenu/ShowLoadMenu can open again.
+			overlay.TreeExited += () => { if (_openMenu == overlay) _openMenu = null; };
+		}
+
+		/// <summary>True when a save/load overlay is already on screen. Prevents stacking.</summary>
+		private bool MenuAlreadyOpen()
+		{
+			if (_openMenu != null && GodotObject.IsInstanceValid(_openMenu)) return true;
+			_openMenu = null;
+			return false;
 		}
 
 		/// <summary>Resolve the GameStateManager autoload. It is registered at
@@ -97,7 +119,7 @@ namespace Beep.ECS.UI
 				if (child is CanvasLayer layer) { _uiLayer = layer; return; }
 		}
 
-		/// <summary>Show the save game menu.</summary>
+		/// <summary>Show the save game menu. Idempotent — a second call while a menu is open is ignored.</summary>
 		public void ShowSaveMenu()
 		{
 			if (_gameStateManager == null)
@@ -105,20 +127,20 @@ namespace Beep.ECS.UI
 				GD.PrintErr("[SaveLoadManager] GameStateManager not found");
 				return;
 			}
+			if (MenuAlreadyOpen()) return;
 
-			EmitSignal(SignalName.SaveStarted);
+			var scene = ResolveMenuScene(SaveMenuPrefab, "Save");
+			if (scene == null) return;
 
-			// Load save menu scene
-			var scene = GD.Load<PackedScene>(SaveMenuPrefab);
-			if (scene == null)
+			// Instantiate untyped then as-cast: a typed Instantiate<T> THROWS on a wrong root,
+			// making the null-guard below unreachable (the GetNode<T> trap in generic form).
+			if (scene.Instantiate() is not SaveGameMenuComponent saveMenu)
 			{
-				GD.PrintErr($"[SaveLoadManager] Cannot load save menu: {SaveMenuPrefab}");
+				GD.PushError($"[{Name}] Save menu scene's root is not a SaveGameMenuComponent — cannot show it.");
 				return;
 			}
 
-			var saveMenu = scene.Instantiate<SaveGameMenuComponent>();
-			if (saveMenu == null) return;
-
+			EmitSignal(SignalName.SaveStarted);
 			AddOverlay(saveMenu);
 
 			// Wire signals
@@ -126,7 +148,7 @@ namespace Beep.ECS.UI
 			saveMenu.CancelPressed += () => GD.Print("[SaveLoad] Save cancelled");
 		}
 
-		/// <summary>Show the load game menu.</summary>
+		/// <summary>Show the load game menu. Idempotent — a second call while a menu is open is ignored.</summary>
 		public void ShowLoadMenu()
 		{
 			if (_gameStateManager == null)
@@ -134,17 +156,16 @@ namespace Beep.ECS.UI
 				GD.PrintErr("[SaveLoadManager] GameStateManager not found");
 				return;
 			}
+			if (MenuAlreadyOpen()) return;
 
-			// Load menu scene
-			var scene = GD.Load<PackedScene>(LoadMenuPrefab);
-			if (scene == null)
+			var scene = ResolveMenuScene(LoadMenuPrefab, "Load");
+			if (scene == null) return;
+
+			if (scene.Instantiate() is not LoadGameMenuComponent loadMenu)
 			{
-				GD.PrintErr($"[SaveLoadManager] Cannot load load menu: {LoadMenuPrefab}");
+				GD.PushError($"[{Name}] Load menu scene's root is not a LoadGameMenuComponent — cannot show it.");
 				return;
 			}
-
-			var loadMenu = scene.Instantiate<LoadGameMenuComponent>();
-			if (loadMenu == null) return;
 
 			AddOverlay(loadMenu);
 

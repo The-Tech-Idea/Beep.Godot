@@ -47,6 +47,9 @@ namespace Beep.ECS
         [ExportGroup("Transitions")]
         [Export] public float TransitionDuration { get; set; } = 3.0f;
 
+        /// <summary>Fires when the season changes. Developer-facing hook — the framework ships no
+        /// in-tree consumer (the weather system reads <see cref="CurrentSeason"/> by property, not
+        /// this signal); connect it to drive your own seasonal content.</summary>
         [Signal] public delegate void SeasonChangedEventHandler(int season);
 
         private Tween? _seasonTransitionTween;
@@ -63,9 +66,16 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _currentSeasonColor = GetColorForSeason(CurrentSeason);
             if (!IsInGroup("seasonal")) AddToGroup("seasonal");
-            if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableSeasons;
+            if (Beep.GameBuilder.GameInfo.Instance is { } info)
+            {
+                IsActive = info.EnableSeasons;
+                // Seed the starting season from GameInfo (the generator writes default_season there),
+                // but only when the scene left CurrentSeason at its type-default — an inspector-authored
+                // season survives. Without this the world always started in Spring.
+                if (CurrentSeason == Season.Spring) CurrentSeason = info.DefaultSeason;
+            }
+            _currentSeasonColor = GetColorForSeason(CurrentSeason);
             CallDeferred(nameof(DeferredInit));
         }
 
@@ -152,8 +162,14 @@ namespace Beep.ECS
         };
 
         /// <summary>
-        /// Get the current season's foliage shader parameters as a color-encoded pair
-        /// (useful for passing to shader material via SetShaderParameter).
+        /// Get the current season's foliage wind as (windSpeed, strength) — pass to a foliage
+        /// shader via SetShaderParameter.
+        ///
+        /// PULL-ONLY DEVELOPER SEAM: the framework computes this per season but does NOT publish it
+        /// to any global shader param (unlike the weather system's <c>beep_wind_*</c> uniforms),
+        /// because it ships no foliage shader. A game with swaying grass/trees reads this each frame
+        /// (or on <c>SeasonChanged</c>) and feeds its own material. The season's ambient TINT is
+        /// applied automatically; only this foliage-wind half is opt-in.
         /// </summary>
         public Vector2 GetFoliageWindParams()
         {

@@ -1,36 +1,35 @@
 keys,en,es,ja
-MENU_TITLE,Game Title,Título del Juego,ゲームタイトル
-MENU_PLAY,Play,Jugar,プレイ
-MENU_CONTINUE,Continue,Continuar,続ける
-MENU_SETTINGS,Settings,Ajustes,設定
-MENU_QUIT,Quit,Salir,終了
-MENU_BACK,Back,Atrás,戻る
-MENU_NEXT,Next,Siguiente,次へ
-MENU_RETRY,Retry,Reintentar,やり直し
-PAUSE_TITLE,Paused,Pausado,一時停止
-PAUSE_RESUME,Resume,Reanudar,再開
-PAUSE_RESTART,Restart,Reiniciar,リスタート
-PAUSE_MAIN_MENU,Main Menu,Menú Principal,メインメニュー
-GAME_OVER,Game Over,Fin del Juego,ゲームオーバー
-HUD_SCORE,Score,Puntuación,スコア
-HUD_LIVES,Lives,Vidas,ライフ
-HUD_HEALTH,Health,Salud,ヘルス
-HUD_TIME,Time,Tiempo,時間
-HUD_TARGET,TARGET,OBJETIVO,目標
-LEVEL_COMPLETE,Level Complete!,Nivel Completado!,レベルクリア!
-LEVEL_FAILED,Out of Moves!,¡Sin Movimientos!,手詰まり!
-SETTINGS_AUDIO,Audio,Audio,オーディオ
-SETTINGS_VIDEO,Video,Video,ビデオ
-SETTINGS_CONTROLS,Controls,Controles,コントロール
-SETTINGS_MASTER_VOLUME,Master Volume,Volumen General,マスター音量
-SETTINGS_SFX_VOLUME,SFX Volume,Volumen SFX,効果音音量
-SETTINGS_MUSIC_VOLUME,Music Volume,Volumen de Música,音楽音量
-SETTINGS_FULLSCREEN,Fullscreen,Pantalla Completa,フルスクリーン
-SETTINGS_RESOLUTION,Resolution,Resolución,解像度
-SETTINGS_LANGUAGE,Language,Idioma,言語
-SELECT_LEVEL,Select Level,Seleccionar Nivel,レベルを選択
-SELECT_CHARACTER,Choose Your Character,Elige tu Personaje,キャラクター選択
-WORLD_MAP,World Map,Mapa del Mundo,ワールドマップ
-ARSENAL,Arsenal,Arsenal,アーセナル
-LOADING,Loading…,Cargando…,読み込み中…
-PRESS_START,Press Start,Presiona Inicio,スタートを押してください
+New Game,New Game,Nueva partida,ニューゲーム
+Continue,Continue,Continuar,続ける
+Load Game,Load Game,Cargar partida,ロード
+Save Game,Save Game,Guardar partida,セーブ
+Settings,Settings,Ajustes,設定
+Quit,Quit,Salir,終了
+Paused,Paused,Pausado,一時停止
+Resume,Resume,Reanudar,再開
+Restart,Restart,Reiniciar,リスタート
+Main Menu,Main Menu,Menú principal,メインメニュー
+Game Over,Game Over,Fin del juego,ゲームオーバー
+Retry,Retry,Reintentar,やり直し
+Level Complete!,Level Complete!,¡Nivel completado!,レベルクリア！
+Continue ▶,Continue ▶,Continuar ▶,続ける ▶
+Master Volume,Master Volume,Volumen general,マスター音量
+SFX Volume,SFX Volume,Volumen de efectos,効果音音量
+Music Volume,Music Volume,Volumen de música,音楽音量
+Fullscreen,Fullscreen,Pantalla completa,フルスクリーン
+Resolution,Resolution,Resolución,解像度
+Language,Language,Idioma,言語
+Screen Shake,Screen Shake,Vibración de pantalla,画面の揺れ
+Subtitles,Subtitles,Subtítulos,字幕
+Damage Numbers,Damage Numbers,Números de daño,ダメージ表示
+Close,Close,Cerrar,閉じる
+On,On,Activado,オン
+Save,Save,Guardar,セーブ
+Load,Load,Cargar,ロード
+Cancel,Cancel,Cancelar,キャンセル
+Delete,Delete,Eliminar,削除
+Empty Slot,Empty Slot,Ranura vacía,空きスロット
+Autosave,Autosave,Autoguardado,オートセーブ
+No autosave,No autosave,Sin autoguardado,オートセーブなし
+Save Name:,Save Name:,Nombre de guardado:,セーブ名：
+Save Slots:,Save Slots:,Ranuras de guardado:,セーブスロット：

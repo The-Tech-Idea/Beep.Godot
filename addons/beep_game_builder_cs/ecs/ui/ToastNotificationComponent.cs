@@ -20,7 +20,14 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ToastShownEventHandler(string message, ToastType type);
         [Signal] public delegate void ToastDismissedEventHandler();
 
-        private readonly System.Collections.Generic.Queue<Godot.Control> _activeToasts = new();
+        // A List (not Queue) so a self-dismissed toast can Remove itself in its Finished lambda —
+        // otherwise freed toasts lingered here and the next ShowText's stacking loop touched a
+        // disposed node (ObjectDisposedException), and the stale entries evicted real toasts early.
+        private readonly System.Collections.Generic.List<Godot.Control> _activeToasts = new();
+        // Pending dismiss tweens, so _ExitTree can kill them — their Finished lambda captures this
+        // and EmitSignals; toasts are parented to GetParent() (which outlives this component), so
+        // without the kill a still-animating toast fires on a freed component.
+        private readonly System.Collections.Generic.List<Tween> _toastTweens = new();
         private static ToastNotificationComponent? _instance;
 
         public override void _Ready()
@@ -34,6 +41,12 @@ namespace Beep.ECS.UI
             // Clear the static so Show() doesn't call a freed node after a scene change. Guard on
             // identity: a later instance may already own it.
             if (_instance == this) _instance = null;
+            // Kill in-flight dismiss tweens (their Finished lambda would EmitSignal on this freed
+            // component) and free the toasts they were animating.
+            foreach (var t in _toastTweens) if (GodotObject.IsInstanceValid(t)) t.Kill();
+            _toastTweens.Clear();
+            foreach (var toast in _activeToasts) if (GodotObject.IsInstanceValid(toast)) toast.QueueFree();
+            _activeToasts.Clear();
             base._ExitTree();
         }
 
@@ -73,20 +86,26 @@ namespace Beep.ECS.UI
             label.AddThemeFontSizeOverride("font_size", 13);
             toast.AddChild(label);
 
-            // Stack existing toasts up
+            // Stack existing toasts up (guard: entries are pruned on dismiss, but stay defensive).
             float yOffset = ToastSize.Y + 8;
             foreach (var t in _activeToasts)
-                t.Position += new Vector2(0, yOffset);
+                if (GodotObject.IsInstanceValid(t)) t.Position += new Vector2(0, yOffset);
 
             GetParent()?.AddChild(toast);
-            _activeToasts.Enqueue(toast);
-            while (_activeToasts.Count > MaxVisible) { var old = _activeToasts.Dequeue(); old.QueueFree(); }
+            _activeToasts.Add(toast);
+            while (_activeToasts.Count > MaxVisible)
+            {
+                var old = _activeToasts[0];
+                _activeToasts.RemoveAt(0);
+                if (GodotObject.IsInstanceValid(old)) old.QueueFree();
+            }
 
             var tween = toast.CreateTween();
+            _toastTweens.Add(tween);
             tween.TweenProperty(toast, "position:y", 12f, 0.4f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
             tween.TweenInterval(Duration);
             tween.TweenProperty(toast, "modulate:a", 0f, 0.3f);
-            tween.Finished += () => { toast.QueueFree(); EmitSignal(SignalName.ToastDismissed); };
+            tween.Finished += () => { _toastTweens.Remove(tween); _activeToasts.Remove(toast); toast.QueueFree(); EmitSignal(SignalName.ToastDismissed); };
 
             EmitSignal(SignalName.ToastShown, message, (int)type);
         }

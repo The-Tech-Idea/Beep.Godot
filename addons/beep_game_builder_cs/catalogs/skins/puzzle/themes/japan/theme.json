@@ -4,19 +4,107 @@
   "category": "Aesthetic",
   "description": "Minimal elegant Japanese UI — clean white surface, vermillion red accent, dark charcoal text",
   "colors": {
-    "surface_primary": "#FFFFFFFF", "surface_hover": "#F5F0EDFF", "surface_pressed": "#E0D9D4FF", "surface_disabled": "#E5E0DBFF",
-    "text_primary": "#26211FFF", "text_hover": "#000000FF", "text_disabled": "#A69E96FF", "text_on_dark": "#FFFFFFFF",
-    "accent_primary": "#BD002EFF", "accent_secondary": "#8C001FFF",
-    "border_normal": "#D4C4B8FF", "border_hover": "#BD002EFF", "border_focus": "#BD002EFF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#000000FF", "bg_panel": "#F7F5F0FF", "bg_canvas": "#EDE8E0FF",
-    "semantic_success": "#40804DFF", "semantic_danger": "#BD002EFF", "semantic_warning": "#CC8C26FF", "semantic_info": "#336699FF"
+    "surface_primary": "#FFFFFFFF",
+    "surface_hover": "#F5F0EDFF",
+    "surface_pressed": "#E0D9D4FF",
+    "surface_disabled": "#E5E0DBFF",
+    "text_primary": "#26211FFF",
+    "text_hover": "#000000FF",
+    "text_disabled": "#A69E96FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#BD002EFF",
+    "accent_secondary": "#8C001FFF",
+    "border_normal": "#D4C4B8FF",
+    "border_hover": "#BD002EFF",
+    "border_focus": "#BD002EFF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#000000FF",
+    "bg_panel": "#F7F5F0FF",
+    "bg_canvas": "#EDE8E0FF",
+    "semantic_success": "#40804DFF",
+    "semantic_danger": "#BD002EFF",
+    "semantic_warning": "#CC8C26FF",
+    "semantic_info": "#336699FF"
   },
   "geometry": {
-    "corner_radius": 4, "border_left": 1, "border_top": 1, "border_right": 1, "border_bottom": 1,
-    "shadow_size": 4, "shadow_offset_x": 0, "shadow_offset_y": 1,
-    "pad_left": 20, "pad_right": 20, "pad_top": 10, "pad_bottom": 10,
+    "corner_radius": 4,
+    "border_left": 1,
+    "border_top": 1,
+    "border_right": 1,
+    "border_bottom": 1,
+    "shadow_size": 4,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 1,
+    "pad_left": 20,
+    "pad_right": 20,
+    "pad_top": 10,
+    "pad_bottom": 10,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.02, "hover_duration": 0.25, "press_scale": 0.98, "press_duration": 0.12, "shadow_lift": true, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.02,
+    "hover_duration": 0.25,
+    "press_scale": 0.98,
+    "press_duration": 0.12,
+    "shadow_lift": true,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/japan/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/japan/button_hover.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/japan/button_pressed.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/japan/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/puzzle/japan/panel.png",
+      "margin_left": 24,
+      "margin_top": 24,
+      "margin_right": 24,
+      "margin_bottom": 24,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

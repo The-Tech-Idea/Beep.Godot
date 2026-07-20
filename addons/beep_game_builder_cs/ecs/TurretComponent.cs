@@ -38,10 +38,15 @@ namespace Beep.ECS
             if (_turret == null)
                 GD.PushWarning($"[{Name}] parent is not a Node2D — the turret has no position to fire from and will do nothing. Parent it to the turret body.");
             // A null ProjectileScene means the turret acquires, aims, and ticks cooldown but Fire()
-            // returns silently forever — it looks alive but shoots nothing. Say so up front.
-            if (ProjectileScene == null)
+            // returns silently forever — it looks alive but shoots nothing. Say so up front (runtime
+            // only — don't warn at design time before the dev has wired the scene).
+            if (ProjectileScene == null && !Engine.IsEditorHint())
                 GD.PushWarning($"[{Name}] has no ProjectileScene — the turret will aim at targets but never fire. Assign a projectile scene.");
             _muzzle = GetNodeOrNull<Marker2D>(MuzzlePath);
+            // A sibling pool is used opportunistically. NOTE: the stock ProjectileComponent frees
+            // itself on hit/expiry, so it never Release()s back — the pool self-heals (Get() purges
+            // freed slots) and effectively falls back to per-shot Instantiate past the preloaded set.
+            // To truly recycle, give the projectile a pool-return path instead of QueueFree.
             _pool = GetSiblingComponent<ObjectPoolComponent>();
         }
 

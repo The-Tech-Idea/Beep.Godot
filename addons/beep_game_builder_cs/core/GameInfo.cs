@@ -74,9 +74,9 @@ public partial class GameInfo : Resource
     [Export] public string SettingsScenePath { get; set; } = "res://scenes/ui/settings_menu.tscn";
     [Export] public string GameOverScenePath { get; set; } = "res://scenes/ui/game_over.tscn";
 
-    /// <summary>Pause overlay, instanced on top of gameplay by GameFlowComponent when the
-    /// "pause" action fires — not navigated to, so the game scene stays loaded underneath.</summary>
-    [Export] public string PauseMenuPath { get; set; } = "res://scenes/ui/pause_menu.tscn";
+    // Pausing shows the MAIN MENU as an overlay over the frozen game (GameFlowComponent), so there is
+    // no separate pause-menu path — MainMenuPath is reused. A genre that wants its own pause screen sets
+    // GameFlowComponent.PauseMenuPathOverride instead.
 
     // ── Genre-specific scene paths.
     //    Set at GENERATION time from the selected genre's `nav_wiring` block in genre.json

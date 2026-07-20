@@ -19,7 +19,6 @@ public partial class BeepTreeView : Tree
     private Dictionary<string, TreeItem> _lookup = new();
 
     public event Action<TreeItem, object> ItemSelected;
-    public event Action<TreeItem, object> ItemDoubleClicked;
     public event Action<TreeItem, object> ItemActivated;
 
     public override void _Ready()
@@ -30,27 +29,45 @@ public partial class BeepTreeView : Tree
         _root.SetText(0, "Root");
         if (Selectable) SelectMode = SelectModeEnum.Single;
 
-        ItemActivated += (item, column) =>
-        {
-            var data = item.GetMetadata(0).AsGodotObject();
-            if (data != null) ItemActivated?.Invoke(item, data);
-        };
+        // Connect Godot's own item_activated signal by StringName. The custom C# events below
+        // shadow the base Tree signals of the same name, so `ItemActivated += ...` would bind to
+        // the custom event (which nothing raises) — activation never reached a handler. Godot
+        // fires item_activated on double-click or Enter.
+        Connect(Tree.SignalName.ItemActivated, Callable.From(OnGodotItemActivated));
         CellSelected += () =>
         {
             var item = GetSelected();
             if (item == null) return;
-            var data = item.GetMetadata(0).AsGodotObject();
+            var data = MetadataOf(item);
             if (data != null) ItemSelected?.Invoke(item, data);
         };
+    }
+
+    private void OnGodotItemActivated()
+    {
+        var item = GetSelected();
+        if (item == null) return;
+        var data = MetadataOf(item);
+        if (data == null) return;
+        ItemActivated?.Invoke(item, data);   // fires on double-click or Enter
+    }
+
+    // Read the stored payload without forcing a GodotObject cast. AsGodotObject() returns null for the
+    // POCO/int/string payloads BuildTree/AddNode store via Variant.From, which silently killed the
+    // selection/activation events for the common (non-GodotObject) case. .Obj hands back the boxed value.
+    private static object MetadataOf(TreeItem item)
+    {
+        var meta = item.GetMetadata(0);
+        return meta.VariantType == Variant.Type.Nil ? null : meta.Obj;
     }
 
     /// <summary>Build tree from a recursive data structure.</summary>
     public void BuildTree<T>(IEnumerable<T> items, Func<T, string> textSelector,
         Func<T, IEnumerable<T>> childrenSelector = null, Func<T, Texture2D> iconSelector = null)
     {
+        // Clear() already recreates _root and clears _lookup; a second CreateItem() here made a *child*
+        // of that root, so _root pointed at an empty phantom row and every node sat one level too deep.
         Clear();
-        _root = CreateItem();
-        _lookup.Clear();
 
         foreach (var item in items)
             BuildNode(_root, item, textSelector, childrenSelector, iconSelector);

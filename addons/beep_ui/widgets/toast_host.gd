@@ -36,10 +36,12 @@ static func show_toast(message: String, type: TYPE = TYPE.INFO) -> void:
 func spawn(message: String, type: TYPE = TYPE.INFO) -> void:
 	if Engine.is_editor_hint():
 		return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size
 	var toast := Panel.new()
 	toast.size = toast_size
-	toast.position = Vector2((vp_size.x - toast_size.x) * 0.5, -toast_size.y)
+	# Center on the HOST's width, not the viewport's. Toasts are children in host-local space, so
+	# viewport-relative centering only lined up when the host happened to fill the screen at the origin —
+	# a factory-dropped host (fixed 320x120) put every toast off to the side.
+	toast.position = Vector2((size.x - toast_size.x) * 0.5, -toast_size.y)
 
 	var bg: Color = Color(0.15, 0.2, 0.3, 0.95)
 	match type:

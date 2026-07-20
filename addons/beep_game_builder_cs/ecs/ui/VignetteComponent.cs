@@ -38,6 +38,11 @@ void fragment() {
 ";
 
         private ShaderMaterial? _mat;
+        // The parent CanvasItem's material before we overlaid the vignette, so _ExitTree restores
+        // it instead of nulling out a material the node legitimately had. _replacedMaterial guards
+        // the restore so we only touch it when Apply() actually swapped ours in.
+        private Material? _priorMaterial;
+        private bool _replacedMaterial;
 
         public override void _Ready()
         {
@@ -70,7 +75,18 @@ void fragment() {
             _mat.SetShaderParameter("tint", Tint);
             _mat.SetShaderParameter("softness", Softness);
             _mat.SetShaderParameter("radius", Radius);
+            if (!_replacedMaterial) _priorMaterial = ci.Material;   // remember what was there, once
+            _replacedMaterial = true;
             ci.Material = _mat;
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Restore the parent's original material so we don't leave a pooled/reused Control
+            // stuck with our vignette shader. Only if Apply() actually replaced it.
+            if (_replacedMaterial && GetParent() is CanvasItem ci && GodotObject.IsInstanceValid(ci))
+                ci.Material = _priorMaterial;
         }
     }
 }

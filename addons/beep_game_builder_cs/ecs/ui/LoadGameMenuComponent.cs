@@ -42,6 +42,18 @@ namespace Beep.ECS.UI
 			FindGameStateManager();
 			PopulateSlots();
 			WireSlotButtons();
+
+			// Grab initial focus so a controller/keyboard-only player can operate the menu.
+			// Deferred so the slot buttons exist and are laid out first.
+			Callable.From(GrabInitialFocus).CallDeferred();
+		}
+
+		private void GrabInitialFocus()
+		{
+			if (_slotsVBox != null)
+				foreach (var child in _slotsVBox.GetChildren())
+					if (child is Button b) { b.GrabFocus(); return; }
+			_loadButton?.GrabFocus();
 		}
 
 		private void FindGameStateManager()
@@ -191,6 +203,7 @@ namespace Beep.ECS.UI
 
 		public override void _ExitTree()
 		{
+			base._ExitTree();
 			if (_loadButton != null) _loadButton.Pressed -= OnLoadPressed;
 			if (_cancelButton != null) _cancelButton.Pressed -= OnCancelPressed;
 		}

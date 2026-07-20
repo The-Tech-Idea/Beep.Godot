@@ -16,6 +16,7 @@ namespace Beep.ECS.UI
         [Export] public float FadeDuration { get; set; } = 0.15f;
 
         private Label? _label;
+        private bool _createdLabel;   // true only when we new'd the label (vs adopting a parent Label)
         private Tween? _fade;
 
         public override void _Ready()
@@ -38,6 +39,7 @@ namespace Beep.ECS.UI
         private void EnsureLabel()
         {
             if (GetParent() is Label existing) { _label = existing; return; }
+            _createdLabel = true;
             _label = new Label
             {
                 Name = "PromptLabel",
@@ -82,7 +84,12 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _fade?.Kill();
+            // Free the label only if WE created it (parent-hosted). When the parent itself is a
+            // Label we adopted it — don't free someone else's node.
+            if (_createdLabel && _label != null && GodotObject.IsInstanceValid(_label)) _label.QueueFree();
+            _label = null;
         }
     }
 }

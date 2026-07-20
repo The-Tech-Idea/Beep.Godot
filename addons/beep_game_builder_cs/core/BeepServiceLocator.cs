@@ -65,10 +65,30 @@ public class BeepGridNavigator
     private void Move(int dx, int dy)
     {
         UnhighlightCurrent();
-        _cx = Mathf.Clamp(_cx + dx, 0, _cols - 1);
-        _cy = Mathf.Clamp(_cy + dy, 0, _rows - 1);
-        // Skip empty
-        while (_grid[_cy, _cx] == null) { if (dx != 0) _cx = Mathf.Clamp(_cx + dx, 0, _cols - 1); else break; }
+        int nx = Mathf.Clamp(_cx + dx, 0, _cols - 1);
+        int ny = Mathf.Clamp(_cy + dy, 0, _rows - 1);
+
+        // Skip empty cells in the horizontal direction, but never loop past the grid edge. On a ragged
+        // last row, Clamp pins _cx at the final column while that cell is null, so the old
+        // `while (grid==null) _cx = Clamp(_cx+dx)` spun forever. Advance only while the index changes.
+        if (dx != 0)
+        {
+            int scan = nx;
+            while (_grid[ny, scan] == null)
+            {
+                int next = Mathf.Clamp(scan + dx, 0, _cols - 1);
+                if (next == scan) break; // reached the edge with no non-null cell this way
+                scan = next;
+            }
+            if (_grid[ny, scan] == null) { HighlightCurrent(); return; } // nothing to land on — stay put
+            nx = scan;
+        }
+        else if (_grid[ny, nx] == null)
+        {
+            HighlightCurrent(); return; // vertical move into an empty (ragged) cell — stay put
+        }
+
+        _cx = nx; _cy = ny;
         HighlightCurrent();
     }
 

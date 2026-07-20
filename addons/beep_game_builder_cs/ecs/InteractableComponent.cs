@@ -78,6 +78,9 @@ namespace Beep.ECS
         public override void _Input(InputEvent @event)
         {
             if (!IsActive || !_playerInRange) return;
+            // Guard the action read — an absent action (template run before the input map is
+            // generated) logs a per-event Godot error otherwise.
+            if (!InputMap.HasAction(InputAction)) return;
             if (@event.IsActionPressed(InputAction))
             {
                 GetViewport().SetInputAsHandled();

@@ -61,7 +61,10 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || _remaining <= 0) return;
+            // !IsActive included so a knockback in flight stops when the component is deactivated,
+            // rather than continuing to drive the body. (Instant-set controllers like ShooterController
+            // that write Velocity = input*speed each frame overwrite the impulse — a known limitation.)
+            if (_body == null || _remaining <= 0 || !IsActive) return;
             _remaining -= (float)delta;
             _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, Friction * (float)delta);
 

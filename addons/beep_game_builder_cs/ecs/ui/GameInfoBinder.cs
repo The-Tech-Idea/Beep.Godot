@@ -52,20 +52,20 @@ namespace Beep.ECS.UI
             var parent = GetParent();
 
             // Title.
-            if (!TitleLabelPath.IsEmpty && parent.GetNodeOrNull<Label>(TitleLabelPath) is { } title)
+            if (Resolve<Label>(parent, TitleLabelPath, "TitleLabelPath") is { } title)
                 title.Text = AppendGameName ? $"{title.Text} — {info.GameName}" : info.GameName;
 
             // Version.
-            if (!VersionLabelPath.IsEmpty && parent.GetNodeOrNull<Label>(VersionLabelPath) is { } ver)
+            if (Resolve<Label>(parent, VersionLabelPath, "VersionLabelPath") is { } ver)
                 ver.Text = $"v{info.Version}";
 
             // Genre display — show the catalog's display name, falling back to the raw
             // id if the genre folder isn't loaded.
-            if (!GenreLabelPath.IsEmpty && parent.GetNodeOrNull<Label>(GenreLabelPath) is { } genre)
+            if (Resolve<Label>(parent, GenreLabelPath, "GenreLabelPath") is { } genre)
                 genre.Text = SkinCatalog.GetGenre(info.GenreId)?.DisplayName ?? info.GenreId;
 
             // Theme + palette + geometry + skin — drive the sibling ThemePresetComponent from GameInfo/GameApp.
-            if (!ThemeComponentPath.IsEmpty && parent.GetNodeOrNull<ThemePresetComponent>(ThemeComponentPath) is { } theme)
+            if (Resolve<ThemePresetComponent>(parent, ThemeComponentPath, "ThemeComponentPath") is { } theme)
             {
                 // File-based: pass the genre + theme name directly. The catalog resolves it.
                 theme.GenreName = info.GenreId;
@@ -80,6 +80,18 @@ namespace Beep.ECS.UI
             // OS window title.
             if (SetWindowTitle && GetTree().Root is Window root)
                 root.Title = info.GameName;
+        }
+
+        /// <summary>Resolve a node under the parent, warning when a SET path fails to resolve
+        /// (the classic "path set but wrong node/type → binding silently dropped" case). An empty
+        /// path is an intentional skip and stays silent.</summary>
+        private T? Resolve<T>(Node parent, NodePath path, string exportName) where T : Node
+        {
+            if (path.IsEmpty) return null;
+            var node = parent.GetNodeOrNull<T>(path);
+            if (node == null)
+                GD.PushWarning($"[{Name}] GameInfoBinder.{exportName} = '{path}' did not resolve to a {typeof(T).Name} under '{parent.Name}' — that binding is skipped. Fix the path or clear it.");
+            return node;
         }
     }
 }

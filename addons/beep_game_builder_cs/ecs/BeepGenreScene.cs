@@ -102,7 +102,12 @@ namespace Beep.ECS
         private void ApplyToGameInfo(GenreDef genre)
         {
             var app = GameApp.Instance;
-            if (app?.Info == null) return;     // no autoload → skip silently
+            if (app?.Info == null)
+            {
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] BeepGenreScene found no GameApp autoload (or its Info is null) — genre/theme/scene-path wiring into GameInfo is skipped. Enable the GameApp autoload so the scene picks up this genre's config.");
+                return;
+            }
 
             app.Info.GenreId = GenreId;
             app.Info.DefaultThemePreset = string.IsNullOrEmpty(ThemePreset)
@@ -160,10 +165,24 @@ namespace Beep.ECS
             if (string.IsNullOrEmpty(scenePath)) return;
 
             var packed = ResourceLoader.Load<PackedScene>(scenePath);
-            if (packed == null) return;
+            if (packed == null)
+            {
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[{Name}] BeepGenreScene resolved '{scenePath}' but failed to load it as a PackedScene — the genre's main layout will not appear.");
+                return;
+            }
 
+            string childName = $"_{GenreId}Main";   // underscore prefix → sorts first
+            // Idempotent: ApplyGenre is public and documented re-runnable, so remove a prior
+            // main-scene instance before adding a new one — otherwise a second call stacks a
+            // duplicate genre layout. RemoveChild is immediate (frees the name), then QueueFree.
+            if (GetNodeOrNull(childName) is { } existing)
+            {
+                RemoveChild(existing);
+                existing.QueueFree();
+            }
             var instance = packed.Instantiate();
-            instance.Name = $"_{GenreId}Main";   // underscore prefix → sorts first
+            instance.Name = childName;
             AddChild(instance);
         }
 

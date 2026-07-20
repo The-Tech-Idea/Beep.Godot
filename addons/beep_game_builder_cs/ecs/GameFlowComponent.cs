@@ -38,7 +38,8 @@ namespace Beep.ECS
         /// "pause" to Escape.</summary>
         [Export] public string PauseAction { get; set; } = "pause";
 
-        /// <summary>Overlay to instance. Empty = GameInfo.PauseMenuPath.</summary>
+        /// <summary>Pause overlay to instance. Empty = the main menu (GameApp.MainMenuPath). A genre
+        /// sets this to show its own pause screen instead (e.g. topdown's tabbed subscreen).</summary>
         [Export] public string PauseMenuPathOverride { get; set; } = "";
 
         [Signal] public delegate void ScoreChangedEventHandler(int score);
@@ -50,6 +51,10 @@ namespace Beep.ECS
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;   // don't run session/GameInfo logic at design time (the other [Tool] components guard too)
+            // Run while the tree is paused so the pause action can CLOSE the overlay (resume), not just
+            // open it — a pausable node is frozen while paused. Only _UnhandledInput is affected; this
+            // component has no _Process, so gameplay stays frozen behind the overlay.
+            ProcessMode = ProcessModeEnum.Always;
             // Mark game as running
             if (GameApp.Instance != null)
                 GameApp.Instance.SetGameRunning(true);
@@ -79,9 +84,16 @@ namespace Beep.ECS
             // best-score record) was updated only by the now-removed ScoreComponent.
             GameApp.Instance?.AddSessionScore(amount);
             EmitSignal(SignalName.ScoreChanged, Score);
-            if (Score >= TargetScore && TargetScore > 0)
+            // Emit LevelComplete once, on the crossing — not on every further score past the target
+            // (which re-fired the completion each time). Reset() re-arms it for the next level.
+            if (Score >= TargetScore && TargetScore > 0 && !_levelCompleteEmitted)
+            {
+                _levelCompleteEmitted = true;
                 EmitSignal(SignalName.LevelComplete);
+            }
         }
+
+        private bool _levelCompleteEmitted;
 
         public void LoseLife(int amount = 1)
         {
@@ -103,6 +115,7 @@ namespace Beep.ECS
         {
             Score = 0;
             Lives = startLives;
+            _levelCompleteEmitted = false;   // re-arm the level-complete latch for the new level
             EmitSignal(SignalName.ScoreChanged, Score);
             EmitSignal(SignalName.LivesChanged, Lives);
         }
@@ -169,19 +182,16 @@ namespace Beep.ECS
             }
         }
 
-        // ── Pause overlay ────────────────────────────────────────────────────
-        // Every gameplay scene needs a way back to the main menu. The pause overlay
-        // provides it, but it is a separate scene that nothing instanced — so the
-        // pause action did nothing during play. This component is already present in
-        // every genre's main scene, so opening the overlay from here wires it up
-        // everywhere without touching the scenes.
-        //
-        // Opening and closing are split by ProcessMode, so they never both fire:
-        //   unpaused → this component gets input and opens the overlay
-        //   paused   → the overlay's own PauseComponent is WhenPaused, so it gets the
-        //              input and closes itself (as does its Resume button).
+        // ── Pause = the main menu, shown as an overlay ───────────────────────
+        // There is no dedicated pause menu: pausing just shows the main menu over the frozen
+        // game, and pressing the pause action again resumes exactly where the player left off.
+        // This component is the single pause toggle. It runs with ProcessMode = Always (set in
+        // _Ready) so it still receives the pause action WHILE the tree is paused — a pausable
+        // node is frozen while paused and could only ever open, never close. The overlay is
+        // Always too, so its buttons (and its entry animation) stay live over the frozen game.
 
         private Node? _pauseOverlay;
+        private bool _pausedByUs;   // did WE set GetTree().Paused? Only then may Close unpause it.
 
         public override void _UnhandledInput(InputEvent @event)
         {
@@ -189,58 +199,81 @@ namespace Beep.ECS
             if (string.IsNullOrEmpty(PauseAction) || !InputMap.HasAction(PauseAction)) return;
             if (!@event.IsActionPressed(PauseAction)) return;
 
-            OpenPauseMenu();
+            TogglePauseMenu();
             GetViewport()?.SetInputAsHandled();
         }
 
-        /// <summary>Instance the pause overlay over the current scene and pause the tree.
-        /// Reuses the existing instance if it is still alive (the overlay's Resume button
-        /// frees itself, in which case a fresh one is created).</summary>
+        /// <summary>Pause action pressed: open the menu overlay if closed, close (resume) if open.</summary>
+        public void TogglePauseMenu()
+        {
+            if (GodotObject.IsInstanceValid(_pauseOverlay)) ClosePauseMenu();
+            else OpenPauseMenu();
+        }
+
+        /// <summary>Instance the menu over the current scene and pause the tree. The overlay defaults
+        /// to the main menu (GameApp.MainMenuPath); a genre may point PauseMenuPathOverride at its own
+        /// pause screen (e.g. topdown's tabbed subscreen).</summary>
         public void OpenPauseMenu()
         {
+            var tree = GetTree();
+            if (tree == null) return;
+
+            // Don't open over a pause someone ELSE owns (e.g. an open GenreScreenComponent inventory,
+            // which also pauses the tree). We'd stack an invisible menu under it, and our Close would
+            // then unpause the game while that screen is still up. GameFlow only manages its own pause.
+            if (tree.Paused) return;
+
             string path = !string.IsNullOrEmpty(PauseMenuPathOverride)
                 ? PauseMenuPathOverride
-                : GameApp.Instance?.PauseMenuPath ?? "";
+                : GameApp.Instance?.MainMenuPath ?? "";
 
             if (string.IsNullOrEmpty(path) || !ResourceLoader.Exists(path))
             {
-                GD.PushError($"[GameFlow] Pause menu scene not found: '{path}'. Set GameInfo.PauseMenuPath.");
+                GD.PushError($"[GameFlow] Pause overlay scene not found: '{path}'. Set GameInfo.MainMenuPath or PauseMenuPathOverride.");
                 return;
             }
 
-            if (!GodotObject.IsInstanceValid(_pauseOverlay))
+            var packed = GD.Load<PackedScene>(path);
+            if (packed == null)
             {
-                var packed = GD.Load<PackedScene>(path);
-                if (packed == null)
-                {
-                    GD.PushError($"[GameFlow] Could not load pause menu: {path}");
-                    return;
-                }
-
-                _pauseOverlay = packed.Instantiate();
-                // Parent to the current scene so it dies with it, not with this node.
-                (GetTree()?.CurrentScene ?? GetParent()).AddChild(_pauseOverlay);
+                GD.PushError($"[GameFlow] Could not load pause overlay: {path}");
+                return;
             }
 
-            // Let the overlay's own PauseComponent show itself and pause the tree — it
-            // owns the visibility/ProcessMode rules. Fall back to pausing directly if the
-            // overlay doesn't ship one.
-            if (FindPauseComponent(_pauseOverlay!) is { } pause)
-                pause.Pause();
+            var overlay = packed.Instantiate();
+            // A Control-rooted overlay (the main menu) MUST be hosted in a CanvasLayer. Parented straight
+            // under the Node2D game root it would join the WORLD canvas — riding the Camera2D and drawing
+            // beneath the HUD CanvasLayers (layers go up to 30, so host at 100). A CanvasLayer-rooted
+            // overlay (topdown's subscreen) already provides its own screen-space canvas — add it as-is.
+            Node host;
+            if (overlay is CanvasLayer) host = overlay;
             else
             {
-                _pauseOverlay!.ProcessMode = Node.ProcessModeEnum.WhenPaused;
-                var tree = GetTree();
-                if (tree != null) tree.Paused = true;
+                var layer = new CanvasLayer { Name = "PauseOverlayLayer", Layer = 100 };
+                layer.AddChild(overlay);
+                host = layer;
             }
+            // Always so the overlay's buttons — and any entry animation — run over the frozen game.
+            // Set before AddChild so the animation's _Ready sees the right mode (children inherit it).
+            host.ProcessMode = Node.ProcessModeEnum.Always;
+            // Parent to the current scene so it dies with it, not with this node.
+            (tree.CurrentScene ?? GetParent()).AddChild(host);
+            _pauseOverlay = host;
+
+            tree.Paused = true;
+            _pausedByUs = true;
         }
 
-        private static UI.PauseComponent? FindPauseComponent(Node node)
+        /// <summary>Resume: free the overlay and unpause — but only unpause the pause WE created, so a
+        /// close can't resume the game underneath a screen someone else paused for.</summary>
+        public void ClosePauseMenu()
         {
-            if (node is UI.PauseComponent p) return p;
-            foreach (var child in node.GetChildren())
-                if (FindPauseComponent(child) is { } found) return found;
-            return null;
+            var tree = GetTree();
+            if (tree != null && _pausedByUs) tree.Paused = false;
+            _pausedByUs = false;
+            if (GodotObject.IsInstanceValid(_pauseOverlay))
+                _pauseOverlay!.QueueFree();
+            _pauseOverlay = null;
         }
     }
 }

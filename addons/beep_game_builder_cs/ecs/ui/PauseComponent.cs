@@ -3,11 +3,15 @@ using Godot;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Pause overlay controller. Attach as a child of the pause-menu Control
-    /// (which should be a CanvasLayer or Control on its own layer). On the
-    /// <c>pause</c> input action it toggles <c>GetTree().Paused</c> and
-    /// shows/hides the parent. The parent's <c>ProcessMode</c> must be
-    /// <c>WhenPaused</c> so it stays interactive while gameplay is frozen.
+    /// Optional self-contained pause controller for a CUSTOM pause overlay. The framework's default
+    /// pause needs none of this: <see cref="GameFlowComponent"/> shows the main menu over the frozen
+    /// game and toggles it. Use this only when you build your own pause overlay scene and want it to
+    /// pause/toggle itself.
+    ///
+    /// Attach it as a child of your overlay's root (a CanvasLayer or Control on its own layer). On the
+    /// <c>pause</c> input action it toggles <c>GetTree().Paused</c> and shows/hides the parent, and sets
+    /// the parent's <c>ProcessMode</c> to <c>Always</c> so its buttons stay clickable while gameplay is
+    /// frozen (WhenPaused did not reliably deliver GUI input, so the overlay rendered but froze).
     ///
     /// Pair with a <see cref="MenuComponent"/> (action "resume"/"restart"/"menu")
     /// connected to a <c>NavigationComponent</c> for the full pause loop.
@@ -34,16 +38,18 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             // Runtime only: this mutates the PARENT (ProcessMode + hides it). Without the
-            // guard, opening pause_menu.tscn in the editor flips the parent's ProcessMode
+            // guard, opening the overlay scene in the editor flips the parent's ProcessMode
             // and hides it in the viewport.
             if (Engine.IsEditorHint()) return;
 
             // Accept any Node parent — both Control and CanvasLayer roots work.
             _overlay = GetParent();
-            // The overlay must run while the tree is paused.
+            // The overlay must stay interactive while the tree is paused. Always (not WhenPaused): a
+            // WhenPaused Control did not reliably receive mouse/GUI input here, so the pause buttons
+            // froze with the game. Always keeps them clickable and matches the sub-overlays that work.
             if (_overlay != null)
             {
-                _overlay.ProcessMode = Node.ProcessModeEnum.WhenPaused;
+                _overlay.ProcessMode = Node.ProcessModeEnum.Always;
                 SetOverlayVisible(false);
             }
         }

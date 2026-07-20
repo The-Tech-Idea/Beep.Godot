@@ -48,6 +48,16 @@ namespace Beep.ECS
         public Node? Get()
         {
             if (!IsActive || Scene == null) return null;
+
+            // Purge instances that were freed while idle (e.g. a self-freeing projectile that was
+            // Release()d then QueueFree()d). Without this, Get() could hand out a freed node and
+            // AddChild would fail. Each purge frees a slot back under MaxSize.
+            while (_pool.Count > 0 && !GodotObject.IsInstanceValid(_pool.Peek()))
+            {
+                _pool.Dequeue();
+                _totalAllocated--;
+            }
+
             if (_pool.Count == 0) Expand();      // self-caps at MaxSize; no-op when at the ceiling
             if (_pool.Count == 0) return null;   // at cap and everything is checked out
 
@@ -61,6 +71,9 @@ namespace Beep.ECS
         public void Release(Node inst)
         {
             if (inst == null || !GodotObject.IsInstanceValid(inst)) return;
+            // Ignore a double-Release: without this, the same node sits in the queue twice and two
+            // Get() callers receive it, both driving the one instance.
+            if (_pool.Contains(inst)) return;
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
             _pool.Enqueue(inst);   // already counted in _totalAllocated when it was created

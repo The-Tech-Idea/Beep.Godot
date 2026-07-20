@@ -53,41 +53,58 @@
   "textures": {
     "button_normal": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/button_normal.png",
-      "margin_left": 16,
-      "margin_top": 16,
-      "margin_right": 16,
-      "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1,
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
       "draw_center": true,
       "modulate": "#FFFFFFFF"
     },
     "button_hover": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/button_hover.png",
-      "margin_left": 16,
-      "margin_top": 16,
-      "margin_right": 16,
-      "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     },
     "button_pressed": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/button_pressed.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 20,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/button_normal.png",
+      "margin_left": 20,
+      "margin_top": 20,
+      "margin_right": 20,
+      "margin_bottom": 28,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/panel.png",
       "margin_left": 16,
       "margin_top": 16,
       "margin_right": 16,
       "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
-    },
-    "panel": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/strategy/blueprint/panel.png",
-      "margin_left": 8,
-      "margin_top": 8,
-      "margin_right": 8,
-      "margin_bottom": 8,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     }
   }
 }

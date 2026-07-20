@@ -4,19 +4,107 @@
   "category": "Retro",
   "description": "NES / SNES retro gaming UI — sharp zero-radius corners, solid white 4px border, chunky primary colors",
   "colors": {
-    "surface_primary": "#000000FF", "surface_hover": "#CC0000FF", "surface_pressed": "#800000FF", "surface_disabled": "#333333FF",
-    "text_primary": "#FFFFFFFF", "text_hover": "#FFFF00FF", "text_disabled": "#666666FF", "text_on_dark": "#FFFFFFFF",
-    "accent_primary": "#FF0000FF", "accent_secondary": "#0000FFFF",
-    "border_normal": "#FFFFFFFF", "border_hover": "#FFFF00FF", "border_focus": "#FF0000FF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#000000FF", "bg_panel": "#000078FF", "bg_canvas": "#000000FF",
-    "semantic_success": "#00CC00FF", "semantic_danger": "#FF0000FF", "semantic_warning": "#FFFF00FF", "semantic_info": "#0000FFFF"
+    "surface_primary": "#000000FF",
+    "surface_hover": "#CC0000FF",
+    "surface_pressed": "#800000FF",
+    "surface_disabled": "#333333FF",
+    "text_primary": "#FFFFFFFF",
+    "text_hover": "#FFFF00FF",
+    "text_disabled": "#666666FF",
+    "text_on_dark": "#FFFFFFFF",
+    "accent_primary": "#FF0000FF",
+    "accent_secondary": "#0000FFFF",
+    "border_normal": "#FFFFFFFF",
+    "border_hover": "#FFFF00FF",
+    "border_focus": "#FF0000FF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#000000FF",
+    "bg_panel": "#000078FF",
+    "bg_canvas": "#000000FF",
+    "semantic_success": "#00CC00FF",
+    "semantic_danger": "#FF0000FF",
+    "semantic_warning": "#FFFF00FF",
+    "semantic_info": "#0000FFFF"
   },
   "geometry": {
-    "corner_radius": 0, "border_left": 4, "border_top": 4, "border_right": 4, "border_bottom": 4,
-    "shadow_size": 0, "shadow_offset_x": 0, "shadow_offset_y": 0,
-    "pad_left": 16, "pad_right": 16, "pad_top": 8, "pad_bottom": 8,
+    "corner_radius": 0,
+    "border_left": 4,
+    "border_top": 4,
+    "border_right": 4,
+    "border_bottom": 4,
+    "shadow_size": 0,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 0,
+    "pad_left": 16,
+    "pad_right": 16,
+    "pad_top": 8,
+    "pad_bottom": 8,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.0, "hover_duration": 0.0, "press_scale": 1.0, "press_duration": 0.0, "shadow_lift": false, "focus_glow": false }
+  "animation": {
+    "hover_scale": 1.0,
+    "hover_duration": 0.0,
+    "press_scale": 1.0,
+    "press_duration": 0.0,
+    "shadow_lift": false,
+    "focus_glow": false
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/pixel8bit/button_normal.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/pixel8bit/button_hover.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/pixel8bit/button_pressed.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/pixel8bit/button_normal.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/platformer/pixel8bit/panel.png",
+      "margin_left": 6,
+      "margin_top": 6,
+      "margin_right": 6,
+      "margin_bottom": 6,
+      "axis_stretch_horizontal": 1,
+      "axis_stretch_vertical": 1,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

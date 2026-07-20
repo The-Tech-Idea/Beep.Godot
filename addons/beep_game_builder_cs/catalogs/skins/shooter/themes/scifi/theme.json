@@ -4,42 +4,107 @@
   "category": "Dark",
   "description": "Dark cyberpunk UI — angled corners, neon cyan glow borders, dark indigo surface, pulsing focus glow",
   "colors": {
-    "surface_primary": "#0D0D21FF", "surface_hover": "#14143BFF", "surface_pressed": "#08081AFF", "surface_disabled": "#050517FF",
-    "text_primary": "#00E6FFFF", "text_hover": "#00FFFFFF", "text_disabled": "#404061FF", "text_on_dark": "#00E6FFFF",
-    "accent_primary": "#00E6FFFF", "accent_secondary": "#00B8D4FF",
-    "border_normal": "#00E6FF45", "border_hover": "#00E6FF99", "border_focus": "#00E6FFD9",
-    "border_bevel_light": "#FFFFFF00", "border_bevel_dark": "#FFFFFF00",
-    "shadow_color": "#00E6FF4D", "bg_panel": "#0A0A1AF2", "bg_canvas": "#050514FF",
-    "semantic_success": "#00D98CFF", "semantic_danger": "#FF334DFF", "semantic_warning": "#FFBF00FF", "semantic_info": "#00E6FFFF"
+    "surface_primary": "#0D0D21FF",
+    "surface_hover": "#14143BFF",
+    "surface_pressed": "#08081AFF",
+    "surface_disabled": "#050517FF",
+    "text_primary": "#00E6FFFF",
+    "text_hover": "#00FFFFFF",
+    "text_disabled": "#404061FF",
+    "text_on_dark": "#00E6FFFF",
+    "accent_primary": "#00E6FFFF",
+    "accent_secondary": "#00B8D4FF",
+    "border_normal": "#00E6FF45",
+    "border_hover": "#00E6FF99",
+    "border_focus": "#00E6FFD9",
+    "border_bevel_light": "#FFFFFF00",
+    "border_bevel_dark": "#FFFFFF00",
+    "shadow_color": "#00E6FF4D",
+    "bg_panel": "#0A0A1AF2",
+    "bg_canvas": "#050514FF",
+    "semantic_success": "#00D98CFF",
+    "semantic_danger": "#FF334DFF",
+    "semantic_warning": "#FFBF00FF",
+    "semantic_info": "#00E6FFFF"
   },
   "geometry": {
-    "corner_radius": 8, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 12, "shadow_offset_x": 0, "shadow_offset_y": 0,
-    "pad_left": 20, "pad_right": 20, "pad_top": 10, "pad_bottom": 10,
+    "corner_radius": 8,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 12,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 0,
+    "pad_left": 20,
+    "pad_right": 20,
+    "pad_top": 10,
+    "pad_bottom": 10,
     "font_size": 16
   },
-  "animation": { "hover_scale": 1.03, "hover_duration": 0.12, "press_scale": 0.97, "press_duration": 0.06, "shadow_lift": false, "focus_glow": true },
+  "animation": {
+    "hover_scale": 1.03,
+    "hover_duration": 0.12,
+    "press_scale": 0.97,
+    "press_duration": 0.06,
+    "shadow_lift": false,
+    "focus_glow": true
+  },
   "textures": {
     "button_normal": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/scifi/button_normal.png",
-      "margin_left": 12, "margin_top": 8, "margin_right": 12, "margin_bottom": 8,
-      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1,
-      "draw_center": true, "modulate": "#DDFFFFFF"
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/scifi/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     },
     "button_hover": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/scifi/button_hover.png",
-      "margin_left": 12, "margin_top": 8, "margin_right": 12, "margin_bottom": 8,
-      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/scifi/button_hover.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/scifi/button_pressed.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/scifi/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
     },
     "panel": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/scifi/panel.png",
-      "margin_left": 8, "margin_top": 8, "margin_right": 8, "margin_bottom": 8,
-      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1
-    },
-    "input_normal": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/scifi/input_normal.png",
-      "margin_left": 6, "margin_top": 6, "margin_right": 6, "margin_bottom": 6,
-      "axis_stretch_horizontal": 1, "axis_stretch_vertical": 1
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/scifi/panel.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     }
   }
 }

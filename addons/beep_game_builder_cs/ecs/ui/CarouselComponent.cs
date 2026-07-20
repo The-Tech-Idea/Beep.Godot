@@ -88,6 +88,15 @@ namespace Beep.ECS.UI
         public void Next() => GoToSlide((_currentIndex + 1) % _slides.Count);
         public void Previous() => GoToSlide((_currentIndex - 1 + _slides.Count) % _slides.Count);
 
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            // Keyboard / gamepad navigation. ui_left/ui_right are built-in actions (always present),
+            // so no InputActionsAvailable gate is needed.
+            if (!IsActive || Engine.IsEditorHint() || _slides.Count == 0) return;
+            if (@event.IsActionPressed("ui_right")) { Next(); GetViewport().SetInputAsHandled(); }
+            else if (@event.IsActionPressed("ui_left")) { Previous(); GetViewport().SetInputAsHandled(); }
+        }
+
         public void GoToSlide(int index, bool instant = false)
         {
             if (_container == null || !IsActive || _slides.Count == 0) return;
@@ -137,9 +146,15 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             foreach (var t in _activeTweens)
                 t?.Kill();
             _activeTweens.Clear();
+            // Undo the TopLevel we set on the (pre-existing) slide children, or a component removed
+            // alone leaves them frozen TopLevel at their last global position.
+            foreach (var slide in _slides)
+                if (GodotObject.IsInstanceValid(slide)) slide.TopLevel = false;
+            _slides.Clear();
         }
     }
 }

@@ -205,9 +205,15 @@ static func _bar(entry: Dictionary) -> Control:
 	return box
 
 
+# Compact shells (a static value / a plain label) stand in for animated widgets. They render nothing
+# moving on their own — say so via tooltip so the seam isn't silent (see _scaffold's visible hint).
+const _SHELL_HINT := "Static shell — the value/animation is yours to drive (a script, or a BeepUIEffect: Typewriter/Glitch/Shimmer)."
+
+
 static func _stat(entry: Dictionary) -> Control:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
+	box.tooltip_text = _SHELL_HINT
 	var cap := Label.new()
 	cap.text = String(entry.get("label", "STAT"))
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -225,6 +231,7 @@ static func _caption(entry: Dictionary) -> Control:
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.custom_minimum_size = Vector2(180, 28)
+	lbl.tooltip_text = _SHELL_HINT
 	return lbl
 
 
@@ -290,6 +297,10 @@ static func _toast_host(entry: Dictionary) -> Control:
 	# @tool scripts can fail at parse time, which breaks the preload chain.
 	var host: Control = TOAST_SCRIPT.new()
 	host.custom_minimum_size = Vector2(320, 120)
+	# Fill the parent so the host's size (which toasts now center on) matches the visible area — a
+	# fixed-size host pushed toasts off-position. A Container parent may still override this, but a
+	# free/anchored parent gets correct placement.
+	host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var lbl := Label.new()
 	lbl.text = String(entry.get("label", "Toasts")) + " — host (call show_toast(\"msg\"))"
 	lbl.add_theme_font_size_override("font_size", 11)
@@ -313,12 +324,23 @@ static func _overlay(entry: Dictionary) -> Control:
 	cr.color = Color(0, 0, 0, 0.35)
 	cr.custom_minimum_size = Vector2(320, 180)
 	cr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cr.tooltip_text = _SHELL_HINT
 	var lbl := Label.new()
 	lbl.text = String(entry.get("label", "Overlay"))
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cr.add_child(lbl)
+	# This overlay is a static tint + name — an evocative catalog id (glitch_effect, chromatic_aberration)
+	# is NOT self-animating. A visible note here, since the overlay has the room (unlike _stat/_caption),
+	# so a dropped-in FX widget doesn't read as "working but broken".
+	var hint := Label.new()
+	hint.text = "static shell — add a shader or BeepUIEffect to animate"
+	hint.add_theme_font_size_override("font_size", 10)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	hint.modulate = Color(1, 1, 1, 0.6)
+	cr.add_child(hint)
 	return cr
 
 

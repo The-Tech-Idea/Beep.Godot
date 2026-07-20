@@ -17,7 +17,6 @@ namespace Beep.ECS.UI
         [Export] public float StaggerDelay { get; set; } = 0.05f;
         [Export] public float InitialDelay { get; set; } = 0f;
         [Export] public bool AnimateOnReady { get; set; } = true;
-        [Export] public bool AnimateExit { get; set; } = false;
 
         [Signal] public delegate void MenuShownEventHandler();
         [Signal] public delegate void MenuHiddenEventHandler();
@@ -30,12 +29,12 @@ namespace Beep.ECS.UI
             base._Ready();
             _container = GetParent() as Container;
             // Same silent-cast trap as ThemePresetComponent: this animates the children of
-            // GetParent(), so a non-Container parent means it never runs. Both scenes that
-            // ship it parent it at the root (a Control / a CanvasLayer), so it has never
-            // animated anything. Reparent under the VBoxContainer holding the buttons.
+            // GetParent(), so a non-Container parent means it never runs. The shipped scenes now
+            // parent it under the item VBoxContainer (main_menu → Center/MenuVBox, game_over →
+            // Center/GameOverVBox), so it animates; the warning below catches a mis-parented copy.
             if (_container == null && !Engine.IsEditorHint())
                 GD.PushWarning($"[{Name}] AnimatedMenuComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Container — no menu animation will play. Reparent it under the container holding the items to animate.");
-            if (AnimateOnReady) CallDeferred(nameof(ShowAnimated));
+            if (AnimateOnReady) Callable.From(ShowAnimated).CallDeferred();
         }
 
         public void ShowAnimated()
@@ -150,17 +149,9 @@ namespace Beep.ECS.UI
             _ => 0f
         };
 
-        private Vector2 GetDirectionOffset() => EntryDirection switch
-        {
-            Direction.FromLeft => new Vector2(100f, 0),
-            Direction.FromRight => new Vector2(-100f, 0),
-            Direction.FromTop => new Vector2(0, 50f),
-            Direction.FromBottom => new Vector2(0, -50f),
-            _ => Vector2.Zero
-        };
-
         public override void _ExitTree()
         {
+            base._ExitTree();
             foreach (var t in _activeTweens)
                 t?.Kill();
             _activeTweens.Clear();

@@ -43,6 +43,8 @@ namespace Beep.ECS
         {
             if (_body == null || !IsActive) return;
             if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no hover
+            // Gate input reads so an absent action doesn't spam per-frame errors pre-generation.
+            if (!InputActionsAvailable(HoverAction)) return;
             float dt = (float)delta;
 
             _cooldownTimer = Mathf.Max(0, _cooldownTimer - dt);

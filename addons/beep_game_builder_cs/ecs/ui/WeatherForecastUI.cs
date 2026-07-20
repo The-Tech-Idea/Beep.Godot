@@ -163,12 +163,15 @@ namespace Beep.ECS
             return panel;
         }
 
+        // Keys match the names WeatherForecast stamps into WeatherData.WeatherType (Clear/Cloudy/Rain/
+        // Storm) — the generator used to emit "Rainy"/"Stormy", so these lookups fell through to the
+        // default color/icon. Legacy names kept as aliases for any hand-authored data.
         private Color GetWeatherColor(string weatherType) => weatherType switch
         {
             "Clear" => ClearColor,
             "Cloudy" => CloudyColor,
-            "Rainy" => RainyColor,
-            "Stormy" => StormyColor,
+            "Rain" or "Rainy" => RainyColor,
+            "Storm" or "Stormy" => StormyColor,
             _ => Colors.White
         };
 
@@ -176,8 +179,8 @@ namespace Beep.ECS
         {
             "Clear" => "☀️",
             "Cloudy" => "☁️",
-            "Rainy" => "🌧️",
-            "Stormy" => "⛈️",
+            "Rain" or "Rainy" => "🌧️",
+            "Storm" or "Stormy" => "⛈️",
             _ => "?"
         };
 

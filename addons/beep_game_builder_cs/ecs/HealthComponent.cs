@@ -153,7 +153,9 @@ namespace Beep.ECS
         public void Revive(float toHealth = -1f)
         {
             if (!IsActive) return;
-            float target = toHealth > 0f ? Mathf.Min(toHealth, MaxHealth) : MaxHealth;
+            // Only a NEGATIVE value is the "full" sentinel — an explicit 0 (or any >= 0) is honored,
+            // clamped up to a minimum of 1 so the entity is guaranteed alive (not instantly re-dead).
+            float target = toHealth >= 0f ? Mathf.Min(toHealth, MaxHealth) : MaxHealth;
             CurrentHealth = Mathf.Max(1f, target);
             EmitSignal(SignalName.Revived, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);

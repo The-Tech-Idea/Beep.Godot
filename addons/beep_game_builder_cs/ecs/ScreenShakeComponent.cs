@@ -50,7 +50,14 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (_cam == null || _trauma <= 0) return;
+            if (_cam == null) return;
+            // Deactivated mid-shake: stop and re-center, don't leave the camera offset stuck.
+            if (!IsActive)
+            {
+                if (_trauma > 0) { _trauma = 0; _cam.Offset = Vector2.Zero; }
+                return;
+            }
+            if (_trauma <= 0) return;
 
             _trauma = Mathf.Max(0, _trauma - _decayPerSec * (float)delta);
             float trauma01 = _trauma / MaxTrauma;

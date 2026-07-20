@@ -143,9 +143,9 @@ namespace Beep.ECS.UI
             Node parent = GetTree()?.CurrentScene ?? this;
 
             // Host a Control-rooted screen in a CanvasLayer of our own. SettingsOverlay can
-            // AddChild straight onto the scene because settings_menu/pause_menu are
-            // CanvasLayer-rooted; the genre screens are Control-rooted, and the genre mains
-            // are Node2D. A Control parented under a Node2D joins the WORLD canvas: it
+            // AddChild straight onto the scene because settings_menu is CanvasLayer-rooted;
+            // the genre screens are Control-rooted, and the genre mains are Node2D. A Control
+            // parented under a Node2D joins the WORLD canvas: it
             // anchors against its parent's (empty) rect instead of the viewport, rides the
             // Camera2D transform, and draws beneath the scene's own HUD layer — i.e. the
             // screen opens as an invisible, unclickable, zero-sized node. The CanvasLayer

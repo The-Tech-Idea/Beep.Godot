@@ -72,7 +72,11 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(Bind));
+            // Don't bind at edit time — Bind() scans for a weather system, and standalone in the
+            // editor there is none, so it only emitted spurious "No WeatherSystemComponent" Output
+            // noise (the sibling atmosphere [Tool] components all guard this).
+            if (Engine.IsEditorHint()) return;
+            Callable.From(Bind).CallDeferred();
         }
 
         public void Bind()

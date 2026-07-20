@@ -23,6 +23,7 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
         private StatsComponent? _stats;
+        private bool _wasMoving;
 
         public override void _Ready()
         {
@@ -50,11 +51,18 @@ namespace Beep.ECS
             {
                 _body.Velocity = _body.Velocity.MoveToward(input * finalSpeed, Acceleration * (float)delta);
                 EmitSignal(SignalName.Moved, input);
+                _wasMoving = true;
             }
             else
             {
                 _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, Friction * (float)delta);
-                if (_body.Velocity.Length() < 1f) EmitSignal(SignalName.Stopped);
+                // Emit Stopped once, on the moving→stopped edge — not every frame at rest, which
+                // would retrigger an idle animation / footstep-loop-stop ~60×/sec.
+                if (_body.Velocity.Length() < 1f && _wasMoving)
+                {
+                    _wasMoving = false;
+                    EmitSignal(SignalName.Stopped);
+                }
             }
             _body.MoveAndSlide();
         }

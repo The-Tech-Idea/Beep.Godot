@@ -4,19 +4,107 @@
   "category": "SciFi",
   "description": "Rain-slick neon dystopian UI — dark void surface, neon pink accent, cyan glow border, angular corners",
   "colors": {
-    "surface_primary": "#0D0D1AFF", "surface_hover": "#1A0D26FF", "surface_pressed": "#080812FF", "surface_disabled": "#0A0A14FF",
-    "text_primary": "#00FFFFFF", "text_hover": "#FF00FFFF", "text_disabled": "#404D66FF", "text_on_dark": "#FF00FFFF",
-    "accent_primary": "#FF00FFFF", "accent_secondary": "#00FFFFFF",
-    "border_normal": "#00FFFFFF", "border_hover": "#FF00FFFF", "border_focus": "#FF00FFFF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#FF00FFFF", "bg_panel": "#080814FF", "bg_canvas": "#05050DFF",
-    "semantic_success": "#00FF80FF", "semantic_danger": "#FF004DFF", "semantic_warning": "#FFFF00FF", "semantic_info": "#00FFFFFF"
+    "surface_primary": "#0D0D1AFF",
+    "surface_hover": "#1A0D26FF",
+    "surface_pressed": "#080812FF",
+    "surface_disabled": "#0A0A14FF",
+    "text_primary": "#00FFFFFF",
+    "text_hover": "#FF00FFFF",
+    "text_disabled": "#404D66FF",
+    "text_on_dark": "#FF00FFFF",
+    "accent_primary": "#FF00FFFF",
+    "accent_secondary": "#00FFFFFF",
+    "border_normal": "#00FFFFFF",
+    "border_hover": "#FF00FFFF",
+    "border_focus": "#FF00FFFF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#FF00FFFF",
+    "bg_panel": "#080814FF",
+    "bg_canvas": "#05050DFF",
+    "semantic_success": "#00FF80FF",
+    "semantic_danger": "#FF004DFF",
+    "semantic_warning": "#FFFF00FF",
+    "semantic_info": "#00FFFFFF"
   },
   "geometry": {
-    "corner_radius": 2, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 12, "shadow_offset_x": 0, "shadow_offset_y": 0,
-    "pad_left": 16, "pad_right": 16, "pad_top": 8, "pad_bottom": 8,
+    "corner_radius": 2,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 12,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 0,
+    "pad_left": 16,
+    "pad_right": 16,
+    "pad_top": 8,
+    "pad_bottom": 8,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.04, "hover_duration": 0.10, "press_scale": 0.96, "press_duration": 0.05, "shadow_lift": false, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.04,
+    "hover_duration": 0.1,
+    "press_scale": 0.96,
+    "press_duration": 0.05,
+    "shadow_lift": false,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/cyberpunk/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/cyberpunk/button_hover.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/cyberpunk/button_pressed.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/cyberpunk/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/shooter/cyberpunk/panel.png",
+      "margin_left": 16,
+      "margin_top": 16,
+      "margin_right": 16,
+      "margin_bottom": 16,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

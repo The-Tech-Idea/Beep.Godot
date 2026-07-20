@@ -22,8 +22,7 @@ scripts, no legacy compatibility code.**
 
 | Path | Purpose | Genre | Auto-instantiated? |
 |------|---------|-------|---------------------|
-| `templates/scenes/main_menu.tscn` | Title + Start/Options/Quit + ThemePreset + GameInfoBinder | shared | no |
-| `templates/scenes/pause_menu.tscn` | Dimmed overlay + Resume/Restart/Quit | shared | no |
+| `templates/scenes/main_menu.tscn` | Title + Start/Options/Quit + ThemePreset + GameInfoBinder. Also doubles as the **pause overlay** (GameFlowComponent shows it over the frozen game; pause again resumes) | shared | as pause overlay |
 | `templates/scenes/settings_menu.tscn` | Resolution/Fullscreen/Volume/Back | shared | no |
 | `templates/scenes/hud.tscn` | Score/Lives/Health labels + HudComponent | shared | no |
 | `templates/scenes/game_over.tscn` | Title + ScoreSummary + Retry/MainMenu | shared | no |

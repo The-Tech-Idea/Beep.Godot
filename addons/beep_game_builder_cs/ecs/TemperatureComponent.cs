@@ -101,7 +101,7 @@ namespace Beep.ECS
             if (_health == null)
                 GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
             _stats = GetSiblingComponent<StatsComponent>();
-            CallDeferred(nameof(SetupVignette));
+            Callable.From(SetupVignette).CallDeferred();
         }
 
         /// <summary>Resolve the scene's atmosphere so weather/season/night can drive ambient

@@ -4,19 +4,107 @@
   "category": "Genre",
   "description": "Tactical / camo UI — olive drab surface, khaki brass accent, sharp square corners, hard utilitarian shadow",
   "colors": {
-    "surface_primary": "#4A4D3DFF", "surface_hover": "#595C4AFF", "surface_pressed": "#383B2EFF", "surface_disabled": "#2E3029FF",
-    "text_primary": "#E0DBCCFF", "text_hover": "#F2EDE0FF", "text_disabled": "#737066FF", "text_on_dark": "#D4A842FF",
-    "accent_primary": "#D4A842FF", "accent_secondary": "#A6802EFF",
-    "border_normal": "#292E1CFF", "border_hover": "#D4A842FF", "border_focus": "#D4A842FF",
-    "border_bevel_light": "#FFFFFFFF", "border_bevel_dark": "#FFFFFFFF",
-    "shadow_color": "#000000FF", "bg_panel": "#383B2EFF", "bg_canvas": "#26291FFF",
-    "semantic_success": "#4D7340FF", "semantic_danger": "#B2382EFF", "semantic_warning": "#D4A842FF", "semantic_info": "#4780A6FF"
+    "surface_primary": "#4A4D3DFF",
+    "surface_hover": "#595C4AFF",
+    "surface_pressed": "#383B2EFF",
+    "surface_disabled": "#2E3029FF",
+    "text_primary": "#E0DBCCFF",
+    "text_hover": "#F2EDE0FF",
+    "text_disabled": "#737066FF",
+    "text_on_dark": "#D4A842FF",
+    "accent_primary": "#D4A842FF",
+    "accent_secondary": "#A6802EFF",
+    "border_normal": "#292E1CFF",
+    "border_hover": "#D4A842FF",
+    "border_focus": "#D4A842FF",
+    "border_bevel_light": "#FFFFFFFF",
+    "border_bevel_dark": "#FFFFFFFF",
+    "shadow_color": "#000000FF",
+    "bg_panel": "#383B2EFF",
+    "bg_canvas": "#26291FFF",
+    "semantic_success": "#4D7340FF",
+    "semantic_danger": "#B2382EFF",
+    "semantic_warning": "#D4A842FF",
+    "semantic_info": "#4780A6FF"
   },
   "geometry": {
-    "corner_radius": 2, "border_left": 2, "border_top": 2, "border_right": 2, "border_bottom": 2,
-    "shadow_size": 4, "shadow_offset_x": 0, "shadow_offset_y": 2,
-    "pad_left": 14, "pad_right": 14, "pad_top": 7, "pad_bottom": 7,
+    "corner_radius": 2,
+    "border_left": 2,
+    "border_top": 2,
+    "border_right": 2,
+    "border_bottom": 2,
+    "shadow_size": 4,
+    "shadow_offset_x": 0,
+    "shadow_offset_y": 2,
+    "pad_left": 14,
+    "pad_right": 14,
+    "pad_top": 7,
+    "pad_bottom": 7,
     "font_size": 14
   },
-  "animation": { "hover_scale": 1.02, "hover_duration": 0.08, "press_scale": 0.98, "press_duration": 0.04, "shadow_lift": false, "focus_glow": true }
+  "animation": {
+    "hover_scale": 1.02,
+    "hover_duration": 0.08,
+    "press_scale": 0.98,
+    "press_duration": 0.04,
+    "shadow_lift": false,
+    "focus_glow": true
+  },
+  "textures": {
+    "button_normal": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/military/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_hover": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/military/button_hover.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    },
+    "button_pressed": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/military/button_pressed.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/military/button_normal.png",
+      "margin_left": 18,
+      "margin_top": 18,
+      "margin_right": 18,
+      "margin_bottom": 18,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/topdown/military/panel.png",
+      "margin_left": 24,
+      "margin_top": 24,
+      "margin_right": 24,
+      "margin_bottom": 24,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
+    }
+  }
 }

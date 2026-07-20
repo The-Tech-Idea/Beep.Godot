@@ -55,7 +55,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_health != null) _health.Died -= Roll;
+            if (_health != null && GodotObject.IsInstanceValid(_health)) _health.Died -= Roll;
             // Do NOT free the spawned drops here. They were reparented to the level and must OUTLIVE
             // this component — which is freed the instant its dying entity is (a destructible's
             // Break() QueueFrees the body on the same Died that rolled the loot). Freeing them here
@@ -127,8 +127,8 @@ namespace Beep.ECS
         {
             for (int attempt = 0; attempt < MaxPlacementAttempts; attempt++)
             {
-                Vector2 direction = Vector2.FromAngle((float)GD.Randf() * Mathf.Tau);
-                float distance = (float)GD.Randf() * ScatterRadius;
+                Vector2 direction = Vector2.FromAngle(GD.Randf() * Mathf.Tau);
+                float distance = GD.Randf() * ScatterRadius;
                 Vector2 candidate = center + direction * distance;
 
                 // Drop already-freed entries (their lifetime timer fired) before spacing against them.
@@ -147,7 +147,7 @@ namespace Beep.ECS
             }
 
             // Fallback: random placement if all attempts fail
-            return center + Vector2.FromAngle((float)GD.Randf() * Mathf.Tau) * ScatterRadius;
+            return center + Vector2.FromAngle(GD.Randf() * Mathf.Tau) * ScatterRadius;
         }
 
         private void ScheduleDropCleanup(Node2D drop)

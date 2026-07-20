@@ -39,6 +39,12 @@ namespace Beep.ECS.UI
             var tree = caller.GetTree();
             if (tree == null) return;
 
+            // Always unpause when leaving a scene. Navigation can be triggered from the pause overlay
+            // (the main menu shown over a frozen game), and GetTree().Paused persists across a scene
+            // change — so without this the destination scene would load frozen. Tearing down the scene
+            // means the pause flag must not survive.
+            tree.Paused = false;
+
             // If the current scene ships a SceneTransitionComponent, fade out through it and
             // swap scenes when the fade finishes. Without this the Transition node in the menus
             // spawned its rect and never played — every navigation was a hard cut. CanPlay

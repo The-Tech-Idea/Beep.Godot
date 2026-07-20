@@ -132,6 +132,11 @@ namespace Beep.ECS.UI
 		private bool _isSingleButton;
 		private Theme? _generatedTheme;
 		private readonly Dictionary<Button, Tween?> _activeTweens = new();
+		// Undo actions for the per-button signal handlers SetupButtonAnimations attaches. The
+		// handlers capture this (IsActive, _presetInstance, _activeTweens); if the themer is
+		// removed while the themed buttons persist, a later hover/press would fire them on a
+		// freed component. Run on _ExitTree to disconnect.
+		private readonly System.Collections.Generic.List<System.Action> _buttonDisconnectors = new();
 
 		public override void _Ready()
 		{
@@ -159,6 +164,8 @@ namespace Beep.ECS.UI
 		{
 			foreach (var kvp in _activeTweens) kvp.Value?.Kill();
 			_activeTweens.Clear();
+			foreach (var disconnect in _buttonDisconnectors) disconnect();
+			_buttonDisconnectors.Clear();
 			if (_backgroundRect != null && GodotObject.IsInstanceValid(_backgroundRect))
 				_backgroundRect.QueueFree();
 			_backgroundRect = null;
@@ -263,7 +270,6 @@ namespace Beep.ECS.UI
 				InjectIntoButtons(root);
       		// Per-node overrides for immediate editor visibility
 			ApplyButtonOverrides(root, preset);
-				ApplyButtonOverrides(this, preset);
 		}
 
       	private void ApplyButtonOverrides(Node node, IThemePreset preset)
@@ -678,7 +684,7 @@ namespace Beep.ECS.UI
 			btn.OffsetTransformEnabled = true;
 
 			var anim = _presetInstance!.Animation;
-			btn.MouseEntered += () =>
+			System.Action onMouseEntered = () =>
 			{
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
@@ -689,7 +695,7 @@ namespace Beep.ECS.UI
 					t.TweenProperty(btn, "offset_transform_position:y", -2f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
-			btn.MouseExited += () =>
+			System.Action onMouseExited = () =>
 			{
 				if (!IsActive || !EnableAnimations) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
@@ -699,7 +705,7 @@ namespace Beep.ECS.UI
 					t.TweenProperty(btn, "offset_transform_position:y", 0f, anim.HoverScaleDuration).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
-			btn.ButtonDown += () =>
+			System.Action onButtonDown = () =>
 			{
 				if (!IsActive || !EnableAnimations || !btn.IsVisibleInTree()) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
@@ -708,7 +714,7 @@ namespace Beep.ECS.UI
 				t.TweenProperty(btn, "offset_transform_scale", new Vector2(anim.PressScaleAmount, anim.PressScaleAmount), anim.PressScaleDuration).SetEase(Tween.EaseType.In);
 				_activeTweens[btn] = t;
 			};
-			btn.ButtonUp += () =>
+			System.Action onButtonUp = () =>
 			{
 				if (!IsActive || !EnableAnimations) return;
 				if (_activeTweens.TryGetValue(btn, out var e)) e?.Kill();
@@ -716,21 +722,41 @@ namespace Beep.ECS.UI
 				t.TweenProperty(btn, "offset_transform_scale", Vector2.One, anim.PressScaleDuration * 1.5f).SetEase(Tween.EaseType.Out);
 				_activeTweens[btn] = t;
 			};
+			btn.MouseEntered += onMouseEntered;
+			btn.MouseExited += onMouseExited;
+			btn.ButtonDown += onButtonDown;
+			btn.ButtonUp += onButtonUp;
+			_buttonDisconnectors.Add(() =>
+			{
+				if (!GodotObject.IsInstanceValid(btn)) return;
+				btn.MouseEntered -= onMouseEntered;
+				btn.MouseExited -= onMouseExited;
+				btn.ButtonDown -= onButtonDown;
+				btn.ButtonUp -= onButtonUp;
+			});
 			if (anim.EnableFocusGlow)
 			{
 				// Glow toward the theme's secondary accent so the focus state matches the theme.
 				var c = _presetInstance!.Colors;
 				Color glowTarget = c.AccentSecondary.Blend(c.TextOnDark);
-				btn.FocusEntered += () =>
+				System.Action onFocusEntered = () =>
 				{
 					if (!IsActive || !EnableAnimations) return;
 					btn.CreateTween().TweenProperty(btn, "modulate", glowTarget, 0.2f).SetEase(Tween.EaseType.Out);
 				};
-				btn.FocusExited += () =>
+				System.Action onFocusExited = () =>
 				{
 					if (!IsActive || !EnableAnimations) return;
 					btn.CreateTween().TweenProperty(btn, "modulate", new Color(1f, 1f, 1f, 1f), 0.2f).SetEase(Tween.EaseType.Out);
 				};
+				btn.FocusEntered += onFocusEntered;
+				btn.FocusExited += onFocusExited;
+				_buttonDisconnectors.Add(() =>
+				{
+					if (!GodotObject.IsInstanceValid(btn)) return;
+					btn.FocusEntered -= onFocusEntered;
+					btn.FocusExited -= onFocusExited;
+				});
 			}
 		}
 

@@ -26,7 +26,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(Setup));
+            Callable.From(Setup).CallDeferred();
         }
 
         private void Setup()
@@ -53,42 +53,45 @@ namespace Beep.ECS
         private void OnDoubleJumped() => Stretch();
         public void OnLand() => Squash();
 
-        private void Stretch()
-        {
-            if (!IsActive) return;
-            _tween?.Kill();
-            var target = _target2D ?? (Node)_targetControl;
-            if (target == null) return;
-            _tween = CreateTween();
-            _tween.TweenProperty(target, "scale",
-                new Vector2(_originalScale.X * (1f - StretchAmount), _originalScale.Y * (1f + StretchAmount)),
-                Duration * 0.5f).SetEase(Tween.EaseType.Out);
-            _tween.TweenProperty(target, "scale", _originalScale, Duration * 0.5f).SetEase(Tween.EaseType.In);
-        }
+        private void Stretch() => Play(1f - StretchAmount, 1f + StretchAmount, Duration * 0.5f, Duration * 0.5f);
+        private void Squash() => Play(1f + SquashAmount, 1f - SquashAmount, Duration * 0.4f, Duration * 0.6f);
 
-        private void Squash()
+        /// <summary>Deform then settle. For a Node2D target, scale is animated directly (relative to
+        /// the captured original scale). For a Control target, the render-only offset_transform_scale
+        /// layer is used instead — a Control inside a Container has its raw scale overwritten every
+        /// layout pass (CLAUDE.md), so the juice would silently never play. Offset-transform neutral
+        /// is Vector2.One, so the multipliers apply directly.</summary>
+        private void Play(float xMul, float yMul, float upDur, float downDur)
         {
             if (!IsActive) return;
             _tween?.Kill();
-            var target = _target2D ?? (Node)_targetControl;
-            if (target == null) return;
-            _tween = CreateTween();
-            _tween.TweenProperty(target, "scale",
-                new Vector2(_originalScale.X * (1f + SquashAmount), _originalScale.Y * (1f - SquashAmount)),
-                Duration * 0.4f).SetEase(Tween.EaseType.Out);
-            _tween.TweenProperty(target, "scale", _originalScale, Duration * 0.6f).SetEase(Tween.EaseType.In);
+            if (_targetControl != null)
+            {
+                _targetControl.OffsetTransformEnabled = true;
+                _tween = CreateTween();
+                _tween.TweenProperty(_targetControl, "offset_transform_scale", new Vector2(xMul, yMul), upDur).SetEase(Tween.EaseType.Out);
+                _tween.TweenProperty(_targetControl, "offset_transform_scale", Vector2.One, downDur).SetEase(Tween.EaseType.In);
+            }
+            else if (_target2D != null)
+            {
+                _tween = CreateTween();
+                _tween.TweenProperty(_target2D, "scale", new Vector2(_originalScale.X * xMul, _originalScale.Y * yMul), upDur).SetEase(Tween.EaseType.Out);
+                _tween.TweenProperty(_target2D, "scale", _originalScale, downDur).SetEase(Tween.EaseType.In);
+            }
         }
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _tween?.Kill();
+            // Siblings can free before this node — guard the -= against a disposed collaborator.
             var jump = GetSiblingComponent<JumpComponent>();
-            if (jump != null)
+            if (jump != null && GodotObject.IsInstanceValid(jump))
             {
                 jump.Jumped -= OnJumped;
                 jump.DoubleJumped -= OnDoubleJumped;
             }
-            if (_platformer != null)
+            if (_platformer != null && GodotObject.IsInstanceValid(_platformer))
                 _platformer.Landed -= OnLand;
         }
     }

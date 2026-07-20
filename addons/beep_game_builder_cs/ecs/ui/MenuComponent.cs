@@ -23,6 +23,10 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ActionTriggeredEventHandler(string action);
 
         private readonly List<Button> _buttons = new();
+        // Per-button Pressed handlers, so the pressed button is captured directly (see
+        // OnButtonPressed) rather than guessed via the focus owner — a mouse/touch press that
+        // doesn't move focus used to resolve the wrong button or none.
+        private readonly Dictionary<Button, System.Action> _handlers = new();
         private bool _navWired;
 
         public override void _Ready()
@@ -49,9 +53,10 @@ namespace Beep.ECS.UI
             }
 
             // Disconnect old.
-            foreach (var b in _buttons)
-                if (GodotObject.IsInstanceValid(b))
-                    b.Pressed -= OnButtonPressed;
+            foreach (var kvp in _handlers)
+                if (GodotObject.IsInstanceValid(kvp.Key))
+                    kvp.Key.Pressed -= kvp.Value;
+            _handlers.Clear();
             _buttons.Clear();
 
             if (GetParent() is not Node parent) return;
@@ -70,7 +75,9 @@ namespace Beep.ECS.UI
                 if (child is Button btn && !_buttons.Contains(btn))
                 {
                     _buttons.Add(btn);
-                    btn.Pressed += OnButtonPressed;
+                    System.Action handler = () => OnButtonPressed(btn);
+                    _handlers[btn] = handler;
+                    btn.Pressed += handler;
 
                     if (EnableRipple && !btn.HasNode("Ripple"))
                     {
@@ -83,17 +90,12 @@ namespace Beep.ECS.UI
             }
         }
 
-        private void OnButtonPressed()
+        private void OnButtonPressed(Button btn)
         {
-            if (!IsActive) return;
-            // Resolve which button was pressed using the focus owner.
-            var focus = GetViewport().GuiGetFocusOwner();
-            if (focus is Button btn)
-            {
-                string action = ActionFor(btn);
-                if (KnownActions.Length == 0 || System.Array.IndexOf(KnownActions, action) >= 0)
-                    EmitSignal(SignalName.ActionTriggered, action);
-            }
+            if (!IsActive || !GodotObject.IsInstanceValid(btn)) return;
+            string action = ActionFor(btn);
+            if (KnownActions.Length == 0 || System.Array.IndexOf(KnownActions, action) >= 0)
+                EmitSignal(SignalName.ActionTriggered, action);
         }
 
         private string ActionFor(Button btn)
@@ -112,9 +114,11 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
-            foreach (var btn in _buttons)
-                if (GodotObject.IsInstanceValid(btn))
-                    btn.Pressed -= OnButtonPressed;
+            base._ExitTree();
+            foreach (var kvp in _handlers)
+                if (GodotObject.IsInstanceValid(kvp.Key))
+                    kvp.Key.Pressed -= kvp.Value;
+            _handlers.Clear();
 
             if (_navWired && GetParent() is Node p)
             {
@@ -127,6 +131,9 @@ namespace Beep.ECS.UI
                     }
                 }
             }
+            // Re-arm so a remove-then-re-add + WireButtons() reconnects Navigation — otherwise the
+            // nav-wire block is skipped and buttons emit ActionTriggered with nothing dispatching.
+            _navWired = false;
         }
     }
 }

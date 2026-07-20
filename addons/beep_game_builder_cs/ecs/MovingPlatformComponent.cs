@@ -30,6 +30,10 @@ namespace Beep.ECS
         private bool _forward = true;
         private double _pauseTimer;
         private bool _paused;
+        private bool _running;
+
+        /// <summary>Whether the platform is currently moving (vs stopped via Stop()/AutoStart=false).</summary>
+        public bool IsRunning => _running;
 
         public override void _Ready()
         {
@@ -38,12 +42,30 @@ namespace Beep.ECS
             if (_body == null && !Engine.IsEditorHint())
                 GD.PushWarning($"[{Name}] MovingPlatformComponent needs an AnimatableBody2D parent to move (and to carry riders via SyncToPhysics); got '{GetParent()?.GetType().Name ?? "null"}'. It will do nothing.");
             CollectWaypoints();
-            if (AutoStart && !Engine.IsEditorHint())
+            // AutoStart now actually gates motion. AutoStart=false leaves the platform parked
+            // until Start() is called (a switch, a trigger); it used to move regardless.
+            _running = AutoStart;
+            _paused = false;
+            _pauseTimer = 0;
+        }
+
+        /// <summary>Begin (or resume) moving along the waypoints. For a Once platform that already
+        /// finished, this rewinds to the start so it re-runs — otherwise _target stays pinned at the
+        /// end and _PhysicsProcess would instantly re-emit RunCompleted without moving.</summary>
+        public void Start()
+        {
+            if (Mode == LoopMode.Once && _points != null && _points.Length >= 2 && _target >= _points.Length - 1)
             {
+                _target = 1;
+                _forward = true;
                 _paused = false;
                 _pauseTimer = 0;
             }
+            _running = true;
         }
+
+        /// <summary>Stop moving. The platform holds its current position until Start() is called.</summary>
+        public void Stop() => _running = false;
 
         private void CollectWaypoints()
         {
@@ -60,7 +82,7 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsActive || _body == null || Engine.IsEditorHint() || _points.Length < 2) return;
+            if (!IsActive || !_running || _body == null || Engine.IsEditorHint() || _points.Length < 2) return;
 
             if (_paused)
             {
@@ -110,7 +132,9 @@ namespace Beep.ECS
             else // Once
             {
                 if (_target < _points.Length - 1) _target++;
-                else { IsActive = false; EmitSignal(SignalName.RunCompleted); } // reached end, stop
+                // Stop via _running (consistent with Stop()), not the category IsActive flag —
+                // flipping IsActive left Start() unable to resume the platform.
+                else { _running = false; EmitSignal(SignalName.RunCompleted); } // reached end, stop
             }
         }
     }

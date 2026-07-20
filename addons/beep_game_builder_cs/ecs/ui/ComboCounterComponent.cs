@@ -54,6 +54,16 @@ namespace Beep.ECS.UI
             if (_resetTimer <= 0) ResetCombo();
         }
 
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            _punchTween?.Kill();   // consistency with the repo's tween-owning components
+            _punchTween = null;
+            // _label was AddChild'd to the parent — free it or a stray "ComboLabel" is orphaned.
+            if (_label != null && GodotObject.IsInstanceValid(_label)) _label.QueueFree();
+            _label = null;
+        }
+
         /// <summary>Add one to the combo counter and reset the timer.</summary>
         public void Increment()
         {

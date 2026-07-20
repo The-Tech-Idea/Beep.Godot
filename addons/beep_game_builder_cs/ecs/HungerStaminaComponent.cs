@@ -36,6 +36,10 @@ namespace Beep.ECS
 
         [ExportGroup("Temperature Integration")]
         [Export] public bool TemperatureAffectsHunger { get; set; } = true;
+        /// <summary>Whether overheating accelerates thirst drain. Separate from
+        /// <see cref="TemperatureAffectsHunger"/> — thirst used to ride the hunger flag, so turning
+        /// hunger's temperature effect off silently also disabled overheat thirst.</summary>
+        [Export] public bool TemperatureAffectsThirst { get; set; } = true;
         [Export] public float ColdHungerMultiplier { get; set; } = 1.5f;    // 150% drain in cold
         [Export] public float OverheatThirstMultiplier { get; set; } = 1.5f; // 150% drain when overheating
 
@@ -51,6 +55,11 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private bool _hungerDebuffActive;
         private bool _thirstDebuffActive;
+        // Last emitted values, so the *Changed signals fire only on an actual change — not every
+        // frame while a value is pinned at 0/100 (starved, or resting at full stamina).
+        private float _lastHunger = float.NaN;
+        private float _lastThirst = float.NaN;
+        private float _lastStamina = float.NaN;
 
         public override void _Ready()
         {
@@ -58,6 +67,8 @@ namespace Beep.ECS
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _body = GetParent() as CharacterBody2D;
+            if (!Engine.IsEditorHint() && _body == null)
+                GD.PushWarning($"[{Name}] HungerStaminaComponent has no CharacterBody2D parent, so movement-based drain (faster hunger/thirst when moving, stamina spend) can't detect motion — 'moving' stays false. Parent it to the body if you want movement to matter.");
         }
 
         public override void _Process(double delta)
@@ -77,10 +88,10 @@ namespace Beep.ECS
             CurrentThirst = Mathf.Clamp(CurrentThirst, 0f, 100f);
             CurrentStamina = Mathf.Clamp(CurrentStamina, 0f, 100f);
 
-            // Emit signals
-            EmitSignal(SignalName.HungerChanged, CurrentHunger);
-            EmitSignal(SignalName.ThirstChanged, CurrentThirst);
-            EmitSignal(SignalName.StaminaChanged, CurrentStamina);
+            // Emit only when the value actually changed (skips the frames where it's clamped).
+            if (CurrentHunger != _lastHunger) { _lastHunger = CurrentHunger; EmitSignal(SignalName.HungerChanged, CurrentHunger); }
+            if (CurrentThirst != _lastThirst) { _lastThirst = CurrentThirst; EmitSignal(SignalName.ThirstChanged, CurrentThirst); }
+            if (CurrentStamina != _lastStamina) { _lastStamina = CurrentStamina; EmitSignal(SignalName.StaminaChanged, CurrentStamina); }
 
             // Check critical levels
             CheckCriticalLevels();
@@ -113,7 +124,7 @@ namespace Beep.ECS
 
             // Overheating increases thirst
             float tempModifier = 1.0f;
-            if (TemperatureAffectsHunger && _temperature != null)
+            if (TemperatureAffectsThirst && _temperature != null)
             {
                 tempModifier = _temperature.GetTemperatureState() switch
                 {
@@ -208,8 +219,13 @@ namespace Beep.ECS
             if (IsExhausted || CurrentStamina < amount) return false;
             CurrentStamina -= amount;
             EmitSignal(SignalName.StaminaChanged, CurrentStamina);
-            if (CurrentStamina <= StaminaCriticalLevel)
+            // Route through the same latch CheckCriticalLevels uses, so StaminaCritical stays
+            // edge-triggered and doesn't double-fire with the _Process check next frame.
+            if (CurrentStamina <= StaminaCriticalLevel && !_staminaCriticalActive)
+            {
+                _staminaCriticalActive = true;
                 EmitSignal(SignalName.StaminaCritical);
+            }
             return true;
         }
 

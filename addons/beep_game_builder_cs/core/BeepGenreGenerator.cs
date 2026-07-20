@@ -66,12 +66,15 @@ public static class BeepGenreGenerator
 
         info.GenreId = genreId;
 
-        // Default theme from genre.json if user didn't pick one.
-        if (string.IsNullOrEmpty(info.DefaultThemePreset) || info.DefaultThemePreset == "Modern")
+        // Default theme from genre.json if user didn't pick one. Compare case-insensitively — the real
+        // default is lower-case "modern" (GameInfo.cs), which "Modern" (capital M) never matched, so this
+        // branch was dead for the default value and the genre's own default theme was never adopted.
+        if (string.IsNullOrEmpty(info.DefaultThemePreset)
+            || string.Equals(info.DefaultThemePreset, "modern", System.StringComparison.OrdinalIgnoreCase))
             info.DefaultThemePreset = genre.DefaultTheme;
 
-        // Main scene path from genre.json.
-        if (!string.IsNullOrEmpty(genre.MainScene))
+        // Main scene path from genre.json — validate the filename like CopyGenreScene/CopyGenreUiScenes do.
+        if (!string.IsNullOrEmpty(genre.MainScene) && IsSafeSceneFileName(genre.MainScene))
             info.GameScenePath = $"res://scenes/main/{genre.MainScene}";
 
         // Apply tuning defaults from genre.json (only if user hasn't overridden).
@@ -274,14 +277,28 @@ public static class BeepGenreGenerator
         // was never in the tree at the same time as the menus that call it, so
         // SaveLoadManager could never find it ("GameStateManager not found").
         // It discovers ISaveables from GetTree().Root, so an autoload works unchanged.
+        // Add-or-remove, not add-only: re-generating a genre where the flag is now false must strip a
+        // previously-registered autoload. EnsureAutoload alone left stale managers behind — worst for
+        // TurnManager, whose mere presence is how durational components detect the turn axis, so a
+        // real-time genre regenerated over an old turn-based project would silently run on the turn axis.
         if (info.EnableGameStateManager)
             EnsureAutoload("GameStateManager", "res://addons/beep_game_builder_cs/ecs/GameStateManagerComponent.cs");
+        else
+        {
+            BeepProjectDefaults.RemoveAutoload("GameStateManager");
+            log.Add("GameStateManager autoload removed (EnableGameStateManager is false).");
+        }
 
         // Turn-based genres get the TurnManager autoload; real-time ones must NOT (its presence
         // in the tree is exactly how durational components detect the turn axis). Gated on the
         // genre's time_axis, the same file-based principle as every other tuning flag.
         if (info.TimeAxis == "turns")
             EnsureAutoload("TurnManager", "res://addons/beep_game_builder_cs/ecs/TurnManager.cs");
+        else
+        {
+            BeepProjectDefaults.RemoveAutoload("TurnManager");
+            log.Add("TurnManager autoload removed (time axis is real-time, not turns).");
+        }
 
         WriteGameInfoTres(info);
         // GameInfo is a Resource, not a Node — it CANNOT be autoloaded directly.
@@ -293,9 +310,9 @@ public static class BeepGenreGenerator
         // 2b) Stamp the translation CSV + configure the Locale autoload to load it.
         StampTranslations(mode != RegenMode.SkipExisting, log);
 
-        // 4) Shared UI scenes (all genres reuse these).
+        // 4) Shared UI scenes (all genres reuse these). No pause_menu: pausing shows the main menu
+        //    as an overlay (GameFlowComponent), so main_menu.tscn doubles as the pause screen.
         CopyUiScene("main_menu.tscn", "res://scenes/ui/main_menu.tscn", mode, log);
-        CopyUiScene("pause_menu.tscn", "res://scenes/ui/pause_menu.tscn", mode, log);
         CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", mode, log);
         CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
         CopyUiScene("level_summary.tscn", "res://scenes/ui/level_summary.tscn", mode, log);

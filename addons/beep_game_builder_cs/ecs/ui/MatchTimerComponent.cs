@@ -19,6 +19,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void TickEventHandler(double remaining);
 
         private Label? _label;
+        private bool _createdLabel;   // true only when we new'd the label (vs adopting a parent Label)
         private double _remaining;
         private bool _running;
 
@@ -37,16 +38,20 @@ namespace Beep.ECS.UI
         private void EnsureLabel()
         {
             var parent = GetParent();
-            if (parent is Label existing) { _label = existing; return; }
+            if (parent is Label existing) { _label = existing; UpdateText(); return; }
             if (parent == null)
             {
                 GD.PushWarning($"[{Name}] MatchTimerComponent has no parent to host its timer label.");
                 return;
             }
+            _createdLabel = true;
             _label = new Label { Name = "TimerLabel" };
             _label.AddThemeFontSizeOverride("font_size", FontSize);
             parent.AddChild(_label);
             if (parent.IsInsideTree()) _label.Owner = parent.Owner;
+            // Render the initial time now — _Ready's UpdateText ran before this deferred build, so the
+            // label showed blank until the first tick.
+            UpdateText();
         }
 
         public void Start()
@@ -81,6 +86,15 @@ namespace Beep.ECS.UI
             int m = total / 60;
             int s = total % 60;
             _label.Text = $"{Prefix}{m:D2}:{s:D2}";
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // Free the injected TimerLabel only if we created it (parent-hosted); if we adopted a
+            // parent Label, leave it.
+            if (_createdLabel && _label != null && GodotObject.IsInstanceValid(_label)) _label.QueueFree();
+            _label = null;
         }
     }
 }

@@ -73,11 +73,27 @@ namespace Beep.ECS.UI
             _chip.AddChild(hbox);
             _container?.AddChild(_chip);
 
+            // Focusable so a keyboard/gamepad player can select and activate it (ui_accept),
+            // not just click it.
+            _chip.FocusMode = Godot.Control.FocusModeEnum.All;
             _chip.GuiInput += e =>
             {
-                if (e is InputEventMouseButton mb && mb.Pressed)
+                if ((e is InputEventMouseButton mb && mb.Pressed) || e.IsActionPressed("ui_accept"))
+                {
                     EmitSignal(SignalName.Clicked, Label);
+                    _chip?.AcceptEvent();
+                }
             };
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            // _chip is AddChild'd to the PARENT, so freeing this component doesn't take it along.
+            // Its close-button and GuiInput lambdas capture `this` and EmitSignal — left behind
+            // while the parent survives, a later click fires on this freed component (use-after-free).
+            if (_chip != null && GodotObject.IsInstanceValid(_chip)) _chip.QueueFree();
+            _chip = null;
         }
     }
 }

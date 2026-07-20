@@ -18,7 +18,6 @@ namespace Beep.ECS
         [Export] public int FontSize { get; set; } = 20;
         [Export] public int CritFontSize { get; set; } = 28;
         [Export] public float RandomOffset { get; set; } = 15f;
-        [Export] public float MaxScreenDistance { get; set; } = 300f;
 
         [Signal] public delegate void TextSpawnedEventHandler(string text, Color color);
 

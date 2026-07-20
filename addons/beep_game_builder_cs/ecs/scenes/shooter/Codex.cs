@@ -13,7 +13,7 @@ namespace Beep.ECS.Scenes
             // Codex opens as an overlay over the running game (GenreScreenComponent, "codex"
             // action), so Back must close the overlay, not ChangeScene to the menu and tear the
             // run down. CloseOrReturn handles the current-scene case too.
-            GetNode<Button>("Margin/VBox/Header/BackButton").Pressed += () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.MainMenuPath);
+            this.ConnectPressed("Margin/VBox/Header/BackButton", () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.MainMenuPath));
         }
     }
 }

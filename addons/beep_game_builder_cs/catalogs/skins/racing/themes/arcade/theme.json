@@ -53,41 +53,58 @@
   "textures": {
     "button_normal": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/button_normal.png",
-      "margin_left": 16,
-      "margin_top": 16,
-      "margin_right": 16,
-      "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1,
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
       "draw_center": true,
       "modulate": "#FFFFFFFF"
     },
     "button_hover": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/button_hover.png",
-      "margin_left": 16,
-      "margin_top": 16,
-      "margin_right": 16,
-      "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     },
     "button_pressed": {
       "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/button_pressed.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#CFCFCFFF"
+    },
+    "button_disabled": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/button_normal.png",
+      "margin_left": 14,
+      "margin_top": 14,
+      "margin_right": 14,
+      "margin_bottom": 14,
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFF80"
+    },
+    "panel": {
+      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/panel.png",
       "margin_left": 16,
       "margin_top": 16,
       "margin_right": 16,
       "margin_bottom": 16,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
-    },
-    "panel": {
-      "texture_path": "res://addons/beep_game_builder_cs/textures/racing/arcade/panel.png",
-      "margin_left": 8,
-      "margin_top": 8,
-      "margin_right": 8,
-      "margin_bottom": 8,
-      "axis_stretch_horizontal": 1,
-      "axis_stretch_vertical": 1
+      "axis_stretch_horizontal": 0,
+      "axis_stretch_vertical": 0,
+      "draw_center": true,
+      "modulate": "#FFFFFFFF"
     }
   }
 }

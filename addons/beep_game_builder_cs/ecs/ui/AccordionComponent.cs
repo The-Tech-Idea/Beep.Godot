@@ -36,7 +36,11 @@ namespace Beep.ECS.UI
             }
 
             var children = _container.GetChildren();
-            if (children.Count == 0) return;
+            if (children.Count == 0)
+            {
+                GD.PushWarning($"[{Name}] AccordionComponent's Container parent has no children — there is no header or content to manage.");
+                return;
+            }
 
             // First child is the header button
             _header = children[0] as Button;
@@ -83,21 +87,25 @@ namespace Beep.ECS.UI
                 else
                 {
                     ctrl.Visible = true;
+                    // Animate the offset_transform layer, not raw scale — the content lives inside a
+                    // VBox/Container that re-sorts every layout pass and would overwrite a scale tween
+                    // (the CLAUDE.md container-transform rule). Neutral is Vector2.One, collapsed is (1,0).
+                    ctrl.OffsetTransformEnabled = true;
                     var tween = ctrl.CreateTween().SetParallel(true);
                     _activeTweens.Add(tween);
 
                     if (expand)
                     {
                         ctrl.Modulate = new Color(1, 1, 1, 0);
-                        ctrl.Scale = new Vector2(1, 0);
+                        ctrl.OffsetTransformScale = new Vector2(1, 0);
                         tween.TweenProperty(ctrl, "modulate:a", 1f, AnimationDuration);
-                        tween.TweenProperty(ctrl, "scale", Vector2.One, AnimationDuration)
+                        tween.TweenProperty(ctrl, "offset_transform_scale", Vector2.One, AnimationDuration)
                             .SetEase(Tween.EaseType.Out);
                     }
                     else
                     {
                         tween.TweenProperty(ctrl, "modulate:a", 0f, AnimationDuration * 0.5f);
-                        tween.TweenProperty(ctrl, "scale", new Vector2(1, 0), AnimationDuration)
+                        tween.TweenProperty(ctrl, "offset_transform_scale", new Vector2(1, 0), AnimationDuration)
                             .SetEase(Tween.EaseType.In);
                         tween.Finished += () => OnCollapseFinished(ctrl);
                     }
@@ -119,6 +127,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             foreach (var t in _activeTweens)
                 t?.Kill();
             _activeTweens.Clear();

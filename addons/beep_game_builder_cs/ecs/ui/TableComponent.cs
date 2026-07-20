@@ -184,6 +184,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             foreach (var kv in _headerHandlers)
                 if (GodotObject.IsInstanceValid(kv.Key))
                     kv.Key.Pressed -= kv.Value;

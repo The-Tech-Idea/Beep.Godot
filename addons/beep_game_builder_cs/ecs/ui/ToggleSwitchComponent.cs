@@ -40,7 +40,9 @@ namespace Beep.ECS.UI
             _checkbox.AddThemeConstantOverride("icon_separation", 0);
             BuildSwitch();
             _checkbox.Toggled += OnCheckboxToggled;
-            SetState(_checkbox.ButtonPressed);
+            // Seed the initial visual state WITHOUT emitting — otherwise a listener connected right
+            // after construction sees a spurious Toggled(false) before any user interaction.
+            SetState(_checkbox.ButtonPressed, emit: false);
         }
 
         private void OnCheckboxToggled(bool on) => SetState(on);
@@ -58,7 +60,7 @@ namespace Beep.ECS.UI
             _checkbox?.AddChild(_bg);
         }
 
-        public void SetState(bool on)
+        public void SetState(bool on, bool emit = true)
         {
             if (!IsActive) return;
             IsOn = on;
@@ -74,14 +76,18 @@ namespace Beep.ECS.UI
                     .SetEase(Tween.EaseType.Out);
                 _tween.TweenProperty(_bg, "color", targetBg, AnimationDuration);
             }
-            EmitSignal(SignalName.Toggled, on);
+            if (emit) EmitSignal(SignalName.Toggled, on);
         }
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             _tween?.Kill();
-            if (_checkbox != null)
+            if (_checkbox != null && GodotObject.IsInstanceValid(_checkbox))
                 _checkbox.Toggled -= OnCheckboxToggled;
+            // _bg is AddChild'd to the parent Button — free it or the toggle visual is orphaned.
+            if (_bg != null && GodotObject.IsInstanceValid(_bg)) _bg.QueueFree();
+            _bg = null;
         }
     }
 }

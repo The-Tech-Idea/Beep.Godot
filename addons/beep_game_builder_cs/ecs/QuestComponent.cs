@@ -17,7 +17,6 @@ namespace Beep.ECS
 
         [Signal] public delegate void ObjectiveCompletedEventHandler(int index);
         [Signal] public delegate void QuestCompletedEventHandler();
-        [Signal] public delegate void QuestFailedEventHandler();
         [Signal] public delegate void ObjectiveProgressEventHandler(int index, int current, int required);
 
         public bool IsComplete { get; private set; }
@@ -43,7 +42,8 @@ namespace Beep.ECS
 
         /// <summary>Whether objective <paramref name="index"/> has met its RequiredCount.</summary>
         public bool IsObjectiveComplete(int index)
-            => index >= 0 && index < Objectives.Length && GetProgress(index) >= Objectives[index].RequiredCount;
+            => index >= 0 && index < Objectives.Length && Objectives[index] != null
+               && GetProgress(index) >= Objectives[index].RequiredCount;
 
         /// <summary>Progress an objective by its target ID. Auto-completes when count met.</summary>
         public void ProgressObjective(string targetId, int amount = 1)
@@ -52,7 +52,7 @@ namespace Beep.ECS
             EnsureCounts();
             for (int i = 0; i < Objectives.Length; i++)
             {
-                if (Objectives[i].TargetId == targetId && !IsObjectiveComplete(i))
+                if (Objectives[i] != null && Objectives[i].TargetId == targetId && !IsObjectiveComplete(i))
                 {
                     _counts[i] += amount;
                     EmitSignal(SignalName.ObjectiveProgress, i, _counts[i], Objectives[i].RequiredCount);
@@ -69,6 +69,7 @@ namespace Beep.ECS
         /// <summary>Force-complete a specific objective by index.</summary>
         public void CompleteObjective(int index)
         {
+            if (IsComplete) return;
             if (index < 0 || index >= Objectives.Length) return;
             EnsureCounts();
             if (!IsObjectiveComplete(index))

@@ -90,7 +90,8 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             base._ExitTree();
-            if (_health != null) _health.Died -= Play;
+            // _health is a sibling — guard the -= against it being freed first.
+            if (_health != null && GodotObject.IsInstanceValid(_health)) _health.Died -= Play;
         }
     }
 }

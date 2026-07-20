@@ -13,6 +13,15 @@ namespace Beep.ECS
     /// This used to be duplicated: WeatherSystemComponent had its own EnableDayNightCycle
     /// path. That copy was removed and its better logic (time in real hours, the sky
     /// gradient, the horizon clear-colour) folded in here, so there is now one authority.
+    ///
+    /// SHIPS DARK BY DEFAULT: every genre.json sets <c>enable_day_night: false</c>, so the visual
+    /// (sky tint / clear colour) is OFF out of the box — only the clock advances, to feed
+    /// SeasonalComponent's in-game days. Turn the visual on by setting <c>enable_day_night: true</c>
+    /// in a genre's tuning (or IsActive at runtime). It is a deliberate default, not a bug: a full
+    /// day/night wash is a strong art choice the framework leaves to the developer.
+    ///
+    /// The <c>TimeOfDayChanged</c> / <c>PhaseChanged</c> signals are developer-facing hooks — connect
+    /// them to a clock/phase HUD. The framework ships no clock UI bound to them by default.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -76,7 +85,10 @@ namespace Beep.ECS
         private void Init()
         {
             _ambient = AmbientController.ForTree(this);
-            Apply();  // seed the tint immediately rather than waiting a frame
+            // Seed the tint immediately rather than waiting a frame — but only when the visual is
+            // enabled. When disabled (every shipped genre), Apply() would leak a stale one-time
+            // day_night tint into AmbientController and take one step toward the 8am sky.
+            if (IsActive) Apply();
         }
 
         public override void _Process(double delta)

@@ -86,6 +86,7 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
+            base._ExitTree(); // EntityComponent group cleanup — the one file the round-3 base-call sweep missed
             _tween?.Kill();
         }
     }

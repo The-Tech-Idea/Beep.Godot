@@ -11,8 +11,8 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/BackButton").Pressed += () => ChangeScene(GameInfo.Instance?.LevelMapPath);
-            GetNode<Button>("Center/Panel/Margin/VBox/ButtonRow/PlayButton").Pressed += () => ChangeScene(GameApp.Instance?.GameScenePath);
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/BackButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
+            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/PlayButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
 
             // Boosters are optional pre-level pickers: toggle them on, and the choice is
             // carried into the level via the GameStateManager data bag (booster_1..3). The

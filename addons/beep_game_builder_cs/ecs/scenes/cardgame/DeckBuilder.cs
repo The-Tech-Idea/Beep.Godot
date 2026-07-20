@@ -10,7 +10,7 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            GetNode<Button>("Margin/VBox/Header/StartBattleButton").Pressed += OnStartBattle;
+            this.ConnectPressed("Margin/VBox/Header/StartBattleButton", OnStartBattle);
         }
 
         private void OnStartBattle()

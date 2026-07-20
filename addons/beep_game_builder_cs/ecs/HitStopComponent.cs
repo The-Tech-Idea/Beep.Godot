@@ -67,11 +67,12 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            base._ExitTree();
             // If this entity is freed mid-freeze (e.g. it took the hit and died), _Process stops and
             // TimeScale would be stuck at 0, freezing the whole game. Restore it here.
             if (_frozen) { Engine.TimeScale = _priorTimeScale; _frozen = false; }
 
-            if (_health != null)
+            if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
     }

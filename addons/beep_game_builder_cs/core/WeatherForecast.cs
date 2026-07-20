@@ -26,12 +26,15 @@ namespace Beep.GameBuilder
         [Export] public float PerlinNoiseScale { get; set; } = 0.1f;
         [Export] public float TemperatureVariance { get; set; } = 10.0f;
 
+        // Names match WeatherSystemComponent.WeatherType (Clear/Cloudy/Rain/Snow/Storm) so a consumer
+        // that Enum.TryParses the stamped WeatherData.WeatherType gets a real value — "Rainy"/"Stormy"
+        // parsed to nothing (ApplyTuning already rejects "Rainy").
         public enum WeatherType
         {
             Clear,
             Cloudy,
-            Rainy,
-            Stormy
+            Rain,
+            Storm
         }
 
         /// <summary>
@@ -56,8 +59,8 @@ namespace Beep.GameBuilder
                 // Determine weather type from noise value
                 WeatherType type = noiseValue switch
                 {
-                    < 0.2f => WeatherType.Rainy,
-                    < 0.4f => WeatherType.Stormy,
+                    < 0.2f => WeatherType.Rain,
+                    < 0.4f => WeatherType.Storm,
                     < 0.6f => WeatherType.Cloudy,
                     _ => WeatherType.Clear
                 };

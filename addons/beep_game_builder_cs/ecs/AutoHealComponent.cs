@@ -13,10 +13,9 @@ namespace Beep.ECS
     public partial class AutoHealComponent : GameplayComponent
     {
         [Export] public float HealPerSecond { get; set; } = 2f;
+        /// <summary>Seconds since the last damage before healing resumes — recovery pauses during a fight.</summary>
         [Export] public float HealDelay { get; set; } = 5f;
         [Export] public float MaxHealPerSecond { get; set; } = 100f;
-        [Export] public bool HealOnlyOutOfCombat { get; set; } = true;
-        [Export] public string StatName { get; set; } = "health"; // "health", "mana", "stamina"
         [Export] public bool BlockHealingWhenPoisoned { get; set; } = true;
         [Export] public bool BlockHealingWhenCursed { get; set; } = true;
         [Export] public bool UseTemperatureModifier { get; set; } = true;
@@ -35,27 +34,27 @@ namespace Beep.ECS
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
 
+            if (!Engine.IsEditorHint() && _health == null)
+                GD.PushWarning($"[{Name}] AutoHealComponent found no sibling HealthComponent — nothing will regenerate. Add it beside a HealthComponent on the same entity.");
+
             if (_health != null)
             {
-                // Hold the delegates so _ExitTree can detach them — a fresh lambda would be a
+                // Hold the delegate so _ExitTree can detach it — a fresh lambda would be a
                 // different instance and wouldn't unsubscribe, leaking into a freed component.
                 _onDamaged = (_, _) => _timeSinceLastDamage = 0;
-                _onDied = () => IsActive = false;
                 _health.Damaged += _onDamaged;
-                _health.Died += _onDied;
+                // NOTE: no Died handler. _Process already bails while _health.IsDead, so disabling
+                // the component on death was redundant AND harmful — it set IsActive=false with no
+                // Revived re-enable, so a revived/respawned entity never regenerated again.
             }
         }
 
         private HealthComponent.DamagedEventHandler? _onDamaged;
-        private HealthComponent.DiedEventHandler? _onDied;
 
         public override void _ExitTree()
         {
-            if (_health != null)
-            {
-                if (_onDamaged != null) _health.Damaged -= _onDamaged;
-                if (_onDied != null) _health.Died -= _onDied;
-            }
+            if (_health != null && GodotObject.IsInstanceValid(_health) && _onDamaged != null)
+                _health.Damaged -= _onDamaged;
             base._ExitTree();
         }
 
@@ -68,18 +67,16 @@ namespace Beep.ECS
             if (BlockHealingWhenCursed && (_statusEffects?.HasEffect("cursed") ?? false)) return;
 
             _timeSinceLastDamage += (float)delta;
+            if (_timeSinceLastDamage < HealDelay) return;   // recovery pauses during a fight
 
-            if (_timeSinceLastDamage >= HealDelay)
-            {
-                // Apply temperature modifier if available
-                float tempModifier = GetTemperatureModifier();
-                if (tempModifier <= 0) return;  // Don't heal in extreme conditions
+            // Apply temperature modifier if available
+            float tempModifier = GetTemperatureModifier();
+            if (tempModifier <= 0) return;  // Don't heal in extreme conditions
 
-                float healRate = Mathf.Min(HealPerSecond * tempModifier, MaxHealPerSecond);
-                float amount = healRate * (float)delta;
-                _health.Heal(amount);
-                EmitSignal(SignalName.HealTick, amount, _health.CurrentHealth);
-            }
+            float healRate = Mathf.Min(HealPerSecond * tempModifier, MaxHealPerSecond);
+            float amount = healRate * (float)delta;
+            _health.Heal(amount);
+            EmitSignal(SignalName.HealTick, amount, _health.CurrentHealth);
         }
 
         /// <summary>Get healing rate multiplier based on temperature state.</summary>

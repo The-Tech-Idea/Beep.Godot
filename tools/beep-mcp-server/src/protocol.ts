@@ -109,6 +109,26 @@ export const BRIDGE_METHODS: Record<string, RoleTarget> = {
 
   "project.setting.get": "editor",
   "project.setting.set": "editor",
+
+  // Phase 2 — authoring. All editor-side: they write .tres/.tscn or edit the open scene.
+  "resource.create": "editor",
+  "resource.load": "editor",
+  "resource.set": "editor",
+  "theme.create": "editor",
+  "theme.set_stylebox": "editor",
+  "theme.set_value": "editor",
+  "theme.add_type_variation": "editor",
+  "animation.create": "editor",
+  "animation.add_track": "editor",
+  "signal.list": "editor",
+  "signal.connect": "editor",
+  "signal.disconnect": "editor",
+  "scene.instance": "editor",
+  "scene.save_as": "editor",
+  "scene.duplicate_node": "editor",
+  "script.attach": "editor",
+  "classdb.list": "any",
+  "classdb.describe": "any",
 };
 
 /**

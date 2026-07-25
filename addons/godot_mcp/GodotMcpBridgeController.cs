@@ -107,6 +107,10 @@ public partial class GodotMcpBridgeController : Node
         // node.set_property_safe) — see GodotMcpBridgeController.SafeWrites.cs.
         if (TryExecuteSafeWrite(method, p, out var safeResult)) return safeResult;
 
+        // Phase 2 authoring — resources, themes, animation, signals, scene composition,
+        // scripts, ClassDB. See GodotMcpBridgeController.Authoring.cs.
+        if (TryExecuteAuthoring(method, p, out var authoringResult)) return authoringResult;
+
         // Any write method can be previewed instead of applied. A dry run must reach the
         // validator BEFORE the real handler, or "preview" would mutate the scene.
         if (p["dry_run"]?.GetValue<bool>() == true && IsValidatableWrite(method))

@@ -2,7 +2,11 @@
 
 **Goal:** an agent can *make* things, not just poke at things that already exist.
 
-**Status:** ⬜ not started · depends on Phase 1 · [back to roadmap](MCP_ROADMAP.md)
+**Status:** ✅ built — `addons/godot_mcp/GodotMcpBridgeController.Authoring.cs` +
+`tools/beep-mcp-server/src/authoring.ts`. 18 new bridge methods, 37 MCP tools total.
+`dotnet build` 0 errors, `npm run smoke` 23 checks green. Verified against a **simulated**
+addon — no Godot binary here — so nothing below has been run against a live editor.
+· [back to roadmap](MCP_ROADMAP.md)
 
 ---
 
@@ -60,6 +64,14 @@ and an agent can produce a complete skin end to end.
 `theme.add_type_variation` should warn when it invents a fifth.
 
 ### 2.3 Animation authoring — `animation.*`
+
+> **Implemented guard.** `animation.add_track` REFUSES a `position` / `scale` / `rotation`
+> track on a Control whose parent is a Container, returning
+> `CONTAINER_OVERWRITES_TRANSFORM` and naming `offset_transform_*` as the fix — plus the
+> `pivot_offset` warning for scale/rotation, since it defaults to the top-left corner. The
+> container re-sorts every layout pass and overwrites the animated value, so the track
+> would silently do nothing. This repo has paid for that bug twice.
+
 
 ```
 animation.create      { player_path, name, length, loop }
@@ -131,16 +143,38 @@ answer; expose it and guessing stops.
 
 ## Tasks
 
-- [ ] `resource.*` (create/load/set/inspect) + undo + write validation
-- [ ] `theme.*` (create/set_stylebox/set_color/set_font_size/set_constant/add_type_variation)
-- [ ] `animation.*` (create/add_track/play/stop) + offset-transform + pivot guards
-- [ ] `signal.*` (list/connect/disconnect)
-- [ ] `scene.*` (create/instance/save_as/duplicate_node)
-- [ ] `script.*` (create/read/attach) with the template-first constraints
-- [ ] `classdb.*` (list/describe)
-- [ ] Server: one MCP tool per group; schemas from Phase 1's capability block
-- [ ] Extend `validate_scenes.sh` if any new authoring path can produce a scene shape the
-      existing checks would miss
+- [x] `resource.create` / `resource.load` / `resource.set` — any Resource class, properties
+      applied through the same guard as node writes (a snake_case `[Export]` is refused
+      naming the PascalCase form, an unknown property is refused rather than dropped)
+- [x] `theme.create` / `theme.set_stylebox` / `theme.set_value` / `theme.add_type_variation`.
+      `set_value` covers color + font_size + constant in one call rather than three
+      near-identical methods. `set_stylebox` takes a `{class, properties}` spec, so any
+      StyleBox class works without a bespoke schema per box type.
+- [x] `animation.create` / `animation.add_track`, **with the container guard** (below)
+- [x] `signal.list` / `signal.connect` / `signal.disconnect`, connections PERSISTED so they
+      survive in the `.tscn`
+- [x] `scene.instance` / `scene.save_as` / `scene.duplicate_node`, all undoable
+- [x] `script.attach`
+- [x] `classdb.list` / `classdb.describe`
+- [x] Server: 18 tools in `src/authoring.ts`, registered from `tools.ts`
+
+**Scoped out, deliberately:**
+
+- **`script.create`.** Writing arbitrary C# from an agent is the sharpest tool in the phase,
+  and a file that does not compile takes the *whole addon* down — every component
+  disappears from Add Node until it is fixed. Generation stays with `BeepScreenGenerator`
+  (`beep.new_screen`), which emits a shape known to build. `script.attach` covers wiring an
+  already-compiled script, and its error says so when the script has not been built yet.
+- **`scene.create` from nothing.** `beep.new_screen` already creates a scene with this
+  repo's conventions correct by construction; a blank-scene primitive would mostly be used
+  to rebuild that badly.
+- **`animation.play` / `stop`.** Playback is a runtime concern and the AnimationPlayer being
+  authored lives in the editor. It belongs with Phase 4's play control.
+- **`resource.inspect` by class.** `classdb.describe` already answers it.
+
+No `validate_scenes.sh` change was needed: every authoring path writes shapes the existing
+checks already cover, and `theme.add_type_variation` warns when it would create one the
+variation check rejects.
 
 ## Verification
 

@@ -131,6 +131,35 @@ ws.on("message", (raw) => {
         committed: req.params?.dry_run !== true, undoable: req.params?.dry_run !== true,
         count: ops.length } }));
     }
+  } else if (req.method === "classdb.describe") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+      class: req.params?.class, parent: "Range", instantiable: true,
+      properties: [{ name: "value", type: "Float" }, { name: "max_value", type: "Float" }],
+      signals: ["value_changed"] } }));
+  } else if (req.method === "animation.add_track" && ["position","scale","rotation"].includes(req.params?.property)) {
+    // The container-overwrites-transform guard, as McpBridgeException reports it.
+    ws.send(JSON.stringify({ id: req.id, ok: false,
+      error: `'${req.params.property}' on a Control inside a VBoxContainer is overwritten every layout pass.`,
+      error_type: "McpBridgeException", code: "CONTAINER_OVERWRITES_TRANSFORM",
+      fix: `Animate 'offset_transform_${req.params.property}' instead.`,
+      detail: { suggested: `offset_transform_${req.params.property}` } }));
+  } else if (req.method === "animation.add_track") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: { track: 0, path: `${req.params?.node_path}:${req.params?.property}` } }));
+  } else if (req.method === "theme.add_type_variation") {
+    const known = ["BeepTitle","BeepSubtitle","BeepValue","BeepCaption"];
+    const r = { theme: req.params?.path, variation: req.params?.variation };
+    if (!known.includes(req.params?.variation)) r.warning = "not one of Beep's registered variations; validate_scenes.sh will fail on it";
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: r }));
+  } else if (req.method === "resource.create" && req.params?.properties && "patch_margin" in req.params.properties) {
+    ws.send(JSON.stringify({ id: req.id, ok: false,
+      error: "'patch_margin' is a C# [Export] written snake_case.", error_type: "McpBridgeException",
+      code: "SNAKE_CASE_EXPORT", fix: "Use 'PatchMargin'." }));
+  } else if (req.method === "resource.create") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: { created: req.params?.path, type: req.params?.type } }));
+  } else if (req.method === "signal.connect" && req.params?.method === "no_such_method") {
+    ws.send(JSON.stringify({ id: req.id, ok: false,
+      error: "'Target' has no method 'no_such_method' -- the connection would fire into nothing.",
+      error_type: "McpBridgeException", code: "UNKNOWN_METHOD" }));
   } else if (req.method === "ping") {
     /* never answer: reserved for the disconnect test below */
   } else {
@@ -194,6 +223,45 @@ const aborted = await rpc("tools/call", {
 check("atomic batch aborts at the failing index, committing nothing",
       /BATCH_ABORTED/.test(textOf(aborted)) && /"aborted_at": 1/.test(textOf(aborted)) && /"committed": false/.test(textOf(aborted)),
       textOf(aborted).replace(/\s+/g, " ").slice(0, 100));
+
+// 5c. Phase 2 — authoring
+const cls = await rpc("tools/call", { name: "godot_class_describe", arguments: { class: "ProgressBar" } });
+check("classdb.describe returns real properties", /max_value/.test(textOf(cls)));
+
+const badTrack = await rpc("tools/call", {
+  name: "godot_animation_add_track",
+  arguments: { player_path: "Anim", name: "pulse", node_path: "Btn", property: "scale" },
+});
+check("animating scale in a Container is refused, suggesting offset_transform",
+      badTrack?.result?.isError === true && /CONTAINER_OVERWRITES_TRANSFORM/.test(textOf(badTrack))
+        && /offset_transform_scale/.test(textOf(badTrack)),
+      textOf(badTrack).slice(0, 95));
+
+const goodTrack = await rpc("tools/call", {
+  name: "godot_animation_add_track",
+  arguments: { player_path: "Anim", name: "pulse", node_path: "Btn", property: "offset_transform_scale" },
+});
+check("offset_transform track is accepted", !goodTrack?.result?.isError && /offset_transform_scale/.test(textOf(goodTrack)));
+
+const badVar = await rpc("tools/call", {
+  name: "godot_theme_add_variation",
+  arguments: { path: "res://x.tres", variation: "BeepHeading" },
+});
+check("unregistered theme variation warns about the validator", /warning/.test(textOf(badVar)));
+
+const snakeRes = await rpc("tools/call", {
+  name: "godot_resource_create",
+  arguments: { type: "UISkin", path: "res://s.tres", properties: { patch_margin: 12 } },
+});
+check("resource property snake_case [Export] refused",
+      snakeRes?.result?.isError === true && /SNAKE_CASE_EXPORT/.test(textOf(snakeRes)) && /PatchMargin/.test(textOf(snakeRes)));
+
+const badSig = await rpc("tools/call", {
+  name: "godot_signal_connect",
+  arguments: { path: "Btn", signal: "pressed", to: "Target", method: "no_such_method" },
+});
+check("connecting to a missing method is refused",
+      badSig?.result?.isError === true && /UNKNOWN_METHOD/.test(textOf(badSig)));
 
 // 6. Disconnect mid-flight rejects rather than hanging
 const hang = rpc("tools/call", { name: "godot_ping", arguments: {} });

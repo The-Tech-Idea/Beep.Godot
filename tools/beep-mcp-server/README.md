@@ -65,6 +65,67 @@ in Project Settings is overwritten.
 Writes are refused until you enable `godot_mcp/security/allow_editor_writes` (and/or
 `allow_runtime_writes`). Both ship **off** — reads work regardless.
 
+## Using it
+
+### Two things must be true
+
+1. **Claude has the server.** Open the project in Claude Code, approve `beep-godot` when
+   prompted, confirm with `/mcp`. (If you added `.mcp.json` while Claude was already
+   running, restart it — servers are read at startup.)
+2. **Godot is open on this project.** The addon dials the server every 2s, so order does
+   not matter; whichever starts second connects.
+
+`godot_status` answers either way and tells you which half is missing. That is the first
+thing to call when anything says `NOT_CONNECTED`.
+
+### Reads work immediately. Writes need one manual step.
+
+Every write is refused until you turn on the gate, and **you cannot turn it on through
+MCP** — setting a project setting is itself a write, so the request is refused for the same
+reason. That is deliberate: the consent to let an agent edit your project has to come from
+outside the agent's reach.
+
+In Godot: **Project → Project Settings → godot_mcp → security**
+
+| Setting | Enables |
+|---|---|
+| `allow_editor_writes` | editing scenes, creating resources/themes, baking textures, saving |
+| `allow_runtime_writes` | changing live game state (score, weather, saves) |
+| `allow_node_method_calls` | calling arbitrary methods on nodes — leave off unless needed |
+
+Leave them off for read-only work; nothing below in the "look" list needs them.
+
+### Things to ask for
+
+**Look at the project** (no gate needed):
+- *"What genres and themes does the skin catalog have?"* → `beep_command` / `beep.catalog`
+- *"Show me the node tree of the open scene"* → `godot_scene_tree`
+- *"Are there any layout problems in this screen?"* → `godot_layout` — flags zero-height
+  controls and children overflowing their parent
+- *"What warnings has Godot logged?"* → `godot_log_tail` — this framework says everything
+  important through `PushWarning`, so this is how you hear it
+- *"What properties does a ProgressBar have?"* → `godot_class_describe`
+
+**Change things** (needs `allow_editor_writes`):
+- *"Restyle this header — 44px back button, 20px separation"* → `godot_batch`, which lands
+  as **one** Godot undo entry you can Ctrl-Z
+- *"Preview that first"* → same call with `dry_run: true`; mutates nothing
+- *"Bake the textures for the racing genre"* → `beep_command` / `beep.bake_textures`
+- *"Make a new screen for the rpg genre called Shop"* → `beep_command` / `beep.new_screen`
+- *"Wire this button's pressed signal to OnBackPressed"* → `godot_signal_connect`
+
+**Check your work** (no gate needed):
+- *"Do the gates still pass?"* → `beep_gate_all` — `dotnet build` then `validate_scenes.sh`,
+  parsed, so a failure names the file and line or the failing check
+- *"Run the project headlessly and tell me if it errors"* → `beep_headless_run`
+- *"What changed?"* → `godot_scene_snapshot` before, `godot_scene_diff` after
+
+### The habit worth forming
+
+Ask for a **dry run first**, then apply as a **batch**, then run the **gates**. Three steps,
+and the middle one is a single undo away from never having happened. The full sequence is
+under [The verify loop](#the-verify-loop) below.
+
 ## Tools
 
 | Tool | Needs | Notes |

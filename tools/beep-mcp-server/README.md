@@ -55,6 +55,32 @@ Both install and build as needed, then run. Add `--check` to set up and verify w
 starting. Under the hood they call the same `prepare.mjs` the MCP entry point does, so the
 logic lives in one place instead of drifting across two shell dialects.
 
+### Using it in your OWN games
+
+Each game gets its own copy of the addon **and** its own server:
+
+```bash
+node tools/install-to-game.mjs "C:/games/MyGame"            # addons + server + .mcp.json
+node tools/install-to-game.mjs "C:/games/MyGame" --minimal  # just the godot_mcp bridge
+```
+
+Then open that game in Claude Code and approve `beep-godot`. **Nothing to edit** — the
+path inside `.mcp.json` is relative (`tools/beep-mcp-server/…`) and Claude launches a
+project-scoped server with cwd set to the project root, so it resolves inside whichever
+game you opened. Dependencies install and compile on that game's first launch (~6s).
+
+`node_modules` and `dist` are deliberately not copied: a copied `node_modules` can be
+platform-specific and a copied `dist` can be older than the `src` beside it.
+
+**Why a copy per game rather than one shared server?** A single globally-registered server
+would work for scene editing — but `beep_gate_build` and `beep_gate_scenes` run against the
+project the *server* lives in, so from Game X they would build **this** repo and report
+success for a build that never touched your code. A per-game copy makes them correct.
+
+**One game at a time.** The bridge port is fixed at `8789` and the server keeps one socket
+per role, so opening a second game takes the connection from the first. Set `BEEP_MCP_PORT`
+(and the matching `godot_mcp/bridge/url`) if you genuinely need two at once.
+
 ### Then start Godot
 
 The `godot_mcp` plugin auto-connects on load — check Godot's **Output** panel for the

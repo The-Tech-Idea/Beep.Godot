@@ -3,7 +3,9 @@
 **Goal:** the agent can close its own loop — change, verify, read the result, correct —
 without a human relaying build output.
 
-**Status:** ⬜ not started · depends on Phases 1–3 · [back to roadmap](MCP_ROADMAP.md)
+**Status:** ✅ built and **live-verified** — `addons/godot_mcp/…Lifecycle.cs` +
+`tools/beep-mcp-server/src/autonomy.ts`. `npm run live` runs 14 checks against a real
+Godot 4.7 editor, including all four Phase 4 tools. · [back to roadmap](MCP_ROADMAP.md)
 
 ---
 
@@ -103,14 +105,29 @@ loop is safe to run unattended precisely because every step is reversible.
 
 ## Tasks
 
-- [ ] `editor.rescan_filesystem` / `reload_scripts` / `build` / `save_all`
-- [ ] Structured C# diagnostics from `editor.build` (file, line, code, severity)
-- [ ] `play.scene` / `play.current` / `play.stop` / `play.state`
-- [ ] `gate.validate_scenes` with per-check parsing
-- [ ] `gate.build` + `gate.all`
-- [ ] `headless.run` (+ `BEEP_GODOT_BIN` discovery and a clear error when missing)
-- [ ] Verify-loop recipe in `tools/beep-mcp-server/README.md`
-- [ ] Roadmap note: which historical defects this loop would have caught
+- [x] `editor.rescan_filesystem` / `editor.reload_scripts` / `editor.save_all`
+- [x] `play.scene` / `play.current` / `play.stop` / `play.state`
+- [x] `beep_gate_build` — **structured** C# diagnostics (file, line, column, code,
+      severity), deduped across target frameworks. Warnings are counted, not listed: this
+      project carries ~148 pre-existing nullable warnings that would bury the errors.
+- [x] `beep_gate_scenes` — `validate_scenes.sh` parsed per check, so "did the texture
+      check pass" is a boolean rather than a grep
+- [x] `beep_gate_all` — short-circuiting; a validator run against code that does not
+      compile tells you nothing
+- [x] `beep_headless_run` — real Godot, warnings/errors returned as data, with
+      `import_only` for the after-a-bake case. Names `BEEP_GODOT_BIN` when unset.
+- [x] `npm run live` — 14 checks against a live editor, Phase 4 included
+- [x] Verify-loop recipe in the server README
+
+**Design note — the gates deliberately do NOT go through the bridge.** `beep_gate_build`,
+`beep_gate_scenes` and `beep_headless_run` spawn host processes from the MCP server. An
+agent needs them *precisely* when Godot is closed, mid-crash, or refusing to load the addon
+after a bad script — exactly when the bridge cannot answer. Routing them through Godot
+would make them useless in the only situations that matter.
+
+**`editor.build` is NOT a bridge method.** Triggering Godot's own C# build from inside a
+`[Tool]` script running in that same assembly is a reload-during-execution hazard;
+`beep_gate_build` shells out to `dotnet build` instead, which is what Godot does anyway.
 
 ## Verification
 

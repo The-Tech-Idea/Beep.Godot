@@ -137,6 +137,15 @@ export const BRIDGE_METHODS: Record<string, RoleTarget> = {
   "log.mark": "any",
   "scene.snapshot": "editor",
   "scene.diff": "editor",
+
+  // Phase 4 — editor lifecycle and play control.
+  "editor.rescan_filesystem": "editor",
+  "editor.reload_scripts": "editor",
+  "editor.save_all": "editor",
+  "play.scene": "editor",
+  "play.current": "editor",
+  "play.stop": "editor",
+  "play.state": "editor",
 };
 
 /**

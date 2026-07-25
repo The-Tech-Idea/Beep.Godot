@@ -115,6 +115,10 @@ public partial class GodotMcpBridgeController : Node
         // See GodotMcpBridgeController.Perception.cs.
         if (TryExecutePerception(method, p, out var perceptionResult)) return perceptionResult;
 
+        // Phase 4 lifecycle — rescan, reload, save, play control.
+        // See GodotMcpBridgeController.Lifecycle.cs.
+        if (TryExecuteLifecycle(method, p, out var lifecycleResult)) return lifecycleResult;
+
         // Any write method can be previewed instead of applied. A dry run must reach the
         // validator BEFORE the real handler, or "preview" would mutate the scene.
         if (p["dry_run"]?.GetValue<bool>() == true && IsValidatableWrite(method))

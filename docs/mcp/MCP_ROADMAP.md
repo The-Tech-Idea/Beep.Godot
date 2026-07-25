@@ -12,7 +12,7 @@ per-phase document beside this one.
 | **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ✅ *(Ctrl-Z needs a GUI editor)* |
 | **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ✅ *(ClassDB live; writes need the gate on)* |
 | **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ✅ *(logs live; capture needs a GUI editor)* |
-| **4** | Autonomy — run the gates and iterate without a human | [PHASE_4_AUTONOMY.md](PHASE_4_AUTONOMY.md) | ⬜ |
+| **4** | Autonomy — run the gates and iterate without a human | [PHASE_4_AUTONOMY.md](PHASE_4_AUTONOMY.md) | ✅ **live-verified** |
 
 Update the status column in the same commit that lands the work. A ✅ here means the
 phase's own verification section was **run**, not written — this repo has a documented
@@ -64,7 +64,7 @@ Versioned beside the addon it speaks to, so the wire protocol cannot drift.
 > Two verification levels, both repeatable:
 > - **`npm run smoke`** — server logic against a simulated addon. No Godot needed. 28 checks.
 > - **`npm run live`** — launches a REAL headless Godot editor, waits for the addon to dial
->   in, and drives the surface end to end. 11 checks. Set `BEEP_GODOT_BIN`.
+>   in, and drives the surface end to end. **14 checks.** Set `BEEP_GODOT_BIN`.
 >
 > **The live run is what found the bugs simulation could not.** Three protocol faults
 > survived every simulated check and died on first contact with a real editor:

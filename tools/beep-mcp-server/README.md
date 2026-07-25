@@ -82,6 +82,40 @@ exits with `[PORT_IN_USE]` naming the port. Set `BEEP_MCP_PORT` **and** the matc
 Logging goes to **stderr only** — stdout is the MCP transport and a stray write there
 corrupts the protocol.
 
+## The verify loop
+
+Having the tools is not the same as knowing the order. This is the sequence that makes an
+agent-driven change safe to run unattended:
+
+```
+1. godot_scene_snapshot { label: "before" }      record the starting shape
+2. godot_batch { dry_run: true, ops }            predict — mutates nothing
+3. godot_batch { ops, label: "restyle header" }  apply — ONE undo entry
+4. beep_gate_build  →  beep_gate_scenes          do the gates still pass?
+5. godot_play + godot_capture + godot_log_tail   does it actually WORK?
+6. godot_scene_diff { from: "before" }           did only what I intended change?
+7. on failure: Ctrl-Z in Godot                   one step reverts the whole batch
+```
+
+Step 7 is only possible because every write goes through `EditorUndoRedoManager`. The loop
+is safe to run unattended precisely because every step is reversible.
+
+**Step 5 is the one people skip.** The two gates prove the code *loads*, not that it works
+— that distinction is written into this repo's `CLAUDE.md` because a save system shipped
+here whose `Save()` was a hard no-op while every gate stayed green.
+
+## Verification
+
+```bash
+npm run smoke     # server logic vs a simulated addon — no Godot needed
+BEEP_GODOT_BIN="H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe" npm run live
+```
+
+`live` launches a real headless editor and drives the surface end to end. It is worth the
+extra minute: it caught three protocol bugs that every simulated check passed —
+`game.command` gating *reads* behind write permission, a `name`/`command` parameter
+mismatch, and discovery probing a status key that never existed.
+
 ## Scope
 
 This is Phase 0 of [`docs/mcp/MCP_ROADMAP.md`](../../docs/mcp/MCP_ROADMAP.md): plumbing

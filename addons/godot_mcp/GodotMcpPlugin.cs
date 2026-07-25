@@ -76,18 +76,34 @@ public partial class GodotMcpPlugin : EditorPlugin
         }
     }
 
+    /// <summary>Autoloads THIS session registered, so shutdown removes only those.</summary>
+    private readonly System.Collections.Generic.HashSet<string> _addedAutoloads = new();
+
+    /// <summary>True for `--headless` runs (import, CI, `npm run live`).
+    ///
+    /// A headless boot never instantiates autoloads as named globals, so
+    /// RemoveAutoloadSingleton fails its internal `named_globals.has(name)` assertion and
+    /// Godot logs a red ERROR with a full C# backtrace — twice, on every single import.
+    /// It is harmless but it buries real errors, and there is no user session for the
+    /// autoloads to serve anyway, so headless leaves project.godot alone entirely.</summary>
+    private static bool IsHeadless => DisplayServer.GetName() == "headless";
+
     private void EnsureAutoload(string name, string path)
     {
-        if (!ProjectSettings.HasSetting($"autoload/{name}"))
-            AddAutoloadSingleton(name, path);
+        if (IsHeadless) return;
+        if (ProjectSettings.HasSetting($"autoload/{name}")) return;
+        AddAutoloadSingleton(name, path);
+        _addedAutoloads.Add(name);
     }
 
     private void RemoveAutoload(string name)
     {
-        if (ProjectSettings.HasSetting($"autoload/{name}"))
-        {
-            RemoveAutoloadSingleton(name);
-            ProjectSettings.Save();
-        }
+        // Only unregister what we registered. Previously this removed any matching entry,
+        // so a plugin toggle would strip an autoload a PREVIOUS session had added — and
+        // rewrite project.godot to do it.
+        if (!_addedAutoloads.Remove(name)) return;
+        if (!ProjectSettings.HasSetting($"autoload/{name}")) return;
+        RemoveAutoloadSingleton(name);
+        ProjectSettings.Save();
     }
 }

@@ -11,6 +11,7 @@ import { BridgeError, GodotBridge } from "./bridge.js";
 import { RoleTarget, roleForBeepCommand } from "./protocol.js";
 import { registerAuthoringTools } from "./authoring.js";
 import { registerPerceptionTools } from "./perception.js";
+import { registerAutonomyTools } from "./autonomy.js";
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -450,6 +451,45 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
 
   // Phase 3 — captures, layout report, logs, snapshot/diff.
   registerPerceptionTools(server, bridge, ok, fail);
+
+  // Phase 4 — the gates and headless run. These do NOT go through the bridge: an agent
+  // needs them exactly when Godot is closed or refusing to load the addon.
+  registerAutonomyTools(server, ok, fail);
+
+  // Phase 4 (editor side) — rescan, reload, save, play.
+  server.registerTool(
+    "godot_editor_rescan",
+    {
+      title: "Re-import the filesystem",
+      description:
+        "Make Godot import newly written files. Godot will not load a file it has not imported, so freshly baked textures or generated scenes stay invisible to ResourceLoader until this runs — which looks exactly like the thing that wrote them having done nothing.",
+      inputSchema: {},
+    },
+    async () => {
+      try { return ok(await call("editor.rescan_filesystem", {}, "editor")); } catch (e) { return fail(e); }
+    },
+  );
+
+  server.registerTool(
+    "godot_play",
+    {
+      title: "Play a scene / stop / check state",
+      description:
+        "Run the game from the editor. This is the only way to find out whether a scene WORKS rather than merely loads — pair it with godot_capture and godot_log_tail. The running game connects as the 'runtime' role a moment later.",
+      inputSchema: {
+        action: z.enum(["scene", "current", "stop", "state"]),
+        scene: z.string().optional().describe("res:// path, for action='scene'."),
+      },
+    },
+    async ({ action, scene }) => {
+      try {
+        const method = action === "scene" ? "play.scene"
+          : action === "current" ? "play.current"
+          : action === "stop" ? "play.stop" : "play.state";
+        return ok(await call(method, scene ? { scene } : {}, "editor"));
+      } catch (e) { return fail(e); }
+    },
+  );
 
   server.registerTool(
     "godot_ping",

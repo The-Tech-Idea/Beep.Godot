@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BridgeError, GodotBridge } from "./bridge.js";
 import { RoleTarget, roleForBeepCommand } from "./protocol.js";
 import { registerAuthoringTools } from "./authoring.js";
+import { registerPerceptionTools } from "./perception.js";
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -445,6 +446,9 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
 
   // Phase 2 — resources, themes, animation, signals, scene composition, ClassDB.
   registerAuthoringTools(server, bridge, ok, fail);
+
+  // Phase 3 — captures, layout report, logs, snapshot/diff.
+  registerPerceptionTools(server, bridge, ok, fail);
 
   server.registerTool(
     "godot_ping",

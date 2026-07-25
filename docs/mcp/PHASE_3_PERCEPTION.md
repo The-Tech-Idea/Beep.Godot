@@ -2,7 +2,11 @@
 
 **Goal:** the agent can see what it just did, and read what Godot said about it.
 
-**Status:** ⬜ not started · depends on Phase 1 · [back to roadmap](MCP_ROADMAP.md)
+**Status:** ✅ built — `addons/godot_mcp/GodotMcpBridgeController.Perception.cs` +
+`tools/beep-mcp-server/src/perception.ts`. 6 bridge methods, 6 MCP tools (43 total).
+`dotnet build` 0 errors, `npm run smoke` 28 checks green. Verified against a **simulated**
+addon — no Godot binary here — so no real pixel has been captured yet.
+· [back to roadmap](MCP_ROADMAP.md)
 
 ---
 
@@ -90,13 +94,38 @@ empty picture.
 
 ## Tasks
 
-- [ ] `view.capture` with `target` editor/runtime/node + node-rect cropping
-- [ ] Make `runtime.screenshot` delegate (Phase 1 item, verified here)
-- [ ] `view.layout` + the three zero/overflow flags
-- [ ] Log ring buffer + `log.tail` / `log.clear` / `log.subscribe`
-- [ ] `scene.snapshot` / `scene.diff`
+- [x] `view.capture` with `target` viewport/node + node-rect cropping. A zero-size Control
+      raises `EMPTY_RECT` instead of returning a blank image — that emptiness is usually
+      the defect itself, and a blank PNG looks like the capture failed.
+- [x] `runtime.screenshot` returns inline base64 too (landed in Phase 1)
+- [x] `view.layout` + `ZERO_HEIGHT` / `ZERO_WIDTH` / `OVERFLOWS_PARENT`
+- [x] `log.tail` + `log.mark`
+- [x] `scene.snapshot` / `scene.diff`
+- [x] **Server returns captures as MCP image content**, not base64 inside a text block —
+      the distinction is the whole point of the phase
 - [ ] `view.camera` / `view.zoom`
-- [ ] Server: return captures as MCP image content, not a base64 string in text
+
+**Changed from the plan, deliberately:**
+
+- **`log.tail` reads Godot's log FILE, not an in-process ring buffer.** Godot exposes no
+  public C# hook for intercepting the log, and the file (`debug/file_logging/log_path`,
+  default `user://logs/godot.log`) has a real advantage anyway: it contains everything
+  from before the bridge connected, including the warnings emitted during project load —
+  which is exactly when this framework's `PushWarning`s fire.
+- **`log.mark` replaces `log.clear`.** The log file is Godot's own and shared with the
+  engine's writer; truncating a user's log to make a read convenient is a destructive
+  answer to a bookkeeping problem. A marker gives the same "only what happened after this"
+  without deleting anything.
+- **`log.subscribe` not built.** Push requires the server to poll the file anyway, so an
+  agent calling `log.tail` after an action gets the same information without a second
+  mechanism to keep in sync.
+- **`view.camera` / `view.zoom` not built.** Framing the editor viewport needs editor
+  viewport APIs whose C# surface varies across 4.x, and node-rect cropping already solves
+  the problem it was meant to solve (aiming a capture at one widget). Left open above
+  rather than quietly dropped.
+
+**`scene.diff` compares type, name and Control geometry**, not every property. A full
+property dump makes every diff enormous and buries the one change that matters.
 
 ## Verification
 

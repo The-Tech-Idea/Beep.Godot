@@ -11,7 +11,7 @@ per-phase document beside this one.
 | **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ✅ `tools/beep-mcp-server/` |
 | **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ✅ *(Ctrl-Z test unrun)* |
 | **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ✅ *(unrun vs live editor)* |
-| **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ⬜ |
+| **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ✅ *(unrun vs live editor)* |
 | **4** | Autonomy — run the gates and iterate without a human | [PHASE_4_AUTONOMY.md](PHASE_4_AUTONOMY.md) | ⬜ |
 
 Update the status column in the same commit that lands the work. A ✅ here means the

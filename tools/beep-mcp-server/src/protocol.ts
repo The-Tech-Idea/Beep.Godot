@@ -129,6 +129,14 @@ export const BRIDGE_METHODS: Record<string, RoleTarget> = {
   "script.attach": "editor",
   "classdb.list": "any",
   "classdb.describe": "any",
+
+  // Phase 3 — perception. view.capture works in either role (editor window vs game).
+  "view.capture": "any",
+  "view.layout": "editor",
+  "log.tail": "any",
+  "log.mark": "any",
+  "scene.snapshot": "editor",
+  "scene.diff": "editor",
 };
 
 /**

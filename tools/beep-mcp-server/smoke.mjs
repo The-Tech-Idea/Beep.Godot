@@ -160,6 +160,27 @@ ws.on("message", (raw) => {
     ws.send(JSON.stringify({ id: req.id, ok: false,
       error: "'Target' has no method 'no_such_method' -- the connection would fire into nothing.",
       error_type: "McpBridgeException", code: "UNKNOWN_METHOD" }));
+  } else if (req.method === "view.capture" && req.params?.target === "node" && req.params?.node === "Empty") {
+    ws.send(JSON.stringify({ id: req.id, ok: false,
+      error: "'Empty' has a 0x0 rect -- there is nothing to capture.", error_type: "McpBridgeException",
+      code: "EMPTY_RECT", fix: "That is usually the defect: check custom_minimum_size and size_flags." }));
+  } else if (req.method === "view.capture") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+      target: req.params?.target ?? "viewport", format: "png", width: 1, height: 1,
+      base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" } }));
+  } else if (req.method === "view.layout") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+      count: 2,
+      problems: [{ path: "Margin/VBox/Header/BackButton", code: "ZERO_HEIGHT",
+                   message: "Button has height 0. A control with no height is invisible and unclickable." }],
+      controls: [] } }));
+  } else if (req.method === "log.tail") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: { available: true, total_lines: 42, count: 1,
+      entries: [{ line: 41, level: "warning", text: "WARNING: [SkinCatalog] racing/arcade slot 'panel' points at ... which does not exist" }] } }));
+  } else if (req.method === "scene.diff") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+      from: "before", added: [], removed: [], total_changes: 1,
+      changed: [{ path: "Margin/VBox/Header/BackButton", before: "Button rect=0,0,120,0", after: "Button rect=0,0,120,44" }] } }));
   } else if (req.method === "ping") {
     /* never answer: reserved for the disconnect test below */
   } else {
@@ -262,6 +283,26 @@ const badSig = await rpc("tools/call", {
 });
 check("connecting to a missing method is refused",
       badSig?.result?.isError === true && /UNKNOWN_METHOD/.test(textOf(badSig)));
+
+// 5d. Phase 3 — perception
+const cap = await rpc("tools/call", { name: "godot_capture", arguments: {} });
+const capBlocks = cap?.result?.content ?? [];
+check("capture returns real MCP image content (not base64 in text)",
+      capBlocks.some((b) => b.type === "image" && b.mimeType === "image/png" && typeof b.data === "string"),
+      capBlocks.map((b) => b.type).join("+"));
+
+const emptyCap = await rpc("tools/call", { name: "godot_capture", arguments: { target: "node", node: "Empty" } });
+check("zero-size control reports EMPTY_RECT rather than a blank image",
+      emptyCap?.result?.isError === true && /EMPTY_RECT/.test(textOf(emptyCap)));
+
+const layout = await rpc("tools/call", { name: "godot_layout", arguments: {} });
+check("layout flags a zero-height button", /ZERO_HEIGHT/.test(textOf(layout)) && /BackButton/.test(textOf(layout)));
+
+const logs = await rpc("tools/call", { name: "godot_log_tail", arguments: { level: "warning" } });
+check("log tail surfaces a PushWarning", /SkinCatalog/.test(textOf(logs)) && /does not exist/.test(textOf(logs)));
+
+const diff = await rpc("tools/call", { name: "godot_scene_diff", arguments: { from: "before" } });
+check("scene diff reports the changed rect", /120,0/.test(textOf(diff)) && /120,44/.test(textOf(diff)));
 
 // 6. Disconnect mid-flight rejects rather than hanging
 const hang = rpc("tools/call", { name: "godot_ping", arguments: {} });

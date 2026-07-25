@@ -3,7 +3,9 @@
 **Goal:** `claude mcp add` once, and an agent can talk to Godot. Nothing in this roadmap
 works until this does.
 
-**Status:** ⬜ not started · [back to roadmap](MCP_ROADMAP.md)
+**Status:** ✅ built — `tools/beep-mcp-server/`, 17 tools, `npm run smoke` green (12 checks).
+Verified against a **simulated** addon; steps 3–7 below still need a live Godot editor,
+which does not exist on this machine. · [back to roadmap](MCP_ROADMAP.md)
 
 ---
 
@@ -115,16 +117,24 @@ open, and writes disabled by the security flags.
 
 ## Tasks
 
-- [ ] Scaffold `tools/beep-mcp-server/` (package.json, tsconfig, MCP SDK dep)
-- [ ] `bridge.ts` — WS server, role registry, `hello` handling, id correlation, timeouts
-- [ ] `protocol.ts` — envelope + method types mirrored from `GodotMcpBridgeController`
-- [ ] `tools.ts` — the table above
-- [ ] `discovery.ts` — `status.get` → dynamic `beep.*` list, `beep_list_commands`
-- [ ] `README.md` — setup, the `claude mcp add` line, the three failure modes
-- [ ] Add `tools/beep-mcp-server/node_modules/` and `dist/` to `.gitignore`
-- [ ] Link the roadmap from `CLAUDE.md` (Debug MCP Bridge section) and root `README.md`
+- [x] Scaffold `tools/beep-mcp-server/` (package.json, tsconfig, MCP SDK 1.29)
+- [x] `bridge.ts` — WS server, role registry, `hello` handling, id correlation, timeouts
+- [x] `protocol.ts` — envelope + method types mirrored from `GodotMcpBridgeController`
+- [x] `tools.ts` — the table above (17 tools)
+- [x] Discovery — `status.get` → dynamic `beep.*` list via `beep_list_commands`
+      (folded into `tools.ts`; a separate `discovery.ts` was not worth the indirection)
+- [x] `README.md` — setup, the `claude mcp add` line, the three failure modes
+- [x] `.gitignore` for `node_modules/` and `dist/`
+- [x] `smoke.mjs` + `npm run smoke` — the verification below, runnable without Godot
+- [x] Roadmap linked from `CLAUDE.md` (Debug MCP Bridge section)
+- [ ] Link from root `README.md`
 
 ## Verification
+
+`npm run smoke` automates 1, 2, 6 and 8 plus the connected path, by driving the real
+server over stdio while impersonating the addon on the socket — the same frames
+`McpWebSocketClient` sends. **12 checks, all green.** What it cannot prove is that the
+real C# addon behaves as simulated; steps 3–5 and 7 need a live editor.
 
 1. `npm run build` — clean.
 2. **Server alone, Godot closed:** `godot_status` returns `{editor: false, runtime: false}`

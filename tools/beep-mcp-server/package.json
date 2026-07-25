@@ -1,0 +1,29 @@
+{
+  "name": "beep-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server for the Beep.Godot bridge — speaks MCP over stdio to Claude, and hosts the WebSocket server the godot_mcp addon dials into.",
+  "type": "module",
+  "bin": {
+    "beep-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "smoke": "node smoke.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.6.0"
+  }
+}

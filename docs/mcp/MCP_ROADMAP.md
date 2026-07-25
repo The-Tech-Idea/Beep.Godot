@@ -8,7 +8,7 @@ per-phase document beside this one.
 
 | Phase | Goal | Doc | Status |
 |---|---|---|---|
-| **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ⬜ |
+| **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ✅ `tools/beep-mcp-server/` |
 | **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ⬜ |
 | **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ⬜ |
 | **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ⬜ |
@@ -57,6 +57,14 @@ running game.
 
 **Server home:** `tools/beep-mcp-server/` (Node + TypeScript, `@modelcontextprotocol/sdk`).
 Versioned beside the addon it speaks to, so the wire protocol cannot drift.
+
+> **Phase 0 is built.** `npm install && npm run build`, then
+> `claude mcp add beep-godot -- node <abs>/tools/beep-mcp-server/dist/index.js`.
+> `npm run smoke` verifies the whole path without a Godot binary — it drives the real
+> server over stdio and impersonates the addon on the socket. 17 tools; 12 checks green,
+> covering Godot-closed, Godot-connected, a refused write, and disconnect-mid-request.
+> Verified against a **simulated** addon, not a live editor — no Godot binary exists on
+> this machine, so step 3–7 of the phase doc's verification remain to be run for real.
 
 ---
 

@@ -23,3 +23,7 @@ mono_crash.*.json
 *.user
 *.suo
 /.vs/Beep.Godot/v18
+
+# beep-mcp-server (Node)
+tools/beep-mcp-server/node_modules/
+tools/beep-mcp-server/dist/

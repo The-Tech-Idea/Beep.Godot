@@ -103,6 +103,34 @@ ws.on("message", (raw) => {
     ws.send(JSON.stringify({ id: req.id, ok: false,
       error: "beep.set_node_property edits the open scene. Enable godot_mcp/security/allow_editor_writes first.",
       error_type: "InvalidOperationException" }));
+  } else if (req.method === "bridge.capabilities") {
+    ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+      methods: ["bridge.batch", "node.set_property_safe"],
+      features: { batch: true, dry_run: true, undo: true, structured_errors: true },
+      error_codes: ["SNAKE_CASE_EXPORT", "UNKNOWN_PROPERTY", "BATCH_ABORTED"] } }));
+  } else if (req.method === "node.set_property_safe" && req.params?.property === "title_label_path") {
+    // The snake_case [Export] trap, reported the way McpBridgeException does.
+    ws.send(JSON.stringify({ id: req.id, ok: false,
+      error: "'title_label_path' is a C# [Export] written snake_case. Godot silently DROPS that spelling.",
+      error_type: "McpBridgeException", code: "SNAKE_CASE_EXPORT",
+      fix: "Use 'TitleLabelPath'.", detail: { given: "title_label_path", expected: "TitleLabelPath" } }));
+  } else if (req.method === "node.set_property_safe") {
+    ws.send(JSON.stringify({ id: req.id, ok: true,
+      result: { updated: true, undoable: true, property: req.params?.property,
+                dry_run: req.params?.dry_run === true } }));
+  } else if (req.method === "bridge.batch") {
+    const ops = req.params?.ops ?? [];
+    const bad = ops.findIndex((o) => o?.params?.property === "nope");
+    if (bad >= 0 && (req.params?.atomic ?? true) && !req.params?.dry_run) {
+      ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+        ok: false, aborted_at: bad, committed: false, code: "BATCH_ABORTED",
+        error: `Batch aborted at op ${bad}; nothing was applied.` } }));
+    } else {
+      ws.send(JSON.stringify({ id: req.id, ok: true, result: {
+        ok: true, dry_run: req.params?.dry_run === true,
+        committed: req.params?.dry_run !== true, undoable: req.params?.dry_run !== true,
+        count: ops.length } }));
+    }
   } else if (req.method === "ping") {
     /* never answer: reserved for the disconnect test below */
   } else {
@@ -129,6 +157,43 @@ const refused = await rpc("tools/call", {
 check("write gate refusal surfaces as isError with the fix",
       refused?.result?.isError === true && textOf(refused).includes("allow_editor_writes"),
       textOf(refused).slice(0, 90));
+
+// 5b. Phase 1 — capabilities, batch, dry run, and the snake_case refusal
+const caps = await rpc("tools/call", { name: "godot_capabilities", arguments: {} });
+check("capabilities advertises batch/dry_run/undo",
+      /"batch": true/.test(textOf(caps)) && /"undo": true/.test(textOf(caps)));
+
+const snake = await rpc("tools/call", {
+  name: "godot_node_set_property",
+  arguments: { path: "GameInfoBinder", property: "title_label_path", value: "x" },
+});
+check("snake_case [Export] refused with the PascalCase fix",
+      snake?.result?.isError === true && /SNAKE_CASE_EXPORT/.test(textOf(snake)) && /TitleLabelPath/.test(textOf(snake)),
+      textOf(snake).slice(0, 95));
+
+const dry = await rpc("tools/call", {
+  name: "godot_batch",
+  arguments: { dry_run: true, label: "preview", ops: [ { method: "node.set_property", params: { path: ".", property: "x", value: 1 } } ] },
+});
+check("dry-run batch reports dry_run and commits nothing",
+      /"dry_run": true/.test(textOf(dry)) && /"committed": false/.test(textOf(dry)));
+
+const applied = await rpc("tools/call", {
+  name: "godot_batch",
+  arguments: { label: "restyle", ops: [ { method: "node.set_property", params: { path: ".", property: "x", value: 1 } } ] },
+});
+check("applied batch is committed and undoable",
+      /"committed": true/.test(textOf(applied)) && /"undoable": true/.test(textOf(applied)));
+
+const aborted = await rpc("tools/call", {
+  name: "godot_batch",
+  arguments: { ops: [
+    { method: "node.set_property", params: { path: ".", property: "ok", value: 1 } },
+    { method: "node.set_property", params: { path: ".", property: "nope", value: 1 } } ] },
+});
+check("atomic batch aborts at the failing index, committing nothing",
+      /BATCH_ABORTED/.test(textOf(aborted)) && /"aborted_at": 1/.test(textOf(aborted)) && /"committed": false/.test(textOf(aborted)),
+      textOf(aborted).replace(/\s+/g, " ").slice(0, 100));
 
 // 6. Disconnect mid-flight rejects rather than hanging
 const hang = rpc("tools/call", { name: "godot_ping", arguments: {} });

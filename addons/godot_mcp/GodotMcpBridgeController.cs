@@ -76,7 +76,7 @@ public partial class GodotMcpBridgeController : Node
         }
         catch (Exception ex)
         {
-            SendError(id, ex.Message, ex.GetType().Name);
+            SendError(id, ex);
         }
     }
 
@@ -90,19 +90,28 @@ public partial class GodotMcpBridgeController : Node
         });
     }
 
-    private void SendError(string id, string error, string type)
+    /// <summary>Send a failure. `error` and `error_type` stay for compatibility; an
+    /// McpBridgeException adds `code`, `fix` and `detail` so an agent can act on it
+    /// instead of parsing prose. See McpBridgeException.</summary>
+    private void SendError(string id, Exception ex)
     {
-        _client?.Send(new JsonObject
-        {
-            ["id"] = id,
-            ["ok"] = false,
-            ["error"] = error,
-            ["error_type"] = type
-        });
+        var body = ErrorJson(ex);
+        body["id"] = id;
+        body["ok"] = false;
+        _client?.Send(body);
     }
 
     private JsonNode? ExecuteMethod(string method, JsonObject p)
     {
+        // Phase 1 methods first (bridge.batch, bridge.capabilities,
+        // node.set_property_safe) — see GodotMcpBridgeController.SafeWrites.cs.
+        if (TryExecuteSafeWrite(method, p, out var safeResult)) return safeResult;
+
+        // Any write method can be previewed instead of applied. A dry run must reach the
+        // validator BEFORE the real handler, or "preview" would mutate the scene.
+        if (p["dry_run"]?.GetValue<bool>() == true && IsValidatableWrite(method))
+            return Validate(method, p);
+
         return method switch
         {
             "ping" => Ping(),
@@ -140,9 +149,18 @@ public partial class GodotMcpBridgeController : Node
             "project.setting.get" => ProjectSettingGet(p),
             "project.setting.set" => ProjectSettingSet(p),
 
-            _ => throw new InvalidOperationException($"Unknown MCP bridge method: {method}")
+            _ => throw new McpBridgeException(
+                    McpBridgeException.Codes.MethodUnknown,
+                    $"Unknown MCP bridge method: {method}",
+                    "Call bridge.capabilities for the method list this bridge actually dispatches.")
         };
     }
+
+    /// <summary>Methods that have a dry-run validator. Anything else with dry_run set
+    /// would otherwise execute for real, which is the opposite of a preview.</summary>
+    private static bool IsValidatableWrite(string method) => method
+        is "node.set_property" or "node.set_property_safe"
+        or "node.create" or "node.delete" or "node.reparent";
 
     private JsonObject Ping()
     {
@@ -419,7 +437,32 @@ public partial class GodotMcpBridgeController : Node
         Error error = image.SavePng(path);
         if (error != Error.Ok)
             throw new InvalidOperationException($"Failed to save screenshot: {error}");
-        return new JsonObject { ["path"] = path, ["absolute_path"] = ProjectSettings.GlobalizePath(path) };
+
+        // An agent can LOOK at base64; it cannot look at a file path. beep.screenshot
+        // already returned inline PNG, so two ways to take a picture existed and only
+        // one was usable. The inline shape is canonical now; the original path fields
+        // stay so nothing that relied on them breaks.
+        var result = new JsonObject
+        {
+            ["path"] = path,
+            ["absolute_path"] = ProjectSettings.GlobalizePath(path),
+        };
+
+        if (p["inline"]?.GetValue<bool>() != false)
+        {
+            int cap = p["max_width"]?.GetValue<int>() ?? 1280;
+            if (cap > 0 && image.GetWidth() > cap)
+            {
+                // Cap the payload — a 4K frame is several MB of base64 over a WebSocket.
+                int h = Mathf.Max(1, (int)(image.GetHeight() * (cap / (float)image.GetWidth())));
+                image.Resize(cap, h, Image.Interpolation.Bilinear);
+            }
+            result["format"] = "png";
+            result["width"] = image.GetWidth();
+            result["height"] = image.GetHeight();
+            result["base64"] = Convert.ToBase64String(image.SavePngToBuffer());
+        }
+        return result;
     }
 
     private JsonNode InputAction(JsonObject p)

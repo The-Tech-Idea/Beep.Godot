@@ -196,12 +196,16 @@ export class GodotBridge {
     if (frame.ok) {
       p.resolve(frame.result ?? null);
     } else {
+      // Phase 1 gives failures a stable `code` and a `fix`. Prefer those; fall back to
+      // the C# exception name for a bridge that predates them.
+      const message = frame.fix
+        ? `${frame.error ?? "Godot reported an error."} ${frame.fix}`
+        : (frame.error ?? "Godot reported an error with no message.");
       p.reject(
-        new BridgeError(
-          frame.error ?? "Godot reported an error with no message.",
-          frame.error_type ?? "GodotError",
-          { method: p.method },
-        ),
+        new BridgeError(message, frame.code ?? frame.error_type ?? "GodotError", {
+          method: p.method,
+          ...(frame.detail ?? {}),
+        }),
       );
     }
   }

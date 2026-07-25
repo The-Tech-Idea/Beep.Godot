@@ -110,6 +110,69 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
     },
   );
 
+  server.registerTool(
+    "godot_capabilities",
+    {
+      title: "Bridge capabilities",
+      description:
+        "Machine-readable capability block: every method this bridge dispatches, the beep.* command list, the security flags, the error-code table, and whether batch / dry_run / undo are available. Read this instead of guessing whether a method exists.",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        return ok(await call("bridge.capabilities", {}, "any"));
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  // ── batch: many edits, one undo entry ─────────────────────────────────
+
+  server.registerTool(
+    "godot_batch",
+    {
+      title: "Apply many edits as one undoable action",
+      description:
+        "Run an ordered list of bridge operations inside ONE Godot undo entry — the user can revert the whole thing with a single Ctrl-Z. Restyling a screen is 30-60 property writes; send them together. " +
+        "atomic (default true) aborts and commits nothing if any op fails, naming the failing index. " +
+        "dry_run validates every op and mutates nothing — always worth doing first. " +
+        "Ops are {method, params}, e.g. {method:'node.set_property', params:{path:'Margin/VBox', property:'theme_override_constants/separation', value:20}}.",
+      inputSchema: {
+        ops: z
+          .array(
+            z.object({
+              method: z.string(),
+              params: z.record(z.unknown()).optional(),
+            }),
+          )
+          .describe("Ordered operations."),
+        label: z.string().optional().describe("Undo-history label; shown as 'MCP: <label>'."),
+        atomic: z.boolean().optional().describe("Default true — all or nothing."),
+        dry_run: z.boolean().optional().describe("Validate only; change nothing."),
+      },
+    },
+    async ({ ops, label, atomic, dry_run }) => {
+      try {
+        return ok(
+          await call(
+            "bridge.batch",
+            {
+              ops: ops.map((o) => ({ method: o.method, params: o.params ?? {} })),
+              ...(label ? { label } : {}),
+              ...(atomic === undefined ? {} : { atomic }),
+              ...(dry_run === undefined ? {} : { dry_run }),
+            },
+            "editor",
+            60_000,
+          ),
+        );
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
   // ── the extension point that matters: beep.* ───────────────────────────
 
   server.registerTool(
@@ -224,18 +287,29 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
   server.registerTool(
     "godot_node_set_property",
     {
-      title: "Set a node property",
+      title: "Set a node property (validated, undoable)",
       description:
-        "Set one property on a node in the open scene. Requires godot_mcp/security/allow_editor_writes. NOTE: a C# [Export] must be written PascalCase (TitleLabelPath, not title_label_path) — Godot silently drops the snake_case form. Prefer beep_command with beep.set_node_property, which refuses that mistake outright.",
+        "Set one property on a node in the open scene, as a Godot undo entry the user can Ctrl-Z. " +
+        "Refuses an unknown property instead of silently discarding the value, and refuses a C# [Export] written snake_case — Godot drops that spelling without a word (title_label_path vs TitleLabelPath). " +
+        "Pass dry_run to check without changing anything. Requires godot_mcp/security/allow_editor_writes. For several edits use godot_batch, which is one undo entry for the lot.",
       inputSchema: {
         path: z.string(),
         property: z.string(),
         value: z.unknown().describe("JSON value; converted to a Godot Variant."),
+        dry_run: z.boolean().optional().describe("Validate only; change nothing."),
       },
     },
-    async ({ path, property, value }) => {
+    async ({ path, property, value, dry_run }) => {
       try {
-        return ok(await call("node.set_property", { path, property, value }, "editor"));
+        // node.set_property_safe is the guarded, undo-backed path added in Phase 1;
+        // the original node.set_property remains for callers that need its old behaviour.
+        return ok(
+          await call(
+            "node.set_property_safe",
+            { path, property, value, ...(dry_run === undefined ? {} : { dry_run }) },
+            "editor",
+          ),
+        );
       } catch (err) {
         return fail(err);
       }
@@ -251,11 +325,12 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
         parent: z.string().describe("Parent node path ('.' for the scene root)."),
         type: z.string().describe("Godot class name, e.g. 'PanelContainer'."),
         name: z.string().optional(),
+        dry_run: z.boolean().optional(),
       },
     },
-    async ({ parent, type, name }) => {
+    async ({ parent, type, name, dry_run }) => {
       try {
-        return ok(await call("node.create", { parent, type, name }, "editor"));
+        return ok(await call("node.create", { parent, type, name, ...(dry_run === undefined ? {} : { dry_run }) }, "editor"));
       } catch (err) {
         return fail(err);
       }
@@ -266,12 +341,13 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
     "godot_node_delete",
     {
       title: "Delete a node",
-      description: "Remove a node from the open scene. Requires allow_editor_writes.",
-      inputSchema: { path: z.string() },
+      description:
+        "Remove a node from the open scene, undoably. Refuses while another node's NodePath export still points at it — that would leave those resolving to null in silence. Requires allow_editor_writes.",
+      inputSchema: { path: z.string(), dry_run: z.boolean().optional() },
     },
-    async ({ path }) => {
+    async ({ path, dry_run }) => {
       try {
-        return ok(await call("node.delete", { path }, "editor"));
+        return ok(await call("node.delete", { path, ...(dry_run === undefined ? {} : { dry_run }) }, "editor"));
       } catch (err) {
         return fail(err);
       }
@@ -283,11 +359,11 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
     {
       title: "Reparent a node",
       description: "Move a node under a new parent in the open scene. Requires allow_editor_writes.",
-      inputSchema: { path: z.string(), new_parent: z.string() },
+      inputSchema: { path: z.string(), new_parent: z.string(), dry_run: z.boolean().optional() },
     },
-    async ({ path, new_parent }) => {
+    async ({ path, new_parent, dry_run }) => {
       try {
-        return ok(await call("node.reparent", { path, new_parent }, "editor"));
+        return ok(await call("node.reparent", { path, new_parent_path: new_parent, ...(dry_run === undefined ? {} : { dry_run }) }, "editor"));
       } catch (err) {
         return fail(err);
       }

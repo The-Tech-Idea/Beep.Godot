@@ -3,7 +3,11 @@
 **Goal:** an agent can change a scene without the change being unreviewable, unrepeatable,
 or silently discarded.
 
-**Status:** ⬜ not started · depends on Phase 0 · [back to roadmap](MCP_ROADMAP.md)
+**Status:** ✅ built — `addons/godot_mcp/` (McpBridgeException, McpWriteGuard, McpUndo,
+GodotMcpBridgeController.SafeWrites) + server tools. `dotnet build` 0 errors,
+`npm run smoke` 17 checks green. Verified against a **simulated** addon — no Godot binary
+on this machine — so the Ctrl-Z test (verification 2), the headline of the phase, is still
+unrun. · [back to roadmap](MCP_ROADMAP.md)
 
 ---
 
@@ -30,8 +34,10 @@ and no way to know afterwards what actually landed:
 
 ### 1.1 Undo/redo integration — `EditorUndoRedoManager`
 
-Route every editor-side mutation through
-`EditorInterface.Singleton.GetEditorUndoRedoManager()`:
+Route every editor-side mutation through the editor's undo manager, obtained from
+**`EditorPlugin.GetUndoRedo()`** — it is *not* on `EditorInterface`, and the
+plausible-looking `EditorInterface.Singleton.GetEditorUndoRedoManager()` does not exist in
+the Godot 4.7 C# bindings:
 
 ```
 CreateAction("MCP: set ColorRect.color")
@@ -117,15 +123,30 @@ cannot look at a path) and have the other delegate, keeping its old response fie
 
 ## Tasks
 
-- [ ] `BridgeUndo` helper wrapping `EditorUndoRedoManager` for property/create/delete/reparent
-- [ ] Route `node.*` and every `beep.*` editor write through it
-- [ ] `bridge.batch` — ordered ops, `atomic`, one undo entry, per-op results
-- [ ] `dry_run` on batch + all write methods
-- [ ] `BridgeWriteGuard` — unknown property / snake_case export / type mismatch / referenced
-- [ ] Structured error envelope + the code table
-- [ ] `status.get` capability block
-- [ ] Screenshot delegation
-- [ ] Server: `godot_batch` + `dry_run` passthrough; map codes to actionable MCP messages
+- [x] `McpUndoScope` wrapping `EditorUndoRedoManager` for property/create/delete/reparent.
+      **Note:** the manager comes from `EditorPlugin.GetUndoRedo()`, *not* from
+      `EditorInterface` — the obvious `EditorInterface.GetEditorUndoRedoManager()` does not
+      exist in the 4.7 C# bindings and does not compile.
+- [x] `node.set_property_safe` — validated + undoable. The original `node.set_property`
+      is left untouched for anything depending on its old behaviour; the MCP tool points
+      at the safe one.
+- [x] `bridge.batch` — ordered ops, `atomic`, one undo entry, per-op results
+- [x] `dry_run` on batch and on every validatable write (routed before the real handler,
+      or "preview" would mutate)
+- [x] `McpWriteGuard` — unknown property, snake_case export, still-referenced delete
+- [x] Structured error envelope + the code table (`error`/`error_type` kept for compatibility)
+- [x] `bridge.capabilities` block
+- [x] Screenshot: `runtime.screenshot` now also returns inline base64 (capped, default
+      1280px), keeping its `path`/`absolute_path` fields
+- [x] Server: `godot_batch`, `godot_capabilities`, `dry_run` passthrough, and `code`/`fix`
+      carried through `BridgeError`
+- [ ] Route every `beep.*` editor write through the undo scope as well — currently only the
+      `node.*` paths are undoable; `beep.set_node_property` and friends still write directly
+
+**Deliberately not done:** a post-set type check. Godot coerces legitimately and constantly
+(int→float, int→enum, String→NodePath), so comparing `VariantType` before and after flags
+correct writes more often than wrong ones. `TYPE_MISMATCH` stays in the code table for a
+checker that uses the property's *declared* type; guessing would be worse than not checking.
 
 ## Verification
 

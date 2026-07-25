@@ -29,6 +29,11 @@ export interface BridgeResponse {
   result?: unknown;
   error?: string;
   error_type?: string;
+  /** Phase 1 additions (McpBridgeException). `error`/`error_type` remain for
+   *  compatibility; these are what an agent should actually act on. */
+  code?: string;
+  fix?: string;
+  detail?: Record<string, unknown>;
 }
 
 /** Godot -> server, unprompted, immediately on socket open (`SendHelloOnce`).
@@ -69,6 +74,9 @@ export function isBridgeResponse(frame: unknown): frame is BridgeResponse {
 export const BRIDGE_METHODS: Record<string, RoleTarget> = {
   ping: "any",
   "status.get": "any",
+  "bridge.capabilities": "any",
+  "bridge.batch": "editor",
+  "node.set_property_safe": "editor",
 
   "tree.serialize": "editor",
   "scene.current": "editor",

@@ -9,7 +9,7 @@ per-phase document beside this one.
 | Phase | Goal | Doc | Status |
 |---|---|---|---|
 | **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ✅ `tools/beep-mcp-server/` |
-| **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ⬜ |
+| **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ✅ *(Ctrl-Z test unrun)* |
 | **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ⬜ |
 | **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ⬜ |
 | **4** | Autonomy — run the gates and iterate without a human | [PHASE_4_AUTONOMY.md](PHASE_4_AUTONOMY.md) | ⬜ |
@@ -122,8 +122,9 @@ surface them in `status` so an agent knows why a write was refused.
 
 ---
 
-## Known overlap to resolve (carry into Phase 1)
+## Resolved overlaps
 
-`runtime.screenshot` (bridge, writes to `user://mcp_screenshots`) and `beep.screenshot`
-(Beep, returns base64 inline) now both exist. Two ways to take a picture is one too many —
-Phase 3 picks the inline-base64 shape as canonical and makes the other delegate to it.
+- **Screenshots.** `runtime.screenshot` wrote a file and `beep.screenshot` returned inline
+  base64 — two ways to take a picture, only one of which an agent can actually look at.
+  Phase 1 made `runtime.screenshot` return inline base64 as well (capped, default 1280px
+  wide), keeping its `path`/`absolute_path` fields so nothing that used them breaks.

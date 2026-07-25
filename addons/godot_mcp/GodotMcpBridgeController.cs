@@ -488,16 +488,33 @@ public partial class GodotMcpBridgeController : Node
 
     private JsonNode? ExecuteGameCommand(JsonObject p)
     {
-        RequireRuntimeWritesOrRuntimeRole();
-        string command = RequiredString(p, "command");
+        // Accept "command" or "name" — the registry, the docs and every caller have used
+        // both spellings, and a required-parameter error for a synonym is a pointless
+        // failure mode.
+        string command = p["command"]?.GetValue<string>() ?? p["name"]?.GetValue<string>() ?? "";
+        if (string.IsNullOrWhiteSpace(command))
+            throw McpBridgeException.InvalidParams("game.command needs a 'command' (or 'name').",
+                "Call status.get and read project_commands for the registered names.");
+
         JsonObject args = p["args"] as JsonObject ?? new JsonObject();
 
-        // Static registry first: it's the only option in the editor, where the
-        // McpGameAdapter autoload doesn't exist. Falls back to the adapter so
-        // existing adapter-registered commands keep working.
+        // NO blanket write gate here.
+        //
+        // This used to call RequireRuntimeWritesOrRuntimeRole() for EVERY command, which
+        // meant the entire read-only surface — beep.catalog, beep.list_genres,
+        // beep.list_components, beep.get_game_info — was refused unless the user had
+        // enabled WRITE permission. Granting write access in order to perform a read is
+        // exactly backwards, and it made the catalog unreachable in a default project.
+        //
+        // Registry commands gate themselves: BeepMcpCommands calls RequireEditorWrites /
+        // RequireRuntimeWrites inside each handler that actually writes. Reads stay open,
+        // writes stay gated, which is what the security flags were for.
         if (McpCommandRegistry.TryExecute(command, args, out JsonNode? result))
             return result;
 
+        // The adapter fallback is third-party and makes no such promise, so it keeps the
+        // conservative gate.
+        RequireRuntimeWritesOrRuntimeRole();
         return RequireGameAdapter().ExecuteCommand(command, args);
     }
 

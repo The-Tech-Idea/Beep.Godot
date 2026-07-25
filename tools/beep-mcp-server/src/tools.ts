@@ -94,18 +94,17 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
         const status = (await call("status.get", {}, "any")) as Record<string, unknown> | null;
         // The bridge reports its registry under one of a couple of shapes
         // depending on version; take whichever is present rather than assuming.
-        const commands =
-          (status?.["commands"] as unknown) ??
-          (status?.["command_names"] as unknown) ??
-          (status?.["registry"] as unknown) ??
-          null;
+        // Ping()/StatusGet() emit these two exact keys. Earlier guesses ("commands",
+        // "registry") matched nothing, so discovery always reported "no list".
+        const commands = (status?.["project_commands"] as unknown) ?? null;
+        const states = (status?.["project_states"] as unknown) ?? null;
         if (!commands) {
           return ok({
             note: "status.get did not report a command list; call beep_command directly with a known name.",
             raw: status,
           });
         }
-        return ok({ commands });
+        return ok({ commands, states });
       } catch (err) {
         return fail(err);
       }
@@ -192,7 +191,9 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
       try {
         const role = roleForBeepCommand(name);
         const timeout = SLOW_BEEP_COMMANDS.has(name) ? SLOW_METHOD_TIMEOUT_MS : undefined;
-        const result = await call("game.command", { name, args: args ?? {} }, role, timeout);
+        // The bridge reads params.command. Sending only `name` produced a bare
+        // "Missing required parameter: command" from a live editor.
+        const result = await call("game.command", { command: name, name, args: args ?? {} }, role, timeout);
         return ok(result);
       } catch (err) {
         return fail(err);

@@ -8,10 +8,10 @@ per-phase document beside this one.
 
 | Phase | Goal | Doc | Status |
 |---|---|---|---|
-| **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ✅ `tools/beep-mcp-server/` |
-| **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ✅ *(Ctrl-Z test unrun)* |
-| **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ✅ *(unrun vs live editor)* |
-| **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ✅ *(unrun vs live editor)* |
+| **0** | Make it connectable — the MCP server that doesn't exist yet | [PHASE_0_CONNECTIVITY.md](PHASE_0_CONNECTIVITY.md) | ✅ **live-verified** |
+| **1** | Safe writes — undo, batching, dry-run, honest errors | [PHASE_1_SAFE_WRITES.md](PHASE_1_SAFE_WRITES.md) | ✅ *(Ctrl-Z needs a GUI editor)* |
+| **2** | Creative authoring — resources, themes, animation, signals, scripts | [PHASE_2_AUTHORING.md](PHASE_2_AUTHORING.md) | ✅ *(ClassDB live; writes need the gate on)* |
+| **3** | Perception — see the result, read the errors | [PHASE_3_PERCEPTION.md](PHASE_3_PERCEPTION.md) | ✅ *(logs live; capture needs a GUI editor)* |
 | **4** | Autonomy — run the gates and iterate without a human | [PHASE_4_AUTONOMY.md](PHASE_4_AUTONOMY.md) | ⬜ |
 
 Update the status column in the same commit that lands the work. A ✅ here means the
@@ -58,13 +58,20 @@ running game.
 **Server home:** `tools/beep-mcp-server/` (Node + TypeScript, `@modelcontextprotocol/sdk`).
 Versioned beside the addon it speaks to, so the wire protocol cannot drift.
 
-> **Phase 0 is built.** `npm install && npm run build`, then
+> **Built and live-verified.** `npm install && npm run build`, then
 > `claude mcp add beep-godot -- node <abs>/tools/beep-mcp-server/dist/index.js`.
-> `npm run smoke` verifies the whole path without a Godot binary — it drives the real
-> server over stdio and impersonates the addon on the socket. 17 tools; 12 checks green,
-> covering Godot-closed, Godot-connected, a refused write, and disconnect-mid-request.
-> Verified against a **simulated** addon, not a live editor — no Godot binary exists on
-> this machine, so step 3–7 of the phase doc's verification remain to be run for real.
+>
+> Two verification levels, both repeatable:
+> - **`npm run smoke`** — server logic against a simulated addon. No Godot needed. 28 checks.
+> - **`npm run live`** — launches a REAL headless Godot editor, waits for the addon to dial
+>   in, and drives the surface end to end. 11 checks. Set `BEEP_GODOT_BIN`.
+>
+> **The live run is what found the bugs simulation could not.** Three protocol faults
+> survived every simulated check and died on first contact with a real editor:
+> `game.command` gated *reads* behind WRITE permission (so the whole catalog was
+> unreachable in a default project), the server sent `name` where the bridge reads
+> `command`, and discovery looked for a `status.get` key that never existed. Simulation
+> tests the shape you *believe* the protocol has; only the live run tests the one it has.
 
 ---
 

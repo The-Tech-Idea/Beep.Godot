@@ -21,15 +21,19 @@
  * launch (~6s). Copying them risks shipping a stale build and a platform-specific
  * node_modules.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const target = args.find((a) => !a.startsWith("--"));
 const addonsOnly = args.includes("--addons-only");
 const minimal = args.includes("--minimal");
+// Writes ON by default: running this installer against your own game IS the consent,
+// and it removes the one step that cannot be automated afterwards.
+const allowWrites = !args.includes("--no-writes");
 
 if (!target) {
   console.error(`Install the Beep addons + MCP server into a Godot project.
@@ -38,6 +42,7 @@ if (!target) {
 
     --minimal       only addons/godot_mcp (the bridge), not the Beep game builder
     --addons-only   skip the MCP server and .mcp.json
+    --no-writes     leave allow_editor_writes off (default: ON, so Claude can edit)
 `);
   process.exit(2);
 }
@@ -106,20 +111,156 @@ if (!addonsOnly) {
   done.push(".mcp.json");
 }
 
+// ── the C# project ──
+//
+// godot_mcp and beep_game_builder_cs are C#. Without a .csproj Godot compiles
+// nothing, so the plugin never loads — and it does so IN COMPLETE SILENCE: the
+// editor starts, the import succeeds, exit code is 0, and there is simply no bridge.
+// Verified: a game without a .csproj produced zero plugin log lines where this repo
+// produced ten. Creating one is the difference between "installed" and "works".
+if (!addonsOnly) ensureCsproj();
+
+function ensureCsproj() {
+  const existing = readdirSync(dst).filter((f) => f.endsWith(".csproj"));
+  const name = (basename(dst) || "Game").replace(/[^A-Za-z0-9_.]/g, "");
+  const csprojName = existing[0] ?? `${name}.csproj`;
+
+  if (!existing.length) {
+    writeFileSync(
+      join(dst, csprojName),
+      `<Project Sdk="Godot.NET.Sdk/4.7.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <!-- Created by Beep's installer. Godot.NET.Sdk auto-includes every .cs under the
+       project directory, so the addons under addons/ compile with no explicit items. -->
+</Project>
+`,
+    );
+    done.push(csprojName + " (created — C# addons need it)");
+  }
+
+  // Godot needs [dotnet] project/assembly_name to match, or it will not load the
+  // built assembly even when the .csproj is right.
+  const file = join(dst, "project.godot");
+  let text = readFileSync(file, "utf8");
+  const assembly = csprojName.replace(/\.csproj$/, "");
+  if (!/^\[dotnet\]$/m.test(text)) {
+    text += `\n[dotnet]\n\nproject/assembly_name="${assembly}"\n`;
+    writeFileSync(file, text);
+  }
+
+  // "C#" in config/features is what makes the editor treat this as a .NET project.
+  text = readFileSync(file, "utf8");
+  const featRe = /^config\/features=PackedStringArray\((.*)\)$/m;
+  const fm = text.match(featRe);
+  if (fm && !/["']C#["']/.test(fm[1])) {
+    text = text.replace(featRe, `config/features=PackedStringArray(${fm[1]}, "C#")`);
+    writeFileSync(file, text);
+  }
+}
+
+// ── enable the plugins and the write gate in project.godot ──
+//
+// This is the one step that CANNOT be done through MCP later: turning on
+// allow_editor_writes is itself a write, so the bridge refuses it. Doing it here is
+// legitimate — running this installer against your own game IS the consent — and it
+// is the difference between "works" and "works after you go hunting in Project
+// Settings". Pass --no-writes to leave it off.
+if (!addonsOnly) patchProjectGodot();
+
+function patchProjectGodot() {
+  const file = join(dst, "project.godot");
+  let text = readFileSync(file, "utf8");
+  const before = text;
+
+  // 1. Enable the plugins we just installed.
+  const plugins = ['res://addons/godot_mcp/plugin.cfg'];
+  if (!minimal) plugins.push('res://addons/beep_game_builder_cs/plugin.cfg', 'res://addons/beep_ui/plugin.cfg');
+  const wanted = plugins.filter((p) => existsSync(join(dst, p.replace("res://", ""))));
+
+  const enabledRe = /^enabled=PackedStringArray\((.*)\)$/m;
+  const m = text.match(enabledRe);
+  if (m) {
+    const have = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    const merged = [...new Set([...have, ...wanted])];
+    text = text.replace(enabledRe, `enabled=PackedStringArray(${merged.map((s) => `"${s}"`).join(", ")})`);
+  } else {
+    text += `\n[editor_plugins]\n\nenabled=PackedStringArray(${wanted.map((s) => `"${s}"`).join(", ")})\n`;
+  }
+
+  // 2. Security flags. Only ADD them when absent — never downgrade a setting the
+  //    developer has already made a decision about.
+  const flags = [
+    ["security/allow_editor_writes", allowWrites ? "true" : "false"],
+    ["security/allow_runtime_writes", allowWrites ? "true" : "false"],
+  ];
+  if (!/^\[godot_mcp\]$/m.test(text)) {
+    text += `\n[godot_mcp]\n\n${flags.map(([k, v]) => `${k}=${v}`).join("\n")}\n`;
+  } else {
+    for (const [k, v] of flags) {
+      const re = new RegExp(`^${k.replace("/", "\\/")}=.*$`, "m");
+      if (!re.test(text)) text = text.replace(/^\[godot_mcp\]$/m, `[godot_mcp]\n\n${k}=${v}`);
+    }
+  }
+
+  if (text !== before) {
+    writeFileSync(file, text);
+    done.push(`project.godot (plugins enabled${allowWrites ? ", writes ON" : ""})`);
+  }
+}
+
+// ── build the C# once, so the addon is live immediately ──
+//
+// The Godot GUI builds on open, but a headless run does not — and until something
+// builds, the plugin is present and silent. Doing it here means the install is
+// finished when the script finishes, rather than after a first editor launch nobody
+// told you about.
+if (!addonsOnly) buildOnce();
+
+function buildOnce() {
+  const r = spawnSync("dotnet", ["build"], { cwd: dst, stdio: ["ignore", "pipe", "pipe"], shell: false });
+  if (r.error) {
+    console.log("\n! dotnet not found — skipping the C# build.");
+    console.log("  The addon stays inactive until it compiles. Install the .NET 8 SDK,");
+    console.log(`  then run:  cd "${dst}" && dotnet build`);
+    return;
+  }
+  if (r.status === 0) {
+    done.push("dotnet build (addon compiled and active)");
+  } else {
+    console.log("\n! dotnet build failed — the addon will not load until it compiles:");
+    const out = (r.stdout?.toString() ?? "") + (r.stderr?.toString() ?? "");
+    for (const line of out.split("\n").filter((l) => /error/i.test(l)).slice(0, 5)) {
+      console.log("    " + line.trim());
+    }
+  }
+}
+
 // ── report ──
-console.log(`Installed into ${dst}:`);
+console.log(`\nInstalled into ${dst}:`);
 for (const d of done) console.log(`  ✓ ${d}`);
 
 console.log(`
-Next:
-  1. Open ${dst} in Godot once — it enables the plugins and imports the assets.
-  2. Open Claude Code in ${dst} and approve 'beep-godot'. Confirm with /mcp.
-  3. To let Claude EDIT the project, turn on
-     Project Settings → godot_mcp → security → allow_editor_writes.
-     (It cannot be enabled through MCP — setting it is itself a write.)
+Two steps left:
+  1. cd "${dst}"
+  2. claude          →  approve 'beep-godot' when asked, then /mcp to confirm
 
-Note: each game runs its own server on port 8789, so work on one game at a time.
-Open a second game and its Godot will take the connection from the first.`);
+Open the game in Godot whenever you like; the addon connects on its own.`);
+
+if (!allowWrites && !addonsOnly) {
+  console.log(`
+Writes are OFF. To let Claude edit this game, set
+  Project Settings → godot_mcp → security → allow_editor_writes = on
+(or re-run this without --no-writes).`);
+}
+
+console.log(`
+One game at a time: the bridge uses port 8789, so opening a second game takes the
+connection from the first.`);
 
 if (!addonsOnly && existsSync(join(dst, "tools", "beep-mcp-server", "node_modules"))) {
   rmSync(join(dst, "tools", "beep-mcp-server", "node_modules"), { recursive: true, force: true });

@@ -1,11 +1,12 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/PlatformerController.cs" id="1_player"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="30_gameover"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HitSoundComponent.cs" id="31_hitsound"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="3_flow"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="20_hud"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/PlatformerHudComponent.cs" id="20_hud"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="9_forecast"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LevelLoaderComponent.cs" id="10_loader"]
@@ -60,9 +61,24 @@ script = ExtResource("31_hitsound")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("3_flow")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="WeatherForecast" type="Control" parent="HUD"]
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "platformer"
+
+[node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -71,7 +87,7 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("9_forecast")
 
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
+[node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
@@ -80,23 +96,20 @@ grow_vertical = 0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
+[node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="ScoreLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="ScoreLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
 text = "0"
 
-[node name="LivesLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="LevelLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "Level 1"
+
+[node name="LivesLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
 text = "× 3"
 
-[node name="HealthLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="HealthLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
 text = "100 / 100"
 
-[node name="GameFlow" type="Node" parent="."]
-script = ExtResource("3_flow")
-
-[node name="Hud" type="Node" parent="HUD"]
+[node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("20_hud")
-ScoreLabelPath = NodePath("TopLeft/StatsVBox/ScoreLabel")
-LivesLabelPath = NodePath("TopLeft/StatsVBox/LivesLabel")
-HealthLabelPath = NodePath("TopLeft/StatsVBox/HealthLabel")

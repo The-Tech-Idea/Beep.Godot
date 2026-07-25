@@ -39,6 +39,10 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private SpinBox _resW, _resH, _targetFps;
     private CheckBox _pixelArt;
 
+    // ── Skin & screen tools ──
+    private LineEdit _newScreenName;
+    private CheckBox _overwriteScenes;
+
     public override void _Ready()
     {
         Name = "Beep Game Builder";
@@ -111,6 +115,12 @@ public partial class BeepGameBuilderDock : VBoxContainer
         b.AddChild(Row("Target FPS", SpinBox(30, 240, 60, 80, out _targetFps)));
         _pixelArt = new CheckBox { Text = "Pixel art (texture filter off)", ButtonPressed = true };
         b.AddChild(_pixelArt);
+        // Regenerating a project SKIPS scenes that already exist, so template fixes never reach an
+        // existing project (a stale main_menu.tscn kept the Load button dead, for one). Tick this to
+        // overwrite existing scenes with the current templates. Off by default — it also overwrites
+        // player_template/enemy_template/levels, the scenes you're meant to edit in place.
+        _overwriteScenes = new CheckBox { Text = "Overwrite existing scenes (refresh from templates)", ButtonPressed = false };
+        b.AddChild(_overwriteScenes);
 
         // ── 4. Actions ──
         AddSectionHeader(b, "4. Create");
@@ -126,6 +136,29 @@ public partial class BeepGameBuilderDock : VBoxContainer
         var reloadBtn = new Button { Text = "🔄 Reload from game_info.tres" };
         reloadBtn.Pressed += LoadGameInfoIntoForm;
         b.AddChild(reloadBtn);
+
+        // ── 5. Skin + screen tools ──
+        AddSectionHeader(b, "5. Skin & screens");
+        b.AddChild(new Label { Text = "Every theme.json declares 9-patch textures. Bake writes them from that theme's own colors." });
+
+        var bakeThemeBtn = new Button { Text = "🎨 Bake textures — selected genre" };
+        bakeThemeBtn.Pressed += () => RunBake(allGenres: false);
+        b.AddChild(bakeThemeBtn);
+
+        var bakeAllBtn = new Button { Text = "🎨 Bake textures — ALL genres + page backgrounds" };
+        bakeAllBtn.Pressed += () => RunBake(allGenres: true);
+        b.AddChild(bakeAllBtn);
+
+        var galleryBtn = new Button { Text = "🔍 Open Theme Gallery (compare textures vs procedural)" };
+        galleryBtn.Pressed += OpenThemeGallery;
+        b.AddChild(galleryBtn);
+
+        b.AddChild(new HSeparator());
+        _newScreenName = new LineEdit { PlaceholderText = "New screen name (e.g. Shop, RaceResults)" };
+        b.AddChild(_newScreenName);
+        var newScreenBtn = new Button { Text = "✚ New screen for the selected genre" };
+        newScreenBtn.Pressed += CreateNewScreen;
+        b.AddChild(newScreenBtn);
 
         // ── Output log ──
         _output = new TextEdit { CustomMinimumSize = new Vector2(0, 100), Editable = false, PlaceholderText = "Output..." };
@@ -240,7 +273,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.PixelArt = _pixelArt.ButtonPressed;
 
         Log($"Stamping {genre?.DisplayName ?? gid} project: {info.GameName} ({tid}/{pid}) …");
-        var log = BeepGenreGenerator.CreateProject(gid, info, overwrite: false);
+        var log = BeepGenreGenerator.CreateProject(gid, info, overwrite: _overwriteScenes.ButtonPressed);
         foreach (var line in log) Log(line);
 
         Log("Done. The run/main scene is set to scenes/ui/main_menu.tscn — press Play (F5).");
@@ -362,5 +395,45 @@ public partial class BeepGameBuilderDock : VBoxContainer
     {
         if (_output != null) _output.Text += msg + "\n";
         GD.Print("[Beep] " + msg);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Skin & screen tools
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>Write the 9-patch PNGs every theme.json already points at. Until this runs the
+    /// whole texture pipeline is inert: SkinCatalog cannot load a file that isn't there, so each
+    /// slot falls back to the procedural box.</summary>
+    private void RunBake(bool allGenres)
+    {
+        string genreId = GetSelectedGenreId();
+        if (!allGenres && string.IsNullOrEmpty(genreId)) { Log("✗ Pick a genre first."); return; }
+
+        Log(allGenres ? "Baking every genre…" : $"Baking '{genreId}'…");
+        var log = allGenres ? BeepTextureBaker.BakeAll() : BeepTextureBaker.BakeGenre(genreId);
+        foreach (var line in log) Log("  " + line);
+        Log("Done. Godot re-imports the new files automatically; toggle Textures in the Theme Gallery to compare.");
+    }
+
+    private void OpenThemeGallery()
+    {
+        const string src = "res://addons/beep_game_builder_cs/templates/scenes/theme_gallery.tscn";
+        if (!ResourceLoader.Exists(src)) { Log($"✗ {src} is missing."); return; }
+        EditorInterface.Singleton.OpenSceneFromPath(src);
+        Log("Opened the Theme Gallery — press F5-equivalent (Play Scene) to interact with it.");
+    }
+
+    /// <summary>Stamp a new screen that already follows the repo's conventions (themed opaque
+    /// Background, BeepTitle header + rule, sized back button, ThemePresetComponent on the
+    /// content Control, and a script wiring by NAME).</summary>
+    private void CreateNewScreen()
+    {
+        string genreId = GetSelectedGenreId();
+        if (string.IsNullOrEmpty(genreId)) { Log("✗ Pick a genre first."); return; }
+        string name = _newScreenName?.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) { Log("✗ Type a screen name first."); return; }
+
+        foreach (var line in BeepScreenGenerator.CreateScreen(genreId, name, "", overwrite: false)) Log("  " + line);
+        EditorInterface.Singleton.GetResourceFilesystem()?.Scan();
     }
 }

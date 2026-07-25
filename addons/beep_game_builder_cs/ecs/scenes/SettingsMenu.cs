@@ -10,7 +10,7 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Center/Panel/Margin/ContentVBox/CloseButton", OnClosePressed);
+            this.ConnectButton("CloseButton", OnClosePressed);
             WireSettingsWidgets();
         }
 
@@ -42,25 +42,20 @@ namespace Beep.ECS.Scenes
                 return;
             }
 
-            const string video = "Center/Panel/Margin/ContentVBox/Tabs/Video/";
-            const string language = "Center/Panel/Margin/ContentVBox/Tabs/Language/";
-            const string gameplay = "Center/Panel/Margin/ContentVBox/Tabs/Gameplay/";
-            const string audio = "Center/Panel/Margin/ContentVBox/Tabs/Audio/";
-
             // The three audio sliders shipped bound to nothing: the scene drew them,
             // SettingsComponent stored and applied the volumes, and no code joined the two.
             // Dragging them did nothing, and their positions were scene literals that never
             // reflected the stored value.
-            Bind(audio + "MasterSlider", settings.MasterVolume, v => settings.MasterVolume = v);
-            Bind(audio + "SfxSlider", settings.SfxVolume, v => settings.SfxVolume = v);
-            Bind(audio + "MusicSlider", settings.MusicVolume, v => settings.MusicVolume = v);
+            Bind("MasterSlider", settings.MasterVolume, v => settings.MasterVolume = v);
+            Bind("SfxSlider", settings.SfxVolume, v => settings.SfxVolume = v);
+            Bind("MusicSlider", settings.MusicVolume, v => settings.MusicVolume = v);
 
-            Bind(video + "FullscreenCheck", settings.Fullscreen, v => settings.Fullscreen = v);
-            Bind(gameplay + "SubtitlesCheck", settings.SubtitlesEnabled, v => settings.SubtitlesEnabled = v);
-            Bind(gameplay + "ScreenShakeCheck", settings.ScreenShakeEnabled, v => settings.ScreenShakeEnabled = v);
-            Bind(gameplay + "DamageNumbersCheck", settings.DamageNumbersEnabled, v => settings.DamageNumbersEnabled = v);
+            Bind("FullscreenCheck", settings.Fullscreen, v => settings.Fullscreen = v);
+            Bind("SubtitlesCheck", settings.SubtitlesEnabled, v => settings.SubtitlesEnabled = v);
+            Bind("ScreenShakeCheck", settings.ScreenShakeEnabled, v => settings.ScreenShakeEnabled = v);
+            Bind("DamageNumbersCheck", settings.DamageNumbersEnabled, v => settings.DamageNumbersEnabled = v);
 
-            if (GetNodeOrNull<OptionButton>(video + "ResolutionOption") is { } resolution)
+            if (this.Find<OptionButton>("ResolutionOption") is { } resolution)
             {
                 if (settings.ResolutionIndex >= 0 && settings.ResolutionIndex < resolution.ItemCount)
                     resolution.Selected = settings.ResolutionIndex;
@@ -72,7 +67,7 @@ namespace Beep.ECS.Scenes
                 };
             }
 
-            if (GetNodeOrNull<OptionButton>(language + "LanguageOption") is { } locale)
+            if (this.Find<OptionButton>("LanguageOption") is { } locale)
             {
                 int i = LocaleCodes.IndexOf(settings.Language);
                 if (i >= 0 && i < locale.ItemCount) locale.Selected = i;
@@ -90,9 +85,9 @@ namespace Beep.ECS.Scenes
         /// them (English / Español / 日本語) — matches templates/i18n/translations.csv.</summary>
         private static readonly System.Collections.Generic.List<string> LocaleCodes = new() { "en", "es", "ja" };
 
-        private void Bind(string path, bool current, System.Action<bool> apply)
+        private void Bind(string name, bool current, System.Action<bool> apply)
         {
-            if (GetNodeOrNull<CheckButton>(path) is not { } check) return;
+            if (this.Find<CheckButton>(name) is not { } check) return;
             check.ButtonPressed = current;
             check.Toggled += value =>
             {
@@ -109,9 +104,9 @@ namespace Beep.ECS.Scenes
         /// on DragEnded to avoid per-frame writes — which achieved nothing, since the apply
         /// callback was already writing to disk on every change, and DragEnded only fires for
         /// mouse drags (keyboard and wheel adjustments would have skipped it entirely).</summary>
-        private void Bind(string path, float current, System.Action<float> apply)
+        private void Bind(string name, float current, System.Action<float> apply)
         {
-            if (GetNodeOrNull<Godot.Range>(path) is not { } slider) return;
+            if (this.Find<Godot.Range>(name) is not { } slider) return;
 
             // Seed before subscribing: assigning Value emits ValueChanged synchronously,
             // which would otherwise write the scene's literal back over the stored setting.

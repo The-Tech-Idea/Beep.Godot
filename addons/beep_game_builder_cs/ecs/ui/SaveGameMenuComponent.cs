@@ -39,10 +39,13 @@ namespace Beep.ECS.UI
 		{
 			base._Ready();
 			if (Engine.IsEditorHint()) return;
-			_nameInput = GetNodeOrNull<LineEdit>("PanelContainer/VBox/SaveNameContainer/NameInput");
-			_slotsVBox = GetNodeOrNull<VBoxContainer>("PanelContainer/VBox/SlotsScroll/SlotsVBox");
-			_saveButton = GetNodeOrNull<Button>("PanelContainer/VBox/ButtonHBox/SaveButton");
-			_cancelButton = GetNodeOrNull<Button>("PanelContainer/VBox/ButtonHBox/CancelButton");
+			// Resolve by NAME, not a fixed path: the scene gained a Margin wrapper for padding,
+			// and a project generated from an older template still has the pre-Margin scene.
+			// FindChild(recursive) finds each control in either layout.
+			_nameInput = FindChild("NameInput", recursive: true, owned: false) as LineEdit;
+			_slotsVBox = FindChild("SlotsVBox", recursive: true, owned: false) as VBoxContainer;
+			_saveButton = FindChild("SaveButton", recursive: true, owned: false) as Button;
+			_cancelButton = FindChild("CancelButton", recursive: true, owned: false) as Button;
 
 			if (_saveButton != null) _saveButton.Pressed += OnSavePressed;
 			if (_cancelButton != null) _cancelButton.Pressed += OnCancelPressed;
@@ -51,6 +54,7 @@ namespace Beep.ECS.UI
 			PopulateSlots();
 			WireSlotButtons();
 			UpdateSaveButtonState();
+			NormalizeLayout();
 
 			// Grab initial focus so a controller/keyboard-only player can operate the menu.
 			Callable.From(GrabInitialFocus).CallDeferred();
@@ -145,6 +149,25 @@ namespace Beep.ECS.UI
 				btn.Pressed += handler;
 				_slotDisconnectors.Add(() => { if (GodotObject.IsInstanceValid(btn)) btn.Pressed -= handler; });
 			}
+		}
+
+		/// <summary>Enforce consistent sizing/spacing in code, so the menu looks right on ANY scene
+		/// version (a project generated from an older template keeps its stale .tscn). Delivered by a
+		/// plain C# rebuild; no regenerate/overwrite needed.</summary>
+		private void NormalizeLayout()
+		{
+			var panel = FindChild("PanelContainer", recursive: true, owned: false) as PanelContainer;
+			if (panel != null)
+				panel.CustomMinimumSize = new Vector2(Mathf.Max(panel.CustomMinimumSize.X, 560), Mathf.Max(panel.CustomMinimumSize.Y, 500));
+			if (_saveButton?.GetParent()?.GetParent() is VBoxContainer vbox)
+				vbox.AddThemeConstantOverride("separation", 18);
+			if (_saveButton?.GetParent() is HBoxContainer hbox)
+				hbox.AddThemeConstantOverride("separation", 12);
+			if (_saveButton != null) _saveButton.CustomMinimumSize = new Vector2(0, 44);
+			if (_cancelButton != null) _cancelButton.CustomMinimumSize = new Vector2(0, 44);
+			if (_slotsVBox != null) _slotsVBox.AddThemeConstantOverride("separation", 8);
+			foreach (var b in SlotButtons()) b.CustomMinimumSize = new Vector2(0, 44);
+			if (_nameInput != null) _nameInput.CustomMinimumSize = new Vector2(0, 36);
 		}
 
 		private void OnSlotSelected(int slot)

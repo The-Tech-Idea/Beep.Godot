@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.13, 0.18, 1)
+color = Color(0.09, 0.13, 0.18, 1)
 
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
@@ -28,25 +28,37 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
-text = "World Map"
+theme_type_variation = &"BeepTitle"
+text = "Select Level"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
-[node name="CoinsCounter" type="Label" parent="Margin/VBox/Header"]
-text = "🪙 0 / 200"
+[node name="CoinsCaption" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepCaption"
+text = "Coins"
+vertical_alignment = 1
+
+[node name="CoinsValue" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepValue"
+text = "42"
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Menu"
 metadata/action = "back"
+
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
 [node name="WorldTabs" type="TabContainer" parent="Margin/VBox"]
 size_flags_vertical = 3
@@ -54,45 +66,50 @@ size_flags_vertical = 3
 [node name="World1" type="ScrollContainer" parent="Margin/VBox/WorldTabs"]
 
 [node name="W1VBox" type="VBoxContainer" parent="Margin/VBox/WorldTabs/World1"]
-theme_override_constants/separation = 12
+theme_override_constants/separation = 16
 size_flags_horizontal = 3
 
 [node name="WorldLabel" type="Label" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "World 1: Green Hills"
 
+[node name="W1ProgressCaption" type="Label" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
+theme_type_variation = &"BeepCaption"
+text = "5 of 15 stars collected"
+
 [node name="LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
-theme_override_constants/h_separation = 16
-theme_override_constants/v_separation = 16
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 18
 columns = 5
 
 [node name="Level1Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+custom_minimum_size = Vector2(116, 116)
 text = "1-1
 ★★★"
 metadata/action = "level_1_1"
 
 [node name="Level2Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+custom_minimum_size = Vector2(116, 116)
 text = "1-2
 ★★"
 metadata/action = "level_1_2"
 
 [node name="Level3Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+custom_minimum_size = Vector2(116, 116)
 text = "1-3
 🔒"
 disabled = true
 metadata/action = "level_1_3"
 
 [node name="Level4Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+custom_minimum_size = Vector2(116, 116)
 text = "1-4
 🔒"
 disabled = true
 metadata/action = "level_1_4"
 
 [node name="Level5Button" type="Button" parent="Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+custom_minimum_size = Vector2(116, 116)
 text = "1-5
 🔒"
 disabled = true
@@ -101,19 +118,24 @@ metadata/action = "level_1_5"
 [node name="World2" type="ScrollContainer" parent="Margin/VBox/WorldTabs"]
 
 [node name="W2VBox" type="VBoxContainer" parent="Margin/VBox/WorldTabs/World2"]
-theme_override_constants/separation = 12
+theme_override_constants/separation = 16
 size_flags_horizontal = 3
 
-[node name="WorldLabel" type="Label" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
-text = "World 2: Desert Dunes 🔒"
+[node name="W2WorldLabel" type="Label" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "World 2: Desert Dunes"
 
-[node name="LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
-theme_override_constants/h_separation = 16
-theme_override_constants/v_separation = 16
+[node name="W2ProgressCaption" type="Label" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Locked — finish World 1 to unlock."
+
+[node name="W2LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 18
 columns = 5
 
-[node name="Level1Button" type="Button" parent="Margin/VBox/WorldTabs/World2/W2VBox/LevelGrid"]
-custom_minimum_size = Vector2(100, 100)
+[node name="World2Level1Button" type="Button" parent="Margin/VBox/WorldTabs/World2/W2VBox/W2LevelGrid"]
+custom_minimum_size = Vector2(116, 116)
 text = "2-1
 🔒"
 disabled = true
@@ -121,10 +143,10 @@ metadata/action = "level_2_1"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "platformer"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
 TitleLabelPath = NodePath("Margin/VBox/Header/TitleLabel")
 ThemeComponentPath = NodePath("Theme")
 AppendGameName = true
-

@@ -28,42 +28,136 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Crafting"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="RecipeGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 3
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Recipe1" type="Button" parent="Margin/VBox/RecipeGrid"]
-custom_minimum_size = Vector2(100, 80)
-text = "Wood Axe"
+[node name="RecipePanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
 
-[node name="Recipe2" type="Button" parent="Margin/VBox/RecipeGrid"]
-custom_minimum_size = Vector2(100, 80)
-text = "Stone Spear"
+[node name="RecipeMargin" type="MarginContainer" parent="Margin/VBox/Body/RecipePanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Recipe3" type="Button" parent="Margin/VBox/RecipeGrid"]
-custom_minimum_size = Vector2(100, 80)
-text = "Fire Starter"
+[node name="RecipeGrid" type="VBoxContainer" parent="Margin/VBox/Body/RecipePanel/RecipeMargin"]
+theme_override_constants/separation = 10
+
+[node name="RecipeHeading" type="Label" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
+theme_type_variation = &"BeepSubtitle"
+text = "Recipes"
+
+[node name="Recipe1" type="Button" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
+custom_minimum_size = Vector2(0, 48)
+text = "Campfire"
+alignment = 0
+
+[node name="Recipe2" type="Button" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
+custom_minimum_size = Vector2(0, 48)
+text = "Stone Axe"
+alignment = 0
+
+[node name="Recipe3" type="Button" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
+custom_minimum_size = Vector2(0, 48)
+text = "Water Filter"
+alignment = 0
+
+[node name="RecipeSpacer" type="Control" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
+size_flags_vertical = 3
+
+[node name="DetailPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/Body/DetailPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="DetailVBox" type="VBoxContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin"]
+theme_override_constants/separation = 14
+
+[node name="RecipeTitle" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepTitle"
+text = "Campfire"
+
+[node name="RecipeCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Keeps you warm and cooks raw food."
+
+[node name="DetailRule" type="HSeparator" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+
+[node name="IngredientsHeading" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Ingredients"
+
+[node name="IngredientGrid" type="GridContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="WoodCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Wood"
+size_flags_horizontal = 3
+
+[node name="WoodValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepValue"
+text = "3 / 5"
+horizontal_alignment = 2
+
+[node name="StoneCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Stone"
+size_flags_horizontal = 3
+
+[node name="StoneValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepValue"
+text = "2 / 2"
+horizontal_alignment = 2
+
+[node name="TinderCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Tinder"
+size_flags_horizontal = 3
+
+[node name="TinderValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/IngredientGrid"]
+theme_type_variation = &"BeepValue"
+text = "1 / 1"
+horizontal_alignment = 2
+
+[node name="DetailSpacer" type="Control" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+size_flags_vertical = 3
+
+[node name="CraftButton" type="Button" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Craft"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "survival"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

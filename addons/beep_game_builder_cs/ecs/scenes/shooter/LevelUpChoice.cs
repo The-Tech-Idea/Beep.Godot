@@ -18,19 +18,19 @@ namespace Beep.ECS.Scenes
             // the same bug CharacterSelect and VehicleSelect document as fixed on their side.
             // Each card carries its own metadata/action ("pick_1".."pick_3"); read it rather
             // than hardcoding, so re-ordering the cards in the scene can't desync the picks.
-            WirePick("Center/VBox/CardRow/Card1/Card1VBox/Pick1");
-            WirePick("Center/VBox/CardRow/Card2/Card2VBox/Pick2");
-            WirePick("Center/VBox/CardRow/Card3/Card3VBox/Pick3");
+            WirePick("Pick1");
+            WirePick("Pick2");
+            WirePick("Pick3");
         }
 
-        private void WirePick(string nodePath)
+        private void WirePick(string nodeName)
         {
-            if (GetNodeOrNull<Button>(nodePath) is not { } button) return;
+            if (this.Find<Button>(nodeName) is not { } button) return;
 
             string action = button.HasMeta("action") ? button.GetMeta("action").AsString() : "";
             if (string.IsNullOrEmpty(action))
             {
-                GD.PushWarning($"[{Name}] {nodePath} has no metadata/action — its pick cannot be recorded.");
+                GD.PushWarning($"[{Name}] {nodeName} has no metadata/action — its pick cannot be recorded.");
                 return;
             }
 

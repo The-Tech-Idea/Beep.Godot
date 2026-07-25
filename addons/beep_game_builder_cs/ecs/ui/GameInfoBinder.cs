@@ -89,9 +89,19 @@ namespace Beep.ECS.UI
         {
             if (path.IsEmpty) return null;
             var node = parent.GetNodeOrNull<T>(path);
-            if (node == null)
-                GD.PushWarning($"[{Name}] GameInfoBinder.{exportName} = '{path}' did not resolve to a {typeof(T).Name} under '{parent.Name}' — that binding is skipped. Fix the path or clear it.");
-            return node;
+            if (node != null) return node;
+
+            // Fall back to the path's last segment as a NAME. These paths are baked into every
+            // shipped .tscn ("Margin/VBox/Header/TitleLabel"), so restyling a screen — or opening a
+            // project generated from an older template — breaks the path while the node itself is
+            // still right there under a different parent. Matching on name binds both layouts.
+            string leaf = path.GetNameCount() > 0 ? path.GetName(path.GetNameCount() - 1) : "";
+            if (!string.IsNullOrEmpty(leaf)
+                && parent.FindChild(leaf, recursive: true, owned: false) is T found)
+                return found;
+
+            GD.PushWarning($"[{Name}] GameInfoBinder.{exportName} = '{path}' did not resolve to a {typeof(T).Name} under '{parent.Name}' (no node named '{leaf}' either) — that binding is skipped. Fix the path or clear it.");
+            return null;
         }
     }
 }

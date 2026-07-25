@@ -22,3 +22,4 @@ mono_crash.*.json
 [Oo]bj/
 *.user
 *.suo
+/.vs/Beep.Godot/v18

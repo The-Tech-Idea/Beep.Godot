@@ -28,44 +28,166 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox"]
-text = "Unit Commands"
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
-[node name="ActionGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 2
+[node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
+text = "Unit Commands"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(120, 44)
+text = "Close"
+
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Action1" type="Button" parent="Margin/VBox/ActionGrid"]
-custom_minimum_size = Vector2(120, 60)
+[node name="UnitPanelBox" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="UnitMargin" type="MarginContainer" parent="Margin/VBox/Body/UnitPanelBox"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="UnitVBox" type="VBoxContainer" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin"]
+theme_override_constants/separation = 12
+
+[node name="UnitPortrait" type="ColorRect" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+custom_minimum_size = Vector2(0, 150)
+color = Color(0.13, 0.16, 0.2, 1)
+
+[node name="UnitNameLabel" type="Label" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Legionary"
+horizontal_alignment = 1
+
+[node name="UnitTypeCaption" type="Label" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Melee infantry · Veteran"
+horizontal_alignment = 1
+
+[node name="HealthCaption" type="Label" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Health"
+
+[node name="UnitHealthBar" type="ProgressBar" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+custom_minimum_size = Vector2(0, 14)
+value = 80.0
+show_percentage = false
+
+[node name="UnitSpacer" type="Control" parent="Margin/VBox/Body/UnitPanelBox/UnitMargin/UnitVBox"]
+size_flags_vertical = 3
+
+[node name="CommandPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="CommandMargin" type="MarginContainer" parent="Margin/VBox/Body/CommandPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="CommandVBox" type="VBoxContainer" parent="Margin/VBox/Body/CommandPanel/CommandMargin"]
+theme_override_constants/separation = 14
+
+[node name="StatsHeading" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Attributes"
+
+[node name="StatsGrid" type="GridContainer" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 4
+
+[node name="AttackCaption" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Attack"
+size_flags_horizontal = 3
+
+[node name="AttackValue" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "12"
+horizontal_alignment = 2
+
+[node name="DefenceCaption" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Defence"
+size_flags_horizontal = 3
+
+[node name="DefenceValue" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "9"
+horizontal_alignment = 2
+
+[node name="MovementCaption" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Movement"
+size_flags_horizontal = 3
+
+[node name="MovementValue" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "2"
+horizontal_alignment = 2
+
+[node name="RangeCaption" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Range"
+size_flags_horizontal = 3
+
+[node name="RangeValue" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "1"
+horizontal_alignment = 2
+
+[node name="CommandRule" type="HSeparator" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+
+[node name="ActionHeading" type="Label" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Orders"
+
+[node name="ActionGrid" type="GridContainer" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 2
+
+[node name="Action1" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
+custom_minimum_size = Vector2(160, 64)
 text = "Move"
 
-[node name="Action2" type="Button" parent="Margin/VBox/ActionGrid"]
-custom_minimum_size = Vector2(120, 60)
+[node name="Action2" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
+custom_minimum_size = Vector2(160, 64)
 text = "Attack"
 
-[node name="Action3" type="Button" parent="Margin/VBox/ActionGrid"]
-custom_minimum_size = Vector2(120, 60)
+[node name="Action3" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
+custom_minimum_size = Vector2(160, 64)
 text = "Defend"
 
-[node name="Action4" type="Button" parent="Margin/VBox/ActionGrid"]
-custom_minimum_size = Vector2(120, 60)
+[node name="Action4" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
+custom_minimum_size = Vector2(160, 64)
 text = "Special"
 
-[node name="CloseButton" type="Button" parent="Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
-text = "Close"
+[node name="CommandSpacer" type="Control" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "strategy"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
+TitleLabelPath = NodePath("Margin/VBox/Header/TitleLabel")
+AppendGameName = true
 ThemeComponentPath = NodePath("Theme")

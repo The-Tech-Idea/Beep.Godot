@@ -12,21 +12,21 @@ namespace Beep.ECS.Scenes
 
             // GetNodeOrNull (not throwing) so a missing Tabs node warns and disables the tab buttons
             // rather than aborting _Ready and killing Save/Resume/Quit too. The tab lambdas null-guard it.
-            var tabs = GetNodeOrNull<TabContainer>("Margin/MainHBox/ContentArea/Tabs");
+            var tabs = this.Find<TabContainer>("Tabs");
             if (tabs == null)
                 GD.PushWarning($"[{Name}] Tabs TabContainer not found — tab buttons will do nothing.");
 
-            this.ConnectPressed("Margin/MainHBox/TabRail/InventoryButton", () => { if (tabs != null) tabs.CurrentTab = 0; });
-            this.ConnectPressed("Margin/MainHBox/TabRail/MapButton", () => { if (tabs != null) tabs.CurrentTab = 1; });
-            this.ConnectPressed("Margin/MainHBox/TabRail/QuestButton", () => { if (tabs != null) tabs.CurrentTab = 2; });
-            this.ConnectPressed("Margin/MainHBox/TabRail/StatusButton", () => { if (tabs != null) tabs.CurrentTab = 3; });
-            this.ConnectPressed("Margin/MainHBox/TabRail/SaveButton", OnSavePressed);
+            this.ConnectButton("InventoryButton", () => { if (tabs != null) tabs.CurrentTab = 0; });
+            this.ConnectButton("MapButton", () => { if (tabs != null) tabs.CurrentTab = 1; });
+            this.ConnectButton("QuestButton", () => { if (tabs != null) tabs.CurrentTab = 2; });
+            this.ConnectButton("StatusButton", () => { if (tabs != null) tabs.CurrentTab = 3; });
+            this.ConnectButton("SaveButton", OnSavePressed);
             // The Save tab's own button was never wired (only the TabRail SaveButton was), so it
-            // was a dead button. Wire it to the same save action.
-            if (GetNodeOrNull<Button>("Margin/MainHBox/ContentArea/Tabs/Save/SaveButton") is { } saveTabButton)
-                saveTabButton.Pressed += OnSavePressed;
-            this.ConnectPressed("Margin/MainHBox/TabRail/ResumeButton", () => { GetTree().Paused = false; QueueFree(); });
-            this.ConnectPressed("Margin/MainHBox/TabRail/QuitButton", () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); });
+            // was a dead button. Wire it to the same save action. It is named ConfirmSaveButton —
+            // it used to be a second "SaveButton", which a name lookup cannot tell from the rail's.
+            this.ConnectButton("ConfirmSaveButton", OnSavePressed);
+            this.ConnectButton("ResumeButton", () => { GetTree().Paused = false; QueueFree(); });
+            this.ConnectButton("QuitButton", () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); });
         }
 
         /// <summary>Write the autosave slot through the GameStateManager autoload. Was a

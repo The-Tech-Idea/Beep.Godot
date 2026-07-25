@@ -11,21 +11,21 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/BackButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/PlayButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectButton("BackButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
+            this.ConnectButton("PlayButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
 
             // Boosters are optional pre-level pickers: toggle them on, and the choice is
             // carried into the level via the GameStateManager data bag (booster_1..3). The
             // level scene reads GetGameData("booster_N") to apply the effect — that effect
             // is the game's, but selecting + carrying is real and complete here.
-            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster1", "booster_1");
-            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster2", "booster_2");
-            WireBooster("Center/Panel/Margin/VBox/BoosterRow/Booster3", "booster_3");
+            WireBooster("Booster1", "booster_1");
+            WireBooster("Booster2", "booster_2");
+            WireBooster("Booster3", "booster_3");
         }
 
-        private void WireBooster(string nodePath, string key)
+        private void WireBooster(string nodeName, string key)
         {
-            if (GetNodeOrNull<Button>(nodePath) is not { } button) return;
+            if (this.Find<Button>(nodeName) is not { } button) return;
 
             button.ToggleMode = true;
             // Reflect any previously-saved selection.

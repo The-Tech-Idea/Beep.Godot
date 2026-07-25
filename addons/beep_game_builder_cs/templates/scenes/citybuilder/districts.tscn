@@ -28,37 +28,128 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Districts"
 size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="PopulationCaption" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepCaption"
+text = "Population"
+vertical_alignment = 1
+
+[node name="PopulationValue" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepValue"
+text = "250"
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
 [node name="DistrictList" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 size_flags_vertical = 3
 
-[node name="District1" type="Label" parent="Margin/VBox/DistrictList"]
-text = "• Residential: 120 population"
+[node name="District1" type="PanelContainer" parent="Margin/VBox/DistrictList"]
 
-[node name="District2" type="Label" parent="Margin/VBox/DistrictList"]
-text = "• Commercial: 80 population"
+[node name="District1Margin" type="MarginContainer" parent="Margin/VBox/DistrictList/District1"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
 
-[node name="District3" type="Label" parent="Margin/VBox/DistrictList"]
-text = "• Industrial: 50 population"
+[node name="District1Row" type="HBoxContainer" parent="Margin/VBox/DistrictList/District1/District1Margin"]
+theme_override_constants/separation = 16
+
+[node name="District1Name" type="Label" parent="Margin/VBox/DistrictList/District1/District1Margin/District1Row"]
+theme_type_variation = &"BeepSubtitle"
+text = "Residential"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="District1Caption" type="Label" parent="Margin/VBox/DistrictList/District1/District1Margin/District1Row"]
+theme_type_variation = &"BeepCaption"
+text = "Happiness 78%"
+vertical_alignment = 1
+
+[node name="District1Value" type="Label" parent="Margin/VBox/DistrictList/District1/District1Margin/District1Row"]
+theme_type_variation = &"BeepValue"
+text = "120"
+horizontal_alignment = 2
+
+[node name="District2" type="PanelContainer" parent="Margin/VBox/DistrictList"]
+
+[node name="District2Margin" type="MarginContainer" parent="Margin/VBox/DistrictList/District2"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="District2Row" type="HBoxContainer" parent="Margin/VBox/DistrictList/District2/District2Margin"]
+theme_override_constants/separation = 16
+
+[node name="District2Name" type="Label" parent="Margin/VBox/DistrictList/District2/District2Margin/District2Row"]
+theme_type_variation = &"BeepSubtitle"
+text = "Commercial"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="District2Caption" type="Label" parent="Margin/VBox/DistrictList/District2/District2Margin/District2Row"]
+theme_type_variation = &"BeepCaption"
+text = "Happiness 64%"
+vertical_alignment = 1
+
+[node name="District2Value" type="Label" parent="Margin/VBox/DistrictList/District2/District2Margin/District2Row"]
+theme_type_variation = &"BeepValue"
+text = "80"
+horizontal_alignment = 2
+
+[node name="District3" type="PanelContainer" parent="Margin/VBox/DistrictList"]
+
+[node name="District3Margin" type="MarginContainer" parent="Margin/VBox/DistrictList/District3"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="District3Row" type="HBoxContainer" parent="Margin/VBox/DistrictList/District3/District3Margin"]
+theme_override_constants/separation = 16
+
+[node name="District3Name" type="Label" parent="Margin/VBox/DistrictList/District3/District3Margin/District3Row"]
+theme_type_variation = &"BeepSubtitle"
+text = "Industrial"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="District3Caption" type="Label" parent="Margin/VBox/DistrictList/District3/District3Margin/District3Row"]
+theme_type_variation = &"BeepCaption"
+text = "Happiness 41%"
+vertical_alignment = 1
+
+[node name="District3Value" type="Label" parent="Margin/VBox/DistrictList/District3/District3Margin/District3Row"]
+theme_type_variation = &"BeepValue"
+text = "50"
+horizontal_alignment = 2
+
+[node name="ListSpacer" type="Control" parent="Margin/VBox/DistrictList"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "citybuilder"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

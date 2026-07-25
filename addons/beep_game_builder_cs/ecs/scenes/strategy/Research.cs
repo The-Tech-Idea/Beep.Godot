@@ -13,24 +13,24 @@ namespace Beep.ECS.Scenes
             // Each tech button records the chosen research on GameStateManager and closes. Applying
             // the tech's effect (unlocks, bonuses, tree gating) is the game's job — it reads
             // GetGameData("research_selection"). (Scope.)
-            WireTech("Margin/VBox/TechGrid/Tech1", "tech_1");
-            WireTech("Margin/VBox/TechGrid/Tech2", "tech_2");
-            WireTech("Margin/VBox/TechGrid/Tech3", "tech_3");
-            WireTech("Margin/VBox/TechGrid/Tech4", "tech_4");
+            WireTech("Tech1", "tech_1");
+            WireTech("Tech2", "tech_2");
+            WireTech("Tech3", "tech_3");
+            WireTech("Tech4", "tech_4");
 
-            this.ConnectPressed("Margin/VBox/Header/BackButton", () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath));
+            this.ConnectButton("BackButton", () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath));
         }
 
-        private void WireTech(string buttonPath, string techId)
+        private void WireTech(string buttonName, string techId)
         {
-            if (GetNodeOrNull<Button>(buttonPath) is { } btn)
+            if (this.Find<Button>(buttonName) is { } btn)
                 btn.Pressed += () =>
                 {
                     GameStateManagerComponent.Instance?.SetGameData("research_selection", techId);
                     UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
                 };
             else
-                GD.PushWarning($"[{Name}] Research: button '{buttonPath}' not found — that tech is inert. Check the scene node name.");
+                GD.PushWarning($"[{Name}] Research: button '{buttonName}' not found — that tech is inert. Check the scene node name.");
         }
     }
 }

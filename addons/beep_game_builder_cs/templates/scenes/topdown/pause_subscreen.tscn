@@ -29,37 +29,53 @@ theme_override_constants/margin_top = 36
 theme_override_constants/margin_bottom = 36
 
 [node name="MainHBox" type="HBoxContainer" parent="Margin"]
+theme_override_constants/separation = 24
 
 [node name="TabRail" type="VBoxContainer" parent="Margin/MainHBox"]
-custom_minimum_size = Vector2(160, 0)
-theme_override_constants/separation = 4
+custom_minimum_size = Vector2(210, 0)
+theme_override_constants/separation = 8
 
 [node name="PauseLabel" type="Label" parent="Margin/MainHBox/TabRail"]
+theme_type_variation = &"BeepTitle"
 text = "Paused"
 
 [node name="Spacer" type="Control" parent="Margin/MainHBox/TabRail"]
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 12)
 
 [node name="InventoryButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "🎒 Inventory"
 
 [node name="MapButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "🗺 Map"
 
 [node name="QuestButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "❓ Quest"
 
 [node name="StatusButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "❤ Status"
 
 [node name="SaveButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "💾 Save"
 
 [node name="ResumeButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "▶ Resume"
 metadata/action = "resume"
 
 [node name="QuitButton" type="Button" parent="Margin/MainHBox/TabRail"]
+custom_minimum_size = Vector2(0, 46)
+alignment = 0
 text = "⏏ Main Menu"
 metadata/action = "menu"
 
@@ -118,6 +134,7 @@ custom_minimum_size = Vector2(0, 400)
 theme_override_constants/separation = 8
 
 [node name="QuestTitle" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
+theme_type_variation = &"BeepSubtitle"
 text = "Active Quests"
 
 [node name="Quest1" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
@@ -131,46 +148,59 @@ text = "• Collect 100 gold (45/100)"
 
 [node name="Status" type="GridContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
 theme_override_constants/h_separation = 24
-theme_override_constants/v_separation = 8
+theme_override_constants/v_separation = 12
 columns = 2
 
 [node name="HealthCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepCaption"
+size_flags_horizontal = 3
 text = "Health"
 
 [node name="HealthValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepValue"
 text = "♥ 8 / 10"
 horizontal_alignment = 2
 
 [node name="MagicCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepCaption"
+size_flags_horizontal = 3
 text = "Magic"
 
 [node name="MagicValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepValue"
 text = "✦ 30 / 50"
 horizontal_alignment = 2
 
 [node name="GoldCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepCaption"
+size_flags_horizontal = 3
 text = "Gold"
 
 [node name="GoldValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
+theme_type_variation = &"BeepValue"
 text = "🪙 45"
 horizontal_alignment = 2
 
 [node name="Save" type="VBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
 theme_override_constants/separation = 8
 
-[node name="SaveLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+[node name="SaveHeading" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+theme_type_variation = &"BeepSubtitle"
 text = "Save Game"
 
-[node name="SaveButton" type="Button" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+[node name="ConfirmSaveButton" type="Button" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+custom_minimum_size = Vector2(0, 48)
 text = "💾 Save to Slot 1"
 metadata/action = "save"
 
 [node name="HintLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
+theme_type_variation = &"BeepCaption"
 text = "(Saves are managed by the SaveManager autoload.)"
 
 
 [node name="Theme" type="Node" parent="Margin"]
 script = ExtResource("1_theme")
+GenreName = "topdown"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

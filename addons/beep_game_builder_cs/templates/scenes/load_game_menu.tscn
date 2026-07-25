@@ -54,268 +54,295 @@ script = ExtResource("2_theme")
 script = ExtResource("3_binder")
 ThemeComponentPath = NodePath("PanelContainer/Theme")
 
-[node name="VBox" type="VBoxContainer" parent="PanelContainer"]
+[node name="Margin" type="MarginContainer" parent="PanelContainer"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
 
-[node name="Title" type="Label" parent="PanelContainer/VBox"]
+[node name="VBox" type="VBoxContainer" parent="PanelContainer/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 text = "Load Game"
 horizontal_alignment = 1
 label_settings = SubResource("LabelSettings_title")
 
-[node name="SlotsScroll" type="ScrollContainer" parent="PanelContainer/VBox"]
+[node name="SlotsScroll" type="ScrollContainer" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SlotsVBox" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll"]
+[node name="SlotsVBox" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="AutosaveContainer" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="AutosaveContainer" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Autosave"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "No autosave"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="Slot0Container" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot0Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Slot 1"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="DeleteButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
+[node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot0Container/SlotHBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(92, 44)
 text = "Delete"
 
-[node name="Slot1Container" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot1Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Slot 2"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="DeleteButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
+[node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot1Container/SlotHBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(92, 44)
 text = "Delete"
 
-[node name="Slot2Container" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot2Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Slot 3"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="DeleteButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
+[node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot2Container/SlotHBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(92, 44)
 text = "Delete"
 
-[node name="Slot3Container" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot3Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Slot 4"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="DeleteButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
+[node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot3Container/SlotHBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(92, 44)
 text = "Delete"
 
-[node name="Slot4Container" type="PanelContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot4Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot_bg")
 
-[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container"]
+[node name="SlotHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SlotButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
+[node name="SlotButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Slot 5"
 alignment = 0
 
-[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
+[node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 0)
 theme_override_constants/separation = 2
 
-[node name="SlotNameLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+[node name="SlotNameLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepSubtitle"
 layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
-[node name="SlotLevelLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+[node name="SlotLevelLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Level: --"
 text_overrun_behavior = 1
 
-[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+[node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
+theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Time: --"
 text_overrun_behavior = 1
 
-[node name="DeleteButton" type="Button" parent="PanelContainer/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
+[node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox/Slot4Container/SlotHBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(92, 44)
 text = "Delete"
 
-[node name="SeparatorH" type="HSeparator" parent="PanelContainer/VBox"]
+[node name="SeparatorH" type="HSeparator" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 
-[node name="ButtonHBox" type="HBoxContainer" parent="PanelContainer/VBox"]
+[node name="ButtonHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
-[node name="LoadButton" type="Button" parent="PanelContainer/VBox/ButtonHBox"]
+[node name="LoadButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
 layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
 size_flags_horizontal = 3
 text = "Load"
 disabled = true
 
-[node name="CancelButton" type="Button" parent="PanelContainer/VBox/ButtonHBox"]
+[node name="CancelButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
 layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
 size_flags_horizontal = 3
 text = "Cancel"

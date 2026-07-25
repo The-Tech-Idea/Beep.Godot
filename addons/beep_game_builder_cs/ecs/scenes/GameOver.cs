@@ -13,7 +13,7 @@ namespace Beep.ECS.Scenes
             // Show the real session score (GameFlowComponent forwards score into GameApp during
             // play). Falls back to the scene literal only when there is no GameApp autoload.
             if (GameApp.Instance is { } app
-                && GetNodeOrNull<Label>("Center/GameOverVBox/StatsLabel") is { } stats)
+                && this.Find<Label>("StatsLabel") is { } stats)
             {
                 // Strictly greater — an exact tie isn't a new best, and this is a loss screen where
                 // BestScore isn't updated anyway, so only a genuine record shows "(Best!)".
@@ -22,8 +22,8 @@ namespace Beep.ECS.Scenes
                     : $"Score: {app.SessionScore}";
             }
 
-            this.ConnectPressed("Center/GameOverVBox/RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
-            this.ConnectPressed("Center/GameOverVBox/MainMenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectButton("RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectButton("MainMenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

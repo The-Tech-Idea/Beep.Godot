@@ -35,49 +35,51 @@ grow_vertical = 2
 
 [node name="MenuVBox" type="VBoxContainer" parent="Center"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 14
 
 [node name="TitleLabel" type="Label" parent="Center/MenuVBox"]
 layout_mode = 2
+theme_type_variation = &"BeepTitle"
 text = "Game Title"
 horizontal_alignment = 1
 
 [node name="VersionLabel" type="Label" parent="Center/MenuVBox"]
 layout_mode = 2
+theme_type_variation = &"BeepCaption"
 text = "v0.1.0"
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(0, 16)
+custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
 [node name="NewGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "New Game"
 
 [node name="ContinueButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "Continue"
 
 [node name="SaveGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "Save Game"
 
 [node name="LoadGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "Load Game"
 
 [node name="SettingsButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "Settings"
 
 [node name="QuitButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(260, 52)
 layout_mode = 2
 text = "Quit"
 

@@ -28,51 +28,174 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Economy"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="StatsGrid" type="GridContainer" parent="Margin/VBox"]
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
+size_flags_vertical = 3
+
+[node name="IncomePanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="IncomeMargin" type="MarginContainer" parent="Margin/VBox/Body/IncomePanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="IncomeVBox" type="VBoxContainer" parent="Margin/VBox/Body/IncomePanel/IncomeMargin"]
+theme_override_constants/separation = 12
+
+[node name="IncomeHeading" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Income"
+
+[node name="IncomeGrid" type="GridContainer" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
 theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 12
 columns = 2
+
+[node name="TaxCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Residential tax"
+size_flags_horizontal = 3
+
+[node name="TaxValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepValue"
+text = "+2,400"
+horizontal_alignment = 2
+
+[node name="TradeCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Trade"
+size_flags_horizontal = 3
+
+[node name="TradeValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepValue"
+text = "+1,150"
+horizontal_alignment = 2
+
+[node name="TourismCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Tourism"
+size_flags_horizontal = 3
+
+[node name="TourismValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+theme_type_variation = &"BeepValue"
+text = "+320"
+horizontal_alignment = 2
+
+[node name="IncomeSpacer" type="Control" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
 size_flags_vertical = 3
 
-[node name="GoldCaption" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "Gold"
+[node name="ExpensePanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
 
-[node name="GoldValue" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "50000"
+[node name="ExpenseMargin" type="MarginContainer" parent="Margin/VBox/Body/ExpensePanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="ExpenseVBox" type="VBoxContainer" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin"]
+theme_override_constants/separation = 12
+
+[node name="ExpenseHeading" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Expenses"
+
+[node name="ExpenseGrid" type="GridContainer" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="UpkeepCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Upkeep"
+size_flags_horizontal = 3
+
+[node name="UpkeepValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepValue"
+text = "-1,800"
 horizontal_alignment = 2
 
-[node name="WoodCaption" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "Wood"
+[node name="PowerCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Power"
+size_flags_horizontal = 3
 
-[node name="WoodValue" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "350"
+[node name="PowerValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepValue"
+text = "-640"
 horizontal_alignment = 2
 
-[node name="StoneCaption" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "Stone"
+[node name="ServicesCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Services"
+size_flags_horizontal = 3
 
-[node name="StoneValue" type="Label" parent="Margin/VBox/StatsGrid"]
-text = "200"
+[node name="ServicesValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+theme_type_variation = &"BeepValue"
+text = "-410"
+horizontal_alignment = 2
+
+[node name="ExpenseSpacer" type="Control" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
+size_flags_vertical = 3
+
+[node name="TotalPanel" type="PanelContainer" parent="Margin/VBox"]
+
+[node name="TotalMargin" type="MarginContainer" parent="Margin/VBox/TotalPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="TotalRow" type="HBoxContainer" parent="Margin/VBox/TotalPanel/TotalMargin"]
+theme_override_constants/separation = 24
+
+[node name="TreasuryCaption" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+theme_type_variation = &"BeepCaption"
+text = "Treasury"
+vertical_alignment = 1
+
+[node name="GoldValue" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+theme_type_variation = &"BeepValue"
+text = "50,000"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="NetCaption" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+theme_type_variation = &"BeepCaption"
+text = "Net per month"
+vertical_alignment = 1
+
+[node name="NetValue" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+theme_type_variation = &"BeepValue"
+text = "+1,020"
 horizontal_alignment = 2
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "citybuilder"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

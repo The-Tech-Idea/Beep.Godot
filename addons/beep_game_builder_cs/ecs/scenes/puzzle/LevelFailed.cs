@@ -15,9 +15,9 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Center/Panel/Margin/VBox/RetryBonusButton", OnRetryWithBonus);
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/QuitButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/RetryButton", OnRetry);
+            this.ConnectButton("RetryBonusButton", OnRetryWithBonus);
+            this.ConnectButton("QuitButton", () => ChangeScene(GameInfo.Instance?.LevelMapPath));
+            this.ConnectButton("RetryButton", OnRetry);
         }
 
         private void OnRetry()

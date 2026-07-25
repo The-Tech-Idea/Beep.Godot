@@ -46,6 +46,11 @@ namespace Beep.ECS.UI
                 if (GodotObject.IsInstanceValid(c))
                 {
                     c.OffsetTransformEnabled = true;
+                    // offset_transform_scale pivots around pivot_offset, which defaults to the
+                    // top-left corner (0,0) — a "breathing" button would grow toward its
+                    // bottom-right. Centre the pivot so it pulses in place. Re-set each frame
+                    // so it self-corrects on resize (cheap Vector2 write, no re-sort).
+                    c.PivotOffset = c.Size / 2f;
                     c.OffsetTransformScale = scale;
                 }
             _wasPulsing = true;

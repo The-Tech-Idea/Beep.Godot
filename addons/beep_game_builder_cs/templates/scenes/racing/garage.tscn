@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.1, 0.1, 1)
+color = Color(0.07, 0.055, 0.086, 1)
 
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
@@ -28,45 +28,137 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Garage"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Menu"
 
-[node name="VehicleInfo" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
-[node name="VehicleNameLabel" type="Label" parent="Margin/VBox/VehicleInfo"]
-text = "Default Car"
-
-[node name="SpecsLabel" type="Label" parent="Margin/VBox/VehicleInfo"]
-text = "Top Speed: 280 km/h, Acceleration: 8.5, Handling: 7.2"
-
-[node name="Spacer" type="Control" parent="Margin/VBox"]
-custom_minimum_size = Vector2(0, 20)
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="VehicleSelectButton" type="Button" parent="Margin/VBox"]
-custom_minimum_size = Vector2(0, 40)
+[node name="PreviewPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(340, 0)
+
+[node name="PreviewMargin" type="MarginContainer" parent="Margin/VBox/Body/PreviewPanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="PreviewVBox" type="VBoxContainer" parent="Margin/VBox/Body/PreviewPanel/PreviewMargin"]
+theme_override_constants/separation = 12
+
+[node name="VehicleVisual" type="ColorRect" parent="Margin/VBox/Body/PreviewPanel/PreviewMargin/PreviewVBox"]
+custom_minimum_size = Vector2(0, 200)
+size_flags_vertical = 3
+color = Color(0.16, 0.13, 0.2, 1)
+
+[node name="VehicleNameLabel" type="Label" parent="Margin/VBox/Body/PreviewPanel/PreviewMargin/PreviewVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Default Car"
+horizontal_alignment = 1
+
+[node name="VehicleClassCaption" type="Label" parent="Margin/VBox/Body/PreviewPanel/PreviewMargin/PreviewVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Class B · Front-wheel drive"
+horizontal_alignment = 1
+
+[node name="SpecsPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="SpecsMargin" type="MarginContainer" parent="Margin/VBox/Body/SpecsPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="SpecsVBox" type="VBoxContainer" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin"]
+theme_override_constants/separation = 14
+
+[node name="SpecsHeading" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Specifications"
+
+[node name="SpecsGrid" type="GridContainer" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="TopSpeedCaption" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Top Speed"
+size_flags_horizontal = 3
+
+[node name="TopSpeedValue" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepValue"
+text = "280 km/h"
+horizontal_alignment = 2
+
+[node name="AccelerationCaption" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Acceleration"
+size_flags_horizontal = 3
+
+[node name="AccelerationValue" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepValue"
+text = "8.5"
+horizontal_alignment = 2
+
+[node name="HandlingCaption" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Handling"
+size_flags_horizontal = 3
+
+[node name="HandlingValue" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepValue"
+text = "7.2"
+horizontal_alignment = 2
+
+[node name="GripCaption" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Grip"
+size_flags_horizontal = 3
+
+[node name="GripValue" type="Label" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox/SpecsGrid"]
+theme_type_variation = &"BeepValue"
+text = "6.9"
+horizontal_alignment = 2
+
+[node name="SpecsSpacer" type="Control" parent="Margin/VBox/Body/SpecsPanel/SpecsMargin/SpecsVBox"]
+size_flags_vertical = 3
+
+[node name="ActionRow" type="HBoxContainer" parent="Margin/VBox"]
+alignment = 2
+theme_override_constants/separation = 12
+
+[node name="VehicleSelectButton" type="Button" parent="Margin/VBox/ActionRow"]
+custom_minimum_size = Vector2(200, 48)
 text = "Select Vehicle"
 
-[node name="RaceButton" type="Button" parent="Margin/VBox"]
-custom_minimum_size = Vector2(0, 48)
+[node name="RaceButton" type="Button" parent="Margin/VBox/ActionRow"]
+custom_minimum_size = Vector2(220, 48)
 text = "Start Race"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "racing"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

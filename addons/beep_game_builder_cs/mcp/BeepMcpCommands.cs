@@ -20,23 +20,41 @@ namespace Beep.GameBuilder;
 /// (state via `game.state`). `status.get` lists them, so an agent can discover the
 /// surface rather than guess.
 ///
-/// Availability differs by context, because the catalog is files but generation and
-/// the open scene are editor-only:
-///   editor + runtime — beep.list_genres, beep.list_themes, beep.list_palettes, beep.catalog
-///   editor only      — beep.generate_project, beep.apply_skin
-///   runtime only     — beep.game_state (needs the GameApp autoload)
+/// Availability differs by context — the catalog is files, generation and the open
+/// scene are editor-only, and the live subsystems are autoloads/scene nodes that only
+/// exist in a running game. Writes are gated by the bridge's own security flags.
+///
+///   editor + runtime (read) — list_genres, list_themes, list_palettes, catalog,
+///        genre_info, list_scene_templates, list_weather_types, list_components,
+///        component_info, get_game_info, reload_catalog
+///   editor only  — generate_project, apply_skin, add_component  (allow_editor_writes),
+///        set_game_info (allow_editor_writes; writes game_info.tres)
+///   runtime read  — game_state, list_saves, get_weather, get_time, get_settings,
+///        list_locales, translate
+///   runtime write — save_game, load_game, delete_save, new_game, add_score, game_over,
+///        level_complete, set_level, set_weather, set_time, set_setting, set_language
+///        (all gated by allow_runtime_writes)
+///
+/// Scene management, texture baking and screenshots live in the BeepMcpSceneCommands partial:
+///   read   — list_scenes, open_scene, inspect_scene, get_node_property, screenshot
+///   editor write — set_node_property, add_node, remove_node, save_scene, bake_textures,
+///        new_screen  (allow_editor_writes)
 /// </summary>
-public static class BeepMcpCommands
+public static partial class BeepMcpCommands
 {
     private const string Prefix = "beep.";
 
     public static void Register()
     {
-        // ── Read the catalog (safe, read-only, works everywhere) ──
+        // ── Catalog + config discovery (read-only, editor + runtime) ──
         McpCommandRegistry.RegisterCommand("beep.list_genres", _ => ListGenres());
         McpCommandRegistry.RegisterCommand("beep.list_themes", args => ListThemes(Str(args, "genre")));
         McpCommandRegistry.RegisterCommand("beep.list_palettes", args => ListPalettes(Str(args, "genre"), Str(args, "theme")));
         McpCommandRegistry.RegisterCommand("beep.catalog", _ => FullCatalog());
+        McpCommandRegistry.RegisterCommand("beep.genre_info", args => GenreInfo(Str(args, "genre")));
+        McpCommandRegistry.RegisterCommand("beep.list_scene_templates", args => ListSceneTemplates(Str(args, "genre")));
+        McpCommandRegistry.RegisterCommand("beep.list_weather_types", _ => ListWeatherTypes());
+        McpCommandRegistry.RegisterCommand("beep.reload_catalog", _ => ReloadCatalog());
 
         // ── Components (discovery + inspection + creation) ──
         McpCommandRegistry.RegisterCommand("beep.list_components", args => ListComponents(Str(args, "category"), Str(args, "search")));
@@ -44,15 +62,52 @@ public static class BeepMcpCommands
         McpCommandRegistry.RegisterCommand("beep.add_component", args =>
             AddComponent(Str(args, "node"), Str(args, "type"), args["properties"] as JsonObject));
 
-        // ── Act ──
+        // ── Project config (GameInfo) — read anywhere; write is an editor file write ──
+        McpCommandRegistry.RegisterCommand("beep.get_game_info", _ => GetGameInfo());
+        McpCommandRegistry.RegisterCommand("beep.set_game_info", args => SetGameInfo(args["properties"] as JsonObject));
+
+        // ── Skin + generate (editor writes) ──
         McpCommandRegistry.RegisterCommand("beep.apply_skin", args =>
             ApplySkin(Str(args, "genre"), Str(args, "theme"), Str(args, "palette")));
         McpCommandRegistry.RegisterCommand("beep.generate_project", args =>
             GenerateProject(Str(args, "genre"), Str(args, "theme"), Str(args, "palette")));
 
-        // ── Read live game state ──
+        // ── Live game state (read) ──
         McpCommandRegistry.RegisterState("beep.game_state", GameState);
         McpCommandRegistry.RegisterCommand("beep.game_state", _ => GameState());
+
+        // ── Save / load (runtime; writes gated by allow_runtime_writes) ──
+        McpCommandRegistry.RegisterCommand("beep.list_saves", _ => ListSaves());
+        McpCommandRegistry.RegisterCommand("beep.save_game", args => SaveGame(args));
+        McpCommandRegistry.RegisterCommand("beep.load_game", args => LoadGame(Int(args, "slot", Beep.ECS.GameStateManagerComponent.AutosaveSlot)));
+        McpCommandRegistry.RegisterCommand("beep.delete_save", args => DeleteSave(Int(args, "slot", int.MinValue)));
+        McpCommandRegistry.RegisterCommand("beep.new_game", args => NewGame(Str(args, "player")));
+
+        // ── Gameplay flow (runtime; gated) ──
+        McpCommandRegistry.RegisterCommand("beep.add_score", args => AddScore(Int(args, "amount", 0)));
+        McpCommandRegistry.RegisterCommand("beep.game_over", _ => TriggerGameOver());
+        McpCommandRegistry.RegisterCommand("beep.level_complete", _ => TriggerLevelComplete());
+        McpCommandRegistry.RegisterCommand("beep.set_level", args => SetLevel(Int(args, "level", 1)));
+
+        // ── Weather (runtime; set gated) ──
+        McpCommandRegistry.RegisterCommand("beep.get_weather", _ => GetWeather());
+        McpCommandRegistry.RegisterCommand("beep.set_weather", args => SetWeather(args));
+
+        // ── Day / night (runtime; set gated) ──
+        McpCommandRegistry.RegisterCommand("beep.get_time", _ => GetTime());
+        McpCommandRegistry.RegisterCommand("beep.set_time", args => SetTime(Flt(args, "hours", 12f)));
+
+        // ── Settings (runtime; set gated) ──
+        McpCommandRegistry.RegisterCommand("beep.get_settings", _ => GetSettings());
+        McpCommandRegistry.RegisterCommand("beep.set_setting", args => SetSetting(Str(args, "key"), args["value"]));
+
+        // ── Localization (runtime; set gated) ──
+        McpCommandRegistry.RegisterCommand("beep.list_locales", _ => ListLocales());
+        McpCommandRegistry.RegisterCommand("beep.set_language", args => SetLanguage(Str(args, "locale")));
+        McpCommandRegistry.RegisterCommand("beep.translate", args => Translate(Str(args, "key")));
+
+        // ── Scene management, texture baking, screenshots (see BeepMcpSceneCommands.cs) ──
+        RegisterSceneCommands();
     }
 
     public static void Unregister() => McpCommandRegistry.UnregisterPrefix(Prefix);
@@ -452,6 +507,387 @@ public static class BeepMcpCommands
     }
 
     // ════════════════════════════════════════════════════════════════
+    // Catalog + config discovery
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>One genre in full: its scenes[], tuning{}, nav_wiring{}, geometry, and themes —
+    /// so an agent gets the whole genre definition without walking it in pieces.</summary>
+    private static JsonNode GenreInfo(string genreId)
+    {
+        var g = RequireGenre(genreId);
+
+        var scenes = new JsonArray();
+        foreach (var s in g.Scenes) scenes.Add(s);
+        var themes = new JsonArray();
+        foreach (var t in g.Themes.Values) themes.Add(t.Id);
+
+        JsonNode? geometry = null;
+        if (g.Geometry is { } geo)
+            geometry = new JsonObject
+            {
+                ["id"] = geo.Id,
+                ["display_name"] = geo.DisplayName,
+                ["corner_radius"] = geo.CornerRadius,
+                ["border_width"] = geo.BorderWidth,
+                ["shadow_size"] = geo.ShadowSize,
+                ["shadow_offset_y"] = geo.ShadowOffsetY,
+                ["content_padding"] = geo.ContentPadding,
+                ["font_size"] = geo.FontSize,
+                ["background_mode"] = geo.BackgroundMode
+            };
+
+        return new JsonObject
+        {
+            ["id"] = g.Id,
+            ["display_name"] = g.DisplayName,
+            ["icon"] = g.Icon,
+            ["description"] = g.Description,
+            ["default_theme"] = g.DefaultTheme,
+            ["default_geometry"] = g.DefaultGeometryId,
+            ["main_scene"] = g.MainScene,
+            ["scenes"] = scenes,
+            ["themes"] = themes,
+            ["tuning"] = McpJson.FromVariant(g.Tuning),
+            ["nav_wiring"] = McpJson.FromVariant(g.NavWiring),
+            ["geometry"] = geometry
+        };
+    }
+
+    /// <summary>List the .tscn templates that ship with the addon (shared + per-genre), scanning the
+    /// templates folder — there is no manifest, and a newly-dropped template shows up automatically.</summary>
+    private static JsonNode ListSceneTemplates(string genre)
+    {
+        const string baseDir = "res://addons/beep_game_builder_cs/templates/scenes";
+
+        var result = new JsonObject { ["shared"] = ScanTscn(baseDir) };
+        if (!string.IsNullOrEmpty(genre))
+        {
+            result["genre"] = genre;
+            result[genre] = ScanTscn($"{baseDir}/{genre}");
+        }
+        else
+        {
+            var byGenre = new JsonObject();
+            foreach (var id in Beep.ECS.UI.SkinCatalog.AllGenres.Keys)
+            {
+                var arr = ScanTscn($"{baseDir}/{id}");
+                if (arr.Count > 0) byGenre[id] = arr;
+            }
+            result["genres"] = byGenre;
+        }
+        return result;
+    }
+
+    private static JsonArray ScanTscn(string dir)
+    {
+        var arr = new JsonArray();
+        using var d = DirAccess.Open(dir);
+        if (d == null) return arr;
+        d.ListDirBegin();
+        for (string f = d.GetNext(); !string.IsNullOrEmpty(f); f = d.GetNext())
+            if (!d.CurrentIsDir() && f.EndsWith(".tscn", StringComparison.Ordinal))
+                arr.Add(f);
+        d.ListDirEnd();
+        return arr;
+    }
+
+    private static JsonNode ListWeatherTypes()
+    {
+        var arr = new JsonArray();
+        foreach (var n in Enum.GetNames<Beep.ECS.WeatherSystemComponent.WeatherType>()) arr.Add(n);
+        return new JsonObject { ["weather_types"] = arr };
+    }
+
+    /// <summary>Rescan the skin catalog from disk — useful after editing genre/theme/palette JSON.</summary>
+    private static JsonNode ReloadCatalog()
+    {
+        Beep.ECS.UI.SkinCatalog.Reload();
+        return new JsonObject { ["reloaded"] = true, ["genre_count"] = Beep.ECS.UI.SkinCatalog.AllGenres.Count };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GameInfo (project config)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>Read every [Export] on GameInfo (from game_info.tres if it exists, else defaults).</summary>
+    private static JsonNode GetGameInfo()
+    {
+        bool exists = ResourceLoader.Exists(GameInfo.TresPath);
+        var info = exists ? ResourceLoader.Load<GameInfo>(GameInfo.TresPath) ?? new GameInfo() : new GameInfo();
+
+        var props = new JsonObject();
+        foreach (var p in typeof(GameInfo).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                              .Where(p => p.GetCustomAttribute<ExportAttribute>() != null)
+                              .OrderBy(p => p.Name))
+        {
+            try { props[p.Name] = McpJson.FromVariant(info.Get(p.Name)); }
+            catch { /* getter needs a tree — skip */ }
+        }
+        return new JsonObject { ["tres_path"] = GameInfo.TresPath, ["exists"] = exists, ["properties"] = props };
+    }
+
+    /// <summary>Write [Export] fields onto game_info.tres. Editor-only (res:// is read-only at runtime)
+    /// and behind allow_editor_writes.</summary>
+    private static JsonNode SetGameInfo(JsonObject? properties)
+    {
+#if TOOLS
+        RequireEditorWrites("beep.set_game_info");
+        if (properties == null || properties.Count == 0)
+            throw new InvalidOperationException("A 'properties' object is required, e.g. {\"GameName\":\"My Game\",\"TargetFps\":60}. Names are the PascalCase [Export] names from beep.get_game_info.");
+
+        var info = ResourceLoader.Exists(GameInfo.TresPath)
+            ? ResourceLoader.Load<GameInfo>(GameInfo.TresPath) ?? new GameInfo()
+            : new GameInfo();
+
+        var applied = new JsonArray();
+        foreach (var kv in properties)
+        {
+            info.Set(kv.Key, McpJson.ToVariant(kv.Value));
+            applied.Add(kv.Key);
+        }
+
+        Error err = ResourceSaver.Save(info, GameInfo.TresPath);
+        if (err != Error.Ok)
+            throw new InvalidOperationException($"Failed to save {GameInfo.TresPath}: {err}");
+
+        return new JsonObject { ["saved"] = GameInfo.TresPath, ["properties_set"] = applied };
+#else
+        throw new InvalidOperationException("beep.set_game_info is editor-only.");
+#endif
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Save / load (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode ListSaves()
+    {
+        var mgr = RequireSaveManager();
+        var slots = new JsonArray();
+        foreach (var (slot, md) in mgr.GetSaveSlots(includeAutosave: true))
+            slots.Add(new JsonObject
+            {
+                ["slot"] = slot,
+                ["is_autosave"] = slot == Beep.ECS.GameStateManagerComponent.AutosaveSlot,
+                ["name"] = md.SaveName,
+                ["timestamp"] = md.Timestamp,
+                ["playtime_seconds"] = md.PlaytimeSeconds,
+                ["current_level"] = md.CurrentLevel,
+                ["play_count"] = md.PlayCount,
+                ["description"] = md.Description
+            });
+        return new JsonObject { ["max_slots"] = mgr.MaxSaveSlots, ["autosave_slot"] = Beep.ECS.GameStateManagerComponent.AutosaveSlot, ["saves"] = slots };
+    }
+
+    /// <summary>Save to a numbered slot, or the autosave slot when 'slot' is omitted / -1.</summary>
+    private static JsonNode SaveGame(JsonObject args)
+    {
+        RequireRuntimeWrites("beep.save_game");
+        var mgr = RequireSaveManager();
+        int autosave = Beep.ECS.GameStateManagerComponent.AutosaveSlot;
+
+        int slot = Int(args, "slot", autosave);
+        bool ok = slot == autosave ? mgr.SaveAutosave() : mgr.Save(slot);
+        return new JsonObject { ["saved"] = ok, ["slot"] = slot };
+    }
+
+    private static JsonNode LoadGame(int slot)
+    {
+        RequireRuntimeWrites("beep.load_game");
+        var mgr = RequireSaveManager();
+        return new JsonObject { ["loaded"] = mgr.Load(slot), ["slot"] = slot };
+    }
+
+    private static JsonNode DeleteSave(int slot)
+    {
+        RequireRuntimeWrites("beep.delete_save");
+        if (slot < Beep.ECS.GameStateManagerComponent.AutosaveSlot)
+            throw new InvalidOperationException("A valid 'slot' is required (autosave = -1, or 0..max-1). Use beep.list_saves.");
+        var mgr = RequireSaveManager();
+        return new JsonObject { ["deleted"] = mgr.DeleteSave(slot), ["slot"] = slot };
+    }
+
+    private static JsonNode NewGame(string player)
+    {
+        RequireRuntimeWrites("beep.new_game");
+        var mgr = RequireSaveManager();
+        string name = string.IsNullOrEmpty(player) ? "Player" : player;
+        mgr.NewGame(name);
+        return new JsonObject { ["new_game"] = true, ["player"] = name };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Gameplay flow (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode AddScore(int amount)
+    {
+        RequireRuntimeWrites("beep.add_score");
+        var flow = RequireFlow();
+        flow.AddScore(amount);
+        return new JsonObject { ["score"] = flow.Score, ["added"] = amount };
+    }
+
+    private static JsonNode TriggerGameOver()
+    {
+        RequireRuntimeWrites("beep.game_over");
+        RequireFlow().TriggerGameOver();
+        return new JsonObject { ["game_over"] = true };
+    }
+
+    private static JsonNode TriggerLevelComplete()
+    {
+        RequireRuntimeWrites("beep.level_complete");
+        RequireFlow().TriggerLevelComplete();
+        return new JsonObject { ["level_complete"] = true };
+    }
+
+    private static JsonNode SetLevel(int level)
+    {
+        RequireRuntimeWrites("beep.set_level");
+        var app = Beep.ECS.GameApp.Instance ?? throw RuntimeOnly("beep.set_level");
+        app.SetLevel(level);
+        return new JsonObject { ["current_level"] = app.CurrentLevel };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Weather (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode GetWeather()
+    {
+        var w = RequireWeather();
+        return new JsonObject
+        {
+            ["weather"] = w.CurrentWeatherName,
+            ["intensity"] = w.WeatherIntensity,
+            ["auto_cycle"] = w.AutoCycle,
+            ["time_to_next"] = w.TimeToNextWeather
+        };
+    }
+
+    private static JsonNode SetWeather(JsonObject args)
+    {
+        RequireRuntimeWrites("beep.set_weather");
+        string weather = Str(args, "weather");
+        if (string.IsNullOrEmpty(weather)
+            || !Enum.TryParse<Beep.ECS.WeatherSystemComponent.WeatherType>(weather, ignoreCase: true, out var wt))
+            throw new InvalidOperationException($"Unknown weather '{weather}'. Use beep.list_weather_types.");
+
+        var w = RequireWeather();
+        float transition = Flt(args, "transition_seconds", 0f);
+        float intensity = Flt(args, "intensity", 1f);
+        if (transition > 0f)
+            w.TransitionTo(wt, transition, intensity);
+        else
+        {
+            w.SetWeather(wt);
+            if (Has(args, "intensity")) w.TargetIntensity = intensity;
+        }
+        return new JsonObject { ["weather"] = wt.ToString(), ["intensity"] = intensity, ["transition_seconds"] = transition };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Day / night (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode GetTime()
+    {
+        var dn = RequireDayNight();
+        return new JsonObject
+        {
+            ["time_of_day"] = dn.TimeOfDay,
+            ["normalized"] = dn.TimeOfDayNormalized,
+            ["days_elapsed"] = dn.DaysElapsed
+        };
+    }
+
+    private static JsonNode SetTime(float hours)
+    {
+        RequireRuntimeWrites("beep.set_time");
+        var dn = RequireDayNight();
+        dn.SetTimeOfDay(hours);
+        return new JsonObject { ["time_of_day"] = dn.TimeOfDay };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Settings (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode GetSettings()
+    {
+        var s = RequireSettings();
+        return new JsonObject
+        {
+            ["master_volume"] = s.MasterVolume,
+            ["sfx_volume"] = s.SfxVolume,
+            ["music_volume"] = s.MusicVolume,
+            ["fullscreen"] = s.Fullscreen,
+            ["resolution_index"] = s.ResolutionIndex,
+            ["language"] = s.Language,
+            ["subtitles"] = s.SubtitlesEnabled,
+            ["screen_shake"] = s.ScreenShakeEnabled,
+            ["damage_numbers"] = s.DamageNumbersEnabled
+        };
+    }
+
+    private static JsonNode SetSetting(string key, JsonNode? value)
+    {
+        RequireRuntimeWrites("beep.set_setting");
+        if (value == null) throw new InvalidOperationException("A 'value' is required.");
+        var s = RequireSettings();
+        string v = value.ToString();
+
+        switch (key.ToLowerInvariant())
+        {
+            case "master_volume":  s.MasterVolume = ParseFloat(v); break;
+            case "sfx_volume":     s.SfxVolume = ParseFloat(v); break;
+            case "music_volume":   s.MusicVolume = ParseFloat(v); break;
+            case "fullscreen":     s.Fullscreen = ParseBool(v); break;
+            case "resolution_index": s.ResolutionIndex = ParseInt(v); break;
+            case "language":       s.Language = v; break;
+            case "subtitles":      s.SubtitlesEnabled = ParseBool(v); break;
+            case "screen_shake":   s.ScreenShakeEnabled = ParseBool(v); break;
+            case "damage_numbers": s.DamageNumbersEnabled = ParseBool(v); break;
+            default:
+                throw new InvalidOperationException(
+                    $"Unknown setting '{key}'. Known: master_volume, sfx_volume, music_volume, fullscreen, " +
+                    "resolution_index, language, subtitles, screen_shake, damage_numbers.");
+        }
+        s.FlushSettings();
+        return new JsonObject { ["set"] = key, ["value"] = v };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // Localization (runtime)
+    // ════════════════════════════════════════════════════════════════
+
+    private static JsonNode ListLocales()
+    {
+        var loc = RequireLocale();
+        var arr = new JsonArray();
+        foreach (var l in loc.AvailableLocales()) arr.Add(l);
+        return new JsonObject { ["current"] = loc.CurrentLocale, ["available"] = arr };
+    }
+
+    private static JsonNode SetLanguage(string locale)
+    {
+        RequireRuntimeWrites("beep.set_language");
+        if (string.IsNullOrEmpty(locale))
+            throw new InvalidOperationException("A 'locale' is required (e.g. en, es, ja). Use beep.list_locales.");
+        var loc = RequireLocale();
+        loc.SetLanguage(locale);
+        return new JsonObject { ["locale"] = loc.CurrentLocale };
+    }
+
+    private static JsonNode Translate(string key)
+    {
+        if (string.IsNullOrEmpty(key)) throw new InvalidOperationException("A 'key' is required.");
+        var loc = RequireLocale();
+        return new JsonObject { ["key"] = key, ["translation"] = loc.Tr(key) };
+    }
+
+    // ════════════════════════════════════════════════════════════════
     // Helpers
     // ════════════════════════════════════════════════════════════════
 
@@ -481,4 +917,82 @@ public static class BeepMcpCommands
         // ToString() rather than GetValue<string>(): a non-string JSON value (number/bool) threw
         // FormatException instead of coercing to a clean argument.
         => args[key]?.ToString() ?? "";
+
+    // ── argument parsing (JSON values may arrive as string/number/bool) ──
+    private static bool Has(JsonObject args, string key) => args.ContainsKey(key) && args[key] is not null;
+    private static int Int(JsonObject args, string key, int def)
+        => Has(args, key) && int.TryParse(args[key]!.ToString(), out var n) ? n : def;
+    private static float Flt(JsonObject args, string key, float def)
+        => Has(args, key) ? ParseFloat(args[key]!.ToString(), def) : def;
+    private static float ParseFloat(string s, float def = 0f)
+        => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
+    private static int ParseInt(string s) => int.TryParse(s, out var n) ? n : 0;
+    private static bool ParseBool(string s) => bool.TryParse(s, out var b) ? b : s == "1";
+
+    // ── write gates (respect the bridge's own security flags) ──
+    private static void RequireRuntimeWrites(string command)
+    {
+        if (!GodotMcpSettings.GetBool(GodotMcpSettings.AllowRuntimeWrites, false))
+            throw new InvalidOperationException(
+                $"{command} changes live game state. Enable godot_mcp/security/allow_runtime_writes first.");
+    }
+
+    private static void RequireEditorWrites(string command)
+    {
+        if (!GodotMcpSettings.GetBool(GodotMcpSettings.AllowEditorWrites, false))
+            throw new InvalidOperationException(
+                $"{command} writes project files. Enable godot_mcp/security/allow_editor_writes first.");
+    }
+
+    // ── runtime instance access ──
+    private static SceneTree? Tree => Engine.GetMainLoop() as SceneTree;
+
+    private static InvalidOperationException RuntimeOnly(string command)
+        => new($"{command} only works while the game is running (no SceneTree / autoloads in the editor).");
+
+    /// <summary>Depth-first find of the first node of type T under the running scene (then the whole
+    /// tree). Used for the game-scene components that ship no static Instance (GameFlow, DayNight).</summary>
+    private static T? FindOfType<T>() where T : Node
+    {
+        var tree = Tree;
+        if (tree == null) return null;
+        return Search(tree.CurrentScene) ?? Search(tree.Root);
+
+        static T? Search(Node? node)
+        {
+            if (node is null) return null;
+            if (node is T hit) return hit;
+            foreach (var child in node.GetChildren())
+                if (Search(child) is { } found) return found;
+            return null;
+        }
+    }
+
+    private static Beep.ECS.GameStateManagerComponent RequireSaveManager()
+        => Beep.ECS.GameStateManagerComponent.Instance
+           ?? throw new InvalidOperationException("GameStateManager autoload is not present — save/load only works while the game is running.");
+
+    private static Beep.ECS.GameFlowComponent RequireFlow()
+        => FindOfType<Beep.ECS.GameFlowComponent>()
+           ?? throw new InvalidOperationException("No GameFlowComponent in the running scene — it lives on the gameplay scene root.");
+
+    private static Beep.ECS.WeatherSystemComponent RequireWeather()
+    {
+        var tree = Tree ?? throw RuntimeOnly("weather commands");
+        foreach (var n in tree.GetNodesInGroup("weather_system"))
+            if (n is Beep.ECS.WeatherSystemComponent w) return w;
+        throw new InvalidOperationException("No WeatherSystemComponent in the running scene (weather must be enabled for this genre).");
+    }
+
+    private static Beep.ECS.DayNightCycleComponent RequireDayNight()
+        => FindOfType<Beep.ECS.DayNightCycleComponent>()
+           ?? throw new InvalidOperationException("No DayNightCycleComponent in the running scene (day/night must be enabled for this genre).");
+
+    private static Beep.ECS.UI.SettingsComponent RequireSettings()
+        => Beep.ECS.UI.SettingsComponent.Instance
+           ?? throw new InvalidOperationException("Settings autoload is not present — settings only work while the game is running.");
+
+    private static Beep.ECS.UI.LocalizationComponent RequireLocale()
+        => Beep.ECS.UI.LocalizationComponent.Instance
+           ?? throw new InvalidOperationException("Locale autoload is not present — localization only works while the game is running.");
 }

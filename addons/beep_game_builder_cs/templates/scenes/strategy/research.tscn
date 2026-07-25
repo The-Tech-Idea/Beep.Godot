@@ -28,46 +28,98 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Research Tree"
 size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="ScienceCaption" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepCaption"
+text = "Science / turn"
+vertical_alignment = 1
+
+[node name="ScienceValue" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepValue"
+text = "+18"
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="TechGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 2
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="TechGrid" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Tech1" type="Button" parent="Margin/VBox/TechGrid"]
-custom_minimum_size = Vector2(140, 60)
+[node name="Tier1" type="VBoxContainer" parent="Margin/VBox/TechGrid"]
+theme_override_constants/separation = 12
+size_flags_horizontal = 3
+
+[node name="Tier1Heading" type="Label" parent="Margin/VBox/TechGrid/Tier1"]
+theme_type_variation = &"BeepSubtitle"
+text = "Ancient Era"
+
+[node name="Tech1" type="Button" parent="Margin/VBox/TechGrid/Tier1"]
+custom_minimum_size = Vector2(0, 72)
 text = "Iron Working"
 
-[node name="Tech2" type="Button" parent="Margin/VBox/TechGrid"]
-custom_minimum_size = Vector2(140, 60)
+[node name="Tech2" type="Button" parent="Margin/VBox/TechGrid/Tier1"]
+custom_minimum_size = Vector2(0, 72)
 text = "Horseback Riding"
 
-[node name="Tech3" type="Button" parent="Margin/VBox/TechGrid"]
-custom_minimum_size = Vector2(140, 60)
+[node name="Tier1Spacer" type="Control" parent="Margin/VBox/TechGrid/Tier1"]
+size_flags_vertical = 3
+
+[node name="Tier2" type="VBoxContainer" parent="Margin/VBox/TechGrid"]
+theme_override_constants/separation = 12
+size_flags_horizontal = 3
+
+[node name="Tier2Heading" type="Label" parent="Margin/VBox/TechGrid/Tier2"]
+theme_type_variation = &"BeepSubtitle"
+text = "Classical Era"
+
+[node name="Tech3" type="Button" parent="Margin/VBox/TechGrid/Tier2"]
+custom_minimum_size = Vector2(0, 72)
 text = "Engineering"
 
-[node name="Tech4" type="Button" parent="Margin/VBox/TechGrid"]
-custom_minimum_size = Vector2(140, 60)
+[node name="Tech4" type="Button" parent="Margin/VBox/TechGrid/Tier2"]
+custom_minimum_size = Vector2(0, 72)
 text = "Mathematics"
+
+[node name="Tier2Spacer" type="Control" parent="Margin/VBox/TechGrid/Tier2"]
+size_flags_vertical = 3
+
+[node name="Tier3" type="VBoxContainer" parent="Margin/VBox/TechGrid"]
+theme_override_constants/separation = 12
+size_flags_horizontal = 3
+
+[node name="Tier3Heading" type="Label" parent="Margin/VBox/TechGrid/Tier3"]
+theme_type_variation = &"BeepSubtitle"
+text = "Medieval Era"
+
+[node name="Tier3Caption" type="Label" parent="Margin/VBox/TechGrid/Tier3"]
+theme_type_variation = &"BeepCaption"
+text = "Locked — research an earlier era first."
+autowrap_mode = 3
+
+[node name="Tier3Spacer" type="Control" parent="Margin/VBox/TechGrid/Tier3"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "strategy"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

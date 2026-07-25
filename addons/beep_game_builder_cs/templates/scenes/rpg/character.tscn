@@ -28,58 +28,146 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Character"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "Close"
 
-[node name="StatsGrid" type="GridContainer" parent="Margin/VBox"]
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
+size_flags_vertical = 3
+
+[node name="EquipPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="EquipMargin" type="MarginContainer" parent="Margin/VBox/Body/EquipPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="EquipVBox" type="VBoxContainer" parent="Margin/VBox/Body/EquipPanel/EquipMargin"]
+theme_override_constants/separation = 12
+
+[node name="EquipHeading" type="Label" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Equipment"
+
+[node name="PortraitRect" type="ColorRect" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox"]
+custom_minimum_size = Vector2(0, 160)
+color = Color(0.14, 0.13, 0.2, 1)
+
+[node name="EquipGrid" type="GridContainer" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox"]
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="WeaponSlot" type="PanelContainer" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox/EquipGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ArmorSlot" type="PanelContainer" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox/EquipGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="TrinketSlot" type="PanelContainer" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox/EquipGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="EquipSpacer" type="Control" parent="Margin/VBox/Body/EquipPanel/EquipMargin/EquipVBox"]
+size_flags_vertical = 3
+
+[node name="StatsPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="StatsMargin" type="MarginContainer" parent="Margin/VBox/Body/StatsPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="StatsVBox" type="VBoxContainer" parent="Margin/VBox/Body/StatsPanel/StatsMargin"]
+theme_override_constants/separation = 14
+
+[node name="LevelHeading" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Level 1 · Adventurer"
+
+[node name="XpCaption" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Experience"
+
+[node name="XpBar" type="ProgressBar" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
+custom_minimum_size = Vector2(0, 14)
+value = 35.0
+show_percentage = false
+
+[node name="StatsRule" type="HSeparator" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
+
+[node name="StatsGrid" type="GridContainer" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
 theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 12
 columns = 2
-size_flags_vertical = 3
 
-[node name="StrengthCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="StrengthCaption" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Strength"
+size_flags_horizontal = 3
 
-[node name="StrengthValue" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="StrengthValue" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "15"
 horizontal_alignment = 2
 
-[node name="DexterityCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="DexterityCaption" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Dexterity"
+size_flags_horizontal = 3
 
-[node name="DexterityValue" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="DexterityValue" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "12"
 horizontal_alignment = 2
 
-[node name="ConstitutionCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="ConstitutionCaption" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Constitution"
+size_flags_horizontal = 3
 
-[node name="ConstitutionValue" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="ConstitutionValue" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "10"
 horizontal_alignment = 2
 
-[node name="IntelligenceCaption" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="IntelligenceCaption" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Intelligence"
+size_flags_horizontal = 3
 
-[node name="IntelligenceValue" type="Label" parent="Margin/VBox/StatsGrid"]
+[node name="IntelligenceValue" type="Label" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "14"
 horizontal_alignment = 2
 
+[node name="StatsSpacer" type="Control" parent="Margin/VBox/Body/StatsPanel/StatsMargin/StatsVBox"]
+size_flags_vertical = 3
+
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "rpg"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

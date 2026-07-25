@@ -23,5 +23,29 @@ namespace Beep.ECS.Scenes
             else
                 GD.PushWarning($"[{self.Name}] button not found at '{path}' — not connected.");
         }
+
+        /// <summary>Connect a Button found by NAME anywhere in the scene, or warn if it isn't there.
+        ///
+        /// Prefer this over <see cref="ConnectPressed"/>: a path hard-codes the layout, so any
+        /// restyle that inserts a wrapper container silently kills every button under it. That is
+        /// exactly how the save/load menus broke when the templates gained a Margin wrapper while
+        /// already-generated projects kept the old tree — the components were fixed by resolving on
+        /// name instead, and this is the same fix for the screen scripts.
+        ///
+        /// Button names are unique within a screen (validate_scenes.sh enforces it), so a name is
+        /// as precise as a path and survives the layout changing underneath it.</summary>
+        public static void ConnectButton(this Node self, string name, Action handler)
+        {
+            if (self.FindChild(name, recursive: true, owned: false) is Button btn)
+                btn.Pressed += handler;
+            else
+                GD.PushWarning($"[{self.Name}] button '{name}' not found in this scene — not connected.");
+        }
+
+        /// <summary>Find a control by NAME anywhere in the scene, or null. Same layout-independence
+        /// rationale as <see cref="ConnectButton"/>; silent, because callers use this for controls
+        /// that are legitimately optional per genre.</summary>
+        public static T? Find<T>(this Node self, string name) where T : Node
+            => self.FindChild(name, recursive: true, owned: false) as T;
     }
 }

@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="1_hud"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 
 [node name="HUD" type="CanvasLayer"]
 
@@ -16,11 +17,18 @@ grow_vertical = 0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
+[node name="Theme" type="Node" parent="TopLeft"]
+script = ExtResource("hud_theme")
+GenreName = "platformer"
+
 [node name="StatsVBox" type="VBoxContainer" parent="TopLeft"]
 theme_override_constants/separation = 4
 
 [node name="ScoreLabel" type="Label" parent="TopLeft/StatsVBox"]
 text = "0"
+
+[node name="LevelLabel" type="Label" parent="TopLeft/StatsVBox"]
+text = "Level 1"
 
 [node name="LivesLabel" type="Label" parent="TopLeft/StatsVBox"]
 text = "× 3"
@@ -33,3 +41,4 @@ script = ExtResource("1_hud")
 ScoreLabelPath = NodePath("TopLeft/StatsVBox/ScoreLabel")
 LivesLabelPath = NodePath("TopLeft/StatsVBox/LivesLabel")
 HealthLabelPath = NodePath("TopLeft/StatsVBox/HealthLabel")
+LevelLabelPath = NodePath("TopLeft/StatsVBox/LevelLabel")

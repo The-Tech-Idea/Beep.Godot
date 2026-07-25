@@ -28,37 +28,130 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Quests"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "Close"
 
-[node name="QuestList" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Quest1" type="Label" parent="Margin/VBox/QuestList"]
-text = "• Defeat the Dark Lord (0/1)"
+[node name="ListPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
 
-[node name="Quest2" type="Label" parent="Margin/VBox/QuestList"]
-text = "• Collect 5 Rare Artifacts (2/5)"
+[node name="ListMargin" type="MarginContainer" parent="Margin/VBox/Body/ListPanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Quest3" type="Label" parent="Margin/VBox/QuestList"]
-text = "• Explore the Northern Ruins"
+[node name="QuestList" type="VBoxContainer" parent="Margin/VBox/Body/ListPanel/ListMargin"]
+theme_override_constants/separation = 10
+
+[node name="ActiveHeading" type="Label" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
+theme_type_variation = &"BeepSubtitle"
+text = "Active"
+
+[node name="Quest1" type="Button" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
+custom_minimum_size = Vector2(0, 48)
+text = "Defeat the Dark Lord"
+alignment = 0
+
+[node name="Quest2" type="Button" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
+custom_minimum_size = Vector2(0, 48)
+text = "Collect 5 Rare Artifacts"
+alignment = 0
+
+[node name="Quest3" type="Button" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
+custom_minimum_size = Vector2(0, 48)
+text = "Explore the Northern Ruins"
+alignment = 0
+
+[node name="ListSpacer" type="Control" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
+size_flags_vertical = 3
+
+[node name="DetailPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/Body/DetailPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="DetailVBox" type="VBoxContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin"]
+theme_override_constants/separation = 14
+
+[node name="QuestTitle" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepTitle"
+text = "Defeat the Dark Lord"
+
+[node name="QuestGiverCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Given by the Court Wizard"
+
+[node name="DetailRule" type="HSeparator" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+
+[node name="QuestBody" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+text = "The Dark Lord has taken the northern keep. Reach the throne room and end his reign."
+autowrap_mode = 3
+
+[node name="ObjectivesHeading" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Objectives"
+
+[node name="ObjectiveGrid" type="GridContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="ReachKeepCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/ObjectiveGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Reach the northern keep"
+size_flags_horizontal = 3
+
+[node name="ReachKeepValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/ObjectiveGrid"]
+theme_type_variation = &"BeepValue"
+text = "1 / 1"
+horizontal_alignment = 2
+
+[node name="DefeatLordCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/ObjectiveGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Defeat the Dark Lord"
+size_flags_horizontal = 3
+
+[node name="DefeatLordValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/ObjectiveGrid"]
+theme_type_variation = &"BeepValue"
+text = "0 / 1"
+horizontal_alignment = 2
+
+[node name="DetailSpacer" type="Control" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+size_flags_vertical = 3
+
+[node name="RewardCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Reward: 2,000 XP · 500 gold"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "rpg"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

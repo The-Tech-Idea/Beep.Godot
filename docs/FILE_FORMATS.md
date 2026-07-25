@@ -274,10 +274,37 @@ Each slot is a `TextureSlotDef`:
 | `expand_margin_right`   | float            | `0`            | `ExpandMarginRight` |
 | `expand_margin_bottom`  | float            | `0`            | `ExpandMarginBottom` |
 
-A slot with a missing `texture_path` (or any slot key omitted from `textures{}`)
-falls back to the procedural `StyleBoxFlat` from `colors+geometry`. So you can
-ship a theme with `textures: {}` only declaring `panel`, and every other slot
-remains procedural.
+A slot key **omitted** from `textures{}` falls back to the procedural `StyleBoxFlat`
+built from `colors+geometry`. So you can ship a theme whose `textures{}` declares only
+`panel` and leave every other slot procedural — that is a configuration, and it is silent.
+
+A slot whose `texture_path` **is set but the file is missing** is a different thing: a
+defect. The theme asked for a texture and quietly got a procedural box. `SkinCatalog`
+now `PushWarning`s once per path, naming genre, theme, slot and path. This mattered —
+all 50 shipped themes declared five slots each and **not one of the 200 files existed**,
+so the whole texture pipeline was inert and said nothing for its entire life.
+
+`validate_scenes.sh` enforces it: every `texture_path` and every `background_image` in
+the catalogs must resolve to a file on disk.
+
+**Generating the files.** You do not draw these by hand. `BeepTextureBaker` writes each
+declared path from that theme's own colors and geometry:
+
+- dock → **Bake textures — ALL genres + page backgrounds**, or
+- MCP → `beep.bake_textures` (optionally `{"genre": "...", "theme": "..."}`).
+
+The image is sized so its corner regions equal the `margin_*` the slot declares, which is
+what makes it a valid 9-patch. Two consequences worth knowing:
+
+- If two slots point at **one** file (the shipped themes aim `button_disabled` at
+  `button_normal.png` and vary it with `modulate`), the first slot baked wins and the
+  second is left alone — deliberately, so the modulate still reads as intended.
+- **No drop shadow is baked.** `StyleBoxTexture` has no `shadow_size`, and faking one
+  inside the texture would inset the visible edge and change every widget's metrics the
+  moment textures are toggled on. Depth comes from a vertical gradient. If you need
+  shadows, stay procedural, or supply art with matching `expand_margin_*`.
+
+Overwrite any baked PNG with your own art to replace it; the path is the contract.
 
 **Precedence (Phase C):** when a slot has a texture, JSON wins per-slot. Then
 the inspector-set `UISkin` resource fills slots the JSON omits. Then

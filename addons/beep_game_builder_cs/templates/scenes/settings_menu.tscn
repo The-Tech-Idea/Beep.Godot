@@ -25,24 +25,35 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(460, 400)
+custom_minimum_size = Vector2(560, 540)
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
 
 [node name="ContentVBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 12
+theme_override_constants/separation = 18
+
+[node name="TitleLabel" type="Label" parent="Center/Panel/Margin/ContentVBox"]
+theme_type_variation = &"BeepTitle"
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="TitleRule" type="HSeparator" parent="Center/Panel/Margin/ContentVBox"]
 
 [node name="Tabs" type="TabContainer" parent="Center/Panel/Margin/ContentVBox"]
-custom_minimum_size = Vector2(0, 300)
+custom_minimum_size = Vector2(0, 320)
+size_flags_vertical = 3
 
 [node name="Audio" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 
 [node name="MasterLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
+theme_type_variation = &"BeepCaption"
 text = "Master Volume"
 
 [node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
@@ -51,6 +62,7 @@ max_value = 100.0
 value = 80.0
 
 [node name="SfxLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
+theme_type_variation = &"BeepCaption"
 text = "SFX Volume"
 
 [node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
@@ -59,6 +71,7 @@ max_value = 100.0
 value = 90.0
 
 [node name="MusicLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
+theme_type_variation = &"BeepCaption"
 text = "Music Volume"
 
 [node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
@@ -67,18 +80,18 @@ max_value = 100.0
 value = 70.0
 
 [node name="Video" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 8
-
-[node name="FullscreenLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
-text = "Fullscreen"
+theme_override_constants/separation = 14
 
 [node name="FullscreenCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
-text = "On"
+size_flags_horizontal = 3
+text = "Fullscreen"
 
 [node name="ResolutionLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
+theme_type_variation = &"BeepCaption"
 text = "Resolution"
 
 [node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
+size_flags_horizontal = 3
 item_count = 3
 popup/item_0/text = "1280 x 720"
 popup/item_1/text = "1920 x 1080"
@@ -87,12 +100,14 @@ popup/item_2/text = "2560 x 1440"
 popup/item_2/id = 2
 
 [node name="Language" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 
 [node name="LanguageLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Language"]
+theme_type_variation = &"BeepCaption"
 text = "Language"
 
 [node name="LanguageOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Language"]
+size_flags_horizontal = 3
 item_count = 3
 popup/item_0/text = "English"
 popup/item_1/text = "Español"
@@ -101,38 +116,32 @@ popup/item_2/text = "日本語"
 popup/item_2/id = 2
 
 [node name="Gameplay" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 8
-
-[node name="SubtitlesLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "Subtitles"
+theme_override_constants/separation = 14
 
 [node name="SubtitlesCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "On"
+size_flags_horizontal = 3
+text = "Subtitles"
 button_pressed = true
-
-[node name="ScreenShakeLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "Screen Shake"
 
 [node name="ScreenShakeCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "On"
+size_flags_horizontal = 3
+text = "Screen Shake"
 button_pressed = true
 
-[node name="DamageNumbersLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "Damage Numbers"
-
 [node name="DamageNumbersCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-text = "On"
+size_flags_horizontal = 3
+text = "Damage Numbers"
 button_pressed = true
 
 [node name="Controls" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 
 [node name="HintLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Controls"]
 text = "Keybinds — edit in Project Settings → Input Map"
 autowrap_mode = 2
 
 [node name="CloseButton" type="Button" parent="Center/Panel/Margin/ContentVBox"]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 44)
 text = "Close"
 metadata/_custom = "action"
 metadata/action = "close"

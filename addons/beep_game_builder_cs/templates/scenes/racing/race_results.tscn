@@ -24,50 +24,89 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(420, 0)
+custom_minimum_size = Vector2(520, 0)
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
 
 [node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 14
+theme_override_constants/separation = 16
 
 [node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"BeepTitle"
 text = "Race Complete"
 horizontal_alignment = 1
 
-[node name="TimeLabel" type="Label" parent="Center/Panel/Margin/VBox"]
-text = "Time: 02:45.32"
-horizontal_alignment = 1
-
 [node name="PlacementLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "1st Place"
 horizontal_alignment = 1
 
-[node name="RewardLabel" type="Label" parent="Center/Panel/Margin/VBox"]
-text = "Reward: 500 Gold"
-horizontal_alignment = 1
+[node name="BannerRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
-[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 8)
+[node name="StatsGrid" type="GridContainer" parent="Center/Panel/Margin/VBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="TimeCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Total Time"
+size_flags_horizontal = 3
+
+[node name="TimeValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "02:45.32"
+horizontal_alignment = 2
+
+[node name="BestLapCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Best Lap"
+size_flags_horizontal = 3
+
+[node name="BestLapValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "00:52.10"
+horizontal_alignment = 2
+
+[node name="TopSpeedCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Top Speed"
+size_flags_horizontal = 3
+
+[node name="TopSpeedValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "268 km/h"
+horizontal_alignment = 2
+
+[node name="RewardCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Reward"
+size_flags_horizontal = 3
+
+[node name="RewardValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
+text = "500 Gold"
+horizontal_alignment = 2
 
 [node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
 [node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(160, 48)
 text = "Retry"
 
 [node name="MenuButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(160, 48)
 text = "Menu"
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")
+GenreName = "racing"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

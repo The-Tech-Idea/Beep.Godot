@@ -32,9 +32,13 @@ namespace Beep.ECS.UI
 		{
 			base._Ready();
 			if (Engine.IsEditorHint()) return;
-			_slotsVBox = GetNodeOrNull<VBoxContainer>("PanelContainer/VBox/SlotsScroll/SlotsVBox");
-			_loadButton = GetNodeOrNull<Button>("PanelContainer/VBox/ButtonHBox/LoadButton");
-			_cancelButton = GetNodeOrNull<Button>("PanelContainer/VBox/ButtonHBox/CancelButton");
+			// Resolve by NAME, not a fixed path: the scene layout changed (a Margin wrapper was
+			// added for padding), and a project generated from an older template still has the
+			// pre-Margin scene. FindChild(recursive) locates each control whether or not the
+			// wrapper exists, so the menu works with both layouts.
+			_slotsVBox = FindChild("SlotsVBox", recursive: true, owned: false) as VBoxContainer;
+			_loadButton = FindChild("LoadButton", recursive: true, owned: false) as Button;
+			_cancelButton = FindChild("CancelButton", recursive: true, owned: false) as Button;
 
 			if (_loadButton != null) _loadButton.Pressed += OnLoadPressed;
 			if (_cancelButton != null) _cancelButton.Pressed += OnCancelPressed;
@@ -42,10 +46,38 @@ namespace Beep.ECS.UI
 			FindGameStateManager();
 			PopulateSlots();
 			WireSlotButtons();
+			NormalizeLayout();
 
 			// Grab initial focus so a controller/keyboard-only player can operate the menu.
 			// Deferred so the slot buttons exist and are laid out first.
 			Callable.From(GrabInitialFocus).CallDeferred();
+		}
+
+		/// <summary>Enforce consistent sizing/spacing in code, so the menu looks right on ANY scene
+		/// version — a project generated from an older template keeps its stale .tscn, and a scene
+		/// overwrite is easy to forget. Delivered by a plain C# rebuild; no regenerate needed.</summary>
+		private void NormalizeLayout()
+		{
+			var panel = FindChild("PanelContainer", recursive: true, owned: false) as PanelContainer;
+			if (panel != null)
+				panel.CustomMinimumSize = new Vector2(Mathf.Max(panel.CustomMinimumSize.X, 640), Mathf.Max(panel.CustomMinimumSize.Y, 520));
+
+			// Main VBox (button row's grandparent): consistent separation.
+			if (_loadButton?.GetParent()?.GetParent() is VBoxContainer vbox)
+				vbox.AddThemeConstantOverride("separation", 18);
+			// Bottom button row: uniform spacing.
+			if (_loadButton?.GetParent() is HBoxContainer hbox)
+				hbox.AddThemeConstantOverride("separation", 12);
+			if (_loadButton != null) _loadButton.CustomMinimumSize = new Vector2(0, 44);
+			if (_cancelButton != null) _cancelButton.CustomMinimumSize = new Vector2(0, 44);
+			// Slot rows: uniform height, delete button sized, row spacing.
+			if (_slotsVBox != null) _slotsVBox.AddThemeConstantOverride("separation", 10);
+			foreach (var (container, _) in SlotRows())
+			{
+				if (container is Control c) c.CustomMinimumSize = new Vector2(0, 58);
+				if (container.FindChild("DeleteButton", owned: false) is Button del)
+					del.CustomMinimumSize = new Vector2(96, 44);
+			}
 		}
 
 		private void GrabInitialFocus()

@@ -14,8 +14,8 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/MenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectButton("RetryButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectButton("MenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

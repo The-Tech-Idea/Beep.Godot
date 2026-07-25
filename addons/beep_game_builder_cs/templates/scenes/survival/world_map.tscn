@@ -28,37 +28,96 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "World Map"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="LocationList" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Location1" type="Label" parent="Margin/VBox/LocationList"]
-text = "▲ Mountain Pass"
+[node name="MapPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
 
-[node name="Location2" type="Label" parent="Margin/VBox/LocationList"]
-text = "~ River Valley"
+[node name="MapMargin" type="MarginContainer" parent="Margin/VBox/Body/MapPanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Location3" type="Label" parent="Margin/VBox/LocationList"]
-text = "🌲 Dark Forest"
+[node name="MapViewport" type="ColorRect" parent="Margin/VBox/Body/MapPanel/MapMargin"]
+color = Color(0.14, 0.13, 0.1, 1)
+
+[node name="LegendPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="LegendMargin" type="MarginContainer" parent="Margin/VBox/Body/LegendPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="LocationList" type="VBoxContainer" parent="Margin/VBox/Body/LegendPanel/LegendMargin"]
+theme_override_constants/separation = 12
+
+[node name="LocationsHeading" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepSubtitle"
+text = "Known Locations"
+
+[node name="Location1" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+text = "▲  Mountain Pass"
+
+[node name="Location1Caption" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepCaption"
+text = "Cold · scarce food"
+
+[node name="Location2" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+text = "~  River Valley"
+
+[node name="Location2Caption" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepCaption"
+text = "Fresh water · fish"
+
+[node name="Location3" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+text = "♣  Dark Forest"
+
+[node name="Location3Caption" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepCaption"
+text = "Wood · predators"
+
+[node name="LegendRule" type="HSeparator" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+
+[node name="DistanceCaption" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepCaption"
+text = "Travelled"
+
+[node name="DistanceValue" type="Label" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+theme_type_variation = &"BeepValue"
+text = "12.4 km"
+
+[node name="LegendSpacer" type="Control" parent="Margin/VBox/Body/LegendPanel/LegendMargin/LocationList"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "survival"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

@@ -39,6 +39,27 @@ namespace Beep.ECS.UI
 		[Export] public bool EnableAnimations { get; set; } = true;
 		[Export] public bool EnableRippleOnClick { get; set; } = true;
 
+		/// <summary>Paint the screen's page canvas from the theme's <c>bg_canvas</c>.
+		///
+		/// Every genre screen opens with a hardcoded <c>ColorRect</c> named "Background"
+		/// (0.1,0.1,0.1 in racing/garage, 0.08,0.08,0.12 in rpg/inventory, …). A plain
+		/// ColorRect has no theme entry, so <c>bg_canvas</c> — which every theme.json
+		/// defines — reached nothing but a scrollbar track: switching genre, theme or
+		/// palette left all 35 screens on the same flat near-black.
+		///
+		/// Only OPAQUE backgrounds are repainted (alpha >= 0.99). A translucent
+		/// ColorRect is a dim over live gameplay — game_over/level_summary name theirs
+		/// "Dim", topdown/pause_subscreen names its 0.92-alpha dim "Background" — and
+		/// repainting those would turn an overlay into a wall.</summary>
+		[Export] public bool ThemePageBackground { get; set; } = true;
+
+		/// <summary>Give Labels a type hierarchy (title / subtitle / value / caption)
+		/// derived from the theme's own font size. Without it every Label, Button and
+		/// input renders at the single <c>Fs</c>, so a screen title is exactly as big as
+		/// a body label — the reason every screen read as one flat wall of text.
+		/// See <see cref="ApplyTypography"/> for how a Label's role is decided.</summary>
+		[Export] public bool AutoTypography { get; set; } = true;
+
 		[ExportGroup("Button Sounds")]
 		/// <summary>Play a hover/press sound on every themed button. Falls back to the addon's
 		/// shipped UI clicks if the streams below are left unset (so a menu gets sound with no
@@ -85,6 +106,10 @@ namespace Beep.ECS.UI
 		// Spawned as the first child of the themed subtree root, behind everything
 		// else, full-rect anchored. Reused across re-themes so we don't leak nodes.
 		private TextureRect? _backgroundRect;
+
+		/// <summary>Background paths already reported missing. ApplyTheme runs several
+		/// times per scene load, so this keeps one broken path to one warning.</summary>
+		private static readonly HashSet<string> _reportedMissingBackgrounds = new();
 
 		/// <summary>OPTIONAL texture skin. When set (via GameApp or directly), the theme
 		/// engine builds StyleBoxTexture (9-patch) for nodes with a matching texture
@@ -263,6 +288,7 @@ namespace Beep.ECS.UI
 			ThemePanelContainer();
 			ThemeSeparator();
 			ThemeWindow();
+			RegisterTypography();
 
 			root.Theme = _generatedTheme;
 
@@ -270,6 +296,113 @@ namespace Beep.ECS.UI
 				InjectIntoButtons(root);
       		// Per-node overrides for immediate editor visibility
 			ApplyButtonOverrides(root, preset);
+			if (ThemePageBackground) ApplyPageBackground(root, preset.Colors);
+			if (AutoTypography) ApplyTypography(root, preset.Colors);
+		}
+
+		// ═══════════════════════════════════════════════
+		// Page canvas + typography
+		// ═══════════════════════════════════════════════
+
+		/// <summary>Repaint the screen's page canvas with the theme's bg_canvas. Walks the
+		/// themed subtree for a ColorRect named "Background"; skips translucent ones, which
+		/// are dims over live gameplay rather than page canvases (see
+		/// <see cref="ThemePageBackground"/>). Needs no scene change, so it also reaches
+		/// projects generated before this existed.</summary>
+		private static void ApplyPageBackground(Node node, ColorSchema c)
+		{
+			if (node is ColorRect rect && node.Name == "Background" && rect.Color.A >= 0.99f)
+				rect.Color = c.BgCanvas;
+			foreach (var child in node.GetChildren())
+				ApplyPageBackground(child, c);
+		}
+
+		/// <summary>Marks a Label whose font size / color override THIS component owns, so a
+		/// re-theme updates it while a size the scene author set by hand is left alone.
+		/// Lives on the Label, so it is freed with it and needs no bookkeeping here.</summary>
+		private const string TypographyMeta = "_beep_typography";
+
+		/// <summary>Give each Label in the subtree its role's size and color.
+		///
+		/// A role is decided in this order:
+		///   1. An explicit <c>theme_type_variation</c> of BeepTitle / BeepSubtitle /
+		///      BeepValue / BeepCaption — this is the intended way, and always wins.
+		///   2. COMPATIBILITY FALLBACK: the naming convention the shipped templates already
+		///      follow (TitleLabel, *Title, *Caption, *Value, VersionLabel, HintLabel). This
+		///      exists so a project generated before the variations existed still gets a
+		///      hierarchy from a plain rebuild — regenerating scenes is easy to forget, and a
+		///      template-only fix would never reach it. New scenes should set the variation.
+		///
+		/// A Label with no role is left entirely alone.</summary>
+		private void ApplyTypography(Node node, ColorSchema c)
+		{
+			if (node is Label label && RoleFor(label) is { } role)
+			{
+				// An override we did not put there is the scene author's — don't stomp it.
+				bool ours = label.HasMeta(TypographyMeta);
+				bool authored = !ours && (label.HasThemeFontSizeOverride("font_size")
+					|| label.HasThemeColorOverride("font_color"));
+				if (!authored)
+				{
+					label.SetMeta(TypographyMeta, true);
+					label.AddThemeFontSizeOverride("font_size", SizeFor(role));
+					label.AddThemeColorOverride("font_color", ColorFor(role, c));
+				}
+			}
+			foreach (var child in node.GetChildren())
+				ApplyTypography(child, c);
+		}
+
+		private const string TitleVariation = "BeepTitle";
+		private const string SubtitleVariation = "BeepSubtitle";
+		private const string ValueVariation = "BeepValue";
+		private const string CaptionVariation = "BeepCaption";
+
+		/// <summary>Which type step a Label belongs to, or null to leave it untouched.</summary>
+		private static string? RoleFor(Label label)
+		{
+			string variation = label.ThemeTypeVariation.ToString();
+			if (variation == TitleVariation || variation == SubtitleVariation
+				|| variation == ValueVariation || variation == CaptionVariation)
+				return variation;
+
+			string n = label.Name.ToString();
+			if (n == "TitleLabel" || n == "BannerLabel" || n.EndsWith("Title")) return TitleVariation;
+			if (n.EndsWith("Heading") || n == "WorldLabel") return SubtitleVariation;
+			if (n.EndsWith("Value")) return ValueVariation;
+			if (n.EndsWith("Caption") || n == "VersionLabel" || n == "HintLabel") return CaptionVariation;
+			return null;
+		}
+
+		private int SizeFor(string role) => role switch
+		{
+			TitleVariation => Mathf.RoundToInt(Fs * 1.9f),
+			SubtitleVariation => Mathf.RoundToInt(Fs * 1.35f),
+			ValueVariation => Mathf.RoundToInt(Fs * 1.25f),
+			_ => Mathf.Max(10, Mathf.RoundToInt(Fs * 0.85f)),
+		};
+
+		private static Color ColorFor(string role, ColorSchema c) => role switch
+		{
+			ValueVariation => c.AccentPrimary,
+			CaptionVariation => c.TextDisabled,
+			_ => c.TextPrimary,
+		};
+
+		/// <summary>Register the four steps as Theme type variations of Label, so a scene can
+		/// opt in explicitly with <c>theme_type_variation = &amp;"BeepTitle"</c> and see the
+		/// result in the editor's inspector dropdown.</summary>
+		private void RegisterTypography()
+		{
+			var c = _presetInstance!.Colors;
+			foreach (var role in new[] { TitleVariation, SubtitleVariation, ValueVariation, CaptionVariation })
+			{
+				_generatedTheme!.AddType(role);
+				_generatedTheme.SetTypeVariation(role, "Label");
+				_generatedTheme.SetFontSize("font_size", role, SizeFor(role));
+				_generatedTheme.SetColor("font_color", role, ColorFor(role, c));
+				_generatedTheme.SetColor("font_outline_color", role, c.ShadowColor);
+			}
 		}
 
       	private void ApplyButtonOverrides(Node node, IThemePreset preset)
@@ -593,7 +726,15 @@ namespace Beep.ECS.UI
 			if (geo == null) return;
 			string? img = geo.BackgroundImage;
 			if (string.IsNullOrEmpty(img)) return;
-			if (!ResourceLoader.Exists(img)) return;
+			if (!ResourceLoader.Exists(img))
+			{
+				// A geometry profile that names a background but ships no file is a defect,
+				// not a setting — all 8 shipped background_image paths pointed into an empty
+				// textures/backgrounds/ folder and this returned in silence.
+				if (_reportedMissingBackgrounds.Add(img))
+					GD.PushWarning($"[{Name}] geometry '{_geometryProfileName}' sets background_image '{img}', which does not exist — the screen keeps its flat canvas. Supply the file or clear background_image in that geometry.json.");
+				return;
+			}
 
 			if (_backgroundRect == null || !GodotObject.IsInstanceValid(_backgroundRect))
 			{
@@ -602,10 +743,19 @@ namespace Beep.ECS.UI
 					Name = "ThemeBackground",
 					MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
 				};
-				// Insert at index 0 so it draws under everything else.
-				_targetControl.AddChild(_backgroundRect);
-				_targetControl.MoveChild(_backgroundRect, 0);
-				_backgroundRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+					_targetControl.AddChild(_backgroundRect);
+					// Sit directly ON TOP of the page canvas, and under everything else.
+					//
+					// This used to move to index 0, i.e. behind the "Background" ColorRect — which
+					// ThemePageBackground now paints OPAQUE from bg_canvas, so the pattern would be
+					// covered completely and the background_image feature would draw nothing at all.
+					// One slot later gives canvas colour first, pattern over it, content on top, so
+					// a translucent tile tints with the genre's own canvas colour.
+					int canvasIndex = -1;
+					for (int i = 0; i < _targetControl.GetChildCount(); i++)
+						if (_targetControl.GetChild(i) is ColorRect cr && cr.Name == "Background") { canvasIndex = i; break; }
+					_targetControl.MoveChild(_backgroundRect, canvasIndex + 1);
+					_backgroundRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 			}
 			_backgroundRect.Texture = ResourceLoader.Load<Texture2D>(img);
 

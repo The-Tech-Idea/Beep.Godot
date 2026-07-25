@@ -1,6 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/RpgHudComponent.cs" id="20_hud"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="6_forecast"]
@@ -19,9 +22,24 @@ script = ExtResource("10_loader")
 Levels = Array[PackedScene]([ExtResource("lvl_1"), ExtResource("lvl_2")])
 LevelContainerPath = NodePath("../LevelContainer")
 
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("1_flow")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="WeatherForecast" type="Control" parent="HUD"]
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "rpg"
+
+[node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -30,7 +48,7 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("6_forecast")
 
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
+[node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
@@ -39,17 +57,45 @@ grow_vertical = 0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
+[node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="HealthLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="LevelLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "Level 1"
+
+[node name="HealthLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
 text = "Health: 100 / 100"
 
-[node name="ExperienceLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Level: 1"
+[node name="ManaLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "Mana: 50 / 50"
 
-[node name="GameFlow" type="Node" parent="."]
-script = ExtResource("1_flow")
+[node name="Minimap" type="Control" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -172.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 172.0
+grow_horizontal = 0
+script = ExtResource("minimap")
+PlayerPath = NodePath("../../../Player")
+
+[node name="QuestBox" type="VBoxContainer" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -280.0
+offset_top = 188.0
+offset_right = -16.0
+offset_bottom = 260.0
+grow_horizontal = 0
+
+[node name="QuestLabel" type="Label" parent="HUD/Root/QuestBox"]
+text = "Quest: Reach the village"
+horizontal_alignment = 2
+autowrap_mode = 2
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("20_hud")
 
 [node name="InventoryScreen" type="Node" parent="."]
 script = ExtResource("30_screen")

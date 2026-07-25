@@ -28,48 +28,141 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Deck Builder"
 size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="BackButton" type="Button" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(120, 44)
+text = "← Back"
 
 [node name="StartBattleButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(180, 44)
 text = "Start Battle"
 
-[node name="CardGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 6
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="CardSlot1" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CollectionPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
 
-[node name="CardSlot2" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CollectionMargin" type="MarginContainer" parent="Margin/VBox/Body/CollectionPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="CardSlot3" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CollectionVBox" type="VBoxContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin"]
+theme_override_constants/separation = 12
 
-[node name="CardSlot4" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CollectionHeading" type="Label" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Collection"
 
-[node name="CardSlot5" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CollectionScroll" type="ScrollContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox"]
+size_flags_vertical = 3
 
-[node name="CardSlot6" type="PanelContainer" parent="Margin/VBox/CardGrid"]
-custom_minimum_size = Vector2(100, 140)
+[node name="CardGrid" type="GridContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 4
+size_flags_horizontal = 3
+
+[node name="CardSlot1" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot2" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot3" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot4" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot5" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot6" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot7" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="CardSlot8" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
+custom_minimum_size = Vector2(110, 154)
+
+[node name="DeckPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
+
+[node name="DeckMargin" type="MarginContainer" parent="Margin/VBox/Body/DeckPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="DeckVBox" type="VBoxContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin"]
+theme_override_constants/separation = 12
+
+[node name="DeckHeading" type="Label" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Current Deck"
+
+[node name="DeckCountRow" type="HBoxContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
+theme_override_constants/separation = 12
+
+[node name="DeckCountCaption" type="Label" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckCountRow"]
+theme_type_variation = &"BeepCaption"
+text = "Cards"
+size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="DeckCountValue" type="Label" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckCountRow"]
+theme_type_variation = &"BeepValue"
+text = "18 / 20"
+horizontal_alignment = 2
+
+[node name="DeckRule" type="HSeparator" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
+
+[node name="DeckScroll" type="ScrollContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
+size_flags_vertical = 3
+
+[node name="DeckList" type="VBoxContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll"]
+theme_override_constants/separation = 8
+size_flags_horizontal = 3
+
+[node name="DeckEntry1" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
+custom_minimum_size = Vector2(0, 44)
+
+[node name="DeckEntry2" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
+custom_minimum_size = Vector2(0, 44)
+
+[node name="DeckEntry3" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
+custom_minimum_size = Vector2(0, 44)
+
+[node name="DeckEntry4" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
+custom_minimum_size = Vector2(0, 44)
+
+[node name="DeckEntry5" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
+custom_minimum_size = Vector2(0, 44)
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "cardgame"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

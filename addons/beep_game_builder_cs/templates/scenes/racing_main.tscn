@@ -1,6 +1,8 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/RacingHudComponent.cs" id="hud_stat"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs" id="6_forecast"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LevelLoaderComponent.cs" id="10_loader"]
@@ -18,9 +20,24 @@ script = ExtResource("10_loader")
 Levels = Array[PackedScene]([ExtResource("lvl_1"), ExtResource("lvl_2")])
 LevelContainerPath = NodePath("../LevelContainer")
 
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("1_flow")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="WeatherForecast" type="Control" parent="HUD"]
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "racing"
+
+[node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -29,7 +46,7 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("6_forecast")
 
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
+[node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
@@ -38,14 +55,39 @@ grow_vertical = 0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
+[node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="SpeedLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Speed: 0 / 320 km/h"
-
-[node name="LapLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="LapLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
 text = "Lap: 1 / 3"
 
-[node name="GameFlow" type="Node" parent="."]
-script = ExtResource("1_flow")
+[node name="PositionLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "Pos: 1 / 8"
+
+[node name="LapTimeLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "Lap Time: --:--"
+
+[node name="SpeedBox" type="VBoxContainer" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -132.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="SpeedLabel" type="Label" parent="HUD/Root/SpeedBox"]
+theme_override_font_sizes/font_size = 56
+text = "0"
+horizontal_alignment = 2
+
+[node name="SpeedUnit" type="Label" parent="HUD/Root/SpeedBox"]
+text = "km/h"
+horizontal_alignment = 2
+
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_stat")

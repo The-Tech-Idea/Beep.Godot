@@ -24,94 +24,112 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(420, 0)
+custom_minimum_size = Vector2(520, 0)
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
 
 [node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 14
+theme_override_constants/separation = 16
 
 [node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"BeepTitle"
 text = "Run Over"
 horizontal_alignment = 1
 
+[node name="BannerRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+
 [node name="StatsGrid" type="GridContainer" parent="Center/Panel/Margin/VBox"]
 theme_override_constants/h_separation = 24
-theme_override_constants/v_separation = 6
+theme_override_constants/v_separation = 12
 columns = 2
 
 [node name="TimeCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Time Survived"
+size_flags_horizontal = 3
 
 [node name="TimeValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "12:34"
 horizontal_alignment = 2
 
 [node name="FloorCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Floor Reached"
+size_flags_horizontal = 3
 
 [node name="FloorValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "5"
 horizontal_alignment = 2
 
 [node name="KillCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Kills"
+size_flags_horizontal = 3
 
 [node name="KillValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "127"
 horizontal_alignment = 2
 
 [node name="ScoreCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Score"
+size_flags_horizontal = 3
 
 [node name="ScoreValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepValue"
 text = "8420"
 horizontal_alignment = 2
 
 [node name="GoldCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
+theme_type_variation = &"BeepCaption"
 text = "Gold Earned"
+size_flags_horizontal = 3
 
 [node name="GoldValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
-text = "🪙 156"
+theme_type_variation = &"BeepValue"
+text = "156"
 horizontal_alignment = 2
 
-[node name="UnlocksLabel" type="Label" parent="Center/Panel/Margin/VBox"]
-text = "Unlocks:"
+[node name="UnlocksRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+
+[node name="UnlocksHeading" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Unlocks"
 
 [node name="UnlocksList" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="Unlock1" type="Label" parent="Center/Panel/Margin/VBox/UnlocksList"]
-text = "  NEW! Heavy Shotgun"
+text = "NEW  ·  Heavy Shotgun"
 
 [node name="Unlock2" type="Label" parent="Center/Panel/Margin/VBox/UnlocksList"]
-text = "  NEW! Bruiser character"
-
-[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 8)
+text = "NEW  ·  Bruiser character"
 
 [node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
 [node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(160, 48)
 text = "Retry"
 metadata/action = "retry"
 
 [node name="MenuButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(160, 48)
 text = "Main Menu"
 metadata/action = "menu"
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")
+GenreName = "shooter"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
 ThemeComponentPath = NodePath("Center/Theme")
-

@@ -18,10 +18,37 @@ Every UI surface is the intersection of four orthogonal JSON-driven dimensions. 
 | **Geometry** (genre-wide overrides) | `skins/<genre>/geometry.json` | `GeometryDef.ToProfile()` → `GeometryProfile.ApplyTo()` (C#); **no GDScript equivalent** | Stamps every `NewBox()`-derived StyleBox via `StampGeometry` |
 | **Texture** (per-slot 9-patch PNGs) | `theme.json`'s `textures{}` block OR inspector `UISkin` resource | `FileThemePreset.Get*Texture()` → `SkinOr(jsonTex, skinPath, procedural)` (C#); `BeepThemeApplier._build_theme()` (GDScript — no JSON texture path today) | JSON wins per-slot → inspector UISkin → procedural `StyleBoxFlat` |
 | **Shapes** (per-node-type knobs) | `geometry.json`'s `shapes{}` block | `GeometryDef.Shapes` → `GeometryProfile.Shapes` → `ThemePresetComponent.ActiveShapes` (C#); hardcoded magic numbers in `theme_applier.gd` (GDScript) | Consumed by `PanelBox` / `InputBox` / `RoundBox` / `CircleBox` / `SelectedBox` |
-| **Background** (canvas image) | `geometry.json`'s `background_image` + `background_mode` | `ThemePresetComponent.ApplyBackground` (C#); **no GDScript equivalent** | Spawns a `TextureRect` as the first child of the themed subtree root |
+| **Background** (canvas image) | `geometry.json`'s `background_image` + `background_mode` | `ThemePresetComponent.ApplyBackground` (C#); **no GDScript equivalent** | Spawns a `TextureRect` directly ABOVE the page canvas `ColorRect`, below all content |
 
 **C# path** = file-driven everything (genre/theme/palette/geometry/shapes/textures/background all from JSON).
 **GDScript path** = 22 hand-written `preset_*.gd` files, no per-genre or palette or shapes or background JSON.
+
+---
+
+## Textures vs procedural — and where NinePatchRect belongs
+
+**A `Theme` can only use `StyleBoxTexture`.** Buttons, panels, windows, inputs, progress
+bars — everything styled through a Theme — take a `StyleBoxTexture`, which is what the
+`textures{}` block feeds. A **`NinePatchRect` is a Node and can never be a theme StyleBox**;
+reaching for one to skin a Button is simply the wrong tool.
+
+Use `NinePatchFrameComponent` (`ecs/ui/NinePatchFrameComponent.cs`) for the case a Theme
+cannot reach: a standalone decorative frame around content that is not a themed widget — a
+HUD banner, a portrait border, a callout, a minimap surround. Drop it under the Control you
+want framed; it inserts one full-rect `NinePatchRect` as that Control's first child, so the
+frame draws behind the content and the layout is untouched. It resolves its art from the
+skin catalog slot (`Slot = "panel"` by default) and uses that slot's declared 9-patch
+margins, so a baked texture is correct with no extra setup. Set `OverrideTexture` for art
+the skin has no slot for. It warns rather than rendering nothing.
+
+**Baking.** `BeepTextureBaker` writes every `texture_path` a theme declares, from that
+theme's own colors and geometry — dock → *Bake textures*, or `beep.bake_textures`. See
+`FILE_FORMATS.md` for the slot table and the two gotchas (shared paths; no baked shadow).
+
+**Comparing.** `templates/scenes/theme_gallery.tscn` shows every themed widget on one
+screen with live genre/theme/palette pickers and a **Textures** toggle. That toggle is the
+regression test that matters: if a widget changes size when textures come on, the baked
+margins disagree with the `margin_*` in that slot's `theme.json`.
 
 ---
 

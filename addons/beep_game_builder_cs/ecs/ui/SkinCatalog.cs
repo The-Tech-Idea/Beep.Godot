@@ -275,7 +275,10 @@ namespace Beep.ECS.UI
             }
 
             // Parse the optional "textures" block — per-node-type StyleBoxTexture specs.
-            theme.Textures = ParseTextures(json);
+            // Pass a "<genre>/<theme>" label so a slot pointing at a missing PNG can name
+            // itself in the warning. themePath is .../skins/<genre>/themes/<theme>, so the
+            // genre is two directories up — no extra parameter needed on LoadTheme.
+            theme.Textures = ParseTextures(json, $"{themePath.GetBaseDir().GetBaseDir().GetFile()}/{themeId}");
 
             // Scan palette files (everything except theme.json).
             theme.Palettes = new Dictionary<string, ColorPalette>();
@@ -392,33 +395,33 @@ namespace Beep.ECS.UI
         /// null when the block is absent. Per-slot entries may themselves be
         /// null (slot absent) — callers should use TextureSlotDef?.BuildStyleBox()
         /// which returns null for both cases.</summary>
-        private static ThemeTextureSlots? ParseTextures(Godot.Collections.Dictionary json)
+        private static ThemeTextureSlots? ParseTextures(Godot.Collections.Dictionary json, string owner)
         {
             if (!json.TryGetValue("textures", out var texVar)
                 || texVar.VariantType != Variant.Type.Dictionary) return null;
 
             var t = texVar.AsGodotDictionary();
             var slots = new ThemeTextureSlots();
-            slots.ButtonNormal   = ParseTextureSlot(t, "button_normal");
-            slots.ButtonHover    = ParseTextureSlot(t, "button_hover");
-            slots.ButtonPressed  = ParseTextureSlot(t, "button_pressed");
-            slots.ButtonDisabled = ParseTextureSlot(t, "button_disabled");
-            slots.ButtonFocus    = ParseTextureSlot(t, "button_focus");
-            slots.Panel          = ParseTextureSlot(t, "panel");
-            slots.Dialog         = ParseTextureSlot(t, "dialog");
-            slots.InputNormal    = ParseTextureSlot(t, "input_normal");
-            slots.InputFocus     = ParseTextureSlot(t, "input_focus");
-            slots.ProgressBg     = ParseTextureSlot(t, "progress_bg");
-            slots.ProgressFill   = ParseTextureSlot(t, "progress_fill");
-            slots.SliderGrabber  = ParseTextureSlot(t, "slider_grabber");
-            slots.ScrollGrabber  = ParseTextureSlot(t, "scroll_grabber");
-            slots.Separator      = ParseTextureSlot(t, "separator");
+            slots.ButtonNormal   = ParseTextureSlot(t, "button_normal", owner);
+            slots.ButtonHover    = ParseTextureSlot(t, "button_hover", owner);
+            slots.ButtonPressed  = ParseTextureSlot(t, "button_pressed", owner);
+            slots.ButtonDisabled = ParseTextureSlot(t, "button_disabled", owner);
+            slots.ButtonFocus    = ParseTextureSlot(t, "button_focus", owner);
+            slots.Panel          = ParseTextureSlot(t, "panel", owner);
+            slots.Dialog         = ParseTextureSlot(t, "dialog", owner);
+            slots.InputNormal    = ParseTextureSlot(t, "input_normal", owner);
+            slots.InputFocus     = ParseTextureSlot(t, "input_focus", owner);
+            slots.ProgressBg     = ParseTextureSlot(t, "progress_bg", owner);
+            slots.ProgressFill   = ParseTextureSlot(t, "progress_fill", owner);
+            slots.SliderGrabber  = ParseTextureSlot(t, "slider_grabber", owner);
+            slots.ScrollGrabber  = ParseTextureSlot(t, "scroll_grabber", owner);
+            slots.Separator      = ParseTextureSlot(t, "separator", owner);
             return slots;
         }
 
         /// <summary>Parse one texture slot sub-dictionary. Returns null when the
         /// slot key is absent from the textures block.</summary>
-        private static TextureSlotDef? ParseTextureSlot(Godot.Collections.Dictionary textures, string slotKey)
+        private static TextureSlotDef? ParseTextureSlot(Godot.Collections.Dictionary textures, string slotKey, string owner)
         {
             if (!textures.TryGetValue(slotKey, out var sVar)
                 || sVar.VariantType != Variant.Type.Dictionary) return null;
@@ -430,6 +433,8 @@ namespace Beep.ECS.UI
             return new TextureSlotDef
             {
                 Path = path,
+                Owner = owner,
+                Slot = slotKey,
                 MarginLeft   = Float(s, "margin_left", 0f),
                 MarginTop    = Float(s, "margin_top", 0f),
                 MarginRight  = Float(s, "margin_right", 0f),
@@ -486,6 +491,12 @@ namespace Beep.ECS.UI
         /// <summary>res:// path to the PNG. Null/empty disables this slot.</summary>
         public string? Path;
 
+        /// <summary>"&lt;genre&gt;/&lt;theme&gt;" this slot came from, and the slot key
+        /// ("button_normal"…). Carried purely so a missing PNG can name itself — a
+        /// warning reading "file not found" with no owner is nearly useless when 50
+        /// themes declare the same five slots.</summary>
+        public string Owner = "", Slot = "";
+
         // 9-patch margins — how many px from each edge stay fixed when stretching.
         public float MarginLeft = 0, MarginTop = 0, MarginRight = 0, MarginBottom = 0;
 
@@ -506,13 +517,35 @@ namespace Beep.ECS.UI
         public float ExpandMarginLeft = 0, ExpandMarginRight = 0,
                     ExpandMarginTop = 0, ExpandMarginBottom = 0;
 
+        /// <summary>Paths already reported missing. ApplyTheme() runs several times per
+        /// scene load (every ThemePresetComponent setter calls it), so an unguarded
+        /// warning would print hundreds of lines for one broken slot.</summary>
+        private static readonly System.Collections.Generic.HashSet<string> _reportedMissing = new();
+
         /// <summary>Build the live StyleBoxTexture. Returns null if no texture_path
-        /// is set OR the resource fails to load — callers fall back to procedural.</summary>
+        /// is set OR the resource fails to load — callers fall back to procedural.
+        ///
+        /// A path that is SET but missing is a defect, not a configuration: the theme
+        /// asked for a texture and silently got a procedural box instead. Every one of
+        /// the 50 shipped themes declared five slots whose PNGs were never in the repo,
+        /// so the entire texture pipeline was inert and said nothing about it. Warn,
+        /// naming theme, slot and path, then fall back.</summary>
         public StyleBoxTexture? BuildStyleBox()
         {
-            if (string.IsNullOrEmpty(Path) || !ResourceLoader.Exists(Path)) return null;
+            if (string.IsNullOrEmpty(Path)) return null;
+            if (!ResourceLoader.Exists(Path))
+            {
+                if (_reportedMissing.Add(Path))
+                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}' points at '{Path}', which does not exist — falling back to the procedural box. Bake it (dock → Bake Textures, or beep.bake_textures) or clear texture_path in that theme.json.");
+                return null;
+            }
             var tex = ResourceLoader.Load<Texture2D>(Path);
-            if (tex == null) return null;
+            if (tex == null)
+            {
+                if (_reportedMissing.Add(Path))
+                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}': '{Path}' exists but did not load as a Texture2D — falling back to the procedural box.");
+                return null;
+            }
             var sb = new StyleBoxTexture { Texture = tex };
             sb.TextureMarginLeft   = MarginLeft;
             sb.TextureMarginTop    = MarginTop;

@@ -68,6 +68,11 @@ namespace Beep.ECS
             if (_targetControl != null)
             {
                 _targetControl.OffsetTransformEnabled = true;
+                // offset_transform_scale pivots around pivot_offset (default: top-left corner).
+                // Squash/stretch should deform around the Control's centre, not its corner —
+                // otherwise the juice visibly drags toward bottom-right. Set it at play time
+                // when Size is laid out.
+                _targetControl.PivotOffset = _targetControl.Size / 2f;
                 _tween = CreateTween();
                 _tween.TweenProperty(_targetControl, "offset_transform_scale", new Vector2(xMul, yMul), upDur).SetEase(Tween.EaseType.Out);
                 _tween.TweenProperty(_targetControl, "offset_transform_scale", Vector2.One, downDur).SetEase(Tween.EaseType.In);

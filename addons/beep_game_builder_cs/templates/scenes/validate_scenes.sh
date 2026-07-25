@@ -140,11 +140,20 @@ done; [ $found -eq 0 ] && echo "  ok"
 # [Export] in the C# addon, which no built-in does.
 echo "--- C# export properties are PascalCase in scenes (Godot silently drops snake_case) ---"; found=0
 # NB: grep -E is POSIX ERE — no \s. Use [[:space:]].
-# Covers both `[Export] public T Name` on one line and [Export] on its own line.
+# Covers three [Export] member forms, all of which ship here:
+#   `[Export] public T Name { get; set; } = x;`   (auto-property, one line)
+#   `[Export]` \n `public T Name { get; set; }`    (auto-property, brace same line, [Export] above)
+#   `[Export]` \n `public T Name`                  (full property, brace on the NEXT line — e.g.
+#                                                    ThemePresetComponent.GenreName/PresetName/PaletteName)
+# The old extraction required a trailing {;= on the captured line, so it MISSED the third form and
+# false-flagged every scene that set GenreName/PresetName/etc. Now: take any decl line carrying an
+# access modifier (but not a method — no '('), strip the initializer/body, and keep the trailing name.
 EXPORTS=$(grep -rh -A1 -E '\[Export' ../../ecs ../../core 2>/dev/null \
-  | grep -oE 'public[[:space:]]+[][A-Za-z0-9_.<>?,[:space:]]*[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]' \
-  | grep -oE '[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[{;=]$' \
-  | sed -E 's/[[:space:]]*[{;=]$//' | sort -u | grep -v '^$')
+  | grep -E '\b(public|internal|protected)\b' \
+  | sed -E 's/\[Export[^]]*\]//g; s/=.*$//; s/\{.*$//; s/;.*$//' \
+  | grep -vE '\(' \
+  | grep -oE '[A-Za-z_][A-Za-z0-9_]*[[:space:]]*$' \
+  | sed -E 's/[[:space:]]+$//' | sort -u | grep -v '^$')
 
 EXPORT_LIST=$(mktemp); printf '%s\n' "$EXPORTS" > "$EXPORT_LIST"
 for f in $(find . -name "*.tscn" | sort); do
@@ -200,6 +209,109 @@ for f in $(find . -name "*.tscn" | sort); do
     }' "$f")
   [ -n "$out" ] && { echo "$out"; found=1; fail=1; }
 done; [ $found -eq 0 ] && echo "  ok"
+
+# Navigation: a screen's root C# script wires its buttons BY NODE PATH in _Ready()
+# (ConnectPressed("Margin/VBox/Header/BackButton", ...), GetNodeOrNull<Button>("...")).
+# If that path doesn't match a real node in the .tscn, the button is DEAD — ConnectPressed
+# warns at runtime, GetNodeOrNull is silent. Either way the scene loads fine and looks wired.
+# This connects the two halves the other checks never cross: script paths vs scene tree.
+echo "--- screen scripts wire buttons that exist in the scene ---"; found=0
+ADDON="../.."                           # templates/scenes -> addon root is two up
+for f in $(find . -name "*.tscn" | sort); do
+  sid=$(awk '/^\[node /{n++} n==1 && /^script = ExtResource\(/{ if (match($0,/ExtResource\("([^"]+)"\)/,m)) print m[1]; exit }' "$f")
+  [ -z "$sid" ] && continue
+  spath=$(awk -v id="$sid" '/^\[ext_resource / && index($0,"id=\""id"\"")>0 { if (match($0,/path="res:\/\/addons\/beep_game_builder_cs\/([^"]+)"/,m)) print m[1]; exit }' "$f")
+  case "$spath" in ecs/scenes/*) ;; *) continue;; esac
+  cs="$ADDON/$spath"
+  [ -f "$cs" ] || { echo "  $f -> root script missing: $spath"; found=1; fail=1; continue; }
+  paths=$(awk '/^\[node / { name=""; parent="__ROOT__"
+      if (match($0,/name="[^"]+"/)) name=substr($0,RSTART+6,RLENGTH-7)
+      if (match($0,/parent="[^"]*"/)) parent=substr($0,RSTART+8,RLENGTH-9)
+      if (parent=="__ROOT__") next
+      if (parent==".") print name; else print parent "/" name }' "$f")
+  # Bare node NAMES too: the screen scripts now resolve with ConnectButton("BackButton") /
+  # Find<T>("Tabs") so a restyle that inserts a wrapper can't kill a button (the save/load
+  # regression). A reference is valid if it matches a full path OR a node name.
+  names=$(awk '/^\[node / { if (match($0,/name="[^"]+"/)) print substr($0,RSTART+6,RLENGTH-7) }' "$f")
+  refs=$(grep -oE '(ConnectPressed|ConnectToggled|ConnectButton|Find<[^>]*>|GetNodeOrNull<[^>]*>|GetNode<[^>]*>)\("[^"]+"' "$cs" \
+         | grep -oE '"[^"]+"' | tr -d '"' | sort -u)
+  for r in $refs; do
+    case "$r" in res://*|"") continue;; esac
+    printf '%s\n' "$paths" | grep -qx -- "$r" && continue
+    printf '%s\n' "$names" | grep -qx -- "$r" && continue
+    echo "  $f -> script $(basename "$cs") wires '$r', which is not a node in the scene"; found=1; fail=1
+  done
+done; [ $found -eq 0 ] && echo "  ok"
+
+# The scripts resolve controls by NAME (ConnectButton/Find<T>), so a name a script looks up
+# scene-wide has to identify ONE node. shooter/character_select shipped four buttons all named
+# "SelectButton" and platformer/level_select two "Level1Button"s — unambiguous as paths, but a
+# scene-wide name lookup returns whichever comes first in the tree, so three of four characters
+# silently picked the wrong card.
+#
+# Only names the ROOT SCRIPT resolves scene-wide are flagged. Repeated names are perfectly fine
+# when the lookup is scoped to a row — load_game_menu has one "SlotButton"/"DeleteButton" per
+# slot and LoadGameMenuComponent resolves them per PanelContainer, never scene-wide. Flagging
+# those would be crying wolf, and a check that cries wolf gets ignored.
+echo "--- Button names the root script resolves scene-wide are unique ---"; found=0
+for f in $(find . -name "*.tscn" | sort); do
+  sid=$(awk '/^\[node /{n++} n==1 && /^script = ExtResource\(/{ if (match($0,/ExtResource\("([^"]+)"\)/,m)) print m[1]; exit }' "$f")
+  [ -z "$sid" ] && continue
+  spath=$(awk -v id="$sid" '/^\[ext_resource / && index($0,"id=\""id"\"")>0 { if (match($0,/path="res:\/\/addons\/beep_game_builder_cs\/([^"]+)"/,m)) print m[1]; exit }' "$f")
+  cs="../../$spath"; [ -f "$cs" ] || continue
+  # Names looked up scene-wide only. A call qualified by some other object — LoadGameMenu's
+  # `container.FindChild("SlotButton")` — searches inside that row, so a per-row repeat is
+  # correct and must not be flagged. Hence the leading [^A-Za-z0-9_.]: bare or `this.` only.
+  lookups=$(grep -oE '(^|[^A-Za-z0-9_.])(this\.)?(ConnectButton|Find<[^>]*>|FindChild)\("[^"]+"' "$cs" \
+            | grep -oE '"[^"]+"' | tr -d '"' | sort -u)
+  [ -z "$lookups" ] && continue
+  dupes=$(awk '/^\[node / {
+      name=""; type=""
+      if (match($0,/name="[^"]+"/)) name=substr($0,RSTART+6,RLENGTH-7)
+      if (match($0,/type="[^"]+"/)) type=substr($0,RSTART+6,RLENGTH-7)
+      if (type ~ /Button$/ && name != "" && ++n[name] == 2) print name
+    }' "$f")
+  for d in $dupes; do
+    printf '%s\n' "$lookups" | grep -qx -- "$d" \
+      && { echo "  $f -> several Buttons named \"$d\", and $(basename "$cs") resolves that name scene-wide"; found=1; fail=1; }
+  done
+done; [ $found -eq 0 ] && echo "  ok"
+
+# ThemePresetComponent registers exactly four Label type variations. A typo'd one
+# (theme_type_variation = &"BeepHeading") resolves to nothing and the Label falls back to the
+# base font size — the flat-typography defect this whole pass exists to fix, restored in
+# silence. Keep this list in step with RegisterTypography() in ThemePresetComponent.cs.
+echo "--- theme_type_variation names are ones Beep registers ---"; found=0
+KNOWN_VARIATIONS="BeepTitle BeepSubtitle BeepValue BeepCaption"
+for f in $(find . -name "*.tscn" | sort); do
+  for v in $(grep -oE '^theme_type_variation = &?"[^"]+"' "$f" | grep -oE '"[^"]+"' | tr -d '"' | sort -u); do
+    case " $KNOWN_VARIATIONS " in
+      *" $v "*) ;;
+      *) echo "  $f -> theme_type_variation \"$v\" is not registered by ThemePresetComponent (renders at base size)"; found=1; fail=1;;
+    esac
+  done
+done; [ $found -eq 0 ] && echo "  ok"
+
+# Skin assets: theme.json's textures{} and geometry.json's background_image name res:// files.
+# SkinCatalog returns null for a missing one and the theme falls back to a procedural box; before
+# this check ALL 200 texture_path entries across the 50 shipped themes, and all 8 background_image
+# paths, pointed at files that were never in the repo. Every texture toggle in the inspector did
+# nothing and nothing anywhere said so. This is the check that keeps the bake honest.
+echo "--- skin texture/background files referenced by the catalogs exist ---"; found=0
+SKINS="../../catalogs/skins"
+if [ -d "$SKINS" ]; then
+  refs=$(grep -rhoE '"(texture_path|background_image)"[[:space:]]*:[[:space:]]*"[^"]+"' "$SKINS" \
+         | grep -oE '"res://[^"]+"' | tr -d '"' | sort -u)
+  for r in $refs; do
+    # res://addons/beep_game_builder_cs/<rel>  ->  ../../<rel>
+    rel=${r#res://addons/beep_game_builder_cs/}
+    [ -f "../../$rel" ] || { echo "  missing: $r"; found=$((found+1)); fail=1; }
+  done
+  [ $found -gt 0 ] && echo "  ($found referenced skin asset(s) not on disk)"
+else
+  echo "  skipped: $SKINS not found"
+fi
+[ $found -eq 0 ] && echo "  ok"
 
 [ $fail -eq 0 ] && echo "PASS: all scenes valid" || echo "FAIL: see above"
 exit $fail

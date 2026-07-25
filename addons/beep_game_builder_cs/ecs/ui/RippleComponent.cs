@@ -19,6 +19,13 @@ namespace Beep.ECS.UI
         [Export] public float Duration { get; set; } = 0.6f;
         [Export] public float MaxRadius { get; set; } = 100f;
 
+        // Targets we actually connected GuiInput on. _ExitTree must disconnect ONLY these:
+        // HookInputs is deferred, so a ThemePresetComponent re-theme (ApplyTheme runs several
+        // times per load) can free this node before the deferred hook ever ran. Disconnecting
+        // the whole Targets list then hit connections that were never made — Godot logs
+        // "Attempt to disconnect a nonexistent connection ... gui_input" for every button.
+        private readonly System.Collections.Generic.List<Godot.Control> _hooked = new();
+
         public override void _Ready()
         {
             base._Ready();
@@ -30,8 +37,11 @@ namespace Beep.ECS.UI
         private void HookInputs()
         {
             foreach (var t in Targets)
-                if (GodotObject.IsInstanceValid(t))
+                if (GodotObject.IsInstanceValid(t) && !_hooked.Contains(t))
+                {
                     t.GuiInput += OnTargetGuiInput;
+                    _hooked.Add(t);
+                }
         }
 
         private void OnTargetGuiInput(InputEvent @event)
@@ -68,9 +78,10 @@ namespace Beep.ECS.UI
 
         public override void _ExitTree()
         {
-            foreach (var t in Targets)
+            foreach (var t in _hooked)
                 if (GodotObject.IsInstanceValid(t))
                     t.GuiInput -= OnTargetGuiInput;
+            _hooked.Clear();
             base._ExitTree();
         }
     }

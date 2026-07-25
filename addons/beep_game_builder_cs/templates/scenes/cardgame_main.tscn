@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CardGameHudComponent.cs" id="hud_stat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 
 [node name="CardGameMain" type="Node2D"]
@@ -24,9 +26,24 @@ grow_horizontal = 2
 text = "Card Game gameplay placeholder"
 horizontal_alignment = 1
 
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("1_flow")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "cardgame"
+
+[node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
@@ -35,17 +52,74 @@ grow_vertical = 0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
+[node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="HandLimitLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Hand: 0 / 10"
+[node name="HealthLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
+text = "HP: 80 / 80"
 
-[node name="GoldLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="TopRight" type="VBoxContainer" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -180.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 48.0
+grow_horizontal = 0
+
+[node name="GoldLabel" type="Label" parent="HUD/Root/TopRight"]
 text = "Gold: 0"
+horizontal_alignment = 2
 
-[node name="GameFlow" type="Node" parent="."]
-script = ExtResource("1_flow")
+[node name="EnergyBox" type="VBoxContainer" parent="HUD/Root"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -96.0
+offset_right = 180.0
+offset_bottom = -16.0
+grow_vertical = 0
+
+[node name="EnergyLabel" type="Label" parent="HUD/Root/EnergyBox"]
+theme_override_font_sizes/font_size = 32
+text = "Energy: 3 / 3"
+
+[node name="HandZone" type="PanelContainer" parent="HUD/Root"]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -280.0
+offset_top = -132.0
+offset_right = 280.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="HandLabel" type="Label" parent="HUD/Root/HandZone"]
+text = "Your hand — deal cards here"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BottomRight" type="VBoxContainer" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -72.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="DeckLabel" type="Label" parent="HUD/Root/BottomRight"]
+text = "Deck: 30"
+horizontal_alignment = 2
+
+[node name="DiscardLabel" type="Label" parent="HUD/Root/BottomRight"]
+text = "Discard: 0"
+horizontal_alignment = 2
 
 [node name="DeckBuilderScreen" type="Node" parent="."]
 script = ExtResource("30_screen")
@@ -56,3 +130,6 @@ OpenAction = "build"
 script = ExtResource("30_screen")
 ScreenKey = "collection"
 OpenAction = "inventory"
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_stat")

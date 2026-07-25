@@ -28,48 +28,127 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Inventory"
 size_flags_horizontal = 3
+vertical_alignment = 1
+
+[node name="GoldValue" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepValue"
+text = "1,250 g"
+vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "Close"
 
-[node name="ItemGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 6
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="ItemSlot1" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="GridPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
 
-[node name="ItemSlot2" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="GridMargin" type="MarginContainer" parent="Margin/VBox/Body/GridPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="ItemSlot3" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="GridVBox" type="VBoxContainer" parent="Margin/VBox/Body/GridPanel/GridMargin"]
+theme_override_constants/separation = 12
 
-[node name="ItemSlot4" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="CarriedHeading" type="Label" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Carried"
 
-[node name="ItemSlot5" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="ItemGrid" type="GridContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 6
 
-[node name="ItemSlot6" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(64, 64)
+[node name="ItemSlot1" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot2" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot3" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot4" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot5" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot6" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot7" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot8" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot9" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot10" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot11" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="ItemSlot12" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(72, 72)
+
+[node name="GridSpacer" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+size_flags_vertical = 3
+
+[node name="DetailPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/Body/DetailPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="DetailVBox" type="VBoxContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin"]
+theme_override_constants/separation = 12
+
+[node name="ItemNameLabel" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "No item selected"
+
+[node name="ItemIcon" type="ColorRect" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+custom_minimum_size = Vector2(0, 120)
+color = Color(0.14, 0.13, 0.2, 1)
+
+[node name="ItemDescription" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Select an item to see its details."
+autowrap_mode = 3
+
+[node name="DetailSpacer" type="Control" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "rpg"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

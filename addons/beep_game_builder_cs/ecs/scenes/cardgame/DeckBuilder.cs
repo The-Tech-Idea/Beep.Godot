@@ -10,7 +10,11 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Margin/VBox/Header/StartBattleButton", OnStartBattle);
+            this.ConnectButton("StartBattleButton", OnStartBattle);
+            // Until now Start Battle was the only way out of this screen — backing out meant
+            // committing to a battle. The header carries a real Back button now, so it needs
+            // wiring; an unwired one is indistinguishable from a broken one.
+            this.ConnectButton("BackButton", () => UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath));
         }
 
         private void OnStartBattle()

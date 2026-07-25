@@ -33,130 +33,263 @@ theme_override_constants/margin_top = 32
 theme_override_constants/margin_bottom = 32
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
-theme_override_constants/separation = 24
+theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Choose Your Character"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 metadata/action = "back"
 
-[node name="CharGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 20
-theme_override_constants/v_separation = 20
-columns = 4
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="CharGrid" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 20
+size_flags_vertical = 3
 
 [node name="MarineCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
-custom_minimum_size = Vector2(220, 320)
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
 
-[node name="MarineVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/MarineCard"]
-theme_override_constants/separation = 8
+[node name="MarineMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/MarineCard"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
-custom_minimum_size = Vector2(0, 120)
+[node name="MarineVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin"]
+theme_override_constants/separation = 10
+
+[node name="MarinePortrait" type="ColorRect" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.2, 0.4, 0.7, 1)
 
-[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+[node name="MarineNameLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Marine"
 horizontal_alignment = 1
 
-[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
-text = "Rifle (reliable)"
+[node name="MarineWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Rifle · reliable"
 horizontal_alignment = 1
 
-[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
-text = "+ accuracy"
-horizontal_alignment = 1
+[node name="MarineStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 2
 
-[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/MarineCard/MarineVBox"]
+[node name="MarineDamageCaption" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Damage"
+size_flags_horizontal = 3
+
+[node name="MarineDamageValue" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "B"
+horizontal_alignment = 2
+
+[node name="MarineAccuracyCaption" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Accuracy"
+size_flags_horizontal = 3
+
+[node name="MarineAccuracyValue" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "A"
+horizontal_alignment = 2
+
+[node name="MarineSelectButton" type="Button" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_marine"
 
 [node name="PilotCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
-custom_minimum_size = Vector2(220, 320)
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
 
-[node name="PilotVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/PilotCard"]
-theme_override_constants/separation = 8
+[node name="PilotMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/PilotCard"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
-custom_minimum_size = Vector2(0, 120)
+[node name="PilotVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin"]
+theme_override_constants/separation = 10
+
+[node name="PilotPortrait" type="ColorRect" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.5, 0.4, 0.2, 1)
 
-[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+[node name="PilotNameLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Pilot"
 horizontal_alignment = 1
 
-[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
-text = "Pistol + lockpick"
+[node name="PilotWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Pistol · lockpick"
 horizontal_alignment = 1
 
-[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
-text = "+ extra item slots"
-horizontal_alignment = 1
+[node name="PilotStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 2
 
-[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/PilotCard/PilotVBox"]
+[node name="PilotDamageCaption" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Damage"
+size_flags_horizontal = 3
+
+[node name="PilotDamageValue" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "C"
+horizontal_alignment = 2
+
+[node name="PilotSlotsCaption" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Item slots"
+size_flags_horizontal = 3
+
+[node name="PilotSlotsValue" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "+2"
+horizontal_alignment = 2
+
+[node name="PilotSelectButton" type="Button" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_pilot"
 
 [node name="HunterCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
-custom_minimum_size = Vector2(220, 320)
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
 
-[node name="HunterVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/HunterCard"]
-theme_override_constants/separation = 8
+[node name="HunterMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/HunterCard"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
-custom_minimum_size = Vector2(0, 120)
+[node name="HunterVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin"]
+theme_override_constants/separation = 10
+
+[node name="HunterPortrait" type="ColorRect" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.2, 0.6, 0.3, 1)
 
-[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+[node name="HunterNameLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Hunter"
 horizontal_alignment = 1
 
-[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
-text = "Crossbow (companion)"
+[node name="HunterWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Crossbow · companion"
 horizontal_alignment = 1
 
-[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
-text = "starts with a dog"
-horizontal_alignment = 1
+[node name="HunterStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 2
 
-[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/HunterCard/HunterVBox"]
+[node name="HunterDamageCaption" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Damage"
+size_flags_horizontal = 3
+
+[node name="HunterDamageValue" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "B"
+horizontal_alignment = 2
+
+[node name="HunterPetCaption" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Companion"
+size_flags_horizontal = 3
+
+[node name="HunterPetValue" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "Dog"
+horizontal_alignment = 2
+
+[node name="HunterSelectButton" type="Button" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_hunter"
 
 [node name="BruiserCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
-custom_minimum_size = Vector2(220, 320)
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
 
-[node name="BruiserVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/BruiserCard"]
-theme_override_constants/separation = 8
+[node name="BruiserMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/BruiserCard"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Portrait" type="ColorRect" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
-custom_minimum_size = Vector2(0, 120)
+[node name="BruiserVBox" type="VBoxContainer" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin"]
+theme_override_constants/separation = 10
+
+[node name="BruiserPortrait" type="ColorRect" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.7, 0.2, 0.3, 1)
 
-[node name="NameLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+[node name="BruiserNameLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Bruiser"
 horizontal_alignment = 1
 
-[node name="WeaponLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
-text = "Shotgun (spread)"
+[node name="BruiserWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Shotgun · spread"
 horizontal_alignment = 1
 
-[node name="PassiveLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
-text = "starts with +damage"
-horizontal_alignment = 1
+[node name="BruiserStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 2
 
-[node name="SelectButton" type="Button" parent="Margin/VBox/CharGrid/BruiserCard/BruiserVBox"]
+[node name="BruiserDamageCaption" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Damage"
+size_flags_horizontal = 3
+
+[node name="BruiserDamageValue" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "A"
+horizontal_alignment = 2
+
+[node name="BruiserRangeCaption" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Range"
+size_flags_horizontal = 3
+
+[node name="BruiserRangeValue" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
+theme_type_variation = &"BeepValue"
+text = "D"
+horizontal_alignment = 2
+
+[node name="BruiserSelectButton" type="Button" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_bruiser"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "shooter"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
@@ -167,4 +300,3 @@ AppendGameName = true
 [node name="MenuAnimation" type="Node" parent="Margin/VBox"]
 script = ExtResource("3_anim")
 AnimateOnReady = true
-

@@ -1,6 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/StrategyHudComponent.cs" id="hud_stat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 
 [node name="StrategyMain" type="Node2D"]
@@ -24,28 +27,66 @@ grow_horizontal = 2
 text = "Strategy gameplay placeholder"
 horizontal_alignment = 1
 
-[node name="HUD" type="CanvasLayer" parent="."]
-
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
-anchors_preset = 1
-anchor_right = 1.0
-offset_right = 40.0
-offset_bottom = 40.0
-grow_vertical = 0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
-theme_override_constants/separation = 4
-
-[node name="ResourcesLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Resources: 100"
-
-[node name="UnitsLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Units: 10"
-
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "strategy"
+
+[node name="TopBar" type="PanelContainer" parent="HUD/Root"]
+anchor_right = 1.0
+offset_bottom = 44.0
+
+[node name="Bar" type="HBoxContainer" parent="HUD/Root/TopBar"]
+theme_override_constants/separation = 24
+
+[node name="GoldLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Gold: 100"
+
+[node name="FoodLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Food: 80"
+
+[node name="WoodLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Wood: 60"
+
+[node name="UnitsLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Units: 10 / 50"
+
+[node name="TurnLabel" type="Label" parent="HUD/Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 52.0
+offset_right = 100.0
+offset_bottom = 76.0
+grow_horizontal = 2
+text = "Turn 1 · Your move"
+horizontal_alignment = 1
+
+[node name="Minimap" type="Control" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -196.0
+offset_top = -196.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("minimap")
+PlayerPath = NodePath("../../../Player")
 
 [node name="ResearchScreen" type="Node" parent="."]
 script = ExtResource("30_screen")
@@ -61,3 +102,6 @@ OpenAction = "quests"
 script = ExtResource("30_screen")
 ScreenKey = "unit_panel"
 OpenAction = "character"
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_stat")

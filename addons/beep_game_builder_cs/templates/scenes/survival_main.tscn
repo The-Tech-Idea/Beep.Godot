@@ -1,6 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/SurvivalHudComponent.cs" id="hud_stat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TemperatureComponent.cs" id="5_temperature"]
@@ -23,9 +26,24 @@ LevelContainerPath = NodePath("../LevelContainer")
 [node name="Temperature" type="Node" parent="."]
 script = ExtResource("5_temperature")
 
+[node name="GameFlow" type="Node" parent="."]
+script = ExtResource("1_flow")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="WeatherForecast" type="Control" parent="HUD"]
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "survival"
+
+[node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -34,26 +52,38 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("7_forecast")
 
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
-anchors_preset = 1
-anchor_right = 1.0
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="Vitals" type="VBoxContainer" parent="HUD/Root"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -132.0
+offset_right = 220.0
+offset_bottom = -16.0
 grow_vertical = 0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="HealthLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="HealthLabel" type="Label" parent="HUD/Root/Vitals"]
 text = "Health: 100 %"
 
-[node name="HungerLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
+[node name="HungerLabel" type="Label" parent="HUD/Root/Vitals"]
 text = "Hunger: 75 %"
 
-[node name="GameFlow" type="Node" parent="."]
-script = ExtResource("1_flow")
+[node name="ThirstLabel" type="Label" parent="HUD/Root/Vitals"]
+text = "Thirst: 80 %"
+
+[node name="StaminaLabel" type="Label" parent="HUD/Root/Vitals"]
+text = "Stamina: 100 %"
+
+[node name="Minimap" type="Control" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -172.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 172.0
+grow_horizontal = 0
+script = ExtResource("minimap")
+PlayerPath = NodePath("../../../Player")
 
 [node name="CraftingScreen" type="Node" parent="."]
 script = ExtResource("30_screen")
@@ -69,3 +99,6 @@ OpenAction = "inventory"
 script = ExtResource("30_screen")
 ScreenKey = "map"
 OpenAction = "map"
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_stat")

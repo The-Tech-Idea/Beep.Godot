@@ -237,6 +237,57 @@ a clean 9-patch that scales to any button size.
 
 ---
 
+## Cookbook: bake the textures a theme declares
+
+You do not draw these by hand. `BeepTextureBaker` renders each declared
+`texture_path` from that theme's own colors and geometry.
+
+1. **Declare the slots** in `theme.json` (see the table above). The shipped themes
+   already declare `button_normal`, `button_hover`, `button_pressed`,
+   `button_disabled` and `panel`; the baker also understands `button_focus`,
+   `dialog`, `input_normal`, `input_focus`, `progress_bg`, `progress_fill` and
+   `separator` if you add them.
+2. **Bake** — dock → **Bake textures — ALL genres + page backgrounds**, or one genre
+   from the dropdown, or over MCP:
+   `beep.bake_textures {"genre": "racing", "theme": "arcade"}` (both optional).
+3. **Look at it** — dock → **Open Theme Gallery**, then flip the **Textures** toggle.
+
+### What the baker guarantees
+
+- The image is sized so its **corner regions equal the `margin_*` you declared** — that
+  is what makes it a valid 9-patch. Corners stay crisp; the middle stretches.
+- The corner radius is clamped to fit inside that margin, so the 9-patch can never
+  slice through the curve.
+- Colors come from the theme: `button_normal` = `surface_primary` on `border_normal`,
+  `button_pressed` = `surface_pressed` on `accent_secondary`, `panel` = `bg_panel`, and
+  so on. Change a color in `theme.json`, re-bake, and the art follows.
+
+### Two things that will surprise you otherwise
+
+- **Shared paths.** If two slots name the same file — the shipped themes point
+  `button_disabled` at `button_normal.png` and vary it with `modulate` — the first slot
+  baked wins and the second is skipped. That is deliberate: it keeps the modulate
+  reading as the author intended. 250 slot declarations therefore produce 200 files.
+- **No drop shadow.** `StyleBoxTexture` has no `shadow_size`. Baking a shadow into the
+  PNG would inset the visible edge and change every widget's size the moment textures
+  are switched on, so the baker does not. Depth comes from a vertical gradient. Want
+  shadows? Stay procedural, or supply art with matching `expand_margin_*`.
+
+### Replacing baked art with your own
+
+Overwrite the PNG at the declared path. The path is the contract; nothing else changes.
+If you delete one instead, `SkinCatalog` warns by name and the slot falls back to the
+procedural box — it will not fail silently, and `validate_scenes.sh` fails too.
+
+### Page backgrounds
+
+`geometry.json`'s `background_image` is baked the same way (`BakeBackgrounds`), as a
+seamless 128×128 tile with **low alpha on transparency** — the page canvas colour
+(`bg_canvas`) paints first and the tile tints over it, so one pattern reads correctly
+against every theme and palette of that genre.
+
+---
+
 ## See also
 
 - **[FILE_FORMATS.md](FILE_FORMATS.md)** — every field, every default, every consumer.

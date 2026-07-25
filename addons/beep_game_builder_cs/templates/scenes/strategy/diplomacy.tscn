@@ -28,37 +28,133 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Diplomacy"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="FactionList" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="Faction1" type="Label" parent="Margin/VBox/FactionList"]
-text = "• The Empire: Neutral"
+[node name="FactionPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
 
-[node name="Faction2" type="Label" parent="Margin/VBox/FactionList"]
-text = "• The Republic: Friendly"
+[node name="FactionMargin" type="MarginContainer" parent="Margin/VBox/Body/FactionPanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Faction3" type="Label" parent="Margin/VBox/FactionList"]
-text = "• The Horde: Hostile"
+[node name="FactionList" type="VBoxContainer" parent="Margin/VBox/Body/FactionPanel/FactionMargin"]
+theme_override_constants/separation = 10
+
+[node name="FactionHeading" type="Label" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
+theme_type_variation = &"BeepSubtitle"
+text = "Known Powers"
+
+[node name="Faction1" type="Button" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
+custom_minimum_size = Vector2(0, 52)
+text = "The Empire"
+alignment = 0
+
+[node name="Faction2" type="Button" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
+custom_minimum_size = Vector2(0, 52)
+text = "The Republic"
+alignment = 0
+
+[node name="Faction3" type="Button" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
+custom_minimum_size = Vector2(0, 52)
+text = "The Horde"
+alignment = 0
+
+[node name="FactionSpacer" type="Control" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
+size_flags_vertical = 3
+
+[node name="DetailPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
+
+[node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/Body/DetailPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="DetailVBox" type="VBoxContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin"]
+theme_override_constants/separation = 14
+
+[node name="FactionTitle" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepTitle"
+text = "The Empire"
+
+[node name="StanceCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Standing: Neutral"
+
+[node name="RelationBar" type="ProgressBar" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+custom_minimum_size = Vector2(0, 16)
+value = 50.0
+show_percentage = false
+
+[node name="DetailRule" type="HSeparator" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+
+[node name="RelationGrid" type="GridContainer" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="TradeCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Trade routes"
+size_flags_horizontal = 3
+
+[node name="TradeValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepValue"
+text = "2"
+horizontal_alignment = 2
+
+[node name="TreatyCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Treaties"
+size_flags_horizontal = 3
+
+[node name="TreatyValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepValue"
+text = "1"
+horizontal_alignment = 2
+
+[node name="BorderCaption" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Shared border"
+size_flags_horizontal = 3
+
+[node name="BorderValue" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox/RelationGrid"]
+theme_type_variation = &"BeepValue"
+text = "Yes"
+horizontal_alignment = 2
+
+[node name="DetailSpacer" type="Control" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "strategy"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

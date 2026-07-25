@@ -10,11 +10,14 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Margin/VBox/Header/BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
-            this.ConnectPressed("Margin/VBox/CharGrid/MarineCard/MarineVBox/SelectButton", () => SelectCharacter("Marine"));
-            this.ConnectPressed("Margin/VBox/CharGrid/PilotCard/PilotVBox/SelectButton", () => SelectCharacter("Pilot"));
-            this.ConnectPressed("Margin/VBox/CharGrid/HunterCard/HunterVBox/SelectButton", () => SelectCharacter("Hunter"));
-            this.ConnectPressed("Margin/VBox/CharGrid/BruiserCard/BruiserVBox/SelectButton", () => SelectCharacter("Bruiser"));
+            this.ConnectButton("BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            // One name per card. All four buttons used to be named "SelectButton", distinguished
+            // only by their card's path — fine for a path lookup, ambiguous for a name lookup, so
+            // the scene now names them per character. validate_scenes.sh fails on a duplicate.
+            this.ConnectButton("MarineSelectButton", () => SelectCharacter("Marine"));
+            this.ConnectButton("PilotSelectButton", () => SelectCharacter("Pilot"));
+            this.ConnectButton("HunterSelectButton", () => SelectCharacter("Hunter"));
+            this.ConnectButton("BruiserSelectButton", () => SelectCharacter("Bruiser"));
         }
 
         /// <summary>Record the picked character on GameApp, then start the run. Before, all four

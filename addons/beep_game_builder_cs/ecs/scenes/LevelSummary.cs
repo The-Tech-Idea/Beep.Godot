@@ -19,8 +19,8 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/ContinueButton", OnContinue);
-            this.ConnectPressed("Center/Panel/Margin/VBox/ButtonRow/MenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectButton("ContinueButton", OnContinue);
+            this.ConnectButton("MenuButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
         }
 
         private void OnContinue()

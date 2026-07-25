@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.1, 0.1, 1)
+color = Color(0.07, 0.055, 0.086, 1)
 
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
@@ -28,81 +28,169 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Select Vehicle"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Garage"
 
-[node name="VehicleGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 16
-theme_override_constants/v_separation = 16
-columns = 3
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="VehicleGrid" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 20
 size_flags_vertical = 3
 
 [node name="Car1" type="PanelContainer" parent="Margin/VBox/VehicleGrid"]
-custom_minimum_size = Vector2(180, 200)
+custom_minimum_size = Vector2(240, 0)
+size_flags_horizontal = 3
 
-[node name="Car1VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car1"]
-theme_override_constants/separation = 8
+[node name="Car1Margin" type="MarginContainer" parent="Margin/VBox/VehicleGrid/Car1"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Car1Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car1/Car1VBox"]
-custom_minimum_size = Vector2(0, 100)
+[node name="Car1VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin"]
+theme_override_constants/separation = 12
+
+[node name="Car1Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.8, 0.3, 0.3, 1)
 
-[node name="Car1Name" type="Label" parent="Margin/VBox/VehicleGrid/Car1/Car1VBox"]
+[node name="Car1Name" type="Label" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Speed Car"
 horizontal_alignment = 1
 
-[node name="Car1Button" type="Button" parent="Margin/VBox/VehicleGrid/Car1/Car1VBox"]
+[node name="Car1SpeedCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Top Speed"
+
+[node name="Car1SpeedBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 92.0
+show_percentage = false
+
+[node name="Car1GripCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Grip"
+
+[node name="Car1GripBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 48.0
+show_percentage = false
+
+[node name="Car1Button" type="Button" parent="Margin/VBox/VehicleGrid/Car1/Car1Margin/Car1VBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 
 [node name="Car2" type="PanelContainer" parent="Margin/VBox/VehicleGrid"]
-custom_minimum_size = Vector2(180, 200)
+custom_minimum_size = Vector2(240, 0)
+size_flags_horizontal = 3
 
-[node name="Car2VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car2"]
-theme_override_constants/separation = 8
+[node name="Car2Margin" type="MarginContainer" parent="Margin/VBox/VehicleGrid/Car2"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Car2Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car2/Car2VBox"]
-custom_minimum_size = Vector2(0, 100)
+[node name="Car2VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin"]
+theme_override_constants/separation = 12
+
+[node name="Car2Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.3, 0.3, 0.8, 1)
 
-[node name="Car2Name" type="Label" parent="Margin/VBox/VehicleGrid/Car2/Car2VBox"]
+[node name="Car2Name" type="Label" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Balanced Car"
 horizontal_alignment = 1
 
-[node name="Car2Button" type="Button" parent="Margin/VBox/VehicleGrid/Car2/Car2VBox"]
+[node name="Car2SpeedCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Top Speed"
+
+[node name="Car2SpeedBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 70.0
+show_percentage = false
+
+[node name="Car2GripCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Grip"
+
+[node name="Car2GripBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 70.0
+show_percentage = false
+
+[node name="Car2Button" type="Button" parent="Margin/VBox/VehicleGrid/Car2/Car2Margin/Car2VBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 
 [node name="Car3" type="PanelContainer" parent="Margin/VBox/VehicleGrid"]
-custom_minimum_size = Vector2(180, 200)
+custom_minimum_size = Vector2(240, 0)
+size_flags_horizontal = 3
 
-[node name="Car3VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car3"]
-theme_override_constants/separation = 8
+[node name="Car3Margin" type="MarginContainer" parent="Margin/VBox/VehicleGrid/Car3"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Car3Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car3/Car3VBox"]
-custom_minimum_size = Vector2(0, 100)
+[node name="Car3VBox" type="VBoxContainer" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin"]
+theme_override_constants/separation = 12
+
+[node name="Car3Visual" type="ColorRect" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
 color = Color(0.3, 0.8, 0.3, 1)
 
-[node name="Car3Name" type="Label" parent="Margin/VBox/VehicleGrid/Car3/Car3VBox"]
+[node name="Car3Name" type="Label" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Tank Car"
 horizontal_alignment = 1
 
-[node name="Car3Button" type="Button" parent="Margin/VBox/VehicleGrid/Car3/Car3VBox"]
+[node name="Car3SpeedCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Top Speed"
+
+[node name="Car3SpeedBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 52.0
+show_percentage = false
+
+[node name="Car3GripCaption" type="Label" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+theme_type_variation = &"BeepCaption"
+text = "Grip"
+
+[node name="Car3GripBar" type="ProgressBar" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+custom_minimum_size = Vector2(0, 10)
+value = 90.0
+show_percentage = false
+
+[node name="Car3Button" type="Button" parent="Margin/VBox/VehicleGrid/Car3/Car3Margin/Car3VBox"]
+custom_minimum_size = Vector2(0, 44)
 text = "Select"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "racing"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

@@ -10,14 +10,14 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Margin/VBox/Header/BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
-            this.ConnectPressed("Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level1Button", () => GoToLevel(1));
-            this.ConnectPressed("Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level2Button", () => GoToLevel(2));
+            this.ConnectButton("BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectButton("Level1Button", () => GoToLevel(1));
+            this.ConnectButton("Level2Button", () => GoToLevel(2));
             // Level 3 is wired but its button ships disabled: platformer_main's LevelLoader
             // only has level_1 and level_2, so picking 3 hit "No level scene for level 3" and
             // dropped the player onto an empty stage. Add levels/platformer/level_3.tscn to
             // the loader's Levels array, then re-enable the button in level_select.tscn.
-            this.ConnectPressed("Margin/VBox/WorldTabs/World1/W1VBox/LevelGrid/Level3Button", () => GoToLevel(3));
+            this.ConnectButton("Level3Button", () => GoToLevel(3));
         }
 
         /// <summary>Record the chosen level on GameApp, then load the gameplay scene — its

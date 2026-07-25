@@ -24,14 +24,16 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="Center"]
-theme_override_constants/separation = 20
+theme_override_constants/separation = 18
 
 [node name="BannerLabel" type="Label" parent="Center/VBox"]
+theme_type_variation = &"BeepTitle"
 text = "Level Up!"
 horizontal_alignment = 1
 
 [node name="HintLabel" type="Label" parent="Center/VBox"]
-text = "Choose one:"
+theme_type_variation = &"BeepCaption"
+text = "Choose one"
 horizontal_alignment = 1
 
 [node name="CardRow" type="HBoxContainer" parent="Center/VBox"]
@@ -39,78 +41,114 @@ alignment = 1
 theme_override_constants/separation = 20
 
 [node name="Card1" type="PanelContainer" parent="Center/VBox/CardRow"]
-custom_minimum_size = Vector2(200, 260)
+custom_minimum_size = Vector2(230, 300)
 
-[node name="Card1VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card1"]
-theme_override_constants/separation = 10
+[node name="Card1Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card1"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Icon1" type="ColorRect" parent="Center/VBox/CardRow/Card1/Card1VBox"]
-custom_minimum_size = Vector2(0, 80)
+[node name="Card1VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card1/Card1Margin"]
+theme_override_constants/separation = 12
+
+[node name="Icon1" type="ColorRect" parent="Center/VBox/CardRow/Card1/Card1Margin/Card1VBox"]
+custom_minimum_size = Vector2(0, 90)
 color = Color(0.7, 0.3, 0.3, 1)
 
-[node name="Name1" type="Label" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+[node name="Name1" type="Label" parent="Center/VBox/CardRow/Card1/Card1Margin/Card1VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "New Weapon"
 horizontal_alignment = 1
 
-[node name="Desc1" type="Label" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+[node name="Desc1" type="Label" parent="Center/VBox/CardRow/Card1/Card1Margin/Card1VBox"]
+theme_type_variation = &"BeepCaption"
 text = "Fires piercing shots."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Pick1" type="Button" parent="Center/VBox/CardRow/Card1/Card1VBox"]
+[node name="Card1Spacer" type="Control" parent="Center/VBox/CardRow/Card1/Card1Margin/Card1VBox"]
+size_flags_vertical = 3
+
+[node name="Pick1" type="Button" parent="Center/VBox/CardRow/Card1/Card1Margin/Card1VBox"]
+custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_1"
 
 [node name="Card2" type="PanelContainer" parent="Center/VBox/CardRow"]
-custom_minimum_size = Vector2(200, 260)
+custom_minimum_size = Vector2(230, 300)
 
-[node name="Card2VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card2"]
-theme_override_constants/separation = 10
+[node name="Card2Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card2"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Icon2" type="ColorRect" parent="Center/VBox/CardRow/Card2/Card2VBox"]
-custom_minimum_size = Vector2(0, 80)
+[node name="Card2VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card2/Card2Margin"]
+theme_override_constants/separation = 12
+
+[node name="Icon2" type="ColorRect" parent="Center/VBox/CardRow/Card2/Card2Margin/Card2VBox"]
+custom_minimum_size = Vector2(0, 90)
 color = Color(0.3, 0.6, 0.8, 1)
 
-[node name="Name2" type="Label" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+[node name="Name2" type="Label" parent="Center/VBox/CardRow/Card2/Card2Margin/Card2VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Move Speed"
 horizontal_alignment = 1
 
-[node name="Desc2" type="Label" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+[node name="Desc2" type="Label" parent="Center/VBox/CardRow/Card2/Card2Margin/Card2VBox"]
+theme_type_variation = &"BeepCaption"
 text = "+10% movement speed."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Pick2" type="Button" parent="Center/VBox/CardRow/Card2/Card2VBox"]
+[node name="Card2Spacer" type="Control" parent="Center/VBox/CardRow/Card2/Card2Margin/Card2VBox"]
+size_flags_vertical = 3
+
+[node name="Pick2" type="Button" parent="Center/VBox/CardRow/Card2/Card2Margin/Card2VBox"]
+custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_2"
 
 [node name="Card3" type="PanelContainer" parent="Center/VBox/CardRow"]
-custom_minimum_size = Vector2(200, 260)
+custom_minimum_size = Vector2(230, 300)
 
-[node name="Card3VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card3"]
-theme_override_constants/separation = 10
+[node name="Card3Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card3"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Icon3" type="ColorRect" parent="Center/VBox/CardRow/Card3/Card3VBox"]
-custom_minimum_size = Vector2(0, 80)
+[node name="Card3VBox" type="VBoxContainer" parent="Center/VBox/CardRow/Card3/Card3Margin"]
+theme_override_constants/separation = 12
+
+[node name="Icon3" type="ColorRect" parent="Center/VBox/CardRow/Card3/Card3Margin/Card3VBox"]
+custom_minimum_size = Vector2(0, 90)
 color = Color(0.3, 0.7, 0.4, 1)
 
-[node name="Name3" type="Label" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+[node name="Name3" type="Label" parent="Center/VBox/CardRow/Card3/Card3Margin/Card3VBox"]
+theme_type_variation = &"BeepSubtitle"
 text = "Max Health"
 horizontal_alignment = 1
 
-[node name="Desc3" type="Label" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+[node name="Desc3" type="Label" parent="Center/VBox/CardRow/Card3/Card3Margin/Card3VBox"]
+theme_type_variation = &"BeepCaption"
 text = "+25 max health."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Pick3" type="Button" parent="Center/VBox/CardRow/Card3/Card3VBox"]
+[node name="Card3Spacer" type="Control" parent="Center/VBox/CardRow/Card3/Card3Margin/Card3VBox"]
+size_flags_vertical = 3
+
+[node name="Pick3" type="Button" parent="Center/VBox/CardRow/Card3/Card3Margin/Card3VBox"]
+custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_3"
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")
+GenreName = "shooter"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
 ThemeComponentPath = NodePath("Center/Theme")
-

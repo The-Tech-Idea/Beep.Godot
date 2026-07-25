@@ -8,63 +8,149 @@
 layer = 20
 script = ExtResource("3_script")
 
-[node name="Background" type="ColorRect" parent="."]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.15, 0.15, 0.2, 1)
-
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Root" type="Control" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(420, 0)
+[node name="Background" type="ColorRect" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09, 0.08, 0.13, 1)
 
-[node name="Margin" type="MarginContainer" parent="Center/Panel"]
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_right = 24
+[node name="Margin" type="MarginContainer" parent="Root"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Root/Margin"]
+theme_override_constants/separation = 16
+
+[node name="TopBar" type="HBoxContainer" parent="Root/Margin/VBox"]
+theme_override_constants/separation = 16
+
+[node name="EnemyPanel" type="PanelContainer" parent="Root/Margin/VBox/TopBar"]
+size_flags_horizontal = 3
+
+[node name="EnemyMargin" type="MarginContainer" parent="Root/Margin/VBox/TopBar/EnemyPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="EnemyVBox" type="VBoxContainer" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin"]
+theme_override_constants/separation = 8
+
+[node name="EnemyNameLabel" type="Label" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Bandit Leader"
+
+[node name="EnemyHealthBar" type="ProgressBar" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
+custom_minimum_size = Vector2(0, 16)
+value = 100.0
+show_percentage = false
+
+[node name="HealthLabel" type="Label" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Enemy Health: 50 / 50"
+
+[node name="ForfeitButton" type="Button" parent="Root/Margin/VBox/TopBar"]
+custom_minimum_size = Vector2(120, 44)
+size_flags_vertical = 0
+text = "Forfeit"
+
+[node name="BannerLabel" type="Label" parent="Root/Margin/VBox"]
+theme_type_variation = &"BeepTitle"
+text = "Your Turn  (Turn 1)"
+horizontal_alignment = 1
+
+[node name="BoardArea" type="PanelContainer" parent="Root/Margin/VBox"]
+size_flags_vertical = 3
+
+[node name="BoardMargin" type="MarginContainer" parent="Root/Margin/VBox/BoardArea"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 14
-
-[node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
-text = "Card Battle"
+[node name="BoardCaption" type="Label" parent="Root/Margin/VBox/BoardArea/BoardMargin"]
+theme_type_variation = &"BeepCaption"
+text = "Play area — the game instances played cards here."
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="HealthLabel" type="Label" parent="Center/Panel/Margin/VBox"]
-text = "Enemy Health: 50 / 50"
-horizontal_alignment = 1
+[node name="BottomArea" type="VBoxContainer" parent="Root/Margin/VBox"]
+theme_override_constants/separation = 10
 
-[node name="HandLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="HandLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
+theme_type_variation = &"BeepCaption"
 text = "Your Hand: 5 cards"
+
+[node name="BottomRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomArea"]
+theme_override_constants/separation = 16
+
+[node name="EnergyPanel" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow"]
+custom_minimum_size = Vector2(150, 0)
+
+[node name="EnergyMargin" type="MarginContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="EnergyVBox" type="VBoxContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel/EnergyMargin"]
+theme_override_constants/separation = 4
+
+[node name="EnergyCaption" type="Label" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel/EnergyMargin/EnergyVBox"]
+theme_type_variation = &"BeepCaption"
+text = "Energy"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="Center/Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 8)
+[node name="EnergyValue" type="Label" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel/EnergyMargin/EnergyVBox"]
+theme_type_variation = &"BeepValue"
+text = "3 / 3"
+horizontal_alignment = 1
 
-[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="HandRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomArea/BottomRow"]
+theme_override_constants/separation = 10
+size_flags_horizontal = 3
 alignment = 1
-theme_override_constants/separation = 8
 
-[node name="EndTurnButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
+[node name="HandCard1" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
+custom_minimum_size = Vector2(100, 140)
+
+[node name="HandCard2" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
+custom_minimum_size = Vector2(100, 140)
+
+[node name="HandCard3" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
+custom_minimum_size = Vector2(100, 140)
+
+[node name="HandCard4" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
+custom_minimum_size = Vector2(100, 140)
+
+[node name="HandCard5" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
+custom_minimum_size = Vector2(100, 140)
+
+[node name="EndTurnButton" type="Button" parent="Root/Margin/VBox/BottomArea/BottomRow"]
+custom_minimum_size = Vector2(170, 56)
+size_flags_vertical = 8
 text = "End Turn"
 
-[node name="ForfeitButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 0)
-text = "Forfeit"
-
-[node name="Theme" type="Node" parent="Center"]
+[node name="Theme" type="Node" parent="Root"]
 script = ExtResource("1_theme")
+GenreName = "cardgame"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")
-ThemeComponentPath = NodePath("Center/Theme")
+ThemeComponentPath = NodePath("Root/Theme")

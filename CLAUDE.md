@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **`beep_ui`** (GDScript) — UI theming engine: 22 presets, 11 effects, 114 drag-and-drop widgets. Self-contained; runs in any Godot 4.7+ project.
 2. **`beep_game_builder_cs`** (C#) — Game building layer: ~146 categorized components, file-based skin system (10 genres × themes × palettes), scene templates, weather system, day/night cycle, translations, MCP bridge for AI agents.
 
-Both addons live in `addons/` and are enabled via Project Settings → Plugins. `beep_game_builder_cs` requires a **.NET-enabled Godot project**.
+Both addons live in `addons/` and are enabled via Project Settings → Plugins. `beep_game_builder_cs` requires a **.NET-enabled Godot project**. A **third addon, `addons/godot_mcp/`** (the generic MCP transport/registry), ships alongside them — `beep_game_builder_cs` depends on it one-way for the AI-agent bridge (see *Debug MCP Bridge* below); it is not a user-facing content addon.
 
 ## Scope: we build the framework, not the games
 
@@ -61,17 +61,20 @@ Beep.Godot/
 │   │   ├── ecs/              ← ~60 gameplay components (Health, Movement, AI, Projectile, etc.)
 │   │   ├── ecs/ui/           ← ~60 UI components (Menu, Dialog, Table, Toast, Carousel, Accordion, etc.)
 │   │   ├── ui/               ← Editor dock (BeepGameBuilderDock.cs)
-│   │   ├── mcp/              ← MCP bridge for AI agents (WebSocket, auto-enabled)
+│   │   ├── mcp/              ← Beep's MCP command layer ONLY (BeepMcpCommands.cs). The bridge itself is addons/godot_mcp/ (see below).
+│   │   ├── audio/            ← Bundled audio assets used by atmosphere/weather components
+│   │   ├── textures/         ← Bundled texture assets
 │   │   ├── catalogs/         ← JSON data (skins/ only; shaders/tweens/particles/projectiles ship as .tscn templates, not JSON catalogs)
 │   │   │   └── skins/        ← genre/{platformer,topdown,shooter,puzzle,rpg,survival,racing,citybuilder,strategy,cardgame}/(genre.json, geometry.json, themes/)
 │   │   ├── templates/        ← Scene & script templates (auto-copied by generator)
 │   │   └── generated/        ← Output folder (populated when user runs generators via dock)
+│   ├── godot_mcp/            ← THIRD addon: generic MCP transport/registry (bridge controller, settings, runtime). beep_game_builder_cs depends on it one-way.
 │   └── beep_ui/
 │       ├── theme/            ← Theme system (BeepPreset, 22 preset_*.gd presets, theme_applier.gd)
 │       ├── effects/          ← ui_effect.gd: 11 effect types (Slide, Shake, Pulse, Bob, Flash, Glitch, Rotate, Fade, Typewriter, Bounce, Offset)
 │       ├── widgets/          ← 114 widget factory entries (drag-and-drop UI prefabs)
 │       └── editor/           ← Theme Studio dock (theme_studio.gd)
-└── docs/                     ← Architecture reference
+└── docs/                     ← Architecture reference (also: ARCHETYPES.md, superpowers/specs/ design notes)
     ├── ARCHITECTURE.md       ← Layer diagram, data flow, 2-addon shape
     ├── APP_WORKFLOW.md       ← Project generation, autoloads, scene wiring
     ├── SKINNING_THEMING.md   ← Visual preset pipeline, theme/palette/geometry flow
@@ -106,7 +109,7 @@ Beep.Godot/
 | `ControllerComponent` | `ecs/categories/` | 18 |
 | `EffectComponent : UIComponent` | `ecs/ui/` | 4 |
 
-~134 concrete components in total (206 files carry `[GlobalClass]` — the remainder are Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
+~134 concrete components in total (205 files carry `[GlobalClass]` — the remainder are Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
 
 ## Key Patterns & Rules
 
@@ -161,6 +164,54 @@ tween.TweenProperty(ctrl, "position", endPos, dur);                          // 
 ```
 Offsets are relative to the laid-out position, so neutral is always `Vector2.Zero` / `Vector2.One` — there is nothing to capture or restore. Used by `theme_applier.gd`, `ui_effect.gd`, `AnimatedMenuComponent`, `ThemePresetComponent`.
 
+**Scaling or rotating? Set `pivot_offset` first.** `offset_transform_scale` and `offset_transform_rotation` pivot around the Control's `pivot_offset`, which **defaults to the top-left corner `(0,0)`** — so a "breathing" pulse or a spin grows/turns toward the corner, not in place. Centre it with `ctrl.PivotOffset = ctrl.Size / 2f` before the tween (re-set on resize). `PulseComponent`, `SquashAndStretchComponent`, `ComboCounterComponent`, `FlipCardComponent`, and `RippleComponent` do this. **Exception:** a directional collapse (e.g. `AccordionComponent` scaling `(1,1)→(1,0)`) deliberately keeps the default top pivot so content rolls up toward its header — centre-pivoting it would be wrong. Match the pivot to where the animation should originate.
+
+### Screen typography: four Label variations, not one flat size
+`ThemePresetComponent` used to stamp a single `Fs` on every node type, so a screen title rendered at exactly the size of a body label and a button — 21 `TitleLabel`s across the templates carried **zero** font-size overrides. It now registers four Label type variations, sized off the theme's own `font_size`:
+
+| Variation | Size | Color | Use for |
+|---|---|---|---|
+| `BeepTitle` | `Fs × 1.9` | TextPrimary | screen titles, result banners |
+| `BeepSubtitle` | `Fs × 1.35` | TextPrimary | section headings inside a panel |
+| `BeepValue` | `Fs × 1.25` | AccentPrimary | the number in a caption/value stat row |
+| `BeepCaption` | `Fs × 0.85` | TextDisabled | stat labels, hints, version strings |
+
+```gdscript
+theme_type_variation = &"BeepTitle"   # ✅ the intended way; validate_scenes.sh checks the name
+```
+Applied both on the generated `Theme` and as per-node overrides (editor visibility). A Label with **no** variation and no matching name is left alone. There is a compatibility fallback on node names (`TitleLabel`/`*Title` → title, `*Caption`, `*Value`, `VersionLabel`, `HintLabel`) purely so a project generated before the variations existed still gets a hierarchy from a plain rebuild — new scenes should set the variation. A `label_settings` resource beats both (Godot's precedence), so a Label with LabelSettings ignores all of this.
+
+`ThemePageBackground` likewise repaints an **opaque** `ColorRect` named `Background` from `bg_canvas`. Translucent ones are dims over live gameplay (`Dim`, and pause_subscreen's 0.92-alpha `Background`) and are deliberately left alone.
+
+### Textures are baked, not drawn — and `NinePatchRect` is not a StyleBox
+Every `theme.json` declares a `textures{}` block. Those PNGs are **generated** from the theme's own
+colors + geometry by `core/BeepTextureBaker.cs` (dock → *Bake textures*, or `beep.bake_textures`), which
+writes the exact paths the JSON already names. This whole pipeline shipped dead: all 50 themes declared
+5 slots and **none of the 200 files existed**, so every texture toggle in the inspector silently did
+nothing. `SkinCatalog` now warns per missing path and `validate_scenes.sh` fails on one.
+
+- Skinning a Button/Panel/Window/input → **`StyleBoxTexture`** (the `textures{}` path). A
+  **`NinePatchRect` is a Node and can never be a theme StyleBox.**
+- Decorative frames a Theme can't reach (HUD banners, portrait borders, callouts) → **`NinePatchFrameComponent`**.
+- A baked slot has **no drop shadow** — `StyleBoxTexture` has no `shadow_size`, and faking one would
+  change every widget's metrics when textures are toggled. Depth comes from a gradient.
+- Two slots may share one file (shipped themes aim `button_disabled` at `button_normal.png` + `modulate`);
+  the first baked wins.
+
+`templates/scenes/theme_gallery.tscn` shows every widget/state/variation with a **Textures** toggle —
+if a widget changes size when textures come on, the baked margins disagree with the slot's `theme.json`.
+
+### Starting a new screen: generate it
+`BeepScreenGenerator` (dock → *New screen*, or `beep.new_screen`) stamps a screen with the conventions
+already correct — opaque themed `Background`, `BeepTitle` header + accent rule + 120×44 back button,
+`ThemePresetComponent` on the content Control, PascalCase exports, and a script wiring by name. Prefer it
+over copying a neighbouring `.tscn`.
+
+### Resolve scene controls by NAME, not by path
+`SceneWiring.ConnectButton("BackButton", …)` / `this.Find<T>("Tabs")` — not `ConnectPressed("Margin/VBox/Header/BackButton", …)`. A path hard-codes the layout, so inserting one wrapper container silently kills every button beneath it; that is exactly how the save/load menus broke when the templates gained a `Margin` while already-generated projects kept the old tree. Names survive a restyle.
+
+The cost is that a name must identify one node: `validate_scenes.sh` fails when a scene has several Buttons sharing a name **that its root script resolves scene-wide**. Repeats scoped to a row are fine and are not flagged (`load_game_menu` has one `SlotButton` per slot, resolved via `container.FindChild`). This check caught four `SelectButton`s in `shooter/character_select` and two `Level1Button`s in `platformer/level_select` — real mis-wirings, since a scene-wide name lookup returns whichever comes first in the tree.
+
 ### Never fail silently
 The dominant defect class in this repo, by a wide margin. A component resolves a collaborator, the cast fails, it early-returns, and **nothing says anything** — so it looks fine for months.
 
@@ -207,6 +258,7 @@ Components have no "magic" — just overrides of `_Ready()`, `_Process()`, `_Phy
 - **[docs/SKINNING_THEMING.md](docs/SKINNING_THEMING.md)** — Visual preset pipeline, per-node-type theming.
 - **[docs/FILE_FORMATS.md](docs/FILE_FORMATS.md)** — JSON schema for all data files (skins, shaders, tweens, particles, projectiles).
 - **[docs/SKIN_SYSTEM.md](docs/SKIN_SYSTEM.md)** — Cookbook: add a genre, add a theme, add a palette.
+- **[docs/ARCHETYPES.md](docs/ARCHETYPES.md)** — Read *before composing an entity*: per-archetype node type + required/optional/forbidden components, and why the wrong pairing fails silently. `validate_scenes.sh` enforces the parent-type half.
 
 **Component inventory:**
 - **[addons/beep_game_builder_cs/INDEX.md](addons/beep_game_builder_cs/INDEX.md)** — Full shipped inventory: components, shared + genre-specific UI scenes, shaders, particles.
@@ -236,10 +288,13 @@ Components have no "magic" — just overrides of `_Ready()`, `_Process()`, `_Phy
 5. Generator creates: folders, autoloads, input map, GameInfo.tres, UI scene templates, genre scene, translations.
 
 ### Debug MCP Bridge (AI Agent Communication)
-- Auto-enables on plugin load. Default URL `ws://127.0.0.1:8789` (`GodotMcpSettings.DefaultUrl`).
-- Stored in `ProjectSettings` under `godot_mcp/bridge/url`; overridable via the `GODOT_MCP_BRIDGE_URL` env var.
-- `GodotMcpSettings.Initialize` **force-writes** the URL on load so stale cached ports get corrected — a manual `ProjectSettings` edit will be overwritten.
-- Setup lives in `mcp/GodotMcpBridgeController.cs`. Logs go to Godot's Output panel.
+The MCP bridge is a **third, separate addon**: `addons/godot_mcp/` (the transport/registry), which `beep_game_builder_cs` depends on one-way. Beep never depends *back* on it.
+- **`addons/godot_mcp/`** — the generic bridge: `GodotMcpBridgeController.cs` (setup/lifecycle), `GodotMcpSettings.cs` (URL + `DefaultUrl`/`Initialize`), `GodotMcpPlugin.cs`, `GodotMcpRuntime.cs`, and the generic `McpCommandRegistry`. Security gates: `allow_editor_writes` / `allow_runtime_writes`.
+- **`addons/beep_game_builder_cs/mcp/BeepMcpCommands.cs`** (+ the `BeepMcpSceneCommands.cs` partial) — Beep's command layer only. Its `Register()` registers `beep.*` handlers (read: `list_genres`, `catalog`, `list_components`, `get_game_info`…; editor writes: `add_component`, `apply_skin`, `generate_project`; runtime writes, gated: `save_game`, `add_score`, `set_weather`…) into the `godot_mcp` registry.
+  **Scene management** lives in the partial: read `list_scenes`, `open_scene`, `inspect_scene`, `get_node_property`, `screenshot`; editor-write `set_node_property`, `add_node`, `remove_node`, `save_scene`, `bake_textures`, `new_screen`. Reuse `McpTreeSerializer` / `McpJson` rather than re-serialising. Two guards worth keeping: `set_node_property` **refuses** a snake_case name that matches a C# `[Export]` (Godot would silently drop it), and `remove_node` refuses while another node's `NodePath` export still points at the target.
+- Auto-enables on plugin load. Default URL `ws://127.0.0.1:8789` (`GodotMcpSettings.DefaultUrl`), stored in `ProjectSettings` under `godot_mcp/bridge/url`, overridable via the `GODOT_MCP_BRIDGE_URL` env var. `GodotMcpSettings.Initialize` **force-writes** it on load so stale cached ports get corrected — a manual `ProjectSettings` edit will be overwritten. Logs go to Godot's Output panel.
+
+> ⚠️ **The bridge is a WebSocket _client_ and nothing serves it yet.** `McpWebSocketClient` dials **out** to `ws://127.0.0.1:8789/{role}?token=…`; there is no server in this repo, so every bridge method is currently unreachable from Claude. The planned server and the phased plan to fix it live in **[docs/mcp/MCP_ROADMAP.md](docs/mcp/MCP_ROADMAP.md)** (master tracker) — start at Phase 0.
 
 ## Testing
 

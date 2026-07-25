@@ -1,6 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CityBuilderHudComponent.cs" id="hud_stat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 
 [node name="CityBuilderMain" type="Node2D"]
@@ -24,28 +27,58 @@ grow_horizontal = 2
 text = "City Builder gameplay placeholder"
 horizontal_alignment = 1
 
-[node name="HUD" type="CanvasLayer" parent="."]
-
-[node name="TopLeft" type="MarginContainer" parent="HUD"]
-anchors_preset = 1
-anchor_right = 1.0
-offset_right = 40.0
-offset_bottom = 40.0
-grow_vertical = 0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-
-[node name="StatsVBox" type="VBoxContainer" parent="HUD/TopLeft"]
-theme_override_constants/separation = 4
-
-[node name="PopulationLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Population: 250"
-
-[node name="BudgetLabel" type="Label" parent="HUD/TopLeft/StatsVBox"]
-text = "Budget: 50000"
-
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_theme")
+GenreName = "citybuilder"
+
+[node name="TopBar" type="PanelContainer" parent="HUD/Root"]
+anchor_right = 1.0
+offset_bottom = 44.0
+
+[node name="Bar" type="HBoxContainer" parent="HUD/Root/TopBar"]
+theme_override_constants/separation = 24
+
+[node name="PopulationLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Population: 250"
+
+[node name="BudgetLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Budget: 50000"
+
+[node name="PowerLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Power: 120 / 150"
+
+[node name="HappinessLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Happiness: 72 %"
+
+[node name="DateLabel" type="Label" parent="HUD/Root/TopBar/Bar"]
+text = "Year 1 · Spring"
+
+[node name="Minimap" type="Control" parent="HUD/Root"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -196.0
+offset_top = -196.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("minimap")
+PlayerPath = NodePath("../../../Player")
 
 [node name="BuildScreen" type="Node" parent="."]
 script = ExtResource("30_screen")
@@ -61,3 +94,6 @@ OpenAction = "research"
 script = ExtResource("30_screen")
 ScreenKey = "districts"
 OpenAction = "map"
+
+[node name="GenreHud" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_stat")

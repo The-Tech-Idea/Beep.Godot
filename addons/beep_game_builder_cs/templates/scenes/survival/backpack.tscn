@@ -28,54 +28,178 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 theme_override_constants/separation = 20
 
 [node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/Header"]
+theme_type_variation = &"BeepTitle"
 text = "Backpack"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
-[node name="ItemGrid" type="GridContainer" parent="Margin/VBox"]
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 8
+[node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
+
+[node name="WeightRow" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 16
+
+[node name="WeightCaption" type="Label" parent="Margin/VBox/WeightRow"]
+theme_type_variation = &"BeepCaption"
+text = "Carry weight"
+vertical_alignment = 1
+
+[node name="WeightBar" type="ProgressBar" parent="Margin/VBox/WeightRow"]
+custom_minimum_size = Vector2(0, 18)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+value = 62.0
+show_percentage = false
+
+[node name="WeightValue" type="Label" parent="Margin/VBox/WeightRow"]
+theme_type_variation = &"BeepValue"
+text = "24.8 / 40 kg"
+vertical_alignment = 1
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 24
 size_flags_vertical = 3
 
-[node name="ItemSlot1" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="GridPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+size_flags_horizontal = 3
 
-[node name="ItemSlot2" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="GridMargin" type="MarginContainer" parent="Margin/VBox/Body/GridPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="ItemSlot3" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="GridVBox" type="VBoxContainer" parent="Margin/VBox/Body/GridPanel/GridMargin"]
+theme_override_constants/separation = 12
 
-[node name="ItemSlot4" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="StowedHeading" type="Label" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Stowed"
 
-[node name="ItemSlot5" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="ItemGrid" type="GridContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 8
 
-[node name="ItemSlot6" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="ItemSlot1" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
 
-[node name="ItemSlot7" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="ItemSlot2" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
 
-[node name="ItemSlot8" type="PanelContainer" parent="Margin/VBox/ItemGrid"]
-custom_minimum_size = Vector2(48, 48)
+[node name="ItemSlot3" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot4" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot5" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot6" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot7" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot8" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot9" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot10" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot11" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot12" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot13" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot14" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot15" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="ItemSlot16" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="GridSpacer" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
+size_flags_vertical = 3
+
+[node name="EquippedPanel" type="PanelContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(280, 0)
+
+[node name="EquippedMargin" type="MarginContainer" parent="Margin/VBox/Body/EquippedPanel"]
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="EquippedVBox" type="VBoxContainer" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin"]
+theme_override_constants/separation = 12
+
+[node name="EquippedHeading" type="Label" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+theme_type_variation = &"BeepSubtitle"
+text = "Equipped"
+
+[node name="ToolSlot" type="PanelContainer" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+custom_minimum_size = Vector2(0, 64)
+
+[node name="ClothingSlot" type="PanelContainer" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+custom_minimum_size = Vector2(0, 64)
+
+[node name="EquippedRule" type="HSeparator" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+
+[node name="ConditionGrid" type="GridContainer" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="ToolCaption" type="Label" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox/ConditionGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Tool condition"
+size_flags_horizontal = 3
+
+[node name="ToolValue" type="Label" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox/ConditionGrid"]
+theme_type_variation = &"BeepValue"
+text = "78%"
+horizontal_alignment = 2
+
+[node name="ClothingCaption" type="Label" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox/ConditionGrid"]
+theme_type_variation = &"BeepCaption"
+text = "Warmth"
+size_flags_horizontal = 3
+
+[node name="ClothingValue" type="Label" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox/ConditionGrid"]
+theme_type_variation = &"BeepValue"
+text = "+4 °C"
+horizontal_alignment = 2
+
+[node name="EquippedSpacer" type="Control" parent="Margin/VBox/Body/EquippedPanel/EquippedMargin/EquippedVBox"]
+size_flags_vertical = 3
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
+GenreName = "survival"
 
 [node name="GameInfoBinder" type="Node" parent="."]
 script = ExtResource("2_binder")

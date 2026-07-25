@@ -19,12 +19,17 @@ namespace Beep.ECS.UI
         [Export] public NodePath ScoreLabelPath { get; set; } = "ScoreLabel";
         [Export] public NodePath LivesLabelPath { get; set; } = "LivesLabel";
         [Export] public NodePath HealthLabelPath { get; set; } = "HealthLabel";
+        [Export] public NodePath LevelLabelPath { get; set; } = "LevelLabel";
         [Export] public NodePath GameFlowPath { get; set; } = new("../GameFlow");
         [Export] public NodePath PlayerPath { get; set; } = new("../Player");
+
+        /// <summary>Text shown by the level readout. {0} is the 1-based level number (GameApp is 0-based).</summary>
+        [Export] public string LevelFormat { get; set; } = "Level {0}";
 
         private Label? _score;
         private Label? _lives;
         private Label? _health;
+        private Label? _level;
 
         // Held so the subscriptions can be undone in _ExitTree. GameFlow and the player's
         // HealthComponent outlive this HUD (a scene change / overlay close frees the HUD
@@ -32,6 +37,8 @@ namespace Beep.ECS.UI
         // Labels — an ObjectDisposedException on the next score/damage event.
         private GameFlowComponent? _flow;
         private HealthComponent? _boundHealth;
+        // GameApp (autoload) drives the level readout and outlives the HUD — held so the += undoes in _ExitTree.
+        private GameApp? _app;
 
         public override void _Ready()
         {
@@ -45,6 +52,24 @@ namespace Beep.ECS.UI
             _score = parent.GetNodeOrNull<Label>(ScoreLabelPath);
             _lives = parent.GetNodeOrNull<Label>(LivesLabelPath);
             _health = parent.GetNodeOrNull<Label>(HealthLabelPath);
+            _level = parent.GetNodeOrNull<Label>(LevelLabelPath);
+
+            // Level readout comes from GameApp (the autoload owns level progression), not GameFlow.
+            // Optional: no LevelLabel in the scene simply means this HUD shows no level — skip silently
+            // (unlike score/health, a missing level label is a common, intentional layout choice).
+            if (_level != null)
+            {
+                if (GameApp.Instance is { } app)
+                {
+                    _app = app;
+                    _app.LevelChanged += OnLevelChanged;
+                    OnLevelChanged(_app.CurrentLevel);
+                }
+                else
+                {
+                    GD.PushWarning($"[{Name}] HudComponent has a LevelLabel but found no GameApp autoload; the level readout will not update. Enable the GameApp autoload.");
+                }
+            }
 
             _flow = parent.GetNodeOrNull<GameFlowComponent>(GameFlowPath);
             if (_flow != null)
@@ -94,8 +119,11 @@ namespace Beep.ECS.UI
             }
             if (_boundHealth != null && GodotObject.IsInstanceValid(_boundHealth))
                 _boundHealth.HealthChanged -= OnHealthChanged;
+            if (_app != null && GodotObject.IsInstanceValid(_app))
+                _app.LevelChanged -= OnLevelChanged;
             _flow = null;
             _boundHealth = null;
+            _app = null;
         }
 
         private void OnScoreChanged(int score) { if (_score != null) _score.Text = score.ToString(); }
@@ -103,6 +131,11 @@ namespace Beep.ECS.UI
         private void OnHealthChanged(float current, float max)
         {
             if (_health != null) _health.Text = $"{(int)current} / {(int)max}";
+        }
+        // GameApp.CurrentLevel is 0-based (-1 before a game starts); show a friendly 1-based number.
+        private void OnLevelChanged(int level)
+        {
+            if (_level != null) _level.Text = string.Format(LevelFormat, System.Math.Max(0, level) + 1);
         }
     }
 }

@@ -10,15 +10,15 @@ namespace Beep.ECS.Scenes
         {
             if (Engine.IsEditorHint()) return;
 
-            this.ConnectPressed("Margin/VBox/Header/BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
+            this.ConnectButton("BackButton", () => ChangeScene(GameApp.Instance?.MainMenuPath));
 
             // The garage is the only route to vehicle select. Resolve it through the nav
             // registry ("vehicle_select" key) instead of a hardcoded literal, so relocating the
             // file no longer breaks it silently.
-            if (GetNodeOrNull<Button>("Margin/VBox/VehicleSelectButton") is { } vehicleSelect)
+            if (this.Find<Button>("VehicleSelectButton") is { } vehicleSelect)
                 vehicleSelect.Pressed += () => ChangeScene(VehicleSelectPath());
 
-            this.ConnectPressed("Margin/VBox/RaceButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
+            this.ConnectButton("RaceButton", () => ChangeScene(GameApp.Instance?.GameScenePath));
         }
 
         private static string VehicleSelectPath()

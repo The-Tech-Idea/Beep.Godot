@@ -14,26 +14,56 @@ Claude Code  ──MCP over stdio──►  beep-mcp-server  ◄──WebSocket 
 
 ## Setup
 
+### With Claude Code — nothing to do
+
+The repo ships a project-scoped [`.mcp.json`](../../.mcp.json). Open the project in Claude
+Code and approve the server when prompted; that is the whole setup. Dependencies install
+and TypeScript compiles on first launch (**~6s cold, from no `node_modules` and no
+`dist`**), then start-up is instant.
+
+Check it took with `/mcp`, which should list **beep-godot**.
+
+### Anywhere else
+
+Any MCP host can launch the same entry point:
+
+```
+command: node
+args:    tools/beep-mcp-server/prepare-and-start.mjs      (cwd = repo root)
+```
+
+Or register it explicitly:
+
+```bash
+claude mcp add beep-godot -- node "$(pwd)/tools/beep-mcp-server/prepare-and-start.mjs"
+```
+
+> **Why `prepare-and-start.mjs` rather than `start.cmd` / `start.sh`?** An MCP host runs
+> the command directly, not through a shell — a `.cmd` is not portable and a `.sh` is not
+> executable on Windows. A `.mjs` runs identically wherever `node` does, and `node` is
+> already required.
+
+### By hand
+
 ```bash
 cd tools/beep-mcp-server
-npm install
-npm run build
-
-# from the repo root, using an absolute path
-claude mcp add beep-godot -- node "$(pwd)/tools/beep-mcp-server/dist/index.js"
+./start.sh          # macOS / Linux / Git Bash
+start.cmd           # Windows
 ```
 
-Then open the project in Godot. The `godot_mcp` plugin auto-connects on load; check
-Godot's **Output** panel for the bridge line. Confirm
-`godot_mcp/bridge/url` is `ws://127.0.0.1:8789` in Project Settings — note that
-`GodotMcpSettings.Initialize` **force-writes** that default on load, so a manual edit
-there is overwritten.
+Both install and build as needed, then run. Add `--check` to set up and verify without
+starting. Under the hood they call the same `prepare.mjs` the MCP entry point does, so the
+logic lives in one place instead of drifting across two shell dialects.
 
-Verify without Godot at all:
+### Then start Godot
 
-```bash
-npm run smoke      # drives the real server over stdio and impersonates Godot
-```
+The `godot_mcp` plugin auto-connects on load — check Godot's **Output** panel for the
+bridge line. `godot_mcp/bridge/url` should be `ws://127.0.0.1:8789`; note that
+`GodotMcpSettings.Initialize` **force-writes** that default on load, so editing it by hand
+in Project Settings is overwritten.
+
+Writes are refused until you enable `godot_mcp/security/allow_editor_writes` (and/or
+`allow_runtime_writes`). Both ship **off** — reads work regardless.
 
 ## Tools
 

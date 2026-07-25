@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "beep-godot": {
+      "command": "node",
+      "args": ["tools/beep-mcp-server/prepare-and-start.mjs"],
+      "env": {}
+    }
+  }
+}

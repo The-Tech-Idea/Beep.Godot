@@ -34,6 +34,9 @@ const minimal = args.includes("--minimal");
 // Writes ON by default: running this installer against your own game IS the consent,
 // and it removes the one step that cannot be automated afterwards.
 const allowWrites = !args.includes("--no-writes");
+// --verbose lists every file touched. Off by default: a first-time user wants "done",
+// not an inventory.
+const verbose = args.includes("--verbose");
 
 if (!target) {
   console.error(`Install the Beep addons + MCP server into a Godot project.
@@ -43,6 +46,7 @@ if (!target) {
     --minimal       only addons/godot_mcp (the bridge), not the Beep game builder
     --addons-only   skip the MCP server and .mcp.json
     --no-writes     leave allow_editor_writes off (default: ON, so Claude can edit)
+    --verbose       list every file installed
 `);
   process.exit(2);
 }
@@ -241,26 +245,28 @@ function buildOnce() {
 }
 
 // ── report ──
-console.log(`\nInstalled into ${dst}:`);
-for (const d of done) console.log(`  ✓ ${d}`);
+//
+// Short on purpose. Someone installing this for the first time needs to know it
+// worked and what to do next — not the port number or the trade-offs. The details
+// live in tools/beep-mcp-server/README.md for when they are actually wanted.
+console.log(`\n  Done. Installed ${done.length} things into your game.`);
+if (verbose) for (const d of done) console.log(`    · ${d}`);
 
 console.log(`
-Two steps left:
-  1. cd "${dst}"
-  2. claude          →  approve 'beep-godot' when asked, then /mcp to confirm
+  Next:
+    1. Open a terminal in your game folder
+    2. Run:  claude
+    3. Say YES when it asks about 'beep-godot'
 
-Open the game in Godot whenever you like; the addon connects on its own.`);
+  Then just talk to Claude about your game. Open it in Godot too, and Claude
+  can see and edit the scenes you have open.`);
 
 if (!allowWrites && !addonsOnly) {
   console.log(`
-Writes are OFF. To let Claude edit this game, set
-  Project Settings → godot_mcp → security → allow_editor_writes = on
-(or re-run this without --no-writes).`);
+  Note: Claude can LOOK but not EDIT, because you passed --no-writes.
+  To change that: Godot → Project → Project Settings → godot_mcp → security
+                 → allow_editor_writes = on`);
 }
-
-console.log(`
-One game at a time: the bridge uses port 8789, so opening a second game takes the
-connection from the first.`);
 
 if (!addonsOnly && existsSync(join(dst, "tools", "beep-mcp-server", "node_modules"))) {
   rmSync(join(dst, "tools", "beep-mcp-server", "node_modules"), { recursive: true, force: true });

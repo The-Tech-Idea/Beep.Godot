@@ -57,29 +57,27 @@ logic lives in one place instead of drifting across two shell dialects.
 
 ### Using it in your OWN games
 
-Each game gets its own copy of the addon **and** its own server:
+Two folders and one script:
 
-```bash
-node tools/install-to-game.mjs "C:/games/MyGame"            # addons + server + .mcp.json
-node tools/install-to-game.mjs "C:/games/MyGame" --minimal  # just the godot_mcp bridge
-```
+1. Copy **`addons/godot_mcp`** and **`tools/beep-mcp-server`** into your game.
+2. In your game, run `tools/beep-mcp-server/setup.cmd` (Windows — double-click works)
+   or `./setup.sh`.
+3. In your game folder: `claude` — say yes when it asks about `beep-godot`.
 
-Then open that game in Claude Code and approve `beep-godot`. **Nothing to edit** — the
-path inside `.mcp.json` is relative (`tools/beep-mcp-server/…`) and Claude launches a
-project-scoped server with cwd set to the project root, so it resolves inside whichever
-game you opened. Dependencies install and compile on that game's first launch (~6s).
+`setup` writes `.mcp.json`, creates a `.csproj` if the game has none, enables the
+plugins, turns on Claude's write permission, and builds. Add `--no-writes` for
+look-but-don't-touch.
 
-`node_modules` and `dist` are deliberately not copied: a copied `node_modules` can be
-platform-specific and a copied `dist` can be older than the `src` beside it.
+> **The `.csproj` is not optional.** `godot_mcp` is C#, and a Godot project without a
+> `.csproj` compiles nothing — so the addon sits there completely inert, with no error
+> anywhere. Measured: zero plugin log lines in a game without one, ten with. That is
+> why `setup` creates it.
 
-**Why a copy per game rather than one shared server?** A single globally-registered server
-would work for scene editing — but `beep_gate_build` and `beep_gate_scenes` run against the
-project the *server* lives in, so from Game X they would build **this** repo and report
-success for a build that never touched your code. A per-game copy makes them correct.
+Want the Beep game-builder components too? Copy `addons/beep_game_builder_cs` and
+`addons/beep_ui` as well before running setup; it enables whatever it finds.
 
-**One game at a time.** The bridge port is fixed at `8789` and the server keeps one socket
-per role, so opening a second game takes the connection from the first. Set `BEEP_MCP_PORT`
-(and the matching `godot_mcp/bridge/url`) if you genuinely need two at once.
+**One game at a time.** The bridge port is `8789` and the server keeps one socket per
+role, so opening a second game takes the connection from the first.
 
 ### Then start Godot
 

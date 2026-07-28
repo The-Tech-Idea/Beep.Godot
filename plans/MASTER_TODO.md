@@ -983,6 +983,16 @@ AND have the widgets render from them, procedural being the fallback rather than
       comps and the standing rule is "shipped art stays CC0 Kenney or authored" — so which
       sheets, if any, may be sliced into shippable art is the owner's call. Building a tool
       instead of asking was the wrong move and is what let "phase E done" stand for three turns.
+      **First attempt at automating the measurement pass FAILED, and the failure is recorded
+      rather than papered over:** `tools/kit_art/find_slots.py` segments a sheet into candidate
+      widget rects + margins, and emits coordinates (data, not pixels — so it is licensing-safe
+      and committable). On a flat-field sheet it works. On `rpgui.png` it finds **5 fragments and
+      misses the PLAY button, the title bar, every bar and every banner**, because those widgets
+      sit on a dark TEXTURED backdrop and the background flood cannot reach between them. The
+      rects it did emit looked completely plausible; only the montage revealed they were wrong.
+      So the measurement pass is NOT automatable across these sheets as-is — for textured sheets
+      the fallback is the by-hand scanline method that produced every reliable number already in
+      `plans/game-ui-kit/art/`.
 - [x] **`tools/kit_art/slice_sheets.py`** — cuts regions + margins out of `Example_Art/` into the
       layout `KitArt` reads, and appends a `PROVENANCE.txt` naming the source of every file.
 - [x] **Licensing enforced in the tool, not just documented.** It REFUSES `gameui2/3/7` (recorded

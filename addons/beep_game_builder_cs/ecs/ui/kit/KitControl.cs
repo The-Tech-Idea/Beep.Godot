@@ -124,7 +124,11 @@ namespace Beep.ECS.UI.Kit
         protected static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
         {
             float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
-            float c = Mathf.Min(cut, Mathf.Min(w, h) * 0.5f);
+            // 0.45, not 0.5: at exactly half, a chamfer's (x+c, y) and (x+w-c, y) COINCIDE and
+            // the polygon degenerates, which Godot reports as "Invalid polygon data,
+            // triangulation failed" and then draws nothing. Hit by KitMeter, whose segments are
+            // narrow enough for the genre's corner cut to reach half their width.
+            float c = Mathf.Min(cut, Mathf.Min(w, h) * 0.45f);
             return shape switch
             {
                 KitShape.Chamfer => new[]
@@ -205,14 +209,29 @@ namespace Beep.ECS.UI.Kit
             bool angular = ActiveShape is KitShape.Chamfer or KitShape.Clip or KitShape.Notch
                 or KitShape.Speed or KitShape.Octagon or KitShape.Parallelogram
                 or KitShape.Chevron or KitShape.Arrow;
-            return angular
-                ? r.Size.Y * Mathf.Max(0.22f, CornerFraction * 2.6f)
-                : Mathf.Min(r.Size.X, r.Size.Y) * CornerFraction;
+            if (!angular) return Mathf.Min(r.Size.X, r.Size.Y) * CornerFraction;
+
+            // Derived from HEIGHT so a wide button gets a real rake rather than a 2.6px nick.
+            float cut = r.Size.Y * Mathf.Max(0.22f, CornerFraction * 2.6f);
+
+            // The cap is conditioned on how SQUARE the host is, because that is where a
+            // height-derived cut misbehaves: on a square slot, 0.42 x height eats both corners
+            // and the square becomes a diamond (seen on the rpg slot grid, twelve lozenges).
+            // Capping unconditionally instead fixed the slots but shaved the rake off tall
+            // buttons, which pushed rpg-vs-survival to a marginal pass on the greyscale gate.
+            float shorter = Mathf.Min(r.Size.X, r.Size.Y);
+            float aspect = shorter > 0f ? Mathf.Max(r.Size.X, r.Size.Y) / shorter : 1f;
+            float capFrac = Mathf.Lerp(0.30f, 0.50f, Mathf.Clamp((aspect - 1f) / 1.2f, 0f, 1f));
+            return Mathf.Min(cut, shorter * capFrac);
         }
 
         /// <summary>Fill + rim, cut to the shape. The single primitive every layer is built on.</summary>
         protected void DrawShape(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
         {
+            // A sub-pixel rect cannot produce a valid polygon. Segmented meters generate these
+            // at the leading edge of a partially-filled segment.
+            if (r.Size.X < 1f || r.Size.Y < 1f) return;
+
             float cut = CornerFor(r);
             var poly = Outline(shape, r, cut);
             if (poly != null)
@@ -320,10 +339,23 @@ namespace Beep.ECS.UI.Kit
                     Color hi = new Color(1, 1, 1, 0.22f * g.Bevel);
                     Color lo = new Color(0, 0, 0, 0.26f * g.Bevel);
                     Color top = Sunken ? lo : hi, bot = Sunken ? hi : lo;
-                    DrawLine(inner.Position, inner.Position + new Vector2(inner.Size.X, 0), top, t);
-                    DrawLine(inner.Position, inner.Position + new Vector2(0, inner.Size.Y), top, t);
-                    DrawLine(inner.Position + new Vector2(0, inner.Size.Y), inner.End, bot, t);
-                    DrawLine(inner.Position + new Vector2(inner.Size.X, 0), inner.End, bot, t);
+
+                    // The CASUAL register omits the dark half of the bevel. That family expresses
+                    // depth with a thick outline and a discrete top band; raking a shadow across
+                    // the plate is the carved family's cue, and borrowing it is what made every
+                    // casual genre measure bottom:peak 0.23-0.26 (painted) against a 0.76-0.84
+                    // flat target. A gradient down the face IS the painted reading.
+                    bool allowDark = g.Register != KitRegister.Casual;
+                    if (allowDark || !Sunken)
+                    {
+                        DrawLine(inner.Position, inner.Position + new Vector2(inner.Size.X, 0), top, t);
+                        DrawLine(inner.Position, inner.Position + new Vector2(0, inner.Size.Y), top, t);
+                    }
+                    if (allowDark || Sunken)
+                    {
+                        DrawLine(inner.Position + new Vector2(0, inner.Size.Y), inner.End, bot, t);
+                        DrawLine(inner.Position + new Vector2(inner.Size.X, 0), inner.End, bot, t);
+                    }
                 }
             }
 
@@ -365,6 +397,59 @@ namespace Beep.ECS.UI.Kit
                 DrawCircle(plate.Position + new Vector2(plate.Size.X * 0.16f, plate.Size.Y * 0.22f),
                            sp, new Color(1, 1, 1, 0.5f * g.Sparkle));
             }
+        }
+
+        /// <summary>
+        /// An overhanging title banner straddling the top edge of a host rect.
+        ///
+        /// Lives on the base class because it is, by the art pass's count, "the single most
+        /// repeated element across all 7 kits" — panels, cards, modals and store tiles all carry
+        /// one, and every one of them OVERHANGS rather than sitting inline. An inline Label is
+        /// what the framework shipped instead, everywhere.
+        ///
+        /// Measured: height <b>0.14 x the host</b> (rpgui2: 18px on a 129px card).
+        /// <paramref name="shade"/> defaults to <b>0.44 x the frame's lightness</b> (gameui2),
+        /// i.e. a title plate reads RECESSED, not raised — though the polarity is per-family
+        /// (gameui4's banner is white L=0.97), so it is a parameter rather than a constant.
+        /// </summary>
+        protected void DrawBanner(Rect2 host, string text, KitShape shape,
+                                  float heightRatio = 0.14f, float widthRatio = 0.62f,
+                                  float shade = 0.44f)
+        {
+            if (string.IsNullOrEmpty(text) || host.Size.X < 8f || host.Size.Y < 8f) return;
+
+            var font = GetThemeDefaultFont();
+            int fs = UiSurface.FontSize(this);
+
+            // Floor the height at the type, or the banner clips its own text on a short host.
+            float h = Mathf.Max(fs * 1.5f, host.Size.Y * heightRatio);
+            float w = host.Size.X * widthRatio;
+            if (font != null)
+            {
+                // Never narrower than the text it carries.
+                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
+                w = Mathf.Max(w, Mathf.Min(need, host.Size.X * 1.08f));
+            }
+
+            // Straddles the edge: centred on it, so half the plate sits outside the host. This
+            // is the move containers cannot express and the reason it is drawn, not parented.
+            var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
+                              host.Position.Y - h * 0.5f, w, h);
+
+            Color face = FaceColor();
+            Color plate = new Color(face.R * shade, face.G * shade, face.B * shade, 1f);
+            DrawShape(r, shape, plate, InkColor(),
+                      Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
+
+            if (font == null) return;
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+            Color ink = UiSurface.Luminance(plate) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f, 1f)
+                : new Color(0.98f, 0.96f, 0.92f, 1f);
+            DrawString(font,
+                       new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
+                                   r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                       text, HorizontalAlignment.Left, -1, fs, ink);
         }
 
         /// <summary>Attachments last, so they draw OVER the host and can cross its edge.</summary>

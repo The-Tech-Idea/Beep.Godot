@@ -671,16 +671,156 @@ PASS, montage inspected.
       the plate, but the measured "body" is the median of the plate interior, which the gloss
       lifts. Either the gloss belongs outside the body sample or `RimBrightness` should target
       measured body rather than nominal plate.
-- [ ] **The casual register still renders painted.** `bottom:peak` is 0.23-0.26 for
-      platformer/puzzle/cardgame/topdown against a flat target of **0.76-0.84**. Cause is in the
-      material stack, not the frame: that family carries the highest Gloss (0.80-0.90) and Bevel
-      (1.2-1.3), which together make a strong vertical gradient — and a gradient IS the painted
-      reading. The reference is "flat saturated fill + **top band**", i.e. a discrete band, not a
-      ramp. This is the single largest remaining gap between the kit and `Example_Art`, and it is
-      exactly the error PLAN.md warns about: feeding painted proportions to a flat renderer.
+- [x] ~~**The casual register still renders painted** (`bottom:peak` 0.23-0.26 against a flat
+      target of 0.76-0.84)~~ — **WITHDRAWN, this was a measurement artefact, not a defect.**
+      The material scan ran down the widget's CENTRE COLUMN, which goes straight through the
+      label: on platformer it took `peak` = 221 off the "PLAY" glyph against a 58 plate, so the
+      ratio was measuring text contrast and no change to the material could move it. Each row is
+      now represented by its **modal tone**, which a glyph (a minority of any row) cannot shift.
+      Re-measured: casual reads **0.67-0.83** against the 0.76-0.84 flat target — three of the
+      four classify `flat` outright. **The registers were already correct.**
+      Proven rather than assumed: an A/B with the dark bevel restored moved `bottom:peak` by
+      **0.00** on all four casual genres, because the bevel sits outside the measured plate
+      window entirely. The lesson is the one this file keeps relearning — the instrument was
+      wrong, and a plausible cause was accepted for it before the instrument was checked.
 - [ ] `strategy` corner brackets, to separate the one marginal pair.
 
 **Cleaned up en route (pre-existing, unrelated):** `citybuilder_main.tscn` carried five
 `IconRingColor = Color(...)` lines against an export `ResourceBadgeComponent` deliberately
 removed in Stage 32e, so Godot silently dropped all five. `validate_scenes.sh` was failing on
 them; removed, and it is green again.
+
+---
+
+## Stage 36 — Phase B begins: the first widgets built FROM the art (2026-07-28)
+
+Course correction. Stages 34-35 built measurement apparatus and tuned one `KitButton`'s numbers.
+That is not the deliverable: the art pass exists to produce **widgets**, and the catalogue names
+specific ones with measured specs that the kit did not have. Three built, each from its
+measured document, each verified by rendering it and looking at it.
+
+- [x] **`KitLabelValue`** — from `art/rpgui3.md` widget 1, the densest reference in the folder.
+      Two plates of **opposite polarity welded by a 2px keyline**, **2:1** label-to-value
+      (measured 92px : 46px), value plate driven to maximum lightness. The art pass called it
+      "the single most reusable widget in the folder for dense information, and the kit does not
+      have it" — `ATTACK/DEFENSE/COMBO/TYPE` and all six inventory stats are this one widget.
+      The polarity inversion is why it is not a Label pair in an HBox: the value is the only
+      maximum-contrast element, so the eye lands on the number with no size or colour cue needed.
+- [x] **`KitMeter`** — **segmented by default**, honouring the settled 7x rule that "segmented
+      progress is the default, continuous is the exception"; every meter this framework shipped
+      before was the exception. Track is a **dark tint of the fill's own hue, never grey** (4x
+      rule), and the optional overhanging end cap comes from `rpgui.md`'s finding that
+      "variation lives in the END CAPS, not the body — six bars, one track".
+- [x] **`KitCollapsiblePanel`** — from `art/ui8.md`, which calls it "the widget the kit was
+      originally asked for": handle **outside** the panel on the edge it moves along, ~33px,
+      dark plate (L=0.26), **pure-white chevron** — the highest-contrast glyph on the screen,
+      because it is the only control whose state must be read at a glance. Distinct in kind from
+      the existing `CollapsiblePanelComponent`, which drives a separate host Control and pins its
+      chevron per-frame; this owns plate, well and handle as one silhouette, so they cannot drift.
+- [x] **Reskin verified** across rpg / platformer / citybuilder: identical widget code renders
+      with rpg's chamfer + studs + carved frame and platformer's pill + no frame, with **no
+      per-genre branching in any widget**. `tmp/kitproof/widgets_<genre>.png`.
+
+**Two real bugs found by rendering rather than by reading the code:**
+
+- [x] **`UiSurface.Semantic` returned BLACK, silently.** With neither the role key nor `accent`
+      registered under `BeepSemantic`, `GetThemeColor` hands back black — so `KitMeter` drew a
+      black bar on a black track with nothing logged. Its doc comment claimed it "falls back to
+      the accent rather than to a literal", which is only true when accent exists. Now derives a
+      visible colour from the surface and `PushWarning`s once, naming the node. This is the
+      repo's dominant defect class, in the one helper every drawn component routes through.
+- [x] **`Invalid polygon data, triangulation failed`** — `Outline` clamped the corner cut to
+      exactly half the shorter side, at which point a chamfer's two top vertices COINCIDE and the
+      polygon degenerates; Godot logs it and draws nothing. Hit by `KitMeter`, whose segments are
+      narrow enough for the genre's cut to reach half their width. Clamped to 0.45, plus a
+      sub-pixel rect guard.
+
+- [x] **`KitControl.DrawBanner`** — the overhanging title banner, which the art pass counts as
+      "the single most repeated element across all 7 kits" and which this framework had shipped
+      nowhere: every panel used an INLINE Label. Height **0.14 x the host** (rpgui2: 18px on a
+      129px card), straddling the edge so half the plate sits outside the host. Shade defaults to
+      **0.44 x the frame** (gameui2 — "a title plate reads recessed, not raised"), exposed as a
+      parameter because polarity is per-family (gameui4's is white at L=0.97).
+- [x] **`KitPanel`** — frame + recessed well + banner. The well takes the **0.79-0.80 x** subtle
+      inset that citybuilder3's tiles and gameui1's parchment slots produced independently.
+      `ContentRect()` is public so a screen lays children out inside the well instead of
+      re-deriving the insets and drifting from them.
+- [x] **`KitSlotGrid`** — interior : pitch **0.58** (gameui9: 49px on an ~85px pitch);
+      **selection is a 3px white rectangle drawn OUTSIDE the slot** (gameui9) rather than a fill
+      change, so it survives greyscale and works over any contents; empty slots **drain
+      saturation** rather than darken (rpg3: available S=0.65-0.72 vs empty **S=0.05**); count
+      badges straddle the bottom-right corner (gameui8); and locked slots **state their
+      requirement in words** (5x rule), so `SlotKind` models blank / invite / locked separately
+      rather than collapsing them into "not filled".
+
+**Two more bugs, both found by looking at the render:**
+
+- [x] **A grid of black holes.** `KitPanel`'s well and every slot used
+      `PlateShadeFor(Recessed) = 0.12` — measured on citybuilder5's small StoneCapsule READOUT
+      sunk into a pale frame. On a panel body it renders the whole panel black. Split out
+      `WellShade = 0.79` for content wells. **This is the third time a measured ratio has been
+      applied outside the widget class it was measured on** (after `PlateShade` and the frame
+      ratio); the rule now written next to it is: check what was under the ruler before reusing
+      a number.
+- [x] **Twelve lozenges.** The angular corner cut is derived from HEIGHT so a wide button gets a
+      real rake, but on a square slot 0.42 x height eats both corners and the square becomes a
+      diamond. Capping it unconditionally fixed the slots and then shaved the rake off tall
+      buttons, pushing **rpg vs survival to a marginal pass** on the greyscale gate — caught
+      because the gate was re-run rather than assumed unaffected. The cap is now conditioned on
+      how square the host is, which fixes the slots and leaves the buttons untouched: back to
+      one marginal pair (citybuilder/strategy), 0 indistinguishable.
+
+- [x] **`KitGeometry.GlyphRatio`** — glyph : button is a per-FAMILY ratio, not a constant:
+      **0.40 carved / 0.55 flat** (citybuilder1 vs citybuilder2) and **0.60** on gameui3's kit.
+      A carved plate spends its area on the frame, a flat one gives it to the icon. Derived from
+      `Register` rather than restated per genre — which is the point of having a register.
+- [x] **`KitIconButton`** — the unit a build toolbar, ability bar or icon rail is made of, with
+      the state set gameui3 lays out and labels explicitly: **Normal / Over / Click / Disabled**.
+      One size for every icon button, rail or docked (citybuilder2). Disabled **drains
+      saturation** rather than fading. **A locked control shows NO hover and NO press** —
+      gameui3's padlock button is drawn in normal and disabled only, and promising an
+      interaction that will not happen is worse than showing none.
+- [x] **`KitTree`** — skill / upgrade / research screens. Nodes on a tier grid at the measured
+      ~12% gutter; connectors are **thin orthogonal lines drawn BEHIND the nodes** (never
+      diagonal); a **locked node is a dark SILHOUETTE** — "art rendered near-black, no colour,
+      **no number**" — rather than a dimmed owned node; cost badges straddle the corner.
+      Its governing rule is taken verbatim from skilltree1.md and stated twice there:
+      **"Spend colour on branch identity OR on node state, not both."** `ColourCarries` is
+      therefore an either/or enum and deliberately not two independent toggles — doing both
+      produces a tree in which neither reading survives.
+
+**Next, still from the catalogue:** `KitCardHand`; ornaments (crown/wings/laurel) as
+non-interactive overhanging attachments; pentagon status chips; `RadarChart` (racing3);
+`InputHint` with chord support.
+
+### Migration — `kit_gallery.tscn`, and the bug only a real scene could show
+
+- [x] **`templates/scenes/kit_gallery.tscn` + `ecs/scenes/KitGallery.cs`** — all eight widgets in
+      ONE real scene, inside real `VBox`/`HBox` Containers, under a real `ThemePresetComponent`.
+      The kit's counterpart to `theme_gallery.tscn`, and the migration half of phase B: building
+      a widget proves it can be drawn, only putting it in a scene proves it is usable. Passes
+      `validate_scenes.sh` including the PascalCase-export check.
+- [x] **Confirmed the palette actually reaches the kit.** `ThemePresetComponent.ThemeSemantics()`
+      publishes all seven `BeepSemantic` roles, so kit widgets resolve real theme colours in a
+      skinned scene rather than the probe's stub — checked before relying on it.
+- [x] **An overhanging element must not draw outside its own rect.** `KitPanel` drew its banner
+      at a negative y so it straddled the frame; in a Container that reserves no space for it, so
+      the EQUIPMENT banner rendered **on top of the COMBO stat row in the HBox above**. The frame
+      is now inset from the top by the banner's overhang and `_GetMinimumSize` includes it, so
+      the banner still straddles the FRAME's edge (the measured behaviour) while the whole widget
+      stays inside its own bounds.
+      **This is the general hazard of the `KitAttach` model** — anything drawn outside the host
+      rect is invisible to layout — and it is exactly the class of defect a probe harness with
+      absolute positioning can never surface. Worth re-checking for every future attachment,
+      ornament and badge.
+
+**Phase B's bar is still not fully met** — it is "settings + one HUD contain no generic
+`Button`/`PanelContainer`", and the gallery is a demonstration screen rather than either of
+those. The remaining work is migrating `settings_menu.tscn` and one genre HUD, which is a
+behavioural change to shipped screens (focus, signals, `SettingsMenu.cs`'s 13 bound nodes, and
+three copies across the addon and both game projects) rather than more drawing code.
+
+**Known environment note:** rendering a themed scene outside the editor logs
+`Failed loading resource: .../button_normal.png` for the Stage 27 art — only 539 of ~744
+textures are in `.godot/imported`. The scene still renders; the baked art needs an editor import
+pass. Pre-existing, unrelated to the kit.

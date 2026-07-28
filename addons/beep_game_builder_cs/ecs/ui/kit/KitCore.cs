@@ -103,6 +103,29 @@ namespace Beep.ECS.UI.Kit
     }
 
     /// <summary>
+    /// Which reference family a genre is drawn from. PLAN.md 34: Example_Art/ holds "TWO style
+    /// families that must not be averaged", and averaging them is the documented root error of
+    /// the earlier phase-A attempts.
+    ///
+    /// This drives the MATERIAL, not just the frame: the two families differ in how depth is
+    /// expressed, and using one family's depth cue on the other is what made every casual genre
+    /// measure as painted.
+    /// </summary>
+    public enum KitRegister
+    {
+        /// <summary>Carved/painted: frame around a separate plate, bevel raked across the face,
+        /// bright rim. rpgui, Upgrades, citybuilder5.</summary>
+        Carved,
+        /// <summary>Casual/mobile: ONE flat saturated plate, a discrete top band, a thick dark
+        /// outline, large radius. ui1/ui2/skilltree1/store. Depth comes from the outline and the
+        /// band - NOT from a shadow raked across the plate, which reads as painted.</summary>
+        Casual,
+        /// <summary>Technical: hairline keyline, thin light rim, minimal sculpt.
+        /// rpgui1/racing4/rpgui2.</summary>
+        Technical,
+    }
+
+    /// <summary>
     /// The genre's PROPORTIONS - how a widget is built, independent of its colour.
     ///
     /// Exists because the first phase-A proof rendered five genres as the same brown plate: the
@@ -123,6 +146,9 @@ namespace Beep.ECS.UI.Kit
         public float Bevel = 1.0f;
         public float Gloss = 0.4f;
         public float Sparkle;
+        /// <summary>Which reference family this genre is drawn from. See <see cref="KitRegister"/>.</summary>
+        public KitRegister Register = KitRegister.Carved;
+
         /// <summary>Which frame regime this genre uses. See <see cref="KitFrameMode"/>.</summary>
         public KitFrameMode FrameMode = KitFrameMode.Structural;
         /// <summary>Constant thickness for <see cref="KitFrameMode.Hairline"/>, in px at 14pt.</summary>
@@ -163,6 +189,39 @@ namespace Beep.ECS.UI.Kit
         };
 
         /// <summary>
+        /// Recess for a large CONTENT well — a panel body, an inventory slot — as a multiple of
+        /// its host.
+        ///
+        /// Deliberately NOT <see cref="PlateShadeFor"/>'s 0.12. That figure is measured on
+        /// citybuilder5's StoneCapsule, a small readout sunk into a pale frame, and applying it
+        /// to a panel body renders the whole panel as a black hole (seen, not theorised). The
+        /// value for a content well is the "subtle inset" ratio that citybuilder3's tiles and
+        /// gameui1's parchment slots produced INDEPENDENTLY at <b>0.79-0.80 x</b> the host, and
+        /// it agrees with the slot interiors measured elsewhere (gameui9 L=0.42 against a
+        /// brighter surround, rpg3's available slots at L≈0.67-0.72).
+        ///
+        /// Same lesson as the plate-shade correction: a lightness ratio is conditional on the
+        /// WIDGET CLASS it was measured on. Check what was under the ruler before reusing it.
+        /// </summary>
+        public float WellShade = 0.79f;
+
+        /// <summary>
+        /// Glyph size as a fraction of an icon button, measured per family:
+        /// <b>0.40 carved</b>, <b>0.55 flat</b> (citybuilder1 vs citybuilder2) and
+        /// <b>0.60</b> on gameui3's kit. A carved plate spends its area on the frame, so its
+        /// glyph is proportionally smaller; a flat plate gives the area to the icon.
+        ///
+        /// Defaults follow <see cref="Register"/> rather than being restated per genre, which is
+        /// the point of having a register at all.
+        /// </summary>
+        public float GlyphRatio => Register switch
+        {
+            KitRegister.Carved => 0.40f,
+            KitRegister.Casual => 0.55f,
+            _ => 0.60f,
+        };
+
+        /// <summary>
         /// Outer rim lightness as a multiple of the plate. Above 1 is a BRIGHT carved rim
         /// (citybuilder5 measures 2.05x); below 1 is the thick dark outline of the casual/mobile
         /// register. Both appear in the reference set and the two families must not be averaged.
@@ -194,18 +253,18 @@ namespace Beep.ECS.UI.Kit
         //              rpgui1/racing4/rpgui2, where a chip and a panel carry the same 1-3px line.
         private static readonly Dictionary<string, KitGeometry> _byGenre = new()
         {
-            ["rpg"]         = new() { Corner = .16f, HeightRatio = 2.9f, PadRatio = 1.9f, Rim = 3.0f, Bevel = 1.2f, Gloss = .55f, Sparkle = .35f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.90f },
-            ["survival"]    = new() { Corner = .12f, HeightRatio = 2.7f, PadRatio = 1.7f, Rim = 3.0f, Bevel = 1.1f, Gloss = .20f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.80f },
-            ["strategy"]    = new() { Corner = .04f, HeightRatio = 2.4f, PadRatio = 1.5f, Rim = 2.5f, Bevel = 0.8f, Gloss = .25f, Studs = 2, FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f },
-            ["citybuilder"] = new() { Corner = .06f, HeightRatio = 2.5f, PadRatio = 1.6f, Rim = 2.0f, Bevel = 0.7f, Gloss = .30f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f },
+            ["rpg"]         = new() { Register = KitRegister.Carved, Corner = .16f, HeightRatio = 2.9f, PadRatio = 1.9f, Rim = 3.0f, Bevel = 1.2f, Gloss = .55f, Sparkle = .35f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.90f },
+            ["survival"]    = new() { Register = KitRegister.Carved, Corner = .12f, HeightRatio = 2.7f, PadRatio = 1.7f, Rim = 3.0f, Bevel = 1.1f, Gloss = .20f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.80f },
+            ["strategy"]    = new() { Register = KitRegister.Carved, Corner = .04f, HeightRatio = 2.4f, PadRatio = 1.5f, Rim = 2.5f, Bevel = 0.8f, Gloss = .25f, Studs = 2, FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f },
+            ["citybuilder"] = new() { Register = KitRegister.Carved, Corner = .06f, HeightRatio = 2.5f, PadRatio = 1.6f, Rim = 2.0f, Bevel = 0.7f, Gloss = .30f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f },
 
-            ["platformer"]  = new() { Corner = .45f, HeightRatio = 3.1f, PadRatio = 2.1f, Rim = 3.5f, Bevel = 1.3f, Gloss = .80f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f },
-            ["puzzle"]      = new() { Corner = .30f, HeightRatio = 3.0f, PadRatio = 2.0f, Rim = 2.5f, Bevel = 1.2f, Gloss = .90f, Sparkle = .40f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f },
-            ["cardgame"]    = new() { Corner = .22f, HeightRatio = 2.8f, PadRatio = 1.8f, Rim = 2.0f, Bevel = 0.9f, Gloss = .70f, Sparkle = .50f, FrameMode = KitFrameMode.None,   RimBrightness = 0.20f },
-            ["topdown"]     = new() { Corner = .18f, HeightRatio = 2.6f, PadRatio = 1.7f, Rim = 2.0f, Bevel = 1.0f, Gloss = .40f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f },
+            ["platformer"]  = new() { Register = KitRegister.Casual, Corner = .45f, HeightRatio = 3.1f, PadRatio = 2.1f, Rim = 3.5f, Bevel = 1.3f, Gloss = .80f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f },
+            ["puzzle"]      = new() { Register = KitRegister.Casual, Corner = .30f, HeightRatio = 3.0f, PadRatio = 2.0f, Rim = 2.5f, Bevel = 1.2f, Gloss = .90f, Sparkle = .40f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f },
+            ["cardgame"]    = new() { Register = KitRegister.Casual, Corner = .22f, HeightRatio = 2.8f, PadRatio = 1.8f, Rim = 2.0f, Bevel = 0.9f, Gloss = .70f, Sparkle = .50f, FrameMode = KitFrameMode.None,   RimBrightness = 0.20f },
+            ["topdown"]     = new() { Register = KitRegister.Casual, Corner = .18f, HeightRatio = 2.6f, PadRatio = 1.7f, Rim = 2.0f, Bevel = 1.0f, Gloss = .40f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f },
 
-            ["shooter"]     = new() { Corner = .10f, HeightRatio = 2.3f, PadRatio = 1.5f, Rim = 1.5f, Bevel = 0.6f, Gloss = .35f,            FrameMode = KitFrameMode.Hairline, HairlinePx = 2.0f, RimBrightness = 1.35f },
-            ["racing"]      = new() { Corner = .08f, HeightRatio = 2.2f, PadRatio = 1.4f, Rim = 1.5f, Bevel = 0.7f, Gloss = .85f, Sparkle = .25f, FrameMode = KitFrameMode.Hairline, HairlinePx = 1.5f, RimBrightness = 1.45f },
+            ["shooter"]     = new() { Register = KitRegister.Technical, Corner = .10f, HeightRatio = 2.3f, PadRatio = 1.5f, Rim = 1.5f, Bevel = 0.6f, Gloss = .35f,            FrameMode = KitFrameMode.Hairline, HairlinePx = 2.0f, RimBrightness = 1.35f },
+            ["racing"]      = new() { Register = KitRegister.Technical, Corner = .08f, HeightRatio = 2.2f, PadRatio = 1.4f, Rim = 1.5f, Bevel = 0.7f, Gloss = .85f, Sparkle = .25f, FrameMode = KitFrameMode.Hairline, HairlinePx = 1.5f, RimBrightness = 1.45f },
         };
 
         private static readonly KitGeometry _default = new();

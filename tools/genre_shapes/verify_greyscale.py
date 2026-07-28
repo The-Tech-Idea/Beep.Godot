@@ -179,13 +179,35 @@ def load(path):
     if py1 <= py0 or pxx1 <= pxx0:
         py0, py1, pxx0, pxx1 = y0, y1, x0, x1
 
-    plate_col = [px[midx, y] for y in range(py0, py1 + 1)]
+    # Each row is represented by its DOMINANT tone, not by the centre pixel. A single centre
+    # column runs straight through the label: on platformer it read peak=221 off the "PLAY"
+    # glyph against a 58 plate, so bottom:peak was measuring text contrast (0.26) and no change
+    # to the material moved it at all. The glyph is a minority of any row, so the mode ignores it.
+    def row_tone(y):
+        h2 = {}
+        for x in range(pxx0, pxx1 + 1):
+            if mask[y][x]:
+                v = px[x, y] // 4
+                h2[v] = h2.get(v, 0) + 1
+        return (max(h2, key=h2.get) * 4 + 2) if h2 else 0
+
+    plate_col = [row_tone(y) for y in range(py0, py1 + 1)]
     peak = max(plate_col) or 1
     nb = max(1, len(plate_col) // 6)
     bottom_peak = (sum(plate_col[-nb:]) / nb) / peak
 
-    body_px = sorted(px[x, y] for y in range(py0, py1 + 1) for x in range(pxx0, pxx1 + 1))
-    body = body_px[len(body_px) // 2] if body_px else 1
+    # Body is the plate's OWN colour, taken as the modal value rather than the median.
+    # citybuilder5.md lists the gloss band as a layer separate from the plate ("plate #75864F
+    # L=0.42" vs "gloss band ~8px of teal L=0.67"), so a body that includes the gloss is not the
+    # quantity the reference ratios are stated against. The gloss covers ~34% of the plate here,
+    # enough to drag a median upward and depress every rim:body reading to ~0.6x of target.
+    # The mode is robust to it, because gloss and bevel are both minorities by area.
+    hist = {}
+    for y in range(py0, py1 + 1):
+        for x in range(pxx0, pxx1 + 1):
+            v = px[x, y] // 4          # 4-level buckets, so antialiasing does not split the peak
+            hist[v] = hist.get(v, 0) + 1
+    body = (max(hist, key=hist.get) * 4 + 2) if hist else 1
 
     # The rim is the outermost ring of the widget. Its polarity matters: the carved-stone
     # reference draws a BRIGHT outer rim at 2.05x the plate, while this kit currently draws a

@@ -1,0 +1,168 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/KitGallery.cs" id="2_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="k_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_labelvalue"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitIconButton.cs" id="k_iconbutton"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="k_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs" id="k_slotgrid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs" id="k_tree"]
+
+[node name="KitGallery" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.11, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
+
+[node name="Theme" type="Node" parent="Margin"]
+script = ExtResource("1_theme")
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+theme_type_variation = &"BeepTitle"
+text = "Game UI Kit"
+
+[node name="Row1" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Stats" type="VBoxContainer" parent="Margin/Root/Row1"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Attack" type="Control" parent="Margin/Root/Row1/Stats"]
+layout_mode = 2
+script = ExtResource("k_labelvalue")
+Label = "ATTACK"
+Value = "7"
+
+[node name="Defense" type="Control" parent="Margin/Root/Row1/Stats"]
+layout_mode = 2
+script = ExtResource("k_labelvalue")
+Label = "DEFENSE"
+Value = "12"
+
+[node name="Combo" type="Control" parent="Margin/Root/Row1/Stats"]
+layout_mode = 2
+script = ExtResource("k_labelvalue")
+Label = "COMBO"
+Value = "x3"
+
+[node name="Meters" type="VBoxContainer" parent="Margin/Root/Row1"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Health" type="Control" parent="Margin/Root/Row1/Meters"]
+layout_mode = 2
+script = ExtResource("k_meter")
+Value = 0.62
+Segments = 10
+
+[node name="Stamina" type="Control" parent="Margin/Root/Row1/Meters"]
+layout_mode = 2
+script = ExtResource("k_meter")
+Value = 0.4
+Segments = 0
+Fill = 5
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Root/Row1"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Build" type="Control" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "+"
+
+[node name="Info" type="Control" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "*"
+Accent = 6
+
+[node name="Off" type="Control" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "x"
+Disabled = true
+
+[node name="Sealed" type="Control" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "?"
+Locked = true
+Requirement = "Lv 5"
+
+[node name="Row2" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="Equipment" type="Control" parent="Margin/Root/Row2"]
+custom_minimum_size = Vector2(260, 190)
+layout_mode = 2
+script = ExtResource("k_panel")
+Title = "EQUIPMENT"
+
+[node name="Bag" type="Control" parent="Margin/Root/Row2"]
+custom_minimum_size = Vector2(220, 190)
+layout_mode = 2
+script = ExtResource("k_slotgrid")
+Columns = 4
+Rows = 3
+Selected = 1
+
+[node name="Skills" type="Control" parent="Margin/Root/Row2"]
+custom_minimum_size = Vector2(260, 190)
+layout_mode = 2
+script = ExtResource("k_tree")
+Columns = 4
+Tiers = 3
+Selected = 1
+
+[node name="Footer" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayButton" type="Control" parent="Margin/Root/Footer"]
+layout_mode = 2
+script = ExtResource("k_button")
+Text = "PLAY"
+
+[node name="BuyButton" type="Control" parent="Margin/Root/Footer"]
+layout_mode = 2
+script = ExtResource("k_button")
+Text = "BUY"
+BadgeText = "40"
+
+[node name="BackButton" type="Control" parent="Margin/Root/Footer"]
+layout_mode = 2
+script = ExtResource("k_button")
+Text = "BACK"

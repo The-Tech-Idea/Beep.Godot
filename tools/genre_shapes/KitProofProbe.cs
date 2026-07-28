@@ -76,6 +76,29 @@ public partial class KitProofProbe : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
 
+        // Phase-E check: if sliced art exists, prove a widget renders FROM it rather than
+        // procedurally. Absent art, this is a no-op and every widget draws as before.
+        if (DirAccess.DirExistsAbsolute("res://tmp/kit_art"))
+        {
+            KitArt.Root = "res://tmp/kit_art";
+            SkinCatalog.SetActiveSkin("rpg", "", "", "");
+            var host2 = new Control { Name = "ArtProof" };
+            host2.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            host2.Theme = SheetTheme();
+            root.AddChild(host2);
+            var textured = new KitButton { Text = "PLAY" };
+            host2.AddChild(textured);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            textured.Size = new Vector2(300, 86);
+            textured.Position = new Vector2(80, 80);
+            for (int i = 0; i < 3; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await Shoot($"{OutDir}/artproof.png");
+            GD.Print("kitproof: artproof written");
+            KitArt.Root = "";
+            host2.QueueFree();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+
         await ShootWidgets(root);
 
         GD.Print("kitproof: done");
@@ -350,6 +373,36 @@ public partial class KitProofProbe : Node
 
         for (int i = 0; i < 3; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await Shoot($"{OutDir}/formkit3_{genre}.png");
+
+        // Page 4: the final set pieces.
+        foreach (var w in rows) w.Visible = false;
+        av.Visible = false; pg.Visible = false; pg2.Visible = false; seg.Visible = false;
+        sp1.Visible = false; sp2.Visible = false; sp3.Visible = false;
+
+        var knob = new KitKnob { Value = 0.35f };
+        var gem1 = new KitGemSlot { State_ = KitGemSlot.SocketState.Filled };
+        var gem2 = new KitGemSlot { State_ = KitGemSlot.SocketState.Invite };
+        var gem3 = new KitGemSlot { State_ = KitGemSlot.SocketState.Locked, Requirement = "Lv 9" };
+        var path = new KitLevelPath();
+        var wheel = new KitSpinWheel();
+        var book = new KitBookSpread { LeftTitle = "Quests", RightTitle = "Bestiary" };
+        var torn = new KitPanel { Title = "NOTES", TornEdge = true, ShowClose = true };
+        foreach (var w in new KitControl[] { knob, gem1, gem2, gem3, path, wheel, book, torn })
+            host.AddChild(w);
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        knob.Size = new Vector2(76, 76); knob.Position = new Vector2(50, 50);
+        gem1.Size = new Vector2(54, 54); gem1.Position = new Vector2(150, 60);
+        gem2.Size = new Vector2(54, 54); gem2.Position = new Vector2(212, 60);
+        gem3.Size = new Vector2(54, 54); gem3.Position = new Vector2(274, 60);
+        path.Size = new Vector2(300, 210); path.Position = new Vector2(50, 160);
+        wheel.Size = new Vector2(190, 190); wheel.Position = new Vector2(380, 50);
+        book.Size = new Vector2(360, 200); book.Position = new Vector2(600, 50);
+        torn.Size = new Vector2(230, 150); torn.Position = new Vector2(380, 280);
+
+        for (int i = 0; i < 3; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await Shoot($"{OutDir}/formkit4_{genre}.png");
+
 
 
         await Shoot($"{OutDir}/formkit_{genre}.png");

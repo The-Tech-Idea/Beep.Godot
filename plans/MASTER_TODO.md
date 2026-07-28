@@ -920,11 +920,74 @@ so two of its top-tier items were still missing while lower-frequency ones had b
 **Kit now: 27 widgets**, every one rendered and inspected across four proof sheets
 (`widgets_*.png`, `formkit_*.png`, `formkit2_*.png`, `formkit3_*.png`).
 
-**Remaining, and all of it is compositions or genre set pieces rather than primitives:**
-`PlayerCard` (avatar + row + footer), `LevelNodeGrid` (tree + slot grid), `RewardSlotRow`
-(slot grid 1xN), `MedalRosette` (ornament + chip), `TornPanel` / `CornerClose` (panel + shape
-variants), `RoundKnob` / `GemSlot` (circular slot variants), and the two large set pieces
-`BookSpread` and `SpinWheel`. **The primitive layer is covered.**
+### EXTRACTION COMPLETE — 32 widgets (2026-07-28)
+
+The last of the catalogue, closing every section:
+
+- [x] **`KitKnob`** — section E's `RoundKnob`. Distinct from `KitSlider` rather than a round skin
+      of it: it occupies a square, shows its value as an ANGLE plus a lit tick ring, and is
+      dragged VERTICALLY on purpose — following the pointer's angle is the obvious
+      implementation and the wrong one, because the value jumps as the hand crosses the centre.
+- [x] **`KitGemSlot`** — section E. The circular counterpart to a grid cell, and deliberately not
+      one: a socket is CUT INTO its host, so it takes the recessed readout shade (0.12) rather
+      than the 0.79 content-well shade — the exact distinction that rendered a whole slot grid as
+      black holes when it was got wrong.
+- [x] **`KitLevelPath`** — F.2's `LevelNodeGrid`, the puzzle/platformer level map. Not `KitTree`
+      with different data: a tree BRANCHES and a path is a SEQUENCE with one current position, so
+      it owns the serpentine layout, per-node scores and the "you are here" ring. Locked nodes
+      show no number; the track ahead is DASHED ("dashed stroke = path / provisional", 4x).
+- [x] **`KitSpinWheel`** — F.2. The pointer is FIXED outside the rim while the wheel turns under
+      it; turning the marker with the wheel is the classic mistake. `Spin(index)` takes the prize
+      from the CALLER — a wheel that picked its own would make the odds a property of the widget,
+      where no designer could reach them.
+- [x] **`KitBookSpread`** — F.2's journal / codex. The shaded spine gutter is the whole idea: two
+      pages meeting at a gutter read as one opened object, two panels side by side read as two
+      panels. Exposes `LeftRect()` / `RightRect()` like `KitPanel.ContentRect()`.
+- [x] **`TornPanel` and `CornerClose` as `KitPanel` OPTIONS**, not classes — the structure is
+      identical and only the bottom edge or a corner attachment changes. The torn edge is seeded
+      from the panel's own width so it is stable across redraws; an edge that reshuffles every
+      frame reads as noise. The close button is drawn by the HOST so it can straddle the frame.
+- [x] `RewardSlotRow` = `KitSlotGrid` at 1xN; `MedalRosette` = `KitOrnament` + `KitChip`;
+      `PlayerCard` = `KitAvatarFrame` + `KitRow` + `KitNodeCard`'s welded footer. Compositions of
+      shipped widgets, recorded here so nobody rebuilds them as classes.
+
+**Every section of CATALOGUE-FROM-ART.md is now covered: A, B, C, D, E, F.1, F.2, F.3, plus the
+INDEX extras (`RadarChart`, `InputHint`, `LabelValuePair`, `CollapsiblePanel`, ornaments).**
+32 widgets, every one rendered and inspected across five proof sheets
+(`widgets_*.png`, `formkit_*.png` … `formkit4_*.png`).
+
+### Phase E — sliced art, and the widgets consuming it (2026-07-28)
+
+Clarified with the owner: "extract widgets from art" meant **both** — slice real 9-patch assets
+AND have the widgets render from them, procedural being the fallback rather than the only mode.
+
+- [x] **`KitArt`** — resolves `<root>/<genre>/<widget>_<slot>.png` with a `_common` fallback, and
+      reads 9-patch margins from a sibling `.margins` file. Says so ONCE per missing slot when a
+      root IS configured, because a widget silently falling back looks identical to one whose art
+      failed to import.
+- [x] **`KitControl.TryDrawArt`** — any widget gets texture-or-procedural for free. A
+      `StyleBoxTexture` is used rather than `DrawTextureRect` because only it does real 9-patch
+      margins. When a `base` slot exists it REPLACES the frame+plate build, because painted art
+      already contains its own frame, bevel and rim — re-applying the procedural bevel over it is
+      what makes textured chrome look plastic. The palette still drives `modulate`, so sliced art
+      reskins instead of pinning one game's colours into every project.
+- [x] **`tools/kit_art/slice_sheets.py`** — cuts regions + margins out of `Example_Art/` into the
+      layout `KitArt` reads, and appends a `PROVENANCE.txt` naming the source of every file.
+- [x] **Licensing enforced in the tool, not just documented.** It REFUSES `gameui2/3/7` (recorded
+      as watermarked comps, "style reference only") without an explicit `--i-have-a-licence`, and
+      REFUSES any `--dest` inside `addons/`. The addon ships no third-party pixels — the same
+      resolution `docs/HUD_TEXTURE_SYSTEM.md` reached for the Kenney HUD art. Both guards tested.
+- [x] **Verified end to end**, not assumed: sliced a real crop from `rpgui.png`, ran Godot's
+      `--import`, and rendered a `KitButton` drawing FROM the 9-patch with its label over it
+      (`tmp/kitproof/artproof.png`). The first attempt correctly reported "no art … drawing it
+      procedurally" because Godot had not imported the PNG yet — `ResourceLoader.Exists` is false
+      for un-imported files, which is worth knowing before blaming the resolver.
+      Test pixels were deleted afterwards; they were third-party.
+
+**What this does NOT mean.** The widgets exist and reskin; they are not yet USED. Phase B's bar
+is "settings + one HUD contain no generic `Button`/`PanelContainer`", and only `kit_gallery.tscn`
+and the shared `hud.tscn` touch the kit. **Stage 30's ten per-genre HUDs remain untouched** —
+that is now the largest open item in this file, and the kit is well past what it needs.
 
 **Bug found while wiring the proof sheet:** an edit to the probe's positioning block silently
 no-oped because its anchor text had already changed, so eight widgets were created and never

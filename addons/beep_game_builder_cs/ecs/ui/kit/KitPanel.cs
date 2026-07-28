@@ -34,6 +34,36 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Draw the inner well. Off gives a plain framed plate.</summary>
         [Export] public bool ShowWell { get; set; } = true;
 
+        /// <summary>Section D's `TornPanel` — an irregular torn edge along the bottom, for the
+        /// paper/parchment register. A panel VARIANT rather than its own class: the structure is
+        /// identical and only the bottom edge changes.</summary>
+        [Export] public bool TornEdge { get; set; }
+
+        /// <summary>Section D's `CornerClose` — an X straddling the frame's top-right corner
+        /// (rpgui's title bar has "a close button attached at the right end"). Drawn by the HOST
+        /// so it can cross the frame's edge, which is the whole reason it is not a child button.</summary>
+        [Export] public bool ShowClose { get; set; }
+
+        [Signal] public delegate void CloseRequestedEventHandler();
+
+        private Rect2 CloseRect()
+        {
+            float s = Mathf.Max(16f, UiSurface.FontSize(this) * 1.7f);
+            Rect2 b = BodyRect();
+            return new Rect2(b.End.X - s * 0.55f, b.Position.Y - s * 0.40f, s, s);
+        }
+
+        public override void _GuiInput(InputEvent @event)
+        {
+            if (!ShowClose) return;
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb
+                && CloseRect().HasPoint(mb.Position))
+            {
+                EmitSignal(SignalName.CloseRequested);
+                AcceptEvent();
+            }
+        }
+
         public override void _Ready()
         {
             base._Ready();
@@ -61,6 +91,42 @@ namespace Beep.ECS.UI.Kit
         /// <summary>The content rect a caller should lay children out inside — the well, minus
         /// the banner's intrusion. Public so a screen does not have to re-derive the insets and
         /// drift from them.</summary>
+        /// <summary>An irregular saw-tooth along the bottom, seeded from the panel's own width so
+        /// it is stable across redraws — a torn edge that reshuffles every frame reads as noise.</summary>
+        private void DrawTornEdge(Rect2 body, Color face, Color ink)
+        {
+            int teeth = Mathf.Max(6, Mathf.RoundToInt(body.Size.X / 18f));
+            float h = Mathf.Max(4f, body.Size.Y * 0.045f);
+            uint seed = (uint)Mathf.RoundToInt(body.Size.X * 7f + teeth);
+            var pts = new System.Collections.Generic.List<Vector2>
+            {
+                new(body.Position.X, body.End.Y - h),
+            };
+            for (int i = 0; i <= teeth; i++)
+            {
+                seed = seed * 1664525u + 1013904223u;              // stable LCG, no Math.Random
+                float jitter = ((seed >> 16) & 0xFF) / 255f;
+                float x = Mathf.Lerp(body.Position.X, body.End.X, i / (float)teeth);
+                pts.Add(new Vector2(x, body.End.Y - h + (i % 2 == 0 ? h * jitter : h * (1f + jitter * 0.4f))));
+            }
+            pts.Add(new Vector2(body.End.X, body.End.Y - h));
+            DrawColoredPolygon(pts.ToArray(), face);
+            DrawPolyline(pts.ToArray(), ink, 1.5f);
+        }
+
+        private void DrawClose(Color ink, float rimPx)
+        {
+            Rect2 r = CloseRect();
+            Color c = UiSurface.Semantic(this, UiSurface.Role.Danger);
+            DrawShape(r, KitShape.Round, c, ink, Mathf.Max(1.5f, rimPx * 0.8f));
+            var ctr = r.Position + r.Size * 0.5f;
+            float a = r.Size.X * 0.22f, w = Mathf.Max(2f, r.Size.X * 0.09f);
+            var on = UiSurface.Luminance(c) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
+            DrawLine(ctr - new Vector2(a, a), ctr + new Vector2(a, a), on, w);
+            DrawLine(ctr - new Vector2(a, -a), ctr + new Vector2(a, -a), on, w);
+        }
+
         public Rect2 ContentRect()
         {
             Rect2 body = BodyRect();
@@ -128,8 +194,12 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
+            if (TornEdge) DrawTornEdge(body, face, ink);
+
             // Banner last so it draws OVER the frame it straddles.
             DrawBanner(body, _title, ResolvedBannerShape(), shade: BannerShade);
+
+            if (ShowClose) DrawClose(ink, rimPx);
 
             DrawAttachments();
         }

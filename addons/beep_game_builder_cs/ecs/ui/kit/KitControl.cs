@@ -231,6 +231,67 @@ namespace Beep.ECS.UI.Kit
             return Mathf.Min(cut, shorter * capFrac);
         }
 
+        /// <summary>Layers that still apply over sliced art. Studs and sparkle are GEOMETRY the
+        /// art may not carry; bevel and gloss are not re-applied, because painted art already has
+        /// them and doubling them is what makes textured chrome look plastic.</summary>
+        private void DrawAfterArt(Rect2 plate, KitGeometry g)
+        {
+            if (g.Sparkle > 0f && State != KitState.Disabled)
+            {
+                float sp = Mathf.Max(2f, plate.Size.Y * 0.07f);
+                DrawCircle(plate.Position + new Vector2(plate.Size.X * 0.16f, plate.Size.Y * 0.22f),
+                           sp, new Color(1, 1, 1, 0.5f * g.Sparkle));
+            }
+        }
+
+        /// <summary>Art slot name for this widget — the file stem under the kit art root, e.g.
+        /// "button" resolves &lt;root&gt;/&lt;genre&gt;/button_base.png. Defaults to the class
+        /// name minus "Kit", so a widget opts in simply by existing.</summary>
+        protected virtual string ArtName => GetType().Name.StartsWith("Kit")
+            ? GetType().Name[3..].ToLowerInvariant()
+            : GetType().Name.ToLowerInvariant();
+
+        /// <summary>
+        /// Draw a layer from sliced 9-patch art, if any exists for this genre and slot.
+        ///
+        /// Returns false when there is no art, which is the normal case and not a failure — the
+        /// caller then draws the layer procedurally. That fallback is why the kit works with no
+        /// art at all: PLAN.md's casual/mobile register is procedurally reachable, and only the
+        /// painted register needs slices.
+        ///
+        /// A StyleBoxTexture is used rather than DrawTextureRect because only it does real
+        /// 9-patch margins; stretching a bordered texture across a button is exactly how corner
+        /// artwork gets smeared.
+        /// </summary>
+        protected bool TryDrawArt(Rect2 r, string slot)
+        {
+            if (r.Size.X < 1f || r.Size.Y < 1f) return false;
+            var tex = KitArt.Resolve(_genre, ArtName, slot);
+            if (tex == null) return false;
+
+            string key = $"{_genre}/{ArtName}_{slot}";
+            Vector4 m = KitArt.Margins(tex, key);
+            var sb = new StyleBoxTexture { Texture = tex };
+            sb.SetTextureMargin(Side.Left, m.X);
+            sb.SetTextureMargin(Side.Top, m.Y);
+            sb.SetTextureMargin(Side.Right, m.Z);
+            sb.SetTextureMargin(Side.Bottom, m.W);
+            // The palette still drives the tint, so sliced art reskins with the theme instead of
+            // pinning one game's colours into every project that uses it.
+            sb.ModulateColor = ArtModulate();
+            DrawStyleBox(sb, r);
+            return true;
+        }
+
+        /// <summary>Tint applied to sliced art. Neutral by default; state still reads through.</summary>
+        protected virtual Color ArtModulate() => State switch
+        {
+            KitState.Hover => new Color(1.10f, 1.10f, 1.10f, 1f),
+            KitState.Pressed => new Color(0.86f, 0.86f, 0.88f, 1f),
+            KitState.Disabled or KitState.Locked => new Color(0.72f, 0.72f, 0.74f, 1f),
+            _ => Colors.White,
+        };
+
         /// <summary>Fill + rim, cut to the shape. The single primitive every layer is built on.</summary>
         protected void DrawShape(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
         {
@@ -303,6 +364,21 @@ namespace Beep.ECS.UI.Kit
             // family is one flat plate with a thick dark outline, and carving it would average
             // the two reference families together.
             Rect2 plate = r;
+
+            // Sliced art first: when a genre has a base plate, it replaces the frame+plate build
+            // entirely, because painted art already contains its own frame, bevel and rim. Layers
+            // the art does not supply still come from the procedural stack below.
+            if (m.Base && TryDrawArt(r, "base"))
+            {
+                float ftArt = g.FramePx(r.Size.Y);
+                plate = new Rect2(r.Position + new Vector2(ftArt, ftArt),
+                                  r.Size - new Vector2(ftArt * 2f, ftArt * 2f));
+                if (plate.Size.X <= 4 || plate.Size.Y <= 4) plate = r;
+                TryDrawArt(plate, "plate");
+                DrawAfterArt(plate, g);
+                return;
+            }
+
             if (m.Base)
             {
                 float ft = g.FramePx(r.Size.Y);

@@ -1,40 +1,58 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudComponent.cs" id="1_hud"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_labelvalue"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
 
 [node name="HUD" type="CanvasLayer"]
+layer = 1
 
 [node name="TopLeft" type="MarginContainer" parent="."]
-anchors_preset = 1
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 0.0
-offset_right = 40.0
-offset_bottom = 40.0
-grow_vertical = 0
+anchors_preset = 0
+offset_right = 228.0
+offset_bottom = 184.0
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 
 [node name="Theme" type="Node" parent="TopLeft"]
 script = ExtResource("hud_theme")
 GenreName = "platformer"
+HudMode = true
 
 [node name="StatsVBox" type="VBoxContainer" parent="TopLeft"]
 theme_override_constants/separation = 4
 
-[node name="ScoreLabel" type="Label" parent="TopLeft/StatsVBox"]
-text = "0"
+[node name="ScoreLabel" type="Control" parent="TopLeft/StatsVBox"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_labelvalue")
+Label = "SCORE"
+Value = "0"
 
-[node name="LevelLabel" type="Label" parent="TopLeft/StatsVBox"]
-text = "Level 1"
+[node name="LevelLabel" type="Control" parent="TopLeft/StatsVBox"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_labelvalue")
+Label = "LEVEL"
+Value = "1"
 
-[node name="LivesLabel" type="Label" parent="TopLeft/StatsVBox"]
-text = "× 3"
+[node name="LivesLabel" type="Control" parent="TopLeft/StatsVBox"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_labelvalue")
+Label = "LIVES"
+Value = "× 3"
 
-[node name="HealthLabel" type="Label" parent="TopLeft/StatsVBox"]
-text = "100 / 100"
+[node name="HealthLabel" type="Control" parent="TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(148, 18)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_meter")
+Value = 1.0
+Segments = 10
+Fill = 3
 
 [node name="Hud" type="Node" parent="."]
 script = ExtResource("1_hud")
@@ -42,3 +60,8 @@ ScoreLabelPath = NodePath("TopLeft/StatsVBox/ScoreLabel")
 LivesLabelPath = NodePath("TopLeft/StatsVBox/LivesLabel")
 HealthLabelPath = NodePath("TopLeft/StatsVBox/HealthLabel")
 LevelLabelPath = NodePath("TopLeft/StatsVBox/LevelLabel")
+LevelFormat = "{0}"
+
+[node name="GameInfoBinder" type="Node" parent="."]
+script = ExtResource("binder_gi")
+ThemeComponentPath = NodePath("TopLeft/Theme")

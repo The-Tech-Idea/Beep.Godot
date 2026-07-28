@@ -41,7 +41,13 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
-            MouseFilter = MouseFilterEnum.Stop;
+
+            // MouseFilter is deliberately NOT set here. Control already defaults to Stop, so the
+            // interactive widgets get what they need for _GuiInput without help — while forcing
+            // it in _Ready silently overrode any scene that had chosen otherwise. A HUD readout
+            // is the case that matters: hud.tscn sets mouse_filter = 2 (Ignore) on its stat
+            // widgets precisely so the HUD does not eat gameplay clicks, and this line was
+            // undoing that on every one of them after the scene had loaded.
         }
 
         public override void _Notification(int what)

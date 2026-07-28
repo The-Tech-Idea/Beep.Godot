@@ -814,6 +814,123 @@ non-interactive overhanging attachments; pentagon status chips; `RadarChart` (ra
       absolute positioning can never surface. Worth re-checking for every future attachment,
       ornament and badge.
 
+### Following the catalogue's OWN build order (2026-07-28)
+
+Correction to how widgets were being chosen. `CATALOGUE-FROM-ART.md` carries a **build order
+derived from frequency, not preference**, and the first widgets were picked by hand instead —
+so two of its top-tier items were still missing while lower-frequency ones had been built.
+
+- [x] **`KitCurrencyBar`** — build-order item 1, "appears in nearly every picture". Capsule with
+      its icon cap **overhanging the left end**, measured on citybuilder5's StoneCapsule row:
+      35px capsule, **asymmetric frame** (7px top / 5px bottom), inner plate at **0.12** and a
+      gloss band across the top. This is the widget class the 0.12 shade was actually measured
+      on, so unlike a panel well it correctly uses the recessed plate shade.
+      `IconOverhang` is exposed because it is per-skin (1.48x vs 1.0x).
+- [x] **`KitTabStrip`** — build-order item 1. Selection uses the **tab-appropriate** mechanisms
+      (weld / pill-behind / elevate) rather than a generic "selected" look, because the art pass
+      measured 17 distinct selection mechanisms and found the choice follows widget CLASS. Keeps
+      the Stage 28 lessons: no shadow across neighbours, and an unselected tab is normal text at
+      78% alpha — a place you CAN go, not one that reads as unavailable.
+- [x] **`KitNodeCard`** — build-order item 2, "the single most repeated compound element", with
+      the welded footer counted **8x** across unrelated sheets. Honours INDEX.md's correction
+      that **the footer is TWO widgets**: a status band at **0.19 x** card height and an action
+      button at **0.10 x**. Verified visually — the BUY bar renders visibly shorter than the
+      OWNED band, which is the whole point of the correction.
+- [x] Removed a dead `Straddle` export from `KitIconButton` that did nothing at all. A silent
+      no-op export is the same defect class as a snake_case one Godot drops. Straddling is the
+      HOST's job — only it knows which edge is being crossed.
+
+### Sections C / D / E / F.2 — the form, small-part and radial families (2026-07-28)
+
+- [x] **`KitChip`** — section C's whole small-part family as ONE widget with variants:
+      RarityChip / CountBubble / NotificationDot / **pentagon status chip** (tick or cross) /
+      LockOverlay. One widget because they are one shape with different payloads; five classes
+      would have five bevels drifting apart. Badge colour carries a ROLE (ui8: green = new
+      content, red = action required), never a literal.
+- [x] **`KitSlider`** — `settings1`'s **vertical bar knob**, not a desktop circular grabber.
+      Track is a dark tint of the fill's own hue, and the knob does NOT change hue on press —
+      the Stage 28 defect where grabber and highlight came from different palette roles and the
+      focused slider rendered green among blue ones.
+- [x] **`KitToggle`** — F.2's `OnOffSwitch`, noted there as "**this is the game checkbox**".
+      Boxed style also offered, because CATALOGUE §D's "no checkboxes" claim is itself corrected
+      (gameui2/4/5 all contain them). Off keeps full saturation — draining it is reserved for
+      unavailable, and using it for "off" would make every unset option look broken.
+- [x] **`KitArrowSelector`** — `< Option >`. Section D records that **dropdowns appear in NONE of
+      the 43 reference images**; games page through options with arrows. This is what a settings
+      screen wants for resolution, language and difficulty.
+- [x] **`KitRadialMeter`** — section E's ring gauge (Don't Starve's vitals cluster, a rev
+      counter). Separate from `KitMeter` because a bar and a ring do not share a layout problem —
+      `docs/hud/survival.md` names rings for Don't Starve and bars for Valheim, both legitimate.
+      Segmented by default, same 7x rule.
+- [x] **`KitStarRating`** — F.2. Unearned stars **drain saturation rather than vanish**, so the
+      player can see how many the level HAS, not only how many they earned.
+
+### F.1 hangers, ornaments, and the comparison primitives (2026-07-28)
+
+- [x] **`KitPanelHanger`** — section F.1's ENTIRE family in one widget: `ChainHang`, `RopeHang`,
+      `NailPin`, `TapeCorner`, `ScrollRoll`, `VineFrame`. One widget because they are one idea —
+      a fixing drawn above or across a panel's edge so the panel reads as a physical object hung
+      in the world rather than a rectangle floating in screen space. `ui5.png` proves that axis
+      by drawing one dialog geometry in ~10 materials with no layout change.
+      **Fixed after looking at the render:** the first version tinted the surface by 1.15x for
+      its neutral accent, which on a mid-tone background was invisible — a hanger you cannot see
+      is not a hanger. It now pushes firmly away from the surface's luminance, and chain links
+      alternate their long axis so a chain reads as a chain rather than a dotted line.
+- [x] **`KitOrnament`** — crown / wings / laurel / trophy / **starburst** / ribbon-tail, the
+      decorations PLAN.md phase D lists as overhanging attachments ("the golden-kit sheet uses
+      them constantly"). Section E's `StarburstBadge` is the same idea at a different silhouette,
+      so it is a variant rather than its own class. **Inert by construction** — `MouseFilter =
+      Ignore` in `_Ready`, not left to the scene: these are always drawn over something the
+      player is meant to be able to press.
+- [x] **`KitTooltip`** — section C's `HintTooltip` **with a tail**. The tail is the point: it
+      names which control the tip belongs to, which a floating rectangle cannot do when three
+      controls sit close together. Drawn at the OPPOSITE polarity to its surface, per the 5x
+      "one element class flips polarity" rule. Body is inset on the tail's edge so the tail stays
+      inside the control's own rect — the containment rule `KitPanel`'s banner had to learn.
+- [x] **`KitInputHint`** — `[E] Gather Wood`, **with chord support** (`L2 + X`), which INDEX.md
+      calls out explicitly: a hint that can show only one glyph cannot express the modifier
+      combinations controllers rely on. This is `docs/hud/survival.md` element 11.
+- [x] **`KitRadarChart`** — INDEX.md's "missing primitive, fully procedural, useful to racing,
+      rpg and strategy" (racing3). The folder's only COMPARISON widget: a stack of bars answers
+      "how big is each", a radar answers "what shape is this thing", which is the actual question
+      on a vehicle- or class-select screen.
+
+### Closing the tail — rows, avatar, pager, segmented group, spinner (2026-07-28)
+
+- [x] **`KitRow`** — section B's `MissionRow` and `PlayerRow`, one widget with different
+      payloads: rank, title + subtitle, value, state chip. Selection is a **FILL**, per the
+      convention-by-widget-class finding ("card carousels use an outline, tab strips use
+      fill/elevation, **list rows use a fill**" — racing1). Rows band alternately so a long list
+      stays readable without a separator per row.
+- [x] **`KitAvatarFrame`** — section E, portrait with a ring in a palette role and a badge
+      **straddling the bottom-right rim** (ui8's FriendCard star). The overhang is why this is a
+      widget and not a TextureRect with a border.
+- [x] **`KitPager`** — section C's `PagerArrow` **plus ui8.md's correction**: "add jump-to-end
+      pagers alongside step pagers", and "step and jump paging can be separate control pairs".
+      Dots up to 8 pages, a "13 / 40" readout beyond — what the references do rather than drawing
+      forty dots.
+- [x] **`KitSegmentedIconGroup`** — section D. The game form's radio group. **Welded**, because
+      the join is what says "these are alternatives"; three spaced buttons say "three independent
+      actions".
+- [x] **`KitSpinner`** — F.2's `LoadingIndicator`, in three non-interchangeable forms: ring
+      (unknown wait), dots (inline "working"), bar (known progress — using the ring there throws
+      away information the player could have had). `ProcessMode = Always`, so it keeps moving
+      while the tree is **paused** — the one moment a loading indicator must not freeze.
+
+**Kit now: 27 widgets**, every one rendered and inspected across four proof sheets
+(`widgets_*.png`, `formkit_*.png`, `formkit2_*.png`, `formkit3_*.png`).
+
+**Remaining, and all of it is compositions or genre set pieces rather than primitives:**
+`PlayerCard` (avatar + row + footer), `LevelNodeGrid` (tree + slot grid), `RewardSlotRow`
+(slot grid 1xN), `MedalRosette` (ornament + chip), `TornPanel` / `CornerClose` (panel + shape
+variants), `RoundKnob` / `GemSlot` (circular slot variants), and the two large set pieces
+`BookSpread` and `SpinWheel`. **The primitive layer is covered.**
+
+**Bug found while wiring the proof sheet:** an edit to the probe's positioning block silently
+no-oped because its anchor text had already changed, so eight widgets were created and never
+positioned — they rendered stacked at (0,0) under the panel and looked like a drawing bug. The
+form families now get their OWN sheet; a proof sheet that overlaps itself proves nothing.
+
 **Phase B's bar is still not fully met** — it is "settings + one HUD contain no generic
 `Button`/`PanelContainer`", and the gallery is a demonstration screen rather than either of
 those. The remaining work is migrating `settings_menu.tscn` and one genre HUD, which is a

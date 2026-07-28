@@ -55,9 +55,11 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
 
-        /// <summary>Draw as if straddling the parent's edge (gameui6). Purely cosmetic here —
-        /// the caller still positions it; this only stops the plate looking free-floating.</summary>
-        [Export] public bool Straddle { get; set; }
+        // NOTE: there is deliberately no `Straddle` export. An earlier draft had one that did
+        // nothing at all — a silent no-op export is the same defect class as a snake_case one
+        // Godot drops. Straddling an edge (gameui6's play/replay/home row, rpgui's close button)
+        // is the HOST's job: it positions the button, or draws it as a KitAttach, because only
+        // the host knows which edge is being crossed.
 
         [Signal] public delegate void PressedEventHandler();
 

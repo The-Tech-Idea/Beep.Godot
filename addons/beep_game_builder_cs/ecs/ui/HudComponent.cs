@@ -26,10 +26,64 @@ namespace Beep.ECS.UI
         /// <summary>Text shown by the level readout. {0} is the 1-based level number (GameApp is 0-based).</summary>
         [Export] public string LevelFormat { get; set; } = "Level {0}";
 
-        private Label? _score;
-        private Label? _lives;
-        private Label? _health;
-        private Label? _level;
+        private Readout? _score;
+        private Readout? _lives;
+        private Readout? _health;
+        private Readout? _level;
+
+        /// <summary>
+        /// A readout that may be a plain <see cref="Label"/> OR a kit widget.
+        ///
+        /// Binding to Label alone would mean every genre's HUD had to be rewritten in lockstep,
+        /// and would resolve to null the instant one scene upgraded — the same failure mode the
+        /// DemandMeterPath move produced, and the reason CityBuilderHudComponent already accepts
+        /// both. A scene may therefore carry "Health: 72" as a Label or a real
+        /// <see cref="Kit.KitMeter"/> bar, and this component drives either.
+        ///
+        /// Anything else at that path is a mis-wiring and says so once, rather than leaving a
+        /// readout that silently never updates.
+        /// </summary>
+        private sealed class Readout
+        {
+            private readonly Label? _label;
+            private readonly Kit.KitLabelValue? _pair;
+            private readonly Kit.KitMeter? _meter;
+
+            private Readout(Label? l, Kit.KitLabelValue? p, Kit.KitMeter? m)
+            { _label = l; _pair = p; _meter = m; }
+
+            public static Readout? Resolve(Node parent, NodePath path, string owner, string what)
+            {
+                var n = parent.GetNodeOrNull<Node>(path);
+                switch (n)
+                {
+                    case null: return null;
+                    case Label l: return new Readout(l, null, null);
+                    case Kit.KitLabelValue p: return new Readout(null, p, null);
+                    case Kit.KitMeter m: return new Readout(null, null, m);
+                    default:
+                        GD.PushWarning($"[{owner}] HudComponent's {what} path '{path}' resolves to "
+                                       + $"a {n.GetType().Name}, which is not a Label, KitLabelValue "
+                                       + "or KitMeter. That readout will never update.");
+                        return null;
+                }
+            }
+
+            /// <summary>Textual value. A meter has no text, so it is left alone.</summary>
+            public void Set(string text)
+            {
+                if (_label != null) _label.Text = text;
+                else if (_pair != null) _pair.Value = text;
+            }
+
+            /// <summary>A proportion. A meter fills; anything else falls back to the text form,
+            /// so swapping a bar back to a Label does not lose the readout.</summary>
+            public void SetRatio(float current, float max, string text)
+            {
+                if (_meter != null) _meter.Value = max > 0f ? current / max : 0f;
+                else Set(text);
+            }
+        }
 
         // Held so the subscriptions can be undone in _ExitTree. GameFlow and the player's
         // HealthComponent outlive this HUD (a scene change / overlay close frees the HUD
@@ -49,10 +103,10 @@ namespace Beep.ECS.UI
         public void Bind()
         {
             if (GetParent() is not Node parent) return;
-            _score = parent.GetNodeOrNull<Label>(ScoreLabelPath);
-            _lives = parent.GetNodeOrNull<Label>(LivesLabelPath);
-            _health = parent.GetNodeOrNull<Label>(HealthLabelPath);
-            _level = parent.GetNodeOrNull<Label>(LevelLabelPath);
+            _score = Readout.Resolve(parent, ScoreLabelPath, Name, "score");
+            _lives = Readout.Resolve(parent, LivesLabelPath, Name, "lives");
+            _health = Readout.Resolve(parent, HealthLabelPath, Name, "health");
+            _level = Readout.Resolve(parent, LevelLabelPath, Name, "level");
 
             // Level readout comes from GameApp (the autoload owns level progression), not GameFlow.
             // Optional: no LevelLabel in the scene simply means this HUD shows no level — skip silently
@@ -126,16 +180,14 @@ namespace Beep.ECS.UI
             _app = null;
         }
 
-        private void OnScoreChanged(int score) { if (_score != null) _score.Text = score.ToString(); }
-        private void OnLivesChanged(int lives) { if (_lives != null) _lives.Text = $"× {lives}"; }
+        private void OnScoreChanged(int score) => _score?.Set(score.ToString());
+        private void OnLivesChanged(int lives) => _lives?.Set($"× {lives}");
         private void OnHealthChanged(float current, float max)
-        {
-            if (_health != null) _health.Text = $"{(int)current} / {(int)max}";
-        }
+            // A meter fills; a Label still gets "72 / 100", so a project that has not migrated
+            // its HUD reads exactly as before.
+            => _health?.SetRatio(current, max, $"{(int)current} / {(int)max}");
         // GameApp.CurrentLevel is 0-based (-1 before a game starts); show a friendly 1-based number.
         private void OnLevelChanged(int level)
-        {
-            if (_level != null) _level.Text = string.Format(LevelFormat, System.Math.Max(0, level) + 1);
-        }
+            => _level?.Set(string.Format(LevelFormat, System.Math.Max(0, level) + 1));
     }
 }

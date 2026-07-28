@@ -1,0 +1,130 @@
+using Godot;
+
+namespace Beep.ECS.UI.Kit
+{
+    /// <summary>
+    /// The small-parts family from CATALOGUE-FROM-ART.md section C, as ONE widget with variants:
+    /// <b>RarityChip, FlashBadge, CountBubble, NotificationDot, LockOverlay</b>.
+    ///
+    /// They are one widget because they are one shape with different payloads — a small plate
+    /// pinned to or straddling something larger, carrying at most a few characters. Building five
+    /// classes would have five bevels drifting apart, which is the exact failure mode
+    /// <see cref="KitMaterial"/> exists to prevent.
+    ///
+    /// The pentagon status chip (a tick or a cross) is called out separately in PLAN.md phase D;
+    /// it is <see cref="ChipKind.Status"/> here, cut to <see cref="KitShape.Pentagon"/>.
+    ///
+    /// Settled rules honoured:
+    ///  - <b>Top-right corner straddle is the attention anchor</b> (8 independent references), so
+    ///    that is the default anchor when this chip is attached to a host.
+    ///  - <b>Badge colour carries a ROLE</b> (ui8: green = new content, red = action required),
+    ///    so the colour comes from <see cref="UiSurface.Role"/> and never from a literal.
+    /// </summary>
+    [Tool]
+    [GlobalClass]
+    public partial class KitChip : KitControl
+    {
+        public enum ChipKind
+        {
+            /// <summary>A word or short label — rarity, tier, "NEW".</summary>
+            Rarity,
+            /// <summary>A number in a pill — stack counts, unread counts.</summary>
+            Count,
+            /// <summary>A bare dot with no text: something changed here.</summary>
+            Dot,
+            /// <summary>Pentagon with a tick or cross.</summary>
+            Status,
+            /// <summary>A padlock plate over its host, WITH its requirement in words.</summary>
+            Lock,
+        }
+
+        [Export] public ChipKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
+        private ChipKind _kind = ChipKind.Rarity;
+
+        [Export] public string Text { get => _text; set { _text = value ?? ""; QueueRedraw(); } }
+        private string _text = "NEW";
+
+        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Danger;
+
+        /// <summary>True for a tick, false for a cross. Only used by <see cref="ChipKind.Status"/>.</summary>
+        [Export] public bool Positive { get; set; } = true;
+
+        public override void _Ready()
+        {
+            base._Ready();
+            if (CustomMinimumSize == Vector2.Zero)
+            {
+                int fs = UiSurface.FontSize(this);
+                CustomMinimumSize = _kind switch
+                {
+                    ChipKind.Dot => new Vector2(fs * 0.7f, fs * 0.7f),
+                    ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
+                    ChipKind.Count => new Vector2(fs * 1.6f, fs * 1.25f),
+                    _ => new Vector2(fs * 3.6f, fs * 1.3f),
+                };
+            }
+        }
+
+        private KitShape ShapeFor() => _kind switch
+        {
+            ChipKind.Dot or ChipKind.Count => KitShape.Pill,
+            ChipKind.Status => KitShape.Pentagon,
+            _ => ActiveShape,
+        };
+
+        public override void _Draw()
+        {
+            if (Size.X < 3f || Size.Y < 3f) return;
+
+            var r = new Rect2(Vector2.Zero, Size);
+            Color fill = UiSurface.Semantic(this, Role);
+            Color ink = InkColor();
+            var font = GetThemeDefaultFont();
+            int fs = UiSurface.FontSize(this);
+            float rimPx = Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f));
+
+            DrawShape(r, ShapeFor(), fill, ink, rimPx);
+
+            // A dot says "something here" and carries no text by definition.
+            if (_kind == ChipKind.Dot) return;
+
+            Color on = UiSurface.Luminance(fill) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
+
+            if (_kind == ChipKind.Status)
+            {
+                DrawMark(r, on);
+                return;
+            }
+
+            if (font == null || string.IsNullOrEmpty(_text)) return;
+            int size = _kind == ChipKind.Count
+                ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f))
+                : Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
+            Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, size);
+            DrawString(font,
+                       new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
+                                   r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                       _text, HorizontalAlignment.Left, -1, size, on);
+        }
+
+        /// <summary>Tick or cross, drawn rather than typed, so it does not depend on the theme
+        /// font carrying those glyphs.</summary>
+        private void DrawMark(Rect2 r, Color col)
+        {
+            var c = r.Position + r.Size * 0.5f;
+            float a = Mathf.Min(r.Size.X, r.Size.Y) * 0.22f;
+            float w = Mathf.Max(2f, a * 0.42f);
+            if (Positive)
+            {
+                DrawLine(c + new Vector2(-a, 0f), c + new Vector2(-a * 0.25f, a * 0.75f), col, w);
+                DrawLine(c + new Vector2(-a * 0.25f, a * 0.75f), c + new Vector2(a, -a * 0.7f), col, w);
+            }
+            else
+            {
+                DrawLine(c + new Vector2(-a, -a), c + new Vector2(a, a), col, w);
+                DrawLine(c + new Vector2(-a, a), c + new Vector2(a, -a), col, w);
+            }
+        }
+    }
+}

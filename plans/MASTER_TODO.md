@@ -984,6 +984,32 @@ AND have the widgets render from them, procedural being the fallback rather than
       for un-imported files, which is worth knowing before blaming the resolver.
       Test pixels were deleted afterwards; they were third-party.
 
+### Stage 30 begins — survival vitals are bars (2026-07-28)
+
+The first genre HUD actually moved off its Label stack, which is what Stage 30 opens by
+complaining about: "a player cannot read health at a glance from 'Health: 72'".
+
+- [x] **`GenreHudComponent` speaks kit widgets.** `ResolveReadout` now accepts `KitMeter`,
+      `KitRadialMeter` and `KitLabelValue` alongside Label and `ResourceBadgeComponent`;
+      `SetReadout` drives a bar's FRACTION and a ring's fraction + centre text; `Tint` recolours a
+      meter's FILL rather than its text, because the bar is the thing being read and a warning
+      that only tints a number defeats the point of having one. All ten genre HUDs inherit this,
+      so each scene can migrate one node at a time instead of ten scenes in lockstep.
+- [x] **`Placeholder` had to become widget-aware too** — it resolved Label-only, so upgrading a
+      readout to a `KitMeter` turned a working placeholder into "no such node". The migration
+      would have been punished for succeeding. `_placeholders` is now `Control`, and `SetStat`
+      routes through `SetReadout`, so a game's `SetStat("thirst", …)` drives a bar as happily as
+      a Label.
+- [x] **survival**: the four vitals are `KitMeter` bars (health Success, hunger Warning, thirst
+      Info, stamina Accent2), segmented per the 7x rule, each with a track in its OWN hue.
+      Verified by rendering `survival_main.tscn`: 0 "nowhere to display" warnings, all four
+      resolved and filled.
+
+- [ ] **Nine genres remain**: citybuilder, strategy, shooter, rpg, cardgame, racing, puzzle,
+      topdown, platformer. The base-class work above is done once and serves all of them; what
+      remains per genre is its own scene edit and the elements its `docs/hud/<genre>.md` names
+      (hotbars, ability bars, minimaps, clocks, command cards).
+
 **What this does NOT mean.** The widgets exist and reskin; they are not yet USED. Phase B's bar
 is "settings + one HUD contain no generic `Button`/`PanelContainer`", and only `kit_gallery.tscn`
 and the shared `hud.tscn` touch the kit. **Stage 30's ten per-genre HUDs remain untouched** —

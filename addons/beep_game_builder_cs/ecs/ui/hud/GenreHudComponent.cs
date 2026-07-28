@@ -33,7 +33,7 @@ namespace Beep.ECS.UI
 
         private Label? _score, _lives, _level, _healthLabel;
         private string _levelFormat = "Level {0}";
-        private readonly Dictionary<string, Label> _placeholders = new();
+        private readonly Dictionary<string, Godot.Control> _placeholders = new();
 
         public override void _Ready()
         {
@@ -60,6 +60,30 @@ namespace Beep.ECS.UI
 
         protected Label? Resolve(NodePath path)
             => (path is null || path.IsEmpty) ? null : _host?.GetNodeOrNull<Label>(path);
+
+        /// <summary>Resolve any node type against the HUD host, not just a Label.
+        ///
+        /// The genre HUDs are moving from stacks of Labels to real widgets — meters, demand
+        /// meters, toolbars, toast hosts — and the Label-only <see cref="Resolve"/> could not
+        /// reach them. An empty path is an intentional "this scene has no such widget" and
+        /// stays silent; a path that is set but wrong warns, which is the case worth catching.</summary>
+        /// <summary>Silent lookup — no warning when the node is absent or the wrong type.
+        ///
+        /// Needed because ResolveReadout PROBES for a badge before falling back to a Label. Going
+        /// through the warning variant made every Label-based readout log "no
+        /// ResourceBadgeComponent at ..." even though the fallback worked perfectly, which is
+        /// four bogus warnings per genre and exactly how a log stops being read.</summary>
+        protected T? TryResolveNode<T>(NodePath path) where T : Node
+            => path is null || path.IsEmpty ? null : _host?.GetNodeOrNull<T>(path);
+
+        protected T? ResolveNode<T>(NodePath path) where T : Node
+        {
+            if (path is null || path.IsEmpty) return null;
+            var n = _host?.GetNodeOrNull<T>(path);
+            if (n == null)
+                GD.PushWarning($"[{Name}] {Genre} HUD: no {typeof(T).Name} at '{path}' (relative to '{_host?.Name}'). Fix the NodePath in the scene.");
+            return n;
+        }
 
         protected void BindScore(NodePath path)
         {
@@ -95,17 +119,98 @@ namespace Beep.ECS.UI
 
         /// <summary>Register a developer-owned readout: keeps its authored text, warns once, and is
         /// driven by <see cref="SetStat"/>. Use for values the framework has no source for.</summary>
+        // ── Readout helpers, shared by every genre HUD ────────────────────────────────────
+        // These lived as identical private copies in the city-builder, survival and rpg HUDs.
+        // Three copies of the same twenty lines is how the codebase drifted into styling the
+        // same thing several different ways before; a fourth genre would have made it four.
+
+        /// <summary>Resolve a readout as either a badge or a Label.
+        ///
+        /// A scene may use either, and binding to Label only would silently resolve to null the
+        /// moment a scene upgraded to badges — which is exactly the class of breakage that took
+        /// the RCI meter offline for several turns without any error.</summary>
+        protected Godot.Control? ResolveReadout(NodePath path, string what)
+        {
+            if (TryResolveNode<ResourceBadgeComponent>(path) is { } badge) return badge;
+            // Kit widgets, so a genre HUD can move from a Label stack to real bars and stat
+            // pairs one node at a time instead of all ten scenes in lockstep.
+            if (TryResolveNode<Kit.KitMeter>(path) is { } meter) return meter;
+            if (TryResolveNode<Kit.KitRadialMeter>(path) is { } ring) return ring;
+            if (TryResolveNode<Kit.KitLabelValue>(path) is { } pair) return pair;
+            if (Resolve(path) is { } label) return label;
+            GD.PushWarning($"[{Name}] {Genre} HUD: '{path}' is not a Label, ResourceBadge, "
+                         + $"KitMeter, KitRadialMeter or KitLabelValue, so {what} has nowhere "
+                         + "to display.");
+            return null;
+        }
+
+        /// <summary>Write a value, and a 0..1 fill when the readout is a badge.</summary>
+        protected static void SetReadout(Godot.Control? c, string text, float fill = -1f)
+        {
+            switch (c)
+            {
+                case ResourceBadgeComponent b: b.Set(text, fill); break;
+                // A bar shows the FRACTION; the exact number is the Label's job. A vital that is
+                // only a number cannot be read at a glance, which is the whole complaint Stage 30
+                // opens with ("a player cannot read health at a glance from 'Health: 72'").
+                case Kit.KitMeter m when fill >= 0f: m.Value = fill; break;
+                case Kit.KitRadialMeter rm when fill >= 0f: rm.Value = fill; rm.CentreText = text; break;
+                case Kit.KitLabelValue p: p.Value = text; break;
+                case Label l: l.Text = text; break;
+            }
+        }
+
+        /// <summary>Apply a semantic alert role, or null to clear it.
+        ///
+        /// A badge keeps <c>Alert</c> separate from its declared <c>Accent</c>, so clearing
+        /// restores its identity colour instead of leaving it stuck on red. Labels take a
+        /// palette-derived override rather than a literal.</summary>
+        protected static void Tint(Godot.Control? c, UiSurface.Role? role)
+        {
+            switch (c)
+            {
+                case ResourceBadgeComponent b:
+                    b.Alert = role;
+                    break;
+                // A meter recolours its FILL, not its text — the bar is the thing being read,
+                // and a warning that only tints a number defeats the point of having a bar.
+                case Kit.KitMeter m:
+                    m.Fill = role ?? UiSurface.Role.Success;
+                    m.QueueRedraw();
+                    break;
+                case Kit.KitRadialMeter rm:
+                    rm.Fill = role ?? UiSurface.Role.Success;
+                    rm.QueueRedraw();
+                    break;
+                case Kit.KitLabelValue p:
+                    p.Accent = role ?? UiSurface.Role.Neutral;
+                    p.QueueRedraw();
+                    break;
+                case Label l when role is { } r:
+                    l.AddThemeColorOverride("font_color", UiSurface.Semantic(l, r));
+                    break;
+                case Label l:
+                    l.RemoveThemeColorOverride("font_color");
+                    break;
+            }
+        }
+
         protected void Placeholder(NodePath path, string statName)
         {
-            var l = Resolve(path); if (l == null) { MissingLabel(path, statName); return; }
-            _placeholders[statName] = l;
-            GD.PushWarning($"[{Name}] {Genre} HUD: '{statName}' ({l.Text}) has no framework data source — it shows placeholder text until your game calls SetStat(\"{statName}\", ...). Expected for genre-specific stats.");
+            // Resolves widgets as well as Labels. Binding the placeholder path to Label ONLY
+            // meant that upgrading a scene's readout to a KitMeter turned a working placeholder
+            // into "no such node" — the migration would have been punished for succeeding.
+            var c = ResolveReadout(path, statName);
+            if (c == null) { MissingLabel(path, statName); return; }
+            _placeholders[statName] = c;
+            GD.PushWarning($"[{Name}] {Genre} HUD: '{statName}' has no framework data source — it shows placeholder values until your game calls SetStat(\"{statName}\", ...). Expected for genre-specific stats.");
         }
 
         /// <summary>Game code sets a placeholder readout's text. Unknown names warn (typo guard).</summary>
         public void SetStat(string statName, string text)
         {
-            if (_placeholders.TryGetValue(statName, out var l) && GodotObject.IsInstanceValid(l)) l.Text = text;
+            if (_placeholders.TryGetValue(statName, out var l) && GodotObject.IsInstanceValid(l))
+                SetReadout(l, text);
             else GD.PushWarning($"[{Name}] {Genre} HUD: SetStat(\"{statName}\") — no such placeholder readout in this HUD.");
         }
 
@@ -134,7 +239,10 @@ namespace Beep.ECS.UI
         private void NoFlow(string what)
             => GD.PushWarning($"[{Name}] {Genre} HUD: no GameFlowComponent in the scene — the {what} readout will not update.");
 
-        private T? FindInScene<T>() where T : Node
+        /// <summary>Find the first component of a type anywhere in the gameplay scene. Used by
+        /// the genre subclasses to locate their state component (the economy, the vitals, the
+        /// race state) without each re-implementing a tree walk.</summary>
+        protected T? FindInScene<T>() where T : Node
         {
             Node? scene = Owner ?? GetTree()?.CurrentScene ?? GetTree()?.Root;
             return scene == null ? null : FindDescendant<T>(scene);

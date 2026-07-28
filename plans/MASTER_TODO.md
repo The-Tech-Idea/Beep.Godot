@@ -993,6 +993,18 @@ AND have the widgets render from them, procedural being the fallback rather than
       So the measurement pass is NOT automatable across these sheets as-is — for textured sheets
       the fallback is the by-hand scanline method that produced every reliable number already in
       `plans/game-ui-kit/art/`.
+      **`--refine` makes that fallback practical.** Give it a ROUGH box and it tightens onto the
+      widget and emits the exact `--slot` line plus a 2x preview to confirm against. It works
+      where auto-segmentation cannot, because it never has to SEPARATE widgets — the human already
+      did that by drawing the box. Verified on `rpgui.png`: a rough `20,530,340,100` snapped to
+      `26,530,334,94` and previewed as exactly the PLAY button, frame, plate and corner studs.
+      Its margin walker alone was wrong (2px, because it stops at the outer outline), so an
+      implausibly thin result now falls back to the measured structural fit
+      **3.5px + 0.07 x height** — the same formula `KitGeometry.FramePx` uses — which gives 10px
+      on that button and matches the art document's own measurement of it.
+      **So the measurement pass is now a tractable, boxes-then-confirm job rather than
+      pixel-hunting.** It remains gated on the licensing decision, since only slicing copies
+      pixels; recording coordinates does not.
 - [x] **`tools/kit_art/slice_sheets.py`** — cuts regions + margins out of `Example_Art/` into the
       layout `KitArt` reads, and appends a `PROVENANCE.txt` naming the source of every file.
 - [x] **Licensing enforced in the tool, not just documented.** It REFUSES `gameui2/3/7` (recorded

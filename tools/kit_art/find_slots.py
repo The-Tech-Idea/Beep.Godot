@@ -134,6 +134,59 @@ def regions(im, bg, tol, min_side, max_side):
     return out
 
 
+def tighten(im, rect, tol):
+    """Shrink a rough box onto the widget inside it.
+
+    Works where auto-segmentation does not, because it never has to SEPARATE widgets -- the human
+    already did that by drawing the box. It only has to find where the content stops, which it
+    does by walking each edge inward while that whole row or column stays close to the box's own
+    border colour (i.e. is still backdrop).
+    """
+    x, y, w, h = rect
+    px = im.load()
+    W, H = im.size
+    x = max(0, min(x, W - 2)); y = max(0, min(y, H - 2))
+    w = max(2, min(w, W - x)); h = max(2, min(h, H - y))
+
+    def row_is_edge(yy, ref):
+        n = same = 0
+        for xx in range(x, x + w, max(1, w // 60)):
+            n += 1
+            if near(px[xx, yy], ref, tol):
+                same += 1
+        return same >= n * 0.92
+
+    def col_is_edge(xx, ref):
+        n = same = 0
+        for yy in range(y, y + h, max(1, h // 60)):
+            n += 1
+            if near(px[xx, yy], ref, tol):
+                same += 1
+        return same >= n * 0.92
+
+    top_ref = px[x + w // 2, y]
+    bot_ref = px[x + w // 2, y + h - 1]
+    left_ref = px[x, y + h // 2]
+    right_ref = px[x + w - 1, y + h // 2]
+
+    t = y
+    while t < y + h // 2 and row_is_edge(t, top_ref):
+        t += 1
+    b = y + h - 1
+    while b > t + 2 and row_is_edge(b, bot_ref):
+        b -= 1
+    l = x
+    while l < x + w // 2 and col_is_edge(l, left_ref):
+        l += 1
+    r = x + w - 1
+    while r > l + 2 and col_is_edge(r, right_ref):
+        r -= 1
+    # One pixel back, so the widget's own outline is included rather than shaved off.
+    l = max(x, l - 1); t = max(y, t - 1)
+    r = min(x + w - 1, r + 1); b = min(y + h - 1, b + 1)
+    return l, t, r - l + 1, b - t + 1
+
+
 def margins(im, rect, tol):
     """Walk in from each edge along the centre lines until the colour settles: the frame."""
     x, y, w, h = rect
@@ -152,6 +205,16 @@ def margins(im, rect, tol):
     r = walk(x + w - 1, cy, -1, 0, max(3, w // 2))
     t = walk(cx, y, 0, 1, max(3, h // 2))
     b = walk(cx, y + h - 1, 0, -1, max(3, h // 2))
+    # The walker stops at the OUTER OUTLINE, not at the end of the frame: on rpgui's PLAY button
+    # it reports 2px where the art document measured the wood frame at 0.157 x height (~15px).
+    # So anything implausibly thin falls back to the measured structural-frame fit from
+    # citybuilder5, 3.5px + 0.07 x height, which is the same formula KitGeometry.FramePx uses.
+    floor = 3.5 + 0.07 * h
+    if l + r < floor:
+        l = r = max(l, int(round(floor)))
+    if t + b < floor:
+        t = b = max(t, int(round(floor)))
+
     # A 9-patch must keep a stretchable centre.
     l = min(l, max(2, w // 3)); r = min(r, max(2, w // 3))
     t = min(t, max(2, h // 3)); b = min(b, max(2, h // 3))
@@ -166,12 +229,35 @@ def main():
     ap.add_argument("--min", type=int, default=40, help="smallest widget side, px")
     ap.add_argument("--max", type=int, default=600, help="largest widget side, px")
     ap.add_argument("--out", help="write the --slot lines here as well as stdout")
+    ap.add_argument("--refine", help="x,y,w,h of a ROUGH box; tighten it and measure margins. "
+                                     "The way to work on textured sheets, where auto-segmentation "
+                                     "cannot separate widgets.")
+    ap.add_argument("--name", default="widget", help="widget name for the emitted --slot")
+    ap.add_argument("--slotname", default="base", help="slot name for the emitted --slot")
     args = ap.parse_args()
 
     src = os.path.join(ART, args.sheet + ".png")
     if not os.path.isfile(src):
         sys.exit(f"no such sheet: {src}")
     im = Image.open(src).convert("RGB")
+
+    if args.refine:
+        try:
+            rx, ry, rw, rh = (int(v) for v in args.refine.split(","))
+        except ValueError:
+            sys.exit("--refine wants x,y,w,h")
+        rect = tighten(im, (rx, ry, rw, rh), args.tol)
+        m = margins(im, rect, args.tol)
+        x, y, w, h = rect
+        print(f"{args.sheet}.png  rough {rx},{ry},{rw},{rh}  ->  tight {x},{y},{w},{h}")
+        print(f"margins {m}")
+        print(f"--slot {args.name}:{args.slotname}:{x},{y},{w},{h}:{m[0]},{m[1]},{m[2]},{m[3]}")
+        crop = im.crop((x, y, x + w, y + h))
+        out = os.path.join(HERE, f"refine_{args.sheet}_{args.name}.png")
+        crop.resize((w * 2, h * 2), Image.NEAREST).save(out)
+        print(f"preview: {out}  <- confirm this is the whole widget and nothing else")
+        return 0
+
     bg = background(im)
     found = regions(im, bg, args.tol, args.min, args.max)
     found.sort(key=lambda r: (r[1], r[0]))

@@ -32,6 +32,84 @@ namespace Beep.ECS.UI
     /// </summary>
     public static class SkinCatalog
     {
+        // ── Global art register ──────────────────────────────────────────────────────────
+        // PROJECT-WIDE, deliberately. These were [Export]s on ThemePresetComponent, so "does
+        // this game use heavy game-art chrome" was answered separately by every scene — 40-odd
+        // scene files each holding their own copy of one art direction, which had to be edited
+        // in lockstep and never was. A game has ONE art register; it is configured in one
+        // place, the same place the texture source already lives.
+        public const string SettingChrome     = "beep/ui/game_art_chrome";
+        public const string SettingOutline    = "beep/ui/game_art_outline";
+        public const string SettingShadow     = "beep/ui/game_art_shadow";
+        public const string SettingHudArt     = "beep/ui/hud_textures";
+        public const string SettingHudOpacity = "beep/ui/hud_plate_opacity";
+
+        private static bool _registerRead;
+        private static bool _chrome = true;
+        private static int _outline = 3;
+        private static int _shadow = 4;
+        private static bool _hudArt = true;
+        private static float _hudOpacity = 0.82f;
+
+        /// <summary>Heavy outline + drop shadow on every generated control. Off gives a flat,
+        /// minimal skin. See docs/GAME_UI_KIT_SPEC.md.</summary>
+        public static bool GameArtChrome { get { ReadRegister(); return _chrome; } }
+
+        /// <summary>Minimum outline weight in px; a genre's geometry profile may ask for more.</summary>
+        public static int GameArtOutline { get { ReadRegister(); return _outline; } }
+
+        /// <summary>Drop shadow size, applied only where the geometry profile asked for none.</summary>
+        public static int GameArtShadow { get { ReadRegister(); return _shadow; } }
+
+        /// <summary>Whether HUD chrome uses the shipped HUD art. Off keeps the procedural HUD
+        /// plates, which still follow the palette.</summary>
+        public static bool HudTextures { get { ReadRegister(); return _hudArt; } }
+
+        /// <summary>Opacity of HUD plates. Lower lets more of the world through.</summary>
+        public static float HudPlateOpacity { get { ReadRegister(); return _hudOpacity; } }
+
+        private static void ReadRegister()
+        {
+            if (_registerRead) return;
+            _registerRead = true;
+            if (ProjectSettings.HasSetting(SettingChrome))
+                _chrome = ProjectSettings.GetSetting(SettingChrome).AsBool();
+            if (ProjectSettings.HasSetting(SettingOutline))
+                _outline = Mathf.Clamp(ProjectSettings.GetSetting(SettingOutline).AsInt32(), 0, 8);
+            if (ProjectSettings.HasSetting(SettingShadow))
+                _shadow = Mathf.Clamp(ProjectSettings.GetSetting(SettingShadow).AsInt32(), 0, 12);
+            if (ProjectSettings.HasSetting(SettingHudArt))
+                _hudArt = ProjectSettings.GetSetting(SettingHudArt).AsBool();
+            if (ProjectSettings.HasSetting(SettingHudOpacity))
+                _hudOpacity = Mathf.Clamp((float)ProjectSettings.GetSetting(SettingHudOpacity).AsDouble(), 0.3f, 1f);
+        }
+
+        /// <summary>Re-read the global register — call after the dock changes a setting so a
+        /// live editor reflects it without a restart.</summary>
+        public static void RefreshRegisterSettings() { _registerRead = false; ReadRegister(); }
+
+        // ── Active skin ──────────────────────────────────────────────────────────────────
+        // A game has ONE genre, theme and palette. They live here, not on every scene's
+        // ThemePresetComponent, for the same reason the art register does: a per-scene copy
+        // drifts, and deciding which copy wins is a rule nobody should have to know.
+        public static string ActiveGenre { get; private set; } = "";
+        public static string ActiveTheme { get; private set; } = "";
+        public static string ActivePalette { get; private set; } = "";
+        public static string ActiveGeometry { get; private set; } = "";
+
+        /// <summary>True once a game has published its skin; until then components use their
+        /// own exported values, so a scene opened on its own in the editor still renders.</summary>
+        public static bool HasActiveSkin => !string.IsNullOrEmpty(ActiveGenre);
+
+        /// <summary>Publish the game's skin. Every ThemePresetComponent reads it.</summary>
+        public static void SetActiveSkin(string genre, string theme, string palette, string geometry)
+        {
+            ActiveGenre = genre ?? "";
+            ActiveTheme = theme ?? "";
+            ActivePalette = palette ?? "";
+            ActiveGeometry = geometry ?? "";
+        }
+
         private const string SkinsRoot = "res://addons/beep_game_builder_cs/catalogs/skins";
 
         private static Dictionary<string, GenreDef>? _genres;
@@ -416,6 +494,21 @@ namespace Beep.ECS.UI
             slots.SliderGrabber  = ParseTextureSlot(t, "slider_grabber", owner);
             slots.ScrollGrabber  = ParseTextureSlot(t, "scroll_grabber", owner);
             slots.Separator      = ParseTextureSlot(t, "separator", owner);
+
+            slots.HudPanel          = ParseTextureSlot(t, "hud_panel", owner);
+            slots.HudButtonNormal   = ParseTextureSlot(t, "hud_button_normal", owner);
+            slots.HudButtonHover    = ParseTextureSlot(t, "hud_button_hover", owner);
+            slots.HudButtonPressed  = ParseTextureSlot(t, "hud_button_pressed", owner);
+            slots.HudButtonDisabled = ParseTextureSlot(t, "hud_button_disabled", owner);
+            slots.HudButtonFocus    = ParseTextureSlot(t, "hud_button_focus", owner);
+            slots.HudTabNormal      = ParseTextureSlot(t, "hud_tab_normal", owner);
+            slots.HudTabSelected    = ParseTextureSlot(t, "hud_tab_selected", owner);
+            slots.HudSlotEmpty      = ParseTextureSlot(t, "hud_slot_empty", owner);
+            slots.HudSlotFilled     = ParseTextureSlot(t, "hud_slot_filled", owner);
+            slots.HudBarBg          = ParseTextureSlot(t, "hud_bar_bg", owner);
+            slots.HudBarFill        = ParseTextureSlot(t, "hud_bar_fill", owner);
+            slots.HudFrame          = ParseTextureSlot(t, "hud_frame", owner);
+            slots.HudTooltip        = ParseTextureSlot(t, "hud_tooltip", owner);
             return slots;
         }
 
@@ -442,6 +535,7 @@ namespace Beep.ECS.UI
                 StretchH     = Int(s, "axis_stretch_horizontal", 1),
                 StretchV     = Int(s, "axis_stretch_vertical", 1),
                 DrawCenter   = Bool(s, "draw_center", true),
+                Baked        = Bool(s, "baked", true),
                 Modulate     = HexColor(s, "modulate"),
                 ContentMarginLeft   = Float(s, "content_margin_left", -1f),
                 ContentMarginRight  = Float(s, "content_margin_right", -1f),
@@ -506,6 +600,13 @@ namespace Beep.ECS.UI
         /// <summary>Whether to paint the center tile (true) or just the 9-patch borders (false).</summary>
         public bool DrawCenter = true;
 
+        /// <summary>Whether <see cref="GameBuilder.BeepTextureBaker"/> may (re)generate this
+        /// slot's PNG. The baker draws a plain rounded box, which is the right default for a
+        /// theme whose art has never been authored — but it silently overwrites hand-drawn
+        /// art, and the baker is reachable from a dock button and an MCP command. Set
+        /// <c>"baked": false</c> in theme.json to mark a slot as authored and off-limits.</summary>
+        public bool Baked = true;
+
         /// <summary>Color tint applied over the texture.</summary>
         public Color Modulate = new(1, 1, 1, 1);
 
@@ -522,6 +623,105 @@ namespace Beep.ECS.UI
         /// warning would print hundreds of lines for one broken slot.</summary>
         private static readonly System.Collections.Generic.HashSet<string> _reportedMissing = new();
 
+        // ── Texture source selection ─────────────────────────────────────────────────────
+        // Which art a theme's slots actually load. The theme/skin system is unchanged: this
+        // only decides WHERE the PNG behind each slot comes from, so a developer can ship the
+        // built-in art, drop in their own, or run with no textures at all and keep the
+        // procedural StyleBoxFlat look.
+        public const string SettingSource = "beep/ui/texture_source";
+        public const string SettingRoot   = "beep/ui/texture_custom_root";
+
+        public enum SourceMode
+        {
+            /// <summary>Ignore every texture slot — pure procedural skin from theme colours.</summary>
+            None,
+            /// <summary>The art shipped in addons/.../textures (what theme.json points at).</summary>
+            BuiltIn,
+            /// <summary>The developer's own folder, per slot, falling back to built-in.</summary>
+            Custom,
+        }
+
+        private static bool _settingsRead;
+        private static SourceMode _source = SourceMode.BuiltIn;
+        private static string _customRoot = "";
+
+        public static SourceMode Source
+        {
+            get { ReadSettings(); return _source; }
+            set { _source = value; _settingsRead = true; _reportedMissing.Clear(); }
+        }
+
+        /// <summary>res:// folder holding replacement art. Layout may be either
+        /// <c>&lt;root&gt;/&lt;genre&gt;/&lt;theme&gt;/&lt;slot&gt;.png</c> (per-theme) or a flat
+        /// <c>&lt;root&gt;/&lt;slot&gt;.png</c> (one set for the whole project).</summary>
+        public static string CustomRoot
+        {
+            get { ReadSettings(); return _customRoot; }
+            set { _customRoot = value ?? ""; _settingsRead = true; _reportedMissing.Clear(); }
+        }
+
+        private static void ReadSettings()
+        {
+            if (_settingsRead) return;
+            _settingsRead = true;
+            if (ProjectSettings.HasSetting(SettingSource)
+                && System.Enum.TryParse<SourceMode>(ProjectSettings.GetSetting(SettingSource).AsString(), true, out var m))
+                _source = m;
+            if (ProjectSettings.HasSetting(SettingRoot))
+                _customRoot = ProjectSettings.GetSetting(SettingRoot).AsString() ?? "";
+        }
+
+        /// <summary>Re-read the project settings — call after the dock changes them so a live
+        /// editor reflects the new source without a restart.</summary>
+        public static void RefreshSourceSettings()
+        {
+            _settingsRead = false;
+            _reportedMissing.Clear();
+            ReadSettings();
+        }
+
+        /// <summary>The path this slot should actually load, after the source selection.
+        ///
+        /// Custom overrides are resolved PER SLOT and fall through to the built-in path when
+        /// the developer has not supplied that particular file — so replacing just the buttons
+        /// does not blank out panels, inputs and bars.</summary>
+        public string? ResolvePath()
+        {
+            ReadSettings();
+            if (_source == SourceMode.None) return null;
+
+            if (_source == SourceMode.Custom && !string.IsNullOrEmpty(_customRoot))
+            {
+                string root = _customRoot.TrimEnd('/');
+                foreach (string candidate in CustomCandidates(root))
+                    if (ResourceLoader.Exists(candidate)) return candidate;
+            }
+            return Path;
+        }
+
+        /// <summary>Where to look for a developer-supplied replacement, most specific first.
+        ///
+        /// HUD slots need their own layout: HUD art is per GENRE (the shape belongs to the
+        /// genre and the five themes recolour it via modulate), so it is stored as
+        /// <c>hud/&lt;genre&gt;/&lt;component&gt;.png</c> — not under a theme folder like the
+        /// menu slots. Without this branch a custom root silently resolved nothing for every
+        /// HUD slot and fell back to built-in art.</summary>
+        private System.Collections.Generic.IEnumerable<string> CustomCandidates(string root)
+        {
+            string genre = Owner.Contains('/') ? Owner[..Owner.IndexOf('/')] : Owner;
+
+            if (Slot.StartsWith("hud_"))
+            {
+                string component = Slot[4..];
+                yield return $"{root}/hud/{genre}/{component}.png";   // hud/rpg/button_normal.png
+                yield return $"{root}/hud/{component}.png";           // one HUD set for the project
+            }
+
+            yield return $"{root}/{Owner}/{Slot}.png";                // rpg/fantasy/button_normal.png
+            yield return $"{root}/{genre}/{Slot}.png";                // rpg/button_normal.png
+            yield return $"{root}/{Slot}.png";                        // flat: one set for everything
+        }
+
         /// <summary>Build the live StyleBoxTexture. Returns null if no texture_path
         /// is set OR the resource fails to load — callers fall back to procedural.
         ///
@@ -532,18 +732,19 @@ namespace Beep.ECS.UI
         /// naming theme, slot and path, then fall back.</summary>
         public StyleBoxTexture? BuildStyleBox()
         {
-            if (string.IsNullOrEmpty(Path)) return null;
-            if (!ResourceLoader.Exists(Path))
+            string? path = ResolvePath();
+            if (string.IsNullOrEmpty(path)) return null;
+            if (!ResourceLoader.Exists(path))
             {
-                if (_reportedMissing.Add(Path))
-                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}' points at '{Path}', which does not exist — falling back to the procedural box. Bake it (dock → Bake Textures, or beep.bake_textures) or clear texture_path in that theme.json.");
+                if (_reportedMissing.Add(path))
+                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}' points at '{path}', which does not exist — falling back to the procedural box. Bake it (dock → Bake Textures, or beep.bake_textures) or clear texture_path in that theme.json.");
                 return null;
             }
-            var tex = ResourceLoader.Load<Texture2D>(Path);
+            var tex = ResourceLoader.Load<Texture2D>(path);
             if (tex == null)
             {
-                if (_reportedMissing.Add(Path))
-                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}': '{Path}' exists but did not load as a Texture2D — falling back to the procedural box.");
+                if (_reportedMissing.Add(path))
+                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}': '{path}' exists but did not load as a Texture2D — falling back to the procedural box.");
                 return null;
             }
             var sb = new StyleBoxTexture { Texture = tex };
@@ -588,6 +789,30 @@ namespace Beep.ECS.UI
         public TextureSlotDef? SliderGrabber;
         public TextureSlotDef? ScrollGrabber;
         public TextureSlotDef? Separator;
+
+        // ── HUD slots ────────────────────────────────────────────────────────────────
+        // Deliberately a SEPARATE set from the menu slots above, not a tint of them. A menu
+        // plate is opaque and raised because it owns the screen; a HUD plate is translucent
+        // and flat because the game is behind it. And each HUD component carries its own
+        // shape, border and shadow — a hotbar slot is square, a minimap frame is round, a
+        // toolbar tab is rounded on top only — so they cannot share one master.
+        // See docs/HUD_TEXTURE_SYSTEM.md.
+        public TextureSlotDef? HudPanel;
+        public TextureSlotDef? HudButtonNormal, HudButtonHover, HudButtonPressed,
+                               HudButtonDisabled, HudButtonFocus;
+        public TextureSlotDef? HudTabNormal, HudTabSelected;
+        public TextureSlotDef? HudSlotEmpty, HudSlotFilled;
+        public TextureSlotDef? HudBarBg, HudBarFill;
+        public TextureSlotDef? HudFrame, HudTooltip;
+
+        /// <summary>True if this theme declares any HUD art. False routes HudMode to the
+        /// procedural HUD chrome instead, which is a complete look in its own right.</summary>
+        public bool AnyHudTexture =>
+            HudPanel != null || HudButtonNormal != null || HudButtonHover != null
+            || HudButtonPressed != null || HudButtonDisabled != null || HudButtonFocus != null
+            || HudTabNormal != null || HudTabSelected != null || HudSlotEmpty != null
+            || HudSlotFilled != null || HudBarBg != null || HudBarFill != null
+            || HudFrame != null || HudTooltip != null;
 
         /// <summary>True if any slot has a texture_path set.</summary>
         public bool AnyTexture =>

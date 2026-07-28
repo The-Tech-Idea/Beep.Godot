@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -59,7 +59,7 @@ horizontal_alignment = 1
 [node name="RetryRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
 [node name="RetryBonusButton" type="Button" parent="Center/Panel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 56)
+custom_minimum_size = Vector2(0, 44)
 text = "Retry with +5 Moves  ·  10 coins"
 metadata/action = "retry_bonus"
 
@@ -68,12 +68,12 @@ alignment = 1
 theme_override_constants/separation = 12
 
 [node name="QuitButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(150, 52)
+custom_minimum_size = Vector2(150, 44)
 text = "Quit to Map"
 metadata/action = "map"
 
 [node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
-custom_minimum_size = Vector2(150, 52)
+custom_minimum_size = Vector2(150, 44)
 text = "Retry"
 metadata/action = "retry"
 

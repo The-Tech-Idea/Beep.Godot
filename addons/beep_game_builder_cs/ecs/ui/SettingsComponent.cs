@@ -246,6 +246,7 @@ namespace Beep.ECS.UI
         public static readonly Vector2I[] Resolutions =
         {
             new(1280, 720),
+            new(1600, 900),
             new(1920, 1080),
             new(2560, 1440)
         };
@@ -294,6 +295,31 @@ namespace Beep.ECS.UI
 
         public bool HasKey(string section, string key) => _config.HasSectionKey(section, key);
         public void EraseSection(string section) => _config.EraseSection(section);
+
+        /// <summary>Put every typed setting back to its shipped default and apply it.
+        ///
+        /// Deleting user://settings.cfg by hand was previously the only way out of a bad
+        /// configuration — and a player who has made the game unreadable (or picked a
+        /// resolution their monitor cannot show) is exactly the player who cannot go
+        /// spelunking for a config file. Assigning through the properties, not the backing
+        /// fields, so each one persists and applies the way a normal edit would.
+        ///
+        /// Custom keys written through Set(section, key, …) are deliberately left alone:
+        /// this class does not know their defaults, so silently erasing them would lose
+        /// data it cannot restore. Clear those with EraseSection().</summary>
+        public void ResetToDefaults()
+        {
+            MasterVolume = 80f;
+            SfxVolume = 90f;
+            MusicVolume = 70f;
+            Fullscreen = false;
+            ResolutionIndex = 0;
+            Language = "en";
+            SubtitlesEnabled = true;
+            ScreenShakeEnabled = true;
+            DamageNumbersEnabled = true;
+            FlushSettings();
+        }
 
         // ════════════════════════════════════════════════════════════════
         // Helpers

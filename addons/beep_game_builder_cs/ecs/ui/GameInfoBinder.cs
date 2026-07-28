@@ -67,11 +67,18 @@ namespace Beep.ECS.UI
             // Theme + palette + geometry + skin — drive the sibling ThemePresetComponent from GameInfo/GameApp.
             if (Resolve<ThemePresetComponent>(parent, ThemeComponentPath, "ThemeComponentPath") is { } theme)
             {
-                // File-based: pass the genre + theme name directly. The catalog resolves it.
-                theme.GenreName = info.GenreId;
-                theme.PresetName = info.DefaultThemePreset.ToLowerInvariant();
-                theme.PaletteName = info.PaletteName;
-                theme.GeometryProfileName = info.GeometryProfileName;
+                // One game, one skin. The genre/theme/palette live in ONE global
+                // (SkinCatalog.ActiveGenre and friends); this just publishes them from
+                // GameInfo. No per-scene override, no rule about which wins.
+                SkinCatalog.SetActiveSkin(info.GenreId,
+                                          info.DefaultThemePreset.ToLowerInvariant(),
+                                          info.PaletteName,
+                                          info.GeometryProfileName);
+                // Re-apply explicitly. The component already themed itself in _Ready, before
+                // this ran, so publishing alone leaves it on its fallback skin — which is what
+                // made an rpg project render in platformer/modern. Assigning GenreName used to
+                // trigger this as a side effect of the setter; a plain global has no setter.
+                theme.ApplyTheme();
                 // Push the UISkin from GameApp if one is set there.
                 var app = GameApp.Instance;
                 if (app != null && app.Skin != null) theme.Skin = app.Skin;

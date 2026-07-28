@@ -11,7 +11,7 @@ namespace Beep.ECS.UI
     ///
     /// This single class replaces all 22 hardcoded ThemePreset*.cs classes.
     /// </summary>
-    internal sealed class FileThemePreset : IThemePreset
+    internal sealed class FileThemePreset : IThemePreset, IHudTexturePreset
     {
         private readonly ThemeDef _def;
 
@@ -92,5 +92,30 @@ namespace Beep.ECS.UI
             sb.BgColor = bg;
             return sb;
         }
-    }
+    
+        // ── HUD slots ────────────────────────────────────────────────────────────────
+        // Separate from the menu slots above: a HUD plate is translucent and flat where a
+        // menu plate is opaque and raised, and each HUD component carries its own shape,
+        // border and 9-patch margins. See docs/HUD_TEXTURE_SYSTEM.md.
+        public bool UsesHudTextures => _def.Textures?.AnyHudTexture ?? false;
+
+        public StyleBox? GetHudTexture(string slot) => slot switch
+        {
+            "panel"            => _def.Textures?.HudPanel?.BuildStyleBox(),
+            "button_normal"    => _def.Textures?.HudButtonNormal?.BuildStyleBox(),
+            "button_hover"     => _def.Textures?.HudButtonHover?.BuildStyleBox(),
+            "button_pressed"   => _def.Textures?.HudButtonPressed?.BuildStyleBox(),
+            "button_disabled"  => _def.Textures?.HudButtonDisabled?.BuildStyleBox(),
+            "button_focus"     => _def.Textures?.HudButtonFocus?.BuildStyleBox(),
+            "tab_normal"       => _def.Textures?.HudTabNormal?.BuildStyleBox(),
+            "tab_selected"     => _def.Textures?.HudTabSelected?.BuildStyleBox(),
+            "slot_empty"       => _def.Textures?.HudSlotEmpty?.BuildStyleBox(),
+            "slot_filled"      => _def.Textures?.HudSlotFilled?.BuildStyleBox(),
+            "bar_bg"           => _def.Textures?.HudBarBg?.BuildStyleBox(),
+            "bar_fill"         => _def.Textures?.HudBarFill?.BuildStyleBox(),
+            "frame"            => _def.Textures?.HudFrame?.BuildStyleBox(),
+            "tooltip"          => _def.Textures?.HudTooltip?.BuildStyleBox(),
+            _                  => null,
+        };
+}
 }

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
@@ -13,6 +13,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/LevelLoaderComponent.cs" id="10_loader"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/levels/topdown/level_1.tscn" id="lvl_1"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/levels/topdown/level_2.tscn" id="lvl_2"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/CollapsiblePanelComponent.cs" id="collapsible"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_24x24"]
 size = Vector2(24, 24)
@@ -87,13 +90,12 @@ custom_minimum_size = Vector2(0, 60)
 bbcode_enabled = true
 text = "Dialog text appears here."
 
-[node name="UI" type="CanvasLayer" parent="."]
-
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("4_flow")
 PauseMenuPathOverride = "res://scenes/ui/topdown/pause_subscreen.tscn"
 
 [node name="HUD" type="CanvasLayer" parent="."]
+layer = 1
 
 [node name="Root" type="Control" parent="HUD"]
 anchors_preset = 15
@@ -106,6 +108,7 @@ mouse_filter = 2
 [node name="Theme" type="Node" parent="HUD/Root"]
 script = ExtResource("hud_theme")
 GenreName = "topdown"
+HudMode = true
 
 [node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 1
@@ -116,14 +119,25 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("9_forecast")
 
+[node name="StatsFrame" type="Control" parent="HUD/Root"]
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 20.0
+grow_vertical = 1
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Status"
+Banner = 1
+TargetPath = NodePath("../TopLeft")
+
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
 offset_bottom = 40.0
-grow_vertical = 0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
+grow_vertical = 1
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 50
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
@@ -153,3 +167,7 @@ PlayerPath = NodePath("../../../Player")
 
 [node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("20_hud")
+
+[node name="GameInfoBinder" type="Node" parent="HUD/Root"]
+script = ExtResource("binder_gi")
+ThemeComponentPath = NodePath("Theme")

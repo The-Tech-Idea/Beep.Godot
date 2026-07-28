@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ScreenshotProbe.cs" id="1_probe"]
+
+[node name="Probe" type="Node"]
+script = ExtResource("1_probe")
+ScenePath = "res://addons/beep_game_builder_cs/templates/scenes/settings_menu.tscn"
+OutPath = "res://probe_out.png"
+TabPath = "Tabs"

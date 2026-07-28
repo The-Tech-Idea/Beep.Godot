@@ -14,8 +14,10 @@ namespace Beep.ECS.UI
         public string TooltipText { get; set; } = "";
         [Export] public float ShowDelay { get; set; } = 0.5f;
         [Export] public Vector2 Offset { get; set; } = new(10, -10);
-        [Export] public Color BgColor { get; set; } = new(0.05f, 0.05f, 0.1f, 0.9f);
-
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color BgColor => UiSurface.Of(this);
         [Signal] public delegate void TooltipShownEventHandler();
         [Signal] public delegate void TooltipHiddenEventHandler();
 
@@ -63,7 +65,7 @@ namespace Beep.ECS.UI
             _tooltipPanel = new Panel { TopLevel = true };
             var label = new Label { Text = TooltipText, AutowrapMode = TextServer.AutowrapMode.Word };
             label.AddThemeColorOverride("font_color", Colors.White);
-            label.AddThemeFontSizeOverride("font_size", 12);
+            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
 
             var margin = new MarginContainer();
             margin.AddThemeConstantOverride("margin_left", 8);

@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// Used by <see cref="ThemePresetComponent"/> when a palette is selected, so the
     /// component's existing StyleBox/theme assembly code runs unchanged but on tinted output.
     /// </summary>
-    internal sealed class PaletteTintedPreset : IThemePreset
+    internal sealed class PaletteTintedPreset : IThemePreset, IHudTexturePreset
     {
         private readonly IThemePreset _inner;
         private readonly ColorPalette _palette;
@@ -70,5 +70,11 @@ namespace Beep.ECS.UI
             // Tint any non-white, non-transparent content margins? No — those are sizes.
             return sb;
         }
-    }
+    
+        // Forwarded, not re-tinted: HUD art already carries its own modulate from theme.json,
+        // and a palette tint on top would be the double-tint this system exists to avoid.
+        public bool UsesHudTextures => _inner is IHudTexturePreset h && h.UsesHudTextures;
+        public StyleBox? GetHudTexture(string slot)
+            => _inner is IHudTexturePreset h ? h.GetHudTexture(slot) : null;
+}
 }

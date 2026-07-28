@@ -3,10 +3,10 @@
   "display_name": "City Builder",
   "corner_radius": 7,
   "border_width": 1,
-  "shadow_size": 9,
+  "shadow_size": 6,
   "shadow_offset_y": 3,
-  "content_padding": 14,
-  "font_size": 17,
+  "content_padding": 10,
+  "font_size": 16,
   "background_image": "res://addons/beep_game_builder_cs/textures/backgrounds/city_grid.png",
   "background_mode": "tile",
   "shapes": {

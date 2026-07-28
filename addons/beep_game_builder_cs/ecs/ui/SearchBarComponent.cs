@@ -41,7 +41,7 @@ namespace Beep.ECS.UI
             hbox.AddThemeConstantOverride("separation", 0);
 
             var icon = new Label { Text = "🔍", VerticalAlignment = VerticalAlignment.Center };
-            icon.AddThemeFontSizeOverride("font_size", 14);
+            icon.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.00f));
             icon.CustomMinimumSize = new Vector2(32, 36);
 
             _input = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };

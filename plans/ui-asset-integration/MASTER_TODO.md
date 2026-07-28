@@ -107,3 +107,45 @@ from us (nothing to import); the dev's own art triggers the import/`.uid` on the
 - `docs/FILE_FORMATS.md:230-279` — the `textures{}` / `TextureSlotDef` schema (the contract this
   initiative writes against).
 - `docs/SKIN_SYSTEM.md` — the add-a-theme cookbook; this initiative is "add textures to a theme."
+
+---
+
+## Phase 6 — HUD slots (added 2026-07-26)
+
+The menu slots (Phases 1–5) skin *menus*. A HUD is a different problem: it sits on the
+gameplay, so its plates must be translucent and flat, and **each HUD component needs its own
+texture** — a button, a tab, an inventory cell, a meter and a frame have different shapes,
+different baked borders/shadows and different 9-patch margins. Full model in
+`docs/HUD_TEXTURE_SYSTEM.md`.
+
+- [x] **14 HUD slots** defined per component: `hud_panel`, `hud_button_{normal,hover,pressed,
+      disabled,focus}`, `hud_tab_{normal,selected}`, `hud_slot_{empty,filled}`,
+      `hud_bar_{bg,fill}`, `hud_frame`, `hud_tooltip`
+- [x] **Schema** — `ThemeTextureSlots` + `ParseTextures` keys + `AnyHudTexture`
+      (`ecs/ui/SkinCatalog.cs`)
+- [x] **Generated fallback** — `tools/hud_textures/bake_hud_masters.py`, 140 greyscale masters
+      (10 genres × 14 components, 252 KB). Per-genre shape language; palette via modulate.
+- [x] **Real art** — `import_kenney_hud.py` maps all 14 slots × 10 genres onto the CC0 packs.
+      **140/140 resolved, 0 misses.** Copies over the masters in place; any unmatched slot
+      keeps its master so nothing goes blank.
+- [x] **Modulate correctness** — importer rewrites `modulate` to white+alpha, because real art
+      is already coloured and the greyscale-master accent would tint it twice.
+- [x] **Texture source selector** — `beep/ui/texture_source` + `beep/ui/texture_custom_root`,
+      resolved per slot in `TextureSlotDef.ResolvePath()`, UI in dock §5.
+      Built-in / My own folder / None.
+- [ ] **`HudMode` consumption** — `ThemePresetComponent.HudMode` currently generates procedural
+      HUD chrome; it does not yet read the `hud_*` slots. This is the remaining gap between
+      "the art is imported" and "the art is on screen".
+- [ ] Asymmetric 9-patch margins for tabs; `expand_margin` for baked shadows
+- [ ] Weak mappings to revisit: rpg/cardgame `tab_normal`, `slot_empty`
+
+**Scope note — resolved.** The addon ships **only** the 140 generated masters (252 KB,
+first-party). No Kenney art remains in it. `import_kenney_hud.py --dest <your project>/ui_textures`
+puts real art in the developer's own project, with `KENNEY_LICENSE.txt` alongside it, and the
+project selects it via Game tab section 5 -> Texture source -> "My own textures". Phase 1's
+"ship the feature, not the art" therefore holds for third-party assets, while the generated
+fallback keeps a fresh install working with no setup.
+
+Verified: addon `textures/hud` = 140 generated, 0 Kenney files; each game project
+`ui_textures/hud` = 140 real Kenney pngs; addon modulate `#D3A83DFF` (accent, tints the
+greyscale master) vs project modulate `#FFFFFFEA` (white, leaves real art alone).

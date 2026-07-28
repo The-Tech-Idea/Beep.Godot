@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -62,7 +62,6 @@ value = 100.0
 show_percentage = false
 
 [node name="HealthLabel" type="Label" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
-theme_type_variation = &"BeepCaption"
 text = "Enemy Health: 50 / 50"
 
 [node name="ForfeitButton" type="Button" parent="Root/Margin/VBox/TopBar"]
@@ -94,7 +93,6 @@ vertical_alignment = 1
 theme_override_constants/separation = 10
 
 [node name="HandLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
-theme_type_variation = &"BeepCaption"
 text = "Your Hand: 5 cards"
 
 [node name="BottomRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomArea"]
@@ -143,7 +141,7 @@ custom_minimum_size = Vector2(100, 140)
 custom_minimum_size = Vector2(100, 140)
 
 [node name="EndTurnButton" type="Button" parent="Root/Margin/VBox/BottomArea/BottomRow"]
-custom_minimum_size = Vector2(170, 56)
+custom_minimum_size = Vector2(170, 44)
 size_flags_vertical = 8
 text = "End Turn"
 

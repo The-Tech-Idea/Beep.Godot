@@ -11,7 +11,10 @@ namespace Beep.ECS.UI
     public partial class BadgeComponent : UIComponent
     {
         [Export] public int Count { get; set; } = 0;
-        [Export] public Color BadgeColor { get; set; } = new(0.9f, 0.2f, 0.2f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color BadgeColor => UiSurface.Semantic(this, UiSurface.Role.Danger);
         [Export] public Vector2 Position { get; set; } = new(0, -8);
         [Export] public int MaxDisplay { get; set; } = 99;
 
@@ -38,7 +41,7 @@ namespace Beep.ECS.UI
             if (_control == null) return;
 
             _badgePanel = new Panel();
-            _badgePanel.CustomMinimumSize = new Vector2(22, 22);
+            _badgePanel.CustomMinimumSize = new Vector2(UiSurface.FontSize(this) * 1.6f, UiSurface.FontSize(this) * 1.6f);
             _badgePanel.Size = new Vector2(22, 22);
             _badgePanel.Position = Position;
 

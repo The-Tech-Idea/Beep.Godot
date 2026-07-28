@@ -12,7 +12,10 @@ namespace Beep.ECS.UI
     {
         [Export] public double DurationSeconds { get; set; } = 120.0;
         [Export] public string Prefix { get; set; } = "";
-        [Export] public int FontSize { get; set; } = 18;
+        // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
+        // literal renders a genre's larger type out of a control built for 14.
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.3f;
+        private int FontSize => UiSurface.FontSize(this, FontScale);
         [Export] public bool AutoStart { get; set; } = false;
 
         [Signal] public delegate void TimeUpEventHandler();

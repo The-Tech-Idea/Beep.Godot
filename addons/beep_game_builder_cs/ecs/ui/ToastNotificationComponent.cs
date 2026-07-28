@@ -83,7 +83,7 @@ namespace Beep.ECS.UI
             var label = new Label { Text = $"{icon}  {message}", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             label.AddThemeColorOverride("font_color", Colors.White);
-            label.AddThemeFontSizeOverride("font_size", 13);
+            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.93f));
             toast.AddChild(label);
 
             // Stack existing toasts up (guard: entries are pruned on dismiss, but stay defensive).

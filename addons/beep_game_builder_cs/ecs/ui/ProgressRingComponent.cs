@@ -21,8 +21,15 @@ namespace Beep.ECS.UI
         }
         [Export] public float MaxValue { get; set; } = 1f;
         [Export] public float RingThickness { get; set; } = 6f;
-        [Export] public Color RingColor { get; set; } = new(0.3f, 0.6f, 1f, 1f);
-        [Export] public Color BgColor { get; set; } = new(0.15f, 0.15f, 0.2f, 1f);
+        // The ring is the theme's accent and its track the ink derived from the surface it
+        // sits on, instead of a fixed blue on a fixed near-black.
+        /// <summary>What this ring MEANS. Callers set a role, not a colour, so a buff ring and
+        /// a debuff ring stay green and red under a skin that redefines what green and red are.
+        /// This is the same shape as ResourceBadgeComponent.Accent.</summary>
+        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Accent;
+
+        private Color RingColor => UiSurface.Semantic(this, Accent);
+        private Color BgColor => UiSurface.Ink(UiSurface.Of(this));
         [Export] public float AnimSpeed { get; set; } = 3f;
 
         [Signal] public delegate void ValueChangedEventHandler(float value);

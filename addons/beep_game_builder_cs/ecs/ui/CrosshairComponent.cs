@@ -14,7 +14,9 @@ namespace Beep.ECS.UI
         public enum CrosshairStyle { Cross, Dot, Circle, CrossDot }
 
         [Export] public CrosshairStyle Style { get; set; } = CrosshairStyle.Cross;
-        [Export] public Color Color { get; set; } = new(1, 1, 1, 0.9f);
+        // Palette-derived, not literals — see UiSurface. Computed, so a skin change is
+        // picked up with no invalidation step.
+        public Color Color => UiSurface.Text(this) with { A = 0.9f };
         [Export] public float Size { get; set; } = 10f;
         [Export] public float Thickness { get; set; } = 2f;
         [Export] public float MinSpread { get; set; } = 2f;

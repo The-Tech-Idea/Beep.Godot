@@ -1,8 +1,20 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/citybuilder/Economy.cs" id="3_script"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_income.png" id="4_income"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_expense.png" id="5_expense"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_treasury.png" id="6_treasury"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_residential.png" id="7_residential"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_commercial.png" id="8_commercial"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_park.png" id="9_park"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_house.png" id="10_house"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_power.png" id="11_power"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_happiness.png" id="12_happiness"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+
+[sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="Economy" type="Control"]
 anchors_preset = 15
@@ -28,7 +40,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 28
+theme_override_constants/margin_top = 46
 theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
@@ -43,6 +55,7 @@ text = "Economy"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
+visible = false
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Back"
@@ -56,6 +69,14 @@ size_flags_vertical = 3
 [node name="IncomePanel" type="PanelContainer" parent="Margin/VBox/Body"]
 size_flags_horizontal = 3
 
+theme_override_styles/panel = SubResource("frame_plate")
+[node name="Frame" type="Control" parent="Margin/VBox/Body/IncomePanel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Economy"
+Banner = 0
+
 [node name="IncomeMargin" type="MarginContainer" parent="Margin/VBox/Body/IncomePanel"]
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_right = 20
@@ -65,39 +86,72 @@ theme_override_constants/margin_bottom = 16
 [node name="IncomeVBox" type="VBoxContainer" parent="Margin/VBox/Body/IncomePanel/IncomeMargin"]
 theme_override_constants/separation = 12
 
-[node name="IncomeHeading" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
+[node name="IncomeHeadingRow" type="HBoxContainer" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
+theme_override_constants/separation = 10
+
+[node name="IncomeHeadingIcon" type="TextureRect" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeHeadingRow"]
+custom_minimum_size = Vector2(28, 28)
+size_flags_vertical = 4
+texture = ExtResource("4_income")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IncomeHeading" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeHeadingRow"]
 theme_type_variation = &"BeepSubtitle"
 text = "Income"
+size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="IncomeGrid" type="GridContainer" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox"]
-theme_override_constants/h_separation = 24
+theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 12
-columns = 2
+columns = 3
 
-[node name="TaxCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="TaxIcon" type="TextureRect" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("7_residential")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TaxLabel" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 text = "Residential tax"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="TaxValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 theme_type_variation = &"BeepValue"
 text = "+2,400"
 horizontal_alignment = 2
 
-[node name="TradeCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="TradeIcon" type="TextureRect" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("8_commercial")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TradeLabel" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 text = "Trade"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="TradeValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 theme_type_variation = &"BeepValue"
 text = "+1,150"
 horizontal_alignment = 2
 
-[node name="TourismCaption" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="TourismIcon" type="TextureRect" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("9_park")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TourismLabel" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 text = "Tourism"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="TourismValue" type="Label" parent="Margin/VBox/Body/IncomePanel/IncomeMargin/IncomeVBox/IncomeGrid"]
 theme_type_variation = &"BeepValue"
@@ -119,39 +173,72 @@ theme_override_constants/margin_bottom = 16
 [node name="ExpenseVBox" type="VBoxContainer" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin"]
 theme_override_constants/separation = 12
 
-[node name="ExpenseHeading" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
+[node name="ExpenseHeadingRow" type="HBoxContainer" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
+theme_override_constants/separation = 10
+
+[node name="ExpenseHeadingIcon" type="TextureRect" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseHeadingRow"]
+custom_minimum_size = Vector2(28, 28)
+size_flags_vertical = 4
+texture = ExtResource("5_expense")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ExpenseHeading" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseHeadingRow"]
 theme_type_variation = &"BeepSubtitle"
 text = "Expenses"
+size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="ExpenseGrid" type="GridContainer" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox"]
-theme_override_constants/h_separation = 24
+theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 12
-columns = 2
+columns = 3
 
-[node name="UpkeepCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="UpkeepIcon" type="TextureRect" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("10_house")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="UpkeepLabel" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 text = "Upkeep"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="UpkeepValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 theme_type_variation = &"BeepValue"
 text = "-1,800"
 horizontal_alignment = 2
 
-[node name="PowerCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="PowerIcon" type="TextureRect" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("11_power")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PowerLabel" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 text = "Power"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="PowerValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 theme_type_variation = &"BeepValue"
 text = "-640"
 horizontal_alignment = 2
 
-[node name="ServicesCaption" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
-theme_type_variation = &"BeepCaption"
+[node name="ServicesIcon" type="TextureRect" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
+custom_minimum_size = Vector2(24, 24)
+size_flags_vertical = 4
+texture = ExtResource("12_happiness")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ServicesLabel" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 text = "Services"
 size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="ServicesValue" type="Label" parent="Margin/VBox/Body/ExpensePanel/ExpenseMargin/ExpenseVBox/ExpenseGrid"]
 theme_type_variation = &"BeepValue"
@@ -170,10 +257,16 @@ theme_override_constants/margin_top = 14
 theme_override_constants/margin_bottom = 14
 
 [node name="TotalRow" type="HBoxContainer" parent="Margin/VBox/TotalPanel/TotalMargin"]
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
-[node name="TreasuryCaption" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
-theme_type_variation = &"BeepCaption"
+[node name="TreasuryIcon" type="TextureRect" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+custom_minimum_size = Vector2(32, 32)
+size_flags_vertical = 4
+texture = ExtResource("6_treasury")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TreasuryLabel" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
 text = "Treasury"
 vertical_alignment = 1
 
@@ -183,8 +276,14 @@ text = "50,000"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
-[node name="NetCaption" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
-theme_type_variation = &"BeepCaption"
+[node name="NetIcon" type="TextureRect" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
+custom_minimum_size = Vector2(28, 28)
+size_flags_vertical = 4
+texture = ExtResource("4_income")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NetLabel" type="Label" parent="Margin/VBox/TotalPanel/TotalMargin/TotalRow"]
 text = "Net per month"
 vertical_alignment = 1
 

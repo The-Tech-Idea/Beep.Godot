@@ -12,10 +12,16 @@ namespace Beep.ECS.UI
     public partial class ComboCounterComponent : UIComponent
     {
         [Export] public float ResetTime { get; set; } = 2f;
-        [Export] public int BaseFontSize { get; set; } = 36;
-        [Export] public int MaxFontSize { get; set; } = 64;
-        [Export] public Color ComboColor { get; set; } = new(1f, 0.8f, 0.2f, 1f);
-
+        // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
+        // literal renders a genre's larger type out of a control built for 14.
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float BaseFontScale { get; set; } = 2.6f;
+        private int BaseFontSize => UiSurface.FontSize(this, BaseFontScale);
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float MaxFontScale { get; set; } = 4.6f;
+        private int MaxFontSize => UiSurface.FontSize(this, MaxFontScale);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color ComboColor => UiSurface.Semantic(this, UiSurface.Role.Warning);
         [Signal] public delegate void ComboChangedEventHandler(int count);
         [Signal] public delegate void ComboResetEventHandler();
 

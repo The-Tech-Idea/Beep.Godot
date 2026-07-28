@@ -11,8 +11,11 @@ namespace Beep.ECS.UI
     public partial class SkeletonLoaderComponent : UIComponent
     {
         [Export] public float ShimmerSpeed { get; set; } = 2f;
-        [Export] public Color BaseColor { get; set; } = new(0.18f, 0.18f, 0.22f, 1f);
-        [Export] public Color ShimmerColor { get; set; } = new(0.25f, 0.25f, 0.3f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color BaseColor => UiSurface.Ink(UiSurface.Of(this));
+        public Color ShimmerColor => UiSurface.Of(this);
         [Export] public bool AutoPlay { get; set; } = true;
 
         private Godot.Control? _control;

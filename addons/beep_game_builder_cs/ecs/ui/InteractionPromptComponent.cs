@@ -12,7 +12,10 @@ namespace Beep.ECS.UI
     public partial class InteractionPromptComponent : UIComponent
     {
         [Export] public string DefaultText { get; set; } = "Press E";
-        [Export] public int FontSize { get; set; } = 16;
+        // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
+        // literal renders a genre's larger type out of a control built for 14.
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.15f;
+        private int FontSize => UiSurface.FontSize(this, FontScale);
         [Export] public float FadeDuration { get; set; } = 0.15f;
 
         private Label? _label;

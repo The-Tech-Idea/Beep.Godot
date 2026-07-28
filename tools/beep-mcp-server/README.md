@@ -62,11 +62,20 @@ Two folders and one script:
 1. Copy **`addons/godot_mcp`** and **`tools/beep-mcp-server`** into your game.
 2. In your game, run `tools/beep-mcp-server/setup.cmd` (Windows — double-click works)
    or `./setup.sh`.
-3. In your game folder: `claude` — say yes when it asks about `beep-godot`.
+3. In your game folder: `claude`. No prompt, no approval — it is already registered.
 
-`setup` writes `.mcp.json`, creates a `.csproj` if the game has none, enables the
-plugins, turns on Claude's write permission, and builds. Add `--no-writes` for
-look-but-don't-touch.
+`setup` registers the server with Claude, creates a `.csproj` if the game has none,
+enables the plugins, turns on Claude's write permission, and builds. Add `--no-writes`
+for look-but-don't-touch.
+
+> **Why not `.mcp.json`?** It is the obvious choice and it is the wrong one here. A
+> project-scoped `.mcp.json` sits at `⏸ Pending approval` until you accept a workspace
+> trust dialog *and* an approval prompt — which reads as "nothing happened". `setup`
+> uses **local scope** instead (`claude mcp add --scope local`): stored in
+> `~/.claude.json` under this game's own path, so it loads in this game, stays invisible
+> in your other games, and needs no approval. Do **not** switch it to `--scope user` —
+> that is one shared entry across every project, and your second game would overwrite
+> the first.
 
 > **The `.csproj` is not optional.** `godot_mcp` is C#, and a Godot project without a
 > `.csproj` compiles nothing — so the addon sits there completely inert, with no error
@@ -93,9 +102,11 @@ Writes are refused until you enable `godot_mcp/security/allow_editor_writes` (an
 
 ### Two things must be true
 
-1. **Claude has the server.** Open the project in Claude Code, approve `beep-godot` when
-   prompted, confirm with `/mcp`. (If you added `.mcp.json` while Claude was already
-   running, restart it — servers are read at startup.)
+1. **Claude has the server.** `claude mcp list` should show `beep-godot` — run it from the
+   game folder, since local scope is per-directory. Confirm in a session with `/mcp`.
+   (If you ran `setup` while Claude was already running, restart it — servers are read at
+   startup.) A `⏸ Pending approval` line means a stray `.mcp.json` is shadowing it;
+   `claude mcp remove beep-godot -s project` clears that.
 2. **Godot is open on this project.** The addon dials the server every 2s, so order does
    not matter; whichever starts second connects.
 

@@ -152,7 +152,7 @@ namespace Beep.ECS.UI
                 FitContent = true,
                 ScrollFollowing = true,
                 SizeFlagsVertical = Godot.Control.SizeFlags.ExpandFill,
-                CustomMinimumSize = new Vector2(0, 40)
+                CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.9f)
             };
             vbox.AddChild(_textLabel);
 
@@ -166,7 +166,7 @@ namespace Beep.ECS.UI
                 Text = "▼",
                 HorizontalAlignment = HorizontalAlignment.Right
             };
-            _continueIndicator.AddThemeFontSizeOverride("font_size", 11);
+            _continueIndicator.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.79f));
             vbox.AddChild(_continueIndicator);
 
             ApplyAnchors();

@@ -12,7 +12,10 @@ namespace Beep.ECS.UI
     public partial class BossHealthBarComponent : UIComponent
     {
         [Export] public int PhaseCount { get; set; } = 3;
-        [Export] public Color BarColor { get; set; } = new(0.8f, 0.1f, 0.1f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color BarColor => UiSurface.Semantic(this, UiSurface.Role.Danger);
         /// <summary>The name shown above the bar. Settable at runtime — updates the label live.</summary>
         [Export] public string BossName
         {
@@ -41,12 +44,12 @@ namespace Beep.ECS.UI
             _bar = new ProgressBar
             {
                 Name = "BossBar",
-                CustomMinimumSize = new Vector2(600, 24),
+                CustomMinimumSize = new Vector2(600, UiSurface.FontSize(this) * 1.7f),
                 ShowPercentage = false,
                 Visible = false
             };
             _nameLabel = new Label { Name = "BossName", Text = _bossName, HorizontalAlignment = HorizontalAlignment.Center };
-            _nameLabel.AddThemeFontSizeOverride("font_size", 18);
+            _nameLabel.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.29f));
 
             _vbox = new VBoxContainer();
             _vbox.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);

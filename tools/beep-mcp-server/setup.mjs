@@ -6,14 +6,14 @@
  * when you copy that folder into your game. The game is two directories up.
  *
  * What it does, all of which is otherwise manual:
- *   1. writes .mcp.json               so Claude finds this server
- *   2. creates a .csproj if missing   without one the C# addon NEVER LOADS, silently
- *   3. enables the addon plugins
- *   4. turns on allow_editor_writes   so Claude can edit (the bridge cannot set this
+ *   1. creates a .csproj if missing   without one the C# addon NEVER LOADS, silently
+ *   2. enables the addon plugins
+ *   3. turns on allow_editor_writes   so Claude can edit (the bridge cannot set this
  *                                     itself — setting it is a write)
- *   5. runs dotnet build              so the addon is live immediately
+ *   4. runs dotnet build              so the addon is live immediately
+ *   5. registers with Claude          local scope: this game only, no approval prompt
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync, cpSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -42,30 +42,7 @@ if (!existsSync(join(GAME, "addons", "godot_mcp"))) {
 
 const did = [];
 
-// 1. .mcp.json — merged, never clobbered: the game may have other MCP servers.
-{
-  const p = join(GAME, ".mcp.json");
-  let cfg = { mcpServers: {} };
-  if (existsSync(p)) {
-    try {
-      cfg = JSON.parse(readFileSync(p, "utf8"));
-      cfg.mcpServers ??= {};
-    } catch {
-      cpSync(p, p + ".bak");
-      console.log("  ! existing .mcp.json was not valid JSON — kept a copy as .mcp.json.bak");
-      cfg = { mcpServers: {} };
-    }
-  }
-  cfg.mcpServers["beep-godot"] = {
-    command: "node",
-    args: ["tools/beep-mcp-server/prepare-and-start.mjs"],
-    env: {},
-  };
-  writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
-  did.push(".mcp.json");
-}
-
-// 2 + 3 + 4. project.godot and the C# project.
+// 1. project.godot and the C# project.
 {
   const file = join(GAME, "project.godot");
   let text = readFileSync(file, "utf8");
@@ -137,10 +114,42 @@ const did = [];
   }
 }
 
+// 6. Register with Claude, LOCAL scope.
+//
+// Scope matters here and the wrong one causes real damage:
+//   user    — one entry for ALL projects. Two games would fight over the name and
+//             whichever registered last would win. Never use it for this.
+//   project — the .mcp.json above. Correct, but it sits at "Pending approval" until
+//             you accept a workspace-trust dialog AND an approval prompt. That is
+//             exactly why running setup looked like it did nothing.
+//   local   — stored in ~/.claude.json under THIS game's path. Loads only in this
+//             game, invisible in the others, and needs no approval. This one.
+//
+// cwd must be GAME: local scope keys off the current directory.
+{
+  const entry = join(GAME, "tools", "beep-mcp-server", "prepare-and-start.mjs");
+  // `claude` is a .cmd shim on Windows, so it needs a shell. Pass ONE command string
+  // rather than shell:true plus an args array — that combination prints a DEP0190
+  // deprecation warning, which looks like a failure to anyone reading the output.
+  const sh = (cmd) => spawnSync(cmd, { cwd: GAME, stdio: ["ignore", "pipe", "pipe"], shell: true });
+  const addCmd = `claude mcp add --scope local beep-godot -- node "${entry}"`;
+
+  const probe = sh("claude --version");
+  if (probe.error || probe.status !== 0) {
+    console.log("  ! 'claude' is not on PATH — install Claude Code, then run this again.");
+  } else {
+    // Remove first so re-running updates the path instead of erroring on a duplicate.
+    sh("claude mcp remove --scope local beep-godot");
+    if (sh(addCmd).status === 0) did.push("registered with Claude");
+    else {
+      console.log("  ! could not register with Claude automatically. Run this yourself:");
+      console.log(`      ${addCmd}`);
+    }
+  }
+}
+
 console.log(`  Done (${did.join(", ")}).
 
-  Now, in THIS folder:
-      claude
-  and say YES when it asks about 'beep-godot'.
+  Now run:  claude
 `);
 if (noWrites) console.log("  Claude can look but not edit (--no-writes).\n");

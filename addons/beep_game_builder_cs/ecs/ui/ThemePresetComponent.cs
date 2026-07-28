@@ -34,7 +34,11 @@ namespace Beep.ECS.UI
 			// so those dropdowns re-cascade.
 			set { if (_genreName == value) return; _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
 		}
-		private string _genreName = "platformer";
+		/// <summary>Genre a component starts on. A scene still holding this is treated as
+		/// "not chosen", so GameInfoBinder may replace it with the project's genre; anything
+		/// else is the scene's deliberate choice and is left alone.</summary>
+		public const string DefaultGenre = "platformer";
+		private string _genreName = DefaultGenre;
 
 		[Export] public bool EnableAnimations { get; set; } = true;
 		[Export] public bool EnableRippleOnClick { get; set; } = true;
@@ -148,6 +152,33 @@ namespace Beep.ECS.UI
 		[Export] public bool UseScrollBarTextures { get; set; } = true;
 		[Export] public bool UseSeparatorTextures { get; set; } = true;
 
+		/// <summary>Generate HUD chrome instead of menu chrome for this subtree.
+		///
+		/// A menu skin is opaque, bevelled and raised because it owns the whole screen. A HUD
+		/// sits ON the gameplay: it has to let the world through, stay flat so it never competes
+		/// with the game, and signal state with accent colour rather than a pressed 3D plate.
+		/// Without this the in-game HUD is generated in the settings-dialog skin — the same
+		/// textured 9-patch buttons and the same opaque page background — which is exactly why
+		/// it reads as an application toolbar rather than a game interface.
+		///
+		/// Same palette, same typography, different furniture. Set this on the
+		/// ThemePresetComponent that lives under a HUD CanvasLayer.</summary>
+		// The game-art register is PROJECT-WIDE and lives in ProjectSettings — see
+		// SkinCatalog.SettingChrome/Outline/Shadow/HudArt/HudOpacity. It used to be four
+		// [Export]s here, which made one art direction a per-scene decision: every scene
+		// carried its own copy, they drifted, and "turn the chrome off" meant editing 40 files.
+		// Read-only mirrors so the rest of this class reads the same names as before.
+		private static bool GameArtChrome => SkinCatalog.GameArtChrome;
+		private static int GameArtOutline => SkinCatalog.GameArtOutline;
+		private static int GameArtShadow => SkinCatalog.GameArtShadow;
+		private static float HudPlateOpacity => SkinCatalog.HudPlateOpacity;
+
+		/// <summary>Whether THIS subtree is a HUD. Stays per-scene on purpose: it is not an art
+		/// preference but a structural fact about the scene — a HUD CanvasLayer over the world
+		/// versus a menu — and it differs between scenes of the same game by definition.</summary>
+		[ExportGroup("HUD")]
+		[Export] public bool HudMode { get; set; } = false;
+
 		[Signal] public delegate void ThemeAppliedEventHandler();
 
 		private IThemePreset? _presetInstance;
@@ -204,10 +235,19 @@ namespace Beep.ECS.UI
 			// Load the theme from the file-based skin catalog. This replaces the old
 			// enum → CreatePresetInstance switch. Falls back to the genre's default
 			// theme if PresetName isn't found.
-			var themeDef = SkinCatalog.GetTheme(_genreName, _presetName);
+			// The GAME's skin wins, always. Falls back to this component's exported values
+			// only when no game has published one — an isolated scene in the editor.
+			string gGenre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : _genreName;
+			string gTheme = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveTheme : _presetName;
+			string gPalette = SkinCatalog.HasActiveSkin && !string.IsNullOrEmpty(SkinCatalog.ActivePalette)
+				? SkinCatalog.ActivePalette : _paletteName;
+			string gGeometry = SkinCatalog.HasActiveSkin && !string.IsNullOrEmpty(SkinCatalog.ActiveGeometry)
+				? SkinCatalog.ActiveGeometry : _geometryProfileName;
+
+			var themeDef = SkinCatalog.GetTheme(gGenre, gTheme);
 			if (themeDef == null)
 			{
-				var genre = SkinCatalog.GetGenre(_genreName);
+				var genre = SkinCatalog.GetGenre(gGenre);
 				themeDef = genre != null && genre.Themes.TryGetValue(genre.DefaultTheme, out var dt) ? dt : null;
 			}
 			if (themeDef == null) return;
@@ -217,13 +257,13 @@ namespace Beep.ECS.UI
 			// Apply the optional color palette. Looked up from this theme's palette
 			// files in the skins tree (loaded by SkinCatalog). If not found there,
 			// ColorPalette.ByName searches all genres/themes as a cross-fallback.
-			if (!string.IsNullOrEmpty(_paletteName)
+			if (!string.IsNullOrEmpty(gPalette)
 				&& !_paletteName.Equals("Default", StringComparison.OrdinalIgnoreCase))
 			{
 				ColorPalette? palette = null;
-				if (themeDef.Palettes.TryGetValue(_paletteName.ToLowerInvariant(), out var filePal))
+				if (themeDef.Palettes.TryGetValue(gPalette.ToLowerInvariant(), out var filePal))
 					palette = filePal;
-				else if (ColorPalette.ByName(_paletteName) is { } catalogPal)
+				else if (ColorPalette.ByName(gPalette) is { } catalogPal)
 					palette = catalogPal;
 				if (palette != null)
 					_presetInstance = new PaletteTintedPreset(_presetInstance, palette);
@@ -232,7 +272,7 @@ namespace Beep.ECS.UI
 			// Resolve the optional geometry profile from this genre's geometry.json
 			// (loaded by SkinCatalog). GeometryProfile.ByName searches all genres.
 			_geometry = null;
-			if (!string.IsNullOrEmpty(_geometryProfileName)
+			if (!string.IsNullOrEmpty(gGeometry)
 				&& !_geometryProfileName.Equals("As-Authored", StringComparison.OrdinalIgnoreCase))
 			{
 				GeometryProfile? geo = null;
@@ -288,16 +328,150 @@ namespace Beep.ECS.UI
 			ThemePanelContainer();
 			ThemeSeparator();
 			ThemeWindow();
+			ThemeSemantics();
 			RegisterTypography();
+
+			// A HUD is not a menu. Replace the generated menu chrome with HUD chrome before it
+			// ever reaches the tree — same palette, different furniture. See ApplyHudChrome.
+			var typography = preset.Colors;
+			if (HudMode) typography = ApplyHudChrome(preset.Colors);
 
 			root.Theme = _generatedTheme;
 
 			if (EnableAnimations || EnableRippleOnClick)
 				InjectIntoButtons(root);
-      		// Per-node overrides for immediate editor visibility
-			ApplyButtonOverrides(root, preset);
-			if (ThemePageBackground) ApplyPageBackground(root, preset.Colors);
-			if (AutoTypography) ApplyTypography(root, preset.Colors);
+      		// Per-node overrides for immediate editor visibility.
+			// Both are skipped in HUD mode: ApplyButtonOverrides stamps the textured 9-patch
+			// MENU boxes onto every button, and ApplyPageBackground paints an opaque rect over
+			// the whole Control — together they would repaint the dialog skin straight back
+			// over the HUD chrome and hide the game behind it.
+			if (!HudMode) ApplyButtonOverrides(root, preset);
+			if (ThemePageBackground && !HudMode) ApplyPageBackground(root, preset.Colors);
+			if (AutoTypography) ApplyTypography(root, typography);
+		}
+
+		/// <summary>Rewrite the generated theme's chrome for on-world HUD use, and return the
+		/// colour schema the typography pass must use so text stays legible on the new plates.
+		///
+		/// Every colour is derived from the ACTIVE skin's palette, so all 50 themes still tell
+		/// themselves apart — a HUD is not "one dark grey for everybody". What changes is the
+		/// furniture: translucent plates instead of opaque ones, a hairline instead of a bevel,
+		/// and an accent fill for the selected state instead of a pressed 3D face.
+		///
+		/// Written straight into the theme rather than through <c>Sb()</c> on purpose: Sb runs
+		/// StampGeometry, which would re-apply the menu geometry's padding and shadow and undo
+		/// the flattening this method exists to do.</summary>
+		private ColorSchema ApplyHudChrome(ColorSchema c)
+		{
+			static float Lum(Color x) => 0.2126f * x.R + 0.7152f * x.G + 0.0722f * x.B;
+			static Color Mul(Color x, float k) => new(x.R * k, x.G * k, x.B * k, x.A);
+			static Color Mix(Color a, Color b, float t) =>
+				new(Mathf.Lerp(a.R, b.R, t), Mathf.Lerp(a.G, b.G, t), Mathf.Lerp(a.B, b.B, t), a.A);
+
+			// Drive the skin's own surface dark and translucent. A HUD plate has to sit UNDER
+			// the reading of the world, so it is dark regardless of whether the menu skin is
+			// light — but it keeps a trace of the skin's accent so the genre still reads.
+			Color baseTint = Mix(Mul(c.SurfacePrimary, 0.26f), c.AccentPrimary, 0.12f);
+			Color plate  = baseTint with { A = HudPlateOpacity };
+			Color raised = Mix(baseTint, c.AccentPrimary, 0.10f) with { A = Mathf.Min(1f, HudPlateOpacity + 0.12f) };
+			Color accent = c.AccentPrimary;
+			Color edge   = accent with { A = 0.32f };
+
+			// Text must contrast with the PLATE, not with the menu surface it was authored
+			// against — this is the light-skin failure that made hover text unreadable before.
+			Color text     = Lum(plate) < 0.45f ? new Color(0.94f, 0.96f, 0.98f) : new Color(0.07f, 0.08f, 0.10f);
+			Color textDim  = text with { A = 0.62f };
+			Color onAccent = Lum(accent) < 0.5f ? new Color(1, 1, 1) : new Color(0.06f, 0.07f, 0.09f);
+
+			StyleBoxFlat Box(Color bg, Color border, int width, int radius, int padX, int padY)
+			{
+				var b = new StyleBoxFlat { BgColor = bg, DrawCenter = true, BorderColor = border };
+				b.SetBorderWidthAll(width);
+				b.SetCornerRadiusAll(radius);
+				// Explicit, because an unset content margin falls back to the texture margins
+				// and silently produced 64px-tall buttons across 49 themes once already.
+				b.ContentMarginLeft = padX; b.ContentMarginRight = padX;
+				b.ContentMarginTop = padY; b.ContentMarginBottom = padY;
+				return b;
+			}
+			void Set(string name, string type, StyleBox box) => _generatedTheme!.SetStylebox(name, type, box);
+			void Col(string name, string type, Color v) => _generatedTheme!.SetColor(name, type, v);
+
+			// Real HUD art when the theme declares it and the texture source allows it, the
+			// procedural box otherwise — resolved PER SLOT, so a partial art set still works
+			// and every slot it does not cover falls back rather than going blank.
+			var hudArt = _presetInstance as IHudTexturePreset;
+			bool useArt = SkinCatalog.HudTextures && hudArt is { UsesHudTextures: true };
+			StyleBox Art(string slot, StyleBoxFlat fallback)
+			{
+				var art = useArt ? hudArt!.GetHudTexture(slot) : null;
+				if (art == null) return fallback;
+				// Tint the art to the colour its PROCEDURAL TWIN would have been: the fallback is
+				// that twin, so this cannot drift. Without it the HUD art shipped as the pale
+				// Kenney set and stayed pale in every skin, so a HUD in art mode looked nothing
+				// like the same HUD in procedural mode — the build tiles and category tabs read
+				// as light menu buttons sitting on a dark dock.
+				//
+				// Skipped for outline-only states (focus), whose twin has a transparent centre;
+				// tinting by a zero alpha would erase the art entirely.
+				if (art is StyleBoxTexture st && fallback.BgColor.A > 0.05f)
+					TextureRegister(st, fallback.BgColor);
+				return art;
+			}
+
+			// ── Plates ────────────────────────────────────────────────────────────────────
+			foreach (string t in new[] { "Panel", "PanelContainer" })
+				Set("panel", t, Art("panel", Box(plate, edge, 1, 6, 10, 8)));
+
+			// ── Tiles (build palette, speed control, every HUD button) ────────────────────
+			foreach (string t in new[] { "Button", "OptionButton", "MenuButton", "CheckBox", "CheckButton" })
+			{
+				Set("normal",   t, Art("button_normal",  Box(plate,  edge,                     1, 5, 14, 9)));
+				Set("hover",    t, Art("button_hover",   Box(raised, accent with { A = 0.75f },1, 5, 14, 9)));
+				Set("pressed",  t, Art("button_pressed", Box(accent with { A = 0.92f }, accent, 1, 5, 14, 9)));
+				Set("focus",    t, Art("button_focus",   Box(new Color(0, 0, 0, 0), accent,     2, 5, 14, 9)));
+				Set("disabled", t, Art("button_disabled", Box(Mul(plate, 0.7f) with { A = HudPlateOpacity * 0.55f },
+				                       edge with { A = 0.16f },           1, 5, 14, 9)));
+				Col("font_color", t, text);
+				Col("font_hover_color", t, text);
+				Col("font_pressed_color", t, onAccent);
+				Col("font_hover_pressed_color", t, onAccent);
+				Col("font_focus_color", t, text);
+				Col("font_disabled_color", t, textDim);
+			}
+
+			// ── Readouts ─────────────────────────────────────────────────────────────────
+			Col("font_color", "Label", text);
+			Col("font_shadow_color", "Label", new Color(0, 0, 0, 0.55f));   // legible over any world
+			Col("font_outline_color", "Label", new Color(0, 0, 0, 0.75f));
+			Set("panel", "ScrollContainer", Box(new Color(0, 0, 0, 0), new Color(0, 0, 0, 0), 0, 0, 0, 0));
+
+			Set("background", "ProgressBar", Art("bar_bg",   Box(Mul(baseTint, 0.7f) with { A = 0.75f }, edge, 1, 3, 0, 0)));
+			Set("fill",       "ProgressBar", Art("bar_fill", Box(accent, accent, 0, 3, 0, 0)));
+
+			// Toolbar category tabs. TabBar/TabContainer name their states differently from
+			// Button, which is why these are set explicitly rather than folded into the loop.
+			foreach (string t in new[] { "TabBar", "TabContainer" })
+			{
+				Set("tab_selected", t, Art("tab_selected", Box(raised, accent with { A = 0.8f }, 1, 5, 16, 7)));
+				Set("tab_unselected", t, Art("tab_normal", Box(plate, edge, 1, 5, 16, 7)));
+				Set("tab_hovered", t, Art("tab_selected", Box(raised, accent with { A = 0.6f }, 1, 5, 16, 7)));
+				Col("font_selected_color", t, text);
+				Col("font_unselected_color", t, textDim);   // NOT "font_color" — that key does not exist on TabBar
+				Col("font_hovered_color", t, text);
+			}
+
+			// Tooltips ride over gameplay too, so they take the HUD plate rather than the menu one.
+			Set("panel", "TooltipPanel", Art("tooltip", Box(raised, edge, 1, 5, 10, 7)));
+			Col("font_color", "TooltipLabel", text);
+
+			// Typography runs after this and would otherwise re-apply the MENU text colours as
+			// per-node overrides, winning over everything set above.
+			c.TextPrimary = text;
+			c.TextOnDark = text;
+			c.TextHover = text;
+			c.TextDisabled = textDim;
+			return c;
 		}
 
 		// ═══════════════════════════════════════════════
@@ -353,6 +527,11 @@ namespace Beep.ECS.UI
 				ApplyTypography(child, c);
 		}
 
+		/// <summary>Oversized HUD readout — a score, a speedometer, an energy counter. Exists
+		/// because four main scenes hardcoded 32/40/56px font overrides to get a big readout,
+		/// which bypasses the theme entirely: switching theme or geometry left them at a fixed
+		/// size while every other label rescaled. A role keeps them big AND theme-driven.</summary>
+		private const string DisplayVariation = "BeepDisplay";
 		private const string TitleVariation = "BeepTitle";
 		private const string SubtitleVariation = "BeepSubtitle";
 		private const string ValueVariation = "BeepValue";
@@ -362,7 +541,7 @@ namespace Beep.ECS.UI
 		private static string? RoleFor(Label label)
 		{
 			string variation = label.ThemeTypeVariation.ToString();
-			if (variation == TitleVariation || variation == SubtitleVariation
+			if (variation == DisplayVariation || variation == TitleVariation || variation == SubtitleVariation
 				|| variation == ValueVariation || variation == CaptionVariation)
 				return variation;
 
@@ -374,16 +553,31 @@ namespace Beep.ECS.UI
 			return null;
 		}
 
+		/// <summary>Type scale, as multiples of the theme's base size.
+		///
+		/// Was 1.9 / 1.35 / 1.25 / 0.85, which off a 17px base gave 32 / 23 / 21 / 14. Two
+		/// problems: a 1.9x title is poster-sized for a dialog heading, and subtitle and value
+		/// landed 2px apart (23 vs 21) — close enough to read as an inconsistency rather than a
+		/// distinction, while the drop to the 14px caption was a cliff. These are a conventional
+		/// ~1.25 ratio scale: each step is clearly separated from its neighbours and the title
+		/// still dominates without shouting.
+///
+/// The caption step is for SECONDARY METADATA only (a save's Level/Time, a version
+/// string, a hint). It is not a label style: a form field's label and a table row's
+/// label are primary text and belong at the base size. Using caption for those is
+/// what made "Save Name:" render at 13px disabled-grey beside a 16px input.</summary>
 		private int SizeFor(string role) => role switch
 		{
-			TitleVariation => Mathf.RoundToInt(Fs * 1.9f),
-			SubtitleVariation => Mathf.RoundToInt(Fs * 1.35f),
-			ValueVariation => Mathf.RoundToInt(Fs * 1.25f),
-			_ => Mathf.Max(10, Mathf.RoundToInt(Fs * 0.85f)),
+			DisplayVariation => Mathf.RoundToInt(Fs * 2.5f),
+			TitleVariation => Mathf.RoundToInt(Fs * 1.75f),
+			SubtitleVariation => Mathf.RoundToInt(Fs * 1.3f),
+			ValueVariation => Mathf.RoundToInt(Fs * 1.1f),
+			_ => Mathf.Max(12, Mathf.RoundToInt(Fs * 0.85f)),
 		};
 
 		private static Color ColorFor(string role, ColorSchema c) => role switch
 		{
+			DisplayVariation => c.AccentPrimary,
 			ValueVariation => c.AccentPrimary,
 			CaptionVariation => c.TextDisabled,
 			_ => c.TextPrimary,
@@ -395,7 +589,7 @@ namespace Beep.ECS.UI
 		private void RegisterTypography()
 		{
 			var c = _presetInstance!.Colors;
-			foreach (var role in new[] { TitleVariation, SubtitleVariation, ValueVariation, CaptionVariation })
+			foreach (var role in new[] { DisplayVariation, TitleVariation, SubtitleVariation, ValueVariation, CaptionVariation })
 			{
 				_generatedTheme!.AddType(role);
 				_generatedTheme.SetTypeVariation(role, "Label");
@@ -405,15 +599,20 @@ namespace Beep.ECS.UI
 			}
 		}
 
+		private static readonly string[] ButtonStates = { "normal", "hover", "pressed", "disabled", "focus" };
+
       	private void ApplyButtonOverrides(Node node, IThemePreset preset)
 		{
 			if (node is Button btn)
 			{
-				btn.AddThemeStyleboxOverride("normal", Duplicate(preset.GetButtonNormal()));
-				btn.AddThemeStyleboxOverride("hover", Duplicate(preset.GetButtonHover()));
-				btn.AddThemeStyleboxOverride("pressed", Duplicate(preset.GetButtonPressed()));
-				btn.AddThemeStyleboxOverride("disabled", Duplicate(preset.GetButtonDisabled()));
-				btn.AddThemeStyleboxOverride("focus", Duplicate(preset.GetButtonFocus()));
+				// Take the boxes ThemeButton() just resolved for "Button" rather than rebuilding
+				// them from the preset. The preset's GetButton*() always return a procedural
+				// StyleBoxFlat — and a per-node override outranks the Theme — so sourcing them
+				// here meant a theme.json/UISkin texture was resolved into the theme and then
+				// immediately painted over on every button. No button texture has ever rendered.
+				foreach (string state in ButtonStates)
+					if (_generatedTheme != null && _generatedTheme.HasStylebox(state, "Button"))
+						btn.AddThemeStyleboxOverride(state, Duplicate(_generatedTheme.GetStylebox(state, "Button")));
 				btn.AddThemeColorOverride("font_color", preset.Colors.TextPrimary);
 			}
 			foreach (var child in node.GetChildren())
@@ -447,9 +646,13 @@ namespace Beep.ECS.UI
 
 		/// <summary>Chokepoint for every StyleBox assignment: restamps the geometry
 		/// profile onto the box (ALL ui nodes — panels, inputs, sliders, scrollbars,
-		/// selected states, separators — not just buttons) then sets it on the theme.</summary>
+		/// selected states, separators — not just buttons) then sets it on the theme.
+		///
+		/// The slot name and control type are passed down so the register can treat a TEXTURED
+		/// box the same way as a flat one; without them a textured Button could not be tinted
+		/// with the palette colour its procedural twin is filled with.</summary>
 		private void Sb(string name, string type, StyleBox box)
-			=> _generatedTheme!.SetStylebox(name, type, StampGeometry(box));
+			=> _generatedTheme!.SetStylebox(name, type, StampGeometry(box, name, type));
 
 		// ═══════════════════════════════════════════════
 		// Geometry extracted once from preset's normal button
@@ -723,9 +926,19 @@ namespace Beep.ECS.UI
 		{
 			if (_targetControl == null) return;
 			var geo = _geometry;
-			if (geo == null) return;
-			string? img = geo.BackgroundImage;
-			if (string.IsNullOrEmpty(img)) return;
+			string? img = geo?.BackgroundImage;
+			if (string.IsNullOrEmpty(img))
+			{
+				// Clear any background a PREVIOUS profile left behind. This used to just
+				// return, so switching to a geometry profile that declares no background
+				// (or to "As-Authored", where _geometry is null) kept painting the old
+				// profile's tile forever — a city-builder grid stayed on screen over a
+				// cyberpunk theme, because nothing ever removed the TextureRect.
+				if (_backgroundRect != null && GodotObject.IsInstanceValid(_backgroundRect))
+					_backgroundRect.QueueFree();
+				_backgroundRect = null;
+				return;
+			}
 			if (!ResourceLoader.Exists(img))
 			{
 				// A geometry profile that names a background but ships no file is a defect,
@@ -983,6 +1196,17 @@ namespace Beep.ECS.UI
 				dup.ContentMarginRight = tex.ContentMarginRight;
 				dup.ContentMarginTop = tex.ContentMarginTop;
 				dup.ContentMarginBottom = tex.ContentMarginBottom;
+				// The 9-patch settings are part of the box, not decoration — dropping them
+				// reset every duplicated texture box to Godot's defaults, so a theme.json
+				// slot's axis_stretch_*/draw_center survived into the Theme and was then lost
+				// the moment the box was duplicated onto a node.
+				dup.AxisStretchHorizontal = tex.AxisStretchHorizontal;
+				dup.AxisStretchVertical = tex.AxisStretchVertical;
+				dup.DrawCenter = tex.DrawCenter;
+				dup.ExpandMarginLeft = tex.ExpandMarginLeft;
+				dup.ExpandMarginRight = tex.ExpandMarginRight;
+				dup.ExpandMarginTop = tex.ExpandMarginTop;
+				dup.ExpandMarginBottom = tex.ExpandMarginBottom;
 				return dup;
 			}
 			return original;

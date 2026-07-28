@@ -15,8 +15,11 @@ namespace Beep.ECS.UI
         [Export] public int MaxStars { get; set; } = 5;
         [Export] public float Value { get; set; } = 3.5f;
         [Export] public float StarSize { get; set; } = 24f;
-        [Export] public Color FilledColor { get; set; } = new(1f, 0.84f, 0f, 1f);
-        [Export] public Color EmptyColor { get; set; } = new(0.3f, 0.3f, 0.3f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color FilledColor => UiSurface.Semantic(this, UiSurface.Role.Warning);
+        public Color EmptyColor => UiSurface.Semantic(this, UiSurface.Role.Neutral);
         [Export] public bool Interactive { get; set; } = false;
 
         [Signal] public delegate void RatingChangedEventHandler(float newValue);

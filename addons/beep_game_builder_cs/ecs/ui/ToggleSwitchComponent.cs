@@ -11,9 +11,12 @@ namespace Beep.ECS.UI
     public partial class ToggleSwitchComponent : UIComponent
     {
         [Export] public bool IsOn { get; set; } = false;
-        [Export] public Color OnColor { get; set; } = new(0.3f, 0.7f, 0.3f, 1f);
-        [Export] public Color OffColor { get; set; } = new(0.3f, 0.3f, 0.3f, 1f);
-        [Export] public Color KnobColor { get; set; } = Colors.White;
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color OnColor => UiSurface.Semantic(this, UiSurface.Role.Success);
+        public Color OffColor => UiSurface.Ink(UiSurface.Of(this));
+        public Color KnobColor => UiSurface.Text(this);
         [Export] public float AnimationDuration { get; set; } = 0.2f;
         [Export] public Vector2 SwitchSize { get; set; } = new(52, 28);
 

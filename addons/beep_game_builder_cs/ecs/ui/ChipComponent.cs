@@ -11,9 +11,15 @@ namespace Beep.ECS.UI
     public partial class ChipComponent : UIComponent
     {
         [Export] public string Label { get; set; } = "Tag";
-        [Export] public Color ChipColor { get; set; } = new(0.2f, 0.4f, 0.7f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color ChipColor => UiSurface.Semantic(this, UiSurface.Role.Accent);
         [Export] public bool Removable { get; set; } = true;
-        [Export] public int FontSize { get; set; } = 12;
+        // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
+        // literal renders a genre's larger type out of a control built for 14.
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 0.85f;
+        private int FontSize => UiSurface.FontSize(this, FontScale);
 
         [Signal] public delegate void RemovedEventHandler(string label);
         [Signal] public delegate void ClickedEventHandler(string label);
@@ -37,7 +43,7 @@ namespace Beep.ECS.UI
         {
             if (Engine.IsEditorHint()) return;
             _chip = new Panel();
-            _chip.CustomMinimumSize = new Vector2(0, 28);
+            _chip.CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.0f);
             var sb = new StyleBoxFlat { BgColor = ChipColor };
             sb.SetCornerRadiusAll(14);
             _chip.AddThemeStyleboxOverride("panel", sb);
@@ -59,8 +65,9 @@ namespace Beep.ECS.UI
 
             if (Removable)
             {
-                var closeBtn = new Button { Text = "×", Flat = true, CustomMinimumSize = new Vector2(24, 24) };
-                closeBtn.AddThemeFontSizeOverride("font_size", 14);
+                var closeBtn = new Button { Text = "×", Flat = true,
+                    CustomMinimumSize = new Vector2(UiSurface.FontSize(this) * 1.7f, UiSurface.FontSize(this) * 1.7f) };
+                closeBtn.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.00f));
                 closeBtn.AddThemeColorOverride("font_color", new Color(1, 1, 1, 0.7f));
                 closeBtn.Pressed += () =>
                 {

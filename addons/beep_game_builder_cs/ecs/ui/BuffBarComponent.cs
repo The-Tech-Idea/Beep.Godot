@@ -13,8 +13,6 @@ namespace Beep.ECS.UI
     {
         [Export] public int MaxSlots { get; set; } = 8;
         [Export] public Vector2 IconSize { get; set; } = new(32, 32);
-        [Export] public Color BuffColor { get; set; } = new(0.3f, 0.8f, 0.3f, 1f);
-        [Export] public Color DebuffColor { get; set; } = new(0.8f, 0.2f, 0.2f, 1f);
 
         private HBoxContainer? _container;
         private readonly Dictionary<string, ProgressRingComponent> _icons = new();
@@ -87,7 +85,7 @@ namespace Beep.ECS.UI
             {
                 Name = $"Buff_{effectId}",
                 CustomMinimumSize = IconSize,
-                RingColor = isBuff ? BuffColor : DebuffColor
+                Accent = isBuff ? UiSurface.Role.Success : UiSurface.Role.Danger
             };
             _container.AddChild(ring);
             _icons[effectId] = ring;

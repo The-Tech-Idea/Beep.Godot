@@ -156,18 +156,29 @@ namespace Beep.ECS.UI
 		/// plain C# rebuild; no regenerate/overwrite needed.</summary>
 		private void NormalizeLayout()
 		{
-			var panel = FindChild("PanelContainer", recursive: true, owned: false) as PanelContainer;
-			if (panel != null)
-				panel.CustomMinimumSize = new Vector2(Mathf.Max(panel.CustomMinimumSize.X, 560), Mathf.Max(panel.CustomMinimumSize.Y, 500));
+			// Shared with LoadGameMenuComponent via BeepDialogLayout. These were separate
+			// literals (560x500 panel, 8px rows, 44px slots) against the load menu's own
+			// (640x520, 10px, 58px), so two screens one click apart never lined up.
+			BeepDialogLayout.ApplyShell(this);
 			if (_saveButton?.GetParent()?.GetParent() is VBoxContainer vbox)
-				vbox.AddThemeConstantOverride("separation", 18);
+				vbox.AddThemeConstantOverride("separation", BeepDialogLayout.SectionGap);
 			if (_saveButton?.GetParent() is HBoxContainer hbox)
-				hbox.AddThemeConstantOverride("separation", 12);
-			if (_saveButton != null) _saveButton.CustomMinimumSize = new Vector2(0, 44);
-			if (_cancelButton != null) _cancelButton.CustomMinimumSize = new Vector2(0, 44);
-			if (_slotsVBox != null) _slotsVBox.AddThemeConstantOverride("separation", 8);
-			foreach (var b in SlotButtons()) b.CustomMinimumSize = new Vector2(0, 44);
-			if (_nameInput != null) _nameInput.CustomMinimumSize = new Vector2(0, 36);
+				hbox.AddThemeConstantOverride("separation", BeepDialogLayout.ButtonGap);
+			if (_saveButton != null)
+				_saveButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
+			if (_cancelButton != null)
+				_cancelButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
+			if (_slotsVBox != null)
+				_slotsVBox.AddThemeConstantOverride("separation", BeepDialogLayout.RowGap);
+			// Same row height as the load menu's slot rows, so the two lists read as one system.
+			foreach (var b in SlotButtons())
+				b.CustomMinimumSize = new Vector2(0, BeepDialogLayout.Row(this));
+			if (_nameInput != null)
+				_nameInput.CustomMinimumSize = new Vector2(0, BeepDialogLayout.Input(this));
+			if (FindChild("NameLabel", recursive: true, owned: false) is Label nameLabel)
+				nameLabel.CustomMinimumSize = new Vector2(BeepDialogLayout.FieldLabelWidth, 0);
+			if (_nameInput?.GetParent() is HBoxContainer nameRow)
+				nameRow.AddThemeConstantOverride("separation", BeepDialogLayout.RowInnerGap);
 		}
 
 		private void OnSlotSelected(int slot)

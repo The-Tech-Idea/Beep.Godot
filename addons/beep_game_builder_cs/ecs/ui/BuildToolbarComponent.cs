@@ -1,0 +1,273 @@
+using Godot;
+using System.Collections.Generic;
+
+namespace Beep.ECS.UI
+{
+    /// <summary>
+    /// The docked build toolbar: category tabs along the bottom, each expanding into a palette
+    /// of buildings with cost and affordability.
+    ///
+    /// This is the piece the City Builder HUD was missing. The genre's whole session is spent
+    /// in this control — Cities: Skylines, SimCity and Anno all dock it permanently along the
+    /// bottom. Ours existed only as `build_menu.tscn`, a FULL-SCREEN MODAL opened by a hotkey,
+    /// which is the wrong shape: it covers the city you are building into and costs a keypress
+    /// per placement.
+    ///
+    /// It is wired to <see cref="CityEconomyComponent"/>, so pressing an item actually spends
+    /// treasury and changes the simulation. Unaffordable items are greyed rather than hidden,
+    /// which keeps the player's sense of progression — hiding them is the common mistake.
+    /// </summary>
+    [Tool]
+    [GlobalClass]
+    public partial class BuildToolbarComponent : UIComponent
+    {
+        /// <summary>Economy to buy from. Empty = search the scene for the first one.</summary>
+        [Export] public NodePath EconomyPath { get; set; } = new("");
+        [Export] public int ItemMinWidth { get; set; } = 96;
+
+        /// <summary>Folder holding `icon_&lt;id&gt;.png` for each catalogue entry. A palette of
+        /// icon tiles is what every city-builder reference uses; a column of
+        /// "House x3 / 1,200" text rows is the thing that makes a build bar read as a list box.
+        /// Missing icons fall back to the text-only tile rather than an empty square.</summary>
+        [Export] public string IconFolder { get; set; } =
+            "res://addons/beep_game_builder_cs/textures/citybuilder/icons";
+
+        /// <summary>Emitted after a successful purchase, so a world layer (when a project has
+        /// one) can place the building. The economy has already been debited.</summary>
+        [Signal] public delegate void BuildingPurchasedEventHandler(string id);
+        [Signal] public delegate void CategorySelectedEventHandler(string category);
+
+        private CityEconomyComponent? _economy;
+        private HBoxContainer? _tabs;
+        private HBoxContainer? _palette;
+        private readonly Dictionary<string, Button> _items = new();
+        private readonly List<Button> _tabButtons = new();
+        private string _category = "";
+
+        public override void _Ready()
+        {
+            base._Ready();
+            if (Engine.IsEditorHint()) return;
+            // Deferred: a node cannot AddChild to a parent that is still inside its own
+            // _Ready ("Parent node is busy setting up children"), which silently produced an
+            // EMPTY widget — the code ran, the error went to the log, and the UI was blank.
+            // GenreHudComponent already defers its Setup for the same reason.
+            CallDeferred(nameof(Setup));
+        }
+
+        private void Setup()
+        {
+            _economy = ResolveEconomy();
+            if (_economy == null)
+            {
+                GD.PushWarning($"[{Name}] BuildToolbarComponent found no CityEconomyComponent — a toolbar that cannot spend or check affordability would be decoration, so it is not built.");
+                return;
+            }
+
+            Build();
+            _economy.StatsChanged += RefreshAffordability;
+            _economy.BuildingsChanged += RefreshAffordability;
+            RefreshAffordability();
+        }
+
+        public override void _ExitTree()
+        {
+            base._ExitTree();
+            if (_economy != null && GodotObject.IsInstanceValid(_economy))
+            {
+                _economy.StatsChanged -= RefreshAffordability;
+                _economy.BuildingsChanged -= RefreshAffordability;
+            }
+            _economy = null;
+        }
+
+        private CityEconomyComponent? ResolveEconomy()
+        {
+            if (!EconomyPath.IsEmpty && GetNodeOrNull<CityEconomyComponent>(EconomyPath) is { } direct) return direct;
+            var scene = GetTree()?.CurrentScene;
+            return scene == null ? null : FindIn(scene);
+
+            static CityEconomyComponent? FindIn(Node n)
+            {
+                if (n is CityEconomyComponent c) return c;
+                foreach (var child in n.GetChildren())
+                    if (FindIn(child) is { } found) return found;
+                return null;
+            }
+        }
+
+        private void Build()
+        {
+            if (GetParent() is not Godot.Control parent) return;
+
+            var root = new VBoxContainer { Name = "Toolbar" };
+            root.AddThemeConstantOverride("separation", 6);
+            parent.AddChild(root);
+
+            _tabs = new HBoxContainer { Name = "Categories" };
+            _tabs.AddThemeConstantOverride("separation", 6);
+            root.AddChild(_tabs);
+
+            var scroll = new ScrollContainer
+            {
+                Name = "PaletteScroll",
+                CustomMinimumSize = new Vector2(0, 84),
+                VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            };
+            root.AddChild(scroll);
+
+            _palette = new HBoxContainer { Name = "Palette", SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };
+            _palette.AddThemeConstantOverride("separation", 8);
+            scroll.AddChild(_palette);
+
+            // Categories in catalogue order, de-duplicated — adding a building type to the
+            // catalogue adds it to the toolbar with no scene edit.
+            var seen = new List<string>();
+            foreach (var b in CityEconomyComponent.Catalogue)
+                if (!seen.Contains(b.Category)) seen.Add(b.Category);
+
+            foreach (string cat in seen)
+            {
+                string c = cat;
+                var tab = new Button
+                {
+                    Name = $"Tab{cat}", Text = cat, ToggleMode = true,
+                    CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.4f),
+                    FocusMode = Godot.Control.FocusModeEnum.None,
+                };
+                tab.Pressed += () => SelectCategory(c);
+                _tabs.AddChild(tab);
+                _tabButtons.Add(tab);
+            }
+
+            if (seen.Count > 0) SelectCategory(seen[0]);
+        }
+
+        /// <summary>Show one category's palette. Categories stay visible while a palette is
+        /// open — the player must never lose the way back.</summary>
+        public void SelectCategory(string category)
+        {
+            if (_palette == null) return;
+            _category = category;
+
+            foreach (var t in _tabButtons)
+                if (GodotObject.IsInstanceValid(t)) t.SetPressedNoSignal(t.Text == category);
+
+            foreach (var child in _palette.GetChildren()) child.QueueFree();
+            _items.Clear();
+
+            foreach (var b in CityEconomyComponent.Catalogue)
+            {
+                if (b.Category != category) continue;
+                string id = b.Id;
+                var item = new Button
+                {
+                    Name = $"Build_{b.Id}",
+                    Text = $"{b.Display}\n{b.Cost:N0}",
+                    CustomMinimumSize = new Vector2(ItemMinWidth, 92),
+                    TooltipText = Describe(b),
+                };
+                // Icon above the caption — the tile layout every city-builder reference uses.
+                //
+                // Composed from child controls rather than Button.Icon + Button.Text: Godot lays
+                // those out in a single ROW, so the caption printed straight across the icon no
+                // matter how the alignments were set. Children are mouse-transparent so the
+                // Button underneath still receives the click.
+                if (LoadIcon(b.Id) is { } tex)
+                {
+                    item.Text = "";
+                    var stack = new VBoxContainer
+                    {
+                        Name = "Tile",
+                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                    };
+                    stack.SetAnchorsPreset(Godot.Control.LayoutPreset.FullRect);
+                    stack.AddThemeConstantOverride("separation", 2);
+                    item.AddChild(stack);
+
+                    stack.AddChild(new TextureRect
+                    {
+                        Name = "Icon", Texture = tex,
+                        CustomMinimumSize = new Vector2(0, 40),
+                        SizeFlagsVertical = Godot.Control.SizeFlags.ExpandFill,
+                        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                    });
+                    var name = new Label
+                    {
+                        Name = "Caption", Text = b.Display,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                    };
+                    name.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
+                    stack.AddChild(name);
+                    var cost = new Label
+                    {
+                        Name = "Cost", Text = b.Cost.ToString("N0"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                    };
+                    cost.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.79f));
+                    stack.AddChild(cost);
+                }
+                item.Pressed += () => Purchase(id);
+                _palette.AddChild(item);
+                _items[b.Id] = item;
+            }
+
+            RefreshAffordability();
+            EmitSignal(SignalName.CategorySelected, category);
+        }
+
+        /// <summary>Icon for a catalogue id, or null when the set does not ship one.</summary>
+        private Texture2D? LoadIcon(string id)
+        {
+            if (string.IsNullOrEmpty(IconFolder)) return null;
+            string path = $"{IconFolder.TrimEnd('/')}/icon_{id}.png";
+            return ResourceLoader.Exists(path) ? ResourceLoader.Load<Texture2D>(path) : null;
+        }
+
+        private static string Describe(CityEconomyComponent.BuildingDef b)
+        {
+            var parts = new List<string> { $"Cost {b.Cost:N0}", $"Upkeep {b.Upkeep:N0}/mo" };
+            if (b.Residents > 0) parts.Add($"Houses {b.Residents}");
+            if (b.Jobs > 0) parts.Add($"Jobs {b.Jobs}");
+            if (b.Power != 0) parts.Add(b.Power > 0 ? $"Uses {b.Power} power" : $"Supplies {-b.Power} power");
+            if (b.Water != 0) parts.Add(b.Water > 0 ? $"Uses {b.Water} water" : $"Supplies {-b.Water} water");
+            if (b.Happiness != 0) parts.Add($"Happiness {b.Happiness:+0;-0}");
+            return string.Join("\n", parts);
+        }
+
+        private void Purchase(string id)
+        {
+            if (_economy == null) return;
+            if (_economy.TryPurchase(id)) EmitSignal(SignalName.BuildingPurchased, id);
+            // The failure path is the economy's: it raises the alert. Nothing to do here.
+        }
+
+        /// <summary>Grey what the player cannot afford, and show how many they own. Runs on
+        /// every economy change, so the toolbar can never claim an item is affordable when the
+        /// treasury has moved underneath it.</summary>
+        private void RefreshAffordability()
+        {
+            if (_economy == null) return;
+            foreach (var (id, button) in _items)
+            {
+                if (!GodotObject.IsInstanceValid(button)) continue;
+                var def = CityEconomyComponent.Find(id);
+                if (def == null) continue;
+                button.Disabled = !_economy.CanAfford(id);
+                int owned = _economy.CountOf(id);
+                string caption = owned > 0 ? $"{def.Display} ×{owned}" : def.Display;
+
+                // A composed tile keeps its text in child Labels; writing Button.Text would
+                // print a second caption straight across the icon.
+                if (button.GetNodeOrNull<Label>("Tile/Caption") is { } capLabel)
+                    capLabel.Text = caption;
+                else
+                    button.Text = $"{caption}\n{def.Cost:N0}";
+            }
+        }
+    }
+}

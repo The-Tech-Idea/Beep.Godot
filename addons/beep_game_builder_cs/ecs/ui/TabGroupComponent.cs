@@ -14,8 +14,11 @@ namespace Beep.ECS.UI
     public partial class TabGroupComponent : UIComponent
     {
         [Export] public int ActiveTab { get; set; } = 0;
-        [Export] public Color ActiveTabColor { get; set; } = new(0.2f, 0.4f, 0.8f, 1f);
-        [Export] public Color InactiveTabColor { get; set; } = new(0.12f, 0.12f, 0.18f, 1f);
+        // Palette-derived, not a literal. A colour baked into a component is a palette
+        // pinned where no skin can reach it; these follow theme -> palette like every
+        // other control. Computed, so a skin change is picked up with no invalidation.
+        public Color ActiveTabColor => UiSurface.Semantic(this, UiSurface.Role.Accent);
+        public Color InactiveTabColor => UiSurface.Ink(UiSurface.Of(this));
         [Export] public float SwitchDuration { get; set; } = 0.2f;
 
         [Signal] public delegate void TabChangedEventHandler(int tabIndex, string tabName);

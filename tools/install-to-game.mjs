@@ -92,27 +92,30 @@ if (!addonsOnly) {
   });
   done.push("tools/beep-mcp-server");
 
-  // ── .mcp.json — merge rather than clobber an existing one ──
-  const mcpPath = join(dst, ".mcp.json");
-  const entry = {
-    command: "node",
-    args: ["tools/beep-mcp-server/prepare-and-start.mjs"],
-    env: {},
-  };
-  let config = { mcpServers: {} };
-  if (existsSync(mcpPath)) {
-    try {
-      config = JSON.parse(readFileSync(mcpPath, "utf8"));
-      config.mcpServers ??= {};
-    } catch {
-      console.error(`! ${mcpPath} is not valid JSON — writing a fresh one and keeping the old at .mcp.json.bak`);
-      cpSync(mcpPath, mcpPath + ".bak");
-      config = { mcpServers: {} };
-    }
+  // ── register with Claude, LOCAL scope ──
+  //
+  // Deliberately NOT a .mcp.json. That is project scope, and it stalls at
+  // "⏸ Pending approval" behind a trust dialog plus an approval prompt. Local scope is
+  // stored in ~/.claude.json under this game's own path: loads here, invisible in the
+  // user's other games, no approval. (User scope would be one entry shared by every
+  // project — the second game installed would clobber the first.)
+  // cwd must be the game folder: local scope keys off the current directory.
+  const entry = join(dst, "tools", "beep-mcp-server", "prepare-and-start.mjs");
+  // One command string, not shell:true + args array — the latter prints a DEP0190
+  // deprecation warning that reads like a failure.
+  const sh = (cmd) => spawnSync(cmd, { cwd: dst, stdio: ["ignore", "pipe", "pipe"], shell: true });
+  const addCmd = `claude mcp add --scope local beep-godot -- node "${entry}"`;
+
+  const probe = sh("claude --version");
+  if (probe.error || probe.status !== 0) {
+    console.error("! 'claude' is not on PATH — install Claude Code, then run:");
+    console.error(`    cd "${dst}" && ${addCmd}`);
+  } else {
+    // Remove first so re-installing updates the path instead of erroring on a duplicate.
+    sh("claude mcp remove --scope local beep-godot");
+    if (sh(addCmd).status === 0) done.push("registered with Claude");
+    else console.error(`! could not register with Claude — run: ${addCmd}`);
   }
-  config.mcpServers["beep-godot"] = entry;
-  writeFileSync(mcpPath, JSON.stringify(config, null, 2) + "\n");
-  done.push(".mcp.json");
 }
 
 // ── the C# project ──

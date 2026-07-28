@@ -1,8 +1,17 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/citybuilder/BuildMenu.cs" id="3_script"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_treasury.png" id="4_treasury"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_residential.png" id="5_residential"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_industrial.png" id="6_industrial"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_house.png" id="7_house"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_factory.png" id="8_factory"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_park.png" id="9_park"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+
+[sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="BuildMenu" type="Control"]
 anchors_preset = 15
@@ -28,7 +37,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 28
+theme_override_constants/margin_top = 46
 theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
@@ -43,8 +52,15 @@ text = "Build"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
-[node name="BudgetCaption" type="Label" parent="Margin/VBox/Header"]
-theme_type_variation = &"BeepCaption"
+visible = false
+[node name="BudgetIcon" type="TextureRect" parent="Margin/VBox/Header"]
+custom_minimum_size = Vector2(28, 28)
+size_flags_vertical = 4
+texture = ExtResource("4_treasury")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BudgetLabel" type="Label" parent="Margin/VBox/Header"]
 text = "Budget"
 vertical_alignment = 1
 
@@ -66,6 +82,14 @@ size_flags_vertical = 3
 [node name="CategoryPanel" type="PanelContainer" parent="Margin/VBox/Body"]
 custom_minimum_size = Vector2(220, 0)
 
+theme_override_styles/panel = SubResource("frame_plate")
+[node name="Frame" type="Control" parent="Margin/VBox/Body/CategoryPanel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Build"
+Banner = 0
+
 [node name="CategoryMargin" type="MarginContainer" parent="Margin/VBox/Body/CategoryPanel"]
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
@@ -79,17 +103,50 @@ theme_override_constants/separation = 10
 theme_type_variation = &"BeepSubtitle"
 text = "Categories"
 
-[node name="ResidentialCaption" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
-theme_type_variation = &"BeepCaption"
+[node name="ResidentialRow" type="HBoxContainer" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
+theme_override_constants/separation = 10
+
+[node name="ResidentialIcon" type="TextureRect" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/ResidentialRow"]
+custom_minimum_size = Vector2(26, 26)
+size_flags_vertical = 4
+texture = ExtResource("5_residential")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ResidentialLabel" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/ResidentialRow"]
 text = "Residential"
+size_flags_horizontal = 3
+vertical_alignment = 1
 
-[node name="IndustryCaption" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
-theme_type_variation = &"BeepCaption"
+[node name="IndustryRow" type="HBoxContainer" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
+theme_override_constants/separation = 10
+
+[node name="IndustryIcon" type="TextureRect" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/IndustryRow"]
+custom_minimum_size = Vector2(26, 26)
+size_flags_vertical = 4
+texture = ExtResource("6_industrial")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IndustryLabel" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/IndustryRow"]
 text = "Industry"
+size_flags_horizontal = 3
+vertical_alignment = 1
 
-[node name="LeisureCaption" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
-theme_type_variation = &"BeepCaption"
+[node name="LeisureRow" type="HBoxContainer" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
+theme_override_constants/separation = 10
+
+[node name="LeisureIcon" type="TextureRect" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/LeisureRow"]
+custom_minimum_size = Vector2(26, 26)
+size_flags_vertical = 4
+texture = ExtResource("9_park")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LeisureLabel" type="Label" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox/LeisureRow"]
 text = "Leisure"
+size_flags_horizontal = 3
+vertical_alignment = 1
 
 [node name="CategorySpacer" type="Control" parent="Margin/VBox/Body/CategoryPanel/CategoryMargin/CategoryVBox"]
 size_flags_vertical = 3
@@ -118,14 +175,23 @@ columns = 3
 [node name="Item1" type="Button" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox/ItemGrid"]
 custom_minimum_size = Vector2(160, 120)
 text = "House  ·  1,200"
+icon = ExtResource("7_house")
+icon_alignment = 1
+vertical_icon_alignment = 0
 
 [node name="Item2" type="Button" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox/ItemGrid"]
 custom_minimum_size = Vector2(160, 120)
 text = "Factory  ·  6,500"
+icon = ExtResource("8_factory")
+icon_alignment = 1
+vertical_icon_alignment = 0
 
 [node name="Item3" type="Button" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox/ItemGrid"]
 custom_minimum_size = Vector2(160, 120)
 text = "Park  ·  800"
+icon = ExtResource("9_park")
+icon_alignment = 1
+vertical_icon_alignment = 0
 
 [node name="ItemSpacer" type="Control" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox"]
 size_flags_vertical = 3

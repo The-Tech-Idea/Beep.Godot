@@ -1,11 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SaveGameMenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_title"]
-font_size = 24
 
 [node name="SaveGameMenu" type="Control"]
 layout_mode = 3
@@ -24,17 +21,17 @@ anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.7)
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(600, 500)
+custom_minimum_size = Vector2(720, 620)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -250.0
-offset_right = 300.0
-offset_bottom = 250.0
+offset_left = -360.0
+offset_top = -310.0
+offset_right = 360.0
+offset_bottom = 310.0
 
 [node name="Theme" type="Node" parent="PanelContainer"]
 script = ExtResource("2_theme")
@@ -47,30 +44,31 @@ ThemeComponentPath = NodePath("PanelContainer/Theme")
 layout_mode = 2
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_right = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
 
 [node name="VBox" type="VBoxContainer" parent="PanelContainer/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 20
 
 [node name="Title" type="Label" parent="PanelContainer/Margin/VBox"]
+theme_type_variation = &"BeepTitle"
 layout_mode = 2
 text = "Save Game"
 horizontal_alignment = 1
-label_settings = SubResource("LabelSettings_title")
 
 [node name="SaveNameContainer" type="HBoxContainer" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 16
 
 [node name="NameLabel" type="Label" parent="PanelContainer/Margin/VBox/SaveNameContainer"]
+custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
-theme_type_variation = &"BeepCaption"
-custom_minimum_size = Vector2(100, 0)
 text = "Save Name:"
+vertical_alignment = 1
 
 [node name="NameInput" type="LineEdit" parent="PanelContainer/Margin/VBox/SaveNameContainer"]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "My Save Game"
@@ -79,51 +77,66 @@ placeholder_text = "My Save Game"
 layout_mode = 2
 
 [node name="SlotsLabel" type="Label" parent="PanelContainer/Margin/VBox"]
-layout_mode = 2
 theme_type_variation = &"BeepSubtitle"
-text = "Save Slots:"
-text_overrun_behavior = 1
+layout_mode = 2
+text = "Save Slots"
 
 [node name="SlotsScroll" type="ScrollContainer" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="SlotsVBox" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll"]
+[node name="SlotsMargin" type="MarginContainer" parent="PanelContainer/Margin/VBox/SlotsScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/margin_right = 14
 
-[node name="Slot0" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
+[node name="SlotsVBox" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin"]
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Slot0" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
 text = "Slot 1 - Empty"
-custom_minimum_size = Vector2(0, 40)
 alignment = 0
 
-[node name="Slot1" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot1" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
 text = "Slot 2 - Empty"
-custom_minimum_size = Vector2(0, 40)
 alignment = 0
 
-[node name="Slot2" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot2" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
 text = "Slot 3 - Empty"
-custom_minimum_size = Vector2(0, 40)
 alignment = 0
 
-[node name="Slot3" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot3" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
 text = "Slot 4 - Empty"
-custom_minimum_size = Vector2(0, 40)
 alignment = 0
 
-[node name="Slot4" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsVBox"]
+[node name="Slot4" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
 text = "Slot 5 - Empty"
-custom_minimum_size = Vector2(0, 40)
 alignment = 0
 
-[node name="SeparatorH2" type="HSeparator" parent="PanelContainer/Margin/VBox"]
+[node name="SeparatorH" type="HSeparator" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 
 [node name="ButtonHBox" type="HBoxContainer" parent="PanelContainer/Margin/VBox"]
@@ -131,13 +144,13 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="SaveButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
 size_flags_horizontal = 3
 text = "Save"
 
 [node name="CancelButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
 size_flags_horizontal = 3
 text = "Cancel"

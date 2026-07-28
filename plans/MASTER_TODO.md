@@ -956,6 +956,36 @@ INDEX extras (`RadarChart`, `InputHint`, `LabelValuePair`, `CollapsiblePanel`, o
 32 widgets, every one rendered and inspected across five proof sheets
 (`widgets_*.png`, `formkit_*.png` … `formkit4_*.png`).
 
+### CORRECTION — the ask was REPLICATE the patterns, not copy the pixels (2026-07-28)
+
+Stated by the owner, and it supersedes the whole slicing thread below:
+
+> "gameui2/3/7 and other — I'm not asking to copy, I'm asking you to replicate the patterns."
+
+So:
+- **The licensing blocker was never a blocker.** Nothing needs slicing, so which sheets are
+  watermarked comps does not gate anything. I raised it as a decision for the owner when the
+  right move was to keep replicating.
+- **`tools/kit_art/slice_sheets.py` solves a problem this project does not have.** It is kept
+  because a developer may still want to mount their OWN licensed art, and `KitArt` is the honest
+  mechanism for that — but it is NOT the deliverable and phase E is not "waiting" on it.
+- **The 32 procedural widgets ARE the deliverable**, and the measured proportions in
+  `plans/game-ui-kit/art/` are exactly the right input for them.
+
+**What "finished replicating" should therefore mean, and it is measurable.** PLAN.md claims the
+painted family is "not reachable procedurally"; the owner's instruction is to reach it anyway.
+The two ratios the art pass settled are the test, and `verify_greyscale.py` already reports them:
+
+| | painted target | flat target | kit today |
+|---|---|---|---|
+| bottom : peak | 0.18-0.27 | 0.76-0.84 | carved 0.26-0.49, rpg 0.33 |
+| rim : body | 1.78-2.05x | 1.3-1.5x | carved 1.05-1.28 |
+
+The CASUAL register already lands in its band (0.67-0.83 against 0.76-0.84). The CARVED register
+does not: its rim is too dim and its face too flat to read as painted. **That gap — making the
+carved genres hit the painted band procedurally — is the remaining "replicate the patterns" work,
+and it is checkable by running the gate rather than by opinion.**
+
 ### Phase E — sliced art, and the widgets consuming it (2026-07-28)
 
 Clarified with the owner: "extract widgets from art" meant **both** — slice real 9-patch assets

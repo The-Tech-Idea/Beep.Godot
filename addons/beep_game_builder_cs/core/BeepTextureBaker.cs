@@ -230,6 +230,14 @@ namespace Beep.GameBuilder
                                  Color fill, Color border, HashSet<string> written, List<string> log)
         {
             if (slot?.Path is not { } path || string.IsNullOrEmpty(path)) return;
+            // "baked": false marks art a human drew. The baker only knows how to draw a plain
+            // rounded box, so baking such a slot is pure destruction — and this runs from a dock
+            // button and an MCP command, where "bake everything" is one careless click.
+            if (!slot.Baked)
+            {
+                log.Add($"· {label} {slotName}: authored art (\"baked\": false) — skipped");
+                return;
+            }
             if (!written.Add(path))
             {
                 log.Add($"· {label} {slotName}: shares {path.GetFile()} with an earlier slot — kept");

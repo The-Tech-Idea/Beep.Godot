@@ -160,4 +160,25 @@ namespace Beep.ECS.UI
         StyleBox? GetScrollGrabberTexture();
         StyleBox? GetSeparatorTexture();
     }
+
+    /// <summary>Optional companion to <see cref="IThemePreset"/> for presets that can supply
+    /// HUD art.
+    ///
+    /// Kept separate rather than folded into IThemePreset because HUD art is 14 more slots and
+    /// only the file-backed preset has any concept of them — widening the main interface would
+    /// force every implementation to carry members it cannot answer. Callers cast:
+    /// <c>if (preset is IHudTexturePreset h &amp;&amp; h.UsesHudTextures) ...</c>
+    ///
+    /// Slot keys are the component names from docs/HUD_TEXTURE_SYSTEM.md without the
+    /// <c>hud_</c> prefix: "panel", "button_normal", "tab_selected", "bar_fill", ...</summary>
+    public interface IHudTexturePreset
+    {
+        /// <summary>True when this theme declares any HUD art at all. False routes the caller
+        /// to the procedural HUD chrome, which is a complete look in its own right.</summary>
+        bool UsesHudTextures { get; }
+
+        /// <summary>Built StyleBox for one HUD slot, or null when that slot has no art (the
+        /// caller then falls back per slot, so a partial art set still works).</summary>
+        StyleBox? GetHudTexture(string slot);
+    }
 }

@@ -11,7 +11,9 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class ScreenFlashComponent : UIComponent
     {
-        [Export] public Color FlashColor { get; set; } = new(1, 0, 0, 0.4f);
+        // Palette-derived, not literals — see UiSurface. Computed, so a skin change is
+        // picked up with no invalidation step.
+        public Color FlashColor => UiSurface.Semantic(this, UiSurface.Role.Danger) with { A = 0.4f };
         [Export] public float Duration { get; set; } = 0.2f;
         [Export] public int CanvasLayer { get; set; } = 50;
 

@@ -1,9 +1,12 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs" id="4_settings"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/SettingsMenu.cs" id="5_scene"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+
+[sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="SettingsMenu" type="CanvasLayer"]
 script = ExtResource("5_scene")
@@ -25,123 +28,332 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(560, 540)
+custom_minimum_size = Vector2(680, 0)
+layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 
+theme_override_styles/panel = SubResource("frame_plate")
+[node name="Frame" type="Control" parent="Center/Panel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Settings"
+Banner = 0
+
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_right = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_top = 46
+theme_override_constants/margin_bottom = 24
 
 [node name="ContentVBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 18
+layout_mode = 2
+theme_override_constants/separation = 20
 
 [node name="TitleLabel" type="Label" parent="Center/Panel/Margin/ContentVBox"]
 theme_type_variation = &"BeepTitle"
+layout_mode = 2
 text = "Settings"
 horizontal_alignment = 1
 
+visible = false
 [node name="TitleRule" type="HSeparator" parent="Center/Panel/Margin/ContentVBox"]
+layout_mode = 2
 
+visible = false
 [node name="Tabs" type="TabContainer" parent="Center/Panel/Margin/ContentVBox"]
-custom_minimum_size = Vector2(0, 320)
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Audio" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 14
+[node name="Audio" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
+layout_mode = 2
+horizontal_scroll_mode = 0
 
-[node name="MasterLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-theme_type_variation = &"BeepCaption"
+[node name="AudioList" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="MasterRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="MasterLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MasterRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Master Volume"
+vertical_alignment = 1
 
-[node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-min_value = 0.0
-max_value = 100.0
-value = 80.0
+[node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MasterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0
+max_value = 100
+step = 1.0
+value = 80
 
-[node name="SfxLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-theme_type_variation = &"BeepCaption"
+[node name="MasterValue" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MasterRow"]
+custom_minimum_size = Vector2(64, 0)
+theme_type_variation = &"BeepValue"
+layout_mode = 2
+size_flags_vertical = 4
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="SfxRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SfxLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/SfxRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "SFX Volume"
+vertical_alignment = 1
 
-[node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-min_value = 0.0
-max_value = 100.0
-value = 90.0
+[node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/SfxRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0
+max_value = 100
+step = 1.0
+value = 90
 
-[node name="MusicLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-theme_type_variation = &"BeepCaption"
+[node name="SfxValue" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/SfxRow"]
+custom_minimum_size = Vector2(64, 0)
+theme_type_variation = &"BeepValue"
+layout_mode = 2
+size_flags_vertical = 4
+text = "90%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MusicRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="MusicLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MusicRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Music Volume"
+vertical_alignment = 1
 
-[node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio"]
-min_value = 0.0
-max_value = 100.0
-value = 70.0
-
-[node name="Video" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 14
-
-[node name="FullscreenCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
+[node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MusicRow"]
+layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0
+max_value = 100
+step = 1.0
+value = 70
+
+[node name="MusicValue" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MusicRow"]
+custom_minimum_size = Vector2(64, 0)
+theme_type_variation = &"BeepValue"
+layout_mode = 2
+size_flags_vertical = 4
+text = "70%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Display" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
+layout_mode = 2
+visible = false
+horizontal_scroll_mode = 0
+
+[node name="DisplayList" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Display"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="FullscreenRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="FullscreenLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/FullscreenRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Fullscreen"
+vertical_alignment = 1
 
-[node name="ResolutionLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
-theme_type_variation = &"BeepCaption"
+[node name="FullscreenCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/FullscreenRow"]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 4
+
+[node name="ResolutionRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ResolutionLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/ResolutionRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Resolution"
+vertical_alignment = 1
 
-[node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Video"]
+[node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/ResolutionRow"]
+layout_mode = 2
 size_flags_horizontal = 3
-item_count = 3
+size_flags_vertical = 4
+custom_minimum_size = Vector2(0, 40)
+item_count = 4
 popup/item_0/text = "1280 x 720"
-popup/item_1/text = "1920 x 1080"
+popup/item_0/id = 0
+popup/item_1/text = "1600 x 900"
 popup/item_1/id = 1
-popup/item_2/text = "2560 x 1440"
+popup/item_2/text = "1920 x 1080"
 popup/item_2/id = 2
+popup/item_3/text = "2560 x 1440"
+popup/item_3/id = 3
+selected = 0
 
-[node name="Language" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 14
-
-[node name="LanguageLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Language"]
+[node name="ResolutionHint" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList"]
 theme_type_variation = &"BeepCaption"
-text = "Language"
+layout_mode = 2
+text = "Windowed only — fullscreen always uses the display's own resolution."
+autowrap_mode = 2
 
-[node name="LanguageOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Language"]
+[node name="Game" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
+layout_mode = 2
+visible = false
+horizontal_scroll_mode = 0
+
+[node name="GameList" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game"]
+layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="LanguageRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LanguageLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/LanguageRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Language"
+vertical_alignment = 1
+
+[node name="LanguageOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/LanguageRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+custom_minimum_size = Vector2(0, 40)
 item_count = 3
 popup/item_0/text = "English"
+popup/item_0/id = 0
 popup/item_1/text = "Español"
 popup/item_1/id = 1
 popup/item_2/text = "日本語"
 popup/item_2/id = 2
+selected = 0
 
-[node name="Gameplay" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 14
+[node name="GameRule" type="HSeparator" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
+layout_mode = 2
 
-[node name="SubtitlesCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-size_flags_horizontal = 3
+[node name="SubtitlesRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SubtitlesLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/SubtitlesRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Subtitles"
+vertical_alignment = 1
+
+[node name="SubtitlesCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/SubtitlesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+size_flags_horizontal = 8
 button_pressed = true
 
-[node name="ScreenShakeCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
-size_flags_horizontal = 3
+[node name="ScreenShakeRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ScreenShakeLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/ScreenShakeRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
 text = "Screen Shake"
-button_pressed = true
+vertical_alignment = 1
 
-[node name="DamageNumbersCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Gameplay"]
+[node name="ScreenShakeCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/ScreenShakeRow"]
+layout_mode = 2
 size_flags_horizontal = 3
-text = "Damage Numbers"
+size_flags_vertical = 4
+size_flags_horizontal = 8
 button_pressed = true
 
-[node name="Controls" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
-theme_override_constants/separation = 14
+[node name="DamageNumbersRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 16
 
-[node name="HintLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Controls"]
-text = "Keybinds — edit in Project Settings → Input Map"
+[node name="DamageNumbersLabel" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/DamageNumbersRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Damage Numbers"
+vertical_alignment = 1
+
+[node name="DamageNumbersCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/DamageNumbersRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+size_flags_horizontal = 8
+button_pressed = true
+
+[node name="Controls" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
+layout_mode = 2
+visible = false
+horizontal_scroll_mode = 0
+
+[node name="ControlsList" type="VBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Controls"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ControlsHint" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Controls/ControlsList"]
+theme_type_variation = &"BeepCaption"
+layout_mode = 2
+text = "Your current controls. Rebinding is not available in this build."
 autowrap_mode = 2
 
-[node name="CloseButton" type="Button" parent="Center/Panel/Margin/ContentVBox"]
+[node name="Footer" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResetButton" type="Button" parent="Center/Panel/Margin/ContentVBox/Footer"]
 custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Reset to Defaults"
+
+[node name="CloseButton" type="Button" parent="Center/Panel/Margin/ContentVBox/Footer"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Close"
 metadata/_custom = "action"
 metadata/action = "close"
@@ -155,4 +367,3 @@ ThemeComponentPath = NodePath("Center/Theme")
 
 [node name="Settings" type="Node" parent="."]
 script = ExtResource("4_settings")
-

@@ -1,7 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/ThemeGallery.cs" id="2_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+
+[sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="ThemeGallery" type="Control"]
 anchors_preset = 15
@@ -27,7 +30,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 28
+theme_override_constants/margin_top = 46
 theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
@@ -42,6 +45,7 @@ text = "Theme Gallery"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
+visible = false
 [node name="GenreCaption" type="Label" parent="Margin/VBox/Header"]
 theme_type_variation = &"BeepCaption"
 text = "Genre"
@@ -81,6 +85,14 @@ theme_override_constants/separation = 18
 size_flags_horizontal = 3
 
 [node name="TypeSection" type="PanelContainer" parent="Margin/VBox/Scroll/Content"]
+
+theme_override_styles/panel = SubResource("frame_plate")
+[node name="Frame" type="Control" parent="Margin/VBox/Scroll/Content/TypeSection"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Theme Gallery"
+Banner = 0
 
 [node name="TypeMargin" type="MarginContainer" parent="Margin/VBox/Scroll/Content/TypeSection"]
 theme_override_constants/margin_left = 20

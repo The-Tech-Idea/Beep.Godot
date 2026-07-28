@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CardGameHudComponent.cs" id="hud_stat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
 
 [node name="CardGameMain" type="Node2D"]
 
@@ -15,21 +17,11 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.1, 0.1, 0.15, 1)
 
-[node name="Label" type="Label" parent="."]
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.1
-offset_left = -100.0
-offset_right = 100.0
-grow_horizontal = 2
-text = "Card Game gameplay placeholder"
-horizontal_alignment = 1
-
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
 
 [node name="HUD" type="CanvasLayer" parent="."]
+layer = 1
 
 [node name="Root" type="Control" parent="HUD"]
 anchors_preset = 15
@@ -42,15 +34,27 @@ mouse_filter = 2
 [node name="Theme" type="Node" parent="HUD/Root"]
 script = ExtResource("hud_theme")
 GenreName = "cardgame"
+HudMode = true
+
+[node name="StatsFrame" type="Control" parent="HUD/Root"]
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 20.0
+grow_vertical = 1
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Hand"
+Banner = 1
+TargetPath = NodePath("../TopLeft")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
 anchors_preset = 1
 anchor_right = 1.0
 offset_right = 40.0
 offset_bottom = 40.0
-grow_vertical = 0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
+grow_vertical = 1
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 50
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
 theme_override_constants/separation = 4
@@ -81,7 +85,6 @@ offset_bottom = -16.0
 grow_vertical = 0
 
 [node name="EnergyLabel" type="Label" parent="HUD/Root/EnergyBox"]
-theme_override_font_sizes/font_size = 32
 text = "Energy: 3 / 3"
 
 [node name="HandZone" type="PanelContainer" parent="HUD/Root"]
@@ -133,3 +136,7 @@ OpenAction = "inventory"
 
 [node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("hud_stat")
+
+[node name="GameInfoBinder" type="Node" parent="HUD/Root"]
+script = ExtResource("binder_gi")
+ThemeComponentPath = NodePath("Theme")

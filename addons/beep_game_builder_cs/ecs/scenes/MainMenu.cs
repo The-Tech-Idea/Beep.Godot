@@ -27,13 +27,15 @@ namespace Beep.ECS.Scenes
             }
             else GD.PushWarning($"[{Name}] ContinueButton not found — not connected.");
 
-            // Saving needs a running game to capture, so from the main menu the save dialog's
-            // button is permanently disabled. Hide the entry rather than ship a dead menu —
-            // same treatment as Continue above.
+            // Saving needs a running game to capture. This scene is BOTH the startup menu and
+            // the in-game pause overlay (GameFlowComponent instances it over the frozen game),
+            // so the entry is hidden in the first role and shown in the second. It used to be
+            // hidden unconditionally, which is why Save was simply absent from the pause menu —
+            // the one place it is actually useful.
             if (this.Find<Button>("SaveGameButton") is { } saveBtn)
             {
                 saveBtn.Pressed += OnSaveGamePressed;
-                saveBtn.Visible = false;
+                saveBtn.Visible = GameApp.Instance?.IsGameRunning ?? false;
             }
             else GD.PushWarning($"[{Name}] SaveGameButton not found — not connected.");
             this.ConnectButton("LoadGameButton", OnLoadGamePressed);

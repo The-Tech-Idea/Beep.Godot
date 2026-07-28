@@ -42,6 +42,8 @@ public partial class BeepGameBuilderDock : VBoxContainer
     // ── Skin & screen tools ──
     private LineEdit _newScreenName;
     private CheckBox _overwriteScenes;
+    private OptionButton _textureSource;
+    private LineEdit _textureRoot;
 
     public override void _Ready()
     {
@@ -139,6 +141,36 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
         // ── 5. Skin + screen tools ──
         AddSectionHeader(b, "5. Skin & screens");
+
+        // Where the art behind every theme slot comes from. The theme/skin system itself is
+        // unchanged — this only chooses the SOURCE, so a project can ship the built-in art,
+        // point at its own folder, or run textureless on the procedural look.
+        _textureSource = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _textureSource.AddItem("Built-in textures (shipped with the addon)", (int)TextureSlotDef.SourceMode.BuiltIn);
+        _textureSource.AddItem("My own textures (folder below)",            (int)TextureSlotDef.SourceMode.Custom);
+        _textureSource.AddItem("No textures — procedural skin only",        (int)TextureSlotDef.SourceMode.None);
+        _textureSource.Selected = _textureSource.GetItemIndex((int)TextureSlotDef.Source);
+        b.AddChild(Row("Texture source", _textureSource));
+
+        _textureRoot = new LineEdit
+        {
+            PlaceholderText = "res://ui_textures   (…/<genre>/<theme>/<slot>.png, or flat <slot>.png)",
+            Text = TextureSlotDef.CustomRoot,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        b.AddChild(Row("My textures folder", _textureRoot));
+
+        var applySrcBtn = new Button { Text = "✔ Apply texture source" };
+        applySrcBtn.Pressed += ApplyTextureSource;
+        b.AddChild(applySrcBtn);
+        b.AddChild(new Label
+        {
+            Text = "Own textures fall back per slot: supply only the files you want to replace and "
+                 + "the rest keep the built-in art.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        });
+
+        b.AddChild(new HSeparator());
         b.AddChild(new Label { Text = "Every theme.json declares 9-patch textures. Bake writes them from that theme's own colors." });
 
         var bakeThemeBtn = new Button { Text = "🎨 Bake textures — selected genre" };
@@ -163,6 +195,66 @@ public partial class BeepGameBuilderDock : VBoxContainer
         // ── Output log ──
         _output = new TextEdit { CustomMinimumSize = new Vector2(0, 100), Editable = false, PlaceholderText = "Output..." };
         AddChild(_output);
+    }
+
+    /// <summary>Persist the texture source into ProjectSettings and re-skin what is open.
+    /// Written to ProjectSettings rather than held in the dock so the running GAME honours it
+    /// too — the dock is an editor tool, and a setting only the editor knew would make the
+    /// export behave differently from the editor preview.</summary>
+    private void ApplyTextureSource()
+    {
+        var mode = (TextureSlotDef.SourceMode)_textureSource.GetItemId(_textureSource.Selected);
+        string root = _textureRoot.Text.Trim();
+
+        if (mode == TextureSlotDef.SourceMode.Custom)
+        {
+            if (string.IsNullOrEmpty(root))
+            {
+                Log("✖ Pick a folder first — 'My own textures' with an empty path would silently "
+                  + "fall back to the built-in art for every slot.");
+                return;
+            }
+            if (!DirAccess.DirExistsAbsolute(root))
+            {
+                Log($"✖ '{root}' does not exist. Create it, or point at the folder holding your PNGs.");
+                return;
+            }
+        }
+
+        ProjectSettings.SetSetting(TextureSlotDef.SettingSource, mode.ToString());
+        ProjectSettings.SetSetting(TextureSlotDef.SettingRoot, root);
+        // Keep them in the saved project so an exported build resolves the same art.
+        ProjectSettings.SetInitialValue(TextureSlotDef.SettingSource,
+                                        TextureSlotDef.SourceMode.BuiltIn.ToString());
+        ProjectSettings.SetInitialValue(TextureSlotDef.SettingRoot, "");
+        ProjectSettings.Save();
+        TextureSlotDef.RefreshSourceSettings();
+
+        int reskinned = ReapplyOpenThemes();
+        Log(mode switch
+        {
+            TextureSlotDef.SourceMode.None =>
+                $"✔ Texture source: none — every theme now renders its procedural box. Re-skinned {reskinned} component(s).",
+            TextureSlotDef.SourceMode.Custom =>
+                $"✔ Texture source: '{root}'. Slots you have not supplied keep the built-in art. Re-skinned {reskinned} component(s).",
+            _ => $"✔ Texture source: built-in addon art. Re-skinned {reskinned} component(s).",
+        });
+    }
+
+    /// <summary>Re-run ApplyTheme on every ThemePresetComponent in the edited scene so the
+    /// change is visible immediately instead of on the next scene load.</summary>
+    private int ReapplyOpenThemes()
+    {
+        var root = EditorInterface.Singleton?.GetEditedSceneRoot();
+        if (root == null) return 0;
+        int n = 0;
+        void Walk(Node node)
+        {
+            if (node is Beep.ECS.UI.ThemePresetComponent tp) { tp.ApplyTheme(); n++; }
+            foreach (var child in node.GetChildren()) Walk(child);
+        }
+        Walk(root);
+        return n;
     }
 
     // ════════════════════════════════════════════════════════════════

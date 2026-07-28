@@ -48,6 +48,9 @@ namespace Beep.ECS.UI
 			WireSlotButtons();
 			NormalizeLayout();
 
+			// Both deferred: the row styles read colours off the generated Theme, and
+			// ThemePresetComponent/GameInfoBinder are siblings that may not have applied it yet.
+			Callable.From(ApplyRowStyles).CallDeferred();
 			// Grab initial focus so a controller/keyboard-only player can operate the menu.
 			// Deferred so the slot buttons exist and are laid out first.
 			Callable.From(GrabInitialFocus).CallDeferred();
@@ -58,25 +61,42 @@ namespace Beep.ECS.UI
 		/// overwrite is easy to forget. Delivered by a plain C# rebuild; no regenerate needed.</summary>
 		private void NormalizeLayout()
 		{
-			var panel = FindChild("PanelContainer", recursive: true, owned: false) as PanelContainer;
-			if (panel != null)
-				panel.CustomMinimumSize = new Vector2(Mathf.Max(panel.CustomMinimumSize.X, 640), Mathf.Max(panel.CustomMinimumSize.Y, 520));
+			// Every number comes from BeepDialogLayout, which the .tscn is authored to as
+			// well. These used to be literals that disagreed with the scene (panel 640x520 vs
+			// the scene's 700x550, 18px sections vs the scene's 20) and with the save menu's
+			// own copy — so the two screens rendered at different sizes and rhythms.
+			BeepDialogLayout.ApplyShell(this);
 
 			// Main VBox (button row's grandparent): consistent separation.
 			if (_loadButton?.GetParent()?.GetParent() is VBoxContainer vbox)
-				vbox.AddThemeConstantOverride("separation", 18);
+				vbox.AddThemeConstantOverride("separation", BeepDialogLayout.SectionGap);
 			// Bottom button row: uniform spacing.
 			if (_loadButton?.GetParent() is HBoxContainer hbox)
-				hbox.AddThemeConstantOverride("separation", 12);
-			if (_loadButton != null) _loadButton.CustomMinimumSize = new Vector2(0, 44);
-			if (_cancelButton != null) _cancelButton.CustomMinimumSize = new Vector2(0, 44);
+				hbox.AddThemeConstantOverride("separation", BeepDialogLayout.ButtonGap);
+			if (_loadButton != null)
+				_loadButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
+			if (_cancelButton != null)
+				_cancelButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
 			// Slot rows: uniform height, delete button sized, row spacing.
-			if (_slotsVBox != null) _slotsVBox.AddThemeConstantOverride("separation", 10);
+			if (_slotsVBox != null)
+				_slotsVBox.AddThemeConstantOverride("separation", BeepDialogLayout.RowGap);
 			foreach (var (container, _) in SlotRows())
 			{
-				if (container is Control c) c.CustomMinimumSize = new Vector2(0, 58);
+				// container is already a PanelContainer (which IS a Control), so no type test
+				// is needed. The `is Control c` here made the line depend on how the name
+				// `Control` resolves in the consuming project, and failed with CS8121 in a
+				// game that has its own Control type.
+				container.CustomMinimumSize = new Vector2(0, BeepDialogLayout.Row(this));
+				if (container.FindChild("SlotHBox", owned: false) is HBoxContainer row)
+					row.AddThemeConstantOverride("separation", BeepDialogLayout.RowInnerGap);
+				if (container.FindChild("SlotInfo", owned: false) is VBoxContainer info)
+					info.AddThemeConstantOverride("separation", BeepDialogLayout.RowInfoGap);
+				if (container.FindChild("SlotButton", owned: false) is Button slot)
+					slot.CustomMinimumSize = new Vector2(
+						BeepDialogLayout.SlotButtonWidth, BeepDialogLayout.SlotButtonHeight);
 				if (container.FindChild("DeleteButton", owned: false) is Button del)
-					del.CustomMinimumSize = new Vector2(96, 44);
+					del.CustomMinimumSize = new Vector2(
+						BeepDialogLayout.DeleteButtonWidth, BeepDialogLayout.DeleteButtonHeight);
 			}
 		}
 
@@ -162,7 +182,7 @@ namespace Beep.ECS.UI
 				if (_slotMetadata.TryGetValue(slot, out var meta))
 				{
 					if (nameLabel != null) nameLabel.Text = meta.SaveName;
-					if (levelLabel != null) levelLabel.Text = $"Level: {meta.CurrentLevel}";
+					if (levelLabel != null) levelLabel.Text = $"Level: {PrettyLevel(meta.CurrentLevel)}";
 					if (timeLabel != null)
 					{
 						int hours = (int)(meta.PlaytimeSeconds / 3600);
@@ -177,6 +197,23 @@ namespace Beep.ECS.UI
 					if (timeLabel != null) timeLabel.Text = "Time: --";
 				}
 			}
+		}
+
+		/// <summary>Human-readable level for a slot row.
+		///
+		/// <c>SaveMetadata.CurrentLevel</c> is a free-form string, and what the framework
+		/// actually stores in it is the gameplay scene's res:// path. The row therefore read
+		/// "Level: res://scenes/main/citybuilder_main.tscn" — meaningless to a player, and long
+		/// enough that its label's minimum width dragged the whole slot list wider than the
+		/// dialog, which is what put a horizontal scrollbar under the list and pushed every
+		/// Delete button off the right edge.</summary>
+		private static string PrettyLevel(string raw)
+		{
+			if (string.IsNullOrWhiteSpace(raw)) return "--";
+			string s = raw.Contains('/') ? raw.GetFile() : raw;
+			if (s.EndsWith(".tscn", System.StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 5);
+			s = s.Replace('_', ' ').Trim();
+			return s.Length == 0 ? "--" : s;
 		}
 
 		/// <summary>Wire the per-row buttons. Called once from _Ready — PopulateSlots used to
@@ -199,15 +236,61 @@ namespace Beep.ECS.UI
 		{
 			bool hasData = _slotMetadata.ContainsKey(slot);
 			_selectedSlot = hasData ? slot : int.MinValue;
+			_highlightedSlot = slot;
 
 			if (_loadButton != null)
 				_loadButton.Disabled = !hasData;
 
+			ApplyRowStyles();
+		}
+
+		/// <summary>Row the player last clicked. Separate from <see cref="_selectedSlot"/>,
+		/// which is int.MinValue for an empty slot — clicking an empty row still has to move
+		/// the highlight, or the click reads as ignored.</summary>
+		private int _highlightedSlot = int.MinValue;
+
+		/// <summary>Paint every slot row from the ACTIVE THEME.
+		///
+		/// The rows used to carry a hardcoded near-black <c>StyleBoxFlat</c> baked into the
+		/// scene (0.15, 0.15, 0.19) while the theme supplied the text colour. Under any light
+		/// theme — urban, eco, paper, candy — that put near-black text on a near-black row:
+		/// the save name was barely legible and the "Level:"/"Time:" captions vanished
+		/// completely. Selection then replaced it with a bare <c>new StyleBoxFlat()</c>, which
+		/// is fully transparent, so clicking any row erased every other row's background.</summary>
+		private void ApplyRowStyles()
+		{
 			foreach (var (container, rowSlot) in SlotRows())
+				container.AddThemeStyleboxOverride("panel", BuildRowStyle(container, rowSlot == _highlightedSlot));
+		}
+
+		/// <summary>A row background that works on light and dark themes, and over a textured
+		/// panel. Deliberately built from TRANSLUCENT overlays rather than an opaque colour:
+		/// the dialog's own panel may be a 9-patch texture, so an opaque row would punch a
+		/// flat rectangle through the artwork. Tinting whatever is behind keeps the skin.</summary>
+		// Godot.Control spelled out, not `Control`: a consuming game that defines its own
+		// Control type shadows the name here and this stops compiling (CS1503). The same trap
+		// already bit NormalizeLayout with CS8121.
+		private StyleBox BuildRowStyle(Godot.Control ctx, bool selected)
+		{
+			// Which way to tint is decided by the theme's own text colour: dark text means a
+			// light theme (so darken the row), light text means a dark theme (so lighten it).
+			Color text = ctx.GetThemeColor("font_color", "Label");
+			bool lightTheme = text.Luminance < 0.5f;
+			Color rowBg = lightTheme ? new Color(0f, 0f, 0f, 0.07f) : new Color(1f, 1f, 1f, 0.08f);
+			Color accent = ctx.GetThemeColor("font_color", "BeepValue");
+
+			var box = new StyleBoxFlat
 			{
-				container.AddThemeStyleboxOverride("panel",
-					rowSlot == slot ? new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.6f) } : new StyleBoxFlat());
-			}
+				BgColor = selected ? new Color(accent, 0.28f) : rowBg,
+				BorderColor = selected ? accent : new Color(accent, 0.16f),
+			};
+			box.SetCornerRadiusAll(BeepDialogLayout.RowCornerRadius);
+			box.SetBorderWidthAll(selected ? 2 : 1);
+			box.ContentMarginLeft = BeepDialogLayout.RowPadX;
+			box.ContentMarginRight = BeepDialogLayout.RowPadX;
+			box.ContentMarginTop = BeepDialogLayout.RowPadY;
+			box.ContentMarginBottom = BeepDialogLayout.RowPadY;
+			return box;
 		}
 
 		private void OnLoadPressed()

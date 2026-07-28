@@ -1,8 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/rpg/Inventory.cs" id="3_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+
+[sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="Inventory" type="Control"]
 anchors_preset = 15
@@ -28,7 +31,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_right = 40
-theme_override_constants/margin_top = 28
+theme_override_constants/margin_top = 46
 theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
@@ -43,6 +46,7 @@ text = "Inventory"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
+visible = false
 [node name="GoldValue" type="Label" parent="Margin/VBox/Header"]
 theme_type_variation = &"BeepValue"
 text = "1,250 g"
@@ -60,6 +64,14 @@ size_flags_vertical = 3
 
 [node name="GridPanel" type="PanelContainer" parent="Margin/VBox/Body"]
 size_flags_horizontal = 3
+
+theme_override_styles/panel = SubResource("frame_plate")
+[node name="Frame" type="Control" parent="Margin/VBox/Body/GridPanel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("panelframe")
+Title = "Inventory"
+Banner = 1
 
 [node name="GridMargin" type="MarginContainer" parent="Margin/VBox/Body/GridPanel"]
 theme_override_constants/margin_left = 20

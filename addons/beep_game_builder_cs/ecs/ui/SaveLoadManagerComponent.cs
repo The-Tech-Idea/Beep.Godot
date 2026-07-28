@@ -24,7 +24,6 @@ namespace Beep.ECS.UI
 		[Signal] public delegate void LoadCompletedEventHandler(int slot);
 
 		private GameStateManagerComponent? _gameStateManager;
-		private CanvasLayer? _uiLayer;
 
 		// The one save/load overlay currently open. Guards ShowSaveMenu/ShowLoadMenu against
 		// stacking a second overlay when called twice (both are public and idempotent).
@@ -45,12 +44,18 @@ namespace Beep.ECS.UI
 
 			base._Ready();
 			FindGameStateManager();
-			FindUILayer();
 		}
+
+		/// <summary>CanvasLayer to host the dialog on. Above GameFlowComponent's pause overlay,
+		/// which sits at 100 — the save/load menu is opened FROM that menu, so it has to draw
+		/// over it.</summary>
+		private const int OverlayLayer = 110;
 
 		/// <summary>Add a save/load menu over whatever is on screen.
 		///
-		/// Two things this has to get right:
+		/// Three things this has to get right:
+		///  • Host a Control-rooted menu in its own CanvasLayer, so it lands in SCREEN space
+		///    and above the pause overlay. See the comment in the body.
 		///  • Parent inside the current scene, not at /root. Parenting to the tree root
 		///    left the menu outside the scene, so it survived scene changes and lingered.
 		///  • ProcessMode = Always. These menus are opened from the pause menu, i.e. while
@@ -61,21 +66,43 @@ namespace Beep.ECS.UI
 		{
 			overlay.ProcessMode = Node.ProcessModeEnum.Always;
 
-			Node? parent = _uiLayer;
-			parent ??= GetTree()?.CurrentScene;
-			parent ??= GetParent();
-
+			Node? parent = GetTree()?.CurrentScene ?? GetParent();
 			if (parent == null)
 			{
-				GD.PushError($"[{Name}] Nowhere to add the menu — no UI layer or current scene.");
+				GD.PushError($"[{Name}] Nowhere to add the menu — no current scene.");
 				overlay.QueueFree();
 				return;
 			}
-			parent.AddChild(overlay);
+
+			// A Control-rooted menu MUST get its own CanvasLayer.
+			//
+			// This used to add the dialog straight to the current scene. From the main menu that
+			// is a Control, so it landed in screen space and worked. DURING PLAY the current
+			// scene is the Node2D game root, so the dialog joined the WORLD canvas: it rode the
+			// Camera2D and drew beneath every HUD layer — and far beneath the pause overlay,
+			// which GameFlowComponent hosts at layer 100. Save/Load from the pause menu built
+			// the dialog, parented it, and left it underneath the menu that opened it. It looked
+			// like the buttons did nothing. GameFlowComponent already documents this exact trap
+			// for its own overlay; this component had the same defect.
+			Node host;
+			if (overlay is CanvasLayer) host = overlay;
+			else
+			{
+				var layer = new CanvasLayer { Name = "SaveLoadOverlayLayer", Layer = OverlayLayer };
+				layer.AddChild(overlay);
+				host = layer;
+			}
+			host.ProcessMode = Node.ProcessModeEnum.Always;
+			parent.AddChild(host);
+
 			_openMenu = overlay;
-			// Clear the guard when the overlay closes itself (QueueFree), so the next
-			// ShowSaveMenu/ShowLoadMenu can open again.
-			overlay.TreeExited += () => { if (_openMenu == overlay) _openMenu = null; };
+			// The menu frees ITSELF (QueueFree on load/cancel), so the host layer has to be
+			// torn down with it or an empty CanvasLayer is leaked on every open.
+			overlay.TreeExited += () =>
+			{
+				if (_openMenu == overlay) _openMenu = null;
+				if (host != overlay && GodotObject.IsInstanceValid(host)) host.QueueFree();
+			};
 		}
 
 		/// <summary>True when a save/load overlay is already on screen. Prevents stacking.</summary>
@@ -108,16 +135,10 @@ namespace Beep.ECS.UI
 			return null;
 		}
 
-		private void FindUILayer()
-		{
-			_uiLayer = GetNodeOrNull<CanvasLayer>("/root/HUD");
-			if (_uiLayer != null) return;
-
-			var root = GetTree()?.Root;
-			if (root == null) return;
-			foreach (var child in root.GetChildren())
-				if (child is CanvasLayer layer) { _uiLayer = layer; return; }
-		}
+		// FindUILayer() removed: it looked for /root/HUD and then any CanvasLayer directly under
+		// /root, but a genre's HUD lives at <GameScene>/HUD and /root holds only autoloads, so it
+		// always found nothing and fell through to the world-space parent. AddOverlay now creates
+		// its own layer, which is correct in both the main-menu and in-game cases.
 
 		/// <summary>Show the save game menu. Idempotent — a second call while a menu is open is ignored.</summary>
 		public void ShowSaveMenu()

@@ -381,8 +381,17 @@ namespace Beep.ECS.UI.Kit
             foreach (var layer in KitStacks.For(g.Register))
             {
                 float inset = layer.Inset >= 0f ? r.Size.Y * layer.Inset : frame;
+
+                // STRUCTURAL layers (Plate, Keyline) cut inward from the last plate; EFFECT
+                // layers apply TO that plate and must not inset again. Insetting everything
+                // compounded: each effect stepped a further frame inward, so the face shade
+                // stopped short of the plate's bottom edge and the carved register measured
+                // FURTHER from painted (rpg 0.33 -> 0.40) after the layer stack was introduced,
+                // which is the opposite of what the stack was built to do.
+                bool structural = layer.Kind is KitLayerKind.Plate or KitLayerKind.Keyline;
                 Rect2 box = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
-                    ? r : Inset(cur, inset);
+                    ? r
+                    : structural ? Inset(cur, inset) : cur;
                 if (box.Size.X < 2f || box.Size.Y < 2f) continue;
                 KitShape s = layer.Shape ?? shape;
 

@@ -956,6 +956,24 @@ INDEX extras (`RadarChart`, `InputHint`, `LabelValuePair`, `CollapsiblePanel`, o
 32 widgets, every one rendered and inspected across five proof sheets
 (`widgets_*.png`, `formkit_*.png` … `formkit4_*.png`).
 
+### Owner-supplied shape/icon packs — LOOKED AT, NOT USED (2026-07-28)
+
+`H:\GameDev\GFX\GameAssets\shapes` — three Flaticon packs (essentials-UI 30, arrows 20, shapes 30)
+as SVG/PNG/EPS/PSD plus icon-fonts.
+
+**Decision: not used.** They are GLYPH sets, not chrome, so they do nothing for the carved-register
+gap, which is the only open visual problem. `KitShape` already carries 16 silhouettes and every
+widget renders correctly with no imported asset at all. Adding a hexagon would be nice-to-have,
+not a need, and each pack ships a `license/license.pdf` (Flaticon free tier requires attribution)
+against a standing repo rule of "shipped art stays CC0 Kenney or authored" — cost with no
+corresponding need.
+
+Recorded only so the next session does not re-evaluate them from scratch. **If** icon art is ever
+wanted, the slots are already there and take a `Texture2D` with no code change:
+`KitIconButton.Icon`, `KitSegmentedIconGroup.Segments[].Icon`, `KitSlotGrid.Slot.Icon`,
+`KitTree.Node.Icon`, `KitCurrencyBar.Entry.Icon`, `KitNodeCard.Art`, `KitAvatarFrame.Portrait`,
+`KitMeter.CapIcon`, `KitAttach.Icon`.
+
 ### CORRECTION — the ask was REPLICATE the patterns, not copy the pixels (2026-07-28)
 
 Stated by the owner, and it supersedes the whole slicing thread below:

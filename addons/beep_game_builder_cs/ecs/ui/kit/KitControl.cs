@@ -344,8 +344,15 @@ namespace Beep.ECS.UI.Kit
 
         // ── Material layers ───────────────────────────────────────────────────────────────
 
-        /// <summary>Draw the genre's material into a rect: base, bevel, gloss, rim, sparkle.
-        /// One call, so every kit widget is made of the same stuff.</summary>
+        /// <summary>
+        /// Draw the genre's material by walking its declared LAYER STACK.
+        ///
+        /// This used to be a fixed sequence -- frame, plate, bevel, gloss, studs, sparkle,
+        /// always, in that order -- so a genre could only ever be a re-tinted version of one
+        /// build. That is the failure PLAN.md 4.1 exists to prevent, and it is why the carved
+        /// register could not be pushed toward the painted band: there was nowhere to put another
+        /// layer. The stack now comes from KitStacks, so a register's build is DATA.
+        /// </summary>
         protected void DrawMaterial(Rect2 r, KitShape shape)
         {
             var m = Material;
@@ -353,145 +360,166 @@ namespace Beep.ECS.UI.Kit
             Color face = FaceColor();
             Color ink = InkColor();
             Color rim = RimColor();
+            float fs = UiSurface.FontSize(this);
+            float rimPx = g.Rim * (fs / 14f);
 
-            float rimPx = g.Rim * (UiSurface.FontSize(this) / 14f);
-
-            // FRAME then PLATE - two nested shapes, which is how every control on
-            // Example_Art/rpgui.png is built, and how PanelFrameComponent has always drawn its
-            // frame + recessed well. A single bevelled plate is what made every genre generic.
-            //
-            // A genre in the CASUAL register (KitFrameMode.None) deliberately has no frame: that
-            // family is one flat plate with a thick dark outline, and carving it would average
-            // the two reference families together.
-            Rect2 plate = r;
-
-            // Sliced art first: when a genre has a base plate, it replaces the frame+plate build
-            // entirely, because painted art already contains its own frame, bevel and rim. Layers
-            // the art does not supply still come from the procedural stack below.
+            // Sliced art, where a project has mounted any, still short-circuits the whole stack:
+            // painted art already contains its own frame, bevel and rim.
             if (m.Base && TryDrawArt(r, "base"))
             {
                 float ftArt = g.FramePx(r.Size.Y);
-                plate = new Rect2(r.Position + new Vector2(ftArt, ftArt),
-                                  r.Size - new Vector2(ftArt * 2f, ftArt * 2f));
-                if (plate.Size.X <= 4 || plate.Size.Y <= 4) plate = r;
-                TryDrawArt(plate, "plate");
-                DrawAfterArt(plate, g);
+                var pl = Inset(r, ftArt);
+                if (pl.Size.X <= 4 || pl.Size.Y <= 4) pl = r;
+                TryDrawArt(pl, "plate");
+                if (g.Sparkle > 0f && State != KitState.Disabled) DrawSparkle(pl, g);
                 return;
             }
+            if (!m.Base) return;
 
-            if (m.Base)
+            float frame = g.FramePx(r.Size.Y);
+            Rect2 cur = r;
+            foreach (var layer in KitStacks.For(g.Register))
             {
-                float ft = g.FramePx(r.Size.Y);
-                if (ft > 0f)
+                float inset = layer.Inset >= 0f ? r.Size.Y * layer.Inset : frame;
+                Rect2 box = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
+                    ? r : Inset(cur, inset);
+                if (box.Size.X < 2f || box.Size.Y < 2f) continue;
+                KitShape s = layer.Shape ?? shape;
+
+                switch (layer.Kind)
                 {
-                    DrawShape(r, shape, face, rim, rimPx);
-                    plate = new Rect2(r.Position + new Vector2(ft, ft),
-                                      r.Size - new Vector2(ft * 2f, ft * 2f));
-                    if (plate.Size.X > 4 && plate.Size.Y > 4)
+                    case KitLayerKind.Plate:
                     {
-                        // The inner plate carries its own shade and its own rim, so the frame
-                        // reads as a separate piece rather than a border on one slab. The shade
-                        // follows ELEVATION, not the genre - see KitGeometry.PlateShadeFor.
-                        float ps = g.PlateShadeFor(Elevation);
-                        Color inner = new Color(face.R * ps, face.G * ps, face.B * ps, face.A);
-
-                        // A hairline frame is 1-3px, so an ink rim on the plate sits directly on
-                        // top of it and swallows it: racing asked for a 1.45x bright rim and
-                        // rendered 0.17x, because the plate's own dark rim covered the frame.
-                        // The thin line IS the edge treatment in that register.
-                        float innerRim = g.FrameMode == KitFrameMode.Hairline
-                            ? 0f
-                            : Mathf.Max(1f, rimPx * 0.55f);
-                        DrawShape(plate, shape, inner, ink, innerRim);
+                        var c = new Color(face.R * layer.Shade, face.G * layer.Shade,
+                                          face.B * layer.Shade, face.A);
+                        // The outermost plate carries the genre's rim polarity; inner plates take
+                        // ink, so a bright carved frame still reads against its own plate.
+                        Color edge = layer.Inset == 0f ? rim : ink;
+                        DrawShape(box, s, c, edge,
+                                  layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
+                        cur = box;
+                        break;
                     }
-                    else plate = r;
-                }
-                else DrawShape(r, shape, face, rim, rimPx);
-            }
-
-            if (g.Bevel > 0f)
-            {
-                // Light along the top-left and dark along the bottom-right, swapped when sunken.
-                // Inset so the bevel sits inside the rim rather than on top of it.
-                float t = Mathf.Max(1f, plate.Size.Y * 0.08f * g.Bevel);
-                var inner = new Rect2(plate.Position + new Vector2(t * 1.2f, t * 1.2f),
-                                      plate.Size - new Vector2(t * 2.4f, t * 2.4f));
-                if (inner.Size.X > 2 && inner.Size.Y > 2)
-                {
-                    Color hi = new Color(1, 1, 1, 0.22f * g.Bevel);
-                    Color lo = new Color(0, 0, 0, 0.26f * g.Bevel);
-                    Color top = Sunken ? lo : hi, bot = Sunken ? hi : lo;
-
-                    // The CASUAL register omits the dark half of the bevel. That family expresses
-                    // depth with a thick outline and a discrete top band; raking a shadow across
-                    // the plate is the carved family's cue, and borrowing it is what made every
-                    // casual genre measure bottom:peak 0.23-0.26 (painted) against a 0.76-0.84
-                    // flat target. A gradient down the face IS the painted reading.
-                    bool allowDark = g.Register != KitRegister.Casual;
-                    if (allowDark || !Sunken)
+                    case KitLayerKind.Keyline:
                     {
-                        DrawLine(inner.Position, inner.Position + new Vector2(inner.Size.X, 0), top, t);
-                        DrawLine(inner.Position, inner.Position + new Vector2(0, inner.Size.Y), top, t);
+                        var c = new Color(face.R * layer.Shade, face.G * layer.Shade,
+                                          face.B * layer.Shade, layer.Amount);
+                        DrawShape(box, s, new Color(0, 0, 0, 0), c, Mathf.Max(1f, rimPx * 0.5f));
+                        break;
                     }
-                    if (allowDark || Sunken)
-                    {
-                        DrawLine(inner.Position + new Vector2(0, inner.Size.Y), inner.End, bot, t);
-                        DrawLine(inner.Position + new Vector2(inner.Size.X, 0), inner.End, bot, t);
-                    }
+                    case KitLayerKind.Shade: DrawFaceShade(box, s, layer.Amount); break;
+                    case KitLayerKind.Bevel: DrawBevel(box, g, layer.Amount); break;
+                    case KitLayerKind.Gloss: DrawGloss(box, s, g, layer.Amount); break;
+                    case KitLayerKind.Studs:
+                        if (g.Studs > 0 && State != KitState.Disabled) DrawStuds(r, g, ink);
+                        break;
+                    case KitLayerKind.Sparkle:
+                        if (g.Sparkle > 0f && State != KitState.Disabled) DrawSparkle(cur, g);
+                        break;
                 }
-            }
-
-            if (g.Gloss > 0f && !Sunken)
-            {
-                // Sheen across the upper face only — the reference kits all light from above.
-                var sheen = new Rect2(plate.Position + new Vector2(plate.Size.X * 0.07f, plate.Size.Y * 0.10f),
-                                      new Vector2(plate.Size.X * 0.86f, plate.Size.Y * 0.34f));
-                // Cut to the HOST's silhouette, never substituted with Round. Drawing a rounded
-                // highlight inside an angular outline is the "triangle inside a curved triangle".
-                if (sheen.Size.X > 2 && sheen.Size.Y > 2)
-                    DrawShape(sheen, shape,
-                              new Color(1, 1, 1, 0.16f * g.Gloss), new Color(0, 0, 0, 0), 0f);
-            }
-
-            // Corner studs. After silhouette this is the strongest NON-COLOUR genre tell,
-            // which is why it is geometry rather than decoration.
-            if (g.Studs > 0 && State != KitState.Disabled)
-            {
-                float sr = Mathf.Max(1.5f, r.Size.Y * 0.06f);
-                float off = Mathf.Max(sr * 1.8f, g.FramePx(r.Size.Y) * 0.55f);
-                var corners = new[]
-                {
-                    r.Position + new Vector2(off, off),
-                    r.Position + new Vector2(r.Size.X - off, off),
-                    r.Position + new Vector2(off, r.Size.Y - off),
-                    r.Position + new Vector2(r.Size.X - off, r.Size.Y - off),
-                };
-                foreach (var c in corners)
-                {
-                    DrawCircle(c, sr, new Color(1, 1, 1, 0.30f));
-                    DrawArc(c, sr, 0, Mathf.Tau, 12, ink, Mathf.Max(1f, sr * 0.35f));
-                }
-            }
-
-            if (g.Sparkle > 0f && State != KitState.Disabled)
-            {
-                float sp = Mathf.Max(2f, plate.Size.Y * 0.07f);
-                DrawCircle(plate.Position + new Vector2(plate.Size.X * 0.16f, plate.Size.Y * 0.22f),
-                           sp, new Color(1, 1, 1, 0.5f * g.Sparkle));
             }
         }
+
+        private static Rect2 Inset(Rect2 r, float by)
+            => new(r.Position + new Vector2(by, by), r.Size - new Vector2(by * 2f, by * 2f));
+
+        /// <summary>Vertical falloff down the face -- the layer that decides PAINTED vs FLAT.
+        /// The art pass measured a painted plate's bottom at 0.18-0.27 of its peak and a flat
+        /// one at 0.76-0.84, and a gradient down the face is exactly that difference. Drawn as
+        /// stacked bands rather than a shader, so it costs nothing and still cuts to the host
+        /// silhouette at the last band.</summary>
+        private void DrawFaceShade(Rect2 r, KitShape shape, float amount)
+        {
+            if (amount <= 0f) return;
+            const int bands = 7;
+            float bh = r.Size.Y / bands;
+            for (int i = 0; i < bands; i++)
+            {
+                // Darkest at the bottom; the top is left alone so the peak stays the peak.
+                float t = (i + 1) / (float)bands;
+                float a = amount * 0.42f * t * t;
+                var band = new Rect2(r.Position.X, r.Position.Y + bh * i, r.Size.X, bh + 1f);
+                if (band.Size.Y < 1f) continue;
+                DrawShape(band, i == bands - 1 ? shape : KitShape.Rect,
+                          new Color(0, 0, 0, a), new Color(0, 0, 0, 0), 0f);
+            }
+        }
+
+        private void DrawBevel(Rect2 plate, KitGeometry g, float amount)
+        {
+            if (g.Bevel <= 0f || amount <= 0f) return;
+            float t = Mathf.Max(1f, plate.Size.Y * 0.08f * g.Bevel);
+            var inner = new Rect2(plate.Position + new Vector2(t * 1.2f, t * 1.2f),
+                                  plate.Size - new Vector2(t * 2.4f, t * 2.4f));
+            if (inner.Size.X <= 2 || inner.Size.Y <= 2) return;
+
+            Color hi = new(1, 1, 1, 0.22f * g.Bevel * amount);
+            Color lo = new(0, 0, 0, 0.26f * g.Bevel * amount);
+            Color top = Sunken ? lo : hi, bot = Sunken ? hi : lo;
+
+            // The CASUAL register omits the dark half: that family expresses depth with a thick
+            // outline and a top band, and raking a shadow across the plate reads as painted.
+            bool allowDark = g.Register != KitRegister.Casual;
+            if (allowDark || !Sunken)
+            {
+                DrawLine(inner.Position, inner.Position + new Vector2(inner.Size.X, 0), top, t);
+                DrawLine(inner.Position, inner.Position + new Vector2(0, inner.Size.Y), top, t);
+            }
+            if (allowDark || Sunken)
+            {
+                DrawLine(inner.Position + new Vector2(0, inner.Size.Y), inner.End, bot, t);
+                DrawLine(inner.Position + new Vector2(inner.Size.X, 0), inner.End, bot, t);
+            }
+        }
+
+        private void DrawGloss(Rect2 plate, KitShape shape, KitGeometry g, float amount)
+        {
+            if (g.Gloss <= 0f || amount <= 0f || Sunken) return;
+            var sheen = new Rect2(
+                plate.Position + new Vector2(plate.Size.X * 0.07f, plate.Size.Y * 0.10f),
+                new Vector2(plate.Size.X * 0.86f, plate.Size.Y * 0.34f));
+            if (sheen.Size.X <= 2 || sheen.Size.Y <= 2) return;
+            // Cut to the HOST's silhouette, never substituted with Round.
+            DrawShape(sheen, shape, new Color(1, 1, 1, 0.16f * g.Gloss * amount),
+                      new Color(0, 0, 0, 0), 0f);
+        }
+
+        private void DrawStuds(Rect2 r, KitGeometry g, Color ink)
+        {
+            float sr = Mathf.Max(1.5f, r.Size.Y * 0.06f);
+            float off = Mathf.Max(sr * 1.8f, g.FramePx(r.Size.Y) * 0.55f);
+            foreach (var c in new[]
+            {
+                r.Position + new Vector2(off, off),
+                r.Position + new Vector2(r.Size.X - off, off),
+                r.Position + new Vector2(off, r.Size.Y - off),
+                r.Position + new Vector2(r.Size.X - off, r.Size.Y - off),
+            })
+            {
+                DrawCircle(c, sr, new Color(1, 1, 1, 0.30f));
+                DrawArc(c, sr, 0, Mathf.Tau, 12, ink, Mathf.Max(1f, sr * 0.35f));
+            }
+        }
+
+        private void DrawSparkle(Rect2 plate, KitGeometry g)
+        {
+            float sp = Mathf.Max(2f, plate.Size.Y * 0.07f);
+            DrawCircle(plate.Position + new Vector2(plate.Size.X * 0.16f, plate.Size.Y * 0.22f),
+                       sp, new Color(1, 1, 1, 0.5f * g.Sparkle));
+        }
+
 
         /// <summary>
         /// An overhanging title banner straddling the top edge of a host rect.
         ///
         /// Lives on the base class because it is, by the art pass's count, "the single most
-        /// repeated element across all 7 kits" — panels, cards, modals and store tiles all carry
+        /// repeated element across all 7 kits" -- panels, cards, modals and store tiles all carry
         /// one, and every one of them OVERHANGS rather than sitting inline. An inline Label is
         /// what the framework shipped instead, everywhere.
         ///
         /// Measured: height <b>0.14 x the host</b> (rpgui2: 18px on a 129px card).
         /// <paramref name="shade"/> defaults to <b>0.44 x the frame's lightness</b> (gameui2),
-        /// i.e. a title plate reads RECESSED, not raised — though the polarity is per-family
+        /// i.e. a title plate reads RECESSED, not raised -- though the polarity is per-family
         /// (gameui4's banner is white L=0.97), so it is a parameter rather than a constant.
         /// </summary>
         protected void DrawBanner(Rect2 host, string text, KitShape shape,
@@ -508,20 +536,18 @@ namespace Beep.ECS.UI.Kit
             float w = host.Size.X * widthRatio;
             if (font != null)
             {
-                // Never narrower than the text it carries.
                 float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
                 w = Mathf.Max(w, Mathf.Min(need, host.Size.X * 1.08f));
             }
 
-            // Straddles the edge: centred on it, so half the plate sits outside the host. This
-            // is the move containers cannot express and the reason it is drawn, not parented.
+            // Straddles the edge: centred on it, so half the plate sits outside the host. This is
+            // the move containers cannot express and the reason it is drawn, not parented.
             var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
                               host.Position.Y - h * 0.5f, w, h);
 
             Color face = FaceColor();
-            Color plate = new Color(face.R * shade, face.G * shade, face.B * shade, 1f);
-            DrawShape(r, shape, plate, InkColor(),
-                      Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
+            Color plate = new(face.R * shade, face.G * shade, face.B * shade, 1f);
+            DrawShape(r, shape, plate, InkColor(), Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
 
             if (font == null) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);

@@ -971,6 +971,18 @@ AND have the widgets render from them, procedural being the fallback rather than
       already contains its own frame, bevel and rim — re-applying the procedural bevel over it is
       what makes textured chrome look plastic. The palette still drives `modulate`, so sliced art
       reskins instead of pinning one game's colours into every project.
+- [ ] **THE ASSETS THEMSELVES ARE NOT EXTRACTED.** Correcting an earlier claim in this file:
+      phase E was recorded as done when only its MECHANISM was. There are **zero sliced widget
+      assets in the repo and zero recorded crop coordinates.** `slice_sheets.py` needs
+      `x,y,w,h` + 9-patch margins per widget per sheet, and nobody has ever worked those out, so
+      the tool is presently unusable by anyone. One throwaway crop was cut to prove the pipeline
+      and then deleted. **The remaining work is the measurement pass**: go through the 43 sheets,
+      locate each widget (button / panel / bar / frame / tab / slot), record its rect and margins
+      the way `plans/game-ui-kit/art/*.md` recorded proportions, and cut them.
+      **Blocked on a decision, not on effort:** the audit marks `gameui2/3/7` as watermarked
+      comps and the standing rule is "shipped art stays CC0 Kenney or authored" — so which
+      sheets, if any, may be sliced into shippable art is the owner's call. Building a tool
+      instead of asking was the wrong move and is what let "phase E done" stand for three turns.
 - [x] **`tools/kit_art/slice_sheets.py`** — cuts regions + margins out of `Example_Art/` into the
       layout `KitArt` reads, and appends a `PROVENANCE.txt` naming the source of every file.
 - [x] **Licensing enforced in the tool, not just documented.** It REFUSES `gameui2/3/7` (recorded

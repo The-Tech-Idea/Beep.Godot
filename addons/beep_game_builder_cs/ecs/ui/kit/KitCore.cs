@@ -76,10 +76,16 @@ namespace Beep.ECS.UI.Kit
             "rpg" => KitShape.Chamfer,
             "survival" => KitShape.Notch,
             "shooter" => KitShape.Clip,
-            "strategy" or "citybuilder" => KitShape.Rect,
+            // NO genre renders as a bare Rect. A rectangle with a border is a Godot UI button,
+            // whatever shading is put on it -- and the greyscale gate said so: citybuilder and
+            // strategy scored as INDISTINGUISHABLE precisely because both were KitShape.Rect and
+            // had no silhouette to tell apart. That was the diagnosis; corner brackets were not.
+            "citybuilder" => KitShape.Octagon,   // citybuilder5's stone tiles: near-square, corners cut
+            "strategy" => KitShape.Shield,       // faction crest / command panel (AoE, StarCraft)
             "racing" => KitShape.Speed,
             "platformer" => KitShape.Pill,
-            "cardgame" or "puzzle" or "topdown" => KitShape.Round,
+            "puzzle" => KitShape.Ellipse,        // candy/bubble, not another rounded rect
+            "cardgame" or "topdown" => KitShape.Round,
             _ => KitShape.Round,
         };
     }

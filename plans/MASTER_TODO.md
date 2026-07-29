@@ -956,6 +956,54 @@ INDEX extras (`RadarChart`, `InputHint`, `LabelValuePair`, `CollapsiblePanel`, o
 32 widgets, every one rendered and inspected across five proof sheets
 (`widgets_*.png`, `formkit_*.png` … `formkit4_*.png`).
 
+### KitLayer — the multilayer stack, and the harness bug that hid it (2026-07-29)
+
+`KitLayer` + `KitStacks` are in: each register declares an ORDERED stack and `DrawMaterial` walks
+it, instead of running the fixed frame/plate/bevel/gloss/studs/sparkle sequence that made every
+genre a re-tint of one build. Carved gets frame + recess keyline + plate + face shade + bevel +
+gloss; casual stays shallow with NO face shade (a gradient down the face IS the painted reading);
+technical sits between. `KitLayerKind.Shade` draws the vertical falloff the painted/flat ratio
+actually measures.
+
+**RETRACTION.** Two commits recorded this as a "null result" — that the stack moved nothing. That
+was wrong, and the cause was my own shell:
+
+```
+dotnet build 2>&1 | grep -cE 'error CS' && timeout 150 godot ...
+```
+
+**`grep -c` exits 1 when the count is zero.** On a clean build the `&&` short-circuited and Godot
+never ran, so every "measurement" compared the previous evening's PNG against itself. That is why
+two separate fixes appeared to move the numbers by exactly 0.00, and why a canary darkening the
+inner plate 0.88 → 0.20 rendered "byte-identical" and looked like a stale assembly. The DLL was
+fine; the render never happened.
+
+**With a render that actually runs, the stack does its job.** bottom:peak against the painted band
+of **0.18–0.27**:
+
+| genre | before | after | |
+|---|---|---|---|
+| rpg | 0.33 | **0.22** | in band |
+| survival | 0.26 | **0.17** | just under |
+| strategy | 0.27 | **0.15** | just under |
+| citybuilder | 0.49 | **0.31** | just over |
+
+So **the carved register IS reachable procedurally**, which PLAN.md said it was not. Casual is
+untouched and still flat (0.67–0.83 against 0.76–0.84).
+
+- [ ] **THE GATE NOW FAILS, and the threshold was not moved.**
+      `citybuilder vs strategy — outline 0.029, structure 0.069, bar 0.070.` Both are Rect +
+      Carved and now share a darker face, so the pair that has been marginal all session fell just
+      under. The documented fix is **strategy's corner brackets** (PLAN.md 4.2b, "square +
+      brackets") — new drawing work, left for a session with room to verify it. Fixing this by
+      relaxing the threshold would defeat the only instrument that has been reliably right.
+- [ ] rim:body is still short of painted: carved reads 0.93–1.10 against a 1.78–2.05 target.
+
+**The lesson is the harness, not the kit.** A verification step that cannot fail LOUDLY is worse
+than none, because it manufactures confident wrong answers — two commits of "null result" analysis
+came out of one silent short-circuit. Any future check must fail noisily: never put `grep -c`, or
+anything else that returns non-zero on success, on the left of `&&`.
+
 ### Owner-supplied shape/icon packs — LOOKED AT, NOT USED (2026-07-28)
 
 `H:\GameDev\GFX\GameAssets\shapes` — three Flaticon packs (essentials-UI 30, arrows 20, shapes 30)

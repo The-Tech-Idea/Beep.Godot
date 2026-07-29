@@ -399,8 +399,21 @@ namespace Beep.ECS.UI.Kit
                 {
                     case KitLayerKind.Plate:
                     {
-                        var c = new Color(face.R * layer.Shade, face.G * layer.Shade,
+                        // Shade may exceed 1.0 -- the measured outer rim is 2.05x the plate --
+                        // so brightening lifts toward white instead of clipping each channel,
+                        // which would shift hue as it saturated.
+                        Color c;
+                        if (layer.Shade <= 1f)
+                            c = new Color(face.R * layer.Shade, face.G * layer.Shade,
                                           face.B * layer.Shade, face.A);
+                        else
+                        {
+                            float lum = UiSurface.Luminance(face);
+                            float want = Mathf.Min(1f, lum * layer.Shade);
+                            float t = Mathf.Clamp((want - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 1f);
+                            c = new Color(Mathf.Lerp(face.R, 1f, t), Mathf.Lerp(face.G, 1f, t),
+                                          Mathf.Lerp(face.B, 1f, t), face.A);
+                        }
                         // The outermost plate carries the genre's rim polarity; inner plates take
                         // ink, so a bright carved frame still reads against its own plate.
                         Color edge = layer.Inset == 0f ? rim : ink;

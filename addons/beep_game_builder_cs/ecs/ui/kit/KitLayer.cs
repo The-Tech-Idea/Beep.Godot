@@ -81,10 +81,26 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         public static readonly KitLayer[] Carved =
         {
-            new(KitLayerKind.Plate, inset: 0f, shade: 1.00f, rim: 1f),          // outer frame
-            new(KitLayerKind.Keyline, inset: -1f, shade: 0.34f, amount: 0.85f), // recess line
-            new(KitLayerKind.Plate, inset: -1f, shade: 0.88f, rim: 0.55f),      // inner plate
-            new(KitLayerKind.Shade, inset: -1f, amount: 0.78f),                 // painted falloff
+            // THE MEASURED EDGE STACK from citybuilder5.md, widget 1. The edge of a carved
+            // control is FOUR BANDS, not a plate with a border:
+            //
+            //     world | rim  | bezel | shadow |  plate
+            //           | 2px  |  4px  |  5px   |
+            //           |2.05x | 1.14x | 0.76x  |  1.00
+            //
+            // This is the fix for "it looks like a regular Godot UI button". It did, because the
+            // frame was shade 1.00 and the inner plate 0.88 -- a 12% step, which is invisible. A
+            // frame you cannot SEE is not a frame, and the widget reads as one plate with an
+            // outline no matter what silhouette it is cut to.
+            //
+            // Insets are STEPS, expressed against height because the source was measured on a
+            // 107px tile: 2/107, 4/107, 5/107.
+            new(KitLayerKind.Plate, inset: 0f,     shade: 2.05f, rim: 1f),   // bright outer rim
+            new(KitLayerKind.Plate, inset: 0.019f, shade: 1.14f),            // stone bezel
+            new(KitLayerKind.Plate, inset: 0.037f, shade: 0.76f),            // inner shadow
+            new(KitLayerKind.Plate, inset: 0.047f, shade: 1.00f, rim: 0.4f), // the plate itself
+
+            new(KitLayerKind.Shade, inset: -1f, amount: 0.78f),              // painted falloff
             new(KitLayerKind.Bevel, inset: -1f, amount: 1.0f),
             new(KitLayerKind.Gloss, inset: -1f, amount: 0.55f),
             new(KitLayerKind.Studs),

@@ -107,6 +107,27 @@ for f in $(find . -name "*.tscn" | sort); do
       if (curtype=="Node" || curtype=="Control" || curtype=="CanvasLayer" || curtype=="Node2D") next
       print "  " F " -> node \"" curname "\" is " curtype " with script " script[id]
     }' "$f")
+  # A script on a NON-generic node type is fine when its class actually DERIVES from that type —
+  # e.g. KitPanelContainer : PanelContainer on a PanelContainer node. The allowed-list above
+  # predates the kit, when every script was Node/Control-based; without this filter the rule
+  # rejects the one arrangement that makes a kit container a safe drop-in for a bare
+  # PanelContainer (keeping the container's layout, so no child collapses).
+  if [ -n "$out" ]; then
+    real=""
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      ntype=$(printf '%s' "$line" | sed -n 's/.* is \([A-Za-z0-9_]*\) with script .*/\1/p')
+      spath=$(printf '%s' "$line" | sed -n 's|.* with script res://\(.*\)$|\1|p')
+      cs="../../../../$spath"
+      if [ -n "$ntype" ] && [ -f "$cs" ] && \
+         grep -qE "class[[:space:]]+[A-Za-z0-9_]+[[:space:]]*:[[:space:]]*(Godot\.)?$ntype([[:space:]]|$|,)" "$cs"; then
+        continue
+      fi
+      real="${real}${line}
+"
+    done <<< "$out"
+    out=$(printf '%s' "$real")
+  fi
   [ -n "$out" ] && { echo "$out"; found=1; fail=1; }
 done; [ $found -eq 0 ] && echo "  ok"
 

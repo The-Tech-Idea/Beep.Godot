@@ -127,7 +127,11 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>Outline of a shape inside a rect. Straight-edged shapes return a polygon;
         /// rounded ones return null and are drawn as a rounded rect instead.</summary>
-        protected static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
+        /// <summary>internal, not protected: <see cref="KitPanelContainer"/> derives from Godot's
+        /// PanelContainer (to inherit layout) and so cannot inherit this class, but must cut to
+        /// exactly the same silhouettes. Sharing the geometry is the point — two copies of the
+        /// outline table would drift.</summary>
+        internal static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
         {
             float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
             // 0.45, not 0.5: at exactly half, a chamfer's (x+c, y) and (x+w-c, y) COINCIDE and

@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/survival/Crafting.cs" id="3_script"]
@@ -85,16 +86,19 @@ text = "Recipes"
 custom_minimum_size = Vector2(0, 48)
 text = "Campfire"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Recipe2" type="Button" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
 custom_minimum_size = Vector2(0, 48)
 text = "Stone Axe"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Recipe3" type="Button" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
 custom_minimum_size = Vector2(0, 48)
 text = "Water Filter"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="RecipeSpacer" type="Control" parent="Margin/VBox/Body/RecipePanel/RecipeMargin/RecipeGrid"]
 size_flags_vertical = 3
@@ -166,6 +170,7 @@ size_flags_vertical = 3
 [node name="CraftButton" type="Button" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
 custom_minimum_size = Vector2(0, 48)
 text = "Craft"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")

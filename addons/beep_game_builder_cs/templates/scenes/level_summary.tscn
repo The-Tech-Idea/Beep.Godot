@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/LevelSummary.cs" id="1_script"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
@@ -51,10 +52,12 @@ theme_override_constants/separation = 12
 [node name="ContinueButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
 custom_minimum_size = Vector2(170, 44)
 text = "Continue ▶"
+script = ExtResource("k_pbtn")
 
 [node name="MenuButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
 custom_minimum_size = Vector2(150, 44)
 text = "Main Menu"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("2_theme")

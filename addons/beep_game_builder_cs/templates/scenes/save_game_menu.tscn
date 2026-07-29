@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SaveGameMenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
@@ -105,6 +106,7 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Slot 1 - Empty"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Slot1" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -113,6 +115,7 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Slot 2 - Empty"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Slot2" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -121,6 +124,7 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Slot 3 - Empty"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Slot3" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -129,6 +133,7 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Slot 4 - Empty"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Slot4" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -137,6 +142,7 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Slot 5 - Empty"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="SeparatorH" type="HSeparator" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
@@ -150,9 +156,11 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Save"
+script = ExtResource("k_pbtn")
 
 [node name="CancelButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Cancel"
+script = ExtResource("k_pbtn")

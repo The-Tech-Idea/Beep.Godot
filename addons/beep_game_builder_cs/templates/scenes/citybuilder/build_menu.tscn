@@ -1,5 +1,6 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/citybuilder/BuildMenu.cs" id="3_script"]
@@ -72,6 +73,7 @@ vertical_alignment = 1
 [node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "Close"
+script = ExtResource("k_pbtn")
 
 [node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
@@ -178,6 +180,7 @@ text = "House  ·  1,200"
 icon = ExtResource("7_house")
 icon_alignment = 1
 vertical_icon_alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Item2" type="Button" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox/ItemGrid"]
 custom_minimum_size = Vector2(160, 120)
@@ -185,6 +188,7 @@ text = "Factory  ·  6,500"
 icon = ExtResource("8_factory")
 icon_alignment = 1
 vertical_icon_alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Item3" type="Button" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox/ItemGrid"]
 custom_minimum_size = Vector2(160, 120)
@@ -192,6 +196,7 @@ text = "Park  ·  800"
 icon = ExtResource("9_park")
 icon_alignment = 1
 vertical_icon_alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="ItemSpacer" type="Control" parent="Margin/VBox/Body/ItemPanel/ItemMargin/ItemVBox"]
 size_flags_vertical = 3

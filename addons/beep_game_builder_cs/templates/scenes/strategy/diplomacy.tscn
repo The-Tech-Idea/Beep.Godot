@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/strategy/Diplomacy.cs" id="3_script"]
@@ -85,16 +86,19 @@ text = "Known Powers"
 custom_minimum_size = Vector2(0, 44)
 text = "The Empire"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Faction2" type="Button" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
 custom_minimum_size = Vector2(0, 44)
 text = "The Republic"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Faction3" type="Button" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
 custom_minimum_size = Vector2(0, 44)
 text = "The Horde"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="FactionSpacer" type="Control" parent="Margin/VBox/Body/FactionPanel/FactionMargin/FactionList"]
 size_flags_vertical = 3

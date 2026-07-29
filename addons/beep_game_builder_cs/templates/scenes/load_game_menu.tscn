@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/LoadGameMenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
@@ -88,6 +89,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Autosave"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/AutosaveContainer/SlotHBox"]
 layout_mode = 2
@@ -126,6 +128,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="Slot0Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -141,6 +144,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Slot 1"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot0Container/SlotHBox"]
 layout_mode = 2
@@ -179,6 +183,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="Slot1Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -194,6 +199,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Slot 2"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot1Container/SlotHBox"]
 layout_mode = 2
@@ -232,6 +238,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="Slot2Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -247,6 +254,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Slot 3"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot2Container/SlotHBox"]
 layout_mode = 2
@@ -285,6 +293,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="Slot3Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -300,6 +309,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Slot 4"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot3Container/SlotHBox"]
 layout_mode = 2
@@ -338,6 +348,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="Slot4Container" type="PanelContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox"]
 custom_minimum_size = Vector2(0, 60)
@@ -353,6 +364,7 @@ custom_minimum_size = Vector2(128, 44)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Slot 5"
+script = ExtResource("k_pbtn")
 
 [node name="SlotInfo" type="VBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot4Container/SlotHBox"]
 layout_mode = 2
@@ -391,6 +403,7 @@ custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
 size_flags_vertical = 4
 text = "Delete"
+script = ExtResource("k_pbtn")
 
 [node name="SeparatorH" type="HSeparator" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
@@ -405,9 +418,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Load"
 disabled = true
+script = ExtResource("k_pbtn")
 
 [node name="CancelButton" type="Button" parent="PanelContainer/Margin/VBox/ButtonHBox"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Cancel"
+script = ExtResource("k_pbtn")

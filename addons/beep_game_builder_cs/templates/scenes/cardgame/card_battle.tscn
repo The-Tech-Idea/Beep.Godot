@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -70,6 +71,7 @@ text = "Enemy Health: 50 / 50"
 custom_minimum_size = Vector2(120, 44)
 size_flags_vertical = 0
 text = "Forfeit"
+script = ExtResource("k_pbtn")
 
 [node name="BannerLabel" type="Label" parent="Root/Margin/VBox"]
 theme_type_variation = &"BeepTitle"
@@ -153,6 +155,7 @@ script = ExtResource("k_panelc")
 custom_minimum_size = Vector2(170, 44)
 size_flags_vertical = 8
 text = "End Turn"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="Root"]
 script = ExtResource("1_theme")

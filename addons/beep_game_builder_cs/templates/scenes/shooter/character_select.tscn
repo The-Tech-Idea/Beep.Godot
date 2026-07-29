@@ -1,5 +1,6 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="3_anim"]
@@ -124,6 +125,7 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_marine"
+script = ExtResource("k_pbtn")
 
 [node name="PilotCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
 custom_minimum_size = Vector2(220, 0)
@@ -182,6 +184,7 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_pilot"
+script = ExtResource("k_pbtn")
 
 [node name="HunterCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
 custom_minimum_size = Vector2(220, 0)
@@ -240,6 +243,7 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_hunter"
+script = ExtResource("k_pbtn")
 
 [node name="BruiserCard" type="PanelContainer" parent="Margin/VBox/CharGrid"]
 custom_minimum_size = Vector2(220, 0)
@@ -298,6 +302,7 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
 metadata/action = "char_bruiser"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")

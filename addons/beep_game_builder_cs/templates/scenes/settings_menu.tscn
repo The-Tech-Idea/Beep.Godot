@@ -1,5 +1,6 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs" id="4_settings"]
@@ -349,6 +350,7 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Reset to Defaults"
+script = ExtResource("k_pbtn")
 
 [node name="CloseButton" type="Button" parent="Center/Panel/Margin/ContentVBox/Footer"]
 custom_minimum_size = Vector2(0, 44)
@@ -357,6 +359,7 @@ size_flags_horizontal = 3
 text = "Close"
 metadata/_custom = "action"
 metadata/action = "close"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")

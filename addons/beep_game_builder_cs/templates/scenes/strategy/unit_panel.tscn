@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/strategy/UnitPanel.cs" id="3_script"]
@@ -178,18 +179,22 @@ columns = 2
 [node name="Action1" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
 custom_minimum_size = Vector2(160, 44)
 text = "Move"
+script = ExtResource("k_pbtn")
 
 [node name="Action2" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
 custom_minimum_size = Vector2(160, 44)
 text = "Attack"
+script = ExtResource("k_pbtn")
 
 [node name="Action3" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
 custom_minimum_size = Vector2(160, 44)
 text = "Defend"
+script = ExtResource("k_pbtn")
 
 [node name="Action4" type="Button" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox/ActionGrid"]
 custom_minimum_size = Vector2(160, 44)
 text = "Special"
+script = ExtResource("k_pbtn")
 
 [node name="CommandSpacer" type="Control" parent="Margin/VBox/Body/CommandPanel/CommandMargin/CommandVBox"]
 size_flags_vertical = 3

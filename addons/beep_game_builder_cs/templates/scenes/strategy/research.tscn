@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/strategy/Research.cs" id="3_script"]
@@ -56,6 +57,7 @@ vertical_alignment = 1
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Back"
+script = ExtResource("k_pbtn")
 
 [node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
@@ -74,10 +76,12 @@ text = "Ancient Era"
 [node name="Tech1" type="Button" parent="Margin/VBox/TechGrid/Tier1"]
 custom_minimum_size = Vector2(0, 72)
 text = "Iron Working"
+script = ExtResource("k_pbtn")
 
 [node name="Tech2" type="Button" parent="Margin/VBox/TechGrid/Tier1"]
 custom_minimum_size = Vector2(0, 72)
 text = "Horseback Riding"
+script = ExtResource("k_pbtn")
 
 [node name="Tier1Spacer" type="Control" parent="Margin/VBox/TechGrid/Tier1"]
 size_flags_vertical = 3
@@ -93,10 +97,12 @@ text = "Classical Era"
 [node name="Tech3" type="Button" parent="Margin/VBox/TechGrid/Tier2"]
 custom_minimum_size = Vector2(0, 72)
 text = "Engineering"
+script = ExtResource("k_pbtn")
 
 [node name="Tech4" type="Button" parent="Margin/VBox/TechGrid/Tier2"]
 custom_minimum_size = Vector2(0, 72)
 text = "Mathematics"
+script = ExtResource("k_pbtn")
 
 [node name="Tier2Spacer" type="Control" parent="Margin/VBox/TechGrid/Tier2"]
 size_flags_vertical = 3

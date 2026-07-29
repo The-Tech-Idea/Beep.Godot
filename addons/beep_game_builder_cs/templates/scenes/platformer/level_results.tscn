@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -118,16 +119,19 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(150, 44)
 text = "Next ▶"
 metadata/action = "next"
+script = ExtResource("k_pbtn")
 
 [node name="RetryButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
 custom_minimum_size = Vector2(120, 44)
 text = "Retry"
 metadata/action = "retry"
+script = ExtResource("k_pbtn")
 
 [node name="MapButton" type="Button" parent="Center/Panel/Margin/VBox/ButtonRow"]
 custom_minimum_size = Vector2(140, 44)
 text = "World Map"
 metadata/action = "map"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")

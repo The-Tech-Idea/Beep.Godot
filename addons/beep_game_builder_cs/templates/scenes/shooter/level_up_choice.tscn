@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -76,6 +77,7 @@ size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_1"
+script = ExtResource("k_pbtn")
 
 [node name="Card2" type="PanelContainer" parent="Center/VBox/CardRow"]
 custom_minimum_size = Vector2(230, 300)
@@ -112,6 +114,7 @@ size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_2"
+script = ExtResource("k_pbtn")
 
 [node name="Card3" type="PanelContainer" parent="Center/VBox/CardRow"]
 custom_minimum_size = Vector2(230, 300)
@@ -148,6 +151,7 @@ size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 48)
 text = "Pick"
 metadata/action = "pick_3"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("1_theme")

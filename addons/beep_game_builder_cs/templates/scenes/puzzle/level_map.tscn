@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelMap.cs" id="3_script"]
@@ -49,6 +50,7 @@ theme_override_constants/separation = 16
 [node name="BackButton" type="Button" parent="TopBarPanel/TopBarMargin/TopBar"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Back"
+script = ExtResource("k_pbtn")
 
 [node name="TitleLabel" type="Label" parent="TopBarPanel/TopBarMargin/TopBar"]
 theme_type_variation = &"BeepSubtitle"
@@ -81,6 +83,7 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(56, 44)
 text = "⚙"
 metadata/action = "settings"
+script = ExtResource("k_pbtn")
 
 [node name="Scroll" type="ScrollContainer" parent="."]
 anchors_preset = 15
@@ -105,6 +108,7 @@ custom_minimum_size = Vector2(104, 104)
 text = "1
 ★★★"
 metadata/action = "level_1"
+script = ExtResource("k_pbtn")
 
 [node name="Level2Row" type="HBoxContainer" parent="Scroll/Path"]
 alignment = 1
@@ -115,6 +119,7 @@ custom_minimum_size = Vector2(104, 104)
 text = "2
 ★★"
 metadata/action = "level_2"
+script = ExtResource("k_pbtn")
 
 [node name="Level3Row" type="HBoxContainer" parent="Scroll/Path"]
 alignment = 0
@@ -128,6 +133,7 @@ custom_minimum_size = Vector2(104, 104)
 text = "3
 ★"
 metadata/action = "level_3"
+script = ExtResource("k_pbtn")
 
 [node name="Level4Row" type="HBoxContainer" parent="Scroll/Path"]
 alignment = 1
@@ -138,6 +144,7 @@ custom_minimum_size = Vector2(104, 104)
 text = "4
 –"
 metadata/action = "level_4"
+script = ExtResource("k_pbtn")
 
 [node name="Level5Row" type="HBoxContainer" parent="Scroll/Path"]
 alignment = 2
@@ -149,6 +156,7 @@ text = "5
 🔒"
 disabled = true
 metadata/action = "level_5"
+script = ExtResource("k_pbtn")
 
 [node name="Level6Row" type="HBoxContainer" parent="Scroll/Path"]
 alignment = 1
@@ -160,6 +168,7 @@ text = "6
 🔒"
 disabled = true
 metadata/action = "level_6"
+script = ExtResource("k_pbtn")
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")

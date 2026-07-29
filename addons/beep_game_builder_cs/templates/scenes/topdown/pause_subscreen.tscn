@@ -1,5 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
@@ -47,38 +48,45 @@ custom_minimum_size = Vector2(0, 12)
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "🎒 Inventory"
+script = ExtResource("k_pbtn")
 
 [node name="MapButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "🗺 Map"
+script = ExtResource("k_pbtn")
 
 [node name="QuestButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "❓ Quest"
+script = ExtResource("k_pbtn")
 
 [node name="StatusButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "❤ Status"
+script = ExtResource("k_pbtn")
 
 [node name="SaveButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "💾 Save"
+script = ExtResource("k_pbtn")
 
 [node name="ResumeButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "▶ Resume"
 metadata/action = "resume"
+script = ExtResource("k_pbtn")
 
 [node name="QuitButton" type="Button" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 46)
 alignment = 0
 text = "⏏ Main Menu"
 metadata/action = "menu"
+script = ExtResource("k_pbtn")
 
 [node name="ContentArea" type="VBoxContainer" parent="Margin/MainHBox"]
 size_flags_horizontal = 3
@@ -204,6 +212,7 @@ text = "Save Game"
 custom_minimum_size = Vector2(0, 48)
 text = "💾 Save to Slot 1"
 metadata/action = "save"
+script = ExtResource("k_pbtn")
 
 [node name="HintLabel" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
 theme_type_variation = &"BeepCaption"

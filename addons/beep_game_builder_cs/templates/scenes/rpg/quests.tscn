@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/rpg/Quests.cs" id="3_script"]
@@ -85,16 +86,19 @@ text = "Active"
 custom_minimum_size = Vector2(0, 48)
 text = "Defeat the Dark Lord"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Quest2" type="Button" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
 custom_minimum_size = Vector2(0, 48)
 text = "Collect 5 Rare Artifacts"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="Quest3" type="Button" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
 custom_minimum_size = Vector2(0, 48)
 text = "Explore the Northern Ruins"
 alignment = 0
+script = ExtResource("k_pbtn")
 
 [node name="ListSpacer" type="Control" parent="Margin/VBox/Body/ListPanel/ListMargin/QuestList"]
 size_flags_vertical = 3

@@ -179,6 +179,23 @@ namespace Beep.ECS.UI
         /// always defined, rather than to a literal — a literal is what produced the brown.</summary>
         public static Color Of(Godot.Control ctl)
         {
+            // The palette's OWN surface, published by ThemePresetComponent.ThemeSemantics as the
+            // "neutral" role, is asked FIRST — it is the authoritative value and, unlike a
+            // StyleBox, nothing can blank it.
+            //
+            // This matters because the kit's drop-ins deliberately override their panel/normal
+            // StyleBox with an empty one to suppress the stock chrome. That destroyed the very
+            // source the lookups below read, so every swept widget fell through to the last-resort
+            // branch and rendered the same brown: topdown's cream #F5E6C7 surface drew as #413627,
+            // one shade off rpg's #3F3629, and platformer's orange #FFB800 drew as grey #3C3D3D.
+            // Ten genres collapsed into one palette on screen while their theme.json files were
+            // entirely correct.
+            if (ctl.HasThemeColor("neutral", SemanticType))
+            {
+                Color n = ctl.GetThemeColor("neutral", SemanticType);
+                if (n.A > 0.02f) return n;
+            }
+
             if (TryColorOf(ctl.GetThemeStylebox("panel", "PanelContainer"), out var c)) return c;
             if (TryColorOf(ctl.GetThemeStylebox("panel", "Panel"), out c)) return c;
             if (TryColorOf(ctl.GetThemeStylebox("normal", "Button"), out c)) return c;

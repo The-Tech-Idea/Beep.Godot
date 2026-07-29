@@ -26,6 +26,11 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitPushButton : Button
     {
+        /// <summary>Which palette role this button's plate takes. Accent is the default because
+        /// that is what every reference sheet does; set Success/Danger for a confirm or a
+        /// destructive action, or Neutral to fall back to the panel surface for a quiet button.</summary>
+        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Accent;
+
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private KitShape ActiveShape => KitMaterial.ShapeForGenre(_genre);
@@ -92,7 +97,21 @@ namespace Beep.ECS.UI.Kit
 
             var g = Geo;
             KitState state = CurrentState();
-            Color face = StateFace(UiSurface.Of(this), state);
+
+            // A BUTTON TAKES THE ACCENT, NOT THE SURFACE.
+            //
+            // This is the most consistent thing in Example_Art and the kit had it backwards:
+            // ui1's yellow Claim, rpgui's gold PLAY, store's green BUY, ui2's orange Select,
+            // gameui4/5's red and green actions — every reference button is a SATURATED accent
+            // plate sitting on a neutral panel. Drawing buttons in the surface tone made all ten
+            // genres read as the same drab plate no matter what their palette said, which is
+            // independent of silhouette and was the loudest difference from the reference sheets.
+            //
+            // The art pass's own settled rule says it: "the palette goes on ONE element, the
+            // other stays neutral" (5 references). The panel is the neutral one; this is the one.
+            Color plate = UiSurface.Semantic(this, Accent);
+            if (plate.A < 0.02f) plate = UiSurface.Of(this);   // no semantic palette: stay usable
+            Color face = StateFace(plate, state);
             Color ink = UiSurface.Ink(face);
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));

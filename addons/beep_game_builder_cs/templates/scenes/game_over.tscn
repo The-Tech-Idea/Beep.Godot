@@ -1,5 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="k_btn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="4_transition"]
@@ -38,13 +39,15 @@ theme_type_variation = &"BeepValue"
 text = "Score: 0"
 horizontal_alignment = 1
 
-[node name="RetryButton" type="Button" parent="Center/GameOverVBox"]
+[node name="RetryButton" type="Control" parent="Center/GameOverVBox"]
 custom_minimum_size = Vector2(260, 44)
-text = "Retry"
+script = ExtResource("k_btn")
+Text = "Retry"
 
-[node name="MainMenuButton" type="Button" parent="Center/GameOverVBox"]
+[node name="MainMenuButton" type="Control" parent="Center/GameOverVBox"]
 custom_minimum_size = Vector2(260, 44)
-text = "Main Menu"
+script = ExtResource("k_btn")
+Text = "Main Menu"
 
 [node name="Theme" type="Node" parent="Center"]
 script = ExtResource("2_theme")

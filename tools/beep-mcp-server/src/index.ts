@@ -50,7 +50,11 @@ async function main(): Promise<void> {
         "Bridge to a Godot 4.7 project running the Beep game-builder addons. " +
         "Call godot_status first: Godot is often closed, and every other tool then reports NOT_CONNECTED. " +
         "Use beep_list_commands to discover the beep.* surface, then beep_command to invoke it. " +
-        "Writes are refused unless godot_mcp/security/allow_editor_writes (editor) or allow_runtime_writes (running game) is enabled in Project Settings.",
+        "Writes are refused unless godot_mcp/security/allow_editor_writes (editor) or allow_runtime_writes (running game) is enabled in Project Settings. " +
+        "For UI work use the Game UI Kit rather than raw Godot controls: beep.kit_widgets lists the 32 widgets, " +
+        "beep.kit_scene_audit reports what a scene still has as generic Button/PanelContainer, and " +
+        "beep.kit_convert_scene attaches the kit drop-ins (dry_run defaults to true). " +
+        "After ANY UI change, render the scene and look at it — a converted control that draws blank still compiles and still passes the scene validator.",
     },
   );
 

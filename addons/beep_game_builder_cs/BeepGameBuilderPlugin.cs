@@ -16,6 +16,9 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
         // static registry — it is a no-op unless the separate `godot_mcp` addon is
         // also enabled, so this addon never depends on the bridge being present.
         BeepMcpCommands.Register();
+        // The Game UI Kit's own surface. Registered separately so the kit can be added to or
+        // removed from the bridge without touching the main command layer.
+        BeepMcpKitCommands.Register();
 
         GD.Print("[Beep Game Builder] Plugin enabled.");
     }

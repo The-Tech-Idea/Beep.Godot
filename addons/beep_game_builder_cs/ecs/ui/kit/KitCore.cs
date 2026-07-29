@@ -14,6 +14,22 @@ namespace Beep.ECS.UI.Kit
     {
         Rect, Round, Chamfer, Clip, Notch, Speed, Ribbon, Shield, Octagon, Ellipse,
         Arch, Pill, Arrow, Chevron, Parallelogram, Pentagon,
+
+        // ── outlines that BREAK the rectangle ──────────────────────────────────────────
+        // Everything above is a rectangle with a corner treatment, and the greyscale gate
+        // measured the consequence: racing vs shooter separated by 0.019 against a 0.040 bar,
+        // platformer vs puzzle by 0.027. At panel size a 4-16% corner cut is invisible, so ten
+        // genres read as one shape in ten colours. Only Shield scored (0.168) — the one outline
+        // that is not a corner tweak.
+        //
+        // These are read off Example_Art in GREYSCALE, so form rather than palette:
+        /// <summary>rpgui's PLAY plate: triangular points protruding BELOW the bottom edge.
+        /// The first silhouette that leaves its own bounding box.</summary>
+        Spiked,
+        /// <summary>store's parchment cards: non-parallel, torn edges — no two sides agree.</summary>
+        Torn,
+        /// <summary>ui1's mission bar: large radius with a circular cap overhanging the LEFT end.</summary>
+        Capsule,
     }
 
     /// <summary>Where a widget sits in the visual hierarchy. Drives which palette role its
@@ -73,8 +89,8 @@ namespace Beep.ECS.UI.Kit
         /// drawn widgets and the generated 9-patch art cut to the same outline.</summary>
         public static KitShape ShapeForGenre(string? genre) => genre?.ToLowerInvariant() switch
         {
-            "rpg" => KitShape.Chamfer,
-            "survival" => KitShape.Notch,
+            "rpg" => KitShape.Spiked,       // rpgui PLAY: points below the plate
+            "survival" => KitShape.Torn,     // store cards: non-parallel torn edges
             "shooter" => KitShape.Clip,
             // NO genre renders as a bare Rect. A rectangle with a border is a Godot UI button,
             // whatever shading is put on it -- and the greyscale gate said so: citybuilder and
@@ -83,7 +99,7 @@ namespace Beep.ECS.UI.Kit
             "citybuilder" => KitShape.Octagon,   // citybuilder5's stone tiles: near-square, corners cut
             "strategy" => KitShape.Shield,       // faction crest / command panel (AoE, StarCraft)
             "racing" => KitShape.Speed,
-            "platformer" => KitShape.Pill,
+            "platformer" => KitShape.Capsule, // ui1 mission bar: cap overhanging the left
             "puzzle" => KitShape.Ellipse,        // candy/bubble, not another rounded rect
             "cardgame" or "topdown" => KitShape.Round,
             _ => KitShape.Round,

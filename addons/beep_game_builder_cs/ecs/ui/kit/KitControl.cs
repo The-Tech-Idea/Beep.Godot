@@ -163,6 +163,16 @@ namespace Beep.ECS.UI.Kit
                     new Vector2(x + c, y), new Vector2(x + w, y), new Vector2(x + w, y + h - c),
                     new Vector2(x + w - c, y + h), new Vector2(x, y + h), new Vector2(x, y + c),
                 },
+                // rpgui's PLAY plate. The points hang BELOW y+h — deliberately outside the rect,
+                // which is the whole reason this reads as a different object rather than another
+                // cut corner. Count scales with width so a chip gets 3 and a panel gets 12.
+                KitShape.Spiked => Spikes(x, y, w, h, c),
+
+                // store's parchment cards: every edge offset by a different amount, so no two
+                // sides are parallel. Seeded from the rect's own size, so it is stable across
+                // redraws — a torn edge that reshuffles each frame reads as noise, not as paper.
+                KitShape.Torn => Torn(x, y, w, h, c),
+
                 KitShape.Octagon => Oct(x, y, w, h, c),
                 KitShape.Pentagon => new[]
                 {
@@ -200,6 +210,48 @@ namespace Beep.ECS.UI.Kit
                 },
                 _ => null,   // Rect / Round / Pill / Ellipse / Arch draw as rounded rects
             };
+
+            // Triangular points hanging below the plate — rpgui's PLAY button.
+            static Vector2[] Spikes(float x, float y, float w, float h, float c)
+            {
+                int n = Mathf.Max(3, Mathf.RoundToInt(w / Mathf.Max(8f, h * 0.42f)));
+                float sp = w / n, drop = Mathf.Min(h * 0.22f, sp * 0.55f);
+                var p = new List<Vector2>
+                {
+                    new(x + c, y), new(x + w - c, y), new(x + w, y + c), new(x + w, y + h),
+                };
+                for (int i = n - 1; i >= 0; i--)
+                {
+                    p.Add(new Vector2(x + sp * (i + 0.5f), y + h + drop));   // the point, OUTSIDE
+                    p.Add(new Vector2(x + sp * i, y + h));
+                }
+                p.Add(new Vector2(x, y + h));
+                p.Add(new Vector2(x, y + c));
+                return p.ToArray();
+            }
+
+            // Non-parallel torn edges — store's parchment cards.
+            static Vector2[] Torn(float x, float y, float w, float h, float c)
+            {
+                uint s = (uint)(Mathf.RoundToInt(w) * 73856093 ^ Mathf.RoundToInt(h) * 19349663);
+                float J(float amp)
+                {
+                    s = s * 1664525u + 1013904223u;
+                    return (((s >> 16) & 0xFF) / 255f - 0.5f) * 2f * amp;
+                }
+                float ax = w * 0.06f, ay = h * 0.10f;
+                return new[]
+                {
+                    new Vector2(x + J(ax), y + J(ay)),
+                    new Vector2(x + w * 0.5f, y + J(ay) * 0.6f),
+                    new Vector2(x + w + J(ax), y + J(ay)),
+                    new Vector2(x + w + J(ax) * 0.7f, y + h * 0.5f),
+                    new Vector2(x + w + J(ax), y + h + J(ay)),
+                    new Vector2(x + w * 0.5f, y + h + J(ay) * 0.6f),
+                    new Vector2(x + J(ax), y + h + J(ay)),
+                    new Vector2(x + J(ax) * 0.7f, y + h * 0.5f),
+                };
+            }
 
             static Vector2[] Oct(float x, float y, float w, float h, float c) => new[]
             {
@@ -321,7 +373,9 @@ namespace Beep.ECS.UI.Kit
             float radius = shape switch
             {
                 KitShape.Rect => 0f,
-                KitShape.Pill or KitShape.Ellipse => Mathf.Min(r.Size.X, r.Size.Y) * 0.5f,
+                // Capsule keeps ui1's big left radius; the overhanging cap is drawn as an
+                // attachment by the widget, not carved out of the plate.
+                KitShape.Pill or KitShape.Ellipse or KitShape.Capsule => Mathf.Min(r.Size.X, r.Size.Y) * 0.5f,
                 _ => cut,
             };
             DrawRoundedRect(r, radius, fill);

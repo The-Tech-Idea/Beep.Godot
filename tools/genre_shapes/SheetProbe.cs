@@ -40,6 +40,13 @@ public partial class SheetProbe : Node
             catch (System.Exception e) { GD.Print($"sheet: INST-FAIL {path} {e.Message}"); continue; }
 
             string name = path.Substring(path.LastIndexOf('/') + 1).Replace(".tscn", "");
+
+            // SkinCatalog's active skin is STATIC and process-wide. Once any scene publishes one,
+            // HasActiveSkin is true and ThemePresetComponent uses it in preference to the scene's
+            // own GenreName -- so in a batch render every scene after the first inherits that
+            // skin and they all come out the same colour. Clearing it between scenes is what
+            // makes each scene render as ITSELF.
+            Beep.ECS.UI.SkinCatalog.SetActiveSkin("", "", "", "");
             AddChild(inst);
             try
             {

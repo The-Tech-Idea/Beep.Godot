@@ -395,6 +395,46 @@ pass can only ever fix the controls someone remembered to patch.
 
 ---
 
+## The shapes ARE the same — measured (2026-07-29)
+
+Owner: *"still you have the same shapes, you just changed colors"*. Correct. Outline distance
+between genres, against the 0.040 distinguishable threshold:
+
+| pair | outline |
+|---|---|
+| racing vs shooter | **0.019** — less than half the bar |
+| platformer vs puzzle | **0.027** |
+| cardgame vs topdown | **0.042** — scraping it |
+| survival vs citybuilder | 0.066 |
+| rpg vs platformer | 0.068 |
+| **strategy** | **0.168** — the ONLY genuinely distinct silhouette |
+
+ reports **0 indistinguishable pairs** only because the STRUCTURE axis
+rescues those pairs — they differ in shading and banding, not outline. **The PASS line was masking
+the exact thing the gate exists to detect**, and I kept reading the verdict instead of the column.
+
+**Root cause: every  is a RECTANGLE WITH A CORNER TREATMENT** — chamfer, notch, clip,
+octagon — at 4–16% of the shorter side. At panel scale those are the same object.  scores
+0.168 precisely because it is the one shape whose OUTLINE differs rather than its corners.
+
+This is also why  does not come through: rpgui has protruding corner ornaments,
+citybuilder5 has irregular carved edges, racing is raked and asymmetric, ui1/store are large-radius
+slabs with heavy outlines. None is "a rectangle with its corners cut", so no corner tuning reaches
+them.
+
+**What would actually fix it, by effect per unit of work:**
+1. Silhouettes that change the OUTLINE, not the corners — protrusions past the bounding box
+   (rpg ornament ears), asymmetry (racing raked on one edge only), non-parallel edges (survival
+   chipped stone).
+2. Per-genre banner PLACEMENT, not just shape — top-centre vs corner tab vs side rail. Every genre
+   currently puts its banner in the same place.
+3. Genres carrying NO banner at all, so the family is not uniform.
+4. Per-layer MATERIAL (wood grain, stone, carbon) — PLAN.md phase E, and what separates the
+   reference sheets most.
+
+**Gate this work on the OUTLINE COLUMN, not the PASS line:** no pair may sit under 0.040 on
+outline alone.
+
 ## Correction to Stage 32's closing claim
 
 The line above — *"Button, PanelContainer, LineEdit, ProgressBar resolve to StyleBoxTexture,

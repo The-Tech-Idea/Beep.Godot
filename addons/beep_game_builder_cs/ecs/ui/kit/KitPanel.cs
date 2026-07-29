@@ -34,6 +34,50 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Draw the inner well. Off gives a plain framed plate.</summary>
         [Export] public bool ShowWell { get; set; } = true;
 
+        /// <summary>
+        /// Size the frame from the cluster it wraps, instead of filling its parent.
+        ///
+        /// Ported from <see cref="PanelFrameComponent"/>, whose comments record why each part is
+        /// the way it is. Without this a KitPanel dropped into a PanelContainer stretched to the
+        /// full container and its banner drifted to the screen edge — which is exactly what
+        /// happened the first time this was swapped in on puzzle/level_map.
+        /// </summary>
+        [Export] public NodePath TargetPath { get; set; } = new("");
+
+        /// <summary>Slack around the target. Top is separate because the banner needs the room.</summary>
+        [Export] public Vector2 TargetPadding { get; set; } = new(14, 12);
+
+        private Godot.Control? _target;
+
+        private void ResolveTarget() => _target = GetNodeOrNull<Godot.Control>(TargetPath);
+
+        public override void _Process(double delta)
+        {
+            if (TargetPath.IsEmpty) return;
+            if (_target == null || !GodotObject.IsInstanceValid(_target)) { ResolveTarget(); return; }
+            if (GetParent() is not Godot.Control) return;
+
+            // CombinedMinimumSize, never Size: the cluster is usually an anchored container that
+            // stretches to the full screen width while its CONTENT is narrow, so sizing from Size
+            // produced a 1348px frame around a 200px stat list.
+            Vector2 need = _target.GetCombinedMinimumSize();
+
+            // The banner sits at the top of the frame, so the WELL is what must be `need` tall,
+            // not the frame — otherwise the last row of a cluster hangs out of the bottom because
+            // the banner ate that much of it.
+            float bannerRoom = BannerOverhang() * 2f;
+            Vector2 size = new(need.X + TargetPadding.X, need.Y + TargetPadding.Y + bannerRoom);
+
+            // Size ONLY. Position stays where the scene put it — deriving it from an anchored
+            // target lands at the parent origin rather than at the visible content.
+            if (Size != size)
+            {
+                Size = size;
+                CustomMinimumSize = size;
+                QueueRedraw();
+            }
+        }
+
         /// <summary>Section D's `TornPanel` — an irregular torn edge along the bottom, for the
         /// paper/parchment register. A panel VARIANT rather than its own class: the structure is
         /// identical and only the bottom edge changes.</summary>
@@ -67,6 +111,21 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
+
+            // A KitPanel is BACKGROUND ART. Used the way PanelFrameComponent is -- dropped inside
+            // a PanelContainer whose own stylebox is blanked, so the container still lays out the
+            // content and the kit draws the chrome -- it sits UNDER that content, and a Control
+            // defaults to MouseFilter.Stop. Left alone it would swallow every click meant for the
+            // buttons on top of it. PanelFrameComponent has carried this line since it was
+            // written ("background art, never a click target"); the kit version needs it too.
+            //
+            // The exception is ShowClose: that draws an interactive X straddling the frame, so
+            // the panel must be able to receive that one click.
+            MouseFilter = ShowClose ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
+
+            if (!Engine.IsEditorHint() && !TargetPath.IsEmpty)
+                CallDeferred(nameof(ResolveTarget));
+
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://ScreenshotProbe.cs" id="1"]
+[node name="ScreenshotProbe" type="Node"]
+script = ExtResource("1")
+ScenePath = "res://addons/beep_game_builder_cs/templates/scenes/puzzle/level_map.tscn"
+OutPath = "res://tmp/kitproof/lm.png"

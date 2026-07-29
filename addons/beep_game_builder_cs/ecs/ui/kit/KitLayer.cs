@@ -107,23 +107,39 @@ namespace Beep.ECS.UI.Kit
             new(KitLayerKind.Sparkle),
         };
 
-        /// <summary>CASUAL — one flat plate, a discrete top band, a thick dark outline. Already
-        /// lands in its measured band (0.67-0.83 against a 0.76-0.84 flat target), so its stack
-        /// is deliberately shallow and carries NO face shade: a gradient down the face IS the
-        /// painted reading, and this family must not have one.</summary>
+        /// <summary>
+        /// CASUAL — ui1 / ui2 / skilltree1 / store: "thick uniform DARK outline, flat saturated
+        /// fill + top band, large corner radius, hard drop shadow".
+        ///
+        /// Its edge is banded too, just inverted from carved: the outermost band is a THICK DARK
+        /// outline rather than a bright rim. It previously drew one plate with a 1px border,
+        /// which is exactly the "regular Godot UI button" reading — the outline has to be a
+        /// visible BAND, not a border property.
+        ///
+        /// Deliberately NO Shade layer. A gradient down the face is the painted reading, and this
+        /// family measures flat (bottom:peak 0.76-0.84). Its depth comes from the outline, the
+        /// discrete top band and the drop shadow instead.
+        /// </summary>
         public static readonly KitLayer[] Casual =
         {
-            new(KitLayerKind.Plate, inset: 0f, shade: 1.00f, rim: 1f),
-            new(KitLayerKind.Gloss, inset: -1f, amount: 1.0f),
-            new(KitLayerKind.Bevel, inset: -1f, amount: 0.55f),
+            new(KitLayerKind.Plate, inset: 0f,     shade: 0.16f),            // thick dark outline
+            new(KitLayerKind.Plate, inset: 0.085f, shade: 1.00f),            // flat saturated fill
+            new(KitLayerKind.Gloss, inset: -1f, amount: 0.35f),              // discrete top band
+            new(KitLayerKind.Bevel, inset: -1f, amount: 0.30f),
             new(KitLayerKind.Sparkle),
         };
 
-        /// <summary>TECHNICAL — hairline keyline, thin light rim, minimal sculpt.</summary>
+        /// <summary>
+        /// TECHNICAL — rpgui1 / racing4 / rpgui2: a constant hairline that does not scale, and a
+        /// THIN LIGHT rim (the flat family's measured rim:body is 1.3-1.5x, against carved's
+        /// 1.78-2.05x). Three bands rather than carved's four, and much tighter: the whole point
+        /// of this register is that the edge is a line, not a carving.
+        /// </summary>
         public static readonly KitLayer[] Technical =
         {
-            new(KitLayerKind.Plate, inset: 0f, shade: 1.00f, rim: 1f),
-            new(KitLayerKind.Plate, inset: -1f, shade: 0.92f),
+            new(KitLayerKind.Plate, inset: 0f,     shade: 1.42f, rim: 0.8f), // thin light rim
+            new(KitLayerKind.Plate, inset: 0.030f, shade: 0.62f),            // keyline gap
+            new(KitLayerKind.Plate, inset: 0.022f, shade: 1.00f),            // face
             new(KitLayerKind.Gloss, inset: -1f, amount: 0.7f),
             new(KitLayerKind.Bevel, inset: -1f, amount: 0.4f),
             new(KitLayerKind.Sparkle),

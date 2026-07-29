@@ -1,5 +1,6 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CityBuilderHudComponent.cs" id="hud_stat"]
@@ -198,6 +199,7 @@ Title = "Map"
 
 [node name="BuildBar" type="PanelContainer" parent="HUD/Root/BottomDock"]
 layout_mode = 2
+script = ExtResource("k_panelc")
 
 [node name="Collapse" type="Node" parent="HUD/Root/BottomDock/BuildBar"]
 script = ExtResource("collapsible")

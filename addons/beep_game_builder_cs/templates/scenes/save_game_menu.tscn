@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SaveGameMenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
@@ -32,6 +33,7 @@ offset_left = -360.0
 offset_top = -310.0
 offset_right = 360.0
 offset_bottom = 310.0
+script = ExtResource("k_panelc")
 
 [node name="Theme" type="Node" parent="PanelContainer"]
 script = ExtResource("2_theme")

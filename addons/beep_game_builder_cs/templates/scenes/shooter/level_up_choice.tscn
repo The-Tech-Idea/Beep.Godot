@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/shooter/LevelUpChoice.cs" id="3_script"]
@@ -42,6 +43,7 @@ theme_override_constants/separation = 20
 
 [node name="Card1" type="PanelContainer" parent="Center/VBox/CardRow"]
 custom_minimum_size = Vector2(230, 300)
+script = ExtResource("k_panelc")
 
 [node name="Card1Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card1"]
 theme_override_constants/margin_left = 16
@@ -77,6 +79,7 @@ metadata/action = "pick_1"
 
 [node name="Card2" type="PanelContainer" parent="Center/VBox/CardRow"]
 custom_minimum_size = Vector2(230, 300)
+script = ExtResource("k_panelc")
 
 [node name="Card2Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card2"]
 theme_override_constants/margin_left = 16
@@ -112,6 +115,7 @@ metadata/action = "pick_2"
 
 [node name="Card3" type="PanelContainer" parent="Center/VBox/CardRow"]
 custom_minimum_size = Vector2(230, 300)
+script = ExtResource("k_panelc")
 
 [node name="Card3Margin" type="MarginContainer" parent="Center/VBox/CardRow/Card3"]
 theme_override_constants/margin_left = 16

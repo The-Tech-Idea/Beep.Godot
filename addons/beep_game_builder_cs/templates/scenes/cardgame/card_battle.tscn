@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/cardgame/CardBattle.cs" id="3_script"]
@@ -42,6 +43,7 @@ theme_override_constants/separation = 16
 
 [node name="EnemyPanel" type="PanelContainer" parent="Root/Margin/VBox/TopBar"]
 size_flags_horizontal = 3
+script = ExtResource("k_panelc")
 
 [node name="EnemyMargin" type="MarginContainer" parent="Root/Margin/VBox/TopBar/EnemyPanel"]
 theme_override_constants/margin_left = 20
@@ -76,6 +78,7 @@ horizontal_alignment = 1
 
 [node name="BoardArea" type="PanelContainer" parent="Root/Margin/VBox"]
 size_flags_vertical = 3
+script = ExtResource("k_panelc")
 
 [node name="BoardMargin" type="MarginContainer" parent="Root/Margin/VBox/BoardArea"]
 theme_override_constants/margin_left = 20
@@ -100,6 +103,7 @@ theme_override_constants/separation = 16
 
 [node name="EnergyPanel" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow"]
 custom_minimum_size = Vector2(150, 0)
+script = ExtResource("k_panelc")
 
 [node name="EnergyMargin" type="MarginContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel"]
 theme_override_constants/margin_left = 16
@@ -127,18 +131,23 @@ alignment = 1
 
 [node name="HandCard1" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
 custom_minimum_size = Vector2(100, 140)
+script = ExtResource("k_panelc")
 
 [node name="HandCard2" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
 custom_minimum_size = Vector2(100, 140)
+script = ExtResource("k_panelc")
 
 [node name="HandCard3" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
 custom_minimum_size = Vector2(100, 140)
+script = ExtResource("k_panelc")
 
 [node name="HandCard4" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
 custom_minimum_size = Vector2(100, 140)
+script = ExtResource("k_panelc")
 
 [node name="HandCard5" type="PanelContainer" parent="Root/Margin/VBox/BottomArea/BottomRow/HandRow"]
 custom_minimum_size = Vector2(100, 140)
+script = ExtResource("k_panelc")
 
 [node name="EndTurnButton" type="Button" parent="Root/Margin/VBox/BottomArea/BottomRow"]
 custom_minimum_size = Vector2(170, 44)

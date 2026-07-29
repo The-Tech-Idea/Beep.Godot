@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/topdown/PauseSubscreen.cs" id="3_script"]
@@ -93,39 +94,50 @@ columns = 8
 
 [node name="ItemSlot1" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot2" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot3" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot4" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot5" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot6" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot7" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="ItemSlot8" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 custom_minimum_size = Vector2(56, 56)
+script = ExtResource("k_panelc")
 
 [node name="EquipRow" type="HBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory"]
 theme_override_constants/separation = 16
 
 [node name="WeaponSlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
 custom_minimum_size = Vector2(64, 64)
+script = ExtResource("k_panelc")
 
 [node name="ArmorSlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
 custom_minimum_size = Vector2(64, 64)
+script = ExtResource("k_panelc")
 
 [node name="AccessorySlot" type="PanelContainer" parent="Margin/MainHBox/ContentArea/Tabs/Inventory/EquipRow"]
 custom_minimum_size = Vector2(64, 64)
+script = ExtResource("k_panelc")
 
 [node name="Map" type="TextureRect" parent="Margin/MainHBox/ContentArea/Tabs"]
 custom_minimum_size = Vector2(0, 400)

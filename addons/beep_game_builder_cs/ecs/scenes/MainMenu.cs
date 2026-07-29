@@ -20,9 +20,14 @@ namespace Beep.ECS.Scenes
             // so a player with a save silently started over. Hidden when nothing is saved.
             // GetNodeOrNull (not the throwing GetNode) so a missing node warns instead of killing
             // every button wired after it. It also carries visibility, so it can't use ConnectPressed.
-            if (this.Find<Button>("ContinueButton") is { } continueBtn)
+            // Find<Control>, not Find<Button>: a KitButton is a KitControl, NOT a Godot Button,
+            // so this typed lookup silently returned null the moment the menu migrated onto the
+            // kit — the scene kept its layout and quietly lost its wiring. The signal goes
+            // through ConnectButton, which knows both kinds; visibility is set here, which is
+            // what stopped this being a plain ConnectButton call in the first place.
+            if (this.Find<Control>("ContinueButton") is { } continueBtn)
             {
-                continueBtn.Pressed += OnContinuePressed;
+                this.ConnectButton("ContinueButton", OnContinuePressed);
                 continueBtn.Visible = NewestSlot() != null;
             }
             else GD.PushWarning($"[{Name}] ContinueButton not found — not connected.");
@@ -32,9 +37,9 @@ namespace Beep.ECS.Scenes
             // so the entry is hidden in the first role and shown in the second. It used to be
             // hidden unconditionally, which is why Save was simply absent from the pause menu —
             // the one place it is actually useful.
-            if (this.Find<Button>("SaveGameButton") is { } saveBtn)
+            if (this.Find<Control>("SaveGameButton") is { } saveBtn)
             {
-                saveBtn.Pressed += OnSaveGamePressed;
+                this.ConnectButton("SaveGameButton", OnSaveGamePressed);
                 saveBtn.Visible = GameApp.Instance?.IsGameRunning ?? false;
             }
             else GD.PushWarning($"[{Name}] SaveGameButton not found — not connected.");

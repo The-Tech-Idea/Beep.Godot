@@ -1,5 +1,6 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="k_btn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="4_transition"]
@@ -53,35 +54,35 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
-[node name="NewGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="NewGameButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "New Game"
+script = ExtResource("k_btn")
+Text = "New Game"
 
-[node name="ContinueButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="ContinueButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "Continue"
+script = ExtResource("k_btn")
+Text = "Continue"
 
-[node name="SaveGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="SaveGameButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "Save Game"
+script = ExtResource("k_btn")
+Text = "Save Game"
 
-[node name="LoadGameButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="LoadGameButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "Load Game"
+script = ExtResource("k_btn")
+Text = "Load Game"
 
-[node name="SettingsButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="SettingsButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "Settings"
+script = ExtResource("k_btn")
+Text = "Settings"
 
-[node name="QuitButton" type="Button" parent="Center/MenuVBox"]
-custom_minimum_size = Vector2(260, 44)
+[node name="QuitButton" type="Control" parent="Center/MenuVBox"]
 layout_mode = 2
-text = "Quit"
+script = ExtResource("k_btn")
+Text = "Quit"
 
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("2_theme")

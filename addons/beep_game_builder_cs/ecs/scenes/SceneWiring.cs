@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.Scenes
 {
@@ -36,10 +37,32 @@ namespace Beep.ECS.Scenes
         /// as precise as a path and survives the layout changing underneath it.</summary>
         public static void ConnectButton(this Node self, string name, Action handler)
         {
-            if (self.FindChild(name, recursive: true, owned: false) is Button btn)
-                btn.Pressed += handler;
-            else
-                GD.PushWarning($"[{self.Name}] button '{name}' not found in this scene — not connected.");
+            switch (self.FindChild(name, recursive: true, owned: false))
+            {
+                case Button btn:
+                    btn.Pressed += handler;
+                    return;
+                // Kit widgets are NOT Godot Buttons -- KitButton draws itself and inherits
+                // KitControl, so an `is Button` test silently skipped them. Every screen migrated
+                // onto the kit would have kept its layout and quietly lost all its wiring, which
+                // is the same failure HudComponent had against Label.
+                case KitButton kb:
+                    kb.Pressed += () => handler();
+                    return;
+                case KitIconButton kib:
+                    kib.Pressed += () => handler();
+                    return;
+                case KitNodeCard card:
+                    card.Pressed += () => handler();
+                    return;
+                case null:
+                    GD.PushWarning($"[{self.Name}] button '{name}' not found in this scene — not connected.");
+                    return;
+                default:
+                    GD.PushWarning($"[{self.Name}] '{name}' is a {self.FindChild(name, true, false)!.GetType().Name}, "
+                                 + "which is not a Button or a kit button — not connected.");
+                    return;
+            }
         }
 
         /// <summary>Find a control by NAME anywhere in the scene, or null. Same layout-independence

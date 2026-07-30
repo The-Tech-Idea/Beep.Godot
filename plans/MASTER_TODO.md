@@ -2173,3 +2173,48 @@ the gate will keep reporting numbers rather than saying so.*
 
 Phase B is **not** complete: polarity must be re-measured shadow-free, and corner-per-widget-class
 plus shear/wobble are untouched.
+
+### Stage 41b — polarity now measured honestly; it says the RENDER is wrong (2026-07-30)
+
+**The Phase A regression is fixed.** `verify_greyscale --expect-outline` no longer measures the
+proof render — it measures the **shadow-free** pair `nos_<genre>.png` that `shadow_probe.tscn`
+already emits, via a new `outline_rows()` that **refuses** if those files are absent rather than
+quietly measuring the wrong thing.
+
+Proof the fix is real: `survival` went from `rim:body 5.06` — a nonsense figure that was the tell —
+to **1.82**. Every reading is now plausible.
+
+#### And with an honest measurement, the gate points at the code
+
+`OUTLINE FAIL (6 mismatch)`. Before assuming the gate was still wrong, I sampled the actual pixels
+straight down through each widget's top edge:
+
+| genre | outline band | plate | reading |
+|---|---|---|---|
+| cardgame | **82** | 48 | band is genuinely **lighter** than the plate → `rim:body 1.64` is **correct** |
+| platformer | 82 | 48 | same |
+| citybuilder | 46 → 111 → 62 → 36 | 26 | the four-band carved edge, as designed |
+
+So the measurement is right and **the render is wrong**: `OutlineShade = 0.16` is declared for
+cardgame/platformer/topdown and is **not reaching the draw** — their outline band renders at about
+1.7× the plate instead of 0.16×. The sentinel resolves in `KitControl`'s `Plate` case, so either
+that path is not the one drawing these widgets or the band being sampled is not the layer I think
+it is.
+
+**Deliberately not fixed by adjusting the expectations.** The art is unambiguous — ui1 and gameui4
+are thick *dark* outlines — so the declaration is right and the renderer has to meet it.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` (separation) + selftest | PASS |
+| `verify_greyscale --expect-outline` | **FAIL 6/10 — render defect, located** |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+
+**Next:** trace why the `Shade < 0` sentinel does not change the outermost band for the Casual
+genres — most likely candidate is that the sampled outermost band is the layer's *rim stroke*
+(driven by `RimBrightness`) rather than its fill, in which case polarity has two sources and they
+disagree.

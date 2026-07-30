@@ -274,6 +274,29 @@ def classify(bp, rb):
     return "mixed"
 
 
+def outline_rows(folder):
+    """Per-genre measurements from the SHADOW-FREE renders.
+
+    Polarity cannot be read off the normal proof render any more. `load()` finds the widget from
+    its rendered bounds and samples the outermost rows as the rim -- and since Phase A added a
+    shadow layer, those bounds include the shadow, so the "rim" is faint shadow over background.
+    It reported survival at rim:body 5.06 (nonsense) and cardgame as *light* while its band is
+    genuinely 0.16 dark.
+
+    `shadow_probe.tscn` renders every genre twice and writes `nos_<genre>.png` with
+    `KitShadow.Enabled = false`. Those are the only honest input for this measurement.
+    """
+    rows = {}
+    for p in sorted(glob.glob(os.path.join(folder, "nos_*.png"))):
+        name = os.path.basename(p)[4:-4]
+        rows[name] = load(p)
+    if not rows:
+        raise SystemExit(
+            f"REFUSED: no nos_*.png in {folder}. Outline polarity must be measured on a "
+            f"SHADOW-FREE render -- render tools/genre_shapes/shadow_probe.tscn first.")
+    return rows
+
+
 def run(folder, quiet=False, expect_outline=None):
     files = sorted(glob.glob(os.path.join(folder, "gs_*.png")))
     if len(files) < 2:
@@ -331,7 +354,12 @@ def run(folder, quiet=False, expect_outline=None):
         if m:
             print(f"\n  montage: {m}  <- look at this, do not trust the numbers alone")
         print("\n  PASS" if not fails else "\n  FAIL")
-    bad_outline = gate_outline(data, expect_outline) if expect_outline else 0
+    bad_outline = 0
+    if expect_outline:
+        # Measured on the shadow-free pair, not on `data` -- see outline_rows().
+        shadow_dir = os.path.join(os.path.dirname(os.path.abspath(folder)), "shadow")
+        bad_outline = gate_outline(outline_rows(shadow_dir), expect_outline,
+                                   source=f"{shadow_dir} (shadow-free)")
 
     return 0 if (not fails and bad_outline == 0) else 1
 
@@ -361,9 +389,10 @@ def polarity_of(rim_body):
     return "none"
 
 
-def gate_outline(rows, expect):
+def gate_outline(rows, expect, source="the proof render"):
     """Assert each genre's rim polarity is what its theme declares."""
     print()
+    print(f"  outline polarity, measured on {source}")
     print("  genre         rim:body   polarity   expected")
     bad = 0
     for name, d in sorted(rows.items()):

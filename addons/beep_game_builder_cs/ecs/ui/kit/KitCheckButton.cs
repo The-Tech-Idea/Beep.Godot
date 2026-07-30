@@ -42,15 +42,22 @@ namespace Beep.ECS.UI.Kit
             if (_suppressing) return;
             _suppressing = true;
             int fs = UiSurface.FontSize(this);
+            float h = TrackHeight(fs);
             foreach (string s in new[] { "normal", "hover", "pressed", "disabled", "focus" })
                 AddThemeStyleboxOverride(s, new StyleBoxEmpty
                 {
                     // Room on the RIGHT for the switch this class draws; the label keeps the left.
                     ContentMarginLeft = 2f,
-                    ContentMarginRight = fs * 3.4f,
+                    ContentMarginRight = h * 2.05f + fs * 0.8f,
                     ContentMarginTop = fs * 0.35f,
                     ContentMarginBottom = fs * 0.35f,
                 });
+
+            // Restate the height the blanked icons were providing, or the row collapses and the
+            // switch renders as an unreadable sliver -- the same failure the slider had. A toggle
+            // in a settings list came out ~40x20 with no visible knob.
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, h * 2.05f + fs * 4f),
+                                            Mathf.Max(CustomMinimumSize.Y, h * 1.5f));
             // CheckButton's on/off art is a set of ICONS, so blanking styleboxes is not enough.
             foreach (string i in new[]
                      {
@@ -60,6 +67,10 @@ namespace Beep.ECS.UI.Kit
                 AddThemeIconOverride(i, KitChrome.Blank);
             _suppressing = false;
         }
+
+        /// <summary>Track height, floored so the switch stays a readable control. Was
+        /// min(Size.Y*0.72, fs*1.35), which on a tight settings row produced a ~20px sliver.</summary>
+        private static float TrackHeight(int fs) => Mathf.Max(22f, fs * 1.5f);
 
         public override void _Draw()
         {
@@ -72,7 +83,7 @@ namespace Beep.ECS.UI.Kit
             Color on = UiSurface.Semantic(this, OnRole);
             if (on.A < 0.02f) on = surface;
 
-            float h = Mathf.Min(Size.Y * 0.72f, fs * 1.35f);
+            float h = TrackHeight(fs);
             float w = h * 2.05f;
             var track = new Rect2(Size.X - w - 2f, (Size.Y - h) * 0.5f, w, h);
 
@@ -84,12 +95,29 @@ namespace Beep.ECS.UI.Kit
             KitChrome.Fill(this, KitShape.Pill, track, KitGeometry.ForGenre(_genre),
                            trackCol, UiSurface.Ink(surface), Mathf.Max(1f, h * 0.09f));
 
-            float kr = h * 0.40f;
-            float kx = ButtonPressed ? track.Position.X + track.Size.X - kr - h * 0.12f
-                                     : track.Position.X + kr + h * 0.12f;
-            var knob = new Rect2(kx - kr, track.Position.Y + h * 0.5f - kr, kr * 2f, kr * 2f);
-            KitChrome.DrawPlate(this, _genre, knob,
-                                KitChrome.StateFace(surface, state), state, 0.55f);
+            // The KNOB must be legible against its own track, so it is derived from the track's
+            // luminance rather than taking the panel surface. Drawn as a plain disc with a rim:
+            // at ~17px the full band stack has no room and consumed the knob entirely, which is
+            // why the toggles read as featureless pills.
+            float kr = h * 0.38f;
+            float kx = ButtonPressed ? track.Position.X + track.Size.X - kr - h * 0.14f
+                                     : track.Position.X + kr + h * 0.14f;
+            var kc = new Vector2(kx, track.Position.Y + h * 0.5f);
+
+            // Threshold well above mid-grey ON PURPOSE. At 0.45 a mid-tone track (the success
+            // green) flipped the knob to dark while the off-state track kept a light one, so the
+            // knob changed colour AND position between states and read as two different controls.
+            // A switch should move its knob, not swap it. Only a genuinely light track (a pale
+            // parchment palette) inverts.
+            float trackLum = UiSurface.Luminance(trackCol);
+            Color knobCol = trackLum < 0.62f
+                ? new Color(0.96f, 0.96f, 0.94f, 1f)
+                : new Color(surface.R * 0.30f, surface.G * 0.29f, surface.B * 0.33f, 1f);
+            if (state == KitState.Disabled) knobCol = knobCol with { A = 0.55f };
+
+            DrawCircle(kc, kr, knobCol);
+            DrawArc(kc, kr, 0f, Mathf.Tau, 20, UiSurface.Ink(trackCol),
+                    Mathf.Max(1f, kr * 0.18f));
 
 
             // NO label drawn here. The plate above covers only the box/switch, so the base

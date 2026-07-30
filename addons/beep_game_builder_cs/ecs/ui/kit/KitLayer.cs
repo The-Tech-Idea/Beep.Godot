@@ -21,6 +21,10 @@ namespace Beep.ECS.UI.Kit
         Studs,
         /// <summary>Corner sparkle accent.</summary>
         Sparkle,
+        /// <summary>The widget's SHADOW, drawn first, under everything. Kind and geometry come
+        /// from the theme (<see cref="KitShadowDef"/>) rather than the stack, because two themes
+        /// of one genre differ by shadow more than by layer order.</summary>
+        Shadow,
         /// <summary>The genre's MATERIAL — a tiling alpha mask (wood grain, stone, plate,
         /// weave) modulated into the plate colour. The third axis; see <see cref="KitGrain"/>.
         /// Amount scales the measured per-genre amplitude, so a stack can carry a lighter or

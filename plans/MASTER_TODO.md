@@ -2014,3 +2014,62 @@ independent sightings, so "segmented is the default" holds.
 The plan (`PLAN_STYLE_SYSTEM.md`) is now final for phases A–G and traced to numbered files
 throughout. **Next turn starts Phase A (`KitLayerKind.Shadow` + `measure_shadow.py`), which must be
 shown to fail on today's build before it is trusted.**
+
+### Stage 40 — Phase A: the shadow layer, and a gate that measures it honestly (2026-07-30)
+
+`KitLayerKind` had **no `Shadow` member**: every widget in every genre drew flat onto whatever was
+behind it, while the art pass found five distinct behaviours across the 59 references.
+
+**Built**: `KitShadowKind { None, Hard, Soft, Glow, Extrude }`, `KitShadowDef` as theme data,
+`KitShadow.Draw` (drawn first, under the whole stack, in a dark tint of the *surface's own hue* so
+a parchment theme casts a warm shadow and a metal one a cool shadow), and a per-genre assignment
+read off the art:
+
+| soft | hard | extrude | none |
+|---|---|---|---|
+| rpg · survival · cardgame | citybuilder · strategy | platformer | shooter · racing · puzzle · topdown |
+
+#### The gate had to be rebuilt twice, and both rebuilds were caused by it failing
+
+`measure_shadow.py` classifies a rendered widget's shadow on colour-invariant measures
+(spill · coverage · falloff · offset · **axis ratio** · solidity). Its `--selftest` synthesises all
+five kinds and **passes 5/5**.
+
+1. **First version scored 3 of 5 synthetic cases wrong.** Its "widget" threshold swallowed dark
+   shadows into the body, so a textbook hard shadow measured `spill 0.0000`. Fixed by taking the
+   widget's rect as *given* rather than inferred.
+2. **Second version reported a confident `hard` for all ten genres on a build with no shadow layer
+   at all** — it assumed a 260×150 widget against a 420×260 render, so the measuring ring sat
+   *inside* the plate. Assuming the rect is the same mistake as inferring it.
+3. **Third version is immune to both**: the probe renders each widget **twice**, with shadows on
+   and off (`KitShadow.Enabled`), and the gate analyses the **difference**. Silhouette cancels
+   exactly — which matters because `Capsule`/`Spiked`/`Torn` deliberately draw *outside* their rect
+   (they made platformer and rpg measure as `extrude` on a shadow-free build) and `Shield` sits
+   *inset* within its rect, so its shadow never leaves it.
+
+#### One real rendering bug the gate caught
+
+Shadow offsets were sized off `FramePx`. The Casual genres declare `KitFrameMode.None`, so their
+frame is ~0 and **their shadows collapsed to about one pixel** — cardgame and platformer rendered a
+shadow too small for the gate to see. Now sized off the widget's short edge: a shadow scales with
+the thing casting it.
+
+#### Result — 7 of 10, and the 3 that fail are NOT tuned away
+
+| gate | result |
+|---|---|
+| `measure_shadow --selftest` | **PASS 5/5** |
+| `measure_shadow --proof` | **FAIL — 7/10 match** |
+| `dotnet build` · `validate_scenes` · shadowing · `poly_probe` · 67 scenes | 0 errors · PASS · ok · 105/105 · 0 failures |
+
+**All four `none` genres are exactly right, and `soft` is right for rpg, survival and cardgame.**
+
+**Unresolved, stated rather than tuned away:** citybuilder and strategy (`hard`) and platformer
+(`extrude`) all render with a falloff the classifier reads as `soft` — interior solidity
+0.20–0.30 where a crisp edge should be ~1.0. Eroding the anti-aliased collar barely moved it
+(0.32 → 0.30), so it is **not** an AA artefact: those shadows are genuinely being drawn with
+graded depth, and the cause is not yet found. Lowering `SOLID_HARD` until the gate went green was
+the obvious move and is exactly the failure this repo keeps paying for, so it was not done.
+
+Next: find why a single opaque `DrawColoredPolygon` produces graded depth for those three, then
+Phase B (outline polarity).

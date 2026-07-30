@@ -70,6 +70,13 @@ namespace Beep.ECS.UI.Kit
             Color ink = UiSurface.Ink(face);
             float rimPx = Mathf.Max(1f, g.Rim * rimScale);
             float frame = g.FramePx(body.Size.Y);
+
+            // SHADOW FIRST, under the whole stack. It is not in the register's layer list on
+            // purpose: the register says how a plate is BUILT, the theme says how it is
+            // SEPARATED from its ground, and two themes of one genre differ by the second more
+            // than the first.
+            KitShadow.Draw(ci, g.Shadow, Poly(shape, body, g), body, KitShadow.UnitFor(body), face);
+
             Rect2 cur = body;
 
             foreach (var layer in KitStacks.For(g.Register))

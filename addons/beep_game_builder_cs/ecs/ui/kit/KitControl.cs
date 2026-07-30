@@ -626,6 +626,11 @@ namespace Beep.ECS.UI.Kit
 
             float frame = g.FramePx(r.Size.Y);
             Rect2 cur = r;
+            // SHADOW FIRST, under everything -- see KitChrome.DrawPlate for why it is not a
+            // member of the register's stack.
+            KitShadow.Draw(this, g.Shadow, OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner),
+                           r, KitShadow.UnitFor(r), face);
+
             foreach (var layer in KitStacks.For(g.Register))
             {
                 float inset = layer.Inset >= 0f ? r.Size.Y * layer.Inset : frame;

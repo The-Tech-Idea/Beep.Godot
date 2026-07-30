@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/rpg/Inventory.cs" id="3_script"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs" id="k_slot"]
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="Inventory" type="Control"]
@@ -93,41 +94,59 @@ theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
 columns = 6
 
-[node name="ItemSlot1" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot1" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
+Count = 3
 
-[node name="ItemSlot2" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot2" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
+Count = 12
 
-[node name="ItemSlot3" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot3" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
+Rarity = 6
+Count = 1
 
-[node name="ItemSlot4" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot4" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot5" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot5" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot6" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot6" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot7" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot7" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot8" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot8" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot9" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot9" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot10" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot10" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot11" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot11" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
 
-[node name="ItemSlot12" type="PanelContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
+[node name="ItemSlot12" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox/ItemGrid"]
 custom_minimum_size = Vector2(72, 72)
+script = ExtResource("k_slot")
+Locked = true
+Requirement = "Needs Lv 8"
 
 [node name="GridSpacer" type="Control" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
 size_flags_vertical = 3

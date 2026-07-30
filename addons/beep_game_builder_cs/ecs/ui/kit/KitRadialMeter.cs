@@ -97,7 +97,12 @@ namespace Beep.ECS.UI.Kit
             if (string.IsNullOrEmpty(_centre)) return;
             var font = GetThemeDefaultFont();
             if (font == null) return;
-            int fs = UiSurface.FontSize(this, 1.1f);
+            // The number inside the ring is a VALUE, and the ring's own inner diameter is the
+            // box it has to fit. A flat 1.1x body size overflowed a small dial and looked lost in
+            // a large one.
+            float inner = Mathf.Min(Size.X, Size.Y) * 0.62f;
+            int fs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                       new Vector2(inner, inner * 0.72f), _centre, font);
             Vector2 m = font.GetStringSize(_centre, HorizontalAlignment.Left, -1, fs);
             DrawString(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
                        _centre, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));

@@ -129,11 +129,16 @@ namespace Beep.ECS.UI.Kit
                     // the disabled colour. Reading it as unavailable was a real Stage 28 defect.
                     Color txt = UiSurface.Text(this);
                     if (!sel) txt = txt with { A = 0.78f };
-                    Vector2 m = font.GetStringSize(Tabs[i].Text, HorizontalAlignment.Left, -1, fs);
+                    // A tab's width is the strip divided by the tab count, so a long title has
+                    // to shrink to its own tab rather than run into the next one.
+                    int tf = UiSurface.FitRole(this, UiSurface.TextRole.Body,
+                                               new Vector2(r.Size.X * 0.86f, r.Size.Y * 0.62f),
+                                               Tabs[i].Text, font);
+                    Vector2 m = font.GetStringSize(Tabs[i].Text, HorizontalAlignment.Left, -1, tf);
                     DrawString(font,
                                new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
                                            r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Tabs[i].Text, HorizontalAlignment.Left, -1, fs, txt);
+                               Tabs[i].Text, HorizontalAlignment.Left, -1, tf, txt);
                 }
 
                 // Corner flash badge, straddling the tab's top-right — the attention anchor the

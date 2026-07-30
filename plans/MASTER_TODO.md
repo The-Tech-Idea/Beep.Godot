@@ -1701,3 +1701,84 @@ the classes themselves.
 
 Inspected: the "Settings" plaque now clears the tab row; the gallery's Textures checkbox is a
 box with a tick and its label renders once.
+
+### Stage 38f — a named type scale, and a slot you can populate (2026-07-30)
+
+#### 1. Type was one flat size everywhere
+
+**79 of the kit's 86 font-size call sites were a bare `UiSurface.FontSize(this)`** — the theme's
+body size, knowing nothing about the widget drawing with it. So a 24px count badge and a 200px
+card title rendered identically: banners read as tiny captions on large panels ("INVENTORY",
+"EQUIPMENT"), slot badges were barely legible, and card names looked like footnotes.
+
+Fixed with a **named role scale** on `UiSurface`, deliberately reusing the SAME multipliers as the
+Label `theme_type_variation`s that `ThemePresetComponent` already registers — so a drawn card title
+and a `BeepTitle` Label beside it agree, and the scale changes in one place:
+
+| role | × | matches |
+|---|---|---|
+| `Title` | 1.90 | `BeepTitle` |
+| `Subtitle` | 1.35 | `BeepSubtitle` |
+| `Value` | 1.25 | `BeepValue` |
+| `Body` | 1.00 | — |
+| `Caption` | 0.85 | `BeepCaption` |
+| `Small` | 0.70 | *(new — drawn widgets need a step below Caption for badges)* |
+
+Two entry points: `FontSize(n, role)` when the widget grows to fit its text, and
+**`FitRole(n, role, box, text, font)`** when the widget draws into a box it controls — the role
+sets the intent, the box sets the ceiling, and it shrinks to fit the width rather than overflowing.
+
+Applied where the box is fixed and the text was breaking: banner (`Subtitle`), card title
+(`Title`), card/slot requirement (`Caption`/`Small`), slot count badge (`Small`), radial-meter
+centre (`Value`), tab-strip label (`Body`, fitted to `Size.X / tabCount`).
+
+**Deliberately NOT blanket-replaced.** Each widget has two sites — one sizing the widget from its
+text and one drawing into a box. Only the second is the bug; fitting the first would fight the
+widget's own minimum size. Chip, LabelValue, Tooltip and CurrencyBar grow to fit and were left
+alone.
+
+#### 2. `KitInventorySlot` — the inspector-populated slot
+
+`KitSlotGrid` holds a `List<Slot>` of plain C# objects, so a slot's icon and count can only be set
+from CODE. Right for a runtime bag, useless for building a screen in the editor.
+
+`KitInventorySlot : KitControl` is the drag-and-drop counterpart: `[Export]` **Icon**, **Count**,
+**Rarity** (a palette *role*, not a colour), **Locked**, **Requirement**, **Selected**, plus a
+`SlotPressed` signal. Draws the recessed well, the item, a corner count badge, a rarity rim, the
+padlock and its requirement — all in the active genre's material.
+
+`Icon` may be null on purpose: the framework ships no item art, so an empty slot is a legitimate
+state and draws as an empty well rather than warning.
+
+Applied to `rpg/inventory.tscn`: its 12 `ItemSlot*` were bare decorative `PanelContainer`s that
+`Inventory.cs` never referenced, so converting them broke no typed lookup. Four are populated to
+make the exports self-evident.
+
+##### Three bugs caught by rendering it at three sizes
+
+Rendering one size would have proved nothing, since the whole defect was that type did not change
+with size.
+
+1. **rpg's `Spiked` silhouette hung triangular points off the bottom of every slot in the grid.**
+   A slot is a container for someone else's art drawn in a tiled row, and the shapes that give a
+   button its identity make a terrible slot. `SlotShape` now tames the exotic ones
+   (`Spiked`/`Torn`/`Capsule`/`Shield`/`Ellipse`/…) to `Round`; genre still reads through corner
+   radius, frame, material and rim. `OverrideShape` still wins.
+2. **The locked requirement drew OUTSIDE the slot**, colliding with the slot below it.
+3. **The count badge straddled the corner at 0.62 and came out clipped.** Now 0.92.
+
+And one caught before it shipped: the tab-strip label was **measured** at the new fitted size but
+still **drawn** at the old one — a silent misalignment that compiles fine.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors (both repos) |
+| `validate_scenes.sh` | PASS |
+| shadowing gate | ok |
+| 67 templates + 52 game scenes | rendered, 0 failures |
+
+Inspected: banners and card titles now scale with their boxes; the inventory grid shows real slots
+with count badges, a rarity rim and a locked slot naming its requirement — in the addon and in the
+user's game.

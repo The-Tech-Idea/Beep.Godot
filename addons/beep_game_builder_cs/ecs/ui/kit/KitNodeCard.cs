@@ -118,17 +118,25 @@ namespace Beep.ECS.UI.Kit
 
             if (font != null && !string.IsNullOrEmpty(_title))
             {
-                Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
+                // A card's name is its TITLE. Drawn at body size it read as a caption on a large
+                // card ("Iron Axe", "Rune Axe" on the widget sheet), and the role now scales it
+                // with the card while still shrinking to fit a narrow one.
+                int tf = UiSurface.FitRole(this, UiSurface.TextRole.Title,
+                                           new Vector2(body.Size.X * 0.88f, body.Size.Y * 0.22f),
+                                           _title, font);
+                Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
                 DrawString(font,
                            new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,
                                        body.Position.Y + body.Size.Y * 0.78f),
-                           _title, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+                           _title, HorizontalAlignment.Left, -1, tf, UiSurface.Text(this));
             }
 
             // Requirement, in words, for a locked card.
             if (_locked && !string.IsNullOrEmpty(_req) && font != null)
             {
-                int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.72f));
+                int small = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
+                                              new Vector2(body.Size.X * 0.92f, body.Size.Y * 0.12f),
+                                              _req, font, min: 8);
                 Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
                 DrawString(font,
                            new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,

@@ -146,6 +146,114 @@ namespace Beep.ECS.UI
             return Mathf.Max(min, Mathf.RoundToInt(b * scale));
         }
 
+        /// <summary>
+        /// Named steps on the type scale, for the widgets that DRAW their own text.
+        ///
+        /// A Label in a container gets its hierarchy from a `theme_type_variation`
+        /// (`BeepTitle`/`BeepSubtitle`/`BeepValue`/`BeepCaption`, registered by
+        /// ThemePresetComponent). A drawn widget cannot use those — it has no Label — so it had
+        /// nothing but a bare `FontSize(this)` and every string in the kit came out one size.
+        ///
+        /// These multipliers are deliberately the SAME numbers the Label variations use, so a
+        /// drawn card title and a `BeepTitle` Label beside it agree, and changing the scale in
+        /// one place changes both.
+        /// </summary>
+        public enum TextRole
+        {
+            /// <summary>Screen and card titles. 1.9× — matches `BeepTitle`.</summary>
+            Title,
+            /// <summary>Section headings, banner text. 1.35× — matches `BeepSubtitle`.</summary>
+            Subtitle,
+            /// <summary>A number that carries the meaning. 1.25× — matches `BeepValue`.</summary>
+            Value,
+            /// <summary>Default running text. 1.0×.</summary>
+            Body,
+            /// <summary>Stat labels, hints, footers. 0.85× — matches `BeepCaption`.</summary>
+            Caption,
+            /// <summary>Count badges and corner overlays, where the box is genuinely tiny.
+            /// 0.70× — no Label variation equivalent; drawn widgets need a step below Caption.</summary>
+            Small,
+        }
+
+        public static float Multiplier(TextRole role) => role switch
+        {
+            TextRole.Title => 1.90f,
+            TextRole.Subtitle => 1.35f,
+            TextRole.Value => 1.25f,
+            TextRole.Caption => 0.85f,
+            TextRole.Small => 0.70f,
+            _ => 1.00f,
+        };
+
+        /// <summary>The theme's size for a named role, ignoring any box. Use when the widget
+        /// grows to fit its text rather than the other way round.</summary>
+        public static int FontSize(Node n, TextRole role, int min = 7)
+            => FontSize(n, Multiplier(role), min);
+
+        /// <summary>
+        /// A named role, SHRUNK to fit the box it is drawn in.
+        ///
+        /// This is the one most kit widgets want: the role sets the intent, the box sets the
+        /// ceiling. A Title in a big card renders large; the same Title in a small chip shrinks
+        /// rather than overflowing, and never below <paramref name="min"/>.
+        /// </summary>
+        public static int FitRole(Node n, TextRole role, Vector2 box, string? text = null,
+                                  Font? font = null, int min = 7)
+        {
+            int want = FontSize(n, role, min);
+            // The box's height still bounds it: a Title cannot be 1.9x the theme if the box it
+            // is drawn in is only 14px tall.
+            int fs = Mathf.Clamp(Mathf.FloorToInt(box.Y * 0.72f), min, want);
+            if (font == null || string.IsNullOrEmpty(text) || box.X <= 1f) return fs;
+            while (fs > min &&
+                   font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X > box.X)
+                fs--;
+            return fs;
+        }
+
+        /// <summary>
+        /// The largest font size at which <paramref name="text"/> FITS inside
+        /// <paramref name="box"/> — bounded by the box's height and, if the text is measured,
+        /// by its width too.
+        ///
+        /// WHY THIS EXISTS
+        /// ---------------
+        /// <see cref="FontSize"/> returns the theme's body size and knows nothing about the
+        /// widget drawing with it. That is right for a Label inside a container, which grows to
+        /// fit its text — and wrong for every box a widget draws for ITSELF. 79 of the kit's 86
+        /// font-size call sites were a bare <c>FontSize(this)</c>, so a 24px count badge and a
+        /// 200px card title rendered at exactly the same size: banners read as tiny captions on
+        /// a large panel, and slot badges ("12", "Lv 12") were barely legible at any theme size.
+        ///
+        /// A drawn box should scale its type with itself. `heightRatio` is the share of the box
+        /// height one line of text may occupy — 0.5 is a comfortable default for a single line
+        /// in a tight box; a banner wants less, a big numeral more.
+        ///
+        /// Passing <paramref name="text"/> and <paramref name="font"/> also shrinks to fit the
+        /// WIDTH, which is what stops a long title overflowing a narrow card. Without them only
+        /// the height bound applies.
+        /// </summary>
+        public static int FitText(Node n, Vector2 box, float heightRatio = 0.5f,
+                                  string? text = null, Font? font = null,
+                                  int min = 7, float themeMax = 2.2f)
+        {
+            int theme = FontSize(n);
+            // Never larger than a sane multiple of the theme's own size: a huge box should not
+            // produce absurd type just because it has room, and the theme still sets the tone.
+            int cap = Mathf.Max(min, Mathf.RoundToInt(theme * themeMax));
+            int fs = Mathf.Clamp(Mathf.FloorToInt(box.Y * heightRatio), min, cap);
+
+            if (font == null || string.IsNullOrEmpty(text) || box.X <= 1f) return fs;
+
+            // Shrink until it fits the width. Linear from the height-derived size rather than a
+            // binary search: the range is small and this always lands on the largest fitting
+            // size rather than near it.
+            while (fs > min &&
+                   font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X > box.X)
+                fs--;
+            return fs;
+        }
+
         /// <summary>Nominal mid-tone of the shipped 9-patch art, measured across the set:
         /// button_normal averages (204,210,214) = 0.82, panel (190,200,205) = 0.78. A textured
         /// box carries the palette in its modulate PRE-multiplied by this, so dividing it back

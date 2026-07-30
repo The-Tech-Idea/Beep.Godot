@@ -807,7 +807,10 @@ namespace Beep.ECS.UI.Kit
             if (string.IsNullOrEmpty(text) || host.Size.X < 8f || host.Size.Y < 8f) return;
 
             var font = GetThemeDefaultFont();
-            int fs = UiSurface.FontSize(this);
+            // A banner is a SUBTITLE, not body text: it names the panel it straddles. Drawn at
+            // the flat body size it read as a tiny caption on a large panel ("INVENTORY",
+            // "EQUIPMENT" on the widget sheet).
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Subtitle);
 
             // Floor the height at the type, or the banner clips its own text on a short host.
             float h = Mathf.Max(fs * 1.5f, host.Size.Y * heightRatio);

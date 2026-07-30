@@ -156,7 +156,9 @@ namespace Beep.ECS.UI.Kit
                 // consistently do NOT do.
                 if (s.Kind == SlotKind.Locked && !string.IsNullOrEmpty(s.Requirement) && font != null)
                 {
-                    int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.62f));
+                    int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                                  new Vector2(r.Size.X * 1.3f, r.Size.Y * 0.30f),
+                                                  s.Requirement, font, min: 8);
                     Vector2 m = font.GetStringSize(s.Requirement, HorizontalAlignment.Left, -1, small);
                     if (m.X <= r.Size.X * 1.35f)
                         DrawString(font,
@@ -201,7 +203,12 @@ namespace Beep.ECS.UI.Kit
         private void DrawCountBadge(Rect2 r, int count, Font font, int fs, Color ink)
         {
             string txt = count.ToString();
-            int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.72f));
+            // Sized off the SLOT, not the theme. At a flat 0.72x body size a count badge was
+            // barely legible on a large slot and identical on a small one -- the badge is drawn
+            // inside a box this widget controls, so the box sets the type.
+            int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                          new Vector2(r.Size.X * 0.55f, r.Size.Y * 0.42f),
+                                          txt, font, min: 9);
             Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, small);
             float w = Mathf.Max(m.X + small * 0.7f, small * 1.4f), h = small * 1.25f;
             var b = new Rect2(r.End.X - w * 0.55f, r.End.Y - h * 0.55f, w, h);

@@ -131,6 +131,60 @@ namespace Beep.ECS.UI.Kit
         /// PanelContainer (to inherit layout) and so cannot inherit this class, but must cut to
         /// exactly the same silhouettes. Sharing the geometry is the point — two copies of the
         /// outline table would drift.</summary>
+        /// <summary>The silhouette as a polygon, ALWAYS — unlike <see cref="Outline"/>, which
+        /// returns null for the shapes expressed as a corner radius and leaves the caller to
+        /// draw a StyleBox.
+        ///
+        /// Needed by any layer that must be CLIPPED to the widget's shape rather than to its
+        /// bounding box. The grain is the first: filling a pill's bounding rect with wood would
+        /// paint the material past both round ends and square off the silhouette the outline
+        /// work exists to create. Shared with <see cref="KitPushButton"/> so the two renderers
+        /// clip to the same shape instead of drifting.</summary>
+        internal static Vector2[] OutlinePoly(KitShape shape, Rect2 r, float cut)
+        {
+            if (Outline(shape, r, cut) is { } poly) return poly;
+            float rad = shape switch
+            {
+                KitShape.Rect => 0f,
+                KitShape.Pill or KitShape.Ellipse => Mathf.Min(r.Size.X, r.Size.Y) * 0.5f,
+                _ => cut,
+            };
+            rad = Mathf.Min(rad, Mathf.Min(r.Size.X, r.Size.Y) * 0.5f);
+            if (rad <= 0.5f)
+                return new[]
+                {
+                    r.Position, r.Position + new Vector2(r.Size.X, 0),
+                    r.Position + r.Size, r.Position + new Vector2(0, r.Size.Y),
+                };
+            const int seg = 6;
+            var pts = new System.Collections.Generic.List<Vector2>(seg * 4 + 4);
+            Vector2[] centres =
+            {
+                r.Position + new Vector2(r.Size.X - rad, rad),
+                r.Position + new Vector2(r.Size.X - rad, r.Size.Y - rad),
+                r.Position + new Vector2(rad, r.Size.Y - rad),
+                r.Position + new Vector2(rad, rad),
+            };
+            for (int ci = 0; ci < 4; ci++)
+            {
+                float start = -Mathf.Pi * 0.5f + ci * Mathf.Pi * 0.5f;
+                for (int i = 0; i <= seg; i++)
+                {
+                    float t = start + Mathf.Pi * 0.5f * i / seg;
+                    var v = centres[ci] + new Vector2(Mathf.Cos(t), Mathf.Sin(t)) * rad;
+                    // DEDUPE. At the stadium limit (rad == min(w,h)/2) the two corner centres on
+                    // the short axis COINCIDE, so consecutive arc points land on top of each
+                    // other and Godot's triangulator rejects the whole polygon — which is why
+                    // Pill and Ellipse failed at every single size, silently drawing nothing.
+                    if (pts.Count > 0 && pts[^1].DistanceSquaredTo(v) < 0.02f) continue;
+                    pts.Add(v);
+                }
+            }
+            if (pts.Count > 1 && pts[0].DistanceSquaredTo(pts[^1]) < 0.02f)
+                pts.RemoveAt(pts.Count - 1);
+            return pts.ToArray();
+        }
+
         internal static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
         {
             float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
@@ -172,6 +226,32 @@ namespace Beep.ECS.UI.Kit
                 // sides are parallel. Seeded from the rect's own size, so it is stable across
                 // redraws — a torn edge that reshuffles each frame reads as noise, not as paper.
                 KitShape.Torn => Torn(x, y, w, h, c),
+
+                // ui1's mission bar, ui9's currency pill, and the mobile kit's "$ 200" chips all
+                // do the SAME thing: a circular cap that OVERHANGS the left end, wider than the
+                // bar is tall. Three independent references, and until now Capsule fell through
+                // to a plain rounded rect — which is exactly why platformer never separated from
+                // puzzle (0.026 against a 0.040 bar). Like Spiked, it leaves its bounding box.
+                // Capsule is a BAR shape: the overhanging cap only means anything when there is a
+                // bar for it to overhang. On a square or tall control the disc cannot be larger
+                // than half the height AND fit the width, so it degenerates — return null and let
+                // it draw as an ordinary pill rather than emit an invalid polygon.
+                KitShape.Capsule when w >= h * 1.8f => CapsuleCap(x, y, w, h),
+
+                // The sci-fi HUD sheet's defining move is ASYMMETRY: two diagonally opposite
+                // corners cut long, the other two left square. A symmetric cut on all four
+                // corners is what made shooter and racing measure 0.018 apart — both were a
+                // rectangle with its corners taken off, differing only in angle.
+                //
+                // The cut is sized off HEIGHT, not the shared corner fraction. At 128x38 the
+                // fraction gave an 11px nick on a 128px-wide plate -- racing vs shooter only
+                // moved 0.018 -> 0.027 against a 0.040 bar, because a small nick on one corner
+                // still reads as a rectangle. A cut this long changes the plate's whole profile.
+                KitShape.Asymmetric => Asym(x, y, w, h),
+
+                // Pixel-era UI rounds a corner in STEPS, not an arc. Reads unmistakably as 8-bit
+                // and, unlike a radius, survives being measured at small size.
+                KitShape.Stepped => Stepped(x, y, w, h, c),
 
                 KitShape.Octagon => Oct(x, y, w, h, c),
                 KitShape.Pentagon => new[]
@@ -227,6 +307,116 @@ namespace Beep.ECS.UI.Kit
                 }
                 p.Add(new Vector2(x, y + h));
                 p.Add(new Vector2(x, y + c));
+                return p.ToArray();
+            }
+
+            /// <summary>ui1's mission bar / ui9's currency pill: a bar with a circular cap
+            /// OVERHANGING the left end.
+            ///
+            /// The cap is larger than the bar is tall and its centre sits at the bar's left
+            /// edge, so roughly half of it protrudes outside the control's rect — same principle
+            /// as Spiked, and the reason this reads as an assembled object rather than a rounded
+            /// rectangle. Traced as one closed polygon: cap arc first, then the bar's right end.
+            /// </summary>
+            static Vector2[] CapsuleCap(float x, float y, float w, float h)
+            {
+                float rad = h * 0.5f;
+                // The disc must be LARGER than the bar's own radius or nothing protrudes and
+                // the intersection math goes imaginary (sqrt of a negative), which is what made
+                // Capsule fail on square and tall controls.
+                float cap = Mathf.Clamp(Mathf.Min(h * 0.72f, w * 0.34f), rad * 1.12f, w * 0.45f);
+                var cc = new Vector2(x + rad * 0.30f, y + rad);
+
+                // Where the disc crosses the bar's top and bottom edges. Everything between
+                // these two angles (going the LONG way round, through the left) is the part
+                // that protrudes; the rest is hidden behind the bar. Tracing one closed loop
+                // in a single winding direction is what keeps the polygon SIMPLE — the first
+                // attempt swept two arcs in opposite directions and self-intersected, which
+                // Godot reports as "Invalid polygon data" and then draws nothing at all.
+                float half = Mathf.Sqrt(Mathf.Max(0.01f, cap * cap - rad * rad));
+                float aTop = Mathf.Atan2(-rad, half);          // top crossing, right of centre
+                float aBot = Mathf.Atan2(rad, half);           // bottom crossing
+
+                const int seg = 16;
+                var p = new List<Vector2> { cc + new Vector2(Mathf.Cos(aTop), Mathf.Sin(aTop)) * cap };
+
+                // Top edge, then the bar's ordinary round right end, then back along the bottom.
+                p.Add(new Vector2(x + w - rad, y));
+                for (int i = 0; i <= seg; i++)
+                {
+                    float t = Mathf.Lerp(-Mathf.Pi * 0.5f, Mathf.Pi * 0.5f, (float)i / seg);
+                    p.Add(new Vector2(x + w - rad, y + rad) +
+                          new Vector2(Mathf.Cos(t), Mathf.Sin(t)) * rad);
+                }
+                p.Add(new Vector2(cc.X + half, y + h));
+
+                // Round the disc the long way — bottom crossing, through the left extreme
+                // (angle pi), up to the top crossing. This is the overhang.
+                for (int i = 0; i <= seg * 2; i++)
+                {
+                    float t = Mathf.Lerp(aBot, Mathf.Tau + aTop, (float)i / (seg * 2));
+                    p.Add(cc + new Vector2(Mathf.Cos(t), Mathf.Sin(t)) * cap);
+                }
+                return p.ToArray();
+            }
+
+            /// <summary>Sci-fi HUD frame: two diagonally opposite corners cut LONG, the other
+            /// two square, plus a shallow notch bitten out of the top edge. The notch is the
+            /// second tell of the family and costs nothing to carry.</summary>
+            static Vector2[] Asym(float x, float y, float w, float h)
+            {
+                float d = Mathf.Min(h * 0.62f, w * 0.28f);       // the long diagonal cut
+                float nw = Mathf.Min(w * 0.16f, h * 0.9f);       // notch width
+                float nd = h * 0.16f;                            // notch depth
+                float nx = x + w * 0.60f;
+                return new[]
+                {
+                    new Vector2(x + d, y),
+                    new Vector2(nx, y), new Vector2(nx + nw * 0.22f, y + nd),
+                    new Vector2(nx + nw * 0.78f, y + nd), new Vector2(nx + nw, y),
+                    new Vector2(x + w, y),
+                    new Vector2(x + w, y + h - d), new Vector2(x + w - d, y + h),
+                    new Vector2(x, y + h), new Vector2(x, y + d),
+                };
+            }
+
+            /// <summary>Pixel-era stepped corner: a staircase instead of an arc.</summary>
+            static Vector2[] Stepped(float x, float y, float w, float h, float c)
+            {
+                const int n = 3;                                   // steps per corner
+                float s = Mathf.Max(1.5f, Mathf.Min(c, Mathf.Min(w, h) * 0.24f) / n);
+                float k = s * n;
+                var p = new List<Vector2>();
+
+                // One clockwise loop: top edge, then each corner as n right-angle steps. Written
+                // out per corner rather than as a sign-flipped generic, because the generic
+                // version emitted the steps in the wrong order on two of the four corners and
+                // self-intersected.
+                p.Add(new Vector2(x + k, y));
+                p.Add(new Vector2(x + w - k, y));
+                for (int i = 0; i < n; i++)                          // top-right
+                {
+                    p.Add(new Vector2(x + w - k + (i + 1) * s, y + i * s));
+                    p.Add(new Vector2(x + w - k + (i + 1) * s, y + (i + 1) * s));
+                }
+                p.Add(new Vector2(x + w, y + h - k));
+                for (int i = 0; i < n; i++)                          // bottom-right
+                {
+                    p.Add(new Vector2(x + w - i * s, y + h - k + (i + 1) * s));
+                    p.Add(new Vector2(x + w - (i + 1) * s, y + h - k + (i + 1) * s));
+                }
+                p.Add(new Vector2(x + k, y + h));
+                for (int i = 0; i < n; i++)                          // bottom-left
+                {
+                    p.Add(new Vector2(x + k - (i + 1) * s, y + h - i * s));
+                    p.Add(new Vector2(x + k - (i + 1) * s, y + h - (i + 1) * s));
+                }
+                p.Add(new Vector2(x, y + k));
+                for (int i = 0; i < n; i++)                          // top-left
+                {
+                    p.Add(new Vector2(x + i * s, y + k - (i + 1) * s));
+                    p.Add(new Vector2(x + (i + 1) * s, y + k - (i + 1) * s));
+                }
                 return p.ToArray();
             }
 
@@ -487,6 +677,14 @@ namespace Beep.ECS.UI.Kit
                         DrawShape(box, s, new Color(0, 0, 0, 0), c, Mathf.Max(1f, rimPx * 0.5f));
                         break;
                     }
+                    case KitLayerKind.Grain:
+                        // The genre's MATERIAL, clipped to the face's own silhouette and drawn
+                        // UNDER the lighting layers below, so gloss reads as sheen on the
+                        // material rather than the material reading as dirt on the gloss.
+                        KitGrain.Draw(this, _genre,
+                                      OutlinePoly(s, box, Mathf.Min(box.Size.X, box.Size.Y) * g.Corner),
+                                      box, face, layer.Amount);
+                        break;
                     case KitLayerKind.Shade: DrawFaceShade(box, s, layer.Amount); break;
                     case KitLayerKind.Bevel: DrawBevel(box, g, layer.Amount); break;
                     case KitLayerKind.Gloss: DrawGloss(box, s, g, layer.Amount); break;

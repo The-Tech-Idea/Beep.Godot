@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/topdown/PauseSubscreen.cs" id="3_script"]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
 [node name="PauseSubscreen" type="CanvasLayer"]
 script = ExtResource("3_script")
 layer = 10
@@ -93,6 +94,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="Tabs" type="TabContainer" parent="Margin/MainHBox/ContentArea"]
+script = ExtResource("k_tabs")
 size_flags_vertical = 3
 
 [node name="Inventory" type="GridContainer" parent="Margin/MainHBox/ContentArea/Tabs"]

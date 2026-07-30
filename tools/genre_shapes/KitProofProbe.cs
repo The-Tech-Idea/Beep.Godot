@@ -74,6 +74,27 @@ public partial class KitProofProbe : Node
 
             btn.QueueFree();
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            // SECOND PASS: the same widget with NO LABEL and a large face, for the MATERIAL
+            // gate (tools/genre_shapes/measure_material.py --proof).
+            //
+            // The material axis could not be gated off gs_*.png at all: at 130x45 the inset
+            // crop is ~73x25 and mostly glyph, so flat-filled plates scored ABOVE diamond
+            // plate and the measurement was worthless. Text is not material. A big, empty
+            // face is the only honest input, so the probe renders one rather than asking the
+            // measurement to subtract a letterform it cannot see.
+            var plate = new KitButton { Text = "" };
+            root.AddChild(plate);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            plate.Size = new Vector2(420, 260);
+            plate.Position = ((root.Size - plate.Size) * 0.5f).Round();
+
+            for (int i = 0; i < 3; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            await Shoot($"{OutDir}/gm_{genre}.png");
+            plate.QueueFree();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
 
         // Phase-E check: if sliced art exists, prove a widget renders FROM it rather than

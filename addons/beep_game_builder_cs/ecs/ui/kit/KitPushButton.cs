@@ -117,27 +117,9 @@ namespace Beep.ECS.UI.Kit
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
             var body = new Rect2(Vector2.Zero, Size);
 
-            // Walk the register's stack, so a converted Button and a KitButton in the same genre
-            // are built from the same bands rather than two lookalike implementations.
-            float frame = g.FramePx(body.Size.Y);
-            Rect2 cur = body;
-            foreach (var layer in KitStacks.For(g.Register))
-            {
-                if (layer.Kind != KitLayerKind.Plate && layer.Kind != KitLayerKind.Keyline) continue;
-                float inset = layer.Inset >= 0f ? body.Size.Y * layer.Inset : frame;
-                Rect2 box = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
-                    ? body : Inset(cur, inset);
-                if (box.Size.X < 2f || box.Size.Y < 2f) continue;
-
-                Color c = Tint(face, layer.Shade);
-                if (layer.Kind == KitLayerKind.Keyline)
-                    Cut(box, new Color(0, 0, 0, 0), c with { A = layer.Amount }, Mathf.Max(1f, rimPx * 0.5f));
-                else
-                {
-                    Cut(box, c, ink, layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
-                    cur = box;
-                }
-            }
+            // One shared band walk (KitChrome), not a second copy. The register stack is
+            // the kit's definition of what a plate IS; two implementations of it drift.
+            KitChrome.DrawPlate(this, _genre, body, face, state, fs / 14f);
 
             if (g.Studs > 0 && state != KitState.Disabled) Studs(body, g, ink);
 
@@ -173,75 +155,9 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        private static Rect2 Inset(Rect2 r, float by)
-            => new(r.Position + new Vector2(by, by), r.Size - new Vector2(by * 2f, by * 2f));
-
-        /// <summary>State is a SCULPT, not an alpha change — fading a control is the clearest tell
-        /// that a UI is a themed form rather than a game.</summary>
-        private static Color StateFace(Color s, KitState st)
-        {
-            float k = st switch
-            {
-                KitState.Hover => 1.12f,
-                KitState.Pressed => 0.84f,
-                KitState.Disabled => 0.88f,
-                _ => 1f,
-            };
-            var c = new Color(Mathf.Min(1f, s.R * k), Mathf.Min(1f, s.G * k), Mathf.Min(1f, s.B * k), s.A);
-            if (st != KitState.Disabled) return c;
-            // Disabled DRAINS SATURATION rather than dimming (the 7x settled rule).
-            float l = UiSurface.Luminance(c);
-            return new Color(Mathf.Lerp(c.R, l, 0.9f), Mathf.Lerp(c.G, l, 0.9f), Mathf.Lerp(c.B, l, 0.9f), c.A);
-        }
-
-        private static Color Tint(Color face, float shade)
-        {
-            if (shade <= 1f) return new Color(face.R * shade, face.G * shade, face.B * shade, face.A);
-            float lum = UiSurface.Luminance(face);
-            float want = Mathf.Min(1f, lum * shade);
-            float t = Mathf.Clamp((want - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 1f);
-            return new Color(Mathf.Lerp(face.R, 1f, t), Mathf.Lerp(face.G, 1f, t),
-                             Mathf.Lerp(face.B, 1f, t), face.A);
-        }
-
-        private void Cut(Rect2 r, Color fill, Color rim, float rimWidth)
-        {
-            if (r.Size.X < 1f || r.Size.Y < 1f) return;
-            KitShape shape = ActiveShape;
-            float cut = Mathf.Min(r.Size.X, r.Size.Y) * Geo.Corner;
-            var poly = KitControl.Outline(shape, r, cut);
-            if (poly != null)
-            {
-                if (fill.A > 0f) DrawColoredPolygon(poly, fill);
-                if (rimWidth > 0f)
-                {
-                    var closed = new Vector2[poly.Length + 1];
-                    poly.CopyTo(closed, 0);
-                    closed[^1] = poly[0];
-                    DrawPolyline(closed, rim, rimWidth);
-                }
-                return;
-            }
-            float radius = shape switch
-            {
-                KitShape.Rect => 0f,
-                KitShape.Pill or KitShape.Ellipse => Mathf.Min(r.Size.X, r.Size.Y) * 0.5f,
-                _ => cut,
-            };
-            if (fill.A > 0f)
-            {
-                var sb = new StyleBoxFlat { BgColor = fill };
-                sb.SetCornerRadiusAll(Mathf.RoundToInt(radius));
-                DrawStyleBox(sb, r);
-            }
-            if (rimWidth > 0f)
-            {
-                var sb = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0), BorderColor = rim, DrawCenter = false };
-                sb.SetCornerRadiusAll(Mathf.RoundToInt(radius));
-                sb.SetBorderWidthAll(Mathf.Max(1, Mathf.RoundToInt(rimWidth)));
-                DrawStyleBox(sb, r);
-            }
-        }
+        /// <summary>State sculpt, shared with every other drop-in so a converted Button and a
+        /// converted CheckButton respond to hover and disable identically.</summary>
+        private static Color StateFace(Color s, KitState st) => KitChrome.StateFace(s, st);
 
         private void Studs(Rect2 r, KitGeometry g, Color ink)
         {

@@ -1,0 +1,17 @@
+Grain patterns
+==============
+
+Source: Kenney Pattern Pack (https://kenney.nl/assets/pattern-pack)
+License: CC0 1.0 Universal (public domain dedication)
+
+Free for personal, educational and commercial use. Written permission is not
+required; crediting Kenney is voluntary and appreciated.
+
+These are used as LUMINANCE MASKS by KitGrain -- modulated into the active
+palette's plate colour rather than drawn as art -- so they carry no colour of
+their own and reskin with the theme.
+
+Selected by measurement, not by eye: see tools/genre_shapes/pick_grain.py.
+
+NOTE: Example_Art/ is licensed Vecteezy reference used for MEASUREMENT ONLY.
+None of its pixels ship in this addon.

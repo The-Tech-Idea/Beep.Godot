@@ -1200,3 +1200,437 @@ three copies across the addon and both game projects) rather than more drawing c
 `Failed loading resource: .../button_normal.png` for the Stage 27 art — only 539 of ~744
 textures are in `.godot/imported`. The scene still renders; the baked art needs an editor import
 pass. Pre-existing, unrelated to the kit.
+
+---
+
+## Stage 37 — The material axis gets a number (2026-07-29)
+
+Three files arrived in `Example_Art` on 07-28 22:28–22:33 that no earlier pass had seen —
+`ui9.png`, `uiwood.png`, **`uitexturs.png`** — and eight `.svg` files arrived on 07-29 19:34–19:38,
+mid-session. `uitexturs.png` is the cleanest statement of the two-axis model in the whole folder
+and it turns the phase-E acceptance test from a description into a **threshold**.
+
+### `uitexturs.png` — nine materials, one silhouette
+
+Nine tiles: leather, rubber-dots, glossy-leaf, brushed-metal, diamond-plate, stone, wood-plank,
+denim, graph-paper. **Identical rounded square, identical corner radius, identical drop shadow.**
+They are unmistakably nine different things anyway. Same proof as `ui5.png`'s ten dialogs
+(line 628), arrived at independently — but this one is measurable.
+
+Metric (`tools/genre_shapes/` candidate): mean |laplacian| inside the plate, **normalised by the
+plate's own mean tone**, plus a |dx| vs |dy| imbalance term. Normalising by tone is what makes it
+colour-invariant — the same property the outline/structure axes have, and the reason it can be a
+gate rather than an opinion.
+
+| tile | tone | hf | dir |
+|---|---|---|---|
+| stone | 188 | 0.0055 | 0.11 |
+| brushed-metal | 194 | 0.0218 | 0.02 |
+| rubber-dots | 103 | 0.0344 | 0.01 |
+| graph-paper | 228 | 0.0345 | 0.00 |
+| glossy-leaf | 130 | 0.0358 | 0.23 |
+| leather | 81 | 0.1037 | 0.06 |
+| **wood-plank** | 96 | 0.1224 | **0.67** |
+| denim | 89 | 0.1253 | 0.05 |
+| **diamond-plate** | 68 | **0.3703** | 0.01 |
+
+**67× spread**, and wood separates on the second axis alone (dir 0.67 — planks run one way,
+everything else is isotropic). Two axes are needed: rubber-dots, graph-paper and glossy-leaf sit
+within **0.0014** of each other on `hf` and are separated only by `dir` and by dot geometry.
+
+> **These numbers replace an earlier, incomparable set** (stone 0.0086 … diamond-plate 0.6462,
+> "75× spread"). The metric was **scale-dependent**: the laplacian is a per-pixel difference, so
+> it shrinks as resolution rises. Caught by measuring one wood-plank region on both the 1920px
+> JPG and the 4898px EPS render of the *same* artwork — **0.0248 vs 0.0144**, i.e. the
+> higher-quality source scored as *less* detailed, and downsampling the render back to JPG size
+> returned 0.0254. The metric was self-consistent at matched scale and meaningless across scales,
+> which mattered because the reference tiles (~486px crops) and a rendered kit plate (~73×25) are
+> nowhere near the same scale. `hf_energy`/`directionality` now resample every crop to
+> `NORM_PX = 256` first, and `--selftest` asserts < 10 % drift at 4× resolution (measures 2.8 %).
+> The ordering and the conclusion survived; the absolute values did not.
+
+### What the kit scores: nothing
+
+The plate is `DrawColoredPolygon` with a flat fill plus inset bands. No grain, no gradient, no
+pattern. `KitLayer.cs:119` says it outright — *"Deliberately NO Shade layer."* Every
+`DrawTextureRect` across all 32 widgets is **user-supplied content art** (avatar, gem, currency
+icon, node-card art, slot icons, tree icons), never the surface.
+
+So the kit has a silhouette axis and a colour axis and **no material axis at all**. That is the
+gap behind "still the same shapes, you just changed colors", now stated on the same scale as the
+reference rather than as a complaint.
+
+### Two false measurements on the way there — recorded, because both looked clean
+
+1. **The first crop measured empty background.** Content in `gs_rpg.png` occupies cols 505–645,
+   rows 298–359; the fixed fractional crop sampled x[115:368] y[272:375]. It returned exactly
+   `0.0000` for all ten genres and read as a devastating finding. It measured nothing.
+2. **The second crop found the plate but was dominated by the label.** At 130×45 the inset core
+   is ~73×25 and mostly glyph, which scored the kit at 0.59–1.03 — *above diamond plate*.
+
+The reported result comes from **reading the drawing code**, not from either metric. Same failure
+mode as the `grep -c` incident: a check that cannot fail loudly manufactures a confident wrong
+answer. Any material gate must locate its crop, assert the crop is on a plate, and **exclude the
+glyph** — the proof render needs a label-free variant before the axis can be gated at all.
+
+### Source formats — what is actually readable
+
+- **EPS: SOLVED — `tools/genre_shapes/eps_render.py`.** There is still no `gs.exe`, ImageMagick
+  or Inkscape on the box, but **GIMP 3.2 bundles `bin/libgs-10.dll`** (Ghostscript 10.07.0), which
+  exports the standard Ghostscript C API. `eps_render.py` drives it through `ctypes` — no GIMP
+  Script-Fu, whose PDB signatures changed between GIMP 2 and 3. All **14/14 EPS render clean and
+  watermark-free** at 144 dpi into `tmp/eps/` (gitignored), **4898–8579 px wide** against JPG
+  previews **all capped at 1920**. Two API details that would otherwise fail silently: `-101`
+  (`gs_error_Quit`) is the *normal* return from `-dBATCH` and must not be treated as an error, and
+  each render needs a **fresh instance** — Ghostscript is single-init, and reuse yields a
+  truncated second file. `--selftest` renders a synthesised 200×100pt EPS and asserts the exact
+  pixel size at two dpi, plus a loud rejection of garbage input.
+  Worth doing because the carved 4-band constants (rim 2.05× / bezel 1.14× / shadow 0.76×) were
+  measured off 3–4px bands in JPEG, at the compression noise floor. Measured gain on a matched
+  region, under the scale-corrected metric: **+11 % real detail** (hf 0.0249 vs 0.0224).
+- **SVG: 5 of 8 are real vector**, and those are exact, resolution-free geometry:
+  `abstract-technology-futuristic-concept-hud-interface` (11,765 paths),
+  `list-of-mobile-games-…-20470769 / 20470774 / 20470776` (2941 / 1173 / 1944),
+  `game-user-interface-elements-set_2202535` (674).
+  **3 are rasters in an XML wrapper** — both `casual-game-ui-menu-popups…` and, unhelpfully,
+  `wooden-buttons-cartoon-interface-game-ui-elements_10876594.svg` (7 paths, 3.2 MB base64).
+  Classify before trusting: `<path>` count vs base64 payload share.
+- The shapes pack at `H:\GameDev\GFX\GameAssets\shapes` ships **83 SVG + 80 PNG** beside its 80
+  EPS, so it never needs conversion.
+
+### `ui9.png` — structural findings the kit does not have
+
+- **Currency pill**: circular icon cap **overhanging the left end**, welded `+` flush on the
+  right. This is the **second independent sighting** of the left overhang first noted on `ui1`,
+  and it is still unimplemented — `KitShape.Capsule` draws as a plain rounded rect, which is
+  exactly why platformer↔puzzle did not separate (0.027).
+- **Banner headers overhang the panel's top edge**; the kit's sit inside at 0.14× host.
+- **Discrete pip meters** — 7 hearts, 5 filled — not a continuous bar. Corroborates the settled
+  "segmented progress is the default" rule (7×).
+- Gold **corner ornaments** on all four frame corners; tabs physically attached to the panel.
+
+### `uiwood.png`
+
+One material carrying a whole family — panel, round icon buttons, square icon buttons,
+rope-lashed bars. Silhouette **varies within** the family while material holds it together. The
+kit does the inverse: one flat material, silhouette varied per genre.
+
+### Open, in priority order
+
+- [ ] **`KitLayerKind.Grain`** — per-genre material (plank / stone / carbon / leather /
+      parchment), gated on `hf` + `dir` at thresholds derived from the table above.
+- [ ] **Label-free proof render**, so the material axis can be measured at all.
+- [ ] **`Capsule`'s overhanging cap** — twice-referenced, still missing.
+- [ ] racing↔shooter **0.019**, platformer↔puzzle **0.027**, cardgame↔topdown **0.042** — all
+      under the 0.040 outline bar. Gate on the **outline column**, never the PASS line.
+- [ ] Stage 30's ten per-genre HUDs — still the largest untouched item in this file.
+
+---
+
+## Stage 38 — The material axis, built (2026-07-29)
+
+Phase E, and the answer to "still the same shapes, you just changed colors". The kit now has
+three axes instead of two: **silhouette, colour, and material.**
+
+### Where the pixels come from, and why
+
+Authorised to use "anything from kenney or example art". The split is deliberate:
+
+- **Kenney Pattern Pack — CC0 1.0** → **ships**. Commercial use, no attribution required, no
+  template/redistribution restriction. 9 patterns, ~30 KB total, in `textures/grain/`.
+- **Example_Art (Vecteezy)** → **measurement only, never shipped.** Its Free License requires
+  attribution *and* its terms restrict redistribution inside templates/themes — which is exactly
+  what this addon is. Nothing is lost by this: the art's value here was always the measurements.
+
+`textures/grain/LICENSE.txt` records both.
+
+### Patterns are chosen by MEASUREMENT, not by eye
+
+`tools/genre_shapes/pick_grain.py` scores all 171 CC0 patterns and assigns one per genre against
+the material that genre's reference art is actually made of. Three axes, all colour- and
+scale-invariant:
+
+| axis | what it fixes | why it is needed |
+|---|---|---|
+| `dir` | which pattern | tiling cannot rotate a grain — direction is unfixable, so it drives the choice |
+| `coarseness` | tile count | solved so feature size matches the reference material |
+| `hf` | amplitude | solved so detail energy matches |
+
+Targets are **measured off `uitexturs.png` at run time**, not transcribed — a transcribed
+constant rots silently, and this metric has already changed once.
+
+| genre | material | pattern | tiles | amp |
+|---|---|---|---|---|
+| rpg | wood-plank | pattern_50 (vertical planks) | 3 | 0.300 |
+| survival | leather | pattern_49 | 4 | 0.300 |
+| citybuilder | stone | pattern_78 | 1 | 0.136 |
+| strategy | stone | pattern_78 *(shared, by design)* | 1 | 0.136 |
+| shooter | diamond-plate | pattern_41 | 8 | 0.300 |
+| racing | brushed-metal | pattern_37 | 1 | 0.300 |
+| platformer | rubber-dots | pattern_42 | 1 | 0.300 |
+| puzzle | graph-paper | pattern_32 | 1 | 0.300 |
+| cardgame | denim | pattern_57 | 5 | 0.300 |
+| topdown | glossy-leaf | pattern_19 (brick) | 2 | 0.293 |
+
+The table is **generated into `ecs/ui/kit/KitGrainTable.cs`** so the shipped constants ARE the
+measured ones. Regenerate with `python tools/genre_shapes/pick_grain.py --install`.
+
+### Implementation
+
+- **`KitLayerKind.Grain`** + `KitGrain.cs`. Masks are baked to **RGB white + alpha = 1 −
+  luminance**, so they carry no colour and reskin with every palette. The naive alternative
+  (ship the black/white PNG, draw it modulated) does **not** work — alpha blending an opaque
+  texture with a black modulate paints flat black across the rect and ignores the pattern.
+- Added to all three register stacks at different strengths, and always **under** the lighting
+  layers: carved 1.0 (wood/stone), technical 0.80 (machined metal), casual 0.55 (printed
+  surfaces — a full-strength grain there would collapse the register distinction).
+- Clipped to the widget's own silhouette via a new shared `KitControl.OutlinePoly`, so a pill's
+  wood does not spill past its round ends.
+
+### Bugs caught, all by checks that could fail
+
+1. **`score_all` returned 0 patterns** (pointed at the pack root, not `PNG/Default`) and every
+   genre printed `NO CANDIDATE` — reads like a selection problem, is a path problem. Now raises.
+2. **Five genres were assigned near-identical patterns**, because ranking on `dir` alone put six
+   near-isotropic materials in a heap. That would have rebuilt "they all look the same" *inside
+   the layer built to cure it*. Fixed with per-genre uniqueness plus the coarseness axis.
+3. **The first coarseness metric was dead** — `hf(64)/hf(256)` returned a saturated `2.00` for
+   all 171 patterns and still produced a full, plausible assignment table. Replaced with mean run
+   length, verified linear against synthetic checkers (cell C scores exactly C/256).
+4. **`Invalid polygon data, triangulation failed`** — `Spiked`/`Torn`/`Ellipse` are not always
+   simple polygons, and Godot drew *nothing*. Left unguarded this would have made rpg and
+   survival — the two most distinctive materials — the only flat plates in the set, silently.
+   Now guarded by `Geometry2D.TriangulatePolygon`, falling back to the bounding rect **and
+   warning**. Only `puzzle` currently needs it.
+
+### Verified
+
+- `dotnet build` — **0 errors**
+- `validate_scenes.sh` — **PASS**
+- `verify_greyscale.py` — **PASS**, 0 indistinguishable pairs
+- Ten-genre render inspected: topdown's brick, rpg's planks, racing's hex cobble, platformer's
+  scales and shooter's fine plate are all visibly different materials at constant colour.
+
+### Still open
+
+- [ ] **The material axis is not yet GATED.** `measure_material.py --proof` still refuses,
+      because at 130×45 the crop is dominated by the button's label. Needs a **label-free proof
+      render** before a threshold can be enforced; until then the axis is verified by eye.
+- [ ] Outline column unchanged and still under the 0.040 bar: **racing↔shooter 0.018**,
+      **platformer↔puzzle 0.026**, **cardgame↔topdown 0.042**. Grain does not move outline.
+- [ ] `Capsule`'s overhanging left cap — now **twice** referenced (ui1, ui9's currency pill).
+- [ ] Per-family panel lightness; `HSlider`/`TabContainer`/`OptionButton`/`CheckBox` sweep.
+- [ ] Stage 30's ten per-genre HUDs.
+
+### Stage 38b — the material axis is now GATED (2026-07-29)
+
+The item left open above is closed. `measure_material.py --proof` no longer refuses; it grades.
+
+**The blocker was the input, not the metric.** `gs_*.png` carry a "PLAY" glyph across a 130×45
+plate, so the inset crop is ~73×25 and mostly letterform — which is why flat-filled plates once
+scored *above* diamond plate. `KitProofProbe` now renders a **second pass per genre**: the same
+widget, no label, 420×260. Those are `gm_*.png`, and they are the only files the gate will grade —
+`gs_*.png` are still reported but marked `includes glyph — NOT gradeable`, so the bad input cannot
+quietly come back.
+
+Two requirements, checked separately because they fail for different reasons:
+
+| check | bar | why |
+|---|---|---|
+| material present | `hf ≥ 0.0028` | half of stone's 0.0055 — the subtlest reference tile. Below that a plate is a flat fill. |
+| pairwise separation | `dist ≥ 0.010` | two genres that measure the same are not telling themselves apart |
+
+**The gate failed on first run, and the failure was real:** `puzzle vs racing 0.0093`. Their
+reference materials (graph-paper `dir 0.00`, brushed-metal `dir 0.02`) are both isotropic, so
+ranking on direction handed both a large blob at one tile — *different files, same look*, which is
+the original complaint reproduced inside the fix for it.
+
+Fixed in `pick_grain.py` with a **separation repair**: uniqueness of the FILE was never the
+requirement; separation of the RESULT is. It repeatedly takes the worst pair and moves the genre
+whose material fit is weaker to its next candidate.
+
+That loop **cycled** on the first attempt — shooter oscillated `42 → 59 → 42 → 59` forever, because
+"next free candidate that isn't the current one" flips between two once both beat everything else.
+Each genre now advances monotonically through a `tried` set, with a fallback to the other half of
+the pair when one side exhausts its candidates.
+
+Final assignment after repair (3 genres moved): platformer `42→58`, puzzle `32→41`,
+shooter `41→08`. Worst non-sharing pair at design time **0.056** (bar 0.055).
+
+**Verified — every gate run, exit codes checked:**
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors |
+| `measure_material.py --selftest` | exit 0 |
+| `measure_material.py --proof gm_*` | **MATERIAL PASS**, exit 0, closest pair **0.0668** (was 0.0093 FAIL) |
+| `measure_material.py --proof <bad glob>` | exit **1** — the refusal path still refuses |
+| `verify_greyscale.py` | PASS, 0 indistinguishable pairs |
+| `validate_scenes.sh` | PASS |
+| `Invalid polygon` errors | 0 |
+
+Inspected too: rpg reads as vertical planks, shooter as chevron tread plate, topdown as brick,
+survival as triangular hide facets, platformer/puzzle/racing/cardgame as four different cobbles.
+
+**Honest caveat:** citybuilder and strategy render nearly flat by eye (amp 0.136, derived from
+stone's `hf 0.0055` — genuinely the subtlest of the nine reference tiles). They pass the
+present-material bar and separate from everything else, but if stone should read more strongly
+that is a change to the *reference target*, not to the pipeline.
+
+**Unchanged and still open:** the outline column. racing↔shooter **0.018**, platformer↔puzzle
+**0.026**, cardgame↔topdown **0.042**, all under the 0.040 bar. Grain does not move outline, and
+this stage did not attempt to.
+
+### Stage 38c — the outline column, closed (2026-07-29)
+
+All three under-bar pairs are fixed. **Zero indistinguishable pairs, and the MARGINAL section is
+now empty** — the first time that has been true.
+
+| pair | before | after | bar |
+|---|---|---|---|
+| racing ↔ shooter | 0.018 | **0.107** | 0.040 |
+| platformer ↔ puzzle | 0.026 | **> 0.111** (out of the closest five) | 0.040 |
+| cardgame ↔ topdown | 0.042 | **0.048** | 0.040 |
+
+Read off the **144 dpi EPS renders in greyscale**, which is what the Ghostscript pipeline was
+built for:
+
+- **`Capsule` implemented at last** — ui1's mission bar, ui9's currency pill and the mobile kit's
+  `$ 200` chip are the same object: a circular cap **overhanging the left end**, wider than the
+  bar is tall. **Three independent references**, and it had been drawing as a plain rounded rect,
+  which is exactly why platformer never separated from puzzle. It now leaves its bounding box,
+  like `Spiked`.
+- **`Asymmetric` (shooter)** — the sci-fi HUD sheet's tell is *asymmetry*: two diagonally opposite
+  corners cut long, the other two square, plus a shallow notch bitten out of the top edge. A
+  symmetric cut on all four corners is just a chamfer, which is why shooter and racing were 0.018
+  apart while both were "a rectangle with its corners off".
+- **`Stepped` (topdown)** — pixel-era corners are a staircase, not an arc. Unlike a radius it
+  survives being measured at small size.
+
+**A first cut of `Asymmetric` only moved the pair 0.018 → 0.027** because it sized the cut off the
+shared corner *fraction*: an 11px nick on a 128px plate still reads as a rectangle. Sizing it off
+HEIGHT (0.62×) took it to 0.107.
+
+#### New gate: `poly_probe.tscn` / `PolyProbe.cs`
+
+Every `KitShape` × 5 aspect ratios must produce a polygon Godot can triangulate. Written because
+a shape that fails triangulation **draws nothing**, and the only previous signal was an error
+buried in a render log — after the silhouette had shipped.
+
+It failed on its first run and found more than the new shapes:
+
+- **`Pill` and `Ellipse` failed at EVERY size** (25/25). At the stadium limit (`rad == min(w,h)/2`)
+  the two corner centres on the short axis coincide, so consecutive arc points land on top of each
+  other and the triangulator rejects the polygon. This was the *real* cause of puzzle's grain
+  fallback, which had been mis-attributed to an exotic silhouette. Fixed by deduping coincident
+  points; `grain-fallback` count is now **0**.
+- **`Capsule` failed on square and tall controls** — the disc cannot be both larger than the bar's
+  radius and inside the width, so the intersection went imaginary. Now guarded by aspect
+  (`w >= h * 1.8`), degrading to an ordinary pill.
+
+Result: **105/105 polygons valid**.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors |
+| `poly_probe` | **105/105**, 0 FAIL |
+| `verify_greyscale` | PASS — 0 indistinguishable, **0 marginal** |
+| `measure_material --proof gm_*` | **PASS**, closest pair 0.0664 |
+| `measure_material --selftest` | PASS |
+| `validate_scenes.sh` | PASS |
+| `Invalid polygon` in render | **0** |
+
+Inspected: platformer's overhanging disc, shooter's notched asymmetric plate and topdown's stepped
+corners are all unmistakable at button size.
+
+**Rough edge, stated:** platformer's cap is large relative to its bar — structurally the referenced
+form, but ui1's is more restrained. Worth a proportion pass, not a re-implementation.
+
+#### Still open
+
+- [ ] Panel lightness per family (gameui4/5 white, store parchment, rpgui dark wood)
+- [ ] `HSlider`/`TabContainer`/`OptionButton`/`CheckBox` sweep onto kit widgets
+- [ ] `settings_menu` banner ↔ TabContainer overlap
+- [ ] Stage 30's ten per-genre HUDs — now the largest open item in this file
+- [ ] citybuilder/strategy grain reads near-flat (faithful to stone's measured subtlety; revisit
+      the target if it should read harder)
+
+### Stage 38d — the last stock controls swept (2026-07-29)
+
+`settings_menu` and `topdown/pause_subscreen` — the screen reported as "a mess" — were still built
+from stock Godot controls. **21 controls across 5 files** now carry kit chrome.
+
+#### Drop-ins, derived from the Godot type
+
+`KitSlider`/`KitTabStrip`/`KitToggle`/`KitArrowSelector` all derive from `KitControl`, so swapping
+scenes onto them would have returned **null** from every typed lookup — `SettingsMenu.cs` alone
+resolves ten controls as `Find<TabContainer>`, `Find<OptionButton>`, `Find<CheckButton>`. That is
+the trap that left 126 buttons unconverted until `KitPushButton : Button`. So:
+
+| new drop-in | derives from | replaces |
+|---|---|---|
+| `KitSliderBar` | `HSlider` | 4 sliders |
+| `KitOptionButton` | `OptionButton` | 8 dropdowns |
+| `KitCheckButton` | `CheckButton` | 5 toggles |
+| `KitTabPanel` | `TabContainer` | 4 tab strips |
+
+Node types are unchanged; only `script =` is added. Every `Find<T>`, signal and layout survives.
+
+**`KitChrome`** now holds the single band walk, shared by all five drop-ins — the register stack is
+the kit's definition of what a plate IS, and five hand-copies would drift. `KitPushButton` was
+refactored onto it and lost 72 lines of duplicated helpers (251 → 179).
+
+**`sweep_controls.py`** applies it: dry-run by default, reports every node it touches, never stacks
+a second script, and fixes `load_steps`. The last sweep of this kind was done by hand and shipped
+two bugs that compiled clean.
+
+#### Three bugs, all caught by looking at the render
+
+1. **Sliders vanished completely.** `HSlider` derives its minimum size from the grabber ICON and
+   the slider StyleBox; blanking both collapsed it to ~1px, `_Draw` hit its own `Size.Y <= 4`
+   guard and returned. `settings_menu` rendered "Master Volume … 80%" with nothing between them
+   and **nothing was logged**. Anything that blanks a control's theme art must restate the size
+   that art was providing.
+2. **Every tab title drew TWICE** — "AudioAudio", "DisplayDisplay". `TabContainer` is a COMPOSITE:
+   it delegates its tab row to an internal `TabBar` that draws labels in C++, which suppressing
+   the container's styleboxes does nothing about. Rewritten to supply real `StyleBoxFlat`s and let
+   TabBar lay the row out. **Rule of thumb now recorded: own the draw for LEAF controls, supply
+   styleboxes for composite ones.**
+3. **`validate_scenes.sh` false-flagged three built-ins.** Attaching a C# script to a real Godot
+   type made `min_value`/`max_value`/`button_pressed` appear on scripted nodes — legitimate
+   snake_case built-ins whose PascalCase forms happen to match `[Export]`s elsewhere in the addon.
+   Before the sweep no scripted node was also a `Range`, so the collision could not arise.
+
+#### The validator is now factual, not heuristic
+
+`tools/genre_shapes/classdb_dump.tscn` dumps **3087 real property names** from Godot's `ClassDB`;
+the check consults that instead of guessing. An allowlist would have been a guess.
+
+**Proved in both directions** rather than assumed:
+- injected `on_role = 1` (a real `[Export]`, snake_case) → **FAIL**, correctly named
+- built-ins present → **PASS**
+
+A first attempt injected `accent = 1`, which the check ignored — single-word lowercase names match
+neither branch. **Known remaining gap, stated:** a PascalCase export written all-lowercase and
+single-word (`accent` for `Accent`) is still silently dropped and still not caught.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors |
+| `validate_scenes.sh` | PASS (and proved it can still fail) |
+| `verify_greyscale` | PASS |
+| `measure_material --proof` | MATERIAL PASS |
+| `poly_probe` | 105/105 |
+| all 67 template scenes | rendered, **0 load/instantiate/draw failures** |
+
+Inspected: `settings_menu` shows single tab titles with the selected tab in accent, and three
+working sliders with track, fill and knob. `topdown/pause_subscreen` renders in topdown's own cream
+palette with a correct tab row.
+
+**Not claimed:** the 425 errors in the sheet render are pre-existing `InputMap` warnings
+(`move_up` etc. are registered by the project generator, which a bare template render does not
+run) — unrelated to this sweep, and unchanged by it.

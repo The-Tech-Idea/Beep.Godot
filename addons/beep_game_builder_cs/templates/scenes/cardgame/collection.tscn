@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/cardgame/Collection.cs" id="3_script"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="k_opt"]
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="Collection" type="Control"]
@@ -69,6 +70,7 @@ text = "Rarity"
 vertical_alignment = 1
 
 [node name="RarityOption" type="OptionButton" parent="Margin/VBox/FilterRow"]
+script = ExtResource("k_opt")
 custom_minimum_size = Vector2(180, 40)
 
 [node name="CostCaption" type="Label" parent="Margin/VBox/FilterRow"]
@@ -77,6 +79,7 @@ text = "Cost"
 vertical_alignment = 1
 
 [node name="CostOption" type="OptionButton" parent="Margin/VBox/FilterRow"]
+script = ExtResource("k_opt")
 custom_minimum_size = Vector2(140, 40)
 
 [node name="FilterSpacer" type="Control" parent="Margin/VBox/FilterRow"]

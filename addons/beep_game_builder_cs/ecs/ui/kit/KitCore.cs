@@ -30,6 +30,11 @@ namespace Beep.ECS.UI.Kit
         Torn,
         /// <summary>ui1's mission bar: large radius with a circular cap overhanging the LEFT end.</summary>
         Capsule,
+        /// <summary>sci-fi HUD frames: two diagonally opposite corners cut long, the other two
+        /// left square. Asymmetry is the family's tell -- a symmetric cut is just a chamfer.</summary>
+        Asymmetric,
+        /// <summary>pixel-era UI: corners rounded in STEPS rather than an arc.</summary>
+        Stepped,
     }
 
     /// <summary>Where a widget sits in the visual hierarchy. Drives which palette role its
@@ -91,7 +96,7 @@ namespace Beep.ECS.UI.Kit
         {
             "rpg" => KitShape.Spiked,       // rpgui PLAY: points below the plate
             "survival" => KitShape.Torn,     // store cards: non-parallel torn edges
-            "shooter" => KitShape.Clip,
+            "shooter" => KitShape.Asymmetric,   // sci-fi HUD sheet: two corners cut, two square
             // NO genre renders as a bare Rect. A rectangle with a border is a Godot UI button,
             // whatever shading is put on it -- and the greyscale gate said so: citybuilder and
             // strategy scored as INDISTINGUISHABLE precisely because both were KitShape.Rect and
@@ -101,7 +106,8 @@ namespace Beep.ECS.UI.Kit
             "racing" => KitShape.Speed,
             "platformer" => KitShape.Capsule, // ui1 mission bar: cap overhanging the left
             "puzzle" => KitShape.Ellipse,        // candy/bubble, not another rounded rect
-            "cardgame" or "topdown" => KitShape.Round,
+            "topdown" => KitShape.Stepped,       // pixel-era stepped corners
+            "cardgame" => KitShape.Round,
             _ => KitShape.Round,
         };
     }

@@ -21,6 +21,11 @@ namespace Beep.ECS.UI.Kit
         Studs,
         /// <summary>Corner sparkle accent.</summary>
         Sparkle,
+        /// <summary>The genre's MATERIAL — a tiling alpha mask (wood grain, stone, plate,
+        /// weave) modulated into the plate colour. The third axis; see <see cref="KitGrain"/>.
+        /// Amount scales the measured per-genre amplitude, so a stack can carry a lighter or
+        /// heavier grain without changing what the material IS.</summary>
+        Grain,
     }
 
     /// <summary>
@@ -100,6 +105,13 @@ namespace Beep.ECS.UI.Kit
             new(KitLayerKind.Plate, inset: 0.037f, shade: 0.76f),            // inner shadow
             new(KitLayerKind.Plate, inset: 0.047f, shade: 1.00f, rim: 0.4f), // the plate itself
 
+            // MATERIAL, on the plate and under the lighting. Carved is the wood/stone family
+            // (rpg planks, citybuilder/strategy stone), so it carries the grain at full
+            // measured strength. It sits after the plates and before Shade/Bevel/Gloss on
+            // purpose: light falls ON the material, so a gloss band drawn over the grain reads
+            // as a sheen, while a grain drawn over the gloss reads as dirt on the lens.
+            new(KitLayerKind.Grain, inset: 0.047f, amount: 1.0f),
+
             new(KitLayerKind.Shade, inset: -1f, amount: 0.78f),              // painted falloff
             new(KitLayerKind.Bevel, inset: -1f, amount: 1.0f),
             new(KitLayerKind.Gloss, inset: -1f, amount: 0.55f),
@@ -124,6 +136,10 @@ namespace Beep.ECS.UI.Kit
         {
             new(KitLayerKind.Plate, inset: 0f,     shade: 0.16f),            // thick dark outline
             new(KitLayerKind.Plate, inset: 0.085f, shade: 1.00f),            // flat saturated fill
+            // A RESTRAINED grain. This family measures FLAT (bottom:peak 0.76-0.84) and its
+            // materials are printed surfaces -- rubber, card, graph paper -- so a full-strength
+            // grain would push it into the carved reading and undo the register distinction.
+            new(KitLayerKind.Grain, inset: 0.085f, amount: 0.55f),
             new(KitLayerKind.Gloss, inset: -1f, amount: 0.35f),              // discrete top band
             new(KitLayerKind.Bevel, inset: -1f, amount: 0.30f),
             new(KitLayerKind.Sparkle),
@@ -140,6 +156,9 @@ namespace Beep.ECS.UI.Kit
             new(KitLayerKind.Plate, inset: 0f,     shade: 1.42f, rim: 0.8f), // thin light rim
             new(KitLayerKind.Plate, inset: 0.030f, shade: 0.62f),            // keyline gap
             new(KitLayerKind.Plate, inset: 0.022f, shade: 1.00f),            // face
+            // Metal: brushed and diamond plate. Between carved and casual in strength, because
+            // a machined surface has real texture but shallow relief.
+            new(KitLayerKind.Grain, inset: 0.022f, amount: 0.80f),
             new(KitLayerKind.Gloss, inset: -1f, amount: 0.7f),
             new(KitLayerKind.Bevel, inset: -1f, amount: 0.4f),
             new(KitLayerKind.Sparkle),

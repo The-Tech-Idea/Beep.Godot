@@ -177,15 +177,34 @@ EXPORTS=$(grep -rh -A1 -E '\[Export' ../../ecs ../../core 2>/dev/null \
   | sed -E 's/[[:space:]]+$//' | sort -u | grep -v '^$')
 
 EXPORT_LIST=$(mktemp); printf '%s\n' "$EXPORTS" > "$EXPORT_LIST"
+
+# Godot's OWN built-in property names, dumped from ClassDB by tools/genre_shapes/classdb_dump.tscn.
+#
+# Required since the kit gained drop-ins that attach a C# script to a REAL Godot type
+# (KitSliderBar : HSlider, KitCheckButton : CheckButton, KitTabPanel : TabContainer). On such a
+# node `min_value`/`max_value`/`button_pressed` are legitimate built-ins written correctly in
+# snake_case -- but their PascalCase forms collide with [Export]s elsewhere in the addon, so the
+# check flagged all three as silently-dropped. Before the sweep no scripted node was also a Range,
+# so the collision could not arise.
+#
+# An allowlist would have been a guess; this is the actual list (3087 names). Regenerate with:
+#   godot --headless tools/genre_shapes/classdb_dump.tscn
+BUILTIN_LIST=../../../../tools/genre_shapes/godot_builtin_props.txt
+[ -f "$BUILTIN_LIST" ] || { echo "  MISSING $BUILTIN_LIST — regenerate with classdb_dump.tscn"; fail=1; }
+
 for f in $(find . -name "*.tscn" | sort); do
-  out=$(awk -v F="$f" -v EL="$EXPORT_LIST" '
-    BEGIN { while ((getline line < EL) > 0) if (line != "") known[line]=1 }
+  out=$(awk -v F="$f" -v EL="$EXPORT_LIST" -v BL="$BUILTIN_LIST" '
+    BEGIN {
+      while ((getline line < EL) > 0) if (line != "") known[line]=1
+      while ((getline line < BL) > 0) if (line != "") builtin[line]=1
+    }
     /^\[node /            { scripted=0 }
     /^script = ExtResource\(/ { scripted=1 }
     /^[A-Za-z_][A-Za-z0-9_]* = / {
       if (!scripted || seen[$1]++) next
       key=$1
       if (key ~ /_/) {                       # snake_case: only a bug if it names a real export
+        if (key in builtin) next             # ...and is NOT a genuine Godot built-in
         n=split(key, part, "_"); pascal=""
         for (i=1; i<=n; i++) pascal = pascal toupper(substr(part[i],1,1)) substr(part[i],2)
         if (pascal in known)

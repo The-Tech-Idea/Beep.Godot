@@ -1,10 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/platformer/LevelSelect.cs" id="3_script"]
 
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
 [node name="LevelSelect" type="Control"]
 script = ExtResource("3_script")
 anchors_preset = 15
@@ -63,6 +64,7 @@ script = ExtResource("k_pbtn")
 [node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
 [node name="WorldTabs" type="TabContainer" parent="Margin/VBox"]
+script = ExtResource("k_tabs")
 size_flags_vertical = 3
 
 [node name="World1" type="ScrollContainer" parent="Margin/VBox/WorldTabs"]

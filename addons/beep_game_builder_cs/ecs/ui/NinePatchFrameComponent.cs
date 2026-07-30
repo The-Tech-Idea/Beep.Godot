@@ -61,7 +61,7 @@ namespace Beep.ECS.UI
         /// changing Slot/GenreName at runtime; it reuses the one child rather than stacking.</summary>
         public void Apply()
         {
-            if (GetParent() is not Control parent)
+            if (GetParent() is not Godot.Control parent)
             {
                 // Say so. Parented to a plain Node this draws nothing, and an invisible frame is
                 // indistinguishable from a broken one — the failure mode this repo keeps re-learning.

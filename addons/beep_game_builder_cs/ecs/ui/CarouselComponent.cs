@@ -31,7 +31,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void SlideChangedEventHandler(int index);
 
-        private Control? _container;
+        private Godot.Control? _container;
         private int _currentIndex;
         private float _autoTimer;
         // The slides this carousel drives, and each slide's vertical baseline relative to the
@@ -44,7 +44,7 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            _container = GetParent() as Control;
+            _container = GetParent() as Godot.Control;
             if (_container == null)
             {
                 GD.PushWarning($"[{Name}] CarouselComponent needs a Control parent whose children are the slides; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the slide container.");

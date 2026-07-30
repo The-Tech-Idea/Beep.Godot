@@ -45,8 +45,8 @@ namespace Beep.ECS
             // (CLAUDE.md), so for a Control target the transform presets drive the render-only
             // offset_transform_* layer instead (neutral: scale One / position Zero). Node2D targets
             // keep raw scale/position. Only CardHoverPop already used offset_transform.
-            bool ctrl = node is Control;
-            if (ctrl) ((Control)node).OffsetTransformEnabled = true;
+            bool ctrl = node is Godot.Control;
+            if (ctrl) ((Godot.Control)node).OffsetTransformEnabled = true;
             string sProp = ctrl ? "offset_transform_scale" : "scale";
             string pProp = ctrl ? "offset_transform_position" : "position";
 

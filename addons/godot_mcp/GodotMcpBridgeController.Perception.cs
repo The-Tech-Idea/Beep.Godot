@@ -68,7 +68,7 @@ public partial class GodotMcpBridgeController
         {
             string path = RequiredString(p, "node");
             Node node = ResolveNode(path) ?? throw McpBridgeException.NodeNotFound(path);
-            if (node is not Control control)
+            if (node is not Godot.Control control)
                 throw McpBridgeException.InvalidParams($"'{path}' is a {node.GetType().Name}, not a Control — there is no rect to crop to.");
 
             Rect2 r = control.GetGlobalRect();
@@ -137,7 +137,7 @@ public partial class GodotMcpBridgeController
 
         static void Walk(Node node, Node root, JsonArray entries, JsonArray problems, bool recursive)
         {
-            if (node is Control c)
+            if (node is Godot.Control c)
             {
                 Rect2 r = c.GetGlobalRect();
                 string p = root.GetPathTo(c).ToString();
@@ -166,7 +166,7 @@ public partial class GodotMcpBridgeController
                         problems.Add(Problem(p, "ZERO_WIDTH",
                             $"{c.GetType().Name} has width {r.Size.X}."));
 
-                    if (c.GetParent() is Control parent && parent.IsVisibleInTree())
+                    if (c.GetParent() is Godot.Control parent && parent.IsVisibleInTree())
                     {
                         Rect2 pr = parent.GetGlobalRect();
                         if (pr.Size.X >= 1 && pr.Size.Y >= 1 &&
@@ -354,7 +354,7 @@ public partial class GodotMcpBridgeController
         {
             string path = node == root ? "." : root.GetPathTo(node).ToString();
             string fingerprint = node.GetType().Name;
-            if (node is Control c)
+            if (node is Godot.Control c)
             {
                 Rect2 r = c.GetGlobalRect();
                 fingerprint += $" rect={r.Position.X},{r.Position.Y},{r.Size.X},{r.Size.Y}" +

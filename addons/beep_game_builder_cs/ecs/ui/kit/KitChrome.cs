@@ -27,7 +27,7 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Blank a control's StyleBoxes so the base class paints nothing, KEEPING the
         /// content margins — Godot sizes a control's text and children from them, so zeroing them
         /// collapses the widget onto its label.</summary>
-        public static void Suppress(Control ctl, string[] states, float frame, float pad,
+        public static void Suppress(Godot.Control ctl, string[] states, float frame, float pad,
                                     float vpad = -1f)
         {
             if (vpad < 0f) vpad = frame * 0.5f + pad * 0.4f;
@@ -162,7 +162,7 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>Centred, multi-line aware label. Several template controls carry two lines,
         /// and drawing only the first would silently lose half of every one of them.</summary>
-        public static void DrawLabel(CanvasItem ci, Control ctl, string text, Rect2 box,
+        public static void DrawLabel(CanvasItem ci, Godot.Control ctl, string text, Rect2 box,
                                      Color col, float dy = 0f,
                                      HorizontalAlignment align = HorizontalAlignment.Center)
         {

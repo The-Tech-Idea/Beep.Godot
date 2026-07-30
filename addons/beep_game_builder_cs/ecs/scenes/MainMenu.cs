@@ -25,7 +25,7 @@ namespace Beep.ECS.Scenes
             // kit — the scene kept its layout and quietly lost its wiring. The signal goes
             // through ConnectButton, which knows both kinds; visibility is set here, which is
             // what stopped this being a plain ConnectButton call in the first place.
-            if (this.Find<Control>("ContinueButton") is { } continueBtn)
+            if (this.Find<Godot.Control>("ContinueButton") is { } continueBtn)
             {
                 this.ConnectButton("ContinueButton", OnContinuePressed);
                 continueBtn.Visible = NewestSlot() != null;
@@ -37,7 +37,7 @@ namespace Beep.ECS.Scenes
             // so the entry is hidden in the first role and shown in the second. It used to be
             // hidden unconditionally, which is why Save was simply absent from the pause menu —
             // the one place it is actually useful.
-            if (this.Find<Control>("SaveGameButton") is { } saveBtn)
+            if (this.Find<Godot.Control>("SaveGameButton") is { } saveBtn)
             {
                 this.ConnectButton("SaveGameButton", OnSaveGamePressed);
                 saveBtn.Visible = GameApp.Instance?.IsGameRunning ?? false;

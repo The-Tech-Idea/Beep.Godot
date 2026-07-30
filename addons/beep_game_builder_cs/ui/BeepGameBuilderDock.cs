@@ -448,7 +448,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void AddSectionHeader(VBoxContainer parent, string text)
     {
-        parent.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
+        parent.AddChild(new Godot.Control { CustomMinimumSize = new Vector2(0, 8) });
         var lbl = new Label { Text = text };
         lbl.AddThemeFontSizeOverride("font_size", 13);
         parent.AddChild(lbl);

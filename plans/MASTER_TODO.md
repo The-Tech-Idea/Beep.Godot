@@ -1782,3 +1782,74 @@ still **drawn** at the old one — a silent misalignment that compiles fine.
 Inspected: banners and card titles now scale with their boxes; the inventory grid shows real slots
 with count badges, a rarity rim and a locked slot naming its requirement — in the addon and in the
 user's game.
+
+### Stage 38g — Beep Game Builder dock revised (2026-07-30)
+
+The dock is the addon's main user-facing surface and had gone untouched while everything around it
+changed. It is built from stock `OptionButton`/`CheckBox`/`Button` and **that stays** — it runs in
+the editor and should look like the editor, not like a game. Applying kit chrome to an editor dock
+would be the wrong call.
+
+#### 1. Zero editor-scale awareness
+
+Six hardcoded metrics — font sizes 16 / 10 / 10 / 13, a 100px output box, an 8px spacer, a SpinBox
+width — and **no reference to `EditorInterface.GetEditorScale()` anywhere**. Godot scales the whole
+editor on a hiDPI display (1.5×, 2×, and users can set it manually), so the dock's 10pt captions
+and 8px spacers were unreadable slivers at 2× while every native panel beside them looked right.
+
+Same defect class as the kit's flat font size, one layer up: type and metrics that ignore context.
+
+Added `S(px)` (× editor scale) and `DockFont(scale)` (relative to the *editor's* own font size, not
+a literal), and moved all six onto them. The multipliers mirror `UiSurface.TextRole` on the runtime
+side — 1.30 title, 1.05 section header, 0.85 caption — so both sides read the same way.
+
+#### 2. The genre/theme cascade failed silently
+
+`OnGenreChanged` and `OnThemeChanged` each had two bare `return`s on a null catalog lookup. The
+theme and palette dropdowns simply stayed **empty**, with no way to tell a catalog-loading failure
+from a genre that legitimately has no themes — both look like a dead dropdown. Now each says which
+it is, and a genre declaring no themes names the path to add one.
+
+#### 3. A refresh with no diagnostic — `BeepSceneDrift`
+
+Generated scenes are COPIES, so an addon update never reaches them. The dock could already force a
+refresh ("Overwrite existing scenes") but there was **no way to find out whether it was needed** —
+the destructive option existed and the diagnostic one did not.
+
+> Correction to Stage 38f's closing note, which said there was "nothing that detects drift" and
+> proposed adding a refresh: the refresh already existed. What was missing was *reporting*.
+
+New read-only `core/BeepSceneDrift.cs` + a dock button, reporting scenes behind their templates,
+scenes that are the developer's own (never touched by a refresh, so counted separately rather than
+as drift), and duplicate basenames that make the pairing ambiguous.
+
+**It is a separate UI-free class for a discovered reason:** `BeepGameBuilderDock` creates an
+`EditorResourcePicker` in `_Ready`, so **instantiating the dock outside the editor SEGFAULTS**
+(0xC0000005 in `BuildUI` → `AddChild`). Pre-existing, and it means nothing embedded in the dock can
+be tested headlessly. The comparison is plain logic and now runs anywhere; the dock only formats.
+
+An unreadable file counts as drifted, not identical — treating it as up to date would be exactly
+the quiet false negative the class exists to remove.
+
+#### Verified
+
+`tools/genre_shapes/drift_probe.tscn` asserts **all eight outcomes** — up-to-date, drifted, the
+drifted file's name, own-screens, duplicate basename, and both empty-project branches. **PASS.**
+This matters because a check only ever seen taking its "nothing generated" branch is no evidence
+the comparison works, which is how the first version of this probe would have shipped.
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors |
+| `validate_scenes.sh` | PASS |
+| shadowing gate | ok |
+| `poly_probe` | 105/105 |
+| 67 template scenes | rendered, 0 failures |
+| `drift_probe` | 8/8 PASS |
+
+#### Still open in the dock
+
+- [ ] It cannot be smoke-tested at all outside the editor (`EditorResourcePicker` in `_Ready`).
+      Deferring that picker until first use would make the whole dock headless-testable.
+- [ ] `EditorPlugin` and the widget fields are non-nullable and unassigned — part of the ~148
+      pre-existing nullable warnings.

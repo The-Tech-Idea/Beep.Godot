@@ -45,6 +45,28 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private OptionButton _textureSource;
     private LineEdit _textureRoot;
 
+    /// <summary>
+    /// The editor's own UI scale. Every metric in this dock is multiplied by it.
+    ///
+    /// Godot scales the whole editor on a hiDPI display (1.5x, 2x, and the user can set it
+    /// manually in Editor Settings). A dock that hardcodes pixels does not scale with it, so this
+    /// one's 10pt captions and 8px spacers were unreadable slivers at 2x while every native panel
+    /// beside them looked right. Same defect class as the kit's flat font size, one layer up.
+    /// </summary>
+    private static float EditorScale =>
+        Engine.IsEditorHint() ? EditorInterface.Singleton?.GetEditorScale() ?? 1f : 1f;
+
+    private static int S(float px) => Mathf.Max(1, Mathf.RoundToInt(px * EditorScale));
+
+    /// <summary>A font size relative to the EDITOR's own, not a literal. Roles rather than
+    /// numbers, mirroring UiSurface.TextRole on the runtime side.</summary>
+    private int DockFont(float scale)
+    {
+        int b = GetThemeFontSize("font_size", "Label");
+        if (b <= 0) b = Mathf.RoundToInt(14 * EditorScale);
+        return Mathf.Max(8, Mathf.RoundToInt(b * scale));
+    }
+
     public override void _Ready()
     {
         Name = "Beep Game Builder";
@@ -69,7 +91,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
             Text = "Beep Game Builder",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
-        title.AddThemeFontSizeOverride("font_size", 16);
+        title.AddThemeFontSizeOverride("font_size", DockFont(1.30f));   // dock title
         AddChild(title);
 
         var subtitle = new Label
@@ -77,7 +99,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
             Text = "Pick a genre, set your options, click Create Game.\nComponents are added via Add Node (Ctrl+A).",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
-        subtitle.AddThemeFontSizeOverride("font_size", 10);
+        subtitle.AddThemeFontSizeOverride("font_size", DockFont(0.85f)); // caption
         AddChild(subtitle);
 
         var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
@@ -89,7 +111,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         AddSectionHeader(b, "1. Pick your genre");
         _genrePicker = AddDropdown(b, "Genre");
         _genreDescription = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _genreDescription.AddThemeFontSizeOverride("font_size", 10);
+        _genreDescription.AddThemeFontSizeOverride("font_size", DockFont(0.85f));
         b.AddChild(_genreDescription);
 
         _themePicker = AddDropdown(b, "Theme");
@@ -181,6 +203,19 @@ public partial class BeepGameBuilderDock : VBoxContainer
         bakeAllBtn.Pressed += () => RunBake(allGenres: true);
         b.AddChild(bakeAllBtn);
 
+        b.AddChild(new HSeparator());
+        var driftBtn = new Button { Text = "🔎 Check my scenes against the templates" };
+        driftBtn.Pressed += CheckSceneDrift;
+        b.AddChild(driftBtn);
+        b.AddChild(new Label
+        {
+            Text = "Generated scenes are COPIES, not references — an addon update does not reach "
+                 + "them. This reports which of yours have fallen behind, and changes nothing. "
+                 + "Tick 'Overwrite existing scenes' above and re-Create to pull them forward "
+                 + "(that discards your edits to those files).",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        });
+
         var galleryBtn = new Button { Text = "🔍 Open Theme Gallery (compare textures vs procedural)" };
         galleryBtn.Pressed += OpenThemeGallery;
         b.AddChild(galleryBtn);
@@ -193,7 +228,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
         b.AddChild(newScreenBtn);
 
         // ── Output log ──
-        _output = new TextEdit { CustomMinimumSize = new Vector2(0, 100), Editable = false, PlaceholderText = "Output..." };
+        _output = new TextEdit { CustomMinimumSize = new Vector2(0, S(100)), Editable = false, PlaceholderText = "Output..." };
         AddChild(_output);
     }
 
@@ -277,9 +312,17 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private void OnGenreChanged()
     {
         string gid = GetSelectedGenreId();
-        if (gid == null) return;
+        if (gid == null) return;                 // nothing picked yet: not an error
         var genre = SkinCatalog.GetGenre(gid);
-        if (genre == null) return;
+        if (genre == null)
+        {
+            // SILENT before. The theme and palette dropdowns simply stayed empty and the user had
+            // no way to tell a catalog-loading failure from a genre that legitimately has no
+            // themes. Both look like a dead dropdown.
+            Log($"[ERROR] Genre '{gid}' is in the picker but not in the skin catalog — "
+              + "catalogs/skins/ may have failed to load. Theme and palette lists stay empty.");
+            return;
+        }
         _genreDescription.Text = genre.Description;
 
         _themePicker.Clear(); _themeIds.Clear();
@@ -291,6 +334,8 @@ public partial class BeepGameBuilderDock : VBoxContainer
             _themeIds.Add(t.Key); i++;
         }
         if (_themeIds.Count > 0) { _themePicker.Select(defaultIdx); OnThemeChanged(); }
+        else Log($"[WARN] Genre '{gid}' declares no themes, so there is nothing to skin it with. "
+               + $"Add catalogs/skins/{gid}/themes/<name>/theme.json.");
     }
 
     private void OnThemeItemSelected(long index) => OnThemeChanged();
@@ -298,9 +343,14 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private void OnThemeChanged()
     {
         string gid = GetSelectedGenreId(), tid = GetSelectedThemeId();
-        if (gid == null || tid == null) return;
+        if (gid == null || tid == null) return;   // nothing picked yet: not an error
         var theme = SkinCatalog.GetTheme(gid, tid);
-        if (theme == null) return;
+        if (theme == null)
+        {
+            Log($"[ERROR] Theme '{tid}' is listed for genre '{gid}' but has no theme.json the "
+              + "catalog could read. The palette list stays empty.");
+            return;
+        }
 
         _palettePicker.Clear(); _paletteIds.Clear();
         int defaultIdx = 0, i = 0;
@@ -442,15 +492,26 @@ public partial class BeepGameBuilderDock : VBoxContainer
         => FileAccess.FileExists(GameInfo.TresPath)
             ? ResourceLoader.Load<GameInfo>(GameInfo.TresPath) : null;
 
+    /// <summary>Report which generated scenes are behind their templates. READ-ONLY.
+    ///
+    /// The comparison lives in <see cref="BeepSceneDrift"/>, not here: this dock creates an
+    /// EditorResourcePicker in _Ready, so instantiating it outside the editor segfaults and
+    /// nothing embedded in it can be tested headlessly. The dock formats; the helper decides.</summary>
+    private void CheckSceneDrift()
+    {
+        foreach (string line in BeepSceneDrift.Describe(BeepSceneDrift.Compare()))
+            Log(line);
+    }
+
     // ════════════════════════════════════════════════════════════════
     // UI helpers
     // ════════════════════════════════════════════════════════════════
 
     private void AddSectionHeader(VBoxContainer parent, string text)
     {
-        parent.AddChild(new Godot.Control { CustomMinimumSize = new Vector2(0, 8) });
+        parent.AddChild(new Godot.Control { CustomMinimumSize = new Vector2(0, S(8)) });
         var lbl = new Label { Text = text };
-        lbl.AddThemeFontSizeOverride("font_size", 13);
+        lbl.AddThemeFontSizeOverride("font_size", DockFont(1.05f));      // section header
         parent.AddChild(lbl);
         parent.AddChild(new HSeparator());
     }
@@ -471,7 +532,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private static Node SpinBox(int min, int max, int val, int minWidth, out SpinBox sb)
     {
-        sb = new SpinBox { MinValue = min, MaxValue = max, Value = val, Rounded = true, CustomMinimumSize = new Vector2(minWidth, 0) };
+        sb = new SpinBox { MinValue = min, MaxValue = max, Value = val, Rounded = true, CustomMinimumSize = new Vector2(S(minWidth), 0) };
         return sb;
     }
 

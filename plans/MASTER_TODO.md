@@ -2218,3 +2218,47 @@ are thick *dark* outlines — so the declaration is right and the renderer has t
 genres — most likely candidate is that the sampled outermost band is the layer's *rim stroke*
 (driven by `RimBrightness`) rather than its fill, in which case polarity has two sources and they
 disagree.
+
+### Stage 41c — two hypotheses disproved, one stale-render caught, the defect narrowed (2026-07-30)
+
+Continuing the `OUTLINE FAIL 6/10` from Stage 41b. Three things established, none of them by guessing.
+
+**1. The bevel hypothesis is wrong.** I expected the top rows to be bevel-lightened. Sampling the
+LEFT edge at mid-height — where the bevel's top-light/bottom-dark gradient is neutral — gave the
+*same* value as the top rows (cardgame 82 both ways). Not the bevel.
+
+**2. A stale render was in play, and it mattered.** The gate reads `tmp/shadow/nos_*.png`, which
+`shadow_probe.tscn` writes — and I had only been re-running `kit_proof.tscn` since adding
+`OutlineShade`. The files were 23 minutes old. Re-rendering moved the Technical genres
+(shooter 1.00 → **0.79**, racing 0.94 → **0.84**, puzzle 1.64 → **1.86**), so the sentinel *is*
+reaching that path. **Any gate reading files a different probe produces needs that probe re-run;
+nothing enforces this and it silently reported pre-change numbers.**
+
+**3. The remaining defect is an INVERSION, and it is measured, not inferred.**
+
+| genre | declared `OutlineShade` | measured `rim:body` | |
+|---|---|---|---|
+| puzzle | 1.85 (light) | 1.86 | ✅ |
+| shooter | 1.90 (light) | **0.79** | ❌ inverted |
+| racing | 1.85 (light) | **0.84** | ❌ inverted |
+| cardgame | 0.16 (dark) | **1.64** | ❌ inverted |
+| platformer | 0.16 (dark) | **1.90** | ❌ inverted |
+| topdown | 0.22 (dark) | **1.66** | ❌ inverted |
+
+Direct pixel evidence for cardgame: **outline band 82, plate 48**. With `face ≈ 48` and
+`shade = 0.16`, the band should render near **8**. It renders at 82 — roughly `1.7 × face`, which
+is what a *light* shade would produce. puzzle, which declares 1.85, is the only Casual genre that
+comes out right.
+
+So the sentinel resolves (Technical moved when re-rendered) but the resulting colour does not match
+the declared multiplier for five of six genres. The wiring is verified present end-to-end —
+`KitLayer` declares `shade: -1f`, `KitControl:662` resolves it, `KitButton` calls `DrawMaterial` —
+so the next step is **runtime instrumentation**: print the resolved `shade` and the `face` colour
+for the outermost layer. Reading the code has now failed twice; the value itself has to be observed.
+
+**Not done:** changing the expectations to match the render. The art is unambiguous.
+
+#### Verified unchanged
+
+`measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
+PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.

@@ -1853,3 +1853,70 @@ the comparison works, which is how the first version of this probe would have sh
       Deferring that picker until first use would make the whole dock headless-testable.
 - [ ] `EditorPlugin` and the widget fields are non-nullable and unassigned — part of the ~148
       pre-existing nullable warnings.
+
+---
+
+## Stage 39 — the per-file art pass, and why genres still look alike (2026-07-30)
+
+Reported, correctly, for the *n*th time: **some genres still do not read as different**, the
+Example_Art images were never worked through **one by one**, and the kit has no per-genre
+**border/layer construction, shadow, or font**. All four are true. This stage is the pass and the
+plan it produced — no kit code changed yet, deliberately.
+
+**New documents**
+- **[`plans/game-ui-kit/ART_PASS_PER_FILE.md`](game-ui-kit/ART_PASS_PER_FILE.md)** — one row per
+  image: frame construction, layer stack, shadow, corner, typography, texture, and what it suits.
+  **13 of 60 read in depth**; the remaining 47 are listed by genre and priority.
+- **[`plans/game-ui-kit/PLAN_STYLE_SYSTEM.md`](game-ui-kit/PLAN_STYLE_SYSTEM.md)** — the plan,
+  with every claim traced to a numbered file.
+
+### The finding that reframes all of it
+
+The kit models genre → look as a **1:1 lookup** (`ShapeForGenre`, `ForGenre` → one register).
+**citybuilder alone appears in five mutually exclusive registers** — cartoon-outlined, flat
+translucent, papery minimal, monochrome drawer, carved stone. They disagree about outline polarity,
+shadow, corner radius, texture *and* typography.
+
+So **genre does not determine the look.** It constrains which looks are plausible; the **theme**
+picks one. The theme layer already exists (`catalogs/skins/<genre>/themes/<theme>/`) — the style
+properties are simply not in it. One register per genre cannot be made to work by adding more
+silhouettes.
+
+### Eight axes the kit lacks, each with the file that proves it
+
+| axis | proof |
+|---|---|
+| **Shadow as a layer** — hard / soft / none / glow all appear; `KitLayerKind` has no `Shadow` | 01·06 / 02·04·11·13 / 03·07·09·10 / 06 |
+| **Outline polarity** — `Casual` hardcodes thick *dark*; the art also uses thick *light*, hairline, none, dashed | 12 / 02 / 09·10 / 04 / 03 |
+| **Frames are constructed** — rivets, metal brackets, corner ticks, L-brackets, gold double-line, organic log, top-rounded-only | 11 / 01·11 / 10 / 10 / 11 / 13 / 04 |
+| **Font family / weight / case** — the kit has **no font family at all** | serif 11 · bold condensed caps 06·08·10 · thin letter-spaced caps 07 · light 04·09 · rounded display 12·13 |
+| **Corner is not one number** — sharp, shear, small, large+wobble, full pill, per-widget mixed | 07·10 / 08 / 09 / 12 / 04 / 11 |
+| **Meter end caps**, per tier | 11 |
+| **Attachments overhanging the host** — cap-left, medallion-top, corner flag, edge arrow, awning | 02·12 / 04 / 13 / 13 / 06 |
+| **Selection has several renderers, two on one screen** | 09 (fill *and* border) · 06 glow · 05 fill+border · 10 border |
+
+### Phases (each gated, each gate shown to fail first)
+
+- **A — `KitLayerKind.Shadow`** + `measure_shadow.py`. Smallest change, unblocks the most.
+- **B — outline polarity + corner per widget class.** `verify_greyscale.py` gains a **polarity**
+  column; today it measures rim magnitude only, so a light and a dark rim of equal contrast are
+  indistinguishable to it.
+- **C — typography: family, weight, case, tracking.** Fonts must be **CC0 and shipped** (Kenney UI
+  packs, same licence and source as the grain patterns). `measure_type.py` must also assert every
+  declared family *resolves* — a missing font falls back silently and looks exactly like having no
+  family at all.
+- **D — constructed frames** (corner ornaments as a layer).
+- **E — attachments + meter end caps**, verified at three host sizes.
+- **F — selection as a SET of renderers**, keyed by widget class.
+- **G — two or three style packs per genre**, only after A–F.
+
+**A, B and C are the ones that answer the complaint.** Silhouette (Stage 38c) was necessary and is
+not sufficient — two themes of the same genre are separated by shadow, outline polarity and type.
+
+### Stated, not implied
+
+- No kit code changed in this stage. The deliverable is the pass and the plan.
+- 13/60 files read; the model survives 13 files across 6 genres. If a later file contradicts it,
+  the model changes — which is why the per-file notes exist rather than a summary.
+- **Organic/illustrated frames are out of scope**: they need authored art the addon does not ship.
+  The baked-texture path plus documentation is the honest answer there.

@@ -1920,3 +1920,32 @@ not sufficient — two themes of the same genre are separated by shadow, outline
   the model changes — which is why the per-file notes exist rather than a summary.
 - **Organic/illustrated frames are out of scope**: they need authored art the addon does not ship.
   The baked-texture path plus documentation is the honest answer there.
+
+### Stage 39b — pass continued to 28/60; the frame model had to grow (2026-07-30)
+
+Read 15 more files. Two of them changed the plan rather than confirming it.
+
+**`futuristic-hud-frames` (file 14) broke Phase D.** A sci-fi frame is not a border with decorated
+corners — it is a **run list per edge**: the stroke varies in weight along its length, breaks and
+restarts, turns into solid blocks, carries hatch and tick runs, steps at the corners, and is
+**deliberately asymmetric between corners**. No StyleBox, no silhouette and no corner-ornament enum
+expresses that. Phase D is now `KitEdgeRun` (segments per edge + per-corner steps), and it is the
+**biggest** phase, not the smallest. A plain rectangle is its degenerate case, so existing themes
+are unaffected.
+
+**`medieval-royal-knight` (file 25) grew Phase E.** Victory, Restart and Settings are told apart by
+**ornament alone** — crown, helm, gear. So attachments are keyed by **screen archetype**, not only
+by placement.
+
+Also added: four more frame *construction* families (masonry 22, plank 15·28, double-border-with-gap
+26, frame+torn-insert 23); **engraved/debossed** text as a third treatment beside plain and outlined
+(22); **handwritten** as a font role (18); the plate's **two-tone top band** — hard-edged (17) and
+curved-glass (27) — which the kit's soft linear `Gloss` reproduces neither of; state encoded by the
+**frame** with unreachable shown by **alpha** rather than desaturation (20).
+
+Confirmations worth recording: the left-overhanging icon cap now has **five** independent sightings
+(02·12·17·19·28); the header plaque overhanging the top edge appears in six files; the collapsible
+handle spec (outside, on the moving edge) is confirmed by 24.
+
+**Coverage: 28 of 60.** The remaining 32 are listed by genre in `ART_PASS_PER_FILE.md`. Phase order
+re-sequenced to A → B → C → D → E → F → G, with D given its own gate.

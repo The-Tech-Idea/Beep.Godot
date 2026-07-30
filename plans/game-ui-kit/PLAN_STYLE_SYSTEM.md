@@ -148,3 +148,69 @@ Only after A–F exist. Ship **two or three themes per genre**, drawn from the p
   was necessary and is not sufficient.
 - `Organic` frames and illustrated 9-patches are **out of scope** — they need authored art, and
   the addon ships none. The right answer there is the baked-texture path plus documentation.
+
+---
+
+## Revision after files 14–28 — the frame model was too small
+
+Phase D originally said "corner ornaments as a layer". **File 14 (the sci-fi frame sheet) makes that
+insufficient**, and it is the single most important structural finding of the pass.
+
+A sci-fi frame is not a border with decorated corners. It is a **run list per edge**: the stroke
+changes weight along its length, breaks and restarts, turns into solid blocks, carries hatch and
+tick runs, steps at the corners, and is **deliberately asymmetric between corners**. No StyleBox,
+no single silhouette and no corner-ornament enum can express it.
+
+### `KitEdgeRun` — replaces the corner-ornament enum in Phase D
+
+```csharp
+sealed record KitEdgeSeg(float Start, float Length,   // fractions of the edge
+                         float Weight,                 // multiples of the base stroke
+                         KitSegFill Fill,              // Solid | Hatch | Ticks | Gap
+                         float Inset);
+sealed record KitEdgeRun(KitEdgeSeg[] Top, Right, Bottom, Left,
+                         KitCornerStep[] Corners);     // per corner, so asymmetry is expressible
+```
+
+Authored in `theme.json` like everything else. A plain rectangle is the degenerate case: one solid
+segment per edge, no corner steps — so **every existing theme keeps working unchanged**.
+
+### Frame construction families, all four seen
+
+| family | construction | files |
+|---|---|---|
+| **Edge-run** | segments per edge, stepped asymmetric corners | 14 |
+| **Masonry** | border built from individual blocks | 22 |
+| **Plank** | four overlapping planks, picture-frame | 15 · 28 |
+| **Double-border** | outer band + inner panel with a visible gap | 26 |
+| **Frame + torn insert** | rigid frame, ragged insert revealing it | 23 |
+
+### Phase E grows: attachment SETS, not single attachments
+
+File 25 tells victory from restart from settings **by ornament alone** — crown, helm, gear. So the
+attachment table is keyed by **screen archetype**, not just placement:
+
+`Crown | Helm | Gear | Shields | CrossedWeapons | Drape | Awning | Foliage | Vines | Tiki`
+
+Plus the near-universal one the kit half-has: a **header plaque overhanging the top edge**, whose
+shape is itself a style property (bar 15·25·28 · ellipse 27 · contrasting-hue plate 26).
+
+### Phase C grows: two more text treatments
+
+- **Engraved / debossed** — light edge below, dark above, no outline (22). Neither "plain" nor
+  "outlined"; it is how carved-material themes render text.
+- **Handwritten** as a font role (18), and **3D extrude** as a display treatment (26).
+
+### Phase B grows: the plate is two-tone, not a gradient
+
+17 and 27 both put a **discrete lighter band across the top ~25 %** — a hard boundary in 17, a
+**curved** one in 27. The kit's `Gloss` layer draws a soft linear band, which reproduces neither.
+`KitGloss { Linear | HardBand | CurvedGlass }`.
+
+### One correction to the phase order
+
+**Phase A (Shadow) stays first** — it is still the cheapest and the most broadly wrong. But
+**Phase D is now the biggest**, not the smallest, and shooter cannot be made to look like shooter
+without it. Re-sequence: **A → B → C → D → E → F → G**, with D given its own gate
+(`verify_edge_runs.py`: assert a declared run renders the declared number of segments, gaps and
+corner steps, and that a plain rectangle still renders as one unbroken stroke per edge).

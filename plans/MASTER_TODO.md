@@ -2262,3 +2262,49 @@ for the outermost layer. Reading the code has now failed twice; the value itself
 
 `measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
 PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.
+
+### Stage 41d — CORRECTION: the render was right all along; the gate is wrong (2026-07-30)
+
+**Stage 41c is wrong and this supersedes it.** It concluded "the render is wrong — an inversion",
+stated as measured fact. Runtime instrumentation says otherwise.
+
+`KitControl.DebugOutline` (kept, default off) prints each layer's resolved shade and the luminance
+actually drawn:
+
+| genre | band lum | plate lum | ratio | declared |
+|---|---|---|---|---|
+| cardgame | 0.016 | 0.100 | **0.16** | 0.16 dark ✓ |
+| puzzle | 0.185 | 0.100 | **1.85** | 1.85 light ✓ |
+| shooter | 0.190 | 0.100 | **1.90** | 1.90 light ✓ |
+
+**`OutlineShade` works exactly as declared, for every genre.** The sentinel resolves, the multiply
+and lift-toward-white branches are both correct, and the drawn colour matches.
+
+#### Why I got it wrong
+
+The `band 82 / plate 48` pixel evidence in Stage 41c came from `nos_*.png` files written at
+**21:04** — sampled *before* I re-rendered them at **21:27**. I caught the staleness for the gate's
+own numbers in the same stage and then drew a conclusion from the same stale files a few minutes
+later. **Confirming freshness once does not make later reads of the same files fresh.**
+
+#### So the defect is in the gate
+
+`verify_greyscale`'s polarity reports cardgame **1.64** where the render is **0.16**, and shooter
+**0.79** where the render is **1.90** — inverted, on freshly rendered input. Its `rim` is the median
+of the outermost two rows and its `body` is the modal tone of an inner patch; one or both is not
+sampling what the name says on these silhouettes.
+
+**That is now the only open item in Phase B's polarity work**, and it is a measurement bug, not a
+kit bug. The kit side of outline polarity is **done**.
+
+#### Lesson, recorded
+
+Three hypotheses were wrong this stage and the one before — bevel confound, sentinel not reaching
+the draw, render inversion — and all three came from reasoning over code and stale pixels. The
+runtime print settled it in one run. **When two reads of the code disagree with the pixels, print
+the value; do not reason harder.**
+
+#### Verified
+
+`measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
+PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.

@@ -38,6 +38,10 @@ namespace Beep.ECS.UI.Kit
 
         private string _genre = "";
 
+        /// <summary>TEMPORARY diagnostic switch. Reading the code failed twice on the outline
+        /// inversion; this prints the value actually used.</summary>
+        public static bool DebugOutline;
+
         public override void _Ready()
         {
             _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
@@ -660,6 +664,10 @@ namespace Beep.ECS.UI.Kit
                         // (KitGeometry.OutlineShade), so a casual genre can carry a thick LIGHT
                         // outline instead of the hardcoded dark one.
                         float shade = layer.Shade < 0f ? g.OutlineShade : layer.Shade;
+                        if (DebugOutline && layer.Inset == 0f)
+                            GD.Print($"outline: {_genre,-12} declared={g.OutlineShade:0.00} "
+                                   + $"resolved={shade:0.00} faceLum={UiSurface.Luminance(face):0.000} "
+                                   + $"reg={g.Register}");
                         Color c;
                         if (shade <= 1f)
                             c = new Color(face.R * shade, face.G * shade,
@@ -675,6 +683,10 @@ namespace Beep.ECS.UI.Kit
                         // The outermost plate carries the genre's rim polarity; inner plates take
                         // ink, so a bright carved frame still reads against its own plate.
                         Color edge = layer.Inset == 0f ? rim : ink;
+                        if (DebugOutline)
+                            GD.Print($"  band: {_genre,-12} inset={layer.Inset:0.000} "
+                                   + $"shade={shade:0.00} -> lum={UiSurface.Luminance(c):0.000} "
+                                   + $"box={box.Size.X:0}x{box.Size.Y:0}");
                         DrawShape(box, s, c, edge,
                                   layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
                         cur = box;

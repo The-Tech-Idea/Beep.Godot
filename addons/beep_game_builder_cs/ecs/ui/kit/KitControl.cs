@@ -655,14 +655,19 @@ namespace Beep.ECS.UI.Kit
                         // Shade may exceed 1.0 -- the measured outer rim is 2.05x the plate --
                         // so brightening lifts toward white instead of clipping each channel,
                         // which would shift hue as it saturated.
+                        //
+                        // Shade < 0 is the sentinel for "the THEME decides this band's polarity"
+                        // (KitGeometry.OutlineShade), so a casual genre can carry a thick LIGHT
+                        // outline instead of the hardcoded dark one.
+                        float shade = layer.Shade < 0f ? g.OutlineShade : layer.Shade;
                         Color c;
-                        if (layer.Shade <= 1f)
-                            c = new Color(face.R * layer.Shade, face.G * layer.Shade,
-                                          face.B * layer.Shade, face.A);
+                        if (shade <= 1f)
+                            c = new Color(face.R * shade, face.G * shade,
+                                          face.B * shade, face.A);
                         else
                         {
                             float lum = UiSurface.Luminance(face);
-                            float want = Mathf.Min(1f, lum * layer.Shade);
+                            float want = Mathf.Min(1f, lum * shade);
                             float t = Mathf.Clamp((want - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 1f);
                             c = new Color(Mathf.Lerp(face.R, 1f, t), Mathf.Lerp(face.G, 1f, t),
                                           Mathf.Lerp(face.B, 1f, t), face.A);

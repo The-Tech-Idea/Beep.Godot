@@ -138,7 +138,10 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         public static readonly KitLayer[] Casual =
         {
-            new(KitLayerKind.Plate, inset: 0f,     shade: 0.16f),            // thick dark outline
+            // THE OUTLINE BAND, polarity from the THEME. `-1` means "resolve to the genre's
+            // OutlineShade". It was hardcoded 0.16 (thick dark) for every casual genre, which
+            // the art contradicts: the galaxy-space kit's outline is thick and LIGHT.
+            new(KitLayerKind.Plate, inset: 0f,     shade: -1f),
             new(KitLayerKind.Plate, inset: 0.085f, shade: 1.00f),            // flat saturated fill
             // A RESTRAINED grain. This family measures FLAT (bottom:peak 0.76-0.84) and its
             // materials are printed surfaces -- rubber, card, graph paper -- so a full-strength
@@ -157,7 +160,10 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         public static readonly KitLayer[] Technical =
         {
-            new(KitLayerKind.Plate, inset: 0f,     shade: 1.42f, rim: 0.8f), // thin light rim
+            // Polarity from the THEME, like Casual's band. Hardcoding 1.42 meant shooter and
+            // racing rendered rim:body ~1.00 -- no measurable polarity at all -- while the art
+            // gives both a clearly LIGHT hairline against a dark interior.
+            new(KitLayerKind.Plate, inset: 0f,     shade: -1f, rim: 0.8f),    // thin light rim
             new(KitLayerKind.Plate, inset: 0.030f, shade: 0.62f),            // keyline gap
             new(KitLayerKind.Plate, inset: 0.022f, shade: 1.00f),            // face
             // Metal: brushed and diamond plate. Between carved and casual in strength, because

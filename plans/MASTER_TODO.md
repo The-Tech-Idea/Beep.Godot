@@ -2126,3 +2126,50 @@ rather than one bar with an overhanging cap. Noted in Stage 38c and still true.
 **Phase A is closed. Next: Phase B — outline polarity**, which needs `verify_greyscale.py` to gain
 a polarity column; today it measures rim magnitude only, so a light and a dark rim of equal
 contrast are indistinguishable to it.
+
+### Stage 41 — Phase B started: outline polarity is now theme data, and the gate found a regression (2026-07-30)
+
+**Built.** `KitGeometry.OutlineShade` — the multiplier the outline BAND takes against the plate
+(&lt;1 dark, &gt;1 light). `KitStacks.Casual` hardcoded `shade: 0.16` (thick dark) and
+`KitStacks.Technical` hardcoded `1.42` for **every** genre in those registers; both now declare
+`shade: -1`, a sentinel both renderers resolve to the theme's `OutlineShade`. Assigned from the
+art: platformer/cardgame 0.16 · topdown 0.22 · puzzle **1.85** (the galaxy-space kit's thick
+**light** stroke) · shooter 1.90 · racing 1.85.
+
+**Gate.** `verify_greyscale.py --expect-outline` asserts each genre's measured `rim:body` polarity
+against what its theme declares. `rim_body` was always *measured*; nothing ever asserted it. It
+fails on today's build — which is the point.
+
+#### The gate caught a regression I introduced in Phase A
+
+`OUTLINE FAIL (4 mismatch)`, and the cause is **not** the outline code:
+
+> **Adding the shadow layer broke the outline measurement.** The gate derives the widget's extent
+> from its rendered bounds and samples the outermost two rows as "the rim". A soft shadow now
+> extends those bounds outward, so those rows are **faint shadow over background**, not the
+> outline band. `survival` reads `rim:body 5.06` — a nonsense figure that is the tell — and
+> `cardgame` reads *light* while its band is genuinely `0.16` dark.
+
+Verified it is not a stale render: the proof re-ran (file mtime advanced 21:15:37 → 21:16:01) and
+produced a **byte-identical** result, which is correct — cardgame's new `OutlineShade` 0.16 happens
+to equal the old hardcoded value, so nothing about it should have changed.
+
+**Fix, next turn:** measure polarity on the **shadow-off** render. `shadow_probe.tscn` already emits
+`nos_<genre>.png` for exactly this reason, and `KitShadow.Enabled` already exists. The lesson is
+the one this repo keeps relearning: *a new layer can invalidate an existing gate's assumptions, and
+the gate will keep reporting numbers rather than saying so.*
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `verify_greyscale --selftest` | PASS |
+| `verify_greyscale` (separation) | PASS |
+| `verify_greyscale --expect-outline` | **FAIL 4/10 — confounded by the Phase A shadow, cause identified** |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `poly_probe` · `validate_scenes` · build | 105/105 · PASS · 0 errors |
+| 67 template scenes | rendered, 0 failures |
+
+Phase B is **not** complete: polarity must be re-measured shadow-free, and corner-per-widget-class
+plus shear/wobble are untouched.

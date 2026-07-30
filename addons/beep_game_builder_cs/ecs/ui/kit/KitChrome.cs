@@ -96,7 +96,8 @@ namespace Beep.ECS.UI.Kit
                     ? body : Inset(cur, inset);
                 if (box.Size.X < 2f || box.Size.Y < 2f) continue;
 
-                Color c = Tint(face, layer.Shade);
+                // Shade < 0 is the sentinel for "the theme decides this band's polarity".
+                Color c = Tint(face, layer.Shade < 0f ? g.OutlineShade : layer.Shade);
                 if (layer.Kind == KitLayerKind.Keyline)
                     Fill(ci, shape, box, g, new Color(0, 0, 0, 0), c with { A = layer.Amount },
                          Mathf.Max(1f, rimPx * 0.5f));

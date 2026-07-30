@@ -274,7 +274,7 @@ def classify(bp, rb):
     return "mixed"
 
 
-def run(folder, quiet=False):
+def run(folder, quiet=False, expect_outline=None):
     files = sorted(glob.glob(os.path.join(folder, "gs_*.png")))
     if len(files) < 2:
         print(f"  no gs_*.png renders found in {folder}")
@@ -331,10 +331,52 @@ def run(folder, quiet=False):
         if m:
             print(f"\n  montage: {m}  <- look at this, do not trust the numbers alone")
         print("\n  PASS" if not fails else "\n  FAIL")
-    return 0 if not fails else 1
+    bad_outline = gate_outline(data, expect_outline) if expect_outline else 0
+
+    return 0 if (not fails and bad_outline == 0) else 1
 
 
 # ── self-test ─────────────────────────────────────────────────────────────────────────────
+
+
+# ── OUTLINE POLARITY ──────────────────────────────────────────────────────────────────────
+#
+# `rim_body` has always been measured; nothing ever asserted what it should BE. That is the gap
+# Phase B exists to close: the art uses a thick LIGHT outline (galaxy-space kit), a thick DARK
+# one (ui1, gameui4, rpg3), a HAIRLINE (racing3/4, the sci-fi sheets) and NONE at all
+# (citybuilder3's papery family) — and `KitStacks.Casual` hardcodes `shade: 0.16`, a thick dark
+# band, for every casual genre regardless of theme.
+#
+# Polarity is rim lightness against plate lightness, so it is colour-invariant like the rest.
+POLARITY_LIGHT = 1.25     # rim clearly brighter than the plate
+POLARITY_DARK = 0.80      # rim clearly darker
+HAIRLINE_MAX_PX = 2.5     # a rim thicker than this is a band, not a hairline
+
+
+def polarity_of(rim_body):
+    if rim_body >= POLARITY_LIGHT:
+        return "light"
+    if rim_body <= POLARITY_DARK:
+        return "dark"
+    return "none"
+
+
+def gate_outline(rows, expect):
+    """Assert each genre's rim polarity is what its theme declares."""
+    print()
+    print("  genre         rim:body   polarity   expected")
+    bad = 0
+    for name, d in sorted(rows.items()):
+        got = polarity_of(d["rim_body"])
+        want = expect.get(name)
+        flag = ""
+        if want and got != want:
+            flag, bad = "   <-- MISMATCH", bad + 1
+        print(f"    {name:<12}{d['rim_body']:>7.2f}   {got:<10} {want or '':<10}{flag}")
+    print()
+    print(f"  OUTLINE {'PASS' if bad == 0 else f'FAIL ({bad} mismatch)'}")
+    return bad
+
 
 def _synth(path, shape, fill, rim, size=(130, 42)):
     """One synthetic widget on the same flat field the probe uses."""
@@ -403,4 +445,10 @@ def selftest():
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         sys.exit(selftest())
-    sys.exit(run(sys.argv[1] if len(sys.argv) > 1 else "."))
+    argv = sys.argv[1:]
+    exp = None
+    if "--expect-outline" in argv:
+        i = argv.index("--expect-outline")
+        exp = dict(kv.split("=", 1) for kv in argv[i + 1].split(","))
+        del argv[i:i + 2]
+    sys.exit(run(argv[0] if argv else ".", expect_outline=exp))

@@ -1949,3 +1949,34 @@ handle spec (outside, on the moving edge) is confirmed by 24.
 
 **Coverage: 28 of 60.** The remaining 32 are listed by genre in `ART_PASS_PER_FILE.md`. Phase order
 re-sequenced to A → B → C → D → E → F → G, with D given its own gate.
+
+### Stage 39c — pass at 46/60; three more model changes (2026-07-30)
+
+Read 18 more files. Verified by hash that **`gameui9.png` is byte-identical to `ui7.png`**, so the
+folder holds **59 unique images**, not 60.
+
+Three findings changed the model again:
+
+1. **A fifth shadow kind, `Extrude`** (file 35) — a thick dark **side face** under panel and button,
+   so each reads as a solid slab. Not a drop shadow, not a bevel, not a glow. And two files use
+   **no shadow at all** with different compensations: three **layered concentric strokes** (41) or
+   pure value contrast against a **ragged silhouette** (38).
+2. **`Pixel` is a register, not a corner treatment** (40·42). Choosing pixel decides outline weight
+   (1px), anti-aliasing (off), corner construction (stepped), font (bitmap) and shadow (none)
+   *together*. Modelling it as `KitShape.Stepped` alone guarantees a pixel theme draws smooth type
+   and soft shadows inside a stepped outline.
+3. **The overhanging header plaque is the most repeated construction in the folder** — eleven files,
+   in four shapes (bar, ellipse, ribbon-with-folded-ends, sheared tab). The kit draws its banner
+   *inside* the host at 0.14 × height. **Wrong side of the edge**, and a direct cause of panels
+   reading flat against the references.
+
+Also recorded: `CapRight` as the mirror of the left icon cap (41, first sighting); rarity carried by
+**tile fill colour** (37) and by **tooltip title colour** (32); unaffordable shown by desaturating
+**only the price footer** (39); two tab levels using **different active renderers** on one screen
+(39); `???` placeholder text on locked content (32); K/M number abbreviation (37); input-hint
+**chords** (42).
+
+**Coverage: 46 of 60 files (45 entries, one duplicate).** The 14 unread are named in
+`ART_PASS_PER_FILE.md`. Two of them (`uitexturs`, `uiwood`) were read earlier this session and are
+already reflected in the tracker. The remaining twelve belong to families documented several times
+over and are *expected* to confirm rather than extend — **stated as a prediction, not a result.**

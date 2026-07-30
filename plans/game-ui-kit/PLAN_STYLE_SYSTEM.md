@@ -214,3 +214,44 @@ shape is itself a style property (bar 15·25·28 · ellipse 27 · contrasting-hu
 without it. Re-sequence: **A → B → C → D → E → F → G**, with D given its own gate
 (`verify_edge_runs.py`: assert a declared run renders the declared number of segments, gaps and
 corner steps, and that a plain rectangle still renders as one unbroken stroke per edge).
+
+---
+
+## Second revision — after 46 of 60 files
+
+Three more changes to the model, all forced by images rather than reasoned into existence.
+
+### Phase A gains a fifth shadow kind: `Extrude`
+
+File 35 puts a **thick dark side face** under every panel and button, so each reads as a solid slab
+seen slightly from above. That is not a drop shadow (no offset copy), not a bevel (not an inner
+edge) and not a glow. Shadow kinds become:
+
+`None · Hard · Soft · Glow · Extrude`
+
+Files 41 and 38 add the other end of the range: **layered concentric strokes** (three of them) and
+**nothing at all** used as the depth mechanism, so `None` is a deliberate choice with two distinct
+compensations — a heavier outline (41) or pure value contrast against a ragged silhouette (38).
+
+### `Pixel` is a register, not a corner treatment
+
+Files 40 and 42 show that choosing pixel decides **outline weight (1px), anti-aliasing (off),
+corner construction (stepped by pixel), font (bitmap) and shadow (none)** together. The kit
+currently models this as `KitShape.Stepped` — one silhouette. It has to be a register alongside
+Carved / Casual / Technical, or a pixel theme will keep drawing smooth type and soft shadows inside
+a stepped outline.
+
+### Attachment placements, complete list from the pass
+
+`CapLeft` (02·12·17·19·28·36) · **`CapRight`** (41 — the mirror, first seen late) ·
+`MedallionTop` (04·19) · `CornerFlag` (13) · `CornerBadgeDiamond` (43) · `EdgeArrow` (13·44) ·
+`Awning` (06·25) · `Foliage` (22·28) · `Chains` / `Tape` / `Posts` / `Pins` (30·36) ·
+`LabelTab` and `VerticalLabelTab` (43) · `Drape` / `CrossedWeapons` / `Crown` / `Helm` / `Gear` (25)
+
+### One more thing the pass settled
+
+**The header plaque overhanging the top edge is the single most repeated construction in the whole
+folder** — 15·16·25·26·27·28·32·34·36·41·44, eleven files across every casual and fantasy family,
+in four shapes: bar, ellipse, ribbon-with-folded-ends, and sheared tab. The kit draws a banner
+*inside* the host at `0.14 × height`. That is the wrong side of the edge, and it is why panels read
+as flat compared with the references.

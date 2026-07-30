@@ -449,3 +449,253 @@ No StyleBox and no single silhouette can express this.
 | **State encoded by the FRAME**, and unreachable by **alpha** rather than desaturation | 20 |
 | **Ticket / dog-ear / rosette** silhouettes | 17 / 27 / 17·27 |
 | **Hand-drawn grid** with overshoot, and **handwritten** type | 18 |
+
+## 29 `ui3.png` — blue-gradient casual equip screen *(all three empty states)*
+
+| aspect | observation |
+|---|---|
+| frame | rounded rects on a blue **radial gradient**; panels a lighter blue with a subtle 1–2px **light** rim |
+| empty states | all three on one screen: **blank** (darker cell), **invite `+`** (equip slot), **locked** (padlock **plus `Lv.11` in words**) — confirms the settled "locked states state their requirement" rule |
+| selection | **brighter/white rim** on the chosen slot; active tab = **light filled** rounded rect |
+| shadow | soft to none |
+| corner | moderate-large, uniform |
+| typography | rounded bold sans, white, no outline |
+| texture | none — smooth gradients |
+| suits | platformer, puzzle, cardgame, rpg-lite |
+
+## 30 `ui5.png` — **the material acceptance test, confirmed and enlarged**
+
+The plan cited this as "one dialog geometry in ~10 materials". Counted here: **twelve**, all sharing
+the same layout (header plaque overhanging the top → body → welded button row):
+
+wood planks · parchment scroll with rolled ends · chipped stone · stone wrapped in **ivy** ·
+**open book** spread with a spine · **taped card** (tape strips at the corners) · bone/skull metal ·
+**chained** metal (chains hanging below) · **signpost** on wooden posts · red **fabric** banner with
+folds · vegetable/carrot themed · **grid notebook paper**
+
+| aspect | observation |
+|---|---|
+| shadow | soft throughout |
+| typography | bold rounded caps with thick dark outlines, often 3D-extruded; a separate **comic display** face for `WON!` / `GAME OVER!` / `PLAY Now!` |
+| notable | **torn paper strips** as banners and labels; **tape**, **chains**, **vines**, **posts** and **gears** as frame attachments; radial **spin wheel**; ON/OFF pairs (green/red); segmented star ratings; loading bar made of chain links |
+| suits | every casual genre — this is the style-pack argument in one image |
+
+## 31 `rpg1.png` — cartoon knight shop
+
+| aspect | observation |
+|---|---|
+| frame | **wood plank ground** with **parchment panels** inset, torn edges, thin darker outline, soft shadow |
+| tabs | grey rounded rects, active = **amber fill**; a yellow **`!` badge straddling the top-right corner** |
+| rows | parchment plate + **icon tile on the left** + caps title + small description + **cost plate on the right** + a **segmented progress bar** beneath the cost |
+| disabled | the **cost plate desaturates** when unaffordable |
+| shadow | soft |
+| corner | moderate; parchment edges irregular |
+| typography | bold rounded caps for titles, regular for body; dark brown on parchment |
+| texture | wood (ground), parchment (panels) |
+| suits | rpg, survival, citybuilder |
+
+## 32 `gameui8.png` / `ui9.png` — cosy RPG kit *(same asset family)*
+
+| aspect | observation |
+|---|---|
+| frame | parchment/tan panel, dark brown border, **gold L-shaped corner ornaments** on all four corners |
+| header | plaque **overhanging the top edge**, in a **contrasting hue per screen** (tan / green / purple / blue) |
+| meters | **discrete heart pips** (5 red + 2 dark) for HP; continuous MP/XP bars with a **label chip overhanging the left** |
+| currency | dark pill + **icon disc overhanging the left** + value + **green `+` welded flush right** |
+| locked | quest row greys out and shows **`???` placeholder text** — not just a padlock |
+| tooltip | **dark brown** plate with a gold border; **title colour encodes rarity**; a hairline separator above the stat row; `▼` continue indicator bottom-right |
+| shadow | soft |
+| typography | rounded sans, dark brown on tan |
+| notable | **teardrop map pins** in five colours; pennant flags; heraldic hanging banners with pointed bottoms; ornate cartouche with gold scroll flourishes; slot count badge bottom-right |
+| suits | rpg, survival |
+
+## 33 `rpgui2.png` — roguelike deckbuilder, hand-drawn parchment
+
+| aspect | observation |
+|---|---|
+| frame | parchment with a **hand-drawn dark outline** — wobbly, variable weight, drawn rather than stroked |
+| shadow | **none at all** — the hand-drawn outline does 100 % of the separation |
+| cards | **coloured header band by card type** (red attack / green defend) + centred caps title + art + hairline rule + body + a **cost badge straddling the bottom-LEFT corner** |
+| tooltip | **dark near-black plate with a thin light outline** — the only dark surface in an otherwise parchment UI, i.e. inverted |
+| corner | slightly irregular rounded |
+| typography | **serif / old-style**, dark brown, caps titles |
+| texture | parchment with visible fibre and stains |
+| notable | node graph drawn with **wobbly hand-drawn connector lines**; meter value centred **on** the bar |
+| suits | cardgame, rpg |
+
+## 34 `vecteezy_game-buttons-of-wooden-and-gold-...jpg` — wood chrome study *(no text)*
+
+| aspect | observation |
+|---|---|
+| construction | **frame + insert is the universal model here** — every control is a **light wood frame containing something else**: a coloured pill (button), a dark well (slot), a fill (meter). Not "a plate with a border" |
+| wells | dark wood inset with an **inverted bevel** (highlight bottom-right, shadow top-left) so it reads as recessed |
+| header | light wood **capsule overhanging the top edge**, itself containing a coloured pill |
+| close | **circular wood knob** straddling the top-right corner |
+| meters | wood trough + coloured pill fill + **circular wood knob** handle; a long bar with **gold milestone stars pinned along it** |
+| corner | large radius, slightly irregular/carved |
+| shadow | soft, plus internal bevel shading |
+| typography | *(none in this sheet)* |
+| texture | **wood grain, light and dark**, with knots, grain following the shape |
+| notable | bare solid **wood triangle arrows** with no chrome; stepper = capsule with a `+` welded at one end |
+| suits | rpg, survival, platformer, citybuilder |
+
+## 35 `vecteezy_action-game-ui-kit-...jpg` — extruded slab *(a FIFTH shadow kind)*
+
+| aspect | observation |
+|---|---|
+| depth | **EXTRUDE** — a thick dark **bottom face** under the panel and under every button, so each reads as a solid block seen slightly from above. This is not a drop shadow and not a bevel; it is a **side face**, and the kit has no equivalent |
+| corner | **asymmetric by design**: top corners rounded, **bottom corners chamfered at 45°** |
+| header | a darker band **inside** the panel's top (not overhanging) — the alternative to the overhanging plaque |
+| shadow | extrude **plus** a soft ambient underneath |
+| typography | heavy rounded display caps in gold/green with a **hard offset extrude** and a dark outline |
+| texture | none, but a **faint large watermark pattern** (skulls, bombs) in the background |
+| notable | buttons are green face + gold outline + dark green side face; readouts carry a badge overhanging the left with the value tinted to match the icon |
+| suits | platformer, shooter-arcade, puzzle |
+| **plan impact** | Phase A's shadow kinds become **None / Hard / Soft / Glow / Extrude** |
+
+## 36 `vecteezy_game-ui-menu-interface-scrolls-...jpg` — painted blue wood + pinned paper
+
+| aspect | observation |
+|---|---|
+| frame | **blue-painted wood planks** with irregular carved edges and notches, holding a **parchment sheet PINNED inside** with small round pins; the paper's corners are torn and curled, and the wood shows at its edges |
+| header | text directly on the parchment with a **hairline rule beneath** — no plaque |
+| close | **red circle** straddling the top-right corner |
+| shadow | soft |
+| corner | irregular carved wood; torn/curled paper |
+| typography | bold caps, white with a dark outline on blue; dark brown on parchment |
+| texture | **painted wood** (grain visible *through* the paint) and parchment |
+| notable | meters = blue-wood trough + coloured fill + **icon medallion overhanging the left**; circular icon buttons with a rim highlight; bare blue triangle arrows; recessed dark input fields |
+| suits | platformer, puzzle, survival |
+
+## 37 `skilltree4.png` — merge/idle equipment grid
+
+| aspect | observation |
+|---|---|
+| rarity | **the tile's FILL COLOUR is the rarity** (gold > magenta > blue), with a thick dark outline and a lighter inner border |
+| corner slots | **type icon top-left, `Lv.N` top-right** — corner metadata slots on every tile |
+| nav | the **active bottom-nav item is a taller gold tile that overhangs the bar upward**, carrying a crown ornament; a red `!` badge on another |
+| shadow | subtle hard shadow under tiles |
+| corner | moderate, uniform |
+| typography | heavy rounded sans, white + dark outline; **K/M abbreviation** on large numbers *(confirms the settled number-formatting rule)* |
+| texture | faint watermark pattern on the dark ground |
+| notable | equipped items carry **sparkle particles**; active tab = gold pill vs plain text |
+| suits | rpg, cardgame, strategy |
+
+## 38 `gameui5.png` — flat torn paper *(no outline, no shadow, no radius)*
+
+| aspect | observation |
+|---|---|
+| frame | white panels with **irregular torn/ripped edges** — a rough polygon silhouette. **No outline, no radius, no shadow at all** |
+| header | a dark plum **torn band overhanging** the panel top |
+| buttons | torn, slightly sheared plates in maroon / orange / red, white caps |
+| shadow | **none** |
+| corner | **torn and angular** — neither rounded nor chamfered; an irregular polygon |
+| typography | bold condensed caps, no outline |
+| texture | none — pure flat colour |
+| notable | proves `Torn` is not tied to parchment: it works as a **flat graphic** register where value contrast and the ragged silhouette do all the separating |
+| suits | platformer, puzzle, shooter-arcade |
+
+## 39 `store1.png` — cosy pastel shop
+
+| aspect | observation |
+|---|---|
+| card | a **four-band card**: art (with a magnifier in the top-right) / name / **limit band** / **price footer welded at the bottom** |
+| unaffordable | **only the price footer desaturates** to grey — the rest of the card is untouched |
+| header | cream plaque with rounded ends and **two dot rivets**, overhanging the panel top |
+| tabs | **two tab levels with different active renderers** — a cream pill on the first row, a dark pill on the second; text tabs separated by **small diamond dots** |
+| shadow | very soft to none |
+| corner | moderate, uniform, soft |
+| typography | rounded soft sans, brown/dark-green on light |
+| texture | subtle paper/linen ground; illustrated scene above the panel |
+| notable | currency toolbar = one dark pill grouping four icon+value pairs |
+| suits | cardgame, rpg, survival (cosy) |
+
+## 40 `ui7.png` — pixel-art diegetic workbench *(the pixel register)*
+
+| aspect | observation |
+|---|---|
+| frame | the UI **is a wooden workbench** with a saw and hammer laid across it; the crafting panel is a green board inset into it |
+| pixel discipline | **1px outlines, no anti-aliasing, limited palette, corners stepped by pixel** (2–3px stair) |
+| shadow | **none** |
+| typography | **bitmap/pixel font** — cream on green, dark on parchment |
+| texture | pixel wood, pixel paper |
+| notable | active tab is **raised and lighter with a tooltip label below it**; selected hotbar slot = a **1px white outline offset outward**; HUD bars carry vine/leaf ornaments at their ends |
+| suits | topdown, survival |
+| confirms | `Stepped` is not merely a corner treatment — **pixel is a whole coherent register** (outline weight, font, AA, shadow policy all follow from it) |
+
+## 41 `gameui6.png` — layered-stroke "biscuit" kit
+
+| aspect | observation |
+|---|---|
+| frame | **three concentric strokes** — dark brown outer, mid orange, cream face. The layered outline *is* the depth mechanism |
+| header | **green ribbon with folded ends** overhanging the panel top and past both sides *(3rd sighting of this banner type)* |
+| shadow | **none** — the layered strokes replace it |
+| corner | large / capsule |
+| typography | bold rounded caps, dark brown on cream |
+| texture | none |
+| notable | **icon medallion overhanging the RIGHT end** of a meter — the mirror of the left-cap pattern, and its first sighting; toggle = capsule with a **square** knob |
+| suits | puzzle, platformer, cardgame |
+
+## 42 `survaivleandrpg2.png` — pixel inventory (Stardew family)
+
+| aspect | observation |
+|---|---|
+| frame | cream pixel panel with a **layered 2–3px pixel border** (darker band inside a brown outer band) |
+| tabs | pixel tabs on the top edge; active is **raised, lighter and joined to the panel** |
+| shadow | **none** |
+| corner | pixel-stepped, small |
+| typography | **pixel font**, small, dark on cream |
+| texture | pixel wood/paper |
+| notable | **circular wood-framed portrait window**; hotbar selected cell = **amber fill**; top bar carries **input-hint prompts with chords** (`L2 + ✛  SPLIT STACK`) — confirms the InputHint chord requirement |
+| suits | topdown, survival, rpg |
+
+## 43 `vecteezy_hud-frames-futuristic-text-box-...jpg` — sci-fi frames **with labels** *(pairs with 14)*
+
+Everything in 14, plus how the family labels itself:
+
+| element | detail |
+|---|---|
+| label tab | a small **solid cyan plate with dark caps text** attached to the frame's top edge — centred, left, or with a **sheared right end**. This is the sci-fi header plaque, and it is a *tab*, not a rounded plaque |
+| vertical label | a tab on the **left edge with text rotated 90°** |
+| corner badge | a **diamond/rhombus** plate carrying `01` / `i` / `!`, attached at a corner or floating beside the frame |
+| title band | a solid cyan band across the top whose **right end is cut at 45°** |
+| runs | **dashed runs** (`─ ─ ─`) along an edge as a section marker |
+| inline slot | a small square **thumbnail inset** within the frame |
+| corners | notched, stepped and long-45° cuts **mixed within one frame** |
+| typography | **condensed technical caps, letter-spaced**, cyan or dark-on-cyan, small |
+| shadow | none; the stroke carries a subtle dark offset |
+
+## 44 `vecteezy_game-ui-kit-with-menus-...jpg` — bright candy casual
+
+| aspect | observation |
+|---|---|
+| frame | **thick saturated coloured outer band** (blue / red / teal / orange, one per screen) wrapping a cream or dark inner panel — the band *is* the frame, and its hue identifies the screen |
+| header | **lime ribbon with a yellow inner outline and folded ends**, overhanging the top and past both sides |
+| close | **red circle** straddling the top-right corner |
+| shadow | soft |
+| corner | large radius |
+| typography | heavy rounded caps, white with a **thick dark outline** and a slight extrude |
+| texture | mostly flat + gloss, but the pink button set carries a **mottled/spotted fill** |
+| notable | rows weld a **price pill at the right**; shop cards weld one at the **bottom** and carry a green header band; nav arrows are **cyan triangles overhanging the panel's side edges**; two tabs attached above a list |
+| suits | puzzle, platformer, cardgame |
+
+---
+
+## Final coverage
+
+**59 unique images** (`gameui9.png` is byte-identical to `ui7.png`; verified by hash).
+
+**45 documented here, covering 46 of the 60 files.**
+
+### Not yet read — 14 files
+
+`gameui1` · `gameui3` · `rpg2` · `rpg3` · `rpgui3` · `skilltree` · `skilltree3` · `ui2` ·
+`survaivleandrpg1` · `vecteezy_square-wooden-frames-*` · `vecteezy_wooden-buttons-cartoon-*` ·
+`vecteezy_wooden-game-buttons-cartoon-*` · `uitexturs` · `uiwood`
+
+Two of those (`uitexturs`, `uiwood`) were read earlier in the session and their findings are already
+in the tracker — `uitexturs` is the nine-material sheet the whole grain axis was measured from, and
+`uiwood` is a single-material wood family. The other twelve belong to families already documented
+several times over (cartoon wood, parchment, stone, casual pastel), so they are expected to confirm
+rather than extend — **but that is a prediction, not a result, and the pass is not complete until
+they are read.**

@@ -31,6 +31,7 @@ MAP = {
     "HSlider":      (f"{KIT}/KitSliderBar.cs",     "k_slider"),
     "OptionButton": (f"{KIT}/KitOptionButton.cs",  "k_opt"),
     "CheckButton":  (f"{KIT}/KitCheckButton.cs",   "k_check"),
+    "CheckBox":     (f"{KIT}/KitCheckBox.cs",      "k_cbox"),
     "TabContainer": (f"{KIT}/KitTabPanel.cs",      "k_tabs"),
 }
 

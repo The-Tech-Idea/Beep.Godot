@@ -91,12 +91,15 @@ namespace Beep.ECS.UI.Kit
             KitChrome.DrawPlate(this, _genre, knob,
                                 KitChrome.StateFace(surface, state), state, 0.55f);
 
-            // The label LAST — the plate above would otherwise paint over what CheckButton drew.
-            Color ink = UiSurface.Text(this);
-            if (state == KitState.Disabled) ink = ink with { A = 0.45f };
-            KitChrome.DrawLabel(this, this, Text,
-                                new Rect2(2f, 0, Mathf.Max(4f, track.Position.X - 6f), Size.Y),
-                                ink, 0f, HorizontalAlignment.Left);
+
+            // NO label drawn here. The plate above covers only the box/switch, so the base
+            // class's own text is still visible — drawing it again renders "Textures" twice,
+            // overlapping. The content margin set in Suppress() is what reserves space for the
+            // box; Button lays the label out after it.
+            //
+            // This differs from KitPushButton, whose plate covers the WHOLE control and therefore
+            // paints over the base text, so that one must redraw it. The rule is: redraw the
+            // label only if your plate hid it.
         }
     }
 }

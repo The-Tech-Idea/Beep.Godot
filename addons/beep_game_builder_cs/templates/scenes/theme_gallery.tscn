@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/ThemeGallery.cs" id="2_script"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="k_opt"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckButton.cs" id="k_check"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs" id="k_cbox"]
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="ThemeGallery" type="Control"]
@@ -78,6 +79,7 @@ script = ExtResource("k_opt")
 custom_minimum_size = Vector2(150, 44)
 
 [node name="TexturesCheck" type="CheckBox" parent="Margin/VBox/Header"]
+script = ExtResource("k_cbox")
 custom_minimum_size = Vector2(0, 44)
 button_pressed = true
 text = "Textures"
@@ -204,6 +206,7 @@ script = ExtResource("k_opt")
 custom_minimum_size = Vector2(150, 40)
 
 [node name="SampleCheckBox" type="CheckBox" parent="Margin/VBox/Scroll/Content/InputSection/InputMargin/InputVBox/InputRow"]
+script = ExtResource("k_cbox")
 button_pressed = true
 text = "CheckBox"
 

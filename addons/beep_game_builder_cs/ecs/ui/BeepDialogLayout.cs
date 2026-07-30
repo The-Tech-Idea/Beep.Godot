@@ -137,8 +137,22 @@ namespace Beep.ECS.UI
                     Mathf.Max(panel.CustomMinimumSize.Y, PanelHeight));
 
             if (root.FindChild("Margin", recursive: true, owned: false) is MarginContainer margin)
-                foreach (string side in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" })
+            {
+                foreach (string side in new[] { "margin_left", "margin_right", "margin_bottom" })
                     margin.AddThemeConstantOverride(side, OuterMargin);
+
+                // The TOP is not a free choice when the panel carries a title banner. The banner
+                // is drawn from the frame's y=0 downward and OVERLAPS the panel's top border by
+                // design, so content starting at a flat OuterMargin lands inside it. This stamped
+                // 24 over the 46 settings_menu.tscn had set for the banner, and the tab row ended
+                // up 10px inside the "Settings" plaque (banner 164-198, tabs from 188).
+                int top = OuterMargin;
+                if (margin.GetParent() is { } framedHost)
+                    foreach (var sib in framedHost.GetChildren())
+                        if (sib is PanelFrameComponent pf && pf.BannerRoom > 0)
+                            top = Mathf.Max(top, pf.BannerRoom + 6);
+                margin.AddThemeConstantOverride("margin_top", top);
+            }
         }
     }
 }

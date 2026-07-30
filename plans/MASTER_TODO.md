@@ -1634,3 +1634,70 @@ palette with a correct tab row.
 **Not claimed:** the 425 errors in the sheet render are pre-existing `InputMap` warnings
 (`move_up` etc. are registered by the project generator, which a bare template render does not
 run) — unrelated to this sweep, and unchanged by it.
+
+### Stage 38e — settings alignment + a real checkbox (2026-07-30)
+
+Two user-reported defects. Both were symptoms of something larger.
+
+#### 1. "Settings" banner overlapped the tab row
+
+Measured rather than eyeballed, with a rect probe: Frame at y=164 with a 34px banner (164–198),
+tabs starting at y=188 — a **10px overlap**, the banner sitting over the "Controls" tab.
+
+Cause: **`BeepDialogLayout.ApplyShell` stamps all four margins to a flat `OuterMargin = 24`**,
+clobbering the `margin_top = 46` that `settings_menu.tscn` set deliberately for the banner. The
+top is not a free choice when a panel carries a title plaque — the banner draws from the frame's
+y=0 downward and overlaps the panel border by design.
+
+Fixed by exposing `PanelFrameComponent.BannerRoom` and having `ApplyShell` take
+`max(OuterMargin, BannerRoom + 6)` for the top only. **6 scenes changed, all correctly** (the
+five besides settings_menu also carry banners); districts and the other 44 are untouched.
+
+##### The bigger thing found on the way, and NOT fixed
+
+`PanelFrameComponent.DriveChildMargins()` walks **`GetChildren()`** looking for a
+MarginContainer. A survey of the templates found **0 frames with a MarginContainer child and 25
+with one as a sibling** — so the method has never executed in a single shipped scene. Its whole
+stated purpose ("content lands inside the recess without every scene hand-tuning four margins
+against art it cannot see") has never once happened; all 25 scenes hand-tune instead.
+
+I tried fixing it and **reverted**. Driving all four margins from `WellRect` re-rendered 23 of 67
+scenes: settings_menu and theme_gallery improved, but **districts lost content** — its rows were
+already laid out to the frame, so re-insetting clipped "Happiness 78%" and the value off the first
+row. Narrowing to top-only-increase-only still regressed districts, because the extra top margin
+feeds back into the frame's own `GetCombinedMinimumSize` sizing and squeezes the row.
+
+Left as a known defect with the evidence, rather than shipped as a regression. Fixing it properly
+means untangling that size feedback loop and re-tuning the 25 scenes that compensated for it.
+
+#### 2. "checkbox is not a checkbox"
+
+Correct — `CheckBox` was never swept (only `CheckButton` was), so both instances rendered as
+Godot's stock 16px blue glyph on a themed plate. The distinction matters and the kit now keeps it:
+
+- **`KitCheckButton`** — a SWITCH: track + sliding knob (Godot's CheckButton)
+- **`KitCheckBox`** *(new)* — a BOX that gets a drawn tick, sized off the theme font rather than a
+  fixed 16px icon
+
+#### A drawing rule, learned twice more
+
+**Redraw the label only if your plate hid it.**
+
+`KitPushButton`'s plate covers the whole control, so it must redraw the text. `KitCheckBox` and
+`KitCheckButton` cover only a small box or switch, so the base class's label survives — and
+drawing it again rendered "Textures" twice, overlapping. Same family as the TabContainer bug
+(own the draw for leaf controls, supply styleboxes for composite ones). Both now documented in
+the classes themselves.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `dotnet build` | 0 errors |
+| `validate_scenes.sh` | PASS |
+| shadowing gate | ok |
+| all 67 template scenes | rendered, 0 failures |
+| scenes changed | 6, each inspected |
+
+Inspected: the "Settings" plaque now clears the tab row; the gallery's Textures checkbox is a
+box with a tick and its label renders once.

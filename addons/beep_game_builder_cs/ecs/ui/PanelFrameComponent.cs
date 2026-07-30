@@ -56,6 +56,15 @@ namespace Beep.ECS.UI
 
         private int TitleFontSize => UiSurface.FontSize(this, TitleFontScale);
         private int BannerHeight => Mathf.RoundToInt(TitleFontSize * 2.0f);
+
+        /// <summary>How much vertical space the banner occupies at the top of this frame, or 0
+        /// when there is none. Public because LAYOUT code has to know: the banner is drawn from
+        /// y=0 downward, so any content placed above this overlaps it. BeepDialogLayout.ApplyShell
+        /// was stamping a uniform 24px margin on all four sides and clobbering the 46 that
+        /// settings_menu.tscn set for exactly this reason, which put the tab row 10px inside the
+        /// "Settings" plaque.</summary>
+        public int BannerRoom =>
+            _shape != BannerShape.None && !string.IsNullOrEmpty(_title) ? BannerHeight : 0;
         /// <summary>Gap between the frame's inner edge and the well.</summary>
         [Export] public int FramePadding { get; set; } = 8;
 

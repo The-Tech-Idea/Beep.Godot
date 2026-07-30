@@ -2073,3 +2073,56 @@ the obvious move and is exactly the failure this repo keeps paying for, so it wa
 
 Next: find why a single opaque `DrawColoredPolygon` produces graded depth for those three, then
 Phase B (outline polarity).
+
+### Stage 40b — Phase A closed: SHADOW PASS 10/10 (2026-07-30)
+
+The three failures left open in Stage 40 are resolved, and the cause was **one real rendering
+defect plus two confounded measurements** — not thresholds.
+
+#### The rendering defect: a widget showed its own shadow through itself
+
+Histogramming the difference render made it obvious. citybuilder's shadow depth was **bimodal** —
+**9068 px at depth 5–18** alongside **4725 px at 94–107**. The faint population was the shadow
+showing *through* the plate: five shipped themes declare a 95 %-opaque panel (`#…F2`), and the
+shadow was being drawn underneath it.
+
+Fixed by **subtracting the widget's own silhouette from every shadow pass**
+(`Geometry2D.ClipPolygons`). Where a pass is entirely covered it now draws nothing, rather than
+falling through to the uncut polygon — which would have quietly reintroduced the bleed.
+
+**After: 3276 lit pixels, every one at depth exactly 107.** A uniform hard shadow.
+
+#### Two measurements that were confounded by silhouette, not by tuning
+
+- **Solidity** was averaging the bleed-through population with the real shadow, so three crisp
+  shadows measured `soft`. Now judged only where the shadow is **unobstructed** — outside the
+  widget's body.
+- **The axis ratio got the last two exactly backwards.** Capsule's overhanging left cap pulled an
+  extruded, straight-down shadow to `axis 0.53`; Shield's narrowing bottom hid the horizontal half
+  of a diagonal shadow, giving `axis 0.03`. Replaced with **side-vs-below extent** — "does any of
+  it fall past the body's side?" — which a side face never does and a diagonal drop shadow always
+  does. Immune to silhouette shape.
+
+`SOLID_HARD` and the other thresholds are **unchanged** from Stage 40.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `measure_shadow --selftest` | **PASS 5/5** synthetic kinds |
+| `measure_shadow --proof` | **SHADOW PASS 10/10** |
+| `verify_greyscale` | PASS |
+| `measure_material` | MATERIAL PASS |
+| `poly_probe` | 105/105 |
+| `validate_scenes` · shadowing · `dotnet build` | PASS · ok · 0 errors |
+| 67 template scenes | rendered, 0 failures |
+
+Inspected: citybuilder throws a crisp offset shadow, platformer a solid side face, rpg a soft
+ambient one, shooter none — each as its theme declares.
+
+**Rough edge carried forward:** platformer's `Capsule` still reads as a disc overlapping a bar
+rather than one bar with an overhanging cap. Noted in Stage 38c and still true.
+
+**Phase A is closed. Next: Phase B — outline polarity**, which needs `verify_greyscale.py` to gain
+a polarity column; today it measures rim magnitude only, so a light and a dark rim of equal
+contrast are indistinguishable to it.

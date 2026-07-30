@@ -118,7 +118,18 @@ def analyse(path, _rect=None):
     ly, lx = np.nonzero(lit)
     dy, dx = abs(ly.mean() - cy), abs(lx.mean() - cx)
     offset = float(np.hypot(dy, dx) / max(1.0, (bw + bh) / 4.0) * 10.0)
-    axis = float(min(dy, dx) / max(dy, dx, 1e-6))
+
+    # SIDE vs BELOW extent, not the centroid's axis ratio.
+    #
+    # The centroid ratio is confounded by silhouette shape and got the last two genres exactly
+    # backwards: Capsule's overhanging left cap pulled an extruded (straight-down) shadow to
+    # axis 0.53, and Shield's narrowing bottom hid the horizontal half of a diagonal shadow,
+    # giving axis 0.03. Asking instead "does any of it fall past the body's SIDE?" is immune:
+    # a side face never does, a diagonal drop shadow always does.
+    x_hi, y_hi = xs.max(), ys.max()
+    side = float((lx > x_hi).sum())
+    below = float((ly > y_hi).sum())
+    axis = 0.0 if below < 1 else min(1.0, side / below)
 
     # Falloff: how far the darkening reaches from the body edge.
     dist = np.zeros_like(on)
@@ -130,18 +141,23 @@ def analyse(path, _rect=None):
     out = lit & (dist > 0)
     falloff = float(dist[out].mean()) if out.sum() else 0.0
 
-    # Solidity on the INTERIOR of the darkened region only. A hard shadow's visible crescent is
-    # thin (an 8px offset on a 300px widget), so anti-aliased edge pixels outnumber the solid
-    # core and dragged solidity to 0.1-0.3 -- three genuinely hard/extruded shadows measured as
-    # soft. Eroding by 1px removes the AA collar and leaves the fill.
-    inner = lit & ~_dilate(~lit, 1)
-    depth = d[inner] if inner.sum() >= 24 else d[lit]
-    solidity = float((depth > depth.max() * 0.72).mean())
-
     # `frac` is the share of the RING that is darkened, matching the old semantics closely
     # enough for the extrude/hard split to keep working.
     ring = _dilate(body, RING) & ~_dilate(body, 1)
     frac = float((lit & ring).sum() / max(ring.sum(), 1))
+
+    # Solidity is judged only where the shadow is UNOBSTRUCTED -- outside the widget's body.
+    #
+    # Inside the body the shadow shows through faintly wherever the plate is not fully opaque,
+    # which produces a large low-depth population: citybuilder's depth histogram is bimodal,
+    # 9068 px at depth 5-18 (bleed-through) against 4725 px at 94-107 (the actual shadow). Mixing
+    # them made three crisp shadows measure as soft. The bleed-through is a real rendering
+    # defect in its own right -- a widget should not show its own shadow through itself -- and is
+    # recorded as such; it is not what "hard vs soft" means.
+    outer = lit & ring
+    inner = outer & ~_dilate(~outer, 1)
+    depth = d[inner] if inner.sum() >= 24 else (d[outer] if outer.sum() >= 24 else d[lit])
+    solidity = float((depth > depth.max() * 0.72).mean())
 
     return dict(spill=spill, frac=frac, falloff=falloff, offset=offset,
                 axis=axis, solidity=solidity)

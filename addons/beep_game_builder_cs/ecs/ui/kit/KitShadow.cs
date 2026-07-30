@@ -106,11 +106,19 @@ namespace Beep.ECS.UI.Kit
                 ? (glowColor ?? new Color(1f, 0.92f, 0.55f))
                 : ink;
 
+            // The widget's own silhouette is SUBTRACTED from every shadow pass below. Without
+            // it the shadow is drawn under the plate and shows through wherever the plate is not
+            // fully opaque -- five shipped themes declare a 95%-opaque panel, and the difference
+            // render showed a large faint population (9068 px at depth 5-18 for citybuilder)
+            // sitting under the plate alongside the real shadow. A widget must not show its own
+            // shadow through itself.
+            Vector2[] cutout = poly;
+
             switch (def.Kind)
             {
                 case KitShadowKind.Hard:
                     Fill(ci, Offset(poly, new Vector2(def.OffsetX, def.OffsetY) * unit),
-                         tone with { A = def.Alpha });
+                         tone with { A = def.Alpha }, cutout);
                     break;
 
                 case KitShadowKind.Extrude:
@@ -118,7 +126,7 @@ namespace Beep.ECS.UI.Kit
                     // it as a copy would leave a sliver of background between slab and face and
                     // destroy the "solid block" reading the reference gets from it.
                     Fill(ci, Offset(poly, new Vector2(0f, def.OffsetY * unit)),
-                         tone with { A = def.Alpha });
+                         tone with { A = def.Alpha }, cutout);
                     break;
 
                 case KitShadowKind.Soft:
@@ -139,20 +147,42 @@ namespace Beep.ECS.UI.Kit
                         // about 7/255 and a genuine soft shadow measured as NONE. 0.22 keeps the
                         // falloff readable without turning the outer passes into visible bands.
                         float a = def.Alpha * ((1f - t) * (1f - t) * 0.9f + 0.22f);
-                        Fill(ci, Offset(Expand(poly, centre, grow), off), tone with { A = a });
+                        Fill(ci, Offset(Expand(poly, centre, grow), off), tone with { A = a }, cutout);
                     }
                     break;
                 }
             }
         }
 
-        private static void Fill(CanvasItem ci, Vector2[] p, Color c)
+        /// <summary>Draw one shadow pass with the widget's own silhouette cut out of it.</summary>
+        private static void Fill(CanvasItem ci, Vector2[] p, Color c, Vector2[]? cutout = null)
         {
             if (c.A <= 0.004f) return;
+
+            // Subtract the widget. ClipPolygons returns the pieces of `p` outside `cutout`,
+            // which is exactly the visible part of a shadow; it can return several pieces (a
+            // ring becomes two) and can return none at all when the shadow is entirely covered.
+            if (cutout is { Length: >= 3 })
+            {
+                var pieces = Geometry2D.ClipPolygons(p, cutout);
+                if (pieces.Count > 0)
+                {
+                    foreach (var piece in pieces) Emit(ci, piece, c);
+                    return;
+                }
+                // No pieces means fully covered -- nothing to draw. Falling through to draw the
+                // uncut polygon here would silently reintroduce the bleed-through.
+                return;
+            }
+            Emit(ci, p, c);
+        }
+
+        private static void Emit(CanvasItem ci, Vector2[] p, Color c)
+        {
             // A silhouette that cannot be triangulated draws nothing; skipping quietly is fine
             // here because the plate above will still render — the widget loses its shadow, not
             // its body, and KitGrain already warns about the same silhouettes.
-            if (Geometry2D.TriangulatePolygon(p).Length == 0) return;
+            if (p.Length < 3 || Geometry2D.TriangulatePolygon(p).Length == 0) return;
             ci.DrawColoredPolygon(p, c);
         }
 

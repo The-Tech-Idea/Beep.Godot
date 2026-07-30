@@ -255,3 +255,48 @@ folder** — 15·16·25·26·27·28·32·34·36·41·44, eleven files across eve
 in four shapes: bar, ellipse, ribbon-with-folded-ends, and sheared tab. The kit draws a banner
 *inside* the host at `0.14 × height`. That is the wrong side of the edge, and it is why panels read
 as flat compared with the references.
+
+---
+
+## Third revision — pass complete (59/59)
+
+The last 14 files added no new *axis*, but two of them isolate the model cleanly and three add
+states the kit does not have.
+
+### The two proof images
+
+| file | what it isolates |
+|---|---|
+| 48 `square-wooden-frames` | **one geometry × many attachments** — six avatar frames, identical block, identity from vine / rope / nothing |
+| 55 `wooden-game-buttons` | **one material × many silhouettes** — chamfer, capsule, hexagon, notched, tiered, circle, triangle, all in the same wood |
+
+Together they settle the model: **geometry, material and ornament are three independent axes.**
+The kit currently ties all three to `genre`.
+
+### States the kit is missing
+
+- **A fourth empty state** (53): a **ghosted silhouette** of what belongs in the slot, beside
+  blank / invite-`+` / locked-with-requirement. `KitInventorySlot` has the first three.
+- **Comparison indicators** (46): stat chips turn green with an up-arrow to show the delta against
+  what is equipped. Nothing else in the folder does this, and no kit widget expresses it.
+- **An authored four-state set** (51): `Normal · Over · Click · Disabled` shipped as art, with
+  **per-state icon variants**. The kit derives states procedurally, which is right — but it should
+  *accept* authored per-state art where a theme supplies it.
+
+### Typography, final tally across all 59
+
+`serif` 11·21·33 · `blackletter/gothic` 19·53·54 · `bitmap/pixel` 40·42·50·53 ·
+`handwritten` 18 · `bold condensed caps` 06·08·10·38 · `thin letter-spaced caps` 07·43 ·
+`light` 04·09 · `rounded display` 12·13·17·26·44 · `typewriter/condensed serif` 45
+
+Nine families. The kit ships **one**. Phase C's font roles become:
+`Serif · Blackletter · Pixel · Handwritten · Condensed · Rounded · Sans · Typewriter`
+
+### Confirmed counts worth keeping
+
+- **Header plaque overhanging the top edge**: 15 of 59 files. The single most repeated construction
+  in the folder, and the kit draws its banner on the wrong side of the edge.
+- **Icon cap overhanging an end**: 7 left (02·12·17·19·28·36·32) + 1 right (41).
+- **Welded footer / cost strip**: 13·20·31·39·44·54.
+- **Segmented meter**: 12·16·19·28·31·51·54 — the settled "segmented is the default" rule holds at
+  seven independent sightings.

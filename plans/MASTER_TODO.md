@@ -1980,3 +1980,37 @@ Also recorded: `CapRight` as the mirror of the left icon cap (41, first sighting
 `ART_PASS_PER_FILE.md`. Two of them (`uitexturs`, `uiwood`) were read earlier this session and are
 already reflected in the tracker. The remaining twelve belong to families documented several times
 over and are *expected* to confirm rather than extend — **stated as a prediction, not a result.**
+
+### Stage 39d — art pass COMPLETE, 59/59 (2026-07-30)
+
+All 59 unique images read (60 files; `gameui9.png` == `ui7.png` by hash).
+`plans/game-ui-kit/ART_PASS_PER_FILE.md` holds 55 numbered entries plus 3 recorded earlier.
+
+The last 14 files added no new **axis** — the model held — but two of them isolate it cleanly and
+three add states the kit lacks.
+
+**The two proof images.** `square-wooden-frames` is **one geometry × many attachments** (six avatar
+frames, identical block, identity from vine / rope / nothing). `wooden-game-buttons` is **one
+material × many silhouettes** (chamfer, capsule, hexagon, notched, tiered, circle, triangle, all in
+one wood). Together they settle it: **geometry, material and ornament are three independent axes**,
+and the kit currently ties all three to `genre`.
+
+**Three missing states.** A **fourth empty state** — a *ghosted silhouette* of what belongs in the
+slot, beside blank / invite-`+` / locked (`KitInventorySlot` has the first three). **Comparison
+indicators** — stat chips turning green with an up-arrow to show the delta against equipped gear.
+And an **authored four-state set** (`Normal · Over · Click · Disabled`) with per-state icon variants:
+the kit derives states procedurally, which is right, but should *accept* authored art where a theme
+supplies it.
+
+**Typography, final tally: nine families across the folder** — serif, blackletter, bitmap/pixel,
+handwritten, bold-condensed-caps, thin-letter-spaced-caps, light, rounded-display,
+typewriter/condensed-serif. **The kit ships one.**
+
+**Counts worth keeping.** Header plaque overhanging the top edge: **15 of 59 files** — the single
+most repeated construction in the folder, and the kit draws its banner on the wrong side of the
+edge. Icon cap overhanging an end: 7 left, 1 right. Welded footer/cost strip: 6. Segmented meter: 7
+independent sightings, so "segmented is the default" holds.
+
+The plan (`PLAN_STYLE_SYSTEM.md`) is now final for phases A–G and traced to numbered files
+throughout. **Next turn starts Phase A (`KitLayerKind.Shadow` + `measure_shadow.py`), which must be
+shown to fail on today's build before it is trusted.**

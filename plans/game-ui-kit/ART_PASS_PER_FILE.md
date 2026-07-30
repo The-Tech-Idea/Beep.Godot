@@ -699,3 +699,168 @@ in the tracker — `uitexturs` is the nine-material sheet the whole grain axis w
 several times over (cartoon wood, parchment, stone, casual pastel), so they are expected to confirm
 rather than extend — **but that is a prediction, not a result, and the pass is not complete until
 they are read.**
+
+## 45 `gameui1.png` — paper scrapbook survival kit
+
+| aspect | observation |
+|---|---|
+| frame | **layered paper sheets, stacked slightly offset**, torn and curled edges; fastened with **wax seals** and small metal **brads/clips** |
+| slots | **HEXAGONAL cells in a honeycomb** — first hex-grid sighting in the folder |
+| banners | narrow vertical strips **hanging from a wooden bar with rounded ends**, header plate on top, level chip at the bottom |
+| shadow | soft; the paper stack casts onto itself |
+| corner | torn / curled paper |
+| typography | **condensed serif / typewriter**, dark brown on paper, caps titles |
+| texture | paper in several tones, wood, **wax**, **twine** |
+| notable | **luggage tags with a twine loop**; **washi-tape strips** as labels; loading bars with a **sheared pointed right end**; a zones map as a **dashed path linking pentagon nodes**; scroll with a rolled bottom and a red title band overhanging the top |
+| suits | survival, rpg, adventure |
+
+## 46 `rpg3.png` — chunky cartoon RPG
+
+| aspect | observation |
+|---|---|
+| frame | tan/olive panels with a **thick dark brown outline**; no shadow — the outline does it |
+| slots | rounded squares, **rarity by fill colour**; empty slots tan with an inner shadow |
+| item card | **blue banner header overhanging the card top**, carrying an icon at the left and `Lv.14` right-aligned |
+| notable | **comparison indicators** — stat chips turn **green with an up-arrow** to show the delta against what is equipped. Nothing else in the folder does this |
+| typography | bold, white with a **thick dark outline** |
+| suits | rpg, cardgame |
+
+## 47 `skilltree.png` — dark idle skill tree
+
+| aspect | observation |
+|---|---|
+| tree | node = rounded square whose **border colour encodes its BRANCH** (amber / green / blue), with a level badge bottom-right; **the connector lines take the same branch colour**, so the tree reads as three coloured paths |
+| routing | connectors are **orthogonal, L-shaped** — never diagonal |
+| unowned | **dimmed by alpha** *(matches 20)* |
+| info card | portrait tile left, title + `Lv.` right-aligned, a coloured effect line, description, a `Next Upgrade` section in a **second accent**, and a **cost chip sitting above** its Upgrade button |
+| shadow | none |
+| typography | plain sans; amber and cyan accents carry the meaning |
+| suits | rpg, strategy, cardgame |
+
+## 48 `vecteezy_square-wooden-frames-...jpg` — **the attachment model, isolated**
+
+Six avatar frames. **Identical geometry** — a square wood block, all four corners chamfered at 45°,
+a recessed inner well with an inverted bevel. They differ by **attachment alone**:
+
+`plain` · **vine with leaves** on two opposite corners · `plain` (grain variant) ·
+**rope looped across all four corners** · `plain` · **heavy ivy down both sides**
+
+| aspect | observation |
+|---|---|
+| shadow | internal bevel only; **no external drop shadow** |
+| corner | chamfered 45°, all four |
+| texture | wood grain with a warm radial gradient (lighter centre) |
+| **why it matters** | a clean, isolated proof of the Phase E model: **one base + an attachment set = a family**. Identity comes from the ornament, not the geometry |
+
+## 49 `ui2.png` — hero detail (same family as 17)
+
+| aspect | observation |
+|---|---|
+| frame | essentially **frameless** — a blue radial gradient with elements floating on it |
+| rarity | a small **labelled chip** (`EPIC`) above the name — rarity as a word, not only a colour |
+| body text | **inline coloured keywords** inside a paragraph (`10 damage` in orange) — confirms the per-run text-role requirement |
+| locked | rune slots and skills show a **padlock plus `Lv15` / `Lv20` in words**, and desaturate |
+| stats | rows of coloured icon tile + small-caps label + large value on a translucent strip |
+| buttons | a green **cost pill** with a small label chip **above it** (`Lv9 Upgrade`), and the primary action in a **distinct amber** |
+| shadow | soft under the character only |
+| typography | heavy rounded sans, white; small-caps grey-blue labels |
+| suits | platformer, cardgame, rpg-lite |
+
+## 50 `rpgui3.png` — handheld pixel RPG *(the LabelValuePair reference)*
+
+| aspect | observation |
+|---|---|
+| **LabelValuePair** | exactly as measured: **two welded plates of OPPOSITE polarity** — a dark plate with a cream caps label welded to a light plate with a dark value, about **2 : 1** in width with a 1–2px joint (`ATTACK 7`, `DEFENSE ---`, `COMBO 3`) |
+| meter row | **label chip welded left + bar + value right-aligned**, all one welded row (`LV`, `HP`, `RP`) |
+| frame | cream panel, 2px dark brown border, **ornamental scroll motifs in the corners** |
+| header | dark brown band with cream caps and small flanking marks; the blue `INVENTORY` band carries a **wave motif at its ends** |
+| shadow | **none** |
+| corner | square, with ornament rather than radius |
+| typography | **pixel/bitmap**, very compact, cream-on-dark and dark-on-cream |
+| suits | rpg, topdown, survival |
+
+## 51 `gameui3.png` — pale wood GUI with an explicit STATE SET
+
+| aspect | observation |
+|---|---|
+| **states** | the sheet labels four button states outright: **`Normal` · `Over` · `Click` · `Disabled`**, and **Disabled is fully desaturated to grey** — the settled saturation-drain rule, shipped as art |
+| icons | every icon ships in **four variants** (normal / hover / grey disabled / outline), so icon state is authored, not derived |
+| frame | wood-plank panel with a **header plank overhanging the top**, small metal side brackets, and a lighter inner field |
+| depth | a **stacked panel** — a back plate offset slightly behind the front one, instead of a drop shadow |
+| shadow | soft, plus the stacked-plate offset |
+| texture | pale gold wood grain |
+| notable | meters appear both **segmented** and continuous in the same kit; narrow scrollbar with a wood knob |
+| suits | platformer, puzzle, citybuilder |
+
+## 52 `skilltree3.png` — tier-coloured talent grid
+
+| aspect | observation |
+|---|---|
+| tiles | thick dark outline; **tier by fill colour, one tier per row** (grey → green → blue → gold); small level number in the **top-left corner** |
+| tooltip | **white rounded rect with a speech tail** pointing at the tile |
+| button | the Upgrade plate is **slightly sheared** (angled left/right edges) with a thick lighter outline and the cost beneath the label |
+| nav | active bottom-nav item is a **lighter, taller tile carrying an up-arrow** *(matches 37)* |
+| notable | inline coloured run again (`Upgraded **20** times`); gold **star chip** as the level badge |
+| suits | rpg, cardgame, strategy |
+
+## 53 `survaivleandrpg1.png` — pixel **open book**
+
+| aspect | observation |
+|---|---|
+| frame | an **open book**: two parchment pages with a central **spine/gutter** (page-curl gradient either side), bound in a **red leather cover** showing as the border |
+| tabs | coloured **index tabs protruding from the left edge** of the book, and one from the right — outside the page, book-style |
+| empty slots | show a **ghosted/embossed silhouette** of what belongs there — a **fourth empty state** beside blank, invite-`+` and locked |
+| stat bars | the value floats **above the fill's right end**, not inside the bar and not at the row end |
+| shadow | none (pixel); the gutter gradient does the folding |
+| typography | **three families on one screen** — blackletter display title, pixel serif headings, pixel sans body |
+| texture | pixel parchment, red leather |
+| suits | rpg, survival, topdown |
+
+## 54 `rpg2.png` — gothic wood/parchment shop
+
+| aspect | observation |
+|---|---|
+| frame | wood planks with **ornate carved corner brackets**; parchment inset panels whose **bottom edges are torn/notched** |
+| header | wood plaque with **carved ornate ends** overhanging the top; section headers flanked by **fleuron marks** on both sides |
+| rows | parchment plate + gold-framed icon tile + body + a **footer strip with notched ribbon ends** carrying a count chip, a cost pill and the action button |
+| shadow | soft |
+| typography | **blackletter / gothic throughout** — gold titles, dark brown body |
+| texture | dark wood, parchment |
+| notable | segmented progress bar beneath the icon on upgrade rows; gold chevron scroll arrows above and below a column |
+| suits | rpg, survival |
+
+## 55 `vecteezy_wooden-game-buttons-...jpg` — one material, many silhouettes
+
+No text; a silhouette study in a single wood material with a **recessed inner well** (inverted bevel:
+light bottom-right, dark top-left) on every piece.
+
+Silhouettes present: **chamfered rect** (dominant) · rounded rect · **capsule** · hexagon-ish
+(chamfered short sides) · **notched rect** (square bites at the mid-left/right edges) ·
+**tiered/stacked plate** (a narrower plate sitting on a wider base) · rounded square · **circle** ·
+left/right **triangles**.
+
+Attachments: **rope looped across two opposite corners**; **vines with leaves** along an edge.
+
+| aspect | observation |
+|---|---|
+| shadow | none external — the well's inverted bevel is the whole depth model |
+| texture | wood grain with a warm gradient, knots, and **grain direction varying per plate** |
+| **why it matters** | the mirror of 48: there, one geometry × many attachments; here, **one material × many silhouettes**. Together they show geometry, material and ornament are three independent axes |
+
+## 56–58 — read earlier this session, findings already in the tracker
+
+- **`uitexturs.png`** — the nine-material tile sheet. The entire grain/material axis was measured
+  from it (67× spread on a colour- and scale-invariant metric); see Stage 38.
+- **`uiwood.png`** — one wood material carrying a whole family (panel, round icon buttons, square
+  icon buttons, rope-lashed bars). Silhouette varies *within* the family while material holds it
+  together — the inverse of what the kit does.
+- **`vecteezy_wooden-buttons-cartoon-...`** — viewed at 4898×3695 via the Ghostscript EPS render
+  (Stage 37). Wood kit: panel, buttons, icon buttons, sliders, stars.
+
+---
+
+# PASS COMPLETE — 59/59 unique images
+
+60 files, of which `gameui9.png` == `ui7.png` (verified by hash). **All 59 unique images have now
+been read**; 55 have a numbered entry above and 3 more are recorded in the tracker from earlier in
+the session.

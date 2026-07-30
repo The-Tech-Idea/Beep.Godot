@@ -2308,3 +2308,51 @@ the value; do not reason harder.**
 
 `measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
 PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.
+
+### Stage 41e — CORRECTION to the correction: the gate is right too (2026-07-30)
+
+Stage 41d said "the render is right, the gate is wrong". Half of that is wrong. Sampling the
+**freshly rendered** `nos_*.png` against the gate's own output:
+
+| genre | gate `rim:body` | outer band px | centre px | verdict |
+|---|---|---|---|---|
+| cardgame | 1.64 | **82** | 48 | band really is lighter — gate correct |
+| shooter | 0.79 | **30** | 36 | band really is darker — gate correct |
+| puzzle | 1.86 | **108** | 58 | gate correct |
+
+**The gate reports exactly what is on screen.** And Stage 41d's runtime print is also right:
+`DrawShape` is handed a band colour of luminance **0.016** for cardgame against a plate of
+**0.100**.
+
+So both measurements are sound and they disagree, which means the discrepancy is **between the
+colour handed to `DrawShape` and the pixel that lands in the framebuffer**:
+
+| genre | drawn lum | expected byte | actual byte |
+|---|---|---|---|
+| cardgame band | 0.016 | ~4 | **82** |
+| cardgame centre | 0.100 | ~26 | **48** |
+
+Both are lifted, and the dark band far more than the plate — the signature of **alpha blending
+against the probe's light (0.78) field**. `FaceColor()` carries the palette's alpha, and five
+shipped themes declare a 95 %-opaque panel; the probe applies no `ThemePresetComponent`, so
+`UiSurface.Of` falls through to its last-resort branch and every genre draws the same face
+(`faceLum = 0.100` for all ten — visible in the Stage 41d print and a tell in its own right).
+
+**Next, and it is one line:** re-render the shadow probe on an **opaque dark** field instead of
+`0.78` light. If the apparent polarity flips, blending is confirmed and the fix is to composite the
+plate opaquely (or measure polarity on an opaque background). If it does not flip, a later layer is
+repainting the band and the layer walk is at fault.
+
+#### Three corrections in three stages — the pattern is the point
+
+41c: "render is inverted" — wrong, from stale pixels.
+41d: "gate is wrong" — wrong, from trusting the draw-time print alone.
+41e: both instruments are right; the *system between them* is not.
+
+Each wrong conclusion came from trusting **one** source. The gate and the runtime print only became
+useful when read **together**, against the same fresh render.
+
+#### Verified unchanged
+
+`measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
+PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.

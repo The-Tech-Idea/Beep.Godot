@@ -2944,3 +2944,67 @@ broken. Unknown keys now warn by name and list the known set. Verified firing (4
 block, no C#. The remaining engineering is small and named: `KitRow`/`KitTabStrip` selection
 declaration, meter end caps per tier, attachment sets by archetype, and the outline-polarity
 measurement from 41f.
+
+### Stage 47b — Phase G: two themes of one genre, authored in JSON (2026-07-31)
+
+#### The loader was disconnected
+
+`KitStyleJson` existed but **nothing called it**. A `kit` block in a `theme.json` parsed, validated,
+warned about typos — and reached nothing. Exactly the pattern that hid the font role for a whole
+stage: built, plausible, inert. Caught by auditing rather than by looking at a render.
+
+Wired: `ThemeDef.Kit` retains the raw block, `LoadTheme` parses it, and **`SetActiveSkin` publishes
+it** — clearing when a theme declares none, so switching to a plain theme drops the previous
+theme's style instead of inheriting it.
+
+#### And the payoff — the original complaint, answered
+
+Two **existing** citybuilder themes, given a `kit` block each from the art pass. **No C#.**
+
+```
+urban      shadow=Hard  outline=2.05  bar=0.06  font=Condensed  caps=True   slot=Border, Glow
+blueprint  shadow=None  outline=1.02  bar=0.50  font=Sans       caps=False  slot=Border
+eco (no kit block) -> shadow=Hard, built-in restored
+pack: PASS
+```
+
+`urban` is Township's carved stone (file 06): hard offset shadow, bright 2.05 rim, square bars,
+outlined condensed caps, glowing selection. `blueprint` is the flat-translucent/papery family
+(03, 04): no shadow at all, neutral outline, **full-pill** bars, plain letter-spaced sans.
+
+One genre. Two themes. They now share almost nothing — which is the whole thing:
+
+> The complaint was **"you're not distinguishing genre to genre"**. The answer turned out to be
+> that **genre never determined the look — the theme does, and the theme had nothing to say with.**
+> Nine axes later, it does.
+
+The `eco` row matters as much: a theme with no `kit` block reverts to the genre's built-in style
+rather than inheriting whatever the last theme published.
+
+#### Verified — ten gates
+
+| gate | result |
+|---|---|
+| `style_pack_probe` | **PASS** — two themes differ; no-kit theme reverts |
+| `poly_probe` | 105/105 · corner · mod · json · select · attach · font — PASS |
+| `measure_edgerun` · `measure_shadow` · `measure_material` | PASS · **10/10** · PASS |
+| `validate_scenes` · build | PASS · 0 errors |
+| 67 template scenes | 0 failures |
+
+#### The art-pass model, complete
+
+| axis | authorable in `theme.json` | gated |
+|---|---|---|
+| material (grain) | via genre table | `measure_material` |
+| shadow | ✅ `shadow` | `measure_shadow` |
+| outline polarity | ✅ `outline_shade` | *measurement open (41f)* |
+| corner per widget class | ✅ `corner_*` | `corner` |
+| shear · wobble | ✅ | `mod` |
+| typography | ✅ `font` `upper_case` `tracking` | `font` |
+| constructed frames | via genre table | `measure_edgerun` |
+| attachments | via widget | `attach` |
+| selection as a set | ✅ `select_*` | `select` |
+
+**Remaining**: `KitRow`/`KitTabStrip` selection declaration; meter end caps per tier; attachment
+sets by archetype; `edge_run` and `grain` as JSON keys (both still genre-table only); and the
+outline-polarity measurement.

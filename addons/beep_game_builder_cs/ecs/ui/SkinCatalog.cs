@@ -108,6 +108,15 @@ namespace Beep.ECS.UI
             ActiveTheme = theme ?? "";
             ActivePalette = palette ?? "";
             ActiveGeometry = geometry ?? "";
+
+            // Publish the theme's style axes. Without this the whole `kit` block is inert: it
+            // parses, it validates, and it reaches nothing -- which is how the font role behaved
+            // for a whole stage before the warning count gave it away. Cleared when the theme
+            // declares none, so switching to a plain theme drops the previous theme's style
+            // instead of inheriting it.
+            var def = string.IsNullOrEmpty(ActiveGenre) || string.IsNullOrEmpty(ActiveTheme)
+                ? null : GetTheme(ActiveGenre, ActiveTheme);
+            Kit.KitStyleJson.Set(ActiveGenre, def?.Kit);
         }
 
         private const string SkinsRoot = "res://addons/beep_game_builder_cs/catalogs/skins";
@@ -283,6 +292,11 @@ namespace Beep.ECS.UI
                 Category = Str(json, "category"),
                 Description = Str(json, "description")
             };
+
+            // The "kit" block: the style axes. Handed to KitStyleJson as-is rather than parsed
+            // here, so its schema lives with the code that consumes it.
+            if (json.TryGetValue("kit", out var kitVar) && kitVar.VariantType == Variant.Type.Dictionary)
+                theme.Kit = kitVar.AsGodotDictionary();
 
             // Parse colors block (22 hex strings → Color).
             if (json.TryGetValue("colors", out var colorsVar) && colorsVar.VariantType == Variant.Type.Dictionary)
@@ -861,6 +875,12 @@ namespace Beep.ECS.UI
         /// <summary>Per-node-type StyleBoxTexture specs from the "textures" block.
         /// Null when the theme ships without textures.</summary>
         public ThemeTextureSlots? Textures;
+
+        /// <summary>The raw "kit" block, if the theme declares one — the style axes
+        /// (shadow, outline polarity, corner, shear, font, selection). Kept as the raw
+        /// dictionary because <see cref="Kit.KitStyleJson"/> owns its schema and validates it,
+        /// including warning about keys this catalog would otherwise drop in silence.</summary>
+        public Godot.Collections.Dictionary? Kit;
     }
 
     /// <summary>Per-theme geometry template extracted from theme.json (replaces GetButtonNormal).</summary>

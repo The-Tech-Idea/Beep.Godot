@@ -499,5 +499,17 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "kit": {
+    "outline_shade": 1.02,
+    "shadow": "none",
+    "corner": 0.1,
+    "corner_panel": 0.08,
+    "corner_slot": 0.06,
+    "corner_bar": 0.5,
+    "font": "sans",
+    "upper_case": false,
+    "tracking": 0.06,
+    "select_slot": "border"
   }
 }

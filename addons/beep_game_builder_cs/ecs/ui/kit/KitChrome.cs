@@ -134,7 +134,8 @@ namespace Beep.ECS.UI.Kit
             => new(r.Position + new Vector2(by, by), r.Size - new Vector2(by * 2f, by * 2f));
 
         public static Vector2[] Poly(KitShape shape, Rect2 r, KitGeometry g)
-            => KitControl.OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner);
+            => KitControl.OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner,
+                                      g.Shear, g.Wobble);
 
         /// <summary>Shade may exceed 1.0 — the measured outer rim is 2.05× the plate — so
         /// brightening lifts toward white rather than clipping each channel, which would shift

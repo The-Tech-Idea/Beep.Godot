@@ -47,6 +47,35 @@ public partial class PolyProbe : Node
         }
         GD.Print($"corner: {(cornerBad == 0 ? "PASS" : $"FAIL ({cornerBad} genre(s) undifferentiated)")}");
 
+        // SHEAR and WOBBLE. Both are post-passes on the finished polygon, so the two things that
+        // can go wrong are: they do nothing (the value never reaches the geometry), or they
+        // produce a polygon Godot cannot triangulate -- which draws NOTHING and looks, from a
+        // screenshot, exactly like "the effect is subtle".
+        int modBad = 0;
+        foreach (var (genre, want) in new[] { ("racing", "shear"), ("shooter", "shear"),
+                                              ("puzzle", "wobble"), ("platformer", "wobble"),
+                                              ("rpg", "none") })
+        {
+            var g = KitGeometry.ForGenre(genre);
+            var rect = new Rect2(Vector2.Zero, new Vector2(300, 170));
+            float cut = 170f * g.Corner;
+            var plain = KitControl.OutlinePoly(KitShape.Round, rect, cut);
+            var mod = KitControl.OutlinePoly(KitShape.Round, rect, cut, g.Shear, g.Wobble);
+
+            float moved = 0f;
+            for (int i = 0; i < Mathf.Min(plain.Length, mod.Length); i++)
+                moved = Mathf.Max(moved, plain[i].DistanceTo(mod[i]));
+
+            bool triangulates = Geometry2D.TriangulatePolygon(mod).Length > 0;
+            bool expected = want != "none";
+            bool ok = triangulates && (expected ? moved > 1.0f : moved < 0.01f);
+            if (!ok) modBad++;
+            GD.Print($"mod:    {genre,-12} shear={g.Shear:0.00} wobble={g.Wobble:0.000} "
+                   + $"maxMove={moved:0.0}px tri={triangulates} want={want} {(ok ? "" : "<-- FAIL")}");
+        }
+        GD.Print($"mod:    {(modBad == 0 ? "PASS" : $"FAIL ({modBad})")}");
+        bad += modBad;
+
         GetTree().Quit(bad == 0 && cornerBad == 0 ? 0 : 1);
     }
 }

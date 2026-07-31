@@ -150,9 +150,52 @@ namespace Beep.ECS.UI.Kit
         /// paint the material past both round ends and square off the silhouette the outline
         /// work exists to create. Shared with <see cref="KitPushButton"/> so the two renderers
         /// clip to the same shape instead of drifting.</summary>
-        internal static Vector2[] OutlinePoly(KitShape shape, Rect2 r, float cut)
+        /// <summary>
+        /// Apply the theme's SHEAR and WOBBLE to a finished silhouette.
+        ///
+        /// Both are post-passes on the polygon rather than new shapes, so every silhouette gets
+        /// them for free and they compose: a sheared octagon and a wobbly pill both work. Applied
+        /// here, at the one place every polygon is produced, so no widget can miss them.
+        /// </summary>
+        internal static Vector2[] Modify(Vector2[] poly, Rect2 r, float shear, float wobble)
         {
-            if (Outline(shape, r, cut) is { } poly) return poly;
+            if (poly == null || poly.Length < 3) return poly;
+            if (shear <= 0.0001f && wobble <= 0.0001f) return poly;
+
+            float h = Mathf.Max(1f, r.Size.Y);
+            float amp = wobble * Mathf.Min(r.Size.X, r.Size.Y);
+            // Seeded from the rect's own size, exactly as Torn is: a wobble that reshuffles on
+            // every redraw reads as noise, not as a hand-drawn line.
+            uint seed = (uint)(Mathf.RoundToInt(r.Size.X) * 73856093 ^
+                               Mathf.RoundToInt(r.Size.Y) * 19349663);
+            float Next()
+            {
+                seed = seed * 1664525u + 1013904223u;
+                return ((seed >> 16) & 0xFF) / 255f - 0.5f;
+            }
+
+            var o = new Vector2[poly.Length];
+            for (int i = 0; i < poly.Length; i++)
+            {
+                Vector2 v = poly[i];
+                if (shear > 0.0001f)
+                {
+                    // Skew about the vertical centre so the widget stays put rather than
+                    // drifting sideways as it shears.
+                    float t = ((v.Y - r.Position.Y) / h) - 0.5f;
+                    v.X -= t * shear * h;
+                }
+                if (amp > 0.0001f)
+                    v += new Vector2(Next(), Next()) * amp * 2f;
+                o[i] = v;
+            }
+            return o;
+        }
+
+        internal static Vector2[] OutlinePoly(KitShape shape, Rect2 r, float cut,
+                                              float shear = 0f, float wobble = 0f)
+        {
+            if (Outline(shape, r, cut) is { } poly) return Modify(poly, r, shear, wobble);
             float rad = shape switch
             {
                 KitShape.Rect => 0f,
@@ -161,11 +204,11 @@ namespace Beep.ECS.UI.Kit
             };
             rad = Mathf.Min(rad, Mathf.Min(r.Size.X, r.Size.Y) * 0.5f);
             if (rad <= 0.5f)
-                return new[]
+                return Modify(new[]
                 {
                     r.Position, r.Position + new Vector2(r.Size.X, 0),
                     r.Position + r.Size, r.Position + new Vector2(0, r.Size.Y),
-                };
+                }, r, shear, wobble);
             const int seg = 6;
             var pts = new System.Collections.Generic.List<Vector2>(seg * 4 + 4);
             Vector2[] centres =
@@ -192,7 +235,7 @@ namespace Beep.ECS.UI.Kit
             }
             if (pts.Count > 1 && pts[0].DistanceSquaredTo(pts[^1]) < 0.02f)
                 pts.RemoveAt(pts.Count - 1);
-            return pts.ToArray();
+            return Modify(pts.ToArray(), r, shear, wobble);
         }
 
         internal static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
@@ -638,7 +681,7 @@ namespace Beep.ECS.UI.Kit
             Rect2 cur = r;
             // SHADOW FIRST, under everything -- see KitChrome.DrawPlate for why it is not a
             // member of the register's stack.
-            KitShadow.Draw(this, g.Shadow, OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner),
+            KitShadow.Draw(this, g.Shadow, OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner, g.Shear, g.Wobble),
                            r, KitShadow.UnitFor(r), face);
 
             foreach (var layer in KitStacks.For(g.Register))
@@ -710,7 +753,7 @@ namespace Beep.ECS.UI.Kit
                         // UNDER the lighting layers below, so gloss reads as sheen on the
                         // material rather than the material reading as dirt on the gloss.
                         KitGrain.Draw(this, _genre,
-                                      OutlinePoly(s, box, Mathf.Min(box.Size.X, box.Size.Y) * g.Corner),
+                                      OutlinePoly(s, box, Mathf.Min(box.Size.X, box.Size.Y) * g.Corner, g.Shear, g.Wobble),
                                       box, face, layer.Amount);
                         break;
                     case KitLayerKind.Shade: DrawFaceShade(box, s, layer.Amount); break;

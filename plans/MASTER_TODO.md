@@ -2459,3 +2459,59 @@ Proved by removing rpg's per-class values: `corner: rpg button=0.16 panel=0.16 s
 
 **Phase B remaining:** shear and wobble as corner modifiers, and the polarity *measurement* left
 open in Stage 41f (the kit side of polarity is done and proven).
+
+### Stage 42b — Phase B complete: shear and wobble (2026-07-31)
+
+The last two corner modifiers the art asks for, and the kit could express neither.
+
+**`KitGeometry.Shear`** — horizontal skew as a fraction of height. racing2 (file 08) builds its
+plates from **sheared ends**: the left and right edges are angled, not vertical. That is a border
+*shape*, and no amount of corner tuning produces it. Skewed about the vertical centre so the widget
+stays put rather than drifting sideways. racing **0.16**, shooter **0.09** (its title bands and tabs).
+
+**`KitGeometry.Wobble`** — per-vertex irregularity as a fraction of the short edge. The
+galaxy-space kit (file 12) draws deliberately **hand-drawn** outlines where no two corners match.
+Seeded from the widget's own size, exactly as `Torn` is: a wobble that reshuffles every frame reads
+as noise, not as a drawn line. puzzle **0.012**, platformer **0.008**.
+
+Both are **post-passes on the finished polygon** in `KitControl.Modify`, applied at the single place
+every polygon is produced — so every silhouette gets them free, they compose (a sheared octagon, a
+wobbly pill), and no widget can miss them.
+
+#### The check, with a negative control
+
+`poly_probe` asserts each declared modifier **actually moves the polygon** and that the result
+**still triangulates**. Both failure modes are silent otherwise: a value that never reaches the
+geometry does nothing, and a polygon Godot cannot triangulate draws *nothing* — which from a
+screenshot is indistinguishable from "the effect is subtle".
+
+```
+mod:  racing      shear=0.16 wobble=0.000  maxMove=13.6px  tri=True  want=shear
+mod:  shooter     shear=0.09 wobble=0.000  maxMove= 7.7px  tri=True  want=shear
+mod:  puzzle      shear=0.00 wobble=0.012  maxMove= 2.5px  tri=True  want=wobble
+mod:  platformer  shear=0.00 wobble=0.008  maxMove= 1.7px  tri=True  want=wobble
+mod:  rpg         shear=0.00 wobble=0.000  maxMove= 0.0px  tri=True  want=none
+mod:  PASS
+```
+
+The `rpg = none` row is a **negative control** — it would catch a modifier leaking into a genre that
+should not have one, which an all-positive check cannot.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner **PASS** · mod **PASS** |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` separation | PASS |
+| `validate_scenes` · build | PASS · 0 errors |
+| 67 template scenes | 0 failures, **0 `Invalid polygon`** |
+
+Inspected: racing and shooter render with visibly angled edges, puzzle's pill carries a subtle
+irregularity, rpg is untouched.
+
+**Phase B is complete** except the polarity *measurement* left open in Stage 41f — the kit side of
+polarity is done and proven by runtime instrumentation. **Next: Phase C — typography** (font family,
+weight, case, tracking), which needs CC0 fonts shipped and a gate that asserts every declared family
+actually resolves.

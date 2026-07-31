@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://examples/topdown_arena/Blip.cs" id="1_blip"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_coin"]
+radius = 15.0
+
+[node name="Coin" type="Area2D" groups=["coins"]]
+
+[node name="Body" type="Node2D" parent="."]
+script = ExtResource("1_blip")
+Radius = 9.0
+Tint = Color(0.98, 0.8, 0.29, 1)
+Bob = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_coin")

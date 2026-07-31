@@ -1,0 +1,63 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="1_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="2_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
+[ext_resource type="Script" path="res://examples/topdown_arena/PauseScreen.cs" id="4_pause"]
+
+[node name="Pause" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_pause")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.08, 0.55)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="Control" parent="Center"]
+custom_minimum_size = Vector2(400, 220)
+script = ExtResource("1_panel")
+Title = "PAUSED"
+
+[node name="Box" type="VBoxContainer" parent="Center/Card"]
+offset_left = 30.0
+offset_top = 56.0
+offset_right = 370.0
+offset_bottom = 200.0
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ResumeButton" type="Button" parent="Center/Card/Box"]
+custom_minimum_size = Vector2(200, 46)
+size_flags_horizontal = 4
+text = "RESUME"
+script = ExtResource("2_button")
+
+[node name="RestartButton" type="Button" parent="Center/Card/Box"]
+custom_minimum_size = Vector2(200, 46)
+size_flags_horizontal = 4
+text = "RESTART"
+script = ExtResource("2_button")
+
+[node name="MenuButton" type="Button" parent="Center/Card/Box"]
+custom_minimum_size = Vector2(200, 46)
+size_flags_horizontal = 4
+text = "MAIN MENU"
+script = ExtResource("2_button")
+
+[node name="Theme" type="Node" parent="Center/Card"]
+script = ExtResource("3_theme")

@@ -1,0 +1,165 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://examples/style_showcase/StyleShowcase.cs" id="1_show"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="2_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="3_push"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs" id="4_check"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckButton.cs" id="5_toggle"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitSliderBar.cs" id="6_slider"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="7_option"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="8_meter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="9_theme"]
+
+[node name="StyleShowcase" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_show")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09, 0.1, 0.13, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 22
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 16
+
+[node name="Header" type="VBoxContainer" parent="Margin/Root"]
+
+[node name="TitleLabel" type="Label" parent="Margin/Root/Header"]
+text = "BEEP GAME UI KIT — STYLE SYSTEM"
+theme_type_variation = &"BeepTitle"
+
+[node name="SubLabel" type="Label" parent="Margin/Root/Header"]
+text = "10 genres x 5 themes. Every axis on the right is declared in theme.json — zero C#."
+theme_type_variation = &"BeepCaption"
+
+[node name="Pickers" type="HBoxContainer" parent="Margin/Root"]
+theme_override_constants/separation = 14
+
+[node name="GenreLabel" type="Label" parent="Margin/Root/Pickers"]
+text = "GENRE"
+theme_type_variation = &"BeepCaption"
+
+[node name="GenrePicker" type="OptionButton" parent="Margin/Root/Pickers"]
+script = ExtResource("7_option")
+custom_minimum_size = Vector2(200, 44)
+
+[node name="ThemeLabel" type="Label" parent="Margin/Root/Pickers"]
+text = "THEME"
+theme_type_variation = &"BeepCaption"
+
+[node name="ThemePicker" type="OptionButton" parent="Margin/Root/Pickers"]
+script = ExtResource("7_option")
+custom_minimum_size = Vector2(200, 44)
+
+[node name="Body" type="HBoxContainer" parent="Margin/Root"]
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="WidgetPanel" type="Control" parent="Margin/Root/Body"]
+script = ExtResource("2_panel")
+custom_minimum_size = Vector2(420, 0)
+size_flags_vertical = 3
+Title = "WIDGETS"
+
+[node name="WidgetPad" type="MarginContainer" parent="Margin/Root/Body/WidgetPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 60
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 26
+
+[node name="WidgetBox" type="VBoxContainer" parent="Margin/Root/Body/WidgetPanel/WidgetPad"]
+theme_override_constants/separation = 12
+
+[node name="PlayButton" type="Button" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("3_push")
+text = "START GAME"
+custom_minimum_size = Vector2(0, 50)
+
+[node name="SoundCheck" type="CheckBox" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("4_check")
+text = "Sound effects"
+button_pressed = true
+
+[node name="MusicToggle" type="CheckButton" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("5_toggle")
+text = "Music"
+button_pressed = true
+
+[node name="VolumeLabel" type="Label" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+text = "VOLUME"
+theme_type_variation = &"BeepCaption"
+
+[node name="VolumeSlider" type="HSlider" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("6_slider")
+custom_minimum_size = Vector2(0, 28)
+value = 70.0
+
+[node name="DifficultyLabel" type="Label" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+text = "DIFFICULTY"
+theme_type_variation = &"BeepCaption"
+
+[node name="DifficultyPicker" type="OptionButton" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("7_option")
+custom_minimum_size = Vector2(0, 44)
+
+[node name="HealthLabel" type="Label" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+text = "HEALTH"
+theme_type_variation = &"BeepCaption"
+
+[node name="HealthMeter" type="Control" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+script = ExtResource("8_meter")
+custom_minimum_size = Vector2(0, 24)
+Value = 0.72
+
+[node name="WidgetTheme" type="Node" parent="Margin/Root/Body/WidgetPanel"]
+script = ExtResource("9_theme")
+
+[node name="AxisPanel" type="Control" parent="Margin/Root/Body"]
+script = ExtResource("2_panel")
+size_flags_horizontal = 3
+size_flags_vertical = 3
+Title = "WHAT THIS THEME DECLARES"
+ShowWell = false
+
+[node name="AxisPad" type="MarginContainer" parent="Margin/Root/Body/AxisPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 60
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 22
+
+[node name="AxisScroll" type="ScrollContainer" parent="Margin/Root/Body/AxisPanel/AxisPad"]
+
+[node name="AxisList" type="VBoxContainer" parent="Margin/Root/Body/AxisPanel/AxisPad/AxisScroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="AxisTheme" type="Node" parent="Margin/Root/Body/AxisPanel"]
+script = ExtResource("9_theme")

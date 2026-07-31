@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://examples/topdown_arena/Blip.cs" id="1_blip"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/AIController.cs" id="2_ai"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy"]
+radius = 13.0
+
+[node name="Enemy" type="CharacterBody2D" groups=["enemies"]]
+
+[node name="Body" type="Node2D" parent="."]
+script = ExtResource("1_blip")
+Radius = 13.0
+Tint = Color(0.9, 0.35, 0.33, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_enemy")
+
+[node name="AI" type="Node" parent="."]
+script = ExtResource("2_ai")
+Mode = 2
+Speed = 118.0
+DetectionRange = 420.0
+AttackRange = 26.0
+TargetGroup = "players"

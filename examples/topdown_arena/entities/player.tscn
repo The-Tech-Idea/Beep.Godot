@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://examples/topdown_arena/Blip.cs" id="1_blip"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="2_ctrl"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="3_health"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 14.0
+
+[node name="Player" type="CharacterBody2D" groups=["players"]]
+
+[node name="Body" type="Node2D" parent="."]
+script = ExtResource("1_blip")
+Radius = 14.0
+Tint = Color(0.36, 0.78, 0.98, 1)
+Ring = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_player")
+
+[node name="Movement" type="Node" parent="."]
+script = ExtResource("2_ctrl")
+Speed = 235.0
+Acceleration = 1800.0
+Friction = 1400.0
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("3_health")
+MaxHealth = 100.0
+CurrentHealth = 100.0
+TemperatureAffectsHealth = false
+HungerAffectsHealth = false
+
+[node name="Camera" type="Camera2D" parent="."]
+position_smoothing_enabled = true
+position_smoothing_speed = 9.0
+limit_left = 0
+limit_top = 0
+limit_right = 1280
+limit_bottom = 800

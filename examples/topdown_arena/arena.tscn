@@ -1,0 +1,169 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://examples/topdown_arena/ArenaGame.cs" id="1_game"]
+[ext_resource type="Script" path="res://examples/topdown_arena/ArenaWall.cs" id="2_wall"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/entities/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/entities/enemy.tscn" id="4_enemy"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/entities/coin.tscn" id="5_coin"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/ui/hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/ui/pause.tscn" id="7_pause"]
+[ext_resource type="PackedScene" path="res://examples/topdown_arena/ui/result.tscn" id="8_result"]
+
+[node name="Arena" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 800.0
+color = Color(0.145, 0.16, 0.2, 1)
+mouse_filter = 2
+
+[node name="Walls" type="Node2D" parent="."]
+
+[node name="Wall0" type="StaticBody2D" parent="Walls"]
+position = Vector2(640, 14)
+script = ExtResource("2_wall")
+Size = Vector2(1280, 28)
+
+[node name="Wall1" type="StaticBody2D" parent="Walls"]
+position = Vector2(640, 786)
+script = ExtResource("2_wall")
+Size = Vector2(1280, 28)
+
+[node name="Wall2" type="StaticBody2D" parent="Walls"]
+position = Vector2(14, 400)
+script = ExtResource("2_wall")
+Size = Vector2(28, 800)
+
+[node name="Wall3" type="StaticBody2D" parent="Walls"]
+position = Vector2(1266, 400)
+script = ExtResource("2_wall")
+Size = Vector2(28, 800)
+
+[node name="Wall4" type="StaticBody2D" parent="Walls"]
+position = Vector2(250, 180)
+script = ExtResource("2_wall")
+Size = Vector2(140, 90)
+
+[node name="Wall5" type="StaticBody2D" parent="Walls"]
+position = Vector2(560, 150)
+script = ExtResource("2_wall")
+Size = Vector2(110, 120)
+
+[node name="Wall6" type="StaticBody2D" parent="Walls"]
+position = Vector2(900, 200)
+script = ExtResource("2_wall")
+Size = Vector2(160, 80)
+
+[node name="Wall7" type="StaticBody2D" parent="Walls"]
+position = Vector2(1080, 420)
+script = ExtResource("2_wall")
+Size = Vector2(90, 180)
+
+[node name="Wall8" type="StaticBody2D" parent="Walls"]
+position = Vector2(450, 400)
+script = ExtResource("2_wall")
+Size = Vector2(110, 120)
+
+[node name="Wall9" type="StaticBody2D" parent="Walls"]
+position = Vector2(840, 400)
+script = ExtResource("2_wall")
+Size = Vector2(110, 120)
+
+[node name="Wall10" type="StaticBody2D" parent="Walls"]
+position = Vector2(330, 560)
+script = ExtResource("2_wall")
+Size = Vector2(150, 100)
+
+[node name="Wall11" type="StaticBody2D" parent="Walls"]
+position = Vector2(640, 670)
+script = ExtResource("2_wall")
+Size = Vector2(200, 80)
+
+[node name="Wall12" type="StaticBody2D" parent="Walls"]
+position = Vector2(980, 650)
+script = ExtResource("2_wall")
+Size = Vector2(110, 110)
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(640, 400)
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+position = Vector2(640, 400)
+
+[node name="Coins" type="Node2D" parent="."]
+
+[node name="Coin0" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(120, 110)
+
+[node name="Coin1" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(420, 110)
+
+[node name="Coin2" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(760, 110)
+
+[node name="Coin3" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(1160, 120)
+
+[node name="Coin4" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(130, 330)
+
+[node name="Coin5" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(500, 300)
+
+[node name="Coin6" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(880, 300)
+
+[node name="Coin7" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(1180, 300)
+
+[node name="Coin8" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(140, 600)
+
+[node name="Coin9" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(480, 500)
+
+[node name="Coin10" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(830, 510)
+
+[node name="Coin11" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(1180, 560)
+
+[node name="Coin12" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(300, 720)
+
+[node name="Coin13" parent="Coins" instance=ExtResource("5_coin")]
+position = Vector2(900, 760)
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Enemy0" parent="Enemies" instance=ExtResource("4_enemy")]
+position = Vector2(110, 250)
+
+[node name="Enemy1" parent="Enemies" instance=ExtResource("4_enemy")]
+position = Vector2(1180, 180)
+
+[node name="Enemy2" parent="Enemies" instance=ExtResource("4_enemy")]
+position = Vector2(200, 700)
+
+[node name="Enemy3" parent="Enemies" instance=ExtResource("4_enemy")]
+position = Vector2(1120, 720)
+
+[node name="Enemy4" parent="Enemies" instance=ExtResource("4_enemy")]
+position = Vector2(640, 120)
+
+[node name="HudLayer" type="CanvasLayer" parent="."]
+
+[node name="Hud" parent="HudLayer" instance=ExtResource("6_hud")]
+
+[node name="PauseLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+
+[node name="Pause" parent="PauseLayer" instance=ExtResource("7_pause")]
+visible = false
+
+[node name="ResultLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+
+[node name="Result" parent="ResultLayer" instance=ExtResource("8_result")]
+visible = false

@@ -2732,3 +2732,55 @@ genuinely remains for attachments:
 `measure_edgerun` **PASS** · `poly_probe` 105/105 + corner/mod/font PASS · `measure_shadow`
 **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation PASS · `validate_scenes`
 PASS · build 0 errors · 67 scenes, 0 failures.
+
+### Stage 45b — Phase E: the primitive was already there, and is now gated (2026-07-31)
+
+Following my own new rule — instrument before concluding — I checked what `KitAttach` actually
+produces before adding the placements the plan listed as missing. **All of them already work.**
+
+`KitAttach` has 11 anchors and an `Overhang` field; `MiddleLeft` + `Overhang 0.5` **is** `CapLeft`.
+Verified by asserting the resolved rect leaves the host:
+
+```
+attach: CapLeft       rect=(-24,61)-(24,109)    host=300x170   overhangs
+attach: CapRight      rect=(276,61)-(324,109)                  overhangs
+attach: MedallionTop  rect=(126,-24)-(174,24)                  overhangs
+attach: CornerFlag    rect=(276,-24)-(324,24)                  overhangs
+attach: Hanger        rect=(126,170)-(174,218)                 overhangs
+attach: PASS
+```
+
+The check exists because the failure is silent: if `Resolve()` ever returns a rect wholly **inside**
+the host, the primitive has degraded to ordinary layout and every "overhanging" medallion in the kit
+is just a child — which looks fine until you compare it with the reference.
+
+#### Phase E, re-scoped honestly
+
+| item | status |
+|---|---|
+| Header plaque overhanging the top | **already built** (Stage 45) |
+| `CapLeft` / `CapRight` / `MedallionTop` / `CornerFlag` / `Hanger` | **already built**, now gated |
+| `KitMeter`'s overhanging icon cap | already uses `KitAttach` |
+| Meter **end caps per tier** (file 11) | genuinely missing — content, not primitive |
+| Attachment **sets by screen archetype** (crown/helm/gear) | genuinely missing — content |
+
+So Phase E is **two content items**, not eight primitives. The plan over-scoped it because I wrote
+it from the art without checking what the kit already had — the same error as the banner.
+
+**Three times this turn** I have found something already built that the plan called missing
+(banner position, banner shapes, attachment placements). The art pass was accurate about the
+*references*; it was written without auditing the *code*, and the two drifted.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner PASS · mod PASS · **attach PASS** · font PASS |
+| `measure_edgerun` | **EDGERUN PASS** |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `validate_scenes` · build | PASS · 0 errors |
+| 67 template scenes | 0 failures |
+
+**Seven gates green.** Remaining real work: meter end caps per tier, attachment sets by archetype,
+selection as a set (F), style packs (G), and the outline-polarity measurement from 41f.

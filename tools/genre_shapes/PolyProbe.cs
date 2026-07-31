@@ -95,6 +95,31 @@ public partial class PolyProbe : Node
                    + $"track={g.Tracking:0.00} "
                    + $"{(has ? (onDisk ? "shipped" : "MISSING FILE") : "NO CC0 FACE -> warns")}");
         }
+        // ATTACHMENTS. The whole point of KitAttach is that a sub-element may cross its host's
+        // edge -- the move containers cannot make. If Resolve() returns a rect wholly INSIDE the
+        // host, the primitive has silently degraded to ordinary layout and every "overhanging"
+        // medallion in the kit is just a child.
+        int attBad = 0;
+        var host = new Vector2(300, 170);
+        foreach (var (anchor, label) in new[]
+                 {
+                     (KitAnchor.MiddleLeft, "CapLeft"), (KitAnchor.MiddleRight, "CapRight"),
+                     (KitAnchor.TopCentre, "MedallionTop"), (KitAnchor.TopRight, "CornerFlag"),
+                     (KitAnchor.Below, "Hanger"),
+                 })
+        {
+            var a = new KitAttach { Anchor = anchor, Size = new Vector2(48, 48), Overhang = 0.5f };
+            Rect2 r = a.Resolve(host);
+            bool outside = r.Position.X < -0.5f || r.Position.Y < -0.5f
+                        || r.End.X > host.X + 0.5f || r.End.Y > host.Y + 0.5f;
+            if (!outside) attBad++;
+            GD.Print($"attach: {label,-13} rect=({r.Position.X:0},{r.Position.Y:0})"
+                   + $"-({r.End.X:0},{r.End.Y:0}) host={host.X:0}x{host.Y:0} "
+                   + $"{(outside ? "overhangs" : "<-- INSIDE, not an attachment")}");
+        }
+        GD.Print($"attach: {(attBad == 0 ? "PASS" : $"FAIL ({attBad} anchor(s) do not overhang)")}");
+        bad += attBad;
+
         GD.Print($"font:   {(fontBad == 0 ? "PASS" : $"FAIL ({fontBad} missing file(s))")}"
                + $"  ({uncovered} genre(s) declare a role with no shipped face -- expected, warns at runtime)");
         bad += fontBad;

@@ -81,6 +81,7 @@ namespace Beep.ECS.UI.Kit
             g.PixelSize = F(k, "pixel_size", g.PixelSize);
             if (k.ContainsKey("register"))
                 g.Register = Enum<KitRegister>(k["register"].AsString(), genre, "register") ?? g.Register;
+            if (k.ContainsKey("edge_run")) g.EdgeRun = EdgeRunFrom(k["edge_run"], genre);
             if (k.ContainsKey("gloss_style"))
                 g.GlossStyle = Enum<KitGloss>(k["gloss_style"].AsString(), genre, "gloss_style") ?? g.GlossStyle;
             if (k.ContainsKey("shadow"))
@@ -103,7 +104,7 @@ namespace Beep.ECS.UI.Kit
             "outline_shade", "corner", "corner_panel", "corner_slot", "corner_bar", "corner_chip",
             "shear", "wobble", "tracking", "upper_case", "shadow", "font",
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
-            "grain", "grain_amount", "grain_tiles", "register", "pixel_size", "gloss_style",
+            "grain", "grain_amount", "grain_tiles", "register", "pixel_size", "gloss_style", "edge_run",
         };
 
         /// <summary>
@@ -132,6 +133,81 @@ namespace Beep.ECS.UI.Kit
 
         private static bool B(Godot.Collections.Dictionary k, string key, bool fallback)
             => k.ContainsKey(key) ? k[key].AsBool() : fallback;
+
+        /// <summary>
+        /// `edge_run` — the last axis that was C#-only.
+        ///
+        /// Two forms, because they answer different questions:
+        ///   "edge_run": "scifi"   the built-in run read off art-pass files 14 and 43
+        ///   "edge_run": "none"    explicitly no run, so a theme can REMOVE the genre's
+        ///   "edge_run": { "top": [ { "start": 0, "length": 0.34, "weight": 2.6,
+        ///                            "fill": "block" }, ... ], "right": [...] }
+        ///
+        /// An omitted edge inherits nothing and simply has no run, which is the degenerate case
+        /// the renderer already treats as a plain rectangle. Positions are FRACTIONS of the edge's
+        /// length, so a run is independent of widget size — the same reason everything else moved
+        /// onto the unit.
+        /// </summary>
+        private static KitEdgeRun? EdgeRunFrom(Variant v, string genre)
+        {
+            if (v.VariantType == Variant.Type.String)
+            {
+                string name = v.AsString().ToLowerInvariant();
+                if (name is "none" or "") return null;
+                if (name is "scifi" or "sci_fi" or "sci-fi") return KitEdgeRun.SciFi();
+                return Unknown<KitEdgeRun>(v.AsString(), genre, "edge_run");
+            }
+            if (v.VariantType != Variant.Type.Dictionary)
+                return Unknown<KitEdgeRun>(v.ToString(), genre, "edge_run");
+
+            var d = v.AsGodotDictionary();
+            var run = new KitEdgeRun
+            {
+                Top = Segs(d, "top", genre),
+                Right = Segs(d, "right", genre),
+                Bottom = Segs(d, "bottom", genre),
+                Left = Segs(d, "left", genre),
+            };
+            foreach (var key in d.Keys)
+            {
+                string name = key.AsString();
+                if (name is "top" or "right" or "bottom" or "left") continue;
+                if (_warned.Add($"{genre}/edge_run/{name}"))
+                    GD.PushWarning($"[KitStyleJson] genre '{genre}' declares edge_run.{name}, "
+                                 + "which is not an edge. Known: top, right, bottom, left.");
+            }
+            // A run with nothing drawn on any edge is almost certainly a mistake -- and it renders
+            // identically to declaring no run at all, which is exactly the silence this repo keeps
+            // paying for.
+            if (run.SegmentCount == 0 && _warned.Add($"{genre}/edge_run/empty"))
+                GD.PushWarning($"[KitStyleJson] genre '{genre}' declares an edge_run with no "
+                             + "segments on any edge, so it draws nothing -- identical to having "
+                             + "declared none. Did the edge keys get misspelled?");
+            return run;
+        }
+
+        private static KitEdgeSeg[] Segs(Godot.Collections.Dictionary d, string edge, string genre)
+        {
+            if (!d.ContainsKey(edge)) return System.Array.Empty<KitEdgeSeg>();
+            var arr = d[edge].AsGodotArray();
+            var list = new List<KitEdgeSeg>();
+            foreach (var item in arr)
+            {
+                if (item.VariantType != Variant.Type.Dictionary)
+                {
+                    Unknown<object>(item.ToString(), genre, $"edge_run.{edge}");
+                    continue;
+                }
+                var seg = item.AsGodotDictionary();
+                var fill = KitSegFill.Solid;
+                if (seg.ContainsKey("fill"))
+                    fill = Enum<KitSegFill>(seg["fill"].AsString(), genre, $"edge_run.{edge}.fill")
+                           ?? KitSegFill.Solid;
+                list.Add(new KitEdgeSeg(
+                    F(seg, "start", 0f), F(seg, "length", 1f), F(seg, "weight", 1f), fill));
+            }
+            return list.ToArray();
+        }
 
         private static KitShadowDef? ShadowFrom(string s, string genre) => s.ToLowerInvariant() switch
         {

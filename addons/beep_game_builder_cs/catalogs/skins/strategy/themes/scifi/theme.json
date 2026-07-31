@@ -502,13 +502,13 @@
   },
   "_kit_note": "a sheared technical theme inside a carved genre",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 1.9,
-      "shear": 0.08,
-      "tracking": 0.12,
-      "corner_bar": 0.02,
-      "grain": "pattern_37",
-      "grain_amount": 0.18
+    "shadow": "glow",
+    "outline_shade": 1.9,
+    "shear": 0.08,
+    "tracking": 0.12,
+    "corner_bar": 0.02,
+    "grain": "pattern_37",
+    "grain_amount": 0.18,
+    "edge_run": "scifi"
   }
 }

@@ -3328,3 +3328,65 @@ has been shown to fail**.
 **Remaining from the plan** (none of it structural): engraved/debossed text, meter end caps per
 tier, attachment sets by screen archetype, ghosted empty state, comparison delta chips, `edge_run`
 as a JSON schema, and the outline-polarity measurement from 41f.
+
+### Stage 52 — `edge_run` in JSON: the last axis becomes theme-authorable (2026-07-31)
+
+Every other style axis moved into `theme.json` in Stages 47–51. `edge_run` stayed behind because it
+is a **nested run-list per edge**, not a scalar — it needed a schema rather than a key.
+
+```json
+"edge_run": "scifi"                    // the built-in, read off art-pass files 14 and 43
+"edge_run": "none"                     // REMOVE a run the genre declares in C#
+"edge_run": { "top": [ { "start": 0.0, "length": 0.62, "weight": 1.0 },
+                       { "start": 0.62, "length": 0.38, "weight": 2.4, "fill": "block" } ],
+              "right": [ ... ], "bottom": [ ... ], "left": [ ... ] }
+```
+
+Positions are **fractions of the edge's length**, so a run is independent of widget size — the same
+reason everything else moved onto the unit in Stage 50.
+
+Authored in all three directions, because each proves something different:
+
+| theme | form | proves |
+|---|---|---|
+| `strategy/scifi` | `"scifi"` | the named built-in resolves |
+| `shooter/space` | hand-written, 9 segments / 7 drawn | the schema parses |
+| `racing/street` | `"none"` | the key can **remove** what the genre declares in C# |
+
+The third is the one that matters most: without it the key could be agreeing with whatever the
+genre already said and look like it worked.
+
+#### Two warnings, both fail-tested
+
+- a misspelled **edge** — `botom` → *"which is not an edge. Known: top, right, bottom, left."*
+- a misspelled **fill** — `tickz` → *"is not a recognised value"*
+- and an `edge_run` that parses but declares **no segments on any edge** warns too: it renders
+  identically to declaring none, which is precisely the silence this repo keeps paying for.
+
+Removing the parser line entirely: `authored=0 builtin=0 cleared=0` → **FAIL (3)**.
+
+#### One self-inflicted wound worth recording
+
+`git checkout <file>` to undo the fail-test's edit restored from the **index** — which reverted the
+hand-authored run I had written but never staged. Nothing was lost that could not be retyped, but
+the lesson generalises: **`git checkout` is not "undo my last edit", it is "discard everything not
+staged"**, and a fail-test that edits a file I have uncommitted work in needs a real backup
+(`cp`), which is what the C# fail-tests already use.
+
+#### Ten gates, all green, all fail-tested
+
+| gate | result |
+|---|---|
+| `poly` (+ corner · mod · json · select · attach · font) | 105/105 PASS |
+| `style_sweep` · `style_pack` | PASS · PASS |
+| `PIXEL` · `GLOSS` · `MATERIAL` · `EDGERUN` · `SHADOW` | PASS · PASS · PASS · PASS · **PASS 10/10** |
+| `validate_scenes` · build | PASS · 0 errors |
+
+**The style system is closed.** Every axis the art pass identified — material, shadow, outline
+polarity, corner per widget class, shear, wobble, typography, constructed frames, selection cues,
+register, gloss construction, pixel grid — is now declarable in `theme.json` with **zero C#**, and
+every one has a gate that has been shown to fail.
+
+**Remaining, all additive:** engraved/debossed text, meter end caps per tier, attachment sets by
+screen archetype, ghosted empty state, comparison delta chips, and the outline-polarity
+*measurement* from 41f (the kit side is proven; the gate cannot certify it).

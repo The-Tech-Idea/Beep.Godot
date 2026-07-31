@@ -2,7 +2,7 @@
   "id": "space",
   "display_name": "Space",
   "category": "SciFi",
-  "description": "Deep void / cosmic UI — near-black surface, star white text, nebula purple accent, outer glow shadow",
+  "description": "Deep void / cosmic UI \u2014 near-black surface, star white text, nebula purple accent, outer glow shadow",
   "colors": {
     "surface_primary": "#05050FFF",
     "surface_hover": "#0A0A1FFF",
@@ -502,13 +502,73 @@
   },
   "_kit_note": "art 09: hairline dark, mono, pill bars",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 1.95,
-      "font": "mono",
-      "tracking": 0.1,
-      "corner_bar": 0.5,
-      "shear": 0.04,
-      "grain_amount": 0.06
+    "shadow": "none",
+    "outline_shade": 1.95,
+    "font": "mono",
+    "tracking": 0.1,
+    "corner_bar": 0.5,
+    "shear": 0.04,
+    "grain_amount": 0.06,
+    "edge_run": {
+      "top": [
+        {
+          "start": 0.0,
+          "length": 0.62,
+          "weight": 1.0
+        },
+        {
+          "start": 0.62,
+          "length": 0.38,
+          "weight": 2.4,
+          "fill": "block"
+        }
+      ],
+      "right": [
+        {
+          "start": 0.0,
+          "length": 0.4,
+          "weight": 1.0,
+          "fill": "ticks"
+        },
+        {
+          "start": 0.4,
+          "length": 0.6,
+          "weight": 1.0
+        }
+      ],
+      "bottom": [
+        {
+          "start": 0.0,
+          "length": 0.28,
+          "weight": 1.0
+        },
+        {
+          "start": 0.28,
+          "length": 0.22,
+          "weight": 1.0,
+          "fill": "gap"
+        },
+        {
+          "start": 0.5,
+          "length": 0.5,
+          "weight": 1.0,
+          "fill": "hatch"
+        }
+      ],
+      "left": [
+        {
+          "start": 0.0,
+          "length": 0.3,
+          "weight": 2.4,
+          "fill": "block"
+        },
+        {
+          "start": 0.3,
+          "length": 0.7,
+          "weight": 1.0,
+          "fill": "gap"
+        }
+      ]
+    }
   }
 }

@@ -499,5 +499,16 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "glossy leaf, round",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 1.5,
+      "font": "rounded",
+      "corner": 0.22,
+      "corner_panel": 0.2,
+      "grain": "pattern_19",
+      "grain_amount": 0.22
   }
 }

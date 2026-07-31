@@ -499,5 +499,14 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "art 43: sheared, glowing, wide tracking",
+  "kit": {
+  
+      "shadow": "glow",
+      "outline_shade": 2.05,
+      "tracking": 0.18,
+      "shear": 0.14,
+      "select_panel": "glow|border"
   }
 }

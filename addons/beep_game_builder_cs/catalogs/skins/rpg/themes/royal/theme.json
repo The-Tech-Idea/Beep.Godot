@@ -499,5 +499,16 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "ornate plus caps plus every selection cue",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 2.05,
+      "font": "serif",
+      "upper_case": true,
+      "grain": "pattern_78",
+      "grain_amount": 0.15,
+      "select_slot": "glow|border|lift"
   }
 }

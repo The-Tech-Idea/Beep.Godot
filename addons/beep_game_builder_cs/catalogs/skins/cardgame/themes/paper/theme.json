@@ -499,5 +499,17 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "papery family (art 04): fine sheet, typewriter",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 1.02,
+      "font": "mono",
+      "tracking": 0.04,
+      "corner_bar": 0.5,
+      "grain": "pattern_41",
+      "grain_amount": 0.09,
+      "grain_tiles": 7
   }
 }

@@ -499,5 +499,18 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "scavenged plate, tight corners",
+  "kit": {
+  
+      "shadow": "hard",
+      "outline_shade": 1.1,
+      "font": "condensed",
+      "upper_case": true,
+      "corner": 0.04,
+      "corner_panel": 0.03,
+      "grain": "pattern_08",
+      "grain_amount": 0.28,
+      "grain_tiles": 5
   }
 }

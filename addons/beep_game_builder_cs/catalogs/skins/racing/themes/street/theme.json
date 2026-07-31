@@ -499,5 +499,17 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "dark asphalt, low shear, lower case",
+  "kit": {
+  
+      "shadow": "hard",
+      "outline_shade": 0.9,
+      "shear": 0.06,
+      "font": "sans",
+      "upper_case": false,
+      "grain": "pattern_08",
+      "grain_amount": 0.2,
+      "grain_tiles": 7
   }
 }

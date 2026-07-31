@@ -499,5 +499,19 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "neon: glow as the depth mechanism",
+  "kit": {
+  
+      "shadow": "glow",
+      "outline_shade": 1.95,
+      "font": "condensed",
+      "upper_case": true,
+      "tracking": 0.12,
+      "corner_bar": 0.5,
+      "wobble": 0.0,
+      "grain": "pattern_37",
+      "grain_amount": 0.14,
+      "select_button": "glow|underline"
   }
 }

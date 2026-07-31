@@ -499,5 +499,15 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "brushed metal, hard offset",
+  "kit": {
+  
+      "shadow": "hard",
+      "outline_shade": 1.9,
+      "font": "heavy",
+      "tracking": 0.06,
+      "grain": "pattern_37",
+      "grain_amount": 0.22
   }
 }

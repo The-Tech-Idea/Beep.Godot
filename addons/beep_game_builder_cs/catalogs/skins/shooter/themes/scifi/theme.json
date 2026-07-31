@@ -499,5 +499,14 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "the sci-fi sheet at full strength",
+  "kit": {
+  
+      "shadow": "glow",
+      "outline_shade": 1.95,
+      "tracking": 0.14,
+      "grain": "pattern_37",
+      "grain_amount": 0.16
   }
 }

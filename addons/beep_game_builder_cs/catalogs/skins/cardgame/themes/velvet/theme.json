@@ -499,5 +499,15 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "deep nap, thick dark outline",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 0.14,
+      "corner_panel": 0.3,
+      "grain": "pattern_57",
+      "grain_amount": 0.3,
+      "grain_tiles": 4
   }
 }

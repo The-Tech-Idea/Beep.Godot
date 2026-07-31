@@ -3055,3 +3055,69 @@ PASS · material self-test PASS (colour drift 1.0%, scale drift 2.8%) · build 0
 
 **`edge_run` is now the only axis with no JSON key.** It is a nested run-list per edge rather than a
 scalar, so it needs a schema rather than a key — the remaining item on this axis.
+
+### Stage 48 — Phase G complete: all 50 themes authored (2026-07-31)
+
+48 `kit` blocks written into the remaining themes, from `tools/genre_shapes/author_style_packs.py`.
+Every entry names the reference family it comes from, so the table is a **register assignment**,
+not a taste call. **Zero C# per theme.**
+
+#### The sweep — the gate that actually matters here
+
+Authoring 50 blocks is worthless if they collapse to a handful of looks, or if one is inert from a
+typo. Both fail the same way: the dropdown works, the scene renders, and two entries just happen to
+look alike — the exact complaint this effort exists to answer. So `StyleSweepProbe` measures it:
+
+```
+cardgame 5/5 · citybuilder 5/5 · platformer 5/5 · puzzle 5/5 · racing 5/5
+rpg 5/5 · shooter 5/5 · strategy 5/5 · survival 5/5 · topdown 5/5   distinct
+
+shadow kinds used  5/5  (Glow, Soft, Hard, None, Extrude)
+font roles used    8    (Heavy, Rounded, Mono, Sans, Condensed, Pixel, Blackletter, Serif)
+materials used     9
+distinct styles    50/50 across the catalog
+KitStyleJson warnings: 0
+sweep: PASS
+```
+
+Distinctness alone would pass for 50 near-clones differing in the third decimal, so **coverage is
+asserted too**: every shadow kind, ≥6 font roles, ≥6 materials.
+
+#### Three fail-tests
+
+| injected defect | gate |
+|---|---|
+| clone `puzzle/modern` from `puzzle/japan` | `IDENTICAL to japan` · `puzzle 4/5` · FAIL |
+| misspell a key (`corner_pannel`) | `not a key this block understands, so it is doing nothing` |
+| misspell a value (`shadow: hardd`) | `not a recognised value ... this key is doing nothing` |
+
+#### And the authoring broke a gate's meaning
+
+`style_pack_probe` asserted "a theme with no `kit` block reverts to the built-in" — riding on
+`citybuilder/eco`, which had none. **Phase G gave eco one**, so the check silently changed meaning
+and reported `LEAKED` for a theme that was correctly applying its own new shadow. The code was
+right; the assertion had gone stale under it.
+
+> A gate whose fixture the work itself invalidates does not fail loudly — it fails *plausibly*,
+> and the first instinct is to go fix the code. Worth remembering: **check what a failing gate is
+> actually asserting before believing it.**
+
+Re-anchored to `KitStyleJson.Set(genre, null)` — the exact call `SetActiveSkin` makes for a theme
+with no block, which no amount of authoring can invalidate. Fail-tested by removing the cache
+invalidation: FAIL (2).
+
+#### Phase G status
+
+| | |
+|---|---|
+| themes with a `kit` block | **50 / 50** |
+| genres where all 5 themes differ | **10 / 10** |
+| C# written per theme | **0** |
+
+Green: sweep PASS · `style_pack_probe` PASS · `poly` 105/105 + all six sub-gates ·
+`validate_scenes` PASS · build 0 errors.
+
+**Still open** (unchanged): `Pixel` as a fourth `KitRegister` — `pixel8bit`/`classic` set a 1px
+outline, bitmap font and square corners, but the register still resolves `Casual`, so AA and corner
+construction are not pixel-correct. Then `KitGloss{HardBand|CurvedGlass}`, engraved text, meter end
+caps, attachment sets by archetype, ghosted empty state, delta chips, `edge_run` as JSON.

@@ -499,5 +499,17 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "no shear, square, plate",
+  "kit": {
+  
+      "shadow": "hard",
+      "outline_shade": 1.2,
+      "shear": 0.0,
+      "corner": 0.0,
+      "corner_panel": 0.0,
+      "corner_slot": 0.0,
+      "grain": "pattern_08",
+      "grain_amount": 0.24
   }
 }

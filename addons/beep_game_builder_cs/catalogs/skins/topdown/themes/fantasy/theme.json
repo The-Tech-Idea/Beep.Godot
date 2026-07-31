@@ -499,5 +499,16 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "leaves the pixel register entirely: serif on wood",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 1.6,
+      "font": "serif",
+      "corner": 0.16,
+      "corner_panel": 0.12,
+      "grain": "pattern_50",
+      "grain_amount": 0.26
   }
 }

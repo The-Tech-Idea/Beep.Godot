@@ -499,5 +499,15 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "felt table: heavy weave, gold rim",
+  "kit": {
+  
+      "shadow": "soft",
+      "outline_shade": 2.0,
+      "grain": "pattern_57",
+      "grain_amount": 0.26,
+      "grain_tiles": 6,
+      "select_slot": "border|lift"
   }
 }

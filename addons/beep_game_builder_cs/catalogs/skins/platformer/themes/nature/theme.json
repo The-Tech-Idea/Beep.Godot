@@ -499,5 +499,14 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "glossy leaf",
+  "kit": {
+  
+      "shadow": "soft",
+      "wobble": 0.014,
+      "font": "rounded",
+      "grain": "pattern_19",
+      "grain_amount": 0.22
   }
 }

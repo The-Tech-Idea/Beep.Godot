@@ -499,5 +499,18 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "slab seen from above (art 35) on plate",
+  "kit": {
+  
+      "shadow": "extrude",
+      "outline_shade": 1.3,
+      "font": "condensed",
+      "upper_case": true,
+      "corner": 0.0,
+      "corner_panel": 0.0,
+      "grain": "pattern_08",
+      "grain_amount": 0.26,
+      "grain_tiles": 5
   }
 }

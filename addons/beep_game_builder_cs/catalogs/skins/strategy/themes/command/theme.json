@@ -499,5 +499,14 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "slab depth on plate",
+  "kit": {
+  
+      "shadow": "extrude",
+      "outline_shade": 1.5,
+      "grain": "pattern_08",
+      "grain_amount": 0.24,
+      "grain_tiles": 5
   }
 }

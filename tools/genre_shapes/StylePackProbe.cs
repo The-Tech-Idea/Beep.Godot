@@ -30,10 +30,17 @@ public partial class StylePackProbe : Node
 
         // A theme with NO kit block must fall back to the genre's built-in style, not inherit
         // whatever the previous theme published.
-        SkinCatalog.SetActiveSkin("citybuilder", "eco", "", "");
+        //
+        // This used to ride on citybuilder/eco, which had no block. Phase G gave all 50 themes
+        // one, so the check silently changed meaning -- it reported "LEAKED" for a theme that was
+        // correctly applying its own newly-authored shadow. Asserted against the CLEAR path
+        // directly instead, which is exactly what SetActiveSkin calls when a theme declares no
+        // kit block, and which no amount of authoring can invalidate.
+        SkinCatalog.SetActiveSkin("citybuilder", "urban", "", "");
+        KitStyleJson.Set("citybuilder", null);
         var c = KitGeometry.ForGenre("citybuilder");
         bool reverted = c.Shadow.Kind == KitShadowKind.Hard && !KitStyleJson.Has("citybuilder");
-        GD.Print($"pack:   eco (no kit block) -> shadow={c.Shadow.Kind} "
+        GD.Print($"pack:   cleared block -> shadow={c.Shadow.Kind} "
                + $"{(reverted ? "built-in restored" : "<-- LEAKED from previous theme")}");
         if (!reverted) bad++;
 

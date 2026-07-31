@@ -499,5 +499,16 @@
       "content_margin_bottom": 7,
       "baked": false
     }
+  },
+  "_kit_note": "mystic glow used as the depth mechanism",
+  "kit": {
+  
+      "shadow": "glow",
+      "outline_shade": 1.72,
+      "font": "heavy",
+      "upper_case": true,
+      "grain": "pattern_49",
+      "grain_amount": 0.16,
+      "select_chip": "glow|border"
   }
 }

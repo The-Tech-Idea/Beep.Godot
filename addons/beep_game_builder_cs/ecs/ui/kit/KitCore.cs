@@ -418,8 +418,32 @@ namespace Beep.ECS.UI.Kit
 
         private static readonly KitGeometry _default = new();
 
+        /// <summary>A copy of this geometry, for merging a theme's overrides onto without
+        /// mutating the shared table — the table is one instance per genre and every widget
+        /// reads it.</summary>
+        public KitGeometry Clone() => (KitGeometry)MemberwiseClone();
+
+        /// <summary>Merged geometries, one per genre that has theme overrides. Invalidated by
+        /// <see cref="KitStyleJson.Set"/> so switching theme actually switches style.</summary>
+        private static readonly Dictionary<string, KitGeometry> _merged = new();
+
+        internal static void InvalidateMerged(string genre) => _merged.Remove(genre);
+        internal static void InvalidateAllMerged() => _merged.Clear();
+
         public static KitGeometry ForGenre(string? genre)
-            => genre != null && _byGenre.TryGetValue(genre.ToLowerInvariant(), out var g) ? g : _default;
+        {
+            string id = genre?.ToLowerInvariant() ?? "";
+            KitGeometry basis = _byGenre.TryGetValue(id, out var g) ? g : _default;
+
+            // No theme overrides: hand back the shared instance, which is the common path.
+            if (!KitStyleJson.Has(id)) return basis;
+
+            if (_merged.TryGetValue(id, out var m)) return m;
+            var copy = basis.Clone();
+            KitStyleJson.Apply(id, copy);
+            _merged[id] = copy;
+            return copy;
+        }
     }
 
     /// <summary>Anchor for a sub-element, including positions OUTSIDE the host.

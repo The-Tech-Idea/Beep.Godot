@@ -2884,3 +2884,63 @@ trusted:
 
 **Remaining**: style packs (G) — now authoring, not engineering; `KitRow`/`KitTabStrip` declaration;
 meter end caps per tier; attachment sets by archetype; and the outline-polarity measurement.
+
+### Stage 47 — Phase G's real blocker: the style axes were not authorable (2026-07-31)
+
+Audited before authoring, per Stage 45b. Phase G reads "ship two or three themes per genre" — but
+**every axis built in Phases A–F lives in `KitGeometry`, a static C# table keyed by genre.** Nothing
+loads it from JSON. Authoring a style pack today would mean editing C# for each one, which is
+exactly what `docs/SKIN_SYSTEM.md` promises the skin system never requires:
+
+> "**Zero C# changes needed to add content.**"
+
+That table is also *why* the kit could only ever have one look per genre — the thing this whole
+effort set out to fix. Phase G is not authoring work; it is this.
+
+**Built**: `KitStyleJson` — a theme may carry a `kit` block whose snake_case keys override any axis:
+
+```json
+"kit": {
+  "outline_shade": 1.85, "shadow": "soft", "corner_panel": 0.28, "corner_bar": 0.50,
+  "shear": 0.16, "font": "pixel", "upper_case": true, "tracking": 0.10,
+  "select_slot": "border|glow"
+}
+```
+
+Every key optional; anything absent keeps the genre's built-in value. `KitGeometry.ForGenre` merges
+overrides onto a **cached clone** — the table is one instance per genre that every widget reads, so
+mutating it in place would leak one theme's style into the next. `KitStyleJson.Set` invalidates that
+cache, without which a theme switch would keep drawing the previous theme.
+
+#### The gate proves all three behaviours, not just the happy one
+
+```
+json:   corner 0.18->0.42  shadow None->Glow  font Pixel->Mono  slot=Border, Glow
+json:   overrides=True  inherits-unset=True  reverts-on-clear=True
+json:   PASS
+```
+
+**Inherits-unset** and **reverts-on-clear** matter as much as the override: a block that reset
+unspecified axes to defaults would make every theme restate everything, and one that did not revert
+would make theme switching one-way.
+
+#### And the gate found a gap in my own error handling
+
+I probed with a deliberately bad key and **no warning fired** — `Apply` validated unknown *values*
+but not unknown *keys*. `corner_pannel` parses as valid JSON, sets nothing, and leaves the author
+staring at a corner that will not change: silence there is indistinguishable from the feature being
+broken. Unknown keys now warn by name and list the known set. Verified firing (4 warnings).
+
+#### Verified — nine gates
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner · mod · **json** · select · attach · font — all PASS |
+| `measure_edgerun` · `measure_shadow` · `measure_material` | PASS · **10/10** · PASS |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+| 67 template scenes | 0 failures |
+
+**Phase G is now genuinely authoring**: `catalogs/skins/<genre>/themes/<name>/theme.json` + a `kit`
+block, no C#. The remaining engineering is small and named: `KitRow`/`KitTabStrip` selection
+declaration, meter end caps per tier, attachment sets by archetype, and the outline-polarity
+measurement from 41f.

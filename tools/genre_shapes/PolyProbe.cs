@@ -133,6 +133,47 @@ public partial class PolyProbe : Node
             GD.Print($"select: {genre,-12} button={btn,-22} panel={pan,-16} slot={slot,-22}"
                    + $"{(varied ? "" : " <-- ALL EQUAL")}");
         }
+        // THEME-AUTHORED STYLE. Every axis lives in a C# table keyed by genre, which is why the
+        // kit could only have one look per genre. If a theme's `kit` block cannot override them,
+        // "two or three themes per genre" means editing C# for each -- exactly what the skin
+        // system promises never to require.
+        int jsonBad = 0;
+        {
+            var before = KitGeometry.ForGenre("topdown");
+            float c0 = before.Corner;
+            var s0 = before.Shadow.Kind;
+            var f0 = before.Font;
+
+            var kit = new Godot.Collections.Dictionary
+            {
+                { "corner", 0.42f }, { "shadow", "glow" }, { "font", "mono" },
+                { "select_slot", "border|glow" },
+                { "shadow_typo_check", "nonsense" },
+            };
+            KitStyleJson.Set("topdown", kit);
+            var after = KitGeometry.ForGenre("topdown");
+
+            bool changed = !Mathf.IsEqualApprox(after.Corner, 0.42f) == false
+                        && after.Shadow.Kind == KitShadowKind.Glow
+                        && after.Font == KitFontRole.Mono
+                        && after.SelectSlot == (KitSelectCue.Border | KitSelectCue.Glow);
+            // Unspecified keys must be INHERITED, not reset -- a theme overrides what it cares
+            // about and keeps the rest.
+            bool inherited = Mathf.IsEqualApprox(after.Shear, before.Shear);
+
+            KitStyleJson.Set("topdown", null);
+            var restored = KitGeometry.ForGenre("topdown");
+            bool reverts = Mathf.IsEqualApprox(restored.Corner, c0)
+                        && restored.Shadow.Kind == s0 && restored.Font == f0;
+
+            if (!(changed && inherited && reverts)) jsonBad++;
+            GD.Print($"json:   corner {c0:0.00}->{after.Corner:0.00}  shadow {s0}->{after.Shadow.Kind}"
+                   + $"  font {f0}->{after.Font}  slot={after.SelectSlot}");
+            GD.Print($"json:   overrides={changed} inherits-unset={inherited} reverts-on-clear={reverts}");
+        }
+        GD.Print($"json:   {(jsonBad == 0 ? "PASS" : "FAIL")}");
+        bad += jsonBad;
+
         GD.Print($"select: {(selBad == 0 ? "PASS" : $"FAIL ({selBad} genre(s) undifferentiated)")}");
         bad += selBad;
 

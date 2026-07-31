@@ -2356,3 +2356,51 @@ useful when read **together**, against the same fresh render.
 
 `measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
 PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.
+
+### Stage 41f — two more explanations ruled out; the rim STROKE is the confound (2026-07-31)
+
+Both remaining hypotheses tested and **both wrong**.
+
+**Alpha blending against the field — ruled out.** Added a dark-field pass (`pol_<genre>.png`,
+shadows off, opaque 0.08 ground). If blending caused it, polarity would flip. It does not:
+cardgame reads 1.71 light on the light field and **1.18 light** on the dark one; platformer 1.98
+and **2.53**. The band is genuinely lighter than the plate on both grounds.
+
+**Anti-aliased edge pixel — ruled out.** Sampling inward: cardgame is `[82, 82, 82, 82, 82]`. A
+uniform band five pixels deep, not a boundary blend.
+
+#### What the data actually shows
+
+`shooter` is the tell: `[30, 30, 108, 108, 108]` against a centre of 36. **Two pixels of dark
+stroke, then the light band.** The Technical stack's outermost layer declares `rim: 0.8`, so
+`DrawShape` strokes it — and that stroke is drawn *outside* the fill it belongs to.
+
+So the outermost pixels are the layer's **rim stroke**, not its fill, and the two have independent
+sources: the fill from `OutlineShade`, the stroke from `RimBrightness`. For shooter they disagree
+(`OutlineShade 1.90` light fill, dark stroke); the gate samples the stroke and reports `0.79`.
+
+The casual genres have `rim: 0` on that layer, so no stroke — yet they still read 82 against a
+plate of 48 while the print says the fill is drawn at `lum 0.016`. That part is **still unexplained**
+and the next probe is inside `DrawShape` itself.
+
+#### Stopping the chase here, deliberately
+
+Four stages have gone into this and each ruled something out honestly, but the scope is a **gate's
+ability to certify** a property, not the property itself. The kit side is proven correct by runtime
+instrumentation (Stage 41d): `OutlineShade` resolves per genre and the drawn colour matches the
+declaration for all ten.
+
+**Recorded for whoever picks it up**, in order of likelihood:
+1. Print inside `DrawShape` — the fill colour it receives vs what it strokes.
+2. `rim` and `OutlineShade` are two sources for one edge and disagree; they should be one, or the
+   gate must sample the fill and skip the stroke.
+3. The gate should sample at a fixed *fraction* into the band, derived from the register's own
+   inset, rather than a fixed pixel offset.
+
+**Phase B's remaining work is untouched and independent**: corner radius per widget class, plus
+shear and wobble as corner modifiers. That is where the next turn should go.
+
+#### Verified unchanged
+
+`measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
+PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.

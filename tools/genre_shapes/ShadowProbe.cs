@@ -64,6 +64,21 @@ public partial class ShadowProbe : Node
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             GetViewport().GetTexture().GetImage().SavePng($"{OutDir}/nos_{genre}.png");
+            // POLARITY PASS: shadows still off, but on an opaque DARK field.
+            //
+            // The light field is required for the shadow measurement (a shadow must read darker
+            // than its ground), and it is exactly what makes the polarity reading suspect: a
+            // dark outline band lifts far more against a light ground than the plate does if any
+            // alpha is involved. Rendering the same widget on a dark field settles it -- if the
+            // apparent polarity flips, the pixels are being blended, not drawn.
+            bg.Color = new Color(0.08f, 0.08f, 0.09f);
+            btn.QueueRedraw();
+            for (int i = 0; i < 3; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            GetViewport().GetTexture().GetImage().SavePng($"{OutDir}/pol_{genre}.png");
+            bg.Color = new Color(0.78f, 0.78f, 0.78f);
+
             KitShadow.Enabled = true;
             rects?.StoreLine($"{genre} {pos.X:0} {pos.Y:0} {Size.X:0} {Size.Y:0}");
             GD.Print($"shadow: ok {genre} at {pos.X:0},{pos.Y:0} {Size.X:0}x{Size.Y:0}");

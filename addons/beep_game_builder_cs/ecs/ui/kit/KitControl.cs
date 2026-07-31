@@ -785,7 +785,7 @@ namespace Beep.ECS.UI.Kit
 
             // The constructed frame LAST -- on top of the surface it encloses, as the references
             // draw it. Null for every genre but the sci-fi ones, so nothing else changes.
-            KitEdge.Draw(this, g.EdgeRun, r, rimPx, RimColor());
+            KitEdge.Draw(this, g.EdgeRun, r, rimPx, RimColor(), g.Shear, g.Wobble);
 
         }
 

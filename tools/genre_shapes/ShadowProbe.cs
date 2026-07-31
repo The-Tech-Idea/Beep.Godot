@@ -77,6 +77,16 @@ public partial class ShadowProbe : Node
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             GetViewport().GetTexture().GetImage().SavePng($"{OutDir}/pol_{genre}.png");
+            // EDGE-RUN PASS: same dark field, run disabled, so the gate can difference the two
+            // and see only the frame -- immune to shear, silhouette and shadow alike.
+            KitEdge.Enabled = false;
+            btn.QueueRedraw();
+            for (int i = 0; i < 3; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            GetViewport().GetTexture().GetImage().SavePng($"{OutDir}/noe_{genre}.png");
+            KitEdge.Enabled = true;
+
             bg.Color = new Color(0.78f, 0.78f, 0.78f);
 
             KitShadow.Enabled = true;

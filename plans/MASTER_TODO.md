@@ -2625,3 +2625,50 @@ declaration that does not survive to the pixels, and a flaw in its own negative 
 **Next:** stroke the run along the silhouette polygon rather than the rect (fixes 1, and is the
 correct model anyway); then re-check 2 with the shear fixed; then teach the negative control to
 exclude genres whose *shape* is discontinuous.
+
+### Stage 44b — Phase D complete: EDGERUN PASS (2026-07-31)
+
+All three problems from Stage 44 resolved, and the middle one was caused by *fixing* the first.
+
+**1. The run now follows the SILHOUETTE, not the rect.** `KitEdge.Draw` applies the same
+`Modify()` the silhouette uses to the four corners and walks that quad, with `inward` recomputed
+per edge as the perpendicular pointing at the centroid. racing (shear 0.16) was stroking its frame
+where the widget is not; it now lands on the shape.
+
+**2. …which immediately broke the gate.** The scan-based measurement counted marked stretches along
+a fixed row just inside the widget. A sheared frame is **diagonal**, so it stops crossing the scan
+line — and both declared genres regressed to `1,1,1,1` **the instant the renderer became more
+correct**. A measurement that assumes axis-aligned geometry cannot certify a renderer that no
+longer has it.
+
+Rewritten to difference a run-on render against a run-off one (`KitEdge.Enabled`, the same toggle
+pattern as `KitShadow.Enabled`) and count **connected components** in the difference. Immune to
+shear, silhouette and shadow together, and it counts the frame's pieces directly.
+
+**3. The negative control fixed itself.** Differencing cancels the silhouette, so `Spiked`'s points
+and `Torn`'s ragged edges no longer read as "an unexpected frame" — the broken-shape/broken-stroke
+confusion cannot arise. The explicit `DISCONTINUOUS` exclusion added mid-stage became unnecessary
+and was dropped.
+
+```
+racing        475 frame px   14 pieces   run
+shooter       973 frame px   11 pieces   run
+(eight others)  0 px          0 pieces   plain
+EDGERUN PASS
+```
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `measure_edgerun` | **EDGERUN PASS** — 14 and 11 pieces, 0 for all plain genres |
+| `poly_probe` | 105/105 · corner PASS · mod PASS · font PASS |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` separation | PASS |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+| 67 template scenes | 0 failures |
+
+**Six of eight axes built and gated**: material · shadow · outline polarity · corner (per-class,
+shear, wobble) · typography · constructed frames. Remaining: attachments (E), selection as a set
+(F), style packs (G) — plus the outline-polarity *measurement* still open from Stage 41f.

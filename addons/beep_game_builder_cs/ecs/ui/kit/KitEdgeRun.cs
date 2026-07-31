@@ -106,23 +106,55 @@ namespace Beep.ECS.UI.Kit
     /// <summary>Draws a <see cref="KitEdgeRun"/> around a widget.</summary>
     public static class KitEdge
     {
+        /// <summary>Global off-switch, for the gate only.
+        ///
+        /// measure_edgerun.py compares a render WITH the run against one WITHOUT and counts
+        /// connected components in the difference. Scanning a fixed row inside the widget cannot
+        /// work once shear is involved: a sheared frame is diagonal, so it stops crossing the
+        /// scan line and a perfectly good run measures as "not broken" -- which is exactly what
+        /// happened the moment the run started following the silhouette.</summary>
+        public static bool Enabled = true;
+
         /// <summary>
         /// Stroke the run around <paramref name="r"/>. Drawn AFTER the plate and the material,
         /// because in the references the frame sits on top of the surface it encloses.
         /// </summary>
-        public static void Draw(CanvasItem ci, KitEdgeRun? run, Rect2 r, float baseWidth, Color col)
+        public static void Draw(CanvasItem ci, KitEdgeRun? run, Rect2 r, float baseWidth, Color col,
+                                float shear = 0f, float wobble = 0f)
         {
+            if (!Enabled) return;
             if (run == null || r.Size.X < 6f || r.Size.Y < 6f) return;
             baseWidth = Mathf.Max(1f, baseWidth);
 
-            Edge(ci, run.Top, r.Position, new Vector2(1, 0), new Vector2(0, 1),
-                 r.Size.X, baseWidth, col);
-            Edge(ci, run.Right, r.Position + new Vector2(r.Size.X, 0), new Vector2(0, 1),
-                 new Vector2(-1, 0), r.Size.Y, baseWidth, col);
-            Edge(ci, run.Bottom, r.Position + r.Size, new Vector2(-1, 0), new Vector2(0, -1),
-                 r.Size.X, baseWidth, col);
-            Edge(ci, run.Left, r.Position + new Vector2(0, r.Size.Y), new Vector2(0, -1),
-                 new Vector2(1, 0), r.Size.Y, baseWidth, col);
+            // Walk the SILHOUETTE's quad, not the axis-aligned rect.
+            //
+            // Stroking the rect while the shape is sheared draws the frame somewhere the widget
+            // is not: racing (shear 0.16) rendered its declared run entirely off the silhouette
+            // and measured as having no frame at all, while shooter (shear 0.09) partly landed.
+            // The same Modify() the silhouette uses is applied to the four corners, so the run
+            // follows whatever the shape does.
+            var q = KitControl.Modify(new[]
+            {
+                r.Position,
+                r.Position + new Vector2(r.Size.X, 0f),
+                r.Position + r.Size,
+                r.Position + new Vector2(0f, r.Size.Y),
+            }, r, shear, wobble);
+
+            var centre = (q[0] + q[1] + q[2] + q[3]) / 4f;
+            var lists = new[] { run.Top, run.Right, run.Bottom, run.Left };
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2 a = q[i], b = q[(i + 1) % 4];
+                float len = a.DistanceTo(b);
+                if (len < 2f) continue;
+                Vector2 dir = (b - a) / len;
+                // Inward is the perpendicular that points at the centroid, so weight always
+                // grows into the widget whatever the quad has been skewed to.
+                Vector2 n = new(-dir.Y, dir.X);
+                if (n.Dot(centre - a) < 0f) n = -n;
+                Edge(ci, lists[i], a, dir, n, len, baseWidth, col);
+            }
         }
 
         /// <param name="dir">Along the edge.</param>

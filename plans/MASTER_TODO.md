@@ -2672,3 +2672,63 @@ EDGERUN PASS
 **Six of eight axes built and gated**: material · shadow · outline polarity · corner (per-class,
 shear, wobble) · typography · constructed frames. Remaining: attachments (E), selection as a set
 (F), style packs (G) — plus the outline-polarity *measurement* still open from Stage 41f.
+
+### Stage 45 — CORRECTION: the banner already straddles; Phase E is smaller than claimed (2026-07-31)
+
+**Stage 39c is wrong on its headline point and this supersedes it.** It said, of the most repeated
+construction in the whole art pass:
+
+> "The kit draws its banner *inside* the host at 0.14 × height. **Wrong side of the edge**, and a
+> direct cause of panels reading flat against the references."
+
+It is not. `KitControl.DrawBanner` reads:
+
+```csharp
+// Straddles the edge: centred on it, so half the plate sits outside the host.
+var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
+                  host.Position.Y - h * 0.5f, w, h);
+```
+
+The banner is centred **on** the host's top edge with half of it outside — exactly what the 15
+reference files do. `0.14` is the height ratio, not a position, and I read a size as an offset.
+
+**And the shape already varies by register**, covering three of the art's four plaque forms:
+
+| register | banner shape | art |
+|---|---|---|
+| Carved | `Ribbon` | ribbon with folded ends — 01, 11, 41, 44 |
+| Casual | `Ellipse` | ellipse plaque — 27 |
+| Technical | `Rect` | plain bar — 15, 25, 28, 32 |
+
+The fourth, the sci-fi **sheared tab** (43), is not separately declared. Whether shooter's and
+racing's `Shear` reaches the banner is **unverified** — `DrawBanner` builds its own rect and calls
+`DrawShape`, and I have not traced whether that path applies `Modify()`. **Stated as unknown, not
+assumed either way.**
+
+#### Why this correction matters more than the bug would have
+
+This is the **fourth** claim I have had to withdraw in this area (41c render-inversion, 41d
+gate-is-wrong, 41e both-right, now this). Every one came from reading code or pixels once and
+concluding. The three that were settled were settled by *instrumentation* — a runtime print, a
+paired render, a difference image. The pattern is now unambiguous enough to state as a rule:
+
+> **In this codebase, do not conclude from a single read. Print the value, or difference two
+> renders. A confident claim from one source has been wrong four times out of four.**
+
+#### Phase E, correctly scoped
+
+The header plaque — the item I had flagged as Phase E's biggest — is **already done**. What
+genuinely remains for attachments:
+
+- `CapLeft` (7 sightings) and `CapRight` (1) — the overhanging icon medallion on a bar
+- `MedallionTop`, `CornerFlag`, `CornerBadgeDiamond`, `EdgeArrow`, `Awning`, `Foliage`
+- Meter **end caps** per tier (file 11)
+- Attachment **sets keyed by screen archetype** (crown = victory, helm = restart, gear = settings)
+
+`KitAttach` already exists as a type; the placements above are what is missing.
+
+#### Verified unchanged
+
+`measure_edgerun` **PASS** · `poly_probe` 105/105 + corner/mod/font PASS · `measure_shadow`
+**PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation PASS · `validate_scenes`
+PASS · build 0 errors · 67 scenes, 0 failures.

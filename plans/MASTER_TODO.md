@@ -3187,3 +3187,80 @@ are set from the synthetics, **not fitted to the renders**.
 
 Green: sweep PASS (4/4 registers, 50/50 distinct) · `style_pack` PASS · `poly` 105/105 + six
 sub-gates · `validate_scenes` PASS · material selftest PASS · build 0 errors.
+
+### Stage 50 — the styling METHODOLOGY was wrong: one unit, one silhouette (2026-07-31)
+
+Two defects named directly by the user, both confirmed in code before touching anything.
+
+#### 1. "You're creating a rectangle inside a circle" — the layers didn't share the shape
+
+- `DrawFaceShade` drew **6 of its 7 bands as `KitShape.Rect`**, so every non-rectangular genre
+  (Ellipse, Octagon, Shield, Spiked, Torn) had straight shaded edges cutting across a curved or
+  pointed plate.
+- `DrawBevel` stroked the four sides of the bounding **rect** — a spiked plate carried a
+  rectangular bevel.
+- Inner layers used `Inset(rect)` then **re-derived** the corner as `min(w,h) × fraction`, giving
+  `radius_outer − 2·inset·fraction` instead of `radius_outer − inset`. The layers were never
+  parallel; they pinched at the corners.
+- `KitShadow.Expand` scaled the polygon about its centre, which on a 420×260 plate is not an
+  outward offset at all.
+
+**Fix:** the silhouette is built **once** and every layer is a true parallel offset of it, via
+`Geometry2D.OffsetPolygon(..., Miter)` — verified exact first (`dist-to-source 12.00/12.00`).
+Effect layers clip against the host polygon instead of drawing their own rectangles. `DrawShape`,
+`Inset`-and-re-derive, and the `Rect` substitution are gone from the material path.
+
+#### 2. "You're not considering the size area and font size" — two disconnected systems
+
+`KitButton` derived its size from the font (`fs × HeightRatio`) and then **every decorative metric
+threw that away**: corner `min(w,h) × fraction`, shadow `min(w,h) × 0.055`, grain *N tiles across
+the short edge*, gloss `height × 0.26`. In one theme a 40px chip and a 400px panel got radii,
+outline weights, shadows and material feature sizes differing by **ten times**.
+
+**Fix:** one `Unit` (the theme's font size). Corner, inset, bevel, gloss depth, shadow and the big
+silhouettes' structural features are all multiples of it — constant across widget sizes within a
+theme, which is what the reference kits do.
+
+#### 3. "The shapes should be big, they just show as a smooth add-on"
+
+Spikes were `min(h × 0.22, sp × 0.55)` ≈ 10px with fifteen teeth — a serration on a smooth plate.
+Now **fewer and deeper**: spacing 3.6 units, drop 1.8 units, so a wide panel gets ~7 real points.
+Tear amplitude likewise, from `w × 0.06` to 1.2 units.
+
+#### Three bugs the renders caught that reading did not
+
+1. **Facets.** Arc sampling was a flat `seg = 6` per corner — invisible while the polygon only fed
+   clipping, fatal once it *is* the plate. A 130px radius became a 34px facet. Now adaptive
+   (~1 segment / 3px, clamped 4–48).
+2. **Wobble was per-vertex noise.** `v += Vector2(Next(), Next())` reads as a hand-drawn waver at 6
+   points and as **white noise at 174** — a ragged fringe around a shape whose outline is smooth.
+   Rewritten as three seeded harmonics of normalised **arc length** displaced along the outward
+   normal, so the silhouette does not change character with sampling density.
+3. **The restructure broke the pixel register.** Moving plates onto `FillPoly` bypassed
+   `DrawShape`, where the staircase routing lived — `pixel8bit` went straight back to drawing an
+   arc. **The corner gate caught it** (mobility 0.86 where a staircase is < 0.40). The rule now
+   lives where the silhouette is decided, so every layer inherits it.
+
+#### And three invalid gate fixtures, all mine
+
+- The pixel gate globbed `*.png` and graded the **gloss** renders — a Linear-gloss plate is flat by
+  design and failed an anti-aliasing check it was never the subject of.
+- `platformer/cartoon` as the **arc control** carries wobble 0.008; a wavering edge never settles
+  onto the leftmost column, so the walk measured the *wobble* (0.19 — indistinguishable from a
+  staircase) rather than the corner. Arc control is now `platformer/modern` (wobble 0).
+- …but `modern` is the flat-translucent register, so it is a useless **anti-aliasing** control at 9
+  levels. The gate now has **three** roles — `px_` under test, `rr_` arc control, `sh_` shaded
+  control — because one theme cannot hold everything constant except two different things.
+
+The `levels` assertion was also re-expressed as a **separation** (`sh >= 3x px`) rather than an
+absolute count: the restructure legitimately reduced banding (clipped bands and a polyline bevel
+produce fewer distinct levels than stacked rects and per-edge lines), and the claim being tested is
+relative flatness, not how much banding the renderer happens to produce.
+
+Green: `poly` 105/105 + six sub-gates · `style_sweep` · `style_pack` · **`PIXEL PASS`** (staircase
+0.25 vs arc 0.79, separation 0.54; flatness 3 vs 18/19) · `MATERIAL PASS` · `validate_scenes` ·
+build 0 errors. Renders inspected for rpg (spiked), survival (torn) and puzzle (stadium).
+
+**Open:** the `KitGloss` render gate is not passing and is NOT claimed — its three constructions
+measured identically before the restructure and it has not been re-derived under unit metrics. The
+enum, the JSON key and the three constructions ship; only the render proof is outstanding.

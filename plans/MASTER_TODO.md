@@ -2784,3 +2784,58 @@ it from the art without checking what the kit already had — the same error as 
 
 **Seven gates green.** Remaining real work: meter end caps per tier, attachment sets by archetype,
 selection as a set (F), style packs (G), and the outline-polarity measurement from 41f.
+
+### Stage 46 — Phase F: selection is a SET, keyed by widget class (2026-07-31)
+
+Audited before building, per Stage 45b's lesson. `KitState.Selected` existed and several widgets
+carried a `Selected` export — but **each hardcoded exactly one rendering**, which is the thing the
+art rules out.
+
+`racing3` (file 09) settles it: on **one screen**, icon cells use an accent **fill** and carousel
+cells use an accent **border**. `store1` (39) uses a cream pill on its first tab row and a dark one
+on its second. `citybuilder5` (06) uses a cyan **glow**; `skilltree4` (37) **lifts** the active nav
+item so it is taller and overhangs; `ui1` (17) **underlines** the active tab. The art pass counted
+seventeen mechanisms across the folder, and they **stack**.
+
+**Built**: `[Flags] KitSelectCue { Fill, Border, Glow, Lift, Underline }` and
+`KitGeometry.SelectFor(KitWidgetClass)`, so the variation is by **object**, as the references vary
+it — not by theme. `KitSelect.Draw` renders every cue except `Fill` (which the caller applies to
+its own plate, being a fill and not an overlay) and is called **after** the widget's layers, since
+a selection ring drawn under the plate is invisible — the obvious way to get this wrong.
+
+`LiftOffset` is *returned* rather than drawn: a widget has to lay itself out raised, and an overlay
+cannot move it.
+
+`KitInventorySlot` was the first consumer — its hardcoded white frame now resolves from the theme.
+
+```
+select: racing       button=Fill        panel=Border   slot=Border
+select: citybuilder  button=Fill        panel=Border   slot=Border, Glow
+select: cardgame     button=Fill        panel=Border   slot=Border, Lift
+select: platformer   button=Underline   panel=Border   slot=Border
+select: PASS
+```
+
+The gate fails a genre whose classes all resolve to the same cue, because that is a silent collapse
+back to "selection is one thing" — it renders perfectly plausibly and is exactly what the set exists
+to prevent.
+
+#### Verified — eight gates
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner · mod · attach · **select** · font — all PASS |
+| `measure_edgerun` | **EDGERUN PASS** |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` separation | PASS |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+| 67 template scenes | 0 failures |
+
+**Seven of eight axes built and gated.** Remaining: **style packs (G)** — two or three themes per
+genre, which is authoring rather than engineering now that the axes exist; plus meter end caps per
+tier, attachment sets by archetype, and the outline-polarity measurement from 41f.
+
+Only `KitInventorySlot` consumes `KitSelect` so far — the other widgets that draw their own
+selection (`KitSlotGrid`, `KitRow`, `KitTree`, `KitTabStrip`) still hardcode theirs and are a
+mechanical sweep, **not yet done and not claimed**.

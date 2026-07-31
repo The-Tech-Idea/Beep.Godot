@@ -192,14 +192,12 @@ namespace Beep.ECS.UI.Kit
             }
 
             // Selection LAST and OUTSIDE the well, so it reads as a frame around the slot rather
-            // than a change to the slot itself.
+            // than a change to it — and drawn from the THEME's declared cues, not a hardcoded
+            // white frame. citybuilder and strategy add a glow, cardgame lifts, topdown keeps a
+            // plain border; racing3 proves a single cue per widget cannot be right.
             if (_selected)
-            {
-                var sel = new Rect2(body.Position - new Vector2(2f, 2f),
-                                    body.Size + new Vector2(4f, 4f));
-                KitChrome.Fill(this, SlotShape, sel, g, new Color(0, 0, 0, 0),
-                               new Color(1f, 1f, 1f, 0.92f), Mathf.Max(2f, rimPx * 1.4f));
-            }
+                KitSelect.Draw(this, g.SelectFor(WidgetClass), KitChrome.Poly(SlotShape, body, g),
+                               body, UiSurface.Semantic(this, UiSurface.Role.Accent), rimPx);
         }
 
         /// <summary>Bottom-right, straddling the corner — where every reference sheet puts it.

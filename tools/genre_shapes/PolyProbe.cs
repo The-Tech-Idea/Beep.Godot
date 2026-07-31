@@ -117,6 +117,25 @@ public partial class PolyProbe : Node
                    + $"-({r.End.X:0},{r.End.Y:0}) host={host.X:0}x{host.Y:0} "
                    + $"{(outside ? "overhangs" : "<-- INSIDE, not an attachment")}");
         }
+        // SELECTION CUES. racing3 uses accent FILL on icon cells and accent BORDER on carousel
+        // cells on ONE screen, so a theme that resolves every widget class to the same cue has
+        // silently collapsed back to "selection is one thing" -- which renders plausibly and is
+        // exactly what the set exists to prevent.
+        int selBad = 0;
+        foreach (string genre in new[] { "racing", "citybuilder", "cardgame", "platformer" })
+        {
+            var g = KitGeometry.ForGenre(genre);
+            var btn = g.SelectFor(KitWidgetClass.Button);
+            var pan = g.SelectFor(KitWidgetClass.Panel);
+            var slot = g.SelectFor(KitWidgetClass.Slot);
+            bool varied = !(btn == pan && pan == slot);
+            if (!varied) selBad++;
+            GD.Print($"select: {genre,-12} button={btn,-22} panel={pan,-16} slot={slot,-22}"
+                   + $"{(varied ? "" : " <-- ALL EQUAL")}");
+        }
+        GD.Print($"select: {(selBad == 0 ? "PASS" : $"FAIL ({selBad} genre(s) undifferentiated)")}");
+        bad += selBad;
+
         GD.Print($"attach: {(attBad == 0 ? "PASS" : $"FAIL ({attBad} anchor(s) do not overhang)")}");
         bad += attBad;
 

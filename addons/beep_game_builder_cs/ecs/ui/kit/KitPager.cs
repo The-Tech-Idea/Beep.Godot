@@ -70,7 +70,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 40f || Size.Y < 10f) return;
 
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
             float w = BtnW;
             float inner = ShowJump ? w * 2f : w;

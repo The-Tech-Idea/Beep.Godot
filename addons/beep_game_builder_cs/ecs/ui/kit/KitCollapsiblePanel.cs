@@ -108,7 +108,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 6 || Size.Y <= 6) return;
 
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
 
             if (!_collapsed)

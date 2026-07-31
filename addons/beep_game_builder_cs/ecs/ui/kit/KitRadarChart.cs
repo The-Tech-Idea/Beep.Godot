@@ -65,7 +65,7 @@ namespace Beep.ECS.UI.Kit
             Color fill = UiSurface.Semantic(this, Role);
             Color ink = InkColor();
             Color face = FaceColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this, 0.75f);
 
             Vector2 At(int i, float t)

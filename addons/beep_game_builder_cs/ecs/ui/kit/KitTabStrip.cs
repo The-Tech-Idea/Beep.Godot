@@ -95,7 +95,7 @@ namespace Beep.ECS.UI.Kit
             var g = Geo;
             Color face = FaceColor();
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f));
 

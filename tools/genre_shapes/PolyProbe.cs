@@ -76,6 +76,29 @@ public partial class PolyProbe : Node
         GD.Print($"mod:    {(modBad == 0 ? "PASS" : $"FAIL ({modBad})")}");
         bad += modBad;
 
+        // FONTS. The failure this must catch is silent by construction: a declared family with no
+        // shipped face falls back to the theme default and renders IDENTICALLY to a theme that
+        // declares nothing. Report coverage per genre and name the gaps; do not fail the probe
+        // for them, because Serif/Blackletter/Handwritten have no CC0 face and that is a stated
+        // limitation, not a defect. DO fail if a role claims a file that is not on disk.
+        int fontBad = 0, uncovered = 0;
+        foreach (string genre in new[] { "rpg", "survival", "citybuilder", "strategy", "racing",
+                                         "shooter", "platformer", "puzzle", "cardgame", "topdown" })
+        {
+            var g = KitGeometry.ForGenre(genre);
+            bool has = KitFonts.HasFace(g.Font) || g.Font == KitFontRole.Default;
+            string path = KitFonts.PathFor(g.Font) ?? "";
+            bool onDisk = path.Length == 0 || ResourceLoader.Exists(path);
+            if (!onDisk) fontBad++;
+            if (!has) uncovered++;
+            GD.Print($"font:   {genre,-12} role={g.Font,-12} caps={(g.UpperCase ? "Y" : "n")} "
+                   + $"track={g.Tracking:0.00} "
+                   + $"{(has ? (onDisk ? "shipped" : "MISSING FILE") : "NO CC0 FACE -> warns")}");
+        }
+        GD.Print($"font:   {(fontBad == 0 ? "PASS" : $"FAIL ({fontBad} missing file(s))")}"
+               + $"  ({uncovered} genre(s) declare a role with no shipped face -- expected, warns at runtime)");
+        bad += fontBad;
+
         GetTree().Quit(bad == 0 && cornerBad == 0 ? 0 : 1);
     }
 }

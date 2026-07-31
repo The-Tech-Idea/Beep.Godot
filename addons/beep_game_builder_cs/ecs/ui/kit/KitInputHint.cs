@@ -43,7 +43,7 @@ namespace Beep.ECS.UI.Kit
         public override void _Draw()
         {
             if (Size.X < 12f || Size.Y < 8f) return;
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             if (font == null) return;
 
             Color face = FaceColor();

@@ -2515,3 +2515,58 @@ irregularity, rpg is untouched.
 polarity is done and proven by runtime instrumentation. **Next: Phase C — typography** (font family,
 weight, case, tracking), which needs CC0 fonts shipped and a gate that asserts every declared family
 actually resolves.
+
+### Stage 43 — Phase C: typography (2026-07-31)
+
+The art pass found **nine type families** across the 59 references; the kit shipped **one**. Every
+genre drew in whatever the theme's default font happened to be — and that is most of what makes two
+themes of one genre read differently.
+
+**Fonts shipped**: six CC0 faces from Kenney (same licence and source as the grain patterns), 180 KB
+in `addons/beep_game_builder_cs/fonts/`. `KitFontRole` → `Sans · Condensed · Rounded · Heavy ·
+Pixel · Mono`, plus per-genre `UpperCase` and `Tracking`.
+
+**Three roles have NO CC0 face and are not shipped**: `Serif` (rpg, survival storybook),
+`Blackletter` (rpg gothic), `Handwritten` (the diegetic journal). rpg and survival declare `Serif`
+anyway, so `KitFonts` **warns at runtime** rather than falling back in silence — because a missing
+font renders *identically to having no font system at all*, which is the most invisible way this
+feature can fail. `fonts/LICENSE.txt` states the gap.
+
+#### The wiring looked done and was not
+
+First pass wired the family into `KitChrome.DrawLabel` — which only the derive-from-Godot drop-ins
+use. Every `KitControl` widget calls `GetThemeDefaultFont()` directly, so **nothing changed**: the
+proof render showed four genres in identical type and `KitFonts` **never even warned** (0 warnings).
+
+Caught because the warning count was checked, not because the render was eyeballed — at that size
+four sans-serif "PLAY"s look plausible.
+
+Fixed with one resolver, `KitControl.KitFont()`, and a sweep of **25 call sites across 24 widgets**,
+so a new widget cannot miss it. After: **3 warnings fire**, and the render shows topdown in bitmap,
+racing condensed with wide tracking, platformer in rounded blocks, citybuilder condensed.
+
+**Tracking** is drawn glyph-by-glyph because Godot's `DrawString` has no letter-spacing — and only
+on the two themes that ask for it, since the per-glyph path would be waste on the other eight.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner **PASS** · mod **PASS** · **font PASS** |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` separation | PASS |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+| 67 template scenes | 0 failures |
+
+#### Stated, not implied
+
+- `KitControl.KitCase()` exists but the 25 swept sites had only the **font** swapped, not the case.
+  `UpperCase` currently applies in `KitChrome.DrawLabel` only. The proof text is already "PLAY", so
+  the render cannot show whether it works — **untested, and not claimed.**
+- Serif/Blackletter/Handwritten remain unsatisfiable from CC0 sources. A developer supplies their
+  own licensed face; the framework's job is to warn, which it now does.
+
+**Five of eight axes are now built and gated**: material, shadow, outline polarity, corner
+(per-class + shear + wobble), typography. Remaining: constructed frames (Phase D, the biggest —
+`KitEdgeRun`), attachments (E), selection as a set (F), style packs (G).

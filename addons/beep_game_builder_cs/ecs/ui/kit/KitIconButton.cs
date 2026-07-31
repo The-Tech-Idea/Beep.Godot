@@ -137,7 +137,7 @@ namespace Beep.ECS.UI.Kit
             }
             else if (!string.IsNullOrEmpty(_glyph))
             {
-                var font = GetThemeDefaultFont();
+                var font = KitFont();
                 if (font != null)
                 {
                     int size = Mathf.Max(8, Mathf.RoundToInt(gs));
@@ -155,7 +155,7 @@ namespace Beep.ECS.UI.Kit
             // The requirement, in words, under a locked button.
             if (_locked && !string.IsNullOrEmpty(_req))
             {
-                var font = GetThemeDefaultFont();
+                var font = KitFont();
                 if (font != null)
                 {
                     int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.66f));

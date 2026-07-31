@@ -98,7 +98,7 @@ namespace Beep.ECS.UI.Kit
 
             Color face = FaceColor();
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
             float r = NodeRadius();
 

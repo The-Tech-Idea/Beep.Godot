@@ -1,0 +1,31 @@
+Fonts
+=====
+
+Source:  Kenney (https://kenney.nl/assets)
+License: CC0 1.0 Universal (public domain dedication)
+
+Free for personal, educational and commercial use. Written permission is not
+required; crediting Kenney is voluntary and appreciated.
+
+WHAT IS AND IS NOT HERE
+-----------------------
+The art pass (plans/game-ui-kit/ART_PASS_PER_FILE.md) found NINE type families across
+the 59 reference images. These six CC0 faces cover five of the roles:
+
+    Pixel        Kenney_Pixel.ttf              (files 40, 42, 50, 53)
+    Condensed    Kenney_Future_Narrow.ttf      (files 06, 08, 10, 38)
+    Sans         Kenney_Future.ttf             (the default)
+    Rounded      Kenney_Blocks.ttf             (files 12, 13, 17, 26, 44)
+    Heavy        Kenney_Thick.ttf              (display / banner use)
+    Mono         Kenney_Mini_Square_Mono.ttf   (nearest to file 45's typewriter)
+
+NOT AVAILABLE under CC0 from this source, and therefore NOT shipped:
+
+    Serif        files 11, 21, 33   (rpg, survival storybook)
+    Blackletter  files 19, 53, 54   (rpg gothic)
+    Handwritten  file  18           (the diegetic journal)
+
+Those three roles resolve to null and WARN. They are a real gap, not a defect:
+the framework ships no substitute, and a silent fallback to the default would be
+indistinguishable from having no font system at all. A developer supplies their
+own licensed face and points the theme at it.

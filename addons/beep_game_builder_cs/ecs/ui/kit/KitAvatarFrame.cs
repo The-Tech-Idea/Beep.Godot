@@ -64,7 +64,7 @@ namespace Beep.ECS.UI.Kit
                 DrawTextureRect(_art, frame.Grow(-rw * 1.8f), false);
 
             if (string.IsNullOrEmpty(_badge)) return;
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             if (font == null) return;
 
             // Bottom-right, straddling the rim — the attention anchor measured 8x.

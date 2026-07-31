@@ -95,7 +95,7 @@ namespace Beep.ECS.UI.Kit
         private void DrawCentre(Vector2 c, Color fill)
         {
             if (string.IsNullOrEmpty(_centre)) return;
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             if (font == null) return;
             // The number inside the ring is a VALUE, and the ring's own inner diameter is the
             // box it has to fit. A flat 1.1x body size overflowed a small dial and looked lost in

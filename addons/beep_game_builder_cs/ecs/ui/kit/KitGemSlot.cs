@@ -118,7 +118,7 @@ namespace Beep.ECS.UI.Kit
                     var col = new Color(0.85f, 0.85f, 0.87f, 0.5f);
                     DrawLine(c - new Vector2(a, a), c + new Vector2(a, a), col, w);
                     DrawLine(c - new Vector2(a, -a), c + new Vector2(a, -a), col, w);
-                    if (!string.IsNullOrEmpty(_req) && GetThemeDefaultFont() is { } font)
+                    if (!string.IsNullOrEmpty(_req) && KitFont() is { } font)
                     {
                         int s = Mathf.Max(8, Mathf.RoundToInt(fs * 0.6f));
                         Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, s);

@@ -108,7 +108,7 @@ namespace Beep.ECS.UI.Kit
 
             DrawMaterial(plate, ActiveShape);
 
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             if (font != null && !string.IsNullOrEmpty(_text))
             {
                 int fs = UiSurface.FontSize(this);

@@ -176,8 +176,14 @@ namespace Beep.ECS.UI.Kit
                                      HorizontalAlignment align = HorizontalAlignment.Center)
         {
             if (string.IsNullOrEmpty(text)) return;
-            var font = ctl.GetThemeDefaultFont();
+
+            // The GENRE's family, falling back to the theme default. KitFonts warns when a
+            // declared role has no shipped face, because that failure renders identically to
+            // having no font system at all.
+            var g = KitGeometry.ForGenre(SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "");
+            var font = KitFonts.Resolve(g.Font) ?? ctl.GetThemeDefaultFont();
             if (font == null) return;
+            if (g.UpperCase) text = text.ToUpperInvariant();
             int fs = UiSurface.FontSize(ctl);
             string[] lines = text.Split('\n');
             float lh = fs * 1.15f;
@@ -191,8 +197,24 @@ namespace Beep.ECS.UI.Kit
                     HorizontalAlignment.Right => box.Position.X + box.Size.X - m.X,
                     _ => box.Position.X + (box.Size.X - m.X) * 0.5f,
                 };
-                ci.DrawString(font, new Vector2(x, top + lh * i), lines[i],
-                              HorizontalAlignment.Left, -1, fs, col);
+                if (g.Tracking > 0.001f)
+                {
+                    // Godot's DrawString has no letter-spacing, so tracked text is drawn glyph by
+                    // glyph. Only on the themes that ask for it -- the per-glyph path is slower
+                    // and would be waste on the eight genres that do not.
+                    float gx = x;
+                    foreach (char ch in lines[i])
+                    {
+                        string one = ch.ToString();
+                        ci.DrawString(font, new Vector2(gx, top + lh * i), one,
+                                      HorizontalAlignment.Left, -1, fs, col);
+                        gx += font.GetStringSize(one, HorizontalAlignment.Left, -1, fs).X
+                            + fs * g.Tracking;
+                    }
+                }
+                else
+                    ci.DrawString(font, new Vector2(x, top + lh * i), lines[i],
+                                  HorizontalAlignment.Left, -1, fs, col);
             }
         }
     }

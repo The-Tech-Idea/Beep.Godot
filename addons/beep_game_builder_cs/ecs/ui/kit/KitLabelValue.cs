@@ -68,7 +68,7 @@ namespace Beep.ECS.UI.Kit
             var g = Geo;
             Color face = FaceColor();
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
 
             // 2px weld at 14pt, scaled with the type so the joint stays a hairline rather than

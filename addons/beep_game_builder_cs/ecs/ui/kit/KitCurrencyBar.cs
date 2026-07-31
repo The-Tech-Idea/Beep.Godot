@@ -80,7 +80,7 @@ namespace Beep.ECS.UI.Kit
             var g = Geo;
             Color face = FaceColor();
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
 
             // The capsule is shorter than the control, leaving room for the cap to hang below

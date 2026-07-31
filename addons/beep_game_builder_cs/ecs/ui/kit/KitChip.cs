@@ -83,7 +83,7 @@ namespace Beep.ECS.UI.Kit
             var r = new Rect2(Vector2.Zero, Size);
             Color fill = UiSurface.Semantic(this, Role);
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f));
 

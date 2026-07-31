@@ -69,6 +69,21 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        /// <summary>
+        /// The font this widget should draw in: the GENRE's family, falling back to the theme
+        /// default.
+        ///
+        /// Every kit widget used to call <c>GetThemeDefaultFont()</c> directly, so the font role
+        /// added in Phase C reached only the derive-from-Godot drop-ins and every KitControl
+        /// widget kept drawing in the theme's default sans — the proof render showed four genres
+        /// with identical type and <c>KitFonts</c> never even warned. One resolver, swept over
+        /// every call site, so a new widget cannot miss it.
+        /// </summary>
+        protected Font? KitFont() => KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
+
+        /// <summary>Apply the genre's case rule to a string before drawing it.</summary>
+        protected string KitCase(string t) => Geo.UpperCase ? t.ToUpperInvariant() : t;
+
         protected KitMaterial Material => KitMaterial.ForGenre(_genre);
         protected KitShape ActiveShape => OverrideShape ? Shape : KitMaterial.ShapeForGenre(_genre);
 

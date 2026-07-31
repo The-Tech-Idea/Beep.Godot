@@ -77,7 +77,7 @@ namespace Beep.ECS.UI.Kit
             var g = Geo;
             Color face = FaceColor();
             Color ink = InkColor();
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             int fs = UiSurface.FontSize(this);
             var r = new Rect2(Vector2.Zero, Size);
 

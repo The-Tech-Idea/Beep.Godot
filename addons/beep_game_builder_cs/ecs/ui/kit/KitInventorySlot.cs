@@ -135,7 +135,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 6f || Size.Y < 6f) return;
 
             var g = Geo;
-            var font = GetThemeDefaultFont();
+            var font = KitFont();
             Color surface = UiSurface.Of(this);
             Color ink = UiSurface.Ink(surface);
             var body = new Rect2(Vector2.Zero, Size);

@@ -294,14 +294,18 @@ public partial class KitProofProbe : Node
         foreach (var c in chips) host.AddChild(c);
 
         var sld = new KitSlider { Value = 0.62f };
-        var tg1 = new KitToggle { Pressed = true };
-        var tg2 = new KitToggle { Pressed = false };
-        var tg3 = new KitToggle { Pressed = true, Style = KitToggle.ToggleStyle.Box };
+        // ButtonPressed, not Pressed: KitToggle is a CheckButton now, so the latch is
+        // BaseButton's property and `Pressed` is BaseButton's SIGNAL.
+        var tg1 = new KitToggle { ButtonPressed = true };
+        var tg2 = new KitToggle { ButtonPressed = false };
+        var tg3 = new KitToggle { ButtonPressed = true, Style = KitToggle.ToggleStyle.Box };
         var sel = new KitArrowSelector();
         var rad = new KitRadialMeter { Value = 0.68f, CentreText = "68" };
         var rad2 = new KitRadialMeter { Value = 0.4f, Segments = 0, Fill = UiSurface.Role.Danger, GapDegrees = 0f };
         var star = new KitStarRating { Total = 3, Earned = 2 };
-        var all = new KitControl[] { sld, tg1, tg2, tg3, sel, rad, rad2, star };
+        // Godot.Control, not KitControl: the widgets with a real Godot equivalent now derive
+        // from it, so the only type they still share is Control -- which is the point.
+        var all = new Godot.Control[] { sld, tg1, tg2, tg3, sel, rad, rad2, star };
         foreach (var w in all) host.AddChild(w);
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

@@ -137,9 +137,96 @@ namespace Beep.ECS.UI.Kit
         public static Rect2 Inset(Rect2 r, float by)
             => new(r.Position + new Vector2(by, by), r.Size - new Vector2(by * 2f, by * 2f));
 
-        public static Vector2[] Poly(KitShape shape, Rect2 r, KitGeometry g)
-            => KitControl.OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner,
-                                      g.Shear, g.Wobble);
+        /// <summary>
+        /// The silhouette. <paramref name="unit"/> is the theme's base metric (its font size).
+        ///
+        /// Pass it. Without it the corner falls back to `min(w,h) * Corner`, which is the
+        /// SIZE-PROPORTIONAL rule Stage 50 removed from KitControl -- leaving KitChrome on the old
+        /// one meant a button (drawn through here) and a panel (drawn through KitControl) resolved
+        /// DIFFERENT radii from the same theme. The fallback is kept only for callers that have no
+        /// Control to measure.
+        /// </summary>
+        public static Vector2[] Poly(KitShape shape, Rect2 r, KitGeometry g, float unit = 0f)
+        {
+            float corner = unit > 0f
+                ? Mathf.Min(unit * g.Corner * 3.0f, Mathf.Min(r.Size.X, r.Size.Y) * 0.5f)
+                : Mathf.Min(r.Size.X, r.Size.Y) * g.Corner;
+            return KitControl.OutlinePoly(shape, r, corner, g.Shear, g.Wobble, unit);
+        }
+
+        // ── The static surface a Godot-derived kit widget needs ──────────────────────────────
+        //
+        // KitControl gives its subclasses Geo/FaceColor/DrawShape/... as instance members. A
+        // widget that derives from Button, HSlider, CheckButton or ProgressBar instead -- which is
+        // what every widget with a real Godot equivalent should do -- cannot inherit those. These
+        // are the same operations, taking the Control explicitly, so both families draw through
+        // ONE implementation rather than drifting apart.
+
+        /// <summary>The active genre, or "" when no skin is applied.</summary>
+        public static string GenreOf(Godot.Control _)
+            => SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+
+        /// <summary>The theme's base metric in px — everything decorative is a multiple of it.</summary>
+        public static float Unit(Godot.Control ctl) => Mathf.Max(8f, UiSurface.FontSize(ctl));
+
+        /// <summary>The genre's silhouette.</summary>
+        public static KitShape Shape(string genre) => KitMaterial.ShapeForGenre(genre);
+
+        /// <summary>Fill a shape inside <paramref name="r"/>, unit-aware.</summary>
+        public static void DrawShape(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
+                                     Color fill, Color rim, float rimWidth)
+        {
+            var g = KitGeometry.ForGenre(genre);
+            if (r.Size.X < 1f || r.Size.Y < 1f) return;
+            var poly = Poly(shape, r, g, Unit(ctl));
+            if (poly.Length < 3 || Geometry2D.TriangulatePolygon(poly).Length == 0) return;
+            if (fill.A > 0f) ctl.DrawColoredPolygon(poly, fill);
+            if (rimWidth > 0f && rim.A > 0f)
+            {
+                var closed = new Vector2[poly.Length + 1];
+                poly.CopyTo(closed, 0);
+                closed[^1] = poly[0];
+                ctl.DrawPolyline(closed, rim, rimWidth);
+            }
+        }
+
+        /// <summary>The rim's POLARITY is a genre tell: above 1 a bright carved rim, below 1 the
+        /// thick dark outline of the casual family.</summary>
+        public static Color Rim(Color face, KitGeometry g) => Tint(face, g.OutlineShade);
+
+        /// <summary>The genre's type family, falling back to the theme default.</summary>
+        public static Font? Font(Godot.Control ctl, string genre)
+            => KitFonts.Resolve(KitGeometry.ForGenre(genre).Font) ?? ctl.GetThemeDefaultFont();
+
+        /// <summary>Apply the genre's case rule before drawing a string.</summary>
+        public static string Case(string t, string genre)
+            => KitGeometry.ForGenre(genre).UpperCase ? t.ToUpperInvariant() : t;
+
+        /// <summary>Draw sub-elements that may overhang the host, from the same KitAttach resolve
+        /// KitControl uses — so an overhanging badge looks identical on both families.</summary>
+        public static void DrawAttachments(Godot.Control ctl, string genre,
+                                           System.Collections.Generic.IEnumerable<KitAttach> list)
+        {
+            var g = KitGeometry.ForGenre(genre);
+            foreach (var a in list)
+            {
+                Rect2 r = a.Resolve(ctl.Size);
+                Color fill = UiSurface.Semantic(ctl, a.Role);
+                if (fill.A < 0.02f) fill = UiSurface.Of(ctl);
+                DrawShape(ctl, genre, r, a.Shape, fill, UiSurface.Ink(fill),
+                          Mathf.Max(1f, g.Rim * 0.5f));
+                if (a.Icon != null)
+                    ctl.DrawTextureRect(a.Icon, KitChrome.Inset(r, r.Size.Y * 0.18f), false);
+                if (string.IsNullOrEmpty(a.Text)) continue;
+                var font = Font(ctl, genre);
+                if (font == null) continue;
+                int fs = UiSurface.FontSize(ctl, 0.8f);
+                Vector2 m = font.GetStringSize(a.Text, HorizontalAlignment.Left, -1, fs);
+                ctl.DrawString(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
+                                                 r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                               a.Text, HorizontalAlignment.Left, -1, fs, UiSurface.Ink(fill));
+            }
+        }
 
         /// <summary>Shade may exceed 1.0 — the measured outer rim is 2.05× the plate — so
         /// brightening lifts toward white rather than clipping each channel, which would shift

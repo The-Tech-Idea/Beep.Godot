@@ -42,6 +42,37 @@ public partial class TypeProbe : Node
         GD.Print($"kb:     {(ok ? "ok  " : "FAIL")} inherited Disabled");
         if (!ok) bad++;
 
+        // ── KitToggle IS a CheckButton ──
+        var tg = new KitToggle { Name = "Music" };
+        root.AddChild(tg);
+        var cb = root.GetNodeOrNull<CheckButton>("Music");
+        ok = cb != null;
+        GD.Print($"tg:     {(ok ? "ok  " : "FAIL")} GetNode<CheckButton>(\"Music\") -> {(ok ? "found" : "NULL")}");
+        if (!ok) bad++;
+        bool toggled = false;
+        if (cb != null) cb.Toggled += _ => toggled = true;
+        if (cb != null) cb.ButtonPressed = !cb.ButtonPressed;
+        GD.Print($"tg:     {(toggled ? "ok  " : "FAIL")} Toggled fired via ButtonPressed");
+        if (!toggled) bad++;
+
+        // ── KitSlider IS an HSlider (a Range) ──
+        var sl = new KitSlider { Name = "Volume" };
+        root.AddChild(sl);
+        var hs = root.GetNodeOrNull<HSlider>("Volume");
+        ok = hs != null;
+        GD.Print($"sl:     {(ok ? "ok  " : "FAIL")} GetNode<HSlider>(\"Volume\") -> {(ok ? "found" : "NULL")}");
+        if (!ok) bad++;
+        double got = -1;
+        if (hs != null) { hs.ValueChanged += v => got = v; hs.Value = 0.62; }
+        ok = hs != null && Mathf.IsEqualApprox((float)got, 0.62f);
+        GD.Print($"sl:     {(ok ? "ok  " : "FAIL")} ValueChanged fired with {got:0.00} "
+               + $"(range {hs?.MinValue:0.0}..{hs?.MaxValue:0.0})");
+        if (!ok) bad++;
+        ok = hs != null && hs.CustomMinimumSize.Y >= 20f;
+        GD.Print($"sl:     {(ok ? "ok  " : "FAIL")} min height {hs?.CustomMinimumSize.Y:0} "
+               + "(blanking the grabber icon must not collapse it)");
+        if (!ok) bad++;
+
         GD.Print($"kb:     {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);
     }

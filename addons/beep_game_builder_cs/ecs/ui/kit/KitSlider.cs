@@ -15,66 +15,61 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitSlider : KitControl
+    public partial class KitSlider : HSlider
     {
-        /// <summary>A bar: takes the theme's bar corner, which the
-        /// references vary independently of the button corner.</summary>
-        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
-
-        [Export(PropertyHint.Range, "0.0,1.0,0.001")]
-        public float Value
-        {
-            get => _value;
-            set
-            {
-                float v = Mathf.Clamp(value, 0f, 1f);
-                if (Mathf.IsEqualApprox(v, _value)) return;
-                _value = v; QueueRedraw(); EmitSignal(SignalName.ValueChanged, v);
-            }
-        }
-        private float _value = 0.5f;
-
         [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Accent;
 
-        [Signal] public delegate void ValueChangedEventHandler(float value);
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private bool _suppressing;
 
+        /// <summary>Grab state for the pressed sculpt. Slider emits DragStarted/DragEnded; there
+        /// is no public 'is being dragged' getter, so it is tracked here rather than guessed at.</summary>
         private bool _dragging;
 
         public override void _Ready()
         {
-            base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 10f, fs * 1.9f);
-            }
+            _genre = KitChrome.GenreOf(this);
+            // Kept 0..1 so every existing `Value = 0.62f` still means "62%". Range gives real
+            // MinValue/MaxValue/Step to anyone who wants a different domain.
+            MinValue = 0.0;
+            MaxValue = 1.0;
+            Step = 0.001;
+            Suppress();
+            DragStarted += () => { _dragging = true; QueueRedraw(); };
+            DragEnded += _ => { _dragging = false; QueueRedraw(); };
+            ValueChanged += _ => QueueRedraw();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
+            QueueRedraw();
+        }
+
+        /// <summary>Slider's grabber is an ICON, not a StyleBox — blanking only the styleboxes
+        /// leaves Godot's knob drawn on top of ours. And blanking BOTH collapses the control's
+        /// minimum size to about a pixel, whereupon _Draw hits its own size guard and the slider
+        /// vanishes silently. Anything that blanks a control's theme art must restate the size
+        /// that art was providing.</summary>
+        private void Suppress()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
+                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
+            foreach (string ic in new[] { "grabber", "grabber_highlight", "grabber_disabled", "tick" })
+                AddThemeIconOverride(ic, KitChrome.Blank);
+            int fs = UiSurface.FontSize(this);
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 10f),
+                                            Mathf.Max(fs * 1.9f, 22f));
+            _suppressing = false;
         }
 
         private float KnobW => Mathf.Max(6f, Size.Y * 0.38f);
-
-        public override void _GuiInput(InputEvent @event)
-        {
-            switch (@event)
-            {
-                case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
-                    _dragging = mb.Pressed;
-                    if (mb.Pressed) { SetFromX(mb.Position.X); SetState(KitState.Pressed); }
-                    else SetState(KitState.Normal);
-                    AcceptEvent();
-                    break;
-                case InputEventMouseMotion mm when _dragging:
-                    SetFromX(mm.Position.X);
-                    AcceptEvent();
-                    break;
-            }
-        }
-
-        private void SetFromX(float x)
-        {
-            float half = KnobW * 0.5f;
-            float span = Mathf.Max(1f, Size.X - KnobW);
-            Value = Mathf.Clamp((x - half) / span, 0f, 1f);
-        }
 
         public override void _Draw()
         {
@@ -82,7 +77,7 @@ namespace Beep.ECS.UI.Kit
 
             var g = Geo;
             Color fill = UiSurface.Semantic(this, Fill);
-            Color ink = InkColor();
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f * (fs / 14f));
 
@@ -90,26 +85,28 @@ namespace Beep.ECS.UI.Kit
             // themed form rather than a game.
             float th = Mathf.Max(4f, Size.Y * 0.34f);
             var track = new Rect2(0f, (Size.Y - th) * 0.5f, Size.X, th);
-            DrawShape(track, KitShape.Pill,
+            KitChrome.DrawShape(this, _genre, track, KitShape.Pill,
                       new Color(fill.R * 0.26f, fill.G * 0.26f, fill.B * 0.30f, 1f), ink, rimPx);
 
             float half = KnobW * 0.5f;
             float span = Mathf.Max(1f, Size.X - KnobW);
-            float kx = half + span * _value;
+            float kx = half + span * (float)Value;
 
             if (kx - half > 1f)
             {
                 var done = new Rect2(track.Position, new Vector2(kx, track.Size.Y));
-                DrawShape(done, KitShape.Pill, fill, ink, 0f);
+                KitChrome.DrawShape(this, _genre, done, KitShape.Pill, fill, ink, 0f);
             }
 
             // The bar knob: a chunky vertical plate, the game form's grabber.
             var knob = new Rect2(kx - half, 0f, KnobW, Size.Y);
-            Color kc = State == KitState.Pressed
+            // Slider tracks its own grab state, so the pressed sculpt comes from Godot rather
+            // than from a KitControl field this class no longer has.
+            Color kc = _dragging
                 ? new Color(Mathf.Lerp(fill.R, 1f, 0.28f), Mathf.Lerp(fill.G, 1f, 0.28f),
                             Mathf.Lerp(fill.B, 1f, 0.28f), 1f)   // lightened, SAME hue
                 : fill;
-            DrawShape(knob, ActiveShape, kc, ink, Mathf.Max(1.5f, rimPx));
+            KitChrome.DrawShape(this, _genre, knob, KitChrome.Shape(_genre), kc, ink, Mathf.Max(1.5f, rimPx));
         }
     }
 }

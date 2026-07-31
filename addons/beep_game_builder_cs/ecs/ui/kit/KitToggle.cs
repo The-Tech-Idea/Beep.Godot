@@ -14,29 +14,40 @@ namespace Beep.ECS.UI.Kit
     /// Off is not "disabled": off keeps full saturation on its track and simply sits at the other
     /// end. Draining saturation is reserved for unavailable (the 7x rule), and using it for
     /// "off" would make every unset option look broken.
+    ///
+    /// IT IS A GODOT <see cref="CheckButton"/>.
+    /// ---------------------------------------
+    /// Godot already models "a two-state control you click": ButtonPressed, Toggled, Disabled,
+    /// focus, keyboard activation, ButtonGroup, and the whole theme pipeline. This class used to
+    /// reimplement the first three badly -- its own `Pressed` property, its own `Toggled` signal,
+    /// its own `_GuiInput` -- so `GetNode&lt;CheckButton&gt;` failed against it, `ButtonPressed`
+    /// did not exist, and a settings screen could not treat it like any other toggle.
+    ///
+    /// All of that is inherited now. What remains here is the only part Godot cannot do: draw the
+    /// genre's plate, silhouette and material instead of a StyleBox.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitToggle : KitControl
+    public partial class KitToggle : CheckButton
     {
         public enum ToggleStyle { Switch, Box }
 
         [Export] public ToggleStyle Style { get; set; } = ToggleStyle.Switch;
 
-        [Export] public bool Pressed
-        {
-            get => _on;
-            set { if (_on == value) return; _on = value; QueueRedraw(); EmitSignal(SignalName.Toggled, value); }
-        }
-        private bool _on = true;
-
+        /// <summary>Palette role of the ON state.</summary>
         [Export] public UiSurface.Role OnRole { get; set; } = UiSurface.Role.Success;
 
-        [Signal] public delegate void ToggledEventHandler(bool pressed);
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private bool _suppressing;
 
         public override void _Ready()
         {
-            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            // BaseButton runs the state machine; without ToggleMode a CheckButton fires and
+            // springs back instead of latching.
+            ToggleMode = true;
+            Suppress();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -46,29 +57,51 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        public override void _GuiInput(InputEvent @event)
+        public override void _Notification(int what)
         {
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                Pressed = !Pressed;
-                AcceptEvent();
-            }
+            base._Notification(what);
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
+            QueueRedraw();
+        }
+
+        /// <summary>Blank the base chrome AND the check ICONS. CheckButton draws its on/off pill
+        /// from theme icons, not a StyleBox — suppressing only the StyleBox leaves Godot's own
+        /// switch floating next to the one this class draws.</summary>
+        private void Suppress()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            KitChrome.Suppress(this, new[] { "normal", "hover", "pressed", "disabled", "focus" },
+                               0f, 0f, 0f);
+            foreach (string icon in new[]
+                     { "checked", "unchecked", "checked_disabled", "unchecked_disabled" })
+                AddThemeIconOverride(icon, KitChrome.Blank);
+            _suppressing = false;
         }
 
         public override void _Draw()
         {
             if (Size.X < 6f || Size.Y < 6f) return;
 
-            Color face = FaceColor();
-            Color ink = InkColor();
+            bool _on = ButtonPressed;
+            Color face = UiSurface.Of(this);
+            Color ink = UiSurface.Ink(face);
             Color on = UiSurface.Semantic(this, OnRole);
+            if (on.A < 0.02f) on = face;
+            if (Disabled)
+            {
+                on = KitChrome.StateFace(on, KitState.Disabled);
+                face = KitChrome.StateFace(face, KitState.Disabled);
+            }
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f));
             var r = new Rect2(Vector2.Zero, Size);
 
             if (Style == ToggleStyle.Box)
             {
-                DrawShape(r, ActiveShape, _on ? on : new Color(face.R * 0.55f, face.G * 0.55f, face.B * 0.6f, 1f),
+                KitChrome.DrawShape(this, _genre, r, KitChrome.Shape(_genre), _on ? on : new Color(face.R * 0.55f, face.G * 0.55f, face.B * 0.6f, 1f),
                           ink, rimPx);
                 if (_on) DrawTick(r, UiSurface.Luminance(on) > 0.5f
                                         ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
@@ -79,11 +112,11 @@ namespace Beep.ECS.UI.Kit
             Color track = _on
                 ? new Color(on.R * 0.55f, on.G * 0.55f, on.B * 0.58f, 1f)
                 : new Color(face.R * 0.42f, face.G * 0.42f, face.B * 0.46f, 1f);
-            DrawShape(r, KitShape.Pill, track, ink, rimPx);
+            KitChrome.DrawShape(this, _genre, r, KitShape.Pill, track, ink, rimPx);
 
             float kw = Size.X * 0.46f;
             var knob = new Rect2(_on ? Size.X - kw : 0f, 0f, kw, Size.Y);
-            DrawShape(knob, KitShape.Pill, _on ? on : new Color(face.R * 0.85f, face.G * 0.85f, face.B * 0.9f, 1f),
+            KitChrome.DrawShape(this, _genre, knob, KitShape.Pill, _on ? on : new Color(face.R * 0.85f, face.G * 0.85f, face.B * 0.9f, 1f),
                       ink, rimPx);
         }
 

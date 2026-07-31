@@ -81,6 +81,8 @@ namespace Beep.ECS.UI.Kit
             g.PixelSize = F(k, "pixel_size", g.PixelSize);
             if (k.ContainsKey("register"))
                 g.Register = Enum<KitRegister>(k["register"].AsString(), genre, "register") ?? g.Register;
+            if (k.ContainsKey("gloss_style"))
+                g.GlossStyle = Enum<KitGloss>(k["gloss_style"].AsString(), genre, "gloss_style") ?? g.GlossStyle;
             if (k.ContainsKey("shadow"))
                 g.Shadow = ShadowFrom(k["shadow"].AsString(), genre) ?? g.Shadow;
             if (k.ContainsKey("font"))
@@ -101,7 +103,7 @@ namespace Beep.ECS.UI.Kit
             "outline_shade", "corner", "corner_panel", "corner_slot", "corner_bar", "corner_chip",
             "shear", "wobble", "tracking", "upper_case", "shadow", "font",
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
-            "grain", "grain_amount", "grain_tiles", "register", "pixel_size",
+            "grain", "grain_amount", "grain_tiles", "register", "pixel_size", "gloss_style",
         };
 
         /// <summary>

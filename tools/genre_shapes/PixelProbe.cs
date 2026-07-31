@@ -21,9 +21,24 @@ public partial class PixelProbe : Node
     private static readonly string[,] Cases =
     {
         { "platformer", "pixel8bit", "px_platformer" },
-        { "platformer", "cartoon",   "rr_platformer" },
+        // THREE ROLES, deliberately not two:
+        //   px_ the pixel theme under test
+        //   rr_ the ARC control for corner construction -- must have wobble 0
+        //   sh_ the SHADED control for anti-aliasing -- must be a theme with real depth
+        // One theme cannot be both: platformer/modern is the flat-translucent register (no
+        // shadow, almost no grain) so it is the right arc control and a useless AA control, at 9
+        // luminance levels against the pixel theme's 3.
+        { "platformer", "modern",    "rr_platformer" },
+        { "platformer", "cartoon",   "sh_platformer" },
         { "topdown",    "classic",   "px_topdown" },
-        { "topdown",    "nature",    "rr_topdown" },
+        { "topdown",    "nature",    "sh_topdown" },
+
+        // GLOSS construction, all three from ONE genre so the silhouette is held constant and
+        // only the highlight differs. Comparing across genres would confound the band with the
+        // shape it is clipped to -- the same mistake that made the topdown pixel pair useless.
+        { "puzzle",     "modern",    "gl_linear" },
+        { "puzzle",     "candy",     "gl_hard" },
+        { "puzzle",     "sea",       "gl_curved" },
     };
 
     public override void _Ready() => _ = Guarded();
@@ -64,6 +79,13 @@ public partial class PixelProbe : Node
             // Large and unlabelled. A corner has to be big enough to tell an arc from a staircase:
             // at button size both are a handful of pixels and the measurement is noise, which is
             // the same mistake the material gate made before it grew its own proof pass.
+            // GLOSS cases render with the shadow OFF. The measurement normalises against the
+            // widget's bounding box, and a soft shadow puts 30px of penumbra outside the plate --
+            // so the same 260px plate measured 260 under one theme and 293 under another, and
+            // every depth was divided by a different number. Same paired-render trick the shadow
+            // gate uses, for the same reason: cancel what you are not measuring.
+            KitShadow.Enabled = !label.StartsWith("gl_");
+
             var plate = new KitButton { Text = "" };
             root.AddChild(plate);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -73,8 +95,8 @@ public partial class PixelProbe : Node
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
             var g = KitGeometry.ForGenre(genre);
-            GD.Print($"pixel:  {label,-14} register={g.Register} px={g.PixelSize:0} "
-                   + $"corner={g.Corner:0.00}");
+            GD.Print($"pixel:  {label,-14} register={g.Register} gloss={g.GlossStyle} "
+                   + $"px={g.PixelSize:0} corner={g.Corner:0.00}");
 
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var err = GetViewport().GetTexture().GetImage().SavePng($"{OutDir}/{label}.png");
@@ -84,6 +106,7 @@ public partial class PixelProbe : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
 
+        KitShadow.Enabled = true;
         GD.Print("pixel:  rendered");
         GetTree().Quit(0);
     }

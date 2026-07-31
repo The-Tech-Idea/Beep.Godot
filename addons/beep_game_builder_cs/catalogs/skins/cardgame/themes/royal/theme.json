@@ -502,13 +502,13 @@
   },
   "_kit_note": "carved/ornate: bright rim on stone",
   "kit": {
-  
-      "shadow": "hard",
-      "outline_shade": 2.05,
-      "font": "heavy",
-      "upper_case": true,
-      "grain": "pattern_78",
-      "grain_amount": 0.15,
-      "select_slot": "border|glow"
+    "shadow": "hard",
+    "outline_shade": 2.05,
+    "font": "heavy",
+    "upper_case": true,
+    "grain": "pattern_78",
+    "grain_amount": 0.15,
+    "select_slot": "border|glow",
+    "gloss_style": "hardband"
   }
 }

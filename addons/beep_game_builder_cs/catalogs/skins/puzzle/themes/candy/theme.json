@@ -2,7 +2,7 @@
   "id": "candy",
   "display_name": "Candy",
   "category": "Aesthetic",
-  "description": "Sweet hyper-cute bubblegum UI — bubblegum pink surface, hot pink accent, soft rounded pill corners",
+  "description": "Sweet hyper-cute bubblegum UI \u2014 bubblegum pink surface, hot pink accent, soft rounded pill corners",
   "colors": {
     "surface_primary": "#FF69B5FF",
     "surface_hover": "#FF8CC7FF",
@@ -502,14 +502,14 @@
   },
   "_kit_note": "glossy arcade: soft, round, springy",
   "kit": {
-  
-      "shadow": "soft",
-      "wobble": 0.02,
-      "corner": 0.5,
-      "corner_panel": 0.34,
-      "corner_slot": 0.4,
-      "grain": "pattern_58",
-      "grain_amount": 0.16,
-      "select_slot": "fill|lift"
+    "shadow": "soft",
+    "wobble": 0.02,
+    "corner": 0.5,
+    "corner_panel": 0.34,
+    "corner_slot": 0.4,
+    "grain": "pattern_58",
+    "grain_amount": 0.16,
+    "select_slot": "fill|lift",
+    "gloss_style": "hardband"
   }
 }

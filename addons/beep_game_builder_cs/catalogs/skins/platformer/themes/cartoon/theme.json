@@ -502,12 +502,12 @@
   },
   "_kit_note": "casual arcade (art 12): wobble on rubber",
   "kit": {
-  
-      "shadow": "hard",
-      "wobble": 0.02,
-      "corner": 0.5,
-      "corner_panel": 0.34,
-      "grain": "pattern_58",
-      "grain_amount": 0.2
+    "shadow": "hard",
+    "wobble": 0.02,
+    "corner": 0.5,
+    "corner_panel": 0.34,
+    "grain": "pattern_58",
+    "grain_amount": 0.2,
+    "gloss_style": "hardband"
   }
 }

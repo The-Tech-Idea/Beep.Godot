@@ -502,11 +502,11 @@
   },
   "_kit_note": "hairline plus glow, heavy tracking",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 2.0,
-      "tracking": 0.14,
-      "wobble": 0.0,
-      "select_button": "fill|glow"
+    "shadow": "glow",
+    "outline_shade": 2.0,
+    "tracking": 0.14,
+    "wobble": 0.0,
+    "select_button": "fill|glow",
+    "gloss_style": "curvedglass"
   }
 }

@@ -189,6 +189,31 @@ namespace Beep.ECS.UI.Kit
                 return ((seed >> 16) & 0xFF) / 255f - 0.5f;
             }
 
+            // WOBBLE AS A LOW-FREQUENCY FUNCTION OF ARC LENGTH, not per-vertex noise.
+            //
+            // It used to displace every vertex by an independent random amount. With six points
+            // per outline that reads as a hand-drawn waver; the moment the arc sampling became
+            // adaptive (up to 174 points on a large plate) the identical code produced WHITE
+            // NOISE -- a ragged fringe all the way around a shape whose outline is smooth. The
+            // silhouette must not change character with how finely it happens to be sampled.
+            //
+            // Three seeded harmonics of the normalised arc length, displaced along the outward
+            // normal: neighbouring vertices now move together, the waver has a fixed number of
+            // lobes whatever the resolution, and it cannot self-intersect the way independent
+            // jitter could.
+            float total = 0f;
+            var cum = new float[poly.Length + 1];
+            for (int i = 0; i < poly.Length; i++)
+            {
+                cum[i] = total;
+                total += poly[i].DistanceTo(poly[(i + 1) % poly.Length]);
+            }
+            cum[poly.Length] = total;
+            if (total < 1f) total = 1f;
+
+            float p1 = Next() * Mathf.Tau, p2 = Next() * Mathf.Tau, p3 = Next() * Mathf.Tau;
+            Vector2 centre = r.Position + r.Size * 0.5f;
+
             var o = new Vector2[poly.Length];
             for (int i = 0; i < poly.Length; i++)
             {
@@ -201,16 +226,23 @@ namespace Beep.ECS.UI.Kit
                     v.X -= t * shear * h;
                 }
                 if (amp > 0.0001f)
-                    v += new Vector2(Next(), Next()) * amp * 2f;
+                {
+                    float u = cum[i] / total * Mathf.Tau;
+                    float d = Mathf.Sin(u * 3f + p1) * 0.55f
+                            + Mathf.Sin(u * 5f + p2) * 0.30f
+                            + Mathf.Sin(u * 8f + p3) * 0.15f;
+                    Vector2 n = (v - centre);
+                    if (n.LengthSquared() > 0.01f) v += n.Normalized() * d * amp;
+                }
                 o[i] = v;
             }
             return o;
         }
 
         internal static Vector2[] OutlinePoly(KitShape shape, Rect2 r, float cut,
-                                              float shear = 0f, float wobble = 0f)
+                                              float shear = 0f, float wobble = 0f, float unit = 0f)
         {
-            if (Outline(shape, r, cut) is { } poly) return Modify(poly, r, shear, wobble);
+            if (Outline(shape, r, cut, unit) is { } poly) return Modify(poly, r, shear, wobble);
             float rad = shape switch
             {
                 KitShape.Rect => 0f,
@@ -224,7 +256,13 @@ namespace Beep.ECS.UI.Kit
                     r.Position, r.Position + new Vector2(r.Size.X, 0),
                     r.Position + r.Size, r.Position + new Vector2(0, r.Size.Y),
                 }, r, shear, wobble);
-            const int seg = 6;
+            // ADAPTIVE resolution. This was a flat 6 segments per corner, which was invisible
+            // while the polygon only fed grain clipping and the shadow -- the visible plate went
+            // through DrawStyleBox, which draws a true arc. Now that every layer IS this polygon,
+            // 6 segments on a 130px radius is a 34px facet and a stadium renders as a coarse
+            // octagon. About one segment every 3px, clamped so a tiny chip stays cheap and a
+            // large panel stays smooth.
+            int seg = Mathf.Clamp(Mathf.RoundToInt(rad / 3f), 4, 48);
             var pts = new System.Collections.Generic.List<Vector2>(seg * 4 + 4);
             Vector2[] centres =
             {
@@ -253,8 +291,13 @@ namespace Beep.ECS.UI.Kit
             return Modify(pts.ToArray(), r, shear, wobble);
         }
 
-        internal static Vector2[]? Outline(KitShape shape, Rect2 r, float cut)
+        /// <param name="unit">The theme's base metric, which sizes the STRUCTURAL features of the
+        /// big silhouettes (spike depth, tear amplitude). Pass 0 and it falls back to a fraction of
+        /// the rect, which is what every caller did implicitly before and which is why those
+        /// features scaled with the widget instead of with the theme.</param>
+        internal static Vector2[]? Outline(KitShape shape, Rect2 r, float cut, float unit = 0f)
         {
+            if (unit <= 0f) unit = Mathf.Min(r.Size.X, r.Size.Y) * 0.28f;
             float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
             // 0.45, not 0.5: at exactly half, a chamfer's (x+c, y) and (x+w-c, y) COINCIDE and
             // the polygon degenerates, which Godot reports as "Invalid polygon data,
@@ -288,12 +331,12 @@ namespace Beep.ECS.UI.Kit
                 // rpgui's PLAY plate. The points hang BELOW y+h — deliberately outside the rect,
                 // which is the whole reason this reads as a different object rather than another
                 // cut corner. Count scales with width so a chip gets 3 and a panel gets 12.
-                KitShape.Spiked => Spikes(x, y, w, h, c),
+                KitShape.Spiked => Spikes(x, y, w, h, c, unit),
 
                 // store's parchment cards: every edge offset by a different amount, so no two
                 // sides are parallel. Seeded from the rect's own size, so it is stable across
                 // redraws — a torn edge that reshuffles each frame reads as noise, not as paper.
-                KitShape.Torn => Torn(x, y, w, h, c),
+                KitShape.Torn => Torn(x, y, w, h, c, unit),
 
                 // ui1's mission bar, ui9's currency pill, and the mobile kit's "$ 200" chips all
                 // do the SAME thing: a circular cap that OVERHANGS the left end, wider than the
@@ -360,10 +403,19 @@ namespace Beep.ECS.UI.Kit
             };
 
             // Triangular points hanging below the plate — rpgui's PLAY button.
-            static Vector2[] Spikes(float x, float y, float w, float h, float c)
+            static Vector2[] Spikes(float x, float y, float w, float h, float c, float unit)
             {
-                int n = Mathf.Max(3, Mathf.RoundToInt(w / Mathf.Max(8f, h * 0.42f)));
-                float sp = w / n, drop = Mathf.Min(h * 0.22f, sp * 0.55f);
+                // BIG. The drop was min(h * 0.22, sp * 0.55) -- about 10px on a normal button,
+                // which reads as a serrated edge, i.e. a smooth plate with a small decoration.
+                // rpgui's PLAY plate has points roughly as deep as the plate's own padding, and
+                // FEWER of them. Both are now unit-scaled: count from the unit rather than from
+                // the height, so a wide panel gets bigger spikes instead of more of them.
+                // FEWER and DEEPER. rpgui's plate has a handful of substantial points, not a
+                // saw edge: spacing ~3.6 units and a drop of ~1.8 units gives about seven points
+                // on a wide panel instead of a fifteen-tooth serration.
+                int n = Mathf.Max(2, Mathf.RoundToInt(w / Mathf.Max(18f, unit * 3.6f)));
+                float sp = w / n;
+                float drop = Mathf.Min(unit * 1.8f, Mathf.Min(h * 0.45f, sp * 0.85f));
                 var p = new List<Vector2>
                 {
                     new(x + c, y), new(x + w - c, y), new(x + w, y + c), new(x + w, y + h),
@@ -489,7 +541,7 @@ namespace Beep.ECS.UI.Kit
             }
 
             // Non-parallel torn edges — store's parchment cards.
-            static Vector2[] Torn(float x, float y, float w, float h, float c)
+            static Vector2[] Torn(float x, float y, float w, float h, float c, float unit)
             {
                 uint s = (uint)(Mathf.RoundToInt(w) * 73856093 ^ Mathf.RoundToInt(h) * 19349663);
                 float J(float amp)
@@ -497,7 +549,11 @@ namespace Beep.ECS.UI.Kit
                     s = s * 1664525u + 1013904223u;
                     return (((s >> 16) & 0xFF) / 255f - 0.5f) * 2f * amp;
                 }
-                float ax = w * 0.06f, ay = h * 0.10f;
+                // Amplitude from the UNIT and roughly doubled. At w*0.06/h*0.10 the tear was a
+                // few pixels of wobble that read as anti-aliasing noise rather than as a torn
+                // parchment edge.
+                float ax = Mathf.Min(unit * 1.20f, w * 0.18f);
+                float ay = Mathf.Min(unit * 1.20f, h * 0.28f);
                 return new[]
                 {
                     new Vector2(x + J(ax), y + J(ay)),
@@ -628,7 +684,7 @@ namespace Beep.ECS.UI.Kit
             // at the leading edge of a partially-filled segment.
             if (r.Size.X < 1f || r.Size.Y < 1f) return;
 
-            float cut = CornerFor(r);
+            float cut = CornerPx(r);
 
             // THE PIXEL REGISTER'S CONSTRUCTION RULE. A rounded corner is an ARC, and an arc is
             // the single loudest way to break the 8-bit reading -- a stepped outline with a
@@ -657,7 +713,7 @@ namespace Beep.ECS.UI.Kit
             if (Geo.Register == KitRegister.Pixel && rimWidth > 0f)
                 rimWidth = Mathf.Max(1f, Snap(rimWidth));
 
-            var poly = Outline(shape, r, cut);
+            var poly = Outline(shape, r, cut, Unit);
             if (poly != null)
             {
                 DrawColoredPolygon(poly, fill);
@@ -701,6 +757,141 @@ namespace Beep.ECS.UI.Kit
             DrawStyleBox(sb, r);
         }
 
+
+        // ── THE UNIT ──────────────────────────────────────────────────────────────────────
+        //
+        // One metric for the whole theme, taken from the same font size the widget's own size is
+        // derived from (KitButton: `fs * HeightRatio`). Every decorative metric is a multiple of
+        // it.
+        //
+        // WHY. Corner, rim, shadow and material used to be re-derived from the WIDGET's pixel
+        // size -- `min(w,h) * CornerFraction`, `min(w,h) * 0.055`, "N grain tiles across the short
+        // edge". So inside ONE theme a 40px chip and a 400px panel got corner radii, outline
+        // weights, shadow offsets and material feature sizes that differed by TEN TIMES. The
+        // reference kits do the opposite: a theme has one radius and one outline weight, and a
+        // big panel and a small chip share them. Size and typography were two disconnected
+        // systems; this is the join.
+
+        /// <summary>The theme's base metric, in px. Everything decorative is a multiple.</summary>
+        protected float Unit => Mathf.Max(8f, UiSurface.FontSize(this));
+
+        /// <summary>
+        /// Corner radius in PX, from the unit rather than from the widget's own size.
+        ///
+        /// Still capped at half the short edge, because a constant radius on a very small control
+        /// would otherwise swallow it -- a chip degrades to a pill instead of going inside out.
+        /// </summary>
+        protected float CornerPx(Rect2 r)
+        {
+            float px = Unit * CornerFraction * CornerK;
+            return Snap(Mathf.Min(px, Mathf.Min(r.Size.X, r.Size.Y) * 0.5f));
+        }
+
+        /// <summary>Converts the stored 0..0.5 corner FRACTION into unit multiples. Chosen so a
+        /// default button keeps the radius it had when the fraction was applied to its own
+        /// height, which is what stops this change from restyling every widget at once.</summary>
+        private const float CornerK = 3.0f;
+
+        /// <summary>Same conversion for layer insets, which were fractions of widget height.</summary>
+        private const float InsetK = 3.0f;
+
+        /// <summary>Bounding rect of a silhouette, for the few layers that still need one.</summary>
+        protected static Rect2 PolyRect(Vector2[] p)
+        {
+            if (p.Length == 0) return new Rect2();
+            float x0 = p[0].X, y0 = p[0].Y, x1 = x0, y1 = y0;
+            foreach (var v in p)
+            {
+                x0 = Mathf.Min(x0, v.X); y0 = Mathf.Min(y0, v.Y);
+                x1 = Mathf.Max(x1, v.X); y1 = Mathf.Max(y1, v.Y);
+            }
+            return new Rect2(x0, y0, x1 - x0, y1 - y0);
+        }
+
+        /// <summary>
+        /// A TRUE parallel offset of a silhouette. Positive grows, negative shrinks.
+        ///
+        /// This replaces two separate wrong things:
+        ///   * insetting the RECT and re-deriving the corner, which gave
+        ///     `radius_outer - 2*inset*fraction` instead of `radius_outer - inset`, so the layers
+        ///     were not parallel and pinched at the corners; and
+        ///   * scaling a polygon about its centre for the shadow, which on a 420x260 plate is not
+        ///     an outward offset at all.
+        ///
+        /// Miter joins keep a chamfer a chamfer and a spike a spike; a round join would soften
+        /// every angular silhouette into the "smooth add-on" reading these shapes are supposed to
+        /// break out of. Returns the input when the offset would erase the shape.
+        /// </summary>
+        protected static Vector2[] OffsetPoly(Vector2[] poly, float delta)
+        {
+            if (poly.Length < 3 || Mathf.Abs(delta) < 0.01f) return poly;
+            var pieces = Geometry2D.OffsetPolygon(poly, delta, Geometry2D.PolyJoinType.Miter);
+            if (pieces.Count == 0) return poly;
+            // Offsetting a non-convex silhouette (Spiked, Torn) can split it. Keep the largest
+            // piece -- the body -- rather than the first, which may be a sliver off one spike.
+            Vector2[] best = pieces[0];
+            float bestArea = 0f;
+            foreach (var q in pieces)
+            {
+                float a = Mathf.Abs(Area(q));
+                if (a > bestArea) { bestArea = a; best = q; }
+            }
+            return bestArea > 1f ? best : poly;
+        }
+
+        private static float Area(Vector2[] p)
+        {
+            float a = 0f;
+            for (int i = 0; i < p.Length; i++)
+            {
+                Vector2 u = p[i], v = p[(i + 1) % p.Length];
+                a += u.X * v.Y - v.X * u.Y;
+            }
+            return a * 0.5f;
+        }
+
+        /// <summary>Fill a silhouette, optionally stroking its own outline.</summary>
+        protected void FillPoly(Vector2[] poly, Color fill, Color rim, float rimWidth)
+        {
+            if (poly.Length < 3) return;
+            if (Geometry2D.TriangulatePolygon(poly).Length == 0) return;
+            if (fill.A > 0.003f) DrawColoredPolygon(poly, fill);
+            if (rimWidth > 0f && rim.A > 0.003f)
+            {
+                var closed = new Vector2[poly.Length + 1];
+                poly.CopyTo(closed, 0);
+                closed[^1] = poly[0];
+                DrawPolyline(closed, rim, rimWidth);
+            }
+        }
+
+        /// <summary>
+        /// Draw <paramref name="band"/> clipped to <paramref name="host"/>.
+        ///
+        /// This is what makes an internal layer follow the widget's outline. The face shade used
+        /// to draw six of its seven bands as KitShape.Rect, so an Ellipse, Octagon, Shield or
+        /// Spiked widget had a stack of RECTANGLES shaded inside a non-rectangular outline --
+        /// visible as straight edges cutting across a curved or pointed plate.
+        /// </summary>
+        protected void ClipFill(Vector2[] host, Vector2[] band, Color c)
+        {
+            if (c.A < 0.003f || host.Length < 3 || band.Length < 3) return;
+            foreach (var piece in Geometry2D.IntersectPolygons(host, band))
+            {
+                if (piece.Length < 3 || Geometry2D.TriangulatePolygon(piece).Length == 0) continue;
+                DrawColoredPolygon(piece, c);
+            }
+        }
+
+        /// <summary>A horizontal band across a rect, as a polygon, generously overhanging on
+        /// both sides so the CLIP decides where it ends rather than the band's own extent.</summary>
+        protected static Vector2[] BandPoly(Rect2 r, float top, float bottom)
+        {
+            float l = r.Position.X - 4f, rt = r.Position.X + r.Size.X + 4f;
+            return new[] { new Vector2(l, top), new Vector2(rt, top),
+                           new Vector2(rt, bottom), new Vector2(l, bottom) };
+        }
+
         // ── Material layers ───────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -736,28 +927,45 @@ namespace Beep.ECS.UI.Kit
             if (!m.Base) return;
 
             float frame = g.FramePx(r.Size.Y);
-            Rect2 cur = r;
+
+            // THE HOST SILHOUETTE, built once. Every layer below is a PARALLEL OFFSET of this
+            // polygon -- not its own re-derived shape -- so a spiked plate stays spiked all the
+            // way in, and an octagon never contains a rectangle.
+            // THE PIXEL REGISTER'S CONSTRUCTION RULE, applied where the silhouette is DECIDED.
+            //
+            // It used to live in DrawShape. Moving the layer stack onto polygons routed the plate
+            // through FillPoly instead, so the rule stopped reaching the one thing it exists for
+            // -- pixel8bit went straight back to drawing an arc, and the corner gate said so
+            // (mobility 0.86 where a staircase is < 0.40). Deciding it here means every layer
+            // inherits it, which is the same reason the silhouette is built once.
+            KitShape shp = shape;
+            float cornerPx = CornerPx(r);
+            if (g.Register == KitRegister.Pixel && cornerPx >= Mathf.Max(1f, g.PixelSize)
+                && shp is KitShape.Round or KitShape.Pill or KitShape.Ellipse or KitShape.Arch
+                    or KitShape.Capsule)
+                shp = KitShape.Stepped;
+
+            var host = OutlinePoly(shp, r, cornerPx, g.Shear, g.Wobble, Unit);
+            Vector2[] cur = host;
+
             // SHADOW FIRST, under everything -- see KitChrome.DrawPlate for why it is not a
             // member of the register's stack.
-            KitShadow.Draw(this, g.Shadow, OutlinePoly(shape, r, Mathf.Min(r.Size.X, r.Size.Y) * g.Corner, g.Shear, g.Wobble),
-                           r, KitShadow.UnitFor(r), face);
+            KitShadow.Draw(this, g.Shadow, host, r, Unit, face);
 
             foreach (var layer in KitStacks.For(g.Register))
             {
-                float inset = layer.Inset >= 0f ? r.Size.Y * layer.Inset : frame;
+                // Insets are UNIT multiples now. They were fractions of the widget's height, so
+                // the same declared layer stack produced a 2px band on a chip and a 30px band on
+                // a panel -- the bands are a property of the theme, not of the widget.
+                float inset = layer.Inset >= 0f ? Unit * layer.Inset * InsetK : frame;
 
                 // STRUCTURAL layers (Plate, Keyline) cut inward from the last plate; EFFECT
-                // layers apply TO that plate and must not inset again. Insetting everything
-                // compounded: each effect stepped a further frame inward, so the face shade
-                // stopped short of the plate's bottom edge and the carved register measured
-                // FURTHER from painted (rpg 0.33 -> 0.40) after the layer stack was introduced,
-                // which is the opposite of what the stack was built to do.
+                // layers apply TO that plate and must not inset again.
                 bool structural = layer.Kind is KitLayerKind.Plate or KitLayerKind.Keyline;
-                Rect2 box = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
-                    ? r
-                    : structural ? Inset(cur, inset) : cur;
-                if (box.Size.X < 2f || box.Size.Y < 2f) continue;
-                KitShape s = layer.Shape ?? shape;
+                Vector2[] poly = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
+                    ? host
+                    : structural ? OffsetPoly(cur, -inset) : cur;
+                if (poly.Length < 3) continue;
 
                 switch (layer.Kind)
                 {
@@ -768,17 +976,11 @@ namespace Beep.ECS.UI.Kit
                         // which would shift hue as it saturated.
                         //
                         // Shade < 0 is the sentinel for "the THEME decides this band's polarity"
-                        // (KitGeometry.OutlineShade), so a casual genre can carry a thick LIGHT
-                        // outline instead of the hardcoded dark one.
+                        // (KitGeometry.OutlineShade).
                         float shade = layer.Shade < 0f ? g.OutlineShade : layer.Shade;
-                        if (DebugOutline && layer.Inset == 0f)
-                            GD.Print($"outline: {_genre,-12} declared={g.OutlineShade:0.00} "
-                                   + $"resolved={shade:0.00} faceLum={UiSurface.Luminance(face):0.000} "
-                                   + $"reg={g.Register}");
                         Color c;
                         if (shade <= 1f)
-                            c = new Color(face.R * shade, face.G * shade,
-                                          face.B * shade, face.A);
+                            c = new Color(face.R * shade, face.G * shade, face.B * shade, face.A);
                         else
                         {
                             float lum = UiSurface.Luminance(face);
@@ -790,38 +992,32 @@ namespace Beep.ECS.UI.Kit
                         // The outermost plate carries the genre's rim polarity; inner plates take
                         // ink, so a bright carved frame still reads against its own plate.
                         Color edge = layer.Inset == 0f ? rim : ink;
-                        if (DebugOutline)
-                            GD.Print($"  band: {_genre,-12} inset={layer.Inset:0.000} "
-                                   + $"shade={shade:0.00} -> lum={UiSurface.Luminance(c):0.000} "
-                                   + $"box={box.Size.X:0}x{box.Size.Y:0}");
-                        DrawShape(box, s, c, edge,
-                                  layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
-                        cur = box;
+                        FillPoly(poly, c, edge, layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
+                        cur = poly;
                         break;
                     }
                     case KitLayerKind.Keyline:
                     {
                         var c = new Color(face.R * layer.Shade, face.G * layer.Shade,
                                           face.B * layer.Shade, layer.Amount);
-                        DrawShape(box, s, new Color(0, 0, 0, 0), c, Mathf.Max(1f, rimPx * 0.5f));
+                        FillPoly(poly, new Color(0, 0, 0, 0), c, Mathf.Max(1f, rimPx * 0.5f));
                         break;
                     }
                     case KitLayerKind.Grain:
                         // The genre's MATERIAL, clipped to the face's own silhouette and drawn
                         // UNDER the lighting layers below, so gloss reads as sheen on the
                         // material rather than the material reading as dirt on the gloss.
-                        KitGrain.Draw(this, _genre,
-                                      OutlinePoly(s, box, Mathf.Min(box.Size.X, box.Size.Y) * g.Corner, g.Shear, g.Wobble),
-                                      box, face, layer.Amount);
+                        KitGrain.Draw(this, _genre, poly, PolyRect(poly), face, layer.Amount);
                         break;
-                    case KitLayerKind.Shade: DrawFaceShade(box, s, layer.Amount); break;
-                    case KitLayerKind.Bevel: DrawBevel(box, g, layer.Amount); break;
-                    case KitLayerKind.Gloss: DrawGloss(box, s, g, layer.Amount); break;
+                    case KitLayerKind.Shade: DrawFaceShade(poly, layer.Amount); break;
+                    case KitLayerKind.Bevel: DrawBevel(poly, g, layer.Amount); break;
+                    case KitLayerKind.Gloss: DrawGloss(poly, g, layer.Amount); break;
                     case KitLayerKind.Studs:
                         if (g.Studs > 0 && State != KitState.Disabled) DrawStuds(r, g, ink);
                         break;
                     case KitLayerKind.Sparkle:
-                        if (g.Sparkle > 0f && State != KitState.Disabled) DrawSparkle(cur, g);
+                        if (g.Sparkle > 0f && State != KitState.Disabled)
+                            DrawSparkle(PolyRect(cur), g);
                         break;
                 }
             }
@@ -840,9 +1036,12 @@ namespace Beep.ECS.UI.Kit
         /// one at 0.76-0.84, and a gradient down the face is exactly that difference. Drawn as
         /// stacked bands rather than a shader, so it costs nothing and still cuts to the host
         /// silhouette at the last band.</summary>
-        private void DrawFaceShade(Rect2 r, KitShape shape, float amount)
+        private void DrawFaceShade(Vector2[] host, float amount)
         {
-            if (amount <= 0f) return;
+            if (amount <= 0f || host.Length < 3) return;
+            Rect2 r = PolyRect(host);
+            if (r.Size.Y < 4f) return;
+
             const int bands = 7;
             float bh = r.Size.Y / bands;
             for (int i = 0; i < bands; i++)
@@ -850,50 +1049,136 @@ namespace Beep.ECS.UI.Kit
                 // Darkest at the bottom; the top is left alone so the peak stays the peak.
                 float t = (i + 1) / (float)bands;
                 float a = amount * 0.42f * t * t;
-                var band = new Rect2(r.Position.X, r.Position.Y + bh * i, r.Size.X, bh + 1f);
-                if (band.Size.Y < 1f) continue;
-                DrawShape(band, i == bands - 1 ? shape : KitShape.Rect,
-                          new Color(0, 0, 0, a), new Color(0, 0, 0, 0), 0f);
+                float top = r.Position.Y + bh * i;
+                // CLIPPED to the host, not drawn as a rectangle. Six of these seven bands used to
+                // be KitShape.Rect, so every non-rectangular genre had straight shaded edges
+                // cutting across a curved, pointed or notched plate.
+                ClipFill(host, BandPoly(r, top, top + bh + 1f), new Color(0, 0, 0, a));
             }
         }
 
-        private void DrawBevel(Rect2 plate, KitGeometry g, float amount)
+        private void DrawGloss(Vector2[] host, KitGeometry g, float amount)
         {
-            if (g.Bevel <= 0f || amount <= 0f) return;
-            float t = Mathf.Max(1f, plate.Size.Y * 0.08f * g.Bevel);
-            var inner = new Rect2(plate.Position + new Vector2(t * 1.2f, t * 1.2f),
-                                  plate.Size - new Vector2(t * 2.4f, t * 2.4f));
-            if (inner.Size.X <= 2 || inner.Size.Y <= 2) return;
+            if (g.Gloss <= 0f || amount <= 0f || Sunken || host.Length < 3) return;
+            Rect2 r = PolyRect(host);
+            if (r.Size.X < 6f || r.Size.Y < 6f) return;
+
+            // Band depth is a UNIT multiple, so the highlight is the same thickness on a chip and
+            // on a panel. It was `plate.Size.Y * 0.26`, which made it a different feature at every
+            // widget size.
+            float h = Mathf.Min(Unit * 1.6f, r.Size.Y * 0.45f);
+
+            if (g.GlossStyle == KitGloss.Linear)
+            {
+                // The soft sheen, as an INSET COPY OF THE HOST intersected with a top band. It
+                // used to be an inset RECT re-cut to the host shape, which on an ellipse or a
+                // shield produced a second, differently-proportioned silhouette floating inside
+                // the first -- a shape inside a shape that did not agree with it.
+                var inner = OffsetPoly(host, -Unit * 0.35f);
+                ClipFill(inner, BandPoly(r, r.Position.Y - 4f, r.Position.Y + h * 1.3f),
+                         new Color(1, 1, 1, Mathf.Clamp(0.16f * g.Gloss * amount, 0f, 1f)));
+                return;
+            }
+
+            float a = Mathf.Clamp(0.22f * g.Gloss * amount, 0f, 1f);
+            if (a < 0.004f) return;
+
+            float top = r.Position.Y - 4f;
+            float l = r.Position.X - 4f, rt = r.Position.X + r.Size.X + 4f;
+
+            Vector2[] band;
+            if (g.GlossStyle == KitGloss.HardBand)
+            {
+                band = new[]
+                {
+                    new Vector2(l, top), new Vector2(rt, top),
+                    new Vector2(rt, r.Position.Y + h), new Vector2(l, r.Position.Y + h),
+                };
+            }
+            else
+            {
+                // Convex lower boundary, deepest at the centre. Sampled rather than a true arc
+                // because it has to be a polygon to clip against the silhouette anyway.
+                const int steps = 24;
+                var pts = new List<Vector2> { new(l, top), new(rt, top) };
+                for (int i = steps; i >= 0; i--)
+                {
+                    float t = i / (float)steps;
+                    float y = r.Position.Y + h * (0.45f + 0.55f * Mathf.Sin(Mathf.Pi * t));
+                    pts.Add(new Vector2(Mathf.Lerp(l, rt, t), y));
+                }
+                band = pts.ToArray();
+            }
+            ClipFill(host, band, new Color(1, 1, 1, a));
+        }
+
+        /// <summary>
+        /// Inner bevel that WALKS THE SILHOUETTE.
+        ///
+        /// It used to stroke the four sides of the bounding RECT, so a spiked, octagonal, shield
+        /// or torn plate carried a rectangular bevel that ignored its own outline -- the clearest
+        /// case of the "shape inside a shape that disagrees with it" problem. Now every edge of
+        /// the polygon is lit or shaded by its own outward normal against a top-left key light, so
+        /// the spikes on rpg's plate are beveled like the rest of the edge.
+        /// </summary>
+        private void DrawBevel(Vector2[] host, KitGeometry g, float amount)
+        {
+            if (g.Bevel <= 0f || amount <= 0f || host.Length < 3) return;
+
+            // Thickness from the UNIT, not from the plate's height: a bevel is a property of the
+            // theme's material, and `plate.Size.Y * 0.08` made it 3px on a chip and 21px on a panel.
+            float t = Mathf.Max(1f, Unit * 0.20f * g.Bevel);
+            var inner = OffsetPoly(host, -t * 0.6f);
+            if (inner.Length < 3) return;
 
             Color hi = new(1, 1, 1, 0.22f * g.Bevel * amount);
             Color lo = new(0, 0, 0, 0.26f * g.Bevel * amount);
-            Color top = Sunken ? lo : hi, bot = Sunken ? hi : lo;
 
             // The CASUAL register omits the dark half: that family expresses depth with a thick
             // outline and a top band, and raking a shadow across the plate reads as painted.
             bool allowDark = g.Register != KitRegister.Casual;
-            if (allowDark || !Sunken)
-            {
-                DrawLine(inner.Position, inner.Position + new Vector2(inner.Size.X, 0), top, t);
-                DrawLine(inner.Position, inner.Position + new Vector2(0, inner.Size.Y), top, t);
-            }
-            if (allowDark || Sunken)
-            {
-                DrawLine(inner.Position + new Vector2(0, inner.Size.Y), inner.End, bot, t);
-                DrawLine(inner.Position + new Vector2(inner.Size.X, 0), inner.End, bot, t);
-            }
-        }
 
-        private void DrawGloss(Rect2 plate, KitShape shape, KitGeometry g, float amount)
-        {
-            if (g.Gloss <= 0f || amount <= 0f || Sunken) return;
-            var sheen = new Rect2(
-                plate.Position + new Vector2(plate.Size.X * 0.07f, plate.Size.Y * 0.10f),
-                new Vector2(plate.Size.X * 0.86f, plate.Size.Y * 0.34f));
-            if (sheen.Size.X <= 2 || sheen.Size.Y <= 2) return;
-            // Cut to the HOST's silhouette, never substituted with Round.
-            DrawShape(sheen, shape, new Color(1, 1, 1, 0.16f * g.Gloss * amount),
-                      new Color(0, 0, 0, 0), 0f);
+            Vector2 c = Vector2.Zero;
+            foreach (var v in inner) c += v;
+            c /= inner.Length;
+
+            var key = new Vector2(-0.7071f, -0.7071f);        // light from the top-left
+
+            // Stroked as CONTIGUOUS RUNS, not edge by edge.
+            //
+            // Drawing each edge with DrawLine looked equivalent and was not: once the arc
+            // resolution became adaptive, a large plate has ~200 edges of about 3px each, and a
+            // 7px-thick line on a 3px segment overshoots its own ends. The result was a ragged
+            // fringe all the way around a shape whose outline is actually smooth. A polyline
+            // joins its segments instead of stacking overshooting caps.
+            var run = new List<Vector2>();
+            bool runLit = false;
+
+            void Flush()
+            {
+                if (run.Count >= 2 && (runLit || allowDark))
+                    DrawPolyline(run.ToArray(), runLit ? hi : lo, t);
+                run.Clear();
+            }
+
+            for (int i = 0; i <= inner.Length; i++)
+            {
+                Vector2 a = inner[i % inner.Length], b = inner[(i + 1) % inner.Length];
+                Vector2 d = b - a;
+                float len = d.Length();
+                if (len < 0.01f) continue;
+                d /= len;
+                Vector2 n = new(-d.Y, d.X);
+                if (n.Dot(a - c) < 0f) n = -n;                // outward
+
+                bool lit = n.Dot(key) > 0f;
+                if (Sunken) lit = !lit;
+
+                if (run.Count == 0) { runLit = lit; run.Add(a); }
+                else if (lit != runLit) { run.Add(a); Flush(); runLit = lit; run.Add(a); }
+                run.Add(b);
+            }
+            Flush();
         }
 
         private void DrawStuds(Rect2 r, KitGeometry g, Color ink)

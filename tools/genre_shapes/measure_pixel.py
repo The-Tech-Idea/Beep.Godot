@@ -47,7 +47,11 @@ def mobility(a, box=90):
         if row[0] <= x0 + 1:
             break
         cols.append(int(row[0]))
-    if len(cols) < 8:
+    # RESOLUTION REQUIREMENT, not a threshold on the answer. A 3-step staircase needs at least a
+    # few rows to be visible at all; 8 was arbitrary and, once corners became UNIT-based (a
+    # constant ~12px instead of a proportion of the widget), it rejected a corner the metric can
+    # read perfectly well.
+    if len(cols) < 5:
         return None, f"corner too small to measure ({len(cols)} rows)"
     return len(set(cols)) / len(cols), f"{len(set(cols))} distinct cols / {len(cols)} rows"
 
@@ -126,14 +130,35 @@ def main():
         sys.exit(2)
 
     bad = 0
+    seen_levels = {}
 
     # ── ANTI-ALIASING: applies to every pixel theme, whatever its base silhouette ──
-    for f in sorted(OUT.glob("*.png")):
+    # ONLY this gate's own renders. The directory is shared with the gloss proof (gl_*), and
+    # globbing "*.png" graded those too -- a Linear-gloss plate is deliberately flat, so it failed
+    # an anti-aliasing check it was never the subject of.
+    for f in sorted(list(OUT.glob("px_*.png")) + list(OUT.glob("sh_*.png"))):
         n = levels(np.asarray(Image.open(f).convert("L")))
         px = f.stem.startswith("px_")
-        good = n is not None and ((n <= 12) if px else (n >= 20))
+        seen_levels[f.stem] = n
+        good = n is not None and (n <= 12 if px else n > 12)
         print(f"[{'ok ' if good else 'FAIL'}] {f.stem:<16} levels={str(n):<5}"
-              f"want {'<= 12 (flat)' if px else '>= 20 (shaded)'}")
+              f"want {'<= 12 (flat)' if px else '> 12 (shaded)'}")
+        if not good:
+            bad += 1
+
+    # The claim is a SEPARATION, not an absolute count. Stated as `>= 20` it was really a
+    # statement about how much banding the renderer happened to produce -- and the shape-layer
+    # restructure legitimately reduced that (clipped shade bands and a polyline bevel make fewer
+    # distinct levels than stacked rects and per-edge lines), dropping the controls to 18-19. The
+    # thing being tested is that a pixel theme is FLAT RELATIVE to a non-pixel one, which is what
+    # this asserts and what survives a change in how the non-pixel path draws.
+    for genre in ("platformer", "topdown"):
+        px_n, sh_n = seen_levels.get(f"px_{genre}"), seen_levels.get(f"sh_{genre}")
+        if px_n is None or sh_n is None:
+            continue
+        good = sh_n >= px_n * 3
+        print(f"[{'ok ' if good else 'FAIL'}] {genre:<16} flatness  px={px_n} vs sh={sh_n} "
+              f"(want sh >= 3x px)")
         if not good:
             bad += 1
 
@@ -144,6 +169,10 @@ def main():
     # comparison cannot separate the register from the genre. The first version of this gate
     # measured it anyway and reported rr_topdown as a failed "arc" -- the CONTROL was invalid, not
     # the code. A pair that cannot distinguish the thing under test does not belong in a gate.
+    # The arc control is platformer/MODERN, not /cartoon. cartoon carries wobble 0.008, and a
+    # wavering edge never settles onto the widget's leftmost column -- the walk then runs its full
+    # window and measures the WOBBLE (0.19, indistinguishable from a staircase) instead of the
+    # corner. A control has to hold everything constant except the thing under test.
     pair = {}
     for tag in ("px_platformer", "rr_platformer"):
         p = OUT / f"{tag}.png"

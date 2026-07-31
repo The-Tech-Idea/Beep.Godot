@@ -502,12 +502,12 @@
   },
   "_kit_note": "glossy leaf, glow select",
   "kit": {
-  
-      "shadow": "soft",
-      "corner": 0.4,
-      "font": "rounded",
-      "grain": "pattern_19",
-      "grain_amount": 0.2,
-      "select_slot": "glow|border"
+    "shadow": "soft",
+    "corner": 0.4,
+    "font": "rounded",
+    "grain": "pattern_19",
+    "grain_amount": 0.2,
+    "select_slot": "glow|border",
+    "gloss_style": "curvedglass"
   }
 }

@@ -58,6 +58,25 @@ namespace Beep.ECS.UI.Kit
         Chip,
     }
 
+    /// <summary>
+    /// How the highlight across the upper face is CONSTRUCTED.
+    ///
+    /// The kit drew one thing: a soft inset sheen at 16% alpha, floating inside the plate. Files
+    /// 17 and 27 do something different and do it prominently -- a **discrete lighter band across
+    /// the top quarter**, edge to edge, with a HARD lower boundary (17) or a **curved** one (27).
+    /// Neither is reproducible by fading a rounded rectangle, and the difference is the first
+    /// thing the eye reads on those sheets.
+    /// </summary>
+    public enum KitGloss
+    {
+        /// <summary>The soft inset sheen. The kit's original and still the default.</summary>
+        Linear,
+        /// <summary>Edge-to-edge band across the top quarter, flat, with a hard lower edge (17).</summary>
+        HardBand,
+        /// <summary>The same band with a convex lower boundary, so the face reads as glass (27).</summary>
+        CurvedGlass,
+    }
+
     /// <summary>Where a widget sits in the visual hierarchy. Drives which palette role its
     /// base layer takes, so a raised control and a recessed well are not the same flat plate
     /// in two colours.</summary>
@@ -274,6 +293,9 @@ namespace Beep.ECS.UI.Kit
         /// instead of drawing a 1.7px rim that reads as a smooth line.
         /// </summary>
         public float PixelSize = 3f;
+
+        /// <summary>How the upper-face highlight is built. See <see cref="KitGloss"/>.</summary>
+        public KitGloss GlossStyle = KitGloss.Linear;
 
         public string GrainPattern = "";
         public float GrainAmount = -1f;

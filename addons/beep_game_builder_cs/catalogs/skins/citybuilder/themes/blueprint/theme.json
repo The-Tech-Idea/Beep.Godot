@@ -510,6 +510,9 @@
     "font": "sans",
     "upper_case": false,
     "tracking": 0.06,
+    "grain": "pattern_41",
+    "grain_amount": 0.10,
+    "grain_tiles": 7,
     "select_slot": "border"
   }
 }

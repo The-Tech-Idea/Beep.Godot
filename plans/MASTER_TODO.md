@@ -3008,3 +3008,50 @@ rather than inheriting whatever the last theme published.
 **Remaining**: `KitRow`/`KitTabStrip` selection declaration; meter end caps per tier; attachment
 sets by archetype; `edge_run` and `grain` as JSON keys (both still genre-table only); and the
 outline-polarity measurement.
+
+### Stage 47c — the material axis becomes theme-authorable (2026-07-31)
+
+Grain was the **first** axis built and the **last** one still C#-only: a theme could change its
+shadow, outline, corner, shear, font, case, tracking and selection — but not what its plates are
+made of. Stone-versus-paper is the loudest difference between two themes of one genre in the
+references, so that was the wrong axis to leave locked.
+
+Three keys, all optional and independently inheritable, so a theme that only wants a fainter grain
+does not have to restate the pattern:
+
+```json
+"grain": "pattern_41", "grain_amount": 0.10, "grain_tiles": 7
+```
+
+`citybuilder/blueprint` now draws on **graph paper at 7 tiles, 0.10 amplitude** against `urban`'s
+**stone at 1 tile, 0.136** — the drafting-sheet register the art pass read off files 03 and 04.
+
+#### A struct nullable, and the bug it produced
+
+`KitGrainDef` is a **struct**, so `TryGetValue` leaves a **default** on a miss, not null. The first
+version returned it unconditionally — handing an unknown genre a grain with an **empty pattern**,
+which resolves to `grain_.png`, warns once, and renders flat. Found by the compiler complaining
+about something else entirely (`KitGrainDef?` needing `.Value`), not by the change under test.
+
+It is now **asserted**, because reasoning is what produced the bug:
+
+```
+grain:  urban      pattern_78 x1 @0.136 (stone)
+grain:  blueprint  pattern_41 x7 @0.100
+grain:  rpg (no override) -> pattern_50 x3   table intact
+grain:  unknown genre -> null (correct)
+pack:   PASS
+```
+
+#### Both new checks fail-tested
+
+| injected defect | gate says |
+|---|---|
+| drop `"grain"` from the parser | `blueprint pattern_78` · **SAME MATERIAL, the grain keys are inert** |
+| restore the naive `TryGetValue` | `unknown genre -> ` · **PHANTOM GRAIN** |
+
+Re-verified green: `poly` 105/105 · corner · mod · json · select · attach · font · `validate_scenes`
+PASS · material self-test PASS (colour drift 1.0%, scale drift 2.8%) · build 0 errors.
+
+**`edge_run` is now the only axis with no JSON key.** It is a nested run-list per edge rather than a
+scalar, so it needs a schema rather than a key — the remaining item on this axis.

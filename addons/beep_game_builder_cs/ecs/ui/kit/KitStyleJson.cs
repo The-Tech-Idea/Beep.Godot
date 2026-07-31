@@ -74,6 +74,9 @@ namespace Beep.ECS.UI.Kit
             g.Wobble = F(k, "wobble", g.Wobble);
             g.Tracking = F(k, "tracking", g.Tracking);
             g.UpperCase = B(k, "upper_case", g.UpperCase);
+            g.GrainPattern = k.ContainsKey("grain") ? k["grain"].AsString() : g.GrainPattern;
+            g.GrainAmount = F(k, "grain_amount", g.GrainAmount);
+            g.GrainTiles = k.ContainsKey("grain_tiles") ? (int)k["grain_tiles"].AsDouble() : g.GrainTiles;
 
             if (k.ContainsKey("shadow"))
                 g.Shadow = ShadowFrom(k["shadow"].AsString(), genre) ?? g.Shadow;
@@ -95,6 +98,7 @@ namespace Beep.ECS.UI.Kit
             "outline_shade", "corner", "corner_panel", "corner_slot", "corner_bar", "corner_chip",
             "shear", "wobble", "tracking", "upper_case", "shadow", "font",
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
+            "grain", "grain_amount", "grain_tiles",
         };
 
         /// <summary>

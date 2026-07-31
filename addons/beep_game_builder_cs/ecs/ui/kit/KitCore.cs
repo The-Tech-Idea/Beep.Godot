@@ -244,6 +244,19 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         public float Wobble;
 
+        /// <summary>
+        /// The genre's MATERIAL, overridable per theme. Empty pattern = inherit the generated
+        /// per-genre assignment in <see cref="KitGrainTable"/>.
+        ///
+        /// Material was the first axis built and stayed C#-only longest, which meant a theme
+        /// could change its shadow, outline, corner, font and selection but not what its plates
+        /// are made of — and stone-vs-wood is the loudest difference between two themes of one
+        /// genre in the reference folder.
+        /// </summary>
+        public string GrainPattern = "";
+        public float GrainAmount = -1f;
+        public int GrainTiles = -1;
+
         /// <summary>Selection cues per widget class. racing3 uses accent FILL on icon cells and
         /// accent BORDER on carousel cells on one screen, so this cannot be a single value.</summary>
         public KitSelectCue SelectButton = KitSelectCue.Fill;

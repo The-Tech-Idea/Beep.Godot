@@ -43,7 +43,27 @@ namespace Beep.ECS.UI.Kit
         public static KitGrainDef? For(string genre)
         {
             if (string.IsNullOrEmpty(genre)) return null;
-            return KitGrainTable.ByGenre.TryGetValue(genre, out var def) ? def : null;
+            bool has = KitGrainTable.ByGenre.TryGetValue(genre, out var def);
+
+            // A theme may override the material. Fields left unset inherit the generated
+            // per-genre assignment, so a theme that only wants a lighter grain does not have to
+            // restate the pattern.
+            var g = KitGeometry.ForGenre(genre);
+            bool over = g.GrainPattern.Length > 0 || g.GrainAmount >= 0f || g.GrainTiles > 0;
+            if (!over) return has ? def : null;
+
+            // KitGrainDef is a STRUCT, so a failed TryGetValue leaves a DEFAULT here, not null.
+            // Returning that would give an unknown genre a grain with an empty pattern -- which
+            // resolves to "grain_.png", warns, and renders flat. A genre with no table entry and
+            // no pattern override still has no grain.
+            string pattern = g.GrainPattern.Length > 0 ? g.GrainPattern : (has ? def.Pattern : "");
+            if (pattern.Length == 0) return null;
+
+            return new KitGrainDef(
+                pattern,
+                g.GrainAmount >= 0f ? g.GrainAmount : (has ? def.Amount : 0.3f),
+                g.GrainTiles > 0 ? g.GrainTiles : (has ? def.Tiles : 2),
+                has ? def.Material : "theme");
         }
 
         /// <summary>The mask texture for a genre. Null (with ONE warning) when the file is

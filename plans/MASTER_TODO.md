@@ -2570,3 +2570,58 @@ on the two themes that ask for it, since the per-glyph path would be waste on th
 **Five of eight axes are now built and gated**: material, shadow, outline polarity, corner
 (per-class + shear + wobble), typography. Remaining: constructed frames (Phase D, the biggest —
 `KitEdgeRun`), attachments (E), selection as a set (F), style packs (G).
+
+### Stage 44 — Phase D started: `KitEdgeRun`, and its gate fails usefully (2026-07-31)
+
+The biggest phase, and the one shooter actually needs. Built the model and the renderer; the gate
+is red and says exactly why.
+
+**`KitEdgeRun`** — a frame as a **run list per edge**. Each `KitEdgeSeg` carries a start, a length
+(fractions of the edge), a weight multiple, and a fill: `Solid · Gap · Hatch · Ticks · Block`.
+`KitEdge.Draw` walks all four edges with weight growing *inward*, so a heavy block never spills
+outside the control.
+
+`KitEdgeRun.SciFi()` encodes files 14 and 43 with the asymmetry built in — heavy block on the top
+third then a break; hairline right edge with a tick run; long solid bottom with a hatch; mostly-gap
+left with one short block. **Rotating it 180° does not give the same frame**, which is what those
+sheets do and what a corner-ornament enum cannot express. A plain rectangle is the degenerate case
+(one `Solid` per edge), so the eight genres that declare no run are untouched.
+
+#### `measure_edgerun.py` — and it is red
+
+It counts contiguous stroke runs just inside each edge of a rendered widget, requiring a declared
+run to be **broken** (>1 run on some edge) and **asymmetric** (top≠bottom or left≠right), and a
+genre with no run to show none.
+
+```
+racing    top 1  right 1  bottom 1  left 1   run    <-- NOT BROKEN
+shooter   top 1  right 2  bottom 1  left 2   run    <-- SYMMETRIC
+rpg       top 1  right 1  bottom 4  left 1   plain  <-- unexpected run
+survival  top 1  right 1  bottom 1  left 2   plain  <-- unexpected run
+EDGERUN FAIL (4)
+```
+
+**Three distinct problems, all real:**
+
+1. **racing shows nothing.** It declares the same run as shooter but renders unbroken. racing's
+   `Shear` is 0.16 against shooter's 0.09 — and `KitEdge.Draw` strokes the **axis-aligned rect**
+   while the silhouette is **sheared**, so the run and the shape do not line up. The edge run must
+   follow the silhouette polygon, not the rect.
+2. **shooter is broken but symmetric** at this size — left and right both resolve to 2 runs, top
+   and bottom both to 1. The declared asymmetry is real in the data; the scan at 300×170 does not
+   resolve it. Either the segments are too fine for the widget or the scan needs sub-run weighting.
+3. **The negative control mis-fires on `Spiked` and `Torn`.** rpg's bottom edge legitimately has
+   4 stretches — they are *spikes*. A silhouette that is naturally discontinuous is not "an
+   unexpected edge run", and the gate must distinguish a broken **stroke** from a broken **shape**.
+
+None of these is tuned away. The gate is doing its job: it caught a renderer that ignores shear, a
+declaration that does not survive to the pixels, and a flaw in its own negative control.
+
+#### Verified (nothing regressed)
+
+`poly_probe` 105/105 · corner PASS · mod PASS · font PASS · `measure_shadow` **PASS 10/10** ·
+`measure_material` PASS · `validate_scenes` PASS · build 0 errors · 67 scenes, 0 failures.
+
+**Next:** stroke the run along the silhouette polygon rather than the rect (fixes 1, and is the
+correct model anyway); then re-check 2 with the shear fixed; then teach the negative control to
+exclude genres whose *shape* is discontinuous.

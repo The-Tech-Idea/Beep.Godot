@@ -108,6 +108,10 @@ namespace Beep.ECS.UI.Kit
                     cur = box;
                 }
             }
+
+            // The constructed frame LAST: in the references the edge run sits on top of the
+            // surface it encloses, not under it.
+            KitEdge.Draw(ci, g.EdgeRun, body, rimPx, Tint(face, g.OutlineShade));
         }
 
         /// <summary>State as a SCULPT, not an alpha change — fading a control is the clearest

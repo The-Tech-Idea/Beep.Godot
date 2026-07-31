@@ -172,6 +172,21 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Technical: hairline keyline, thin light rim, minimal sculpt.
         /// rpgui1/racing4/rpgui2.</summary>
         Technical,
+
+        /// <summary>
+        /// PIXEL. Files 40 and 42 settled that this is a REGISTER, not a silhouette.
+        ///
+        /// Choosing pixel decides outline weight (one art pixel), anti-aliasing (off), corner
+        /// construction (stepped, quantised to the grid), font (bitmap) and shadow (none)
+        /// **together**. The kit modelled it as <see cref="KitShape.Stepped"/> alone, so a pixel
+        /// theme drew smooth type and soft gradients inside a stepped outline -- the exact
+        /// giveaway the reference files avoid.
+        ///
+        /// Its stack has no bevel, no gloss and no face shade: a gradient across a face is the
+        /// painted reading, and pixel art has no gradients. Depth is one dark outline, and that
+        /// is all.
+        /// </summary>
+        Pixel,
     }
 
     /// <summary>
@@ -253,6 +268,13 @@ namespace Beep.ECS.UI.Kit
         /// are made of — and stone-vs-wood is the loudest difference between two themes of one
         /// genre in the reference folder.
         /// </summary>
+        /// <summary>
+        /// Size of one ART pixel, in screen px. Only consulted by <see cref="KitRegister.Pixel"/>.
+        /// Corner steps, rim width and stud size quantise to it, so a pixel theme keeps its grid
+        /// instead of drawing a 1.7px rim that reads as a smooth line.
+        /// </summary>
+        public float PixelSize = 3f;
+
         public string GrainPattern = "";
         public float GrainAmount = -1f;
         public int GrainTiles = -1;
@@ -380,6 +402,7 @@ namespace Beep.ECS.UI.Kit
         {
             KitRegister.Carved => 0.40f,
             KitRegister.Casual => 0.55f,
+            KitRegister.Pixel => 0.50f,
             _ => 0.60f,
         };
 

@@ -25,6 +25,7 @@ public partial class StyleSweepProbe : Node
         var shadows = new HashSet<KitShadowKind>();
         var fonts = new HashSet<KitFontRole>();
         var materials = new HashSet<string>();
+        var registers = new HashSet<KitRegister>();
 
         foreach (var genre in SkinCatalog.AllGenres.Values.OrderBy(g => g.Id))
         {
@@ -35,12 +36,13 @@ public partial class StyleSweepProbe : Node
                 var g = KitGeometry.ForGenre(genre.Id);
                 var grain = KitGrain.For(genre.Id);
 
-                string sig = $"sh={g.Shadow.Kind} ol={g.OutlineShade:0.00} c={g.Corner:0.00}/"
+                string sig = $"rg={g.Register} sh={g.Shadow.Kind} ol={g.OutlineShade:0.00} c={g.Corner:0.00}/"
                            + $"{g.CornerPanel:0.00}/{g.CornerBar:0.00} sk={g.Shear:0.00} "
                            + $"wb={g.Wobble:0.000} f={g.Font} up={(g.UpperCase ? 1 : 0)} "
                            + $"tr={g.Tracking:0.00} gr={grain?.Pattern ?? "-"}@{grain?.Amount ?? 0f:0.00} "
                            + $"sel={g.SelectSlot}/{g.SelectButton}/{g.SelectPanel}";
 
+                registers.Add(g.Register);
                 shadows.Add(g.Shadow.Kind);
                 fonts.Add(g.Font);
                 materials.Add(grain?.Pattern ?? "-");
@@ -61,12 +63,20 @@ public partial class StyleSweepProbe : Node
         GD.Print($"sweep:  shadow kinds used  {shadows.Count}/5  ({string.Join(",", shadows)})");
         GD.Print($"sweep:  font roles used    {fonts.Count}  ({string.Join(",", fonts)})");
         GD.Print($"sweep:  materials used     {materials.Count}");
+        GD.Print($"sweep:  registers used     {registers.Count}/4  ({string.Join(",", registers)})");
         GD.Print($"sweep:  distinct styles    {all.Distinct().Count()}/{all.Count} across the catalog");
 
         if (shadows.Count < 5) { GD.Print("sweep:  <-- a shadow kind is never used by any theme"); bad++; }
         if (fonts.Count < 6) { GD.Print("sweep:  <-- fewer than 6 font roles in the whole catalog"); bad++; }
         if (materials.Count < 6) { GD.Print("sweep:  <-- fewer than 6 materials in the whole catalog"); bad++; }
         if (all.Distinct().Count() < all.Count) { GD.Print("sweep:  <-- duplicate styles across genres"); bad++; }
+
+        // The PIXEL register must be reachable from a theme. It was built as a fourth register
+        // precisely because modelling pixel as one silhouette let a pixel theme draw smooth type
+        // and soft gradients inside a stepped outline; if no theme selects it, that is still what
+        // ships and the register is decorative.
+        if (!registers.Contains(KitRegister.Pixel))
+        { GD.Print("sweep:  <-- NO theme selects the Pixel register"); bad++; }
 
         GD.Print($"sweep:  {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);

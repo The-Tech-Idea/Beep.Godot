@@ -529,7 +529,7 @@ namespace Beep.ECS.UI.Kit
             bool angular = ActiveShape is KitShape.Chamfer or KitShape.Clip or KitShape.Notch
                 or KitShape.Speed or KitShape.Octagon or KitShape.Parallelogram
                 or KitShape.Chevron or KitShape.Arrow;
-            if (!angular) return Mathf.Min(r.Size.X, r.Size.Y) * CornerFraction;
+            if (!angular) return Snap(Mathf.Min(r.Size.X, r.Size.Y) * CornerFraction);
 
             // Derived from HEIGHT so a wide button gets a real rake rather than a 2.6px nick.
             float cut = r.Size.Y * Mathf.Max(0.22f, CornerFraction * 2.6f);
@@ -542,7 +542,7 @@ namespace Beep.ECS.UI.Kit
             float shorter = Mathf.Min(r.Size.X, r.Size.Y);
             float aspect = shorter > 0f ? Mathf.Max(r.Size.X, r.Size.Y) / shorter : 1f;
             float capFrac = Mathf.Lerp(0.30f, 0.50f, Mathf.Clamp((aspect - 1f) / 1.2f, 0f, 1f));
-            return Mathf.Min(cut, shorter * capFrac);
+            return Snap(Mathf.Min(cut, shorter * capFrac));
         }
 
         /// <summary>Layers that still apply over sliced art. Studs and sparkle are GEOMETRY the
@@ -607,6 +607,21 @@ namespace Beep.ECS.UI.Kit
         };
 
         /// <summary>Fill + rim, cut to the shape. The single primitive every layer is built on.</summary>
+        /// <summary>
+        /// Quantise a length to the art-pixel grid, for <see cref="KitRegister.Pixel"/> only.
+        ///
+        /// Everything else returns the value untouched, so this is inert for the other three
+        /// registers rather than a global rounding pass -- which would have moved every widget in
+        /// the kit by up to half a pixel for no reason.
+        /// </summary>
+        protected float Snap(float v)
+        {
+            var g = Geo;
+            if (g.Register != KitRegister.Pixel) return v;
+            float px = Mathf.Max(1f, g.PixelSize);
+            return Mathf.Round(v / px) * px;
+        }
+
         protected void DrawShape(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
         {
             // A sub-pixel rect cannot produce a valid polygon. Segmented meters generate these
@@ -614,6 +629,34 @@ namespace Beep.ECS.UI.Kit
             if (r.Size.X < 1f || r.Size.Y < 1f) return;
 
             float cut = CornerFor(r);
+
+            // THE PIXEL REGISTER'S CONSTRUCTION RULE. A rounded corner is an ARC, and an arc is
+            // the single loudest way to break the 8-bit reading -- a stepped outline with a
+            // smoothly rounded plate inside it is exactly the giveaway files 40 and 42 avoid.
+            // So any rounding-family shape is rebuilt as a staircase.
+            //
+            // Only when there IS a corner to construct: `corner: 0` means a square button, and
+            // routing that through Stepped would manufacture a 3-step notch the theme never asked
+            // for. The angular silhouettes are left alone -- they are already made of straight
+            // lines, which is what the register wants.
+            if (Geo.Register == KitRegister.Pixel && cut >= Mathf.Max(1f, Geo.PixelSize)
+                && shape is KitShape.Round or KitShape.Pill or KitShape.Ellipse or KitShape.Arch
+                    or KitShape.Capsule)
+                shape = KitShape.Stepped;
+
+            // Capsule is on that list deliberately, and it costs something: it is platformer's
+            // defining silhouette (ui1's mission bar with a cap overhanging the left end), and in
+            // the pixel register it becomes a staircase like everything else. That is the right
+            // trade -- a smoothly swept cap is precisely the anti-aliased curve the register
+            // exists to eliminate, and the first version of this list omitted Capsule, which left
+            // platformer/pixel8bit rendering 67 distinct grey levels while topdown/classic
+            // rendered 3. One of those is pixel art.
+
+            // One art pixel, never 1.7 -- a fractional rim anti-aliases into a soft grey line and
+            // reads as vector art at any zoom.
+            if (Geo.Register == KitRegister.Pixel && rimWidth > 0f)
+                rimWidth = Mathf.Max(1f, Snap(rimWidth));
+
             var poly = Outline(shape, r, cut);
             if (poly != null)
             {

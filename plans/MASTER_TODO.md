@@ -3121,3 +3121,69 @@ Green: sweep PASS · `style_pack_probe` PASS · `poly` 105/105 + all six sub-gat
 outline, bitmap font and square corners, but the register still resolves `Casual`, so AA and corner
 construction are not pixel-correct. Then `KitGloss{HardBand|CurvedGlass}`, engraved text, meter end
 caps, attachment sets by archetype, ghosted empty state, delta chips, `edge_run` as JSON.
+
+### Stage 49 — Pixel becomes a fourth register, and is proved at the pixel level (2026-07-31)
+
+Files 40 and 42 settled that pixel is a **register**, not a silhouette: choosing it decides outline
+weight, anti-aliasing, corner construction, font and shadow **together**. The kit modelled it as
+`KitShape.Stepped` alone, so a pixel theme drew smooth type and soft gradients inside a stepped
+outline — the exact giveaway the references avoid.
+
+- `KitRegister.Pixel` + `KitStacks.Pixel` — one dark outline band, one flat plate, **no bevel, no
+  gloss, no shade, no sparkle**. Every one of those is a gradient, and pixel art has none.
+- `KitGeometry.PixelSize` (default 3). Corner cuts and rim widths **quantise** to it; inert for the
+  other three registers rather than a global rounding pass.
+- Rounding-family shapes rebuild as a staircase; `corner: 0` stays square (routing a square through
+  `Stepped` would manufacture a notch nobody asked for).
+- New JSON keys `register` and `pixel_size`. `platformer/pixel8bit` and `topdown/classic` declare
+  them — **4/4 registers now reachable from a theme.**
+
+#### The enum was not the evidence
+
+A theme *selecting* the register proves nothing about what gets drawn — this repo has shipped that
+exact failure twice (the font role reached only the drop-ins; `KitStyleJson` was never called). So
+`PixelProbe` renders and `measure_pixel.py` measures, on two axes:
+
+| metric | what it proves |
+|---|---|
+| **levels** — distinct luminance inside the widget | anti-aliasing is off |
+| **mobility** — distinct edge columns ÷ rows in the corner | the corner is a staircase, not an arc |
+
+```
+px_platformer  levels=3    px_topdown  levels=3      (want <= 12, flat)
+rr_platformer  levels=91   rr_topdown  levels=26     (want >= 20, shaded)
+px_platformer  mobility=0.11   rr_platformer  0.77   separation 0.66
+PIXEL PASS
+```
+
+#### Three things the gate caught that reading did not
+
+1. **`Capsule` was missing from the staircase routing.** platformer's base silhouette is `Capsule`,
+   so `pixel8bit` rendered **67 grey levels** while `topdown/classic` rendered **3** — both claiming
+   the same register. Adding it: 67 → 3, mobility 0.77 → 0.11. Costs platformer its overhanging cap
+   in this register, which is right: a smoothly swept cap is the anti-aliased curve the register
+   exists to remove.
+2. **The `rr_topdown` control was invalid.** topdown's base shape is `Stepped` for *every* theme, so
+   both halves of that pair are staircases and the comparison cannot separate register from genre.
+   The gate reported it as a code failure; the control was wrong. **Dropped, with the reason in the
+   file** — a pair that cannot distinguish the thing under test does not belong in a gate.
+3. **`_ = Run()` on an async probe swallows every exception.** The Task faulted, nobody awaited it,
+   and Godot sat idle for ten minutes with an empty output directory and no error anywhere. Now
+   wrapped so it reports and quits.
+
+Also worth recording: **`--headless` cannot produce these renders.** It uses the dummy driver, so
+`FramePostDraw` never fires and the probe hangs rather than failing. Render probes must run windowed
+(`--resolution 800x600`); the *logic* probes are fine headless.
+
+#### Fail-tested
+
+Pointing `KitStacks.For` away from `Pixel` and removing the staircase routing: `levels 126 / 44`,
+`mobility 0.78`, `separation -0.01` → **FAIL (4)**. Restored → PASS.
+
+The metric's own selftest runs first and separates a synthetic arc (0.70) from a synthetic staircase
+(0.03), and a flat plate (2 levels) from a shaded one (120). The arc was expected to score >0.85 and
+scores 0.70 — an arc goes near-vertical at its base, so consecutive rows share a column. Thresholds
+are set from the synthetics, **not fitted to the renders**.
+
+Green: sweep PASS (4/4 registers, 50/50 distinct) · `style_pack` PASS · `poly` 105/105 + six
+sub-gates · `validate_scenes` PASS · material selftest PASS · build 0 errors.

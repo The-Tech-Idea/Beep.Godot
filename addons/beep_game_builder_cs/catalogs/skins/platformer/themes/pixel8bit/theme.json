@@ -502,17 +502,18 @@
   },
   "_kit_note": "PIXEL register (art 40/42): 1px, stepped, bitmap",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 0.1,
-      "font": "pixel",
-      "tracking": 0.0,
-      "wobble": 0.0,
-      "corner": 0.0,
-      "corner_panel": 0.0,
-      "corner_slot": 0.0,
-      "corner_bar": 0.0,
-      "corner_chip": 0.0,
-      "grain_amount": 0.0
+    "shadow": "none",
+    "outline_shade": 0.1,
+    "font": "pixel",
+    "tracking": 0.0,
+    "wobble": 0.0,
+    "corner": 0.1,
+    "corner_panel": 0.1,
+    "corner_slot": 0.1,
+    "corner_bar": 0.0,
+    "corner_chip": 0.0,
+    "grain_amount": 0.0,
+    "register": "pixel",
+    "pixel_size": 3
   }
 }

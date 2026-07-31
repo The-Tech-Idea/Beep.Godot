@@ -174,10 +174,29 @@ namespace Beep.ECS.UI.Kit
             new(KitLayerKind.Sparkle),
         };
 
+        /// <summary>
+        /// PIXEL — one dark outline band and one flat plate. Nothing else.
+        ///
+        /// Deliberately has NO Bevel, NO Gloss, NO Shade, NO Sparkle and NO Studs: every one of
+        /// those is a smooth gradient, and a gradient is what tells a viewer the surface is not
+        /// pixel art. Files 40 and 42 build depth from the outline alone, at exactly one art pixel.
+        ///
+        /// Grain is present but at a low amount, because a tiling mask quantised to the same grid
+        /// reads as dithering -- which the references do use -- while a full-strength one reads as
+        /// photographic texture, which they never do.
+        /// </summary>
+        public static readonly KitLayer[] Pixel =
+        {
+            new(KitLayerKind.Plate, inset: 0f,     shade: -1f),    // the outline, polarity from theme
+            new(KitLayerKind.Plate, inset: 0.055f, shade: 1.00f),  // one flat fill
+            new(KitLayerKind.Grain, inset: 0.055f, amount: 0.35f), // dither, not texture
+        };
+
         public static KitLayer[] For(KitRegister r) => r switch
         {
             KitRegister.Casual => Casual,
             KitRegister.Technical => Technical,
+            KitRegister.Pixel => Pixel,
             _ => Carved,
         };
     }

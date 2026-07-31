@@ -2839,3 +2839,48 @@ tier, attachment sets by archetype, and the outline-polarity measurement from 41
 Only `KitInventorySlot` consumes `KitSelect` so far — the other widgets that draw their own
 selection (`KitSlotGrid`, `KitRow`, `KitTree`, `KitTabStrip`) still hardcode theirs and are a
 mechanical sweep, **not yet done and not claimed**.
+
+### Stage 46b — the selection sweep (2026-07-31)
+
+Finishing what Stage 46 explicitly left undone.
+
+**Swept onto `KitSelect`**: `KitSlotGrid` and `KitTree` both drew a hardcoded cream ring
+(`Color(1f, 0.97f, 0.92f)`) around their selected cell. Both now resolve the theme's declared cues,
+so citybuilder and strategy get their glow and cardgame its lift without either widget knowing.
+
+**`KitLevelPath`** drew its "you are here" ring in the same hardcoded cream. Now takes the palette's
+accent — a selection cue that cannot reskin is a colour literal wearing a feature's name.
+
+**`KitRow` and `KitTabStrip` were NOT swept, deliberately.** Both already implement a cue
+correctly — `KitRow` swaps its plate (that is `Fill`), `KitTabStrip` swaps its rim (`Border`) — so
+the behaviour is right and only the *declaration* is missing. Routing them means restructuring how
+they compute their plate colour, which is a behavioural change to two working widgets rather than a
+mechanical substitution. **Left as the one remaining item, stated rather than glossed.**
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 · corner · mod · **select** · attach · font — all PASS |
+| `validate_scenes` · build | PASS · 0 errors |
+| 67 template scenes | 0 failures |
+
+#### Where the kit stands after Phases A–F
+
+**Seven of eight axes built and gated**, each with a check that was shown to fail before it was
+trusted:
+
+| axis | gate |
+|---|---|
+| material (grain) | `measure_material` — 67× reference spread, scale- and colour-invariant |
+| shadow | `measure_shadow` — 5 kinds, 10/10, differenced against a shadow-off render |
+| outline polarity | declared per theme; **measurement still open (41f)** |
+| corner per widget class | `poly_probe corner` — proven to fail when values are removed |
+| shear + wobble | `poly_probe mod` — with an rpg negative control |
+| typography | `poly_probe font` — 6 CC0 faces, 3 roles honestly absent and warning |
+| constructed frames | `measure_edgerun` — 14 and 11 pieces, 0 for plain genres |
+| attachments | `poly_probe attach` — 5 anchors proven to overhang |
+| selection as a set | `poly_probe select` — fails if a genre's classes collapse to one cue |
+
+**Remaining**: style packs (G) — now authoring, not engineering; `KitRow`/`KitTabStrip` declaration;
+meter end caps per tier; attachment sets by archetype; and the outline-polarity measurement.

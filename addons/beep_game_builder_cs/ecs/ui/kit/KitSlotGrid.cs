@@ -173,13 +173,17 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
-            // Selection LAST and OUTSIDE the slot: a 3px white rectangle around it, so it reads
-            // over any contents and does not restyle the slot itself.
+            // Selection LAST and OUTSIDE the slot, so it reads over any contents and does not
+            // restyle the slot itself — and from the THEME's declared cues rather than a
+            // hardcoded cream rectangle. citybuilder and strategy add a glow here, cardgame a
+            // lift; racing3 proves one cue per widget cannot be right.
             if (_sel >= 0 && _sel < total)
             {
-                Rect2 sel = SlotRect(_sel).Grow(Mathf.Max(2f, Pitch() * 0.045f));
-                DrawShape(sel, ActiveShape, new Color(0, 0, 0, 0), new Color(1f, 0.97f, 0.92f),
-                          Mathf.Max(2f, 3f * (fs / 14f)));
+                Rect2 sel = SlotRect(_sel);
+                KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
+                               KitChrome.Poly(ActiveShape, sel, Geo), sel,
+                               UiSurface.Semantic(this, UiSurface.Role.Accent),
+                               Mathf.Max(2f, 3f * (fs / 14f)));
             }
 
             DrawAttachments();

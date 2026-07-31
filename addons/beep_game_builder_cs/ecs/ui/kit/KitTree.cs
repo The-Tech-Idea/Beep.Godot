@@ -210,10 +210,12 @@ namespace Beep.ECS.UI.Kit
                                txt, HorizontalAlignment.Left, -1, small, new Color(0.10f, 0.09f, 0.08f));
                 }
 
+                // The theme's declared cues, not a hardcoded cream ring — see KitSelect.
                 if (i == _sel)
-                    DrawShape(r.Grow(Mathf.Max(2f, pitch * 0.04f)), ActiveShape,
-                              new Color(0, 0, 0, 0), new Color(1f, 0.97f, 0.92f),
-                              Mathf.Max(2f, 3f * (fs / 14f)));
+                    KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
+                                   KitChrome.Poly(ActiveShape, r, Geo), r,
+                                   UiSurface.Semantic(this, UiSurface.Role.Accent),
+                                   Mathf.Max(2f, 3f * (fs / 14f)));
             }
 
             DrawAttachments();

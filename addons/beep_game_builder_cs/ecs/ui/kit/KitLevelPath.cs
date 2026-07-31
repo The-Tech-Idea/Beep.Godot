@@ -136,10 +136,13 @@ namespace Beep.ECS.UI.Kit
                 DrawCircle(p, r, plate);
                 DrawArc(p, r, 0f, Mathf.Tau, 28, ink, Mathf.Max(1.5f, r * 0.14f));
 
-                // "You are here": a ring outside the node, so it does not restyle the node itself.
+                // "You are here": a ring outside the node, so it does not restyle the node
+                // itself. The COLOUR comes from the palette rather than a hardcoded cream, so it
+                // reskins with the theme like every other selection cue.
                 if (i == _cur)
                     DrawArc(p, r * 1.28f, 0f, Mathf.Tau, 32,
-                            new Color(1f, 0.97f, 0.92f), Mathf.Max(2f, r * 0.14f));
+                            UiSurface.Semantic(this, UiSurface.Role.Accent),
+                            Mathf.Max(2f, r * 0.14f));
 
                 // A locked node shows NO number.
                 if (lv.State != LevelState.Locked && font != null && !string.IsNullOrEmpty(lv.Label))

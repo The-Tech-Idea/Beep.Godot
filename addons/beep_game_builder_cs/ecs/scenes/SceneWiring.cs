@@ -42,13 +42,13 @@ namespace Beep.ECS.Scenes
                 case Button btn:
                     btn.Pressed += handler;
                     return;
-                // Kit widgets are NOT Godot Buttons -- KitButton draws itself and inherits
-                // KitControl, so an `is Button` test silently skipped them. Every screen migrated
-                // onto the kit would have kept its layout and quietly lost all its wiring, which
-                // is the same failure HudComponent had against Label.
-                case KitButton kb:
-                    kb.Pressed += () => handler();
-                    return;
+                // KitButton no longer needs a case: it IS a Button now, so the case above catches
+                // it. That is the whole argument for deriving from the real Godot type -- this
+                // switch existed BECAUSE the kit had button-shaped Controls that `is Button`
+                // silently skipped, and every screen migrated onto them would have kept its layout
+                // and quietly lost all its wiring.
+                //
+                // The remaining cases are widgets with no Godot equivalent to derive from.
                 case KitIconButton kib:
                     kib.Pressed += () => handler();
                     return;

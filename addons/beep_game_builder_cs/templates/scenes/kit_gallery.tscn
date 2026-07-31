@@ -151,18 +151,18 @@ Selected = 1
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="PlayButton" type="Control" parent="Margin/Root/Footer"]
+[node name="PlayButton" type="Button" parent="Margin/Root/Footer"]
 layout_mode = 2
 script = ExtResource("k_button")
-Text = "PLAY"
+text = "PLAY"
 
-[node name="BuyButton" type="Control" parent="Margin/Root/Footer"]
+[node name="BuyButton" type="Button" parent="Margin/Root/Footer"]
 layout_mode = 2
 script = ExtResource("k_button")
-Text = "BUY"
+text = "BUY"
 BadgeText = "40"
 
-[node name="BackButton" type="Control" parent="Margin/Root/Footer"]
+[node name="BackButton" type="Button" parent="Margin/Root/Footer"]
 layout_mode = 2
 script = ExtResource("k_button")
-Text = "BACK"
+text = "BACK"

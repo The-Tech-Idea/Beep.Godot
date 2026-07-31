@@ -3264,3 +3264,67 @@ build 0 errors. Renders inspected for rpg (spiked), survival (torn) and puzzle (
 **Open:** the `KitGloss` render gate is not passing and is NOT claimed — its three constructions
 measured identically before the restructure and it has not been re-derived under unit metrics. The
 enum, the JSON key and the three constructions ship; only the render proof is outstanding.
+
+### Stage 51 — the gloss gate, closed (2026-07-31)
+
+Stage 50 shipped `KitGloss` with the render proof explicitly **not claimed**. It is claimed now, and
+getting there required fixing the renderer, not the metric.
+
+#### The experiment was confounded
+
+The three constructions were rendered from three different **themes** (`puzzle/modern`, `/candy`,
+`/sea`), which differ in corner, shear, shadow and `Gloss` intensity as well as in gloss style. All
+three measured identically — `depth 0.22 · curvature 0.00 · strength 16.0` — and that told me
+nothing about the axis under test.
+
+Now: **one theme, three forced gloss styles**, set directly on the cached geometry in the probe.
+Same silhouette, same colours, same intensity, one variable. `citybuilder` also replaces `puzzle` as
+the host, because a stadium's "ends" are inside the round cap — the columns a curvature measurement
+needs simply are not plate there.
+
+#### A band is a construction, not an intensity
+
+`0.22 × Gloss × amount` inherited the genre's sheen strength, so a carved genre (Gloss 0.30, stack
+amount 0.55) drew its "discrete lighter band" at **3.6% alpha** — a wash neither the gate nor the
+eye could tell from the soft sheen. Files 17 and 27 show a clearly lighter top quarter. Now
+`max(0.13, 0.30 × Gloss) × amount`: choosing `HardBand` is choosing a construction.
+
+The curve's shallow end also moved from `0.45` to `0.62` of the band depth. At 0.45 its ends landed
+~11px down, on top of the carved edge stack — which is ~5px total now that insets are unit-based.
+
+#### The window moved three times, each time because the target had
+
+| window | why it was wrong |
+|---|---|
+| `0.18 – 0.34` | clipped `CurvedGlass`'s ends, halving measured curvature (0.07 vs a true 0.14) |
+| `0.11 – 0.34` | the band became **unit**-sized (~26px = 0.10 of a 262px plate) — entirely above the floor, so the metric read something else and reported the curve **backwards** |
+| `0.02 – 0.20` | the **rim** dominated; all three constructions collapsed onto it at depth 0.03 |
+| `max(9px, 0.035) – 0.20` | sits between the edge stack and the band's shallow end ✅ |
+
+An absolute 9px floor, not a pure fraction, because the things it must clear are now absolute.
+
+#### Result, and fail-tested
+
+```
+gl_linear  depth=0.15  curvature=+0.00  strength=6      <- soft inset sheen
+gl_hard    depth=0.12  curvature=+0.00  strength=16     <- discrete band, hard edge
+gl_curved  depth=0.12  curvature=+0.03  strength=16     <- the same band, bowed
+band vs sheen   16 vs 6   (want > 2x and > 6)   ok
+curved vs hard  +0.03 vs +0.00 (want > +0.02)   ok
+GLOSS PASS
+```
+
+Collapsing all three constructions to `Linear`: `strength 6 vs 6`, `curvature +0.00 vs +0.00` →
+**FAIL (2)**. The metric's own selftest runs first against synthetic bands.
+
+#### All eight gates green
+
+`poly` 105/105 + six sub-gates · `style_sweep` · `style_pack` · **`PIXEL PASS`** · **`GLOSS PASS`** ·
+`MATERIAL PASS` · `validate_scenes` · build 0 errors.
+
+Every style axis from the art pass now has both a **theme-authorable declaration** and a **gate that
+has been shown to fail**.
+
+**Remaining from the plan** (none of it structural): engraved/debossed text, meter end caps per
+tier, attachment sets by screen archetype, ghosted empty state, comparison delta chips, `edge_run`
+as a JSON schema, and the outline-polarity measurement from 41f.

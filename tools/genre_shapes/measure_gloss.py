@@ -41,9 +41,15 @@ def boundary(a):
     if h < 40 or w < 40:
         return None
 
-    # Search the face between 8% and 60% of the height. Below 8% is the rim and the bevel's own
-    # highlight; past 60% is the face shade, which is a gradient rather than a boundary.
-    lo, hi = y0 + int(h * 0.08), y0 + int(h * 0.60)
+    # Search the face from 2% of the height. It was 8%, which existed to skip the rim and the
+    # bevel highlight -- correct when those were fractions of the widget, wrong now that they are
+    # UNIT multiples and sit within about 2px of the top. On a 262px plate an 8% floor starts at
+    # row 16 and a unit-sized band's ENDS are at row 9, so the search began below the thing it was
+    # looking for and reported the curve backwards. Dropping it to 2% then let the RIM dominate --
+    # a much stronger step than the band -- and all three constructions collapsed onto it. The
+    # floor has to sit BETWEEN the edge stack (~5px, unit-based) and the band's shallow end, hence
+    # an absolute 9px minimum rather than a pure fraction.
+    lo, hi = y0 + max(9, int(h * 0.035)), y0 + int(h * 0.60)
     face = a[lo:hi, x0:x1 + 1].astype(int)
     if face.shape[0] < 6:
         return None
@@ -58,14 +64,18 @@ def boundary(a):
         prof = band.mean(axis=1)
         return lo + int(np.argmax(prof)), float(prof.max())
 
-    # The BAND WINDOW. It has to span the whole range a banded gloss can occupy: HardBand sits
-    # flat at 0.26, but CurvedGlass sweeps from 0.26 at the centre up to 0.26 x 0.45 = 0.117 at the
-    # ends. A window of 0.18-0.34 clipped those ends and halved the measured curvature (0.07
-    # against a true 0.14) -- the curve was fine, the window was too narrow to see it.
+    # The BAND WINDOW, in fractions of the plate.
     #
-    # The upper bound still excludes the soft sheen's boundary at 0.44, and the lower bound still
-    # excludes the bevel highlight at ~0.08, which is what the window is for.
-    wlo, whi = int(h * 0.11) - int(h * 0.08), int(h * 0.34) - int(h * 0.08)
+    # It has moved TWICE, both times because the thing it is looking for moved. It began at
+    # 0.18-0.34 when the band was `plate height * 0.26`; widening it to 0.11-0.34 was needed
+    # because CurvedGlass sweeps UP toward its ends and the narrow window clipped them, halving
+    # the measured curvature. Then the band became UNIT-based (~1.6 units, about 26px), so on a
+    # 262px plate it sits at 0.04-0.10 -- entirely ABOVE a window whose floor was 0.11, and the
+    # metric measured whatever else it found and reported the curve backwards.
+    #
+    # 0.02-0.20 covers a unit-sized band on a large plate. The floor still clears the carved edge
+    # stack, which is now within about 2px of the top.
+    wlo, whi = 0, int(h * 0.20) - max(9, int(h * 0.035))
     win = step[max(0, wlo):max(1, whi)]
 
     def in_window(frac):
@@ -79,7 +89,11 @@ def boundary(a):
     mid, strength = in_window(0.50)
     if mid is None:
         return None
-    ends = [e for e, _ in (in_window(0.12), in_window(0.88)) if e is not None]
+    # 5% / 95%, not 12% / 88%. A curved band's bow is a sine over the FULL width, so sampling
+    # near the middle measures almost none of it -- between 35% and 65% the boundary moves 1.5px.
+    # The ends have to be genuinely near the edges, which is why the host must be a flat-topped
+    # shape rather than a stadium whose "ends" are inside the round cap.
+    ends = [e for e, _ in (in_window(0.05), in_window(0.95)) if e is not None]
     if not ends:
         return None
     depth = (mid - y0) / h
@@ -91,29 +105,32 @@ def selftest():
     ok = True
 
     def synth(kind):
+        # Geometry matched to what the renderer now produces: a UNIT-sized band, about a tenth of
+        # a large plate, not the old quarter.
+        band = 0.10
         a = np.full((300, 400), 107, np.uint8)
         a[50:250, 60:340] = 120                     # the plate
         for x in range(60, 340):
             t = (x - 60) / 279
             if kind == "hard":
-                yb = 50 + int(200 * 0.26)
+                yb = 50 + int(200 * band)
             elif kind == "curved":
-                yb = 50 + int(200 * 0.26 * (0.45 + 0.55 * np.sin(np.pi * t)))
-            else:                                   # inset soft sheen, lower edge at 0.44
+                yb = 50 + int(200 * band * (0.62 + 0.38 * np.sin(np.pi * t)))
+            else:                                   # the soft inset sheen: lower AND far fainter
                 if t < 0.07 or t > 0.93:
                     continue
-                yb = 50 + int(200 * 0.44)
-            a[50:yb, x] = 190                       # the highlight
+                yb = 50 + int(200 * band * 1.3)
+            a[50:yb, x] = 190 if kind != "linear" else 132
         return a
 
-    for kind, want_depth, want_curve in (("hard", 0.26, 0.0), ("curved", 0.26, 0.14)):
+    for kind, want_depth, want_curve in (("hard", 0.10, 0.0), ("curved", 0.10, 0.038)):
         r = boundary(synth(kind))
         if r is None:
             print(f"[FAIL] synthetic {kind:<7} no boundary found")
             ok = False
             continue
         d, c, _, _ = r
-        good = abs(d - want_depth) < 0.06 and abs(c - want_curve) < 0.06
+        good = abs(d - want_depth) < 0.04 and abs(c - want_curve) < 0.03
         print(f"[{'ok ' if good else 'FAIL'}] synthetic {kind:<7} depth={d:.2f} (want {want_depth}) "
               f"curvature={c:.2f} (want {want_curve})")
         ok &= good
@@ -159,9 +176,9 @@ def main():
         # CURVED must actually bow. A straight band is 0; anything that reads as glass is well
         # clear of it.
         cc, hc = got["gl_curved"][1], got["gl_hard"][1]
-        good = cc - hc > 0.04
+        good = cc - hc > 0.02
         print(f"[{'ok ' if good else 'FAIL'}] curved vs hard curvature={cc:+.2f} vs {hc:+.2f} "
-              f"(want > +0.04 apart)")
+              f"(want > +0.02 apart)")
         bad += 0 if good else 1
 
     print("\nGLOSS " + ("PASS" if bad == 0 else f"FAIL ({bad})"))

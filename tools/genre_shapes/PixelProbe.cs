@@ -36,9 +36,13 @@ public partial class PixelProbe : Node
         // GLOSS construction, all three from ONE genre so the silhouette is held constant and
         // only the highlight differs. Comparing across genres would confound the band with the
         // shape it is clipped to -- the same mistake that made the topdown pixel pair useless.
-        { "puzzle",     "modern",    "gl_linear" },
-        { "puzzle",     "candy",     "gl_hard" },
-        { "puzzle",     "sea",       "gl_curved" },
+        // ONE theme, three FORCED gloss styles -- see Run(). Three different themes confounded
+        // the construction with their corner, shear, shadow and Gloss intensity, and all three
+        // measured identically. citybuilder is near-rectangular (Octagon, ~3px cut), so its top
+        // edge is flat across almost the full width and a curved band's bow is actually visible.
+        { "citybuilder", "urban",    "gl_linear" },
+        { "citybuilder", "urban",    "gl_hard" },
+        { "citybuilder", "urban",    "gl_curved" },
     };
 
     public override void _Ready() => _ = Guarded();
@@ -85,6 +89,17 @@ public partial class PixelProbe : Node
             // every depth was divided by a different number. Same paired-render trick the shadow
             // gate uses, for the same reason: cancel what you are not measuring.
             KitShadow.Enabled = !label.StartsWith("gl_");
+
+            // Force the axis under test directly. KitGeometry.ForGenre returns the cached merged
+            // instance, so this is a genuine one-variable experiment: same theme, same silhouette,
+            // same colours, same Gloss intensity, only the construction differs.
+            if (label.StartsWith("gl_"))
+                KitGeometry.ForGenre(genre).GlossStyle = label switch
+                {
+                    "gl_hard" => KitGloss.HardBand,
+                    "gl_curved" => KitGloss.CurvedGlass,
+                    _ => KitGloss.Linear,
+                };
 
             var plate = new KitButton { Text = "" };
             root.AddChild(plate);

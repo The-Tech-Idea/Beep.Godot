@@ -1080,7 +1080,12 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
-            float a = Mathf.Clamp(0.22f * g.Gloss * amount, 0f, 1f);
+            // A BAND has a FLOOR. Sized as `0.22 * Gloss * amount` it inherited the genre's
+            // sheen intensity, so a carved genre (Gloss 0.30, stack amount 0.55) rendered its
+            // "discrete lighter band" at 3.6% alpha -- a wash that neither the eye nor the gate
+            // could tell from the soft sheen. Choosing HardBand is choosing a construction, not
+            // an intensity; the reference sheets put a clearly lighter quarter across the top.
+            float a = Mathf.Clamp(Mathf.Max(0.13f, 0.30f * g.Gloss) * amount, 0f, 1f);
             if (a < 0.004f) return;
 
             float top = r.Position.Y - 4f;
@@ -1104,7 +1109,7 @@ namespace Beep.ECS.UI.Kit
                 for (int i = steps; i >= 0; i--)
                 {
                     float t = i / (float)steps;
-                    float y = r.Position.Y + h * (0.45f + 0.55f * Mathf.Sin(Mathf.Pi * t));
+                    float y = r.Position.Y + h * (0.62f + 0.38f * Mathf.Sin(Mathf.Pi * t));
                     pts.Add(new Vector2(Mathf.Lerp(l, rt, t), y));
                 }
                 band = pts.ToArray();

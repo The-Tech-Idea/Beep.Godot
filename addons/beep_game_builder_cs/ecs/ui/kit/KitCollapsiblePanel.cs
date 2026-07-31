@@ -29,6 +29,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitCollapsiblePanel : KitControl
     {
+        /// <summary>A panel: takes the theme's panel corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         /// <summary>Which edge the handle straddles, and therefore which way the panel folds.</summary>
         public enum Edge { Top, Bottom, Left, Right }
 

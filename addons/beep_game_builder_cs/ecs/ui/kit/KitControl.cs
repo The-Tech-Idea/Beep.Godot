@@ -31,7 +31,13 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>The genre's proportions. PLAN.md rule 7: no metric constants on this class.</summary>
         protected KitGeometry Geo => KitGeometry.ForGenre(_genre);
-        protected float CornerFraction => CornerOverride >= 0f ? CornerOverride : Geo.Corner;
+        /// <summary>What kind of object this widget is. Drives the properties the art varies by
+        /// object rather than by genre — corner radius today. Widgets override; the default is
+        /// Button because that is what most of the kit is.</summary>
+        protected virtual KitWidgetClass WidgetClass => KitWidgetClass.Button;
+
+        protected float CornerFraction =>
+            CornerOverride >= 0f ? CornerOverride : Geo.CornerFor(WidgetClass);
 
         protected KitState State = KitState.Normal;
         protected readonly List<KitAttach> Attachments = new();

@@ -25,6 +25,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitMeter : KitControl
     {
+        /// <summary>A bar: takes the theme's bar corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+
         [Export(PropertyHint.Range, "0.0,1.0,0.001")]
         public float Value { get => _value; set { _value = Mathf.Clamp(value, 0f, 1f); QueueRedraw(); } }
         private float _value = 0.62f;

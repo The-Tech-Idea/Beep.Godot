@@ -18,6 +18,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitInputHint : KitControl
     {
+        /// <summary>A chip: takes the theme's chip corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
+
         /// <summary>Keys in the chord, joined by "+". One entry is the common case.</summary>
         [Export] public string[] Keys { get => _keys; set { _keys = value ?? System.Array.Empty<string>(); QueueRedraw(); } }
         private string[] _keys = { "E" };

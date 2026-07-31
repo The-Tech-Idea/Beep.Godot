@@ -25,6 +25,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitInventorySlot : KitControl
     {
+        /// <summary>A slot: takes the theme's slot corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Slot;
+
         private Texture2D? _icon;
         private int _count;
         private bool _locked;

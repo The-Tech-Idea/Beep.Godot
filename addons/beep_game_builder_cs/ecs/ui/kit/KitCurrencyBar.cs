@@ -30,6 +30,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitCurrencyBar : KitControl
     {
+        /// <summary>A bar: takes the theme's bar corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+
         public sealed class Entry
         {
             public string Value = "0";

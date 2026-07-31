@@ -16,6 +16,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitTooltip : KitControl
     {
+        /// <summary>A panel: takes the theme's panel corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public enum TailSide { Bottom, Top, Left, Right }
 
         [Export] public string Text { get => _text; set { _text = value ?? ""; QueueRedraw(); } }

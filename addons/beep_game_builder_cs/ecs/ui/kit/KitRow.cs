@@ -20,6 +20,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitRow : KitControl
     {
+        /// <summary>A bar: takes the theme's bar corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+
         [Export] public string Rank { get => _rank; set { _rank = value ?? ""; QueueRedraw(); } }
         private string _rank = "1";
 

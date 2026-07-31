@@ -18,6 +18,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitStarRating : KitControl
     {
+        /// <summary>A chip: takes the theme's chip corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
+
         [Export(PropertyHint.Range, "1,10,1")]
         public int Total { get => _total; set { _total = Mathf.Max(1, value); QueueRedraw(); } }
         private int _total = 3;

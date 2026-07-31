@@ -16,6 +16,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitBookSpread : KitControl
     {
+        /// <summary>A panel: takes the theme's panel corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         [Export] public string LeftTitle { get => _lt; set { _lt = value ?? ""; QueueRedraw(); } }
         private string _lt = "";
 

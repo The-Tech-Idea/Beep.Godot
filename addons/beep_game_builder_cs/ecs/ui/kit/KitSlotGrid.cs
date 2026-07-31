@@ -28,6 +28,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitSlotGrid : KitControl
     {
+        /// <summary>A slot: takes the theme's slot corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Slot;
+
         public enum SlotKind { Filled, Blank, Invite, Locked }
 
         public sealed class Slot

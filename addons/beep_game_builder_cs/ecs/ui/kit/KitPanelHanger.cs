@@ -21,6 +21,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitPanelHanger : KitControl
     {
+        /// <summary>A panel: takes the theme's panel corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public enum HangerKind { Chain, Rope, Nail, Tape, ScrollRoll, Vine }
 
         [Export] public HangerKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }

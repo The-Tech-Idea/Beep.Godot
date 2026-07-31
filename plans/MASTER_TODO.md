@@ -2404,3 +2404,58 @@ shear and wobble as corner modifiers. That is where the next turn should go.
 
 `measure_shadow` **PASS 10/10** · `measure_material` PASS · `verify_greyscale` separation + selftest
 PASS · `validate_scenes` PASS · shadowing ok · build 0 errors.
+
+### Stage 42 — Phase B: corner radius per WIDGET CLASS (2026-07-31)
+
+One corner number per genre cannot express the references. `rpgui.png` (art pass file 11) uses
+**three different corners inside one theme** — chamfered/octagonal plaques, rounded slots, square
+rivetted wood bars — and `ui1` pairs large-radius plates with **full-pill** meters. A slot, a bar
+and a panel are different objects and the art treats them so.
+
+**Built.** `KitWidgetClass { Button, Panel, Slot, Bar, Chip }` — deliberately coarse; these are the
+five groupings the sheets actually treat differently, and a longer list would be per-widget
+settings wearing a taxonomy's clothes. `KitGeometry.CornerFor(class)` with `CornerPanel/Slot/Bar/
+Chip`, each `-1` meaning "inherit the genre's `Corner`", so nothing changes for a widget that does
+not opt in. `KitControl.WidgetClass` is virtual, defaulting to `Button`.
+
+**17 widgets declared their class** — panels (`KitPanel`, `KitCollapsiblePanel`, `KitNodeCard`,
+`KitBookSpread`, `KitTooltip`, `KitPanelHanger`), slots (`KitInventorySlot`, `KitSlotGrid`,
+`KitGemSlot`), bars (`KitMeter`, `KitSlider`, `KitCurrencyBar`, `KitRow`), chips (`KitChip`,
+`KitStarRating`, `KitLabelValue`, `KitInputHint`).
+
+All ten genres given per-class values from the art:
+
+| genre | button | panel | slot | bar | source |
+|---|---|---|---|---|---|
+| rpg | 0.16 | 0.10 | 0.22 | **0.04** | 11 — chamfer plaque, rounded slot, square bar |
+| platformer | 0.45 | 0.28 | 0.22 | **0.50** | 17 — large plates, full-pill meters |
+| shooter | 0.10 | 0.04 | 0.06 | **0.02** | 14·43 — sharp throughout |
+| citybuilder | 0.06 | 0.05 | 0.10 | 0.06 | 06·22 — chunky stone |
+
+#### The gate, and it was made to fail first
+
+`poly_probe` now asserts the classes resolve to **different** radii where the theme says they
+should — because a per-class value that silently falls back to the genre default looks identical to
+not having the feature at all.
+
+Proved by removing rpg's per-class values: `corner: rpg button=0.16 panel=0.16 slot=0.16 bar=0.16
+<-- ALL EQUAL`, `corner: FAIL`, **probe exit 1**. Restored: `corner: PASS`, **exit 0**.
+
+> **I hit the `grep -c` short-circuit again while doing it.** `dotnet build | grep -c 'error CS'`
+> returns 0 and *exits 1*, so the `&&` chain stopped and Godot never ran — the same trap recorded
+> in this repo's own notes. The first fail-test result was therefore meaningless and was redone
+> with the commands sequenced, not chained.
+
+#### Verified
+
+| gate | result |
+|---|---|
+| `poly_probe` | 105/105 polygons · **corner PASS**, shown to fail |
+| `measure_shadow` | **SHADOW PASS 10/10** |
+| `measure_material` | MATERIAL PASS |
+| `verify_greyscale` separation | PASS |
+| `validate_scenes` · shadowing · build | PASS · ok · 0 errors |
+| 67 template scenes | rendered, 0 failures |
+
+**Phase B remaining:** shear and wobble as corner modifiers, and the polarity *measurement* left
+open in Stage 41f (the kit side of polarity is done and proven).

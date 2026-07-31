@@ -18,6 +18,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitGemSlot : KitControl
     {
+        /// <summary>A slot: takes the theme's slot corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Slot;
+
         public enum SocketState { Empty, Filled, Invite, Locked }
 
         [Export] public SocketState State_ { get => _state; set { _state = value; QueueRedraw(); } }

@@ -24,6 +24,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitChip : KitControl
     {
+        /// <summary>A chip: takes the theme's chip corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
+
         public enum ChipKind
         {
             /// <summary>A word or short label — rarity, tier, "NEW".</summary>

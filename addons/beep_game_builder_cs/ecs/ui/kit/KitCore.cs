@@ -37,6 +37,27 @@ namespace Beep.ECS.UI.Kit
         Stepped,
     }
 
+    /// <summary>
+    /// What KIND of thing a widget is, for the properties the art varies by object rather than
+    /// by genre — corner radius first among them.
+    ///
+    /// Deliberately coarse. These are the five groupings the reference sheets actually treat
+    /// differently; a longer list would be per-widget settings wearing a taxonomy's clothes.
+    /// </summary>
+    public enum KitWidgetClass
+    {
+        /// <summary>Buttons and anything the user presses.</summary>
+        Button,
+        /// <summary>Panels, cards, dialogs — the containers.</summary>
+        Panel,
+        /// <summary>Inventory and equipment cells.</summary>
+        Slot,
+        /// <summary>Meters, sliders, progress and other long thin things.</summary>
+        Bar,
+        /// <summary>Badges, tags, currency pills and other small labels.</summary>
+        Chip,
+    }
+
     /// <summary>Where a widget sits in the visual hierarchy. Drives which palette role its
     /// base layer takes, so a raised control and a recessed well are not the same flat plate
     /// in two colours.</summary>
@@ -165,6 +186,28 @@ namespace Beep.ECS.UI.Kit
     {
         /// <summary>Corner cut/radius as a fraction of the shorter side.</summary>
         public float Corner = 0.18f;
+
+        /// <summary>
+        /// Corner fraction per WIDGET CLASS. Negative = inherit <see cref="Corner"/>.
+        ///
+        /// One number per genre cannot express the references. `rpgui.png` (art pass file 11)
+        /// uses three different corners inside ONE theme: chamfered/octagonal plaques, rounded
+        /// slots, and square rivetted wood bars. `ui1` pairs large-radius plates with full-pill
+        /// meters. A slot, a bar and a panel are different objects and the art treats them so.
+        /// </summary>
+        public float CornerPanel = -1f;
+        public float CornerSlot = -1f;
+        public float CornerBar = -1f;
+        public float CornerChip = -1f;
+
+        public float CornerFor(KitWidgetClass k) => k switch
+        {
+            KitWidgetClass.Panel => CornerPanel >= 0f ? CornerPanel : Corner,
+            KitWidgetClass.Slot => CornerSlot >= 0f ? CornerSlot : Corner,
+            KitWidgetClass.Bar => CornerBar >= 0f ? CornerBar : Corner,
+            KitWidgetClass.Chip => CornerChip >= 0f ? CornerChip : Corner,
+            _ => Corner,
+        };
         /// <summary>Height as a multiple of the theme font, so proportion survives a type change
         /// instead of pinning a pixel height.</summary>
         public float HeightRatio = 2.6f;
@@ -298,18 +341,18 @@ namespace Beep.ECS.UI.Kit
         //              rpgui1/racing4/rpgui2, where a chip and a panel carry the same 1-3px line.
         private static readonly Dictionary<string, KitGeometry> _byGenre = new()
         {
-            ["rpg"]         = new() { Register = KitRegister.Carved, Corner = .16f, HeightRatio = 2.9f, PadRatio = 1.9f, Rim = 3.0f, Bevel = 1.2f, Gloss = .55f, Sparkle = .35f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.90f, Shadow = KitShadowDef.Soft() },
-            ["survival"]    = new() { Register = KitRegister.Carved, Corner = .12f, HeightRatio = 2.7f, PadRatio = 1.7f, Rim = 3.0f, Bevel = 1.1f, Gloss = .20f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.80f, Shadow = KitShadowDef.Soft() },
-            ["strategy"]    = new() { Register = KitRegister.Carved, Corner = .04f, HeightRatio = 2.4f, PadRatio = 1.5f, Rim = 2.5f, Bevel = 0.8f, Gloss = .25f, Studs = 2, FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f, Shadow = KitShadowDef.Hard() },
-            ["citybuilder"] = new() { Register = KitRegister.Carved, Corner = .06f, HeightRatio = 2.5f, PadRatio = 1.6f, Rim = 2.0f, Bevel = 0.7f, Gloss = .30f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f, Shadow = KitShadowDef.Hard() },
+            ["rpg"]         = new() { Register = KitRegister.Carved, Corner = .16f, HeightRatio = 2.9f, PadRatio = 1.9f, Rim = 3.0f, Bevel = 1.2f, Gloss = .55f, Sparkle = .35f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.90f, Shadow = KitShadowDef.Soft(), CornerPanel = .10f, CornerSlot = .22f, CornerBar = .04f, CornerChip = .50f },
+            ["survival"]    = new() { Register = KitRegister.Carved, Corner = .12f, HeightRatio = 2.7f, PadRatio = 1.7f, Rim = 3.0f, Bevel = 1.1f, Gloss = .20f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.80f, Shadow = KitShadowDef.Soft(), CornerPanel = .08f, CornerSlot = .18f, CornerBar = .04f, CornerChip = .50f },
+            ["strategy"]    = new() { Register = KitRegister.Carved, Corner = .04f, HeightRatio = 2.4f, PadRatio = 1.5f, Rim = 2.5f, Bevel = 0.8f, Gloss = .25f, Studs = 2, FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f, Shadow = KitShadowDef.Hard(), CornerPanel = .03f, CornerSlot = .08f, CornerBar = .04f, CornerChip = .50f },
+            ["citybuilder"] = new() { Register = KitRegister.Carved, Corner = .06f, HeightRatio = 2.5f, PadRatio = 1.6f, Rim = 2.0f, Bevel = 0.7f, Gloss = .30f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 2.05f, Shadow = KitShadowDef.Hard(), CornerPanel = .05f, CornerSlot = .10f, CornerBar = .06f, CornerChip = .50f },
 
-            ["platformer"]  = new() { Register = KitRegister.Casual, Corner = .45f, HeightRatio = 3.1f, PadRatio = 2.1f, Rim = 3.5f, Bevel = 1.3f, Gloss = .80f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f, Shadow = KitShadowDef.Extrude(), OutlineShade = 0.16f },
-            ["puzzle"]      = new() { Register = KitRegister.Casual, Corner = .30f, HeightRatio = 3.0f, PadRatio = 2.0f, Rim = 2.5f, Bevel = 1.2f, Gloss = .90f, Sparkle = .40f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f, Shadow = KitShadowDef.None, OutlineShade = 1.85f },
-            ["cardgame"]    = new() { Register = KitRegister.Casual, Corner = .22f, HeightRatio = 2.8f, PadRatio = 1.8f, Rim = 2.0f, Bevel = 0.9f, Gloss = .70f, Sparkle = .50f, FrameMode = KitFrameMode.None,   RimBrightness = 0.20f, Shadow = KitShadowDef.Soft(), OutlineShade = 0.16f },
-            ["topdown"]     = new() { Register = KitRegister.Casual, Corner = .18f, HeightRatio = 2.6f, PadRatio = 1.7f, Rim = 2.0f, Bevel = 1.0f, Gloss = .40f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f, Shadow = KitShadowDef.None, OutlineShade = 0.22f },
+            ["platformer"]  = new() { Register = KitRegister.Casual, Corner = .45f, HeightRatio = 3.1f, PadRatio = 2.1f, Rim = 3.5f, Bevel = 1.3f, Gloss = .80f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f, Shadow = KitShadowDef.Extrude(), OutlineShade = 0.16f, CornerPanel = .28f, CornerSlot = .22f, CornerBar = .50f, CornerChip = .50f },
+            ["puzzle"]      = new() { Register = KitRegister.Casual, Corner = .30f, HeightRatio = 3.0f, PadRatio = 2.0f, Rim = 2.5f, Bevel = 1.2f, Gloss = .90f, Sparkle = .40f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f, Shadow = KitShadowDef.None, OutlineShade = 1.85f, CornerPanel = .26f, CornerSlot = .22f, CornerBar = .50f, CornerChip = .50f },
+            ["cardgame"]    = new() { Register = KitRegister.Casual, Corner = .22f, HeightRatio = 2.8f, PadRatio = 1.8f, Rim = 2.0f, Bevel = 0.9f, Gloss = .70f, Sparkle = .50f, FrameMode = KitFrameMode.None,   RimBrightness = 0.20f, Shadow = KitShadowDef.Soft(), OutlineShade = 0.16f, CornerPanel = .18f, CornerSlot = .14f, CornerBar = .50f, CornerChip = .50f },
+            ["topdown"]     = new() { Register = KitRegister.Casual, Corner = .18f, HeightRatio = 2.6f, PadRatio = 1.7f, Rim = 2.0f, Bevel = 1.0f, Gloss = .40f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f, Shadow = KitShadowDef.None, OutlineShade = 0.22f, CornerPanel = .10f, CornerSlot = .08f, CornerBar = .10f, CornerChip = .20f },
 
-            ["shooter"]     = new() { Register = KitRegister.Technical, Corner = .10f, HeightRatio = 2.3f, PadRatio = 1.5f, Rim = 1.5f, Bevel = 0.6f, Gloss = .35f,            FrameMode = KitFrameMode.Hairline, HairlinePx = 2.0f, RimBrightness = 1.35f, Shadow = KitShadowDef.None, OutlineShade = 1.90f },
-            ["racing"]      = new() { Register = KitRegister.Technical, Corner = .08f, HeightRatio = 2.2f, PadRatio = 1.4f, Rim = 1.5f, Bevel = 0.7f, Gloss = .85f, Sparkle = .25f, FrameMode = KitFrameMode.Hairline, HairlinePx = 1.5f, RimBrightness = 1.45f, Shadow = KitShadowDef.None, OutlineShade = 1.85f },
+            ["shooter"]     = new() { Register = KitRegister.Technical, Corner = .10f, HeightRatio = 2.3f, PadRatio = 1.5f, Rim = 1.5f, Bevel = 0.6f, Gloss = .35f,            FrameMode = KitFrameMode.Hairline, HairlinePx = 2.0f, RimBrightness = 1.35f, Shadow = KitShadowDef.None, OutlineShade = 1.90f, CornerPanel = .04f, CornerSlot = .06f, CornerBar = .02f, CornerChip = .30f },
+            ["racing"]      = new() { Register = KitRegister.Technical, Corner = .08f, HeightRatio = 2.2f, PadRatio = 1.4f, Rim = 1.5f, Bevel = 0.7f, Gloss = .85f, Sparkle = .25f, FrameMode = KitFrameMode.Hairline, HairlinePx = 1.5f, RimBrightness = 1.45f, Shadow = KitShadowDef.None, OutlineShade = 1.85f, CornerPanel = .03f, CornerSlot = .05f, CornerBar = .02f, CornerChip = .30f },
         };
 
         private static readonly KitGeometry _default = new();

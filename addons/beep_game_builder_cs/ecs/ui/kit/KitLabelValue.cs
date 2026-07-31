@@ -32,6 +32,10 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitLabelValue : KitControl
     {
+        /// <summary>A chip: takes the theme's chip corner, which the
+        /// references vary independently of the button corner.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
+
         [Export] public string Label { get => _label; set { _label = value ?? ""; QueueRedraw(); } }
         private string _label = "ATTACK";
 

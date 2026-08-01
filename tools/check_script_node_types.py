@@ -89,21 +89,13 @@ def descends(node_type, ancestor, parents):
     return False
 
 
-# KNOWN DEBT, listed rather than hidden.
+# Nothing is exempt.
 #
-# All three are UIComponent (-> Node) scripts on type="Control" nodes, and two of them are scene
-# ROOTS -- where the root must be a Control or its anchored children have nothing to size against.
-# The correct fix is not to retype the node but to decide what UIComponent IS: a droppable child
-# component (Node, as today) or a screen controller (Control). That choice touches ~53 subclasses,
-# so it is a deliberate follow-up rather than something to sneak into a button fix.
-#
-# The consequence today: GetNode<Control>() against these three fails from C#. Nothing in the
-# addon does that, which is why it has gone unnoticed.
-KNOWN = {
-    ("citybuilder_main.tscn", "Alerts"),
-    ("load_game_menu.tscn", "LoadGameMenu"),
-    ("save_game_menu.tscn", "SaveGameMenu"),
-}
+# This list held three entries -- Alerts, LoadGameMenu and SaveGameMenu, all UIComponent (a Node)
+# on type="Control" nodes, two of them scene roots. They are fixed: those three derive from
+# UIScreenComponent (a Control) now, which is what they always were. The set stays here, empty,
+# because an exemption list that gets deleted is an exemption list that gets quietly re-added.
+KNOWN: set[tuple[str, str]] = set()
 
 NODE_RE = re.compile(r'^\[node name="([^"]+)"(?:\s+type="([^"]+)")?', re.M)
 EXT_RE = re.compile(r'^\[ext_resource type="Script" path="([^"]+)"\s+id="([^"]+)"\]', re.M)

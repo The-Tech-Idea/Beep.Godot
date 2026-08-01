@@ -11,7 +11,7 @@ namespace Beep.ECS.UI
 	/// </summary>
 	[Tool]
 	[GlobalClass]
-	public partial class LoadGameMenuComponent : UIComponent
+	public partial class LoadGameMenuComponent : UIScreenComponent
 	{
 		[Export] public int MaxSlots { get; set; } = 5;
 

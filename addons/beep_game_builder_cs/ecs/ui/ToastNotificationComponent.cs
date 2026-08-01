@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class ToastNotificationComponent : UIComponent
+    public partial class ToastNotificationComponent : UIScreenComponent
     {
         public enum ToastType { Info, Success, Warning, Error }
 

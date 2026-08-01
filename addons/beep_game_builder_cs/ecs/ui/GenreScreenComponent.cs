@@ -98,7 +98,16 @@ namespace Beep.ECS.UI
         public override void _UnhandledInput(InputEvent @event)
         {
             if (Engine.IsEditorHint() || !IsActive) return;
-            if (string.IsNullOrEmpty(OpenAction) || !@event.IsActionPressed(OpenAction)) return;
+            if (string.IsNullOrEmpty(OpenAction)) return;
+
+            // GUARD THE CALL, not just the developer. _Ready already warns once that this action
+            // is missing from the input map -- and then this ran anyway, and Godot logged
+            // `ERROR: The InputMap action "inventory" doesn't exist.` for EVERY input event.
+            // Three genre scenes filled their Output with engine errors on top of a warning that
+            // had already said the same thing more usefully, which buries the warnings that
+            // matter. Found by running the scenes, not by reading them.
+            if (!InputMap.HasAction(OpenAction)) return;
+            if (!@event.IsActionPressed(OpenAction)) return;
 
             if (IsOpen())
             {

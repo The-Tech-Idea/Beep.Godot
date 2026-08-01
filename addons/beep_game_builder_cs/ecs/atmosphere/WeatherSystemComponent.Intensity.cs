@@ -156,12 +156,25 @@ namespace Beep.ECS
                 // does NOT create one, so GlobalShaderParameterSet below was a silent no-op and no
                 // shader ever received these values. GlobalShaderParameterAdd is what a shader's
                 // `global uniform float beep_puddle_depth;` resolves against.
+                // GlobalShaderParameterGet is EDITOR-ONLY. Godot answers a runtime call with
+                // "This function should never be used outside the editor, it can severely damage
+                // performance." -- once per name, so every genre main logged five engine errors
+                // at startup. The existence CHECK is what was editor-only; Add itself is not.
+                //
+                // GlobalShaderParameterAdd is already idempotent (re-adding a name replaces its
+                // declaration), and `_globalsRegistered` guards the block anyway, so the check
+                // was buying nothing even in the editor.
+                //
+                // Found by bisection, not by reading: removing the Weather node silenced the
+                // errors, then stubbing _Process silenced them, then this loop. Two earlier
+                // guesses -- five particle textures, five exported Texture2D properties -- each
+                // matched the count of five exactly and were each disproved by a direct test.
                 foreach (var name in new[]{
                     ParamWindStrength, ParamWindX, ParamPuddleDepth,
                     ParamSnowAccumulation, ParamWeatherIntensity })
                 {
-                    if (RenderingServer.GlobalShaderParameterGet(name).VariantType == Variant.Type.Nil)
-                        RenderingServer.GlobalShaderParameterAdd(name, RenderingServer.GlobalShaderParameterType.Float, 0f);
+                    RenderingServer.GlobalShaderParameterAdd(
+                        name, RenderingServer.GlobalShaderParameterType.Float, 0f);
                 }
                 _globalsRegistered = true;
             }

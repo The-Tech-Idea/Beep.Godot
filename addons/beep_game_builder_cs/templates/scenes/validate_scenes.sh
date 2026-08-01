@@ -364,8 +364,14 @@ fi
 #                            fails while the scene still loads and renders
 #   check_text_treatment     no kit widget may call DrawString directly, or a theme's
 #                            text_treatment reaches only the widgets that remembered to ask
+#   check_control_layout     a Control NOT inside a Container must carry anchors/offsets, or it
+#                            sits at (0,0) and drifts with the viewport -- right at the size it
+#                            was authored in, wrong at every other one
+#   check_control_layout     a Control not inside a Container must carry anchors/offsets, or it
+#                            sits at (0,0) and moves with the viewport -- correct at the
+#                            resolution it was authored in, colliding at every other one
 ROOT="../../../.."
-for check in check_script_node_types check_text_treatment; do
+for check in check_script_node_types check_text_treatment check_control_layout; do
   if [ -f "$ROOT/tools/$check.py" ]; then
     echo "--- $check ---"
     if (cd "$ROOT" && python "tools/$check.py" >/tmp/beep_$check.out 2>&1); then

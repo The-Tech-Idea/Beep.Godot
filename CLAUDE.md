@@ -244,6 +244,23 @@ Button would invent interactivity and start eating clicks), `KitTree` (a tier **
 Godot's list `Tree`), `KitSpinner`, `KitPager`, `KitCollapsiblePanel`, and the slot/frame/card
 family.
 
+### HUD and UI: a CanvasLayer, anchors, and the project's stretch mode
+
+Three things together, and missing any one makes a HUD drift:
+
+1. **A `CanvasLayer`**, so the HUD is camera-independent and does not scroll with the world.
+2. **Anchors** on every Control that a Container does not position — `check_control_layout.py`
+   enforces it, and Container children are exempt because `layout_mode` is an editor hint, not a
+   runtime requirement.
+3. **`display/window/stretch/mode = "canvas_items"` + `aspect = "expand"`** in `project.godot`
+   ([Godot: multiple resolutions](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html)).
+
+`BeepProjectDefaults` writes (3) into every generated project. **This repo's own `project.godot`
+did not have it**, so stretch defaulted to `disabled`, Controls laid out in raw pixels, and an
+anchored HUD still drifted with the window — every template scene run from here behaved
+differently from the same scene in a generated project. Three attempts to fix that by editing
+scenes all failed, because the setting was never in a scene.
+
 ### Never fail silently
 The dominant defect class in this repo, by a wide margin. A component resolves a collaborator, the cast fails, it early-returns, and **nothing says anything** — so it looks fine for months.
 

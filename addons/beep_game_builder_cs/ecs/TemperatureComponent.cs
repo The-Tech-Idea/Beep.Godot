@@ -91,6 +91,18 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            // AmbientTemp and IsActive from GameInfo, when a generated project supplies one.
+            // The generator copies `ambient_temperature` and `enable_temperature` out of
+            // genre.json into GameInfo, and this component read NEITHER -- it ran on its own 20C
+            // export in every genre, including the one that sets 12C precisely because exposure
+            // is its mechanic. An inspector-authored value still wins (the 20f type-default is
+            // the only thing overwritten).
+            if (Beep.GameBuilder.GameInfo.Instance is { } gi)
+            {
+                IsActive = gi.EnableTemperature;
+                if (Mathf.IsEqualApprox(AmbientTemp, 20f)) AmbientTemp = gi.AmbientTemperature;
+            }
+
             base._Ready();
             CurrentTemp = Mathf.Clamp(CurrentTemp, MinTemp, MaxTemp);
             // Runtime only: SetupVignette adds a CanvasLayer to the scene root.

@@ -70,6 +70,16 @@ namespace Beep.ECS
             if (Beep.GameBuilder.GameInfo.Instance is { } info)
             {
                 IsActive = info.EnableSeasons;
+
+                // DaysPerSeason too. The generator copies genre.json's `days_per_season` into
+                // GameInfo and NOTHING read it back, so every genre ran the 7-day export default
+                // however long its JSON said a season was. The value travelled the whole chain --
+                // JSON to GenreDef to GameInfo.tres -- and died one step from the component.
+                //
+                // Only when the scene left the export at its type-default, so an inspector-
+                // authored value still wins. Same rule the season seed below already follows.
+                if (Mathf.IsEqualApprox((float)DaysPerSeason, 7f) && info.DaysPerSeason > 0)
+                    DaysPerSeason = info.DaysPerSeason;
                 // Seed the starting season from GameInfo (the generator writes default_season there),
                 // but only when the scene left CurrentSeason at its type-default — an inspector-authored
                 // season survives. Without this the world always started in Spring.

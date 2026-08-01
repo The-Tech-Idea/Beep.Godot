@@ -16,29 +16,49 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitStarRating : KitControl
+    public partial class KitStarRating : Range
     {
-        /// <summary>A chip: takes the theme's chip corner, which the
-        /// references vary independently of the button corner.</summary>
-        protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
+        /// <summary>A chip: takes the theme's chip corner, which the references vary
+        /// independently of the button corner.</summary>
+        private const KitWidgetClass Class = KitWidgetClass.Chip;
 
+        /// <summary>How many stars there are. This is Range's MaxValue — a star rating is a
+        /// value within a range, which is exactly what Range models, so it gets Range's
+        /// MinValue/MaxValue/Step/Value and its ValueChanged signal instead of a private pair of
+        /// ints nothing else can read.</summary>
         [Export(PropertyHint.Range, "1,10,1")]
-        public int Total { get => _total; set { _total = Mathf.Max(1, value); QueueRedraw(); } }
-        private int _total = 3;
+        public int Total
+        {
+            get => Mathf.Max(1, (int)MaxValue);
+            set { MaxValue = Mathf.Max(1, value); QueueRedraw(); }
+        }
 
+        /// <summary>How many are filled. This is Range's Value.</summary>
         [Export(PropertyHint.Range, "0,10,1")]
-        public int Earned { get => _earned; set { _earned = Mathf.Max(0, value); QueueRedraw(); } }
-        private int _earned = 2;
+        public int Earned
+        {
+            get => (int)Value;
+            set { Value = Mathf.Clamp(value, 0, MaxValue); QueueRedraw(); }
+        }
+
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
 
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
 
         public override void _Ready()
         {
-            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            // Range has NO theme art of its own -- no stylebox, no icon -- so unlike Slider and
+            // ProgressBar there is nothing to blank and nothing whose minimum size vanishes with
+            // it. That is what makes it the right base here rather than a convenient one.
+            MinValue = 0; Step = 1;
+            if (MaxValue < 1) MaxValue = 3;
+            ValueChanged += _ => QueueRedraw();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 1.9f * _total, fs * 2f);
+                CustomMinimumSize = new Vector2(fs * 1.9f * Total, fs * 2f);
             }
         }
 
@@ -52,18 +72,18 @@ namespace Beep.ECS.UI.Kit
             Color dim = new(Mathf.Lerp(lit.R, l, 0.92f) * 0.6f,
                             Mathf.Lerp(lit.G, l, 0.92f) * 0.6f,
                             Mathf.Lerp(lit.B, l, 0.92f) * 0.6f, 1f);
-            Color ink = InkColor();
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
 
-            float pitch = Size.X / _total;
+            float pitch = Size.X / Total;
             float r = Mathf.Min(pitch, Size.Y) * 0.42f;
 
-            for (int i = 0; i < _total; i++)
+            for (int i = 0; i < Total; i++)
             {
                 var c = new Vector2(pitch * (i + 0.5f), Size.Y * 0.5f);
                 // Earned stars sit slightly higher — the reference screens lift them so the row
                 // reads even in a thumbnail.
-                if (i < _earned) c.Y -= Size.Y * 0.06f;
-                DrawStar(c, r, i < _earned ? lit : dim, ink);
+                if (i < Earned) c.Y -= Size.Y * 0.06f;
+                DrawStar(c, r, i < Earned ? lit : dim, ink);
             }
         }
 

@@ -121,6 +121,18 @@ public partial class TypeProbe : Node
                + "(blanking the tab styleboxes must not collapse it)");
         if (!ok) bad++;
 
+        // ── KitStarRating IS a Range ──
+        var sr = new KitStarRating { Name = "Stars", Total = 5, Earned = 3 };
+        root.AddChild(sr);
+        var rg = root.GetNodeOrNull<Range>("Stars");
+        double heard = -1;
+        if (rg != null) { rg.ValueChanged += v => heard = v; rg.Value = 4; }
+        ok = rg != null && Mathf.IsEqualApprox((float)heard, 4f)
+             && Mathf.IsEqualApprox((float)rg.MaxValue, 5f) && sr.Earned == 4;
+        GD.Print($"sr:     {(ok ? "ok  " : "FAIL")} GetNode<Range>(\"Stars\") "
+               + $"max={rg?.MaxValue:0} ValueChanged={heard:0} Earned={sr.Earned}");
+        if (!ok) bad++;
+
         GD.Print($"kb:     {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);
     }

@@ -224,6 +224,10 @@ namespace Beep.ECS
             if (info != null)
             {
                 CurrentWeather = info.DefaultWeather;
+                // AutoCycle from the genre too. Without this every genre started at its default
+                // weather and STAYED there -- with all ten defaulting to Clear, the whole system
+                // was enabled and produced nothing, which is what "weather isn't happening" means.
+                AutoCycle = info.AutoCycleWeather;
                 IsActive = info.EnableWeather;
                 // info.EnableDayNightCycle now configures the standalone DayNightCycleComponent,
                 // not this one — day/night was moved out. See BeepGenreScene / DayNightCycleComponent.

@@ -29,7 +29,7 @@
     "dialogue_speed": 0.04,
     "tooltip_delay": 0.35,
     "enable_weather": true,
-    "default_weather": "Clear",
+    "default_weather": "Cloudy",
     "enable_day_night": true,
     "enable_seasons": true,
     "default_season": "Spring",
@@ -41,6 +41,7 @@
     "enable_save_load": true,
     "max_save_slots": 5,
     "autosave_enabled": true,
-    "autosave_interval_seconds": 300
+    "autosave_interval_seconds": 300,
+    "auto_cycle": true
   }
 }

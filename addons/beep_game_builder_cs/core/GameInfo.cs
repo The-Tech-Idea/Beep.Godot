@@ -161,6 +161,10 @@ public partial class GameInfo : Resource
     [Export] public bool EnableTemperature { get; set; } = false;
     [Export] public float AmbientTemperature { get; set; } = 20f;
     [Export] public bool EnableWeatherForecast { get; set; } = true;
+
+    /// <summary>Whether weather changes on its own. Genres whose weather is a MOOD cycle it;
+    /// genres whose weather is a set-piece (a race, a mission) do not.</summary>
+    [Export] public bool AutoCycleWeather { get; set; } = false;
     [Export] public int ForecastDays { get; set; } = 7;
 
     [ExportGroup("Time")]

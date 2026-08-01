@@ -196,7 +196,12 @@ def pick(verbose=True):
         # scores exactly C/256), so repeating the pattern k times across the plate divides its
         # coarseness by k. Solving for the reference material's own coarseness makes the tile
         # count derived rather than eyeballed.
-        tile = max(1, min(8, round(row[4] / max(t_coarse, 1e-6))))
+        # FLOOR OF 2, not 1. A single repeat across a 434px plate is not a material, it is a
+        # gradient: it carries almost no high-frequency content, so the surface measures as FLAT
+        # however strong its amplitude. citybuilder and strategy both solved to 1 and citybuilder
+        # measured 0.0022 against a 0.0028 floor -- the pipeline was working and the assignment
+        # was degenerate.
+        tile = max(2, min(8, round(row[4] / max(t_coarse, 1e-6))))
         eff_coarse = row[4] / tile
 
         amp, got, reached = solve_amp(os.path.join(PACK, name), t_hf)

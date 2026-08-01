@@ -25,13 +25,13 @@ namespace Beep.ECS.UI.Kit
             new Dictionary<string, KitGrainDef>
         {
             ["cardgame"] = new("pattern_57", 0.300f, 5, "denim"),
-            ["citybuilder"] = new("pattern_78", 0.136f, 1, "stone"),
+            ["citybuilder"] = new("pattern_78", 0.136f, 2, "stone"),
             ["platformer"] = new("pattern_58", 0.300f, 1, "rubber-dots"),
             ["puzzle"] = new("pattern_41", 0.300f, 2, "graph-paper"),
             ["racing"] = new("pattern_37", 0.300f, 1, "brushed-metal"),
             ["rpg"] = new("pattern_50", 0.300f, 3, "wood-plank"),
             ["shooter"] = new("pattern_08", 0.300f, 4, "diamond-plate"),
-            ["strategy"] = new("pattern_78", 0.136f, 1, "stone"),
+            ["strategy"] = new("pattern_78", 0.136f, 4, "stone"),
             ["survival"] = new("pattern_49", 0.300f, 4, "leather"),
             ["topdown"] = new("pattern_19", 0.293f, 2, "glossy-leaf"),
         };

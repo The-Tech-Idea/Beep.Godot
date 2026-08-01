@@ -35,6 +35,22 @@ namespace Beep.ECS.UI.Kit
         Asymmetric,
         /// <summary>pixel-era UI: corners rounded in STEPS rather than an arc.</summary>
         Stepped,
+
+        // ── DELIBERATELY ABSENT: `Organic` ────────────────────────────────────────────────
+        //
+        // Art-pass file 13's frame -- vines, roots, torn cloth growing around the panel -- is an
+        // ILLUSTRATED nine-patch, not a procedural outline. There is no corner rule, shear or
+        // wobble that produces it; it is drawn once by an artist and sliced.
+        //
+        // PLAN_STYLE_SYSTEM.md deferred it with an explicit instruction: "say so rather than
+        // half-implementing it". A half-organic silhouette would be a wobbly rectangle, which
+        // reads as a rendering fault rather than as foliage -- and it would occupy the name, so
+        // nobody would reach for the thing that actually works.
+        //
+        // What actually works, today: mount a nine-patch through NinePatchFrameComponent (for
+        // decorative frames a Theme cannot reach) or a StyleBoxTexture slot (for a widget's own
+        // chrome, baked by core/BeepTextureBaker.cs). Both are documented in CLAUDE.md under
+        // "Textures are baked, not drawn".
     }
 
     /// <summary>

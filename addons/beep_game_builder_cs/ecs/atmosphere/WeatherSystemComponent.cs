@@ -356,7 +356,17 @@ namespace Beep.ECS
             // Screen-spanning rectangle emission so particles are already in
             // flight across the full viewport width when they enter view.
             _particles.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
-            _particles.EmissionRectExtents = new Vector2(size.X * 0.6f, 8f);
+            // A BOX OVER THE VIEW, not a 16px strip at the top.
+            //
+            // Godot's own guidance for 2D rain is an emission box slightly wider than the
+            // viewport (godotengine.org GPUParticles article; the ParticleProcessMaterial rain
+            // recipe). The strip meant every drop had to survive a full fall from above the
+            // screen to cover it, so the picture was thin at the top, empty at the bottom, and
+            // fell apart entirely the moment the fall was slowed for a top-down camera.
+            //
+            // Filling the box means drops exist THROUGHOUT the view from the first frame, which
+            // is what real rain looks like and what removes the dependency on lifetime tuning.
+            _particles.EmissionRectExtents = new Vector2(size.X * 0.6f, size.Y * 0.6f);
 
             // Local coords → emission is pinned to the emitter's transform; PositionEmitterAtCamera
             // moves the emitter to the camera each frame so the field tracks the view.
@@ -532,6 +542,13 @@ namespace Beep.ECS
                 // Shorter, fatter marks rather than long streaks.
                 _particles.ScaleAmountMin *= 1.35f;
                 _particles.ScaleAmountMax *= 1.35f;
+
+                // AND THE LIFETIME, or the slowdown kills the effect. Emission is a thin strip at
+                // the top of the view, so a particle has to LIVE long enough to cross the whole
+                // viewport -- the file already says so a few lines down. Cutting velocity and
+                // gravity by ~60% without this made top-down rain stop a third of the way down
+                // the screen and leave the rest dry, which the very first render showed.
+                _particles.Lifetime *= 2.2;
             }
 
             switch (type)

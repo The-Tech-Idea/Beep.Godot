@@ -137,3 +137,7 @@ position = Vector2(640, 360)
 
 [node name="Controller" type="Node" parent="Player"]
 script = ExtResource("player_ctrl")
+
+[node name="Weather" parent="Atmosphere" index="3"]
+CurrentWeather = 1
+TopDownView = true

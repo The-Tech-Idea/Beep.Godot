@@ -108,3 +108,7 @@ script = ExtResource("hud_stat")
 [node name="GameInfoBinder" type="Node" parent="HUD/Root"]
 script = ExtResource("binder_gi")
 ThemeComponentPath = NodePath("Theme")
+
+[node name="Weather" parent="Atmosphere" index="3"]
+CurrentWeather = 0
+TopDownView = false

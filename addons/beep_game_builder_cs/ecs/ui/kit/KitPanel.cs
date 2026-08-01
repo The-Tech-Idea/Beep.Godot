@@ -17,11 +17,19 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitPanel : KitControl
+    public partial class KitPanel : Panel
     {
         /// <summary>A panel: takes the theme's panel corner, which the
         /// references vary independently of the button corner.</summary>
-        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+        private const KitWidgetClass Class = KitWidgetClass.Panel;
+
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private bool _suppressing;
+        private readonly System.Collections.Generic.List<KitAttach> Attachments = new();
+
+        /// <summary>State is fixed for a panel -- it is not an interactive control.</summary>
+        private const KitState State = KitState.Normal;
 
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
         private string _title = "";
@@ -112,9 +120,29 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        /// <summary>Panel paints a `panel` StyleBox of its own; ours must REPLACE it, not sit on
+        /// top of it, or every kit panel carries Godot's default grey plate underneath.</summary>
+        private void Suppress()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+            _suppressing = false;
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
+            QueueRedraw();
+        }
+
         public override void _Ready()
         {
-            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
 
             // A KitPanel is BACKGROUND ART. Used the way PanelFrameComponent is -- dropped inside
             // a PanelContainer whose own stylebox is blanked, so the container still lays out the
@@ -181,7 +209,7 @@ namespace Beep.ECS.UI.Kit
         {
             Rect2 r = CloseRect();
             Color c = UiSurface.Semantic(this, UiSurface.Role.Danger);
-            DrawShape(r, KitShape.Round, c, ink, Mathf.Max(1.5f, rimPx * 0.8f));
+            KitChrome.DrawShape(this, _genre, r, KitShape.Round, c, ink, Mathf.Max(1.5f, rimPx * 0.8f));
             var ctr = r.Position + r.Size * 0.5f;
             float a = r.Size.X * 0.22f, w = Mathf.Max(2f, r.Size.X * 0.09f);
             var on = UiSurface.Luminance(c) > 0.5f
@@ -234,13 +262,13 @@ namespace Beep.ECS.UI.Kit
 
             var g = Geo;
             Rect2 body = BodyRect();
-            Color face = FaceColor();
-            Color ink = InkColor();
+            Color face = UiSurface.Of(this);
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
             float fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
 
             // Frame.
-            DrawShape(body, ActiveShape, face, RimColor(), rimPx);
+            KitChrome.DrawShape(this, _genre, body, KitChrome.Shape(_genre), face, KitChrome.Rim(UiSurface.Of(this), Geo), rimPx);
 
             if (ShowWell)
             {
@@ -253,18 +281,18 @@ namespace Beep.ECS.UI.Kit
                 {
                     float ps = g.WellShade;
                     var sunk = new Color(face.R * ps, face.G * ps, face.B * ps, face.A);
-                    DrawShape(well, ActiveShape, sunk, ink, Mathf.Max(1f, rimPx * 0.5f));
+                    KitChrome.DrawShape(this, _genre, well, KitChrome.Shape(_genre), sunk, ink, Mathf.Max(1f, rimPx * 0.5f));
                 }
             }
 
             if (TornEdge) DrawTornEdge(body, face, ink);
 
             // Banner last so it draws OVER the frame it straddles.
-            DrawBanner(body, _title, ResolvedBannerShape(), shade: BannerShade);
+            KitChrome.DrawBanner(this, _genre, body, _title, ResolvedBannerShape(), shade: BannerShade);
 
             if (ShowClose) DrawClose(ink, rimPx);
 
-            DrawAttachments();
+            KitChrome.DrawAttachments(this, _genre, Attachments);
         }
     }
 }

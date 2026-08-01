@@ -198,6 +198,54 @@ namespace Beep.ECS.UI.Kit
         public static Font? Font(Godot.Control ctl, string genre)
             => KitFonts.Resolve(KitGeometry.ForGenre(genre).Font) ?? ctl.GetThemeDefaultFont();
 
+        /// <summary>
+        /// The header plaque that STRADDLES the host's top edge — the single most repeated
+        /// construction in the reference folder (15 of 59 files).
+        ///
+        /// Static, because it is now drawn by both families: KitControl subclasses and the
+        /// widgets that derive from a real Godot type. Three private copies of it were already
+        /// starting to appear, which is exactly how they drift.
+        /// </summary>
+        public static void DrawBanner(Godot.Control ctl, string genre, Rect2 host, string text,
+                                      KitShape shape, float heightRatio = 0.14f,
+                                      float widthRatio = 0.62f, float shade = 0.44f)
+        {
+            if (string.IsNullOrEmpty(text) || host.Size.X < 8f || host.Size.Y < 8f) return;
+
+            var g = KitGeometry.ForGenre(genre);
+            var font = Font(ctl, genre);
+            // A banner is a SUBTITLE, not body text: it names the panel it straddles.
+            int fs = UiSurface.FontSize(ctl, UiSurface.TextRole.Subtitle);
+
+            // Floor the height at the type, or the banner clips its own text on a short host.
+            float h = Mathf.Max(fs * 1.5f, host.Size.Y * heightRatio);
+            float w = host.Size.X * widthRatio;
+            if (font != null)
+            {
+                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
+                w = Mathf.Max(w, Mathf.Min(need, host.Size.X * 1.08f));
+            }
+
+            // Centred ON the edge, so half the plate sits outside the host. This is the move
+            // containers cannot express and the reason it is drawn rather than parented.
+            var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
+                              host.Position.Y - h * 0.5f, w, h);
+
+            Color face = UiSurface.Of(ctl);
+            Color plate = new(face.R * shade, face.G * shade, face.B * shade, 1f);
+            DrawShape(ctl, genre, r, shape, plate, UiSurface.Ink(face),
+                      Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
+
+            if (font == null) return;
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+            Color ink = UiSurface.Luminance(plate) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f, 1f)
+                : new Color(0.98f, 0.96f, 0.92f, 1f);
+            ctl.DrawString(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
+                                             r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                           text, HorizontalAlignment.Left, -1, fs, ink);
+        }
+
         /// <summary>Apply the genre's case rule before drawing a string.</summary>
         public static string Case(string t, string genre)
             => KitGeometry.ForGenre(genre).UpperCase ? t.ToUpperInvariant() : t;

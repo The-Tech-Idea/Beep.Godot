@@ -73,7 +73,7 @@ custom_minimum_size = Vector2(200, 44)
 size_flags_vertical = 3
 theme_override_constants/separation = 20
 
-[node name="WidgetPanel" type="Control" parent="Margin/Root/Body"]
+[node name="WidgetPanel" type="Panel" parent="Margin/Root/Body"]
 script = ExtResource("2_panel")
 custom_minimum_size = Vector2(420, 0)
 size_flags_vertical = 3
@@ -137,7 +137,7 @@ value = 0.72
 [node name="WidgetTheme" type="Node" parent="Margin/Root/Body/WidgetPanel"]
 script = ExtResource("9_theme")
 
-[node name="AxisPanel" type="Control" parent="Margin/Root/Body"]
+[node name="AxisPanel" type="Panel" parent="Margin/Root/Body"]
 script = ExtResource("2_panel")
 size_flags_horizontal = 3
 size_flags_vertical = 3

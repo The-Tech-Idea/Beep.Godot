@@ -1224,46 +1224,12 @@ namespace Beep.ECS.UI.Kit
         /// i.e. a title plate reads RECESSED, not raised -- though the polarity is per-family
         /// (gameui4's banner is white L=0.97), so it is a parameter rather than a constant.
         /// </summary>
+        /// <summary>The straddling header plaque. Delegates to <see cref="KitChrome.DrawBanner"/>
+        /// so the Godot-derived widgets and this family draw the identical construction.</summary>
         protected void DrawBanner(Rect2 host, string text, KitShape shape,
                                   float heightRatio = 0.14f, float widthRatio = 0.62f,
                                   float shade = 0.44f)
-        {
-            if (string.IsNullOrEmpty(text) || host.Size.X < 8f || host.Size.Y < 8f) return;
-
-            var font = GetThemeDefaultFont();
-            // A banner is a SUBTITLE, not body text: it names the panel it straddles. Drawn at
-            // the flat body size it read as a tiny caption on a large panel ("INVENTORY",
-            // "EQUIPMENT" on the widget sheet).
-            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Subtitle);
-
-            // Floor the height at the type, or the banner clips its own text on a short host.
-            float h = Mathf.Max(fs * 1.5f, host.Size.Y * heightRatio);
-            float w = host.Size.X * widthRatio;
-            if (font != null)
-            {
-                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
-                w = Mathf.Max(w, Mathf.Min(need, host.Size.X * 1.08f));
-            }
-
-            // Straddles the edge: centred on it, so half the plate sits outside the host. This is
-            // the move containers cannot express and the reason it is drawn, not parented.
-            var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
-                              host.Position.Y - h * 0.5f, w, h);
-
-            Color face = FaceColor();
-            Color plate = new(face.R * shade, face.G * shade, face.B * shade, 1f);
-            DrawShape(r, shape, plate, InkColor(), Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
-
-            if (font == null) return;
-            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
-            Color ink = UiSurface.Luminance(plate) > 0.5f
-                ? new Color(0.10f, 0.09f, 0.08f, 1f)
-                : new Color(0.98f, 0.96f, 0.92f, 1f);
-            DrawString(font,
-                       new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                   r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                       text, HorizontalAlignment.Left, -1, fs, ink);
-        }
+            => KitChrome.DrawBanner(this, _genre, host, text, shape, heightRatio, widthRatio, shade);
 
         /// <summary>Attachments last, so they draw OVER the host and can cross its edge.</summary>
         protected void DrawAttachments()

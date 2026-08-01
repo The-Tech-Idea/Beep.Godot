@@ -41,7 +41,7 @@ script = ExtResource("hud_theme")
 GenreName = "puzzle"
 HudMode = true
 
-[node name="StatsFrame" type="Control" parent="HUD/Root"]
+[node name="StatsFrame" type="Panel" parent="HUD/Root"]
 anchors_preset = 0
 offset_left = 16.0
 offset_top = 10.0

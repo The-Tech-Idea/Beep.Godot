@@ -29,7 +29,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Card" type="Control" parent="Center"]
+[node name="Card" type="Panel" parent="Center"]
 custom_minimum_size = Vector2(480, 400)
 script = ExtResource("1_panel")
 Title = "COIN RUSH ARENA"

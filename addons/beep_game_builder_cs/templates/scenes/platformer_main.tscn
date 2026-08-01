@@ -89,7 +89,7 @@ offset_right = -640
 offset_bottom = -600
 script = ExtResource("9_forecast")
 
-[node name="StatsFrame" type="Control" parent="HUD/Root"]
+[node name="StatsFrame" type="Panel" parent="HUD/Root"]
 anchors_preset = 0
 offset_left = 8.0
 offset_top = 20.0

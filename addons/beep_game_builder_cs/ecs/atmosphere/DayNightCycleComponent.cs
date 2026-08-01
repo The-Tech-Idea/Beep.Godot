@@ -85,9 +85,11 @@ namespace Beep.ECS
         private void Init()
         {
             _ambient = AmbientController.ForTree(this);
-            // Seed the tint immediately rather than waiting a frame — but only when the visual is
-            // enabled. When disabled (every shipped genre), Apply() would leak a stale one-time
-            // day_night tint into AmbientController and take one step toward the 8am sky.
+            // Seed the tint immediately rather than waiting a frame — but only when the visual
+            // is enabled. When DISABLED, Apply() would leak a stale one-time day_night tint into
+            // AmbientController and take one step toward the 8am sky. (This said "every shipped
+            // genre" when none enabled it; survival, rpg and topdown do now, so the guard is
+            // load-bearing for the other seven rather than for all ten.)
             if (IsActive) Apply();
         }
 
@@ -95,10 +97,17 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint()) return;
 
-            // Advance the CLOCK regardless of IsActive. SeasonalComponent derives in-game days from
-            // DaysElapsed, and day/night is disabled (EnableDayNightCycle=false) in every shipped
-            // genre — so gating the counter on IsActive silently froze seasons in the six genres
-            // that enable them. IsActive gates only the day/night VISUAL (the sky tint + horizon).
+            // Advance the CLOCK regardless of IsActive. SeasonalComponent derives in-game days
+            // from DaysElapsed, so gating the counter on IsActive silently freezes seasons in any
+            // genre that wants seasons WITHOUT a visible day/night cycle. IsActive gates only the
+            // day/night VISUAL (the sky tint + horizon).
+            //
+            // This comment used to justify the split by saying EnableDayNightCycle is false "in
+            // every shipped genre". That stopped being true the moment the genres were given
+            // differentiated weather tuning — survival, rpg and topdown enable it now. The split
+            // is still correct, but for the general reason above rather than for a fact about the
+            // current catalog. A comment that argues from a configuration snapshot goes stale
+            // silently, and this repo has been misled by exactly that before.
             float prev = TimeOfDay;
             TimeOfDay = (TimeOfDay + (float)delta * (24f / DayLengthSeconds)) % 24f;
 

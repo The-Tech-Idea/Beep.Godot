@@ -67,6 +67,19 @@ namespace Beep.ECS.UI.Kit
             if (body.Size.X < 3f || body.Size.Y < 3f) return;
             var g = KitGeometry.ForGenre(genre);
             KitShape shape = KitMaterial.ShapeForGenre(genre);
+
+            // THE PIXEL REGISTER'S STAIRCASE. This rule lived only in KitControl.DrawMaterial, so
+            // the moment KitButton became a Godot Button and started drawing through here, every
+            // pixel theme went back to arcs -- measured 0.76 mobility where a staircase is < 0.40.
+            // Third time this rule has escaped a draw path; it belongs wherever a silhouette is
+            // decided, and both paths now decide it here or in the matching block over there.
+            float unitPx = Mathf.Max(8f, 14f * rimScale);
+            float cornerPx = Mathf.Min(unitPx * g.Corner * 3.0f,
+                                       Mathf.Min(body.Size.X, body.Size.Y) * 0.5f);
+            if (g.Register == KitRegister.Pixel && cornerPx >= Mathf.Max(1f, g.PixelSize)
+                && shape is KitShape.Round or KitShape.Pill or KitShape.Ellipse or KitShape.Arch
+                    or KitShape.Capsule)
+                shape = KitShape.Stepped;
             Color ink = UiSurface.Ink(face);
             float rimPx = Mathf.Max(1f, g.Rim * rimScale);
             float frame = g.FramePx(body.Size.Y);
@@ -86,6 +99,18 @@ namespace Beep.ECS.UI.Kit
                     Rect2 gb = layer.Inset >= 0f ? Inset(body, body.Size.Y * layer.Inset) : cur;
                     if (gb.Size.X > 2f && gb.Size.Y > 2f)
                         KitGrain.Draw(ci, genre, Poly(shape, gb, g), gb, face, layer.Amount);
+                    continue;
+                }
+                // Shade / Bevel / Gloss were SKIPPED here, so every widget that derives from a
+                // Godot type (Button, CheckButton, HSlider, ProgressBar, Panel, TabBar) lost its
+                // face shading, its bevel and its gloss entirely -- the gloss gate went from three
+                // distinguishable constructions to three identical renders and said so.
+                // KitControl's stack draws them; this one has to as well, or "which base class a
+                // widget happens to have" silently changes how it is lit.
+                if (layer.Kind is KitLayerKind.Shade or KitLayerKind.Bevel or KitLayerKind.Gloss)
+                {
+                    var lit = Poly(shape, cur, g, unitPx);
+                    if (lit.Length >= 3) DrawLighting(ci, layer, lit, cur, g, face, unitPx);
                     continue;
                 }
                 if (layer.Kind != KitLayerKind.Plate && layer.Kind != KitLayerKind.Keyline)
@@ -112,6 +137,106 @@ namespace Beep.ECS.UI.Kit
             // The constructed frame LAST: in the references the edge run sits on top of the
             // surface it encloses, not under it.
             KitEdge.Draw(ci, g.EdgeRun, body, rimPx, Tint(face, g.OutlineShade), g.Shear, g.Wobble);
+        }
+
+        /// <summary>
+        /// The lighting layers — face shade, bevel, gloss — clipped to the plate's own silhouette.
+        ///
+        /// Deliberately the same constructions KitControl draws, because the alternative is that a
+        /// widget's LIGHTING depends on which base class it happens to derive from. That is
+        /// exactly what happened when the kit widgets moved onto Button/HSlider/ProgressBar: they
+        /// kept their plate and lost their shading, and only the gloss gate noticed.
+        /// </summary>
+        private static void DrawLighting(CanvasItem ci, KitLayer layer, Vector2[] poly, Rect2 box,
+                                         KitGeometry g, Color face, float unit)
+        {
+            if (layer.Amount <= 0f || box.Size.Y < 4f) return;
+
+            if (layer.Kind == KitLayerKind.Shade)
+            {
+                // Vertical falloff: darkest at the bottom, the top left as the peak.
+                const int bands = 7;
+                float bh = box.Size.Y / bands;
+                for (int i = 0; i < bands; i++)
+                {
+                    float t = (i + 1) / (float)bands;
+                    float y = box.Position.Y + bh * i;
+                    ClipInto(ci, poly, Band(box, y, y + bh + 1f),
+                             new Color(0, 0, 0, layer.Amount * 0.42f * t * t));
+                }
+                return;
+            }
+
+            if (layer.Kind == KitLayerKind.Gloss)
+            {
+                if (g.Gloss <= 0f) return;
+                float h = Mathf.Min(unit * 1.6f, box.Size.Y * 0.45f);
+                float a = g.GlossStyle == KitGloss.Linear
+                    ? Mathf.Clamp(0.16f * g.Gloss * layer.Amount, 0f, 1f)
+                    : Mathf.Clamp(Mathf.Max(0.13f, 0.30f * g.Gloss) * layer.Amount, 0f, 1f);
+                if (a < 0.004f) return;
+
+                if (g.GlossStyle == KitGloss.CurvedGlass)
+                {
+                    // Convex lower boundary, deepest at the centre.
+                    const int steps = 24;
+                    var pts = new System.Collections.Generic.List<Vector2>
+                    {
+                        new(box.Position.X - 4f, box.Position.Y - 4f),
+                        new(box.Position.X + box.Size.X + 4f, box.Position.Y - 4f),
+                    };
+                    for (int i = steps; i >= 0; i--)
+                    {
+                        float t = i / (float)steps;
+                        pts.Add(new Vector2(
+                            Mathf.Lerp(box.Position.X - 4f, box.Position.X + box.Size.X + 4f, t),
+                            box.Position.Y + h * (0.62f + 0.38f * Mathf.Sin(Mathf.Pi * t))));
+                    }
+                    ClipInto(ci, poly, pts.ToArray(), new Color(1, 1, 1, a));
+                    return;
+                }
+                float top = g.GlossStyle == KitGloss.Linear ? box.Position.Y : box.Position.Y - 4f;
+                ClipInto(ci, poly, Band(box, top, box.Position.Y + h), new Color(1, 1, 1, a));
+                return;
+            }
+
+            // Bevel: light along the top-left edges, dark along the bottom-right.
+            if (g.Bevel <= 0f) return;
+            float w = Mathf.Max(1f, unit * 0.20f * g.Bevel);
+            Color hi = new(1, 1, 1, 0.22f * g.Bevel * layer.Amount);
+            Color lo = new(0, 0, 0, 0.26f * g.Bevel * layer.Amount);
+            bool allowDark = g.Register != KitRegister.Casual;
+            Vector2 c = Vector2.Zero;
+            foreach (var v in poly) c += v;
+            c /= poly.Length;
+            var key = new Vector2(-0.7071f, -0.7071f);
+            for (int i = 0; i < poly.Length; i++)
+            {
+                Vector2 a0 = poly[i], b0 = poly[(i + 1) % poly.Length];
+                float len = a0.DistanceTo(b0);
+                if (len < 1.5f) continue;
+                Vector2 d = (b0 - a0) / len;
+                Vector2 n = new(-d.Y, d.X);
+                if (n.Dot(a0 - c) < 0f) n = -n;
+                bool bright = n.Dot(key) > 0f;
+                if (!bright && !allowDark) continue;
+                ci.DrawLine(a0, b0, bright ? hi : lo, w);
+            }
+        }
+
+        private static Vector2[] Band(Rect2 r, float top, float bottom)
+        {
+            float l = r.Position.X - 4f, rt = r.Position.X + r.Size.X + 4f;
+            return new[] { new Vector2(l, top), new Vector2(rt, top),
+                           new Vector2(rt, bottom), new Vector2(l, bottom) };
+        }
+
+        private static void ClipInto(CanvasItem ci, Vector2[] host, Vector2[] band, Color c)
+        {
+            if (c.A < 0.003f || host.Length < 3) return;
+            foreach (var piece in Geometry2D.IntersectPolygons(host, band))
+                if (piece.Length >= 3 && Geometry2D.TriangulatePolygon(piece).Length > 0)
+                    ci.DrawColoredPolygon(piece, c);
         }
 
         /// <summary>State as a SCULPT, not an alpha change — fading a control is the clearest

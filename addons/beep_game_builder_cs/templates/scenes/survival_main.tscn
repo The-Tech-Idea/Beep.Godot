@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/levels/survival/level_2.tscn" id="lvl_2"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="player_ctrl"]
 
 [node name="SurvivalMain" type="Node2D"]
 
@@ -146,3 +147,9 @@ script = ExtResource("hud_stat")
 [node name="GameInfoBinder" type="Node" parent="HUD/Root"]
 script = ExtResource("binder_gi")
 ThemeComponentPath = NodePath("Theme")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(640, 360)
+
+[node name="Controller" type="Node" parent="Player"]
+script = ExtResource("player_ctrl")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/CollapsiblePanelComponent.cs" id="collapsible"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="player_ctrl"]
 
 [node name="RPGMain" type="Node2D"]
 
@@ -130,3 +131,9 @@ OpenAction = "quests"
 [node name="GameInfoBinder" type="Node" parent="HUD/Root"]
 script = ExtResource("binder_gi")
 ThemeComponentPath = NodePath("Theme")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(640, 360)
+
+[node name="Controller" type="Node" parent="Player"]
+script = ExtResource("player_ctrl")

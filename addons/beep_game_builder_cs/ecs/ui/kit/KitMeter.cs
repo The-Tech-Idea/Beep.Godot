@@ -50,6 +50,22 @@ namespace Beep.ECS.UI.Kit
         [Export] public Texture2D? CapIcon { get => _cap; set { _cap = value; Rebuild(); } }
         private Texture2D? _cap;
 
+        /// <summary>
+        /// End caps as a PAIR, per tier — art-pass file 11.
+        ///
+        /// A tiered meter (health that upgrades, a boss bar with phases) marks its ends: a socket
+        /// at the left the fill grows out of, and a terminal at the right that says where full
+        /// IS. Without them a bar at 100% and a bar whose maximum has been upgraded look the
+        /// same, which is precisely what a tier is supposed to communicate.
+        /// </summary>
+        [Export] public int Tier { get => _tier; set { _tier = Mathf.Max(0, value); Rebuild(); } }
+        private int _tier;
+
+        /// <summary>Draw the right-hand terminal as well as the left socket. Off for a plain
+        /// resource bar, on for anything with a ceiling worth naming.</summary>
+        [Export] public bool EndCaps { get => _caps; set { _caps = value; Rebuild(); } }
+        private bool _caps;
+
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
 
@@ -87,6 +103,29 @@ namespace Beep.ECS.UI.Kit
                     Shape = KitShape.Round,
                     Role = Fill,
                     Icon = _cap,
+                    Overhang = 0.5f,
+                });
+            }
+            if (_caps)
+            {
+                int fs = UiSurface.FontSize(this);
+                float d = fs * 1.35f;
+                // The socket the fill grows OUT of, and the terminal it grows TOWARD. Both
+                // straddle their end, because a cap that sits inside the bar reads as part of
+                // the fill rather than as its boundary.
+                Attachments.Add(new KitAttach
+                {
+                    Anchor = KitAnchor.MiddleLeft, Size = new Vector2(d, d),
+                    Shape = KitShape.Round, Role = Fill, Overhang = 0.5f,
+                });
+                Attachments.Add(new KitAttach
+                {
+                    Anchor = KitAnchor.MiddleRight, Size = new Vector2(d, d),
+                    // The terminal carries the TIER as a numeral when there is one -- that is the
+                    // whole reason the pair exists rather than a single decorative cap.
+                    Shape = _tier > 0 ? KitShape.Round : KitShape.Pill,
+                    Role = _tier > 0 ? UiSurface.Role.Warning : Fill,
+                    Text = _tier > 0 ? _tier.ToString() : "",
                     Overhang = 0.5f,
                 });
             }

@@ -73,6 +73,21 @@ namespace Beep.ECS.UI.Kit
             set { _requirement = value ?? ""; QueueRedraw(); }
         }
 
+        /// <summary>
+        /// A GHOST of what belongs here — art-pass file 53's fourth empty state.
+        ///
+        /// The kit had three: blank, invite-`+`, and locked-with-requirement. The references have
+        /// a fourth and it is the most useful one: an equipment slot draws a faded silhouette of
+        /// the item type it accepts, so an empty helm slot and an empty boot slot are not the
+        /// same grey square. Set this and leave Icon null.
+        /// </summary>
+        [Export] public Texture2D? GhostIcon
+        {
+            get => _ghost;
+            set { _ghost = value; QueueRedraw(); }
+        }
+        private Texture2D? _ghost;
+
         [Export] public bool Selected
         {
             get => _selected;
@@ -166,6 +181,15 @@ namespace Beep.ECS.UI.Kit
                 var box = new Rect2(pad, pad, Size.X - pad * 2f, Size.Y - pad * 2f);
                 var mod = Locked ? new Color(1, 1, 1, 0.35f) : Colors.White;
                 DrawTextureRect(_icon, box, false, mod);
+            }
+            else if (_ghost != null && !Locked)
+            {
+                // The GHOST: only when the slot is genuinely empty, and never under a padlock --
+                // a locked slot already says why it is unavailable, and showing what would go in
+                // it as well reads as a filled slot that has been greyed out.
+                float pad = Mathf.Max(3f, Mathf.Min(Size.X, Size.Y) * 0.22f);
+                var box = new Rect2(pad, pad, Size.X - pad * 2f, Size.Y - pad * 2f);
+                DrawTextureRect(_ghost, box, false, new Color(1, 1, 1, 0.16f));
             }
 
             if (Locked)

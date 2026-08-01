@@ -40,6 +40,16 @@ namespace Beep.ECS.UI.Kit
             Status,
             /// <summary>A padlock plate over its host, WITH its requirement in words.</summary>
             Lock,
+            /// <summary>
+            /// A COMPARISON delta — art-pass file 46, and nothing else in the folder does it.
+            ///
+            /// Stat chips turn green with an up-arrow to show the change against what is
+            /// currently equipped. It is not a Status (that is a yes/no) and not a Count (that is
+            /// a quantity): it is a SIGNED difference, and it colours itself from the sign rather
+            /// than from a role, because "+3 armour" is good and "-3" is not regardless of what
+            /// palette role the caller had in mind.
+            /// </summary>
+            Delta,
         }
 
         [Export] public ChipKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
@@ -51,6 +61,14 @@ namespace Beep.ECS.UI.Kit
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Danger;
 
         /// <summary>True for a tick, false for a cross. Only used by <see cref="ChipKind.Status"/>.</summary>
+        /// <summary>
+        /// For <see cref="ChipKind.Delta"/>: the signed difference against what is equipped.
+        /// Its SIGN drives the colour, not <see cref="Role"/> -- "+3 armour" is good and "-3" is
+        /// not, whatever palette role the caller had in mind.
+        /// </summary>
+        [Export] public float Delta { get => _delta; set { _delta = value; QueueRedraw(); } }
+        private float _delta = 3f;
+
         [Export] public bool Positive { get; set; } = true;
 
         public override void _Ready()
@@ -64,6 +82,7 @@ namespace Beep.ECS.UI.Kit
                     ChipKind.Dot => new Vector2(fs * 0.7f, fs * 0.7f),
                     ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
                     ChipKind.Count => new Vector2(fs * 1.6f, fs * 1.25f),
+                    ChipKind.Delta => new Vector2(fs * 2.6f, fs * 1.3f),
                     _ => new Vector2(fs * 3.6f, fs * 1.3f),
                 };
             }
@@ -71,7 +90,7 @@ namespace Beep.ECS.UI.Kit
 
         private KitShape ShapeFor() => _kind switch
         {
-            ChipKind.Dot or ChipKind.Count => KitShape.Pill,
+            ChipKind.Dot or ChipKind.Count or ChipKind.Delta => KitShape.Pill,
             ChipKind.Status => KitShape.Pentagon,
             _ => ActiveShape,
         };
@@ -81,7 +100,12 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 3f || Size.Y < 3f) return;
 
             var r = new Rect2(Vector2.Zero, Size);
-            Color fill = UiSurface.Semantic(this, Role);
+            // A DELTA colours itself from its SIGN. Everything else takes the declared role.
+            Color fill = _kind == ChipKind.Delta
+                ? UiSurface.Semantic(this, _delta >= 0f ? UiSurface.Role.Success
+                                                       : UiSurface.Role.Danger)
+                : UiSurface.Semantic(this, Role);
+            if (fill.A < 0.02f) fill = UiSurface.Of(this);
             Color ink = InkColor();
             var font = KitFont();
             int fs = UiSurface.FontSize(this);
@@ -101,6 +125,21 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
+            if (_kind == ChipKind.Delta)
+            {
+                // Arrow DRAWN, number typed. The arrow must not depend on the theme font
+                // carrying a glyph for it -- the pixel and blackletter faces do not.
+                DrawArrow(r, on, _delta >= 0f);
+                if (font == null) return;
+                string txt = (_delta >= 0f ? "+" : "") + _delta.ToString("0.##");
+                int dfs = Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f));
+                Vector2 dm = font.GetStringSize(txt, HorizontalAlignment.Left, -1, dfs);
+                DrawText(font, new Vector2(r.Position.X + r.Size.X * 0.60f - dm.X * 0.5f,
+                                           r.Position.Y + (r.Size.Y + dm.Y * 0.6f) * 0.5f),
+                         txt, dfs, on);
+                return;
+            }
+
             if (font == null || string.IsNullOrEmpty(_text)) return;
             int size = _kind == ChipKind.Count
                 ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f))
@@ -108,6 +147,20 @@ namespace Beep.ECS.UI.Kit
             Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, size);
             DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
                        _text, size, on);
+        }
+
+        /// <summary>The delta's arrow, on the chip's left third.</summary>
+        private void DrawArrow(Rect2 r, Color col, bool up)
+        {
+            float a = Mathf.Min(r.Size.X, r.Size.Y) * 0.26f;
+            var c = new Vector2(r.Position.X + r.Size.X * 0.22f, r.Position.Y + r.Size.Y * 0.5f);
+            float dir = up ? -1f : 1f;
+            DrawColoredPolygon(new[]
+            {
+                c + new Vector2(0f, a * dir),
+                c + new Vector2(-a * 0.85f, -a * 0.35f * dir),
+                c + new Vector2(a * 0.85f, -a * 0.35f * dir),
+            }, col);
         }
 
         /// <summary>Tick or cross, drawn rather than typed, so it does not depend on the theme

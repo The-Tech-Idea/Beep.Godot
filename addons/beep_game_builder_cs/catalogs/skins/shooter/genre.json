@@ -1,13 +1,24 @@
 {
   "id": "shooter",
   "display_name": "Shooter",
-  "icon": "🔫",
+  "icon": "\ud83d\udd2b",
   "description": "Twin-stick / bullet heaven shooter",
   "default_theme": "scifi",
   "default_geometry": "shooter",
-  "themes": ["scifi", "cyberpunk", "military", "space", "toxic"],
+  "themes": [
+    "scifi",
+    "cyberpunk",
+    "military",
+    "space",
+    "toxic"
+  ],
   "main_scene": "shooter_main.tscn",
-  "scenes": ["character_select.tscn", "level_up_choice.tscn", "run_results.tscn", "codex.tscn"],
+  "scenes": [
+    "character_select.tscn",
+    "level_up_choice.tscn",
+    "run_results.tscn",
+    "codex.tscn"
+  ],
   "nav_wiring": {
     "NewGameScenePath": "character_select.tscn",
     "CharacterSelectPath": "character_select.tscn",
@@ -22,12 +33,12 @@
     "enable_weather": true,
     "default_weather": "Clear",
     "enable_day_night": false,
-    "enable_seasons": true,
+    "enable_seasons": false,
     "default_season": "Spring",
     "days_per_season": 7,
     "enable_temperature": false,
     "ambient_temperature": 20,
-    "enable_forecast": true,
+    "enable_forecast": false,
     "forecast_days": 7,
     "enable_save_load": true,
     "max_save_slots": 5,

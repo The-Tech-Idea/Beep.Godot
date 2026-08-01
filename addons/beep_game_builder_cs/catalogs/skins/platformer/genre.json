@@ -1,13 +1,22 @@
 {
   "id": "platformer",
   "display_name": "Platformer",
-  "icon": "🎮",
+  "icon": "\ud83c\udfae",
   "description": "Side-scrolling jump & run",
   "default_theme": "cartoon",
   "default_geometry": "platformer",
-  "themes": ["cartoon", "modern", "retro80s", "pixel8bit", "nature"],
+  "themes": [
+    "cartoon",
+    "modern",
+    "retro80s",
+    "pixel8bit",
+    "nature"
+  ],
   "main_scene": "platformer_main.tscn",
-  "scenes": ["level_select.tscn", "level_results.tscn"],
+  "scenes": [
+    "level_select.tscn",
+    "level_results.tscn"
+  ],
   "nav_wiring": {
     "LevelSelectPath": "level_select.tscn",
     "LevelResultsPath": "level_results.tscn",
@@ -20,12 +29,12 @@
     "enable_weather": true,
     "default_weather": "Clear",
     "enable_day_night": false,
-    "enable_seasons": true,
+    "enable_seasons": false,
     "default_season": "Spring",
     "days_per_season": 7,
     "enable_temperature": false,
     "ambient_temperature": 20,
-    "enable_forecast": true,
+    "enable_forecast": false,
     "forecast_days": 7,
     "enable_save_load": true,
     "max_save_slots": 5,

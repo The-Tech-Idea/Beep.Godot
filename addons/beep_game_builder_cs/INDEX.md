@@ -140,3 +140,23 @@ enabled:
 
 - `docs/SKIN_SYSTEM.md` — file-format schemas for `genre.json` / `geometry.json` / `theme.json`.
 - `docs/ARCHITECTURE.md` — master architecture map.
+
+### Category bases (`ecs/categories/`)
+
+| base | node type | for |
+|---|---|---|
+| `UIComponent` | `Node` | a component you DROP INTO a scene — themes, toasts, binders (~53) |
+| `UIScreenComponent` | `Control` | a component that **IS** a screen: the root of a menu or a laid-out region. `LoadGameMenuComponent`, `SaveGameMenuComponent`, `ToastNotificationComponent` |
+| `GameplayComponent` · `WorldComponent` · `ControllerComponent` | `Node` | see `docs/ARCHITECTURE.md` |
+
+A screen root must be a `Control` or its anchored children have nothing to size against — and a
+`Node`-derived script on a `Control` node loads and renders fine while `GetNode<Control>` fails.
+`tools/check_script_node_types.py` enforces the pairing.
+
+### Kit style tables (`ecs/ui/kit/`)
+
+| type | what it decides |
+|---|---|
+| `KitArchetypes` | screen archetype → ornament set (Victory/Defeat/Pause/Settings/Shop/Inventory/LevelUp). `KitPanel.Archetype` applies it |
+| `KitStyleJson` | the `kit` block in a `theme.json` → `KitGeometry`. Every style axis, zero C# |
+| `KitChrome` | the shared static draw surface both widget families use |

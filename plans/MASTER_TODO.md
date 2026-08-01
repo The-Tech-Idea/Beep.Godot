@@ -3390,3 +3390,115 @@ every one has a gate that has been shown to fail.
 **Remaining, all additive:** engraved/debossed text, meter end caps per tier, attachment sets by
 screen archetype, ghosted empty state, comparison delta chips, and the outline-polarity
 *measurement* from 41f (the kit side is proven; the gate cannot certify it).
+
+### Stage 53 — inherit the type you actually are (2026-08-01)
+
+Twelve commits, one idea, and it came from the user rather than from the plan:
+
+> *"ALL Control-shaped widgets that have real Godot equivalents SHOULD INHERIT FROM THEM. BECAUSE
+> GODOT HAS STRONG FEATURES FOR SKINNING."*
+
+#### The defect class
+
+`KitButton` was a `KitControl` — a bare `Control` drawn to look like a button. Godot **accepts** a
+Control-derived script on a `Button` node without complaint: the script attaches, runs, and
+renders. A probe confirmed it (`native=Button, managed=KitButton`), which is why the first
+explanation offered here — "Godot drops the script" — was wrong.
+
+What actually breaks is C#. The managed object is a `Control` standing in for a `Button`, so
+`GetNode<Button>` fails, `is Button` is false, `Pressed` is unreachable — the **CS1503** errors this
+addon had already shipped once.
+
+#### Nine widgets converted
+
+| widget | is a | widget | is a |
+|---|---|---|---|
+| `KitButton`, `KitIconButton` | `Button` | `KitMeter` | `ProgressBar` |
+| `KitToggle` | `CheckButton` | `KitPanel` | `Panel` |
+| `KitSlider`, `KitKnob` | `HSlider` | `KitTabStrip` | `TabBar` |
+| `KitStarRating` | `Range` | | |
+
+Each deleted a hand-rolled duplicate — `KitToggle`'s own `Pressed`/`Toggled`/`_GuiInput`,
+`KitSlider`'s own `Value` and drag tracking, `KitTabStrip`'s own selection and hit-testing.
+
+**`SceneWiring.ConnectButton` is the ledger.** It carried `case KitButton` and `case KitIconButton`
+*because* the kit had button-shaped Controls that `is Button` silently skipped. Both cases are now
+unreachable and gone. The switch shrinking is the argument, as a diff.
+
+**`KitChip` deliberately did not convert.** It is never clickable — a rarity label, a stack count, a
+padlock plate. A `Button` defaults to `MouseFilter.Stop` and takes focus, so every passive chip
+would start eating clicks meant for the slot it labels. The rule is *inherit the type you actually
+are*, not *the nearest type available*.
+
+#### One trap, four times
+
+Blanking a control's theme art removes the **minimum size that art was providing** — the control
+collapses, `_Draw` hits its own size guard, and it vanishes with nothing logged. Slider's grabber,
+CheckButton's check icons, TabBar's tab plates, Panel's stylebox. `Range` is the one base with no
+theme art at all, which is what made `KitStarRating` the cleanest conversion.
+
+#### And the same bug from the other side
+
+`Text`, `Value`, `Disabled`, `Icon` were C# `[Export]`s. After conversion they are Godot
+**built-ins**, so the `.tscn` key must be snake_case — the PascalCase line matches nothing and is
+**silently discarded**. `kit_gallery` rendered three blank plates until the render was looked at.
+28 nodes migrated, types and keys renamed in one pass so they cannot disagree.
+
+---
+
+### The rest of the plan, closed
+
+| item | outcome |
+|---|---|
+| engraved / outlined / extruded text | shipped, **39 label draws** swept, gated by `check_text_treatment` |
+| meter end caps per tier | shipped — the terminal carries the tier numeral |
+| ghosted empty state | shipped — never under a padlock |
+| comparison delta chips | shipped — colour from the **sign**, arrow drawn not typed |
+| attachment sets by archetype | shipped — Defeat deliberately quieter than Victory |
+| **outline polarity (41f)** | **answered** — see below |
+| `UIComponent` on `Control` nodes | fixed via `UIScreenComponent`; exemption list now **empty** |
+
+#### 41f was never a measurement problem
+
+`KitRim.Enabled` made the rim isolable by differencing, and the bug fell out immediately:
+**`KitStacks.Carved` hardcoded `shade: 2.05f`** while Casual and Technical used the `-1`
+theme-decides sentinel. So `rpg` reported a declared `OutlineShade` of 0.16 and drew a bright 2.05
+rim — and every attempt to reconcile field with render concluded the *render* was inverted. It was
+not. **The field was not the thing being drawn.**
+
+The consequence was worse than the confusion: **`outline_shade` reached nothing on the four carved
+genres** for five stages. `citybuilder/blueprint` declared 1.02 and drew 2.05. The style-pack probe
+read the *field* and reported success.
+
+> Four wrong answers came from four single-source reads. The fix took minutes once the rim could be
+> isolated. **Differencing is not a fancier measurement; it is the difference between measuring the
+> thing and measuring its neighbourhood.**
+
+#### A regression, bisected honestly
+
+`measure_material` reported `citybuilder` FLAT. Stashing the outline commit and re-rendering gave an
+identical failure — **pre-existing, not mine**, and reported as such rather than assumed.
+
+The cause was a degenerate assignment, not the pipeline: `pick_grain` had solved `citybuilder` and
+`strategy` to **one tile**. A single repeat across a 434px plate carries almost no high-frequency
+content, so the surface measures flat however strong its amplitude. Generator floor raised to 2.
+
+And fixing it surfaced what it had masked: the closest pair became `strategy vs topdown` at 0.0096
+against a 0.01 bar. **The flatness failure was hiding a separability failure**, and fixing either
+alone would have left the other.
+
+---
+
+### Where the kit stands
+
+- **50/50 themes** declare a `kit` block; every axis authorable in `theme.json` with **zero C#**
+- **4/4 registers · 4/4 text treatments · 3/3 gloss constructions · 50/50 distinct styles**
+- Phase A's own acceptance test re-verified after all of it: **0 indistinguishable pairs** in
+  greyscale, closest 0.066 against a 0.040 bar
+- Gates: `validate_scenes` (now running the two Python checks), `style_sweep`, `style_pack`, `poly`,
+  `material`, `shadow`, `pixel`, `gloss`, `edgerun`, `greyscale`, Godot-API probe, screen probe
+- **Zero exemptions** in `check_script_node_types`
+
+**Not verified, and the repo's own rule says to say so: none of this has been played.** Every claim
+here is compile-, gate- or render-verified. An editor pass on a generated project is the one form
+of verification that has not happened.

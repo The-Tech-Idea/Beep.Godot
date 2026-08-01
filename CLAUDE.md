@@ -353,6 +353,7 @@ Two automated gates, then your eyes. Run both after any change:
 |---|---|---|
 | Build | `dotnet build` | compile errors. ~148 nullable warnings are pre-existing noise. |
 | Scene validator | `cd addons/beep_game_builder_cs/templates/scenes && ./validate_scenes.sh` | undeclared Ext/SubResources, bad parent paths, duplicate sibling names, missing scripts, atmosphere placement, `[Export]` names that Godot would silently drop, **script/node type mismatches**, and **raw `DrawString` in a kit widget** |
+| Genre tuning | `godot --headless --path . tools/genre_shapes/tuning_probe.tscn` | every `tuning` key in a `genre.json` reaches `GameInfo` through `BeepGenreGenerator.ApplyTuning`. 80 genre/key pairs. A key added to the JSON and forgotten in ApplyTuning cannot pass |
 | Style system | `godot --headless --path . tools/genre_shapes/style_sweep_probe.tscn` | all 50 themes resolve DISTINCT styles; every register, text treatment and gloss construction is used by some theme; no `kit` block key or value is misspelt |
 | Rendered gates | `measure_material` · `measure_shadow` · `measure_pixel` · `measure_gloss` · `measure_edgerun` · `verify_greyscale` | that an axis reaches the PIXELS. Each renders paired images and differences them — a metric read off one render is how four wrong answers got made. **Run windowed:** `--headless` uses the dummy driver, draws nothing, and hangs at `FramePostDraw` |
 

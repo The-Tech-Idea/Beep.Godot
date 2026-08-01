@@ -502,13 +502,13 @@
   },
   "_kit_note": "heavy plank, tight corners, hard shadow",
   "kit": {
-  
-      "shadow": "hard",
-      "outline_shade": 1.4,
-      "corner": 0.08,
-      "corner_panel": 0.05,
-      "grain": "pattern_50",
-      "grain_amount": 0.34,
-      "grain_tiles": 4
+    "shadow": "hard",
+    "outline_shade": 1.4,
+    "corner": 0.08,
+    "corner_panel": 0.05,
+    "grain": "pattern_50",
+    "grain_amount": 0.34,
+    "grain_tiles": 4,
+    "text_treatment": "engraved"
   }
 }

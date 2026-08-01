@@ -113,9 +113,8 @@ namespace Beep.ECS.UI.Kit
                 float mid = a0 + per * 0.5f;
                 var at = c + new Vector2(Mathf.Cos(mid), Mathf.Sin(mid)) * r * 0.66f;
                 Vector2 m = font.GetStringSize(Wedges[i], HorizontalAlignment.Left, -1, fs);
-                DrawString(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
-                           Wedges[i], HorizontalAlignment.Left, -1, fs,
-                           UiSurface.Luminance(w) > 0.5f
+                DrawText(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
+                           Wedges[i], fs, UiSurface.Luminance(w) > 0.5f
                                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
             }
 

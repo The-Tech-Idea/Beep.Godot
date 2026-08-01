@@ -81,6 +81,13 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         protected Font? KitFont() => KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
 
+        /// <summary>Draw a string with the theme's TEXT TREATMENT applied. Every kit label goes
+        /// through this or <see cref="KitChrome.DrawText"/>, so a theme that declares
+        /// `text_treatment` changes its type everywhere at once rather than in whichever widgets
+        /// remembered to ask -- the failure the font role already had once.</summary>
+        protected void DrawText(Font font, Vector2 at, string text, int fs, Color ink)
+            => KitChrome.DrawText(this, _genre, font, at, text, fs, ink);
+
         /// <summary>Apply the genre's case rule to a string before drawing it.</summary>
         protected string KitCase(string t) => Geo.UpperCase ? t.ToUpperInvariant() : t;
 

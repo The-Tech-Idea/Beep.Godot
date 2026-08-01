@@ -145,10 +145,8 @@ namespace Beep.ECS.UI.Kit
                     Color col = UiSurface.Text(this);
                     if (State == KitState.Locked) col = new Color(0.12f, 0.12f, 0.14f, 1f);
                     else if (State == KitState.Disabled) col = col with { A = 0.55f };
-                    DrawString(font,
-                               new Vector2(plate.Position.X + (s - m.X) * 0.5f,
-                                           plate.Position.Y + (s + m.Y * 0.6f) * 0.5f),
-                               _glyph, HorizontalAlignment.Left, -1, size, col);
+                    KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.Position.Y + (s + m.Y * 0.6f) * 0.5f),
+                               _glyph, size, col);
                 }
             }
 
@@ -160,10 +158,8 @@ namespace Beep.ECS.UI.Kit
                 {
                     int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.66f));
                     Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
-                    DrawString(font,
-                               new Vector2(plate.Position.X + (s - m.X) * 0.5f,
-                                           plate.End.Y - small * 0.25f),
-                               _req, HorizontalAlignment.Left, -1, small, UiSurface.Text(this));
+                    KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.End.Y - small * 0.25f),
+                               _req, small, UiSurface.Text(this));
                 }
             }
 

@@ -502,11 +502,11 @@
   },
   "_kit_note": "sun-bleached stone",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 1.7,
-      "corner": 0.1,
-      "grain": "pattern_78",
-      "grain_amount": 0.14
+    "shadow": "soft",
+    "outline_shade": 1.7,
+    "corner": 0.1,
+    "grain": "pattern_78",
+    "grain_amount": 0.14,
+    "text_treatment": "engraved"
   }
 }

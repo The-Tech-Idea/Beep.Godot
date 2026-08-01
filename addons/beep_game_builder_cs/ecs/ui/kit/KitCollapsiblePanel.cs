@@ -123,10 +123,8 @@ namespace Beep.ECS.UI.Kit
                 if (font != null && !string.IsNullOrEmpty(_title))
                 {
                     Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
-                    DrawString(font,
-                               new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,
-                                           body.Position.Y + fs * 1.5f),
-                               _title, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + fs * 1.5f),
+                               _title, fs, UiSurface.Text(this));
                 }
             }
 

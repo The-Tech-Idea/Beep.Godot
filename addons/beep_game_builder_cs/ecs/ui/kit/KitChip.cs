@@ -106,10 +106,8 @@ namespace Beep.ECS.UI.Kit
                 ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f))
                 : Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
             Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, size);
-            DrawString(font,
-                       new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                   r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _text, HorizontalAlignment.Left, -1, size, on);
+            DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                       _text, size, on);
         }
 
         /// <summary>Tick or cross, drawn rather than typed, so it does not depend on the theme

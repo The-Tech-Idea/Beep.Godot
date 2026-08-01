@@ -148,9 +148,8 @@ namespace Beep.ECS.UI.Kit
                 if (lv.State != LevelState.Locked && font != null && !string.IsNullOrEmpty(lv.Label))
                 {
                     Vector2 m = font.GetStringSize(lv.Label, HorizontalAlignment.Left, -1, fs);
-                    DrawString(font, new Vector2(p.X - m.X * 0.5f, p.Y + m.Y * 0.32f),
-                               lv.Label, HorizontalAlignment.Left, -1, fs,
-                               UiSurface.Luminance(plate) > 0.5f
+                    DrawText(font, new Vector2(p.X - m.X * 0.5f, p.Y + m.Y * 0.32f),
+                               lv.Label, fs, UiSurface.Luminance(plate) > 0.5f
                                    ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
                 }
 

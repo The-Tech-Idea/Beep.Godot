@@ -126,11 +126,8 @@ namespace Beep.ECS.UI.Kit
                 if (font != null && !string.IsNullOrEmpty(e.Value))
                 {
                     Vector2 m = font.GetStringSize(e.Value, HorizontalAlignment.Left, -1, fs);
-                    DrawString(font,
-                               new Vector2(capsule.Position.X + capR * 0.9f,
-                                           capsule.Position.Y + (capsule.Size.Y + m.Y * 0.6f) * 0.5f),
-                               e.Value, HorizontalAlignment.Left, -1, fs,
-                               new Color(0.97f, 0.95f, 0.90f));
+                    DrawText(font, new Vector2(capsule.Position.X + capR * 0.9f, capsule.Position.Y + (capsule.Size.Y + m.Y * 0.6f) * 0.5f),
+                               e.Value, fs, new Color(0.97f, 0.95f, 0.90f));
                 }
 
                 // The cap LAST and OVERHANGING the capsule's left end — the element that makes
@@ -146,11 +143,8 @@ namespace Beep.ECS.UI.Kit
                 {
                     int gs = Mathf.Max(8, Mathf.RoundToInt(cap.Size.Y * 0.55f));
                     Vector2 m = font.GetStringSize(e.Glyph, HorizontalAlignment.Left, -1, gs);
-                    DrawString(font,
-                               new Vector2(cap.Position.X + (cap.Size.X - m.X) * 0.5f,
-                                           cap.Position.Y + (cap.Size.Y + m.Y * 0.6f) * 0.5f),
-                               e.Glyph, HorizontalAlignment.Left, -1, gs,
-                               UiSurface.Luminance(capCol) > 0.5f
+                    DrawText(font, new Vector2(cap.Position.X + (cap.Size.X - m.X) * 0.5f, cap.Position.Y + (cap.Size.Y + m.Y * 0.6f) * 0.5f),
+                               e.Glyph, gs, UiSurface.Luminance(capCol) > 0.5f
                                    ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
                 }
 

@@ -151,10 +151,8 @@ namespace Beep.ECS.UI.Kit
                                                new Vector2(r.Size.X * 0.86f, r.Size.Y * 0.62f),
                                                Tabs[i].Text, font);
                     Vector2 m = font.GetStringSize(Tabs[i].Text, HorizontalAlignment.Left, -1, tf);
-                    DrawString(font,
-                               new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                           r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Tabs[i].Text, HorizontalAlignment.Left, -1, tf, txt);
+                    KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                               Tabs[i].Text, tf, txt);
                 }
 
                 // Corner flash badge, straddling the tab's top-right — the attention anchor the
@@ -167,9 +165,8 @@ namespace Beep.ECS.UI.Kit
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
                     var br = new Rect2(r.End.X - bw * 0.6f, r.Position.Y - bh * 0.35f, bw, bh);
                     KitChrome.DrawShape(this, _genre, br, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Danger), ink, 1.5f);
-                    DrawString(font, new Vector2(br.Position.X + (br.Size.X - m.X) * 0.5f,
-                                                 br.Position.Y + (br.Size.Y + m.Y * 0.6f) * 0.5f),
-                               b, HorizontalAlignment.Left, -1, small, new Color(0.98f, 0.96f, 0.92f));
+                    KitChrome.DrawText(this, _genre, font, new Vector2(br.Position.X + (br.Size.X - m.X) * 0.5f, br.Position.Y + (br.Size.Y + m.Y * 0.6f) * 0.5f),
+                               b, small, new Color(0.98f, 0.96f, 0.92f));
                 }
             }
 

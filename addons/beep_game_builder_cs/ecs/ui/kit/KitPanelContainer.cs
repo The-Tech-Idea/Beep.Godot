@@ -230,9 +230,8 @@ namespace Beep.ECS.UI.Kit
             Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
             Color txt = UiSurface.Luminance(plate) > 0.5f
                 ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
-            DrawString(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                         r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                       _title, HorizontalAlignment.Left, -1, fs, txt);
+            KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                       _title, fs, txt);
         }
     }
 }

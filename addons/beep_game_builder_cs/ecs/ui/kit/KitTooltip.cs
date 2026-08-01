@@ -79,10 +79,8 @@ namespace Beep.ECS.UI.Kit
 
             if (font == null || string.IsNullOrEmpty(_text)) return;
             Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, fs);
-            DrawString(font,
-                       new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,
-                                   body.Position.Y + (body.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _text, HorizontalAlignment.Left, -1, fs, txt);
+            DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + (body.Size.Y + m.Y * 0.6f) * 0.5f),
+                       _text, fs, txt);
         }
 
         private void DrawTail(Rect2 body, Color plate, float t)

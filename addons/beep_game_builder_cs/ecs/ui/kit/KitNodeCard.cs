@@ -129,10 +129,8 @@ namespace Beep.ECS.UI.Kit
                                            new Vector2(body.Size.X * 0.88f, body.Size.Y * 0.22f),
                                            _title, font);
                 Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-                DrawString(font,
-                           new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,
-                                       body.Position.Y + body.Size.Y * 0.78f),
-                           _title, HorizontalAlignment.Left, -1, tf, UiSurface.Text(this));
+                DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + body.Size.Y * 0.78f),
+                           _title, tf, UiSurface.Text(this));
             }
 
             // Requirement, in words, for a locked card.
@@ -142,10 +140,8 @@ namespace Beep.ECS.UI.Kit
                                               new Vector2(body.Size.X * 0.92f, body.Size.Y * 0.12f),
                                               _req, font, min: 8);
                 Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
-                DrawString(font,
-                           new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f,
-                                       body.Position.Y + body.Size.Y * 0.93f),
-                           _req, HorizontalAlignment.Left, -1, small, UiSurface.Text(this));
+                DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + body.Size.Y * 0.93f),
+                           _req, small, UiSurface.Text(this));
             }
 
             // ── the welded footer ──
@@ -165,11 +161,8 @@ namespace Beep.ECS.UI.Kit
                 ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.85f))
                 : Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
             Vector2 fm = font.GetStringSize(_footer, HorizontalAlignment.Left, -1, ffs);
-            DrawString(font,
-                       new Vector2(foot.Position.X + (foot.Size.X - fm.X) * 0.5f,
-                                   foot.Position.Y + (foot.Size.Y + fm.Y * 0.6f) * 0.5f),
-                       _footer, HorizontalAlignment.Left, -1, ffs,
-                       UiSurface.Luminance(fc) > 0.5f
+            DrawText(font, new Vector2(foot.Position.X + (foot.Size.X - fm.X) * 0.5f, foot.Position.Y + (foot.Size.Y + fm.Y * 0.6f) * 0.5f),
+                       _footer, ffs, UiSurface.Luminance(fc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }
     }

@@ -128,10 +128,8 @@ namespace Beep.ECS.UI.Kit
                 else if (font != null && !string.IsNullOrEmpty(Segments[i].Glyph))
                 {
                     Vector2 m = font.GetStringSize(Segments[i].Glyph, HorizontalAlignment.Left, -1, fs);
-                    DrawString(font,
-                               new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                           r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Segments[i].Glyph, HorizontalAlignment.Left, -1, fs, on);
+                    DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                               Segments[i].Glyph, fs, on);
                 }
             }
         }

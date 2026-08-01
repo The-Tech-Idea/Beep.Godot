@@ -205,9 +205,8 @@ namespace Beep.ECS.UI.Kit
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
                     var b = new Rect2(r.End.X - bw * 0.55f, r.Position.Y - bh * 0.35f, bw, bh);
                     DrawShape(b, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Warning), ink, 1.5f);
-                    DrawString(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f,
-                                                 b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
-                               txt, HorizontalAlignment.Left, -1, small, new Color(0.10f, 0.09f, 0.08f));
+                    DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
+                               txt, small, new Color(0.10f, 0.09f, 0.08f));
                 }
 
                 // The theme's declared cues, not a hardcoded cream ring — see KitSelect.

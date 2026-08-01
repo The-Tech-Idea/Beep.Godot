@@ -502,14 +502,14 @@
   },
   "_kit_note": "ornate stone plus serif caps",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 2.05,
-      "font": "serif",
-      "upper_case": true,
-      "corner_panel": 0.1,
-      "grain": "pattern_78",
-      "grain_amount": 0.16,
-      "select_slot": "glow|border"
+    "shadow": "soft",
+    "outline_shade": 2.05,
+    "font": "serif",
+    "upper_case": true,
+    "corner_panel": 0.1,
+    "grain": "pattern_78",
+    "grain_amount": 0.16,
+    "select_slot": "glow|border",
+    "text_treatment": "engraved"
   }
 }

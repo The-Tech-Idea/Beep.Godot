@@ -100,8 +100,8 @@ namespace Beep.ECS.UI.Kit
             if (!string.IsNullOrEmpty(_rank))
             {
                 Vector2 m = font.GetStringSize(_rank, HorizontalAlignment.Left, -1, fs);
-                DrawString(font, new Vector2(x, (Size.Y + m.Y * 0.6f) * 0.5f),
-                           _rank, HorizontalAlignment.Left, -1, fs, txt with { A = 0.7f });
+                DrawText(font, new Vector2(x, (Size.Y + m.Y * 0.6f) * 0.5f),
+                           _rank, fs, txt with { A = 0.7f });
                 x += Mathf.Max(m.X, fs * 1.4f) + pad;
             }
 
@@ -109,12 +109,11 @@ namespace Beep.ECS.UI.Kit
             bool twoLine = !string.IsNullOrEmpty(_sub) && Size.Y > fs * 2.6f;
             Vector2 tm = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
             float ty = twoLine ? Size.Y * 0.44f : (Size.Y + tm.Y * 0.6f) * 0.5f;
-            DrawString(font, new Vector2(x, ty), _title, HorizontalAlignment.Left, -1, fs, txt);
+            DrawText(font, new Vector2(x, ty), _title, fs, txt);
             if (twoLine)
             {
                 int ss = Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
-                DrawString(font, new Vector2(x, Size.Y * 0.78f), _sub,
-                           HorizontalAlignment.Left, -1, ss, txt with { A = 0.65f });
+                DrawText(font, new Vector2(x, Size.Y * 0.78f), _sub, ss, txt with { A = 0.65f });
             }
 
             // Value hugs the right edge; the state chip sits just inside it.
@@ -122,8 +121,8 @@ namespace Beep.ECS.UI.Kit
             if (!string.IsNullOrEmpty(_value))
             {
                 Vector2 vm = font.GetStringSize(_value, HorizontalAlignment.Left, -1, fs);
-                DrawString(font, new Vector2(rx - vm.X, (Size.Y + vm.Y * 0.6f) * 0.5f),
-                           _value, HorizontalAlignment.Left, -1, fs, txt);
+                DrawText(font, new Vector2(rx - vm.X, (Size.Y + vm.Y * 0.6f) * 0.5f),
+                           _value, fs, txt);
                 rx -= vm.X + pad;
             }
 
@@ -134,10 +133,8 @@ namespace Beep.ECS.UI.Kit
             var chip = new Rect2(rx - cw, (Size.Y - ch) * 0.5f, cw, ch);
             Color cc = UiSurface.Semantic(this, StateRole);
             DrawShape(chip, KitShape.Pill, cc, ink, 1.5f);
-            DrawString(font, new Vector2(chip.Position.X + (cw - cm.X) * 0.5f,
-                                         chip.Position.Y + (ch + cm.Y * 0.6f) * 0.5f),
-                       _state, HorizontalAlignment.Left, -1, cs,
-                       UiSurface.Luminance(cc) > 0.5f
+            DrawText(font, new Vector2(chip.Position.X + (cw - cm.X) * 0.5f, chip.Position.Y + (ch + cm.Y * 0.6f) * 0.5f),
+                       _state, cs, UiSurface.Luminance(cc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }
     }

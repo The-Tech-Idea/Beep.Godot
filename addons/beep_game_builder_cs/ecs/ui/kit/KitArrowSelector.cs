@@ -94,9 +94,8 @@ namespace Beep.ECS.UI.Kit
             if (font == null || Options.Count == 0) return;
             string txt = Options[Mathf.Clamp(_current, 0, Options.Count - 1)];
             Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, fs);
-            DrawString(font,
-                       new Vector2((Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
-                       txt, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+            DrawText(font, new Vector2((Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
+                       txt, fs, UiSurface.Text(this));
         }
 
         /// <summary>An arrow that cannot be taken drains saturation rather than disappearing —

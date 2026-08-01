@@ -65,10 +65,8 @@ namespace Beep.ECS.UI.Kit
                 Color plate = new(Mathf.Lerp(face.R, 1f, 0.82f), Mathf.Lerp(face.G, 1f, 0.82f),
                                   Mathf.Lerp(face.B, 1f, 0.84f), 1f);
                 DrawShape(cap, ActiveShape, plate, ink, Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f)));
-                DrawString(font,
-                           new Vector2(cap.Position.X + (cap.Size.X - km.X) * 0.5f,
-                                       cap.Position.Y + (cap.Size.Y + km.Y * 0.6f) * 0.5f),
-                           k, HorizontalAlignment.Left, -1, fs, new Color(0.10f, 0.09f, 0.08f));
+                DrawText(font, new Vector2(cap.Position.X + (cap.Size.X - km.X) * 0.5f, cap.Position.Y + (cap.Size.Y + km.Y * 0.6f) * 0.5f),
+                           k, fs, new Color(0.10f, 0.09f, 0.08f));
                 x += kw;
 
                 // The chord separator sits BETWEEN caps and is not a cap itself.
@@ -76,16 +74,16 @@ namespace Beep.ECS.UI.Kit
                 {
                     const string plus = "+";
                     Vector2 pm = font.GetStringSize(plus, HorizontalAlignment.Left, -1, fs);
-                    DrawString(font, new Vector2(x + fs * 0.22f, y + (keyH + pm.Y * 0.6f) * 0.5f),
-                               plus, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+                    DrawText(font, new Vector2(x + fs * 0.22f, y + (keyH + pm.Y * 0.6f) * 0.5f),
+                               plus, fs, UiSurface.Text(this));
                     x += pm.X + fs * 0.44f;
                 }
             }
 
             if (string.IsNullOrEmpty(_action)) return;
             Vector2 am = font.GetStringSize(_action, HorizontalAlignment.Left, -1, fs);
-            DrawString(font, new Vector2(x + fs * 0.5f, y + (keyH + am.Y * 0.6f) * 0.5f),
-                       _action, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+            DrawText(font, new Vector2(x + fs * 0.5f, y + (keyH + am.Y * 0.6f) * 0.5f),
+                       _action, fs, UiSurface.Text(this));
         }
     }
 }

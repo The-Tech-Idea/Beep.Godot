@@ -74,10 +74,8 @@ namespace Beep.ECS.UI.Kit
             var b = new Rect2(frame.End.X - bw * 0.55f, frame.End.Y - bh * 0.65f, bw, bh);
             Color bc = UiSurface.Semantic(this, BadgeRole);
             DrawShape(b, KitShape.Pill, bc, ink, Mathf.Max(1.5f, rw * 0.6f));
-            DrawString(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f,
-                                         b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _badge, HorizontalAlignment.Left, -1, bs,
-                       UiSurface.Luminance(bc) > 0.5f
+            DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
+                       _badge, bs, UiSurface.Luminance(bc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }
     }

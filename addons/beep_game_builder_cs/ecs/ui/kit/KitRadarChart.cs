@@ -102,8 +102,8 @@ namespace Beep.ECS.UI.Kit
                 if (t.Length == 0) continue;
                 Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
                 var at = At(i, 1.28f);
-                DrawString(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
-                           t, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+                DrawText(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
+                           t, fs, UiSurface.Text(this));
             }
         }
     }

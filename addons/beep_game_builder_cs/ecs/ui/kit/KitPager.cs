@@ -101,10 +101,8 @@ namespace Beep.ECS.UI.Kit
             {
                 string t = $"{_page + 1} / {_count}";
                 Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
-                DrawString(font,
-                           new Vector2(mid.Position.X + (mid.Size.X - m.X) * 0.5f,
-                                       (Size.Y + m.Y * 0.6f) * 0.5f),
-                           t, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+                DrawText(font, new Vector2(mid.Position.X + (mid.Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
+                           t, fs, UiSurface.Text(this));
             }
         }
 

@@ -165,11 +165,8 @@ namespace Beep.ECS.UI.Kit
                                                   s.Requirement, font, min: 8);
                     Vector2 m = font.GetStringSize(s.Requirement, HorizontalAlignment.Left, -1, small);
                     if (m.X <= r.Size.X * 1.35f)
-                        DrawString(font,
-                                   new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                               r.End.Y - small * 0.15f),
-                                   s.Requirement, HorizontalAlignment.Left, -1, small,
-                                   UiSurface.Text(this));
+                        DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.End.Y - small * 0.15f),
+                                   s.Requirement, small, UiSurface.Text(this));
                 }
             }
 
@@ -221,9 +218,8 @@ namespace Beep.ECS.UI.Kit
             float w = Mathf.Max(m.X + small * 0.7f, small * 1.4f), h = small * 1.25f;
             var b = new Rect2(r.End.X - w * 0.55f, r.End.Y - h * 0.55f, w, h);
             DrawShape(b, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Warning), ink, 1.5f);
-            DrawString(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f,
-                                         b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
-                       txt, HorizontalAlignment.Left, -1, small, new Color(0.10f, 0.09f, 0.08f));
+            DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
+                       txt, small, new Color(0.10f, 0.09f, 0.08f));
         }
     }
 }

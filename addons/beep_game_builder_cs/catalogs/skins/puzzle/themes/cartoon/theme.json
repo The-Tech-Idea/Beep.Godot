@@ -502,10 +502,10 @@
   },
   "_kit_note": "thick DARK outline (the casual band inverted)",
   "kit": {
-  
-      "shadow": "hard",
-      "outline_shade": 0.16,
-      "wobble": 0.016,
-      "corner_panel": 0.3
+    "shadow": "hard",
+    "outline_shade": 0.16,
+    "wobble": 0.016,
+    "corner_panel": 0.3,
+    "text_treatment": "outlined"
   }
 }

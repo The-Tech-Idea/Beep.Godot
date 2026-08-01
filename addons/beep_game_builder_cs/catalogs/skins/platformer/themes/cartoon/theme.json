@@ -508,6 +508,7 @@
     "corner_panel": 0.34,
     "grain": "pattern_58",
     "grain_amount": 0.2,
-    "gloss_style": "hardband"
+    "gloss_style": "hardband",
+    "text_treatment": "outlined"
   }
 }

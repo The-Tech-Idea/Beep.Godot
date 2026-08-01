@@ -113,9 +113,8 @@ namespace Beep.ECS.UI.Kit
             {
                 if (string.IsNullOrEmpty(t)) return;
                 Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
-                DrawString(font, new Vector2(p.Position.X + (p.Size.X - m.X) * 0.5f,
-                                             p.Position.Y + fs * 1.6f),
-                           t, HorizontalAlignment.Left, -1, fs, new Color(0.16f, 0.13f, 0.10f));
+                DrawText(font, new Vector2(p.Position.X + (p.Size.X - m.X) * 0.5f, p.Position.Y + fs * 1.6f),
+                           t, fs, new Color(0.16f, 0.13f, 0.10f));
             }
             Title(_lt, lp);
             Title(_rt, rp);

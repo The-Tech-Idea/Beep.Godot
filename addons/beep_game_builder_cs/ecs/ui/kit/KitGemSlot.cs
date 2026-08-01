@@ -122,8 +122,8 @@ namespace Beep.ECS.UI.Kit
                     {
                         int s = Mathf.Max(8, Mathf.RoundToInt(fs * 0.6f));
                         Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, s);
-                        DrawString(font, new Vector2(c.X - m.X * 0.5f, Size.Y - s * 0.1f),
-                                   _req, HorizontalAlignment.Left, -1, s, UiSurface.Text(this));
+                        DrawText(font, new Vector2(c.X - m.X * 0.5f, Size.Y - s * 0.1f),
+                                   _req, s, UiSurface.Text(this));
                     }
                     break;
                 }

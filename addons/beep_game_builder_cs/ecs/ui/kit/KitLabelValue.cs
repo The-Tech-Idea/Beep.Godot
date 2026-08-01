@@ -136,7 +136,7 @@ namespace Beep.ECS.UI.Kit
                 ? r.Position.X + (r.Size.X - m.X) * 0.5f
                 : r.Position.X + padLeft;
             float y = r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f;
-            DrawString(font, new Vector2(x, y), text, HorizontalAlignment.Left, -1, fs, col);
+            DrawText(font, new Vector2(x, y), text, fs, col);
         }
     }
 }

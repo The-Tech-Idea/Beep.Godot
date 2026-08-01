@@ -246,6 +246,53 @@ namespace Beep.ECS.UI.Kit
                            text, HorizontalAlignment.Left, -1, fs, ink);
         }
 
+        /// <summary>
+        /// Draw a string with the theme's TEXT TREATMENT applied.
+        ///
+        /// Every kit label goes through here, so a theme that declares `text_treatment` changes
+        /// its type everywhere at once instead of in whichever widgets remembered to ask. The
+        /// offsets are UNIT multiples, so an engraved caption and an engraved title are cut to the
+        /// same depth rather than the depth scaling with the glyph.
+        /// </summary>
+        public static void DrawText(Godot.Control ctl, string genre, Font font, Vector2 at,
+                                    string text, int fs, Color ink)
+        {
+            if (font == null || string.IsNullOrEmpty(text)) return;
+            var treat = KitGeometry.ForGenre(genre).TextTreatment;
+            float d = Mathf.Max(1f, Unit(ctl) * 0.075f);
+
+            switch (treat)
+            {
+                case KitTextTreat.Outlined:
+                {
+                    Color dark = new(0f, 0f, 0f, 0.75f);
+                    foreach (var o in new[] { new Vector2(-d, 0), new Vector2(d, 0),
+                                              new Vector2(0, -d), new Vector2(0, d) })
+                        ctl.DrawString(font, at + o, text, HorizontalAlignment.Left, -1, fs, dark);
+                    break;
+                }
+                case KitTextTreat.Engraved:
+                    // Dark ABOVE and light BELOW: the glyph reads as cut INTO the surface,
+                    // because that is where a top-left key light puts the two edges of a groove.
+                    ctl.DrawString(font, at + new Vector2(0, -d), text, HorizontalAlignment.Left,
+                                   -1, fs, new Color(0f, 0f, 0f, 0.55f));
+                    ctl.DrawString(font, at + new Vector2(0, d), text, HorizontalAlignment.Left,
+                                   -1, fs, new Color(1f, 1f, 1f, 0.30f));
+                    break;
+                case KitTextTreat.Extruded:
+                {
+                    // A solid side face BELOW the glyph -- stacked, not one offset copy, or the
+                    // face reads as a drop shadow with a gap instead of a slab.
+                    Color side = new(ink.R * 0.28f, ink.G * 0.26f, ink.B * 0.30f, 1f);
+                    for (float i = d * 3f; i >= 1f; i -= 1f)
+                        ctl.DrawString(font, at + new Vector2(0, i), text, HorizontalAlignment.Left,
+                                       -1, fs, side);
+                    break;
+                }
+            }
+            ctl.DrawString(font, at, text, HorizontalAlignment.Left, -1, fs, ink);
+        }
+
         /// <summary>Apply the genre's case rule before drawing a string.</summary>
         public static string Case(string t, string genre)
             => KitGeometry.ForGenre(genre).UpperCase ? t.ToUpperInvariant() : t;

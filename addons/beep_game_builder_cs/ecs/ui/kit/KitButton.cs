@@ -154,7 +154,7 @@ namespace Beep.ECS.UI.Kit
                                  body.Position.Y + (body.Size.Y + m.Y * 0.62f) * 0.5f + dy);
             Color ink = UiSurface.Text(this);
             if (state is KitState.Disabled or KitState.Locked) ink = ink with { A = 0.45f };
-            DrawString(font, at, text, HorizontalAlignment.Left, -1, fs, ink);
+            KitChrome.DrawText(this, _genre, font, at, text, fs, ink);
         }
 
         /// <summary>The badge, straddling the top-right corner. Drawn directly rather than through
@@ -191,9 +191,8 @@ namespace Beep.ECS.UI.Kit
             var font = KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
             if (font == null) return;
             Vector2 m = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, bfs);
-            DrawString(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                         r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _badge, HorizontalAlignment.Left, -1, bfs, UiSurface.Ink(fill));
+            KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+                       _badge, bfs, UiSurface.Ink(fill));
         }
     }
 }

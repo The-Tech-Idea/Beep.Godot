@@ -150,8 +150,8 @@ namespace Beep.ECS.UI.Kit
             for (int i = 0; i < lines.Length; i++)
             {
                 Vector2 m = font.GetStringSize(lines[i], HorizontalAlignment.Left, -1, fs);
-                DrawString(font, new Vector2((Size.X - m.X) * 0.5f, top + lh * i),
-                           lines[i], HorizontalAlignment.Left, -1, fs, col);
+                KitChrome.DrawText(this, _genre, font, new Vector2((Size.X - m.X) * 0.5f, top + lh * i),
+                           lines[i], fs, col);
             }
         }
 

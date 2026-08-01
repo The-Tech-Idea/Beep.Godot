@@ -509,6 +509,7 @@
     "corner_bar": 0.06,
     "font": "condensed",
     "upper_case": true,
-    "select_slot": "border|glow"
+    "select_slot": "border|glow",
+    "text_treatment": "engraved"
   }
 }

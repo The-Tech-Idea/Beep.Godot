@@ -77,6 +77,29 @@ namespace Beep.ECS.UI.Kit
         CurvedGlass,
     }
 
+    /// <summary>
+    /// How text is CUT INTO or RAISED OFF its plate.
+    ///
+    /// The art pass found three treatments and the kit drew one. File 22 is the case that forced
+    /// it: carved-material themes render their labels ENGRAVED -- a light edge below the glyph and
+    /// a dark one above, with no outline at all. That is neither "plain" nor "outlined", it is how
+    /// type behaves when it is chiselled into stone or stamped into wood, and drawing it flat is
+    /// the single clearest tell that a carved theme is a recoloured form.
+    ///
+    /// File 26 supplies the opposite end: display type EXTRUDED off the plate toward the viewer.
+    /// </summary>
+    public enum KitTextTreat
+    {
+        /// <summary>Flat. The kit's original and the right choice for the flat families.</summary>
+        Plain,
+        /// <summary>A dark contour around every glyph — the casual/mobile register.</summary>
+        Outlined,
+        /// <summary>Cut IN: dark above, light below. Carved stone and stamped wood (22).</summary>
+        Engraved,
+        /// <summary>Raised OFF: a solid side face below the glyph, like a slab (26).</summary>
+        Extruded,
+    }
+
     /// <summary>Where a widget sits in the visual hierarchy. Drives which palette role its
     /// base layer takes, so a raised control and a recessed well are not the same flat plate
     /// in two colours.</summary>
@@ -296,6 +319,9 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>How the upper-face highlight is built. See <see cref="KitGloss"/>.</summary>
         public KitGloss GlossStyle = KitGloss.Linear;
+
+        /// <summary>How text sits on the plate. See <see cref="KitTextTreat"/>.</summary>
+        public KitTextTreat TextTreatment = KitTextTreat.Plain;
 
         public string GrainPattern = "";
         public float GrainAmount = -1f;

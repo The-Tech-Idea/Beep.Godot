@@ -104,8 +104,8 @@ namespace Beep.ECS.UI.Kit
             int fs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
                                        new Vector2(inner, inner * 0.72f), _centre, font);
             Vector2 m = font.GetStringSize(_centre, HorizontalAlignment.Left, -1, fs);
-            DrawString(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
-                       _centre, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+            DrawText(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
+                       _centre, fs, UiSurface.Text(this));
         }
     }
 }

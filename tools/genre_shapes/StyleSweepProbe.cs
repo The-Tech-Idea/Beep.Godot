@@ -27,6 +27,7 @@ public partial class StyleSweepProbe : Node
         var materials = new HashSet<string>();
         var registers = new HashSet<KitRegister>();
         var glosses = new HashSet<KitGloss>();
+        var treats = new HashSet<KitTextTreat>();
         int authoredRuns = 0, clearedRuns = 0, builtinRuns = 0;
 
         foreach (var genre in SkinCatalog.AllGenres.Values.OrderBy(g => g.Id))
@@ -38,7 +39,7 @@ public partial class StyleSweepProbe : Node
                 var g = KitGeometry.ForGenre(genre.Id);
                 var grain = KitGrain.For(genre.Id);
 
-                string sig = $"rg={g.Register} gl={g.GlossStyle} er={g.EdgeRun?.SegmentCount ?? -1} sh={g.Shadow.Kind} ol={g.OutlineShade:0.00} c={g.Corner:0.00}/"
+                string sig = $"rg={g.Register} gl={g.GlossStyle} tt={g.TextTreatment} er={g.EdgeRun?.SegmentCount ?? -1} sh={g.Shadow.Kind} ol={g.OutlineShade:0.00} c={g.Corner:0.00}/"
                            + $"{g.CornerPanel:0.00}/{g.CornerBar:0.00} sk={g.Shear:0.00} "
                            + $"wb={g.Wobble:0.000} f={g.Font} up={(g.UpperCase ? 1 : 0)} "
                            + $"tr={g.Tracking:0.00} gr={grain?.Pattern ?? "-"}@{grain?.Amount ?? 0f:0.00} "
@@ -46,6 +47,7 @@ public partial class StyleSweepProbe : Node
 
                 registers.Add(g.Register);
                 glosses.Add(g.GlossStyle);
+                treats.Add(g.TextTreatment);
                 if (theme.Id == "space" && g.EdgeRun is { } er)
                 {
                     GD.Print($"sweep:  shooter/space run -> {er.SegmentCount} segs, "
@@ -75,6 +77,7 @@ public partial class StyleSweepProbe : Node
         GD.Print($"sweep:  font roles used    {fonts.Count}  ({string.Join(",", fonts)})");
         GD.Print($"sweep:  materials used     {materials.Count}");
         GD.Print($"sweep:  registers used     {registers.Count}/4  ({string.Join(",", registers)})");
+        GD.Print($"sweep:  text treatments    {treats.Count}/4  ({string.Join(",", treats)})");
         GD.Print($"sweep:  gloss styles used  {glosses.Count}/3  ({string.Join(",", glosses)})");
         GD.Print($"sweep:  distinct styles    {all.Distinct().Count()}/{all.Count} across the catalog");
 
@@ -99,6 +102,8 @@ public partial class StyleSweepProbe : Node
         if (builtinRuns != 1) { GD.Print("sweep:  <-- named built-in edge_run did not resolve"); bad++; }
         if (clearedRuns != 1) { GD.Print("sweep:  <-- edge_run: none did not clear the genre's run"); bad++; }
 
+        if (treats.Count < 4)
+        { GD.Print("sweep:  <-- a text treatment is never used by any theme"); bad++; }
         if (glosses.Count < 3)
         { GD.Print("sweep:  <-- a gloss construction is never used by any theme"); bad++; }
 

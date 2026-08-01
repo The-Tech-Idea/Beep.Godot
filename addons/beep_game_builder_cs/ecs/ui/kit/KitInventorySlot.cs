@@ -180,10 +180,8 @@ namespace Beep.ECS.UI.Kit
                                                _requirement, font, min: 7);
                     Vector2 m = font.GetStringSize(_requirement, HorizontalAlignment.Left, -1, fs);
                     if (m.X <= Size.X * 0.98f)
-                        DrawString(font,
-                                   new Vector2((Size.X - m.X) * 0.5f, Size.Y - fs * 0.45f),
-                                   _requirement, HorizontalAlignment.Left, -1, fs,
-                                   UiSurface.Text(this));
+                        DrawText(font, new Vector2((Size.X - m.X) * 0.5f, Size.Y - fs * 0.45f),
+                                   _requirement, fs, UiSurface.Text(this));
                 }
             }
             else if (_count > 1 && font != null)
@@ -217,11 +215,8 @@ namespace Beep.ECS.UI.Kit
             KitChrome.Fill(this, KitShape.Pill, b, Geo,
                            UiSurface.Semantic(this, UiSurface.Role.Warning), ink,
                            Mathf.Max(1.5f, fs * 0.10f));
-            DrawString(font,
-                       new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f,
-                                   b.Position.Y + (b.Size.Y + m.Y * 0.62f) * 0.5f),
-                       txt, HorizontalAlignment.Left, -1, fs,
-                       new Color(0.10f, 0.09f, 0.08f, 1f));
+            DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.62f) * 0.5f),
+                       txt, fs, new Color(0.10f, 0.09f, 0.08f, 1f));
         }
 
         private void DrawPadlock(Rect2 r, Color ink)

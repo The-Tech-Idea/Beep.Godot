@@ -35,6 +35,7 @@
     "max_save_slots": 5,
     "autosave_enabled": true,
     "autosave_interval_seconds": 300,
-    "auto_cycle": true
+    "auto_cycle": true,
+    "top_down_view": true
   }
 }

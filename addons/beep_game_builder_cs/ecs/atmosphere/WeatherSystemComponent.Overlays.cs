@@ -351,9 +351,25 @@ void fragment(){
 
             // Modulate alpha via the ColorRect modulate so unused weather hides them.
             if (_cloudOverlay != null)
-                _cloudOverlay.Modulate = new Color(1, 1, 1, _cloudAlphaCurrent);
+            {
+                // THE CLOUDS THEMSELVES are a SIDE-ON sight: you are looking at the sky, so the
+                // cloud layer carries the weather. From above you are looking at the GROUND —
+                // the cloud plane is between the camera and the world, so showing it at full
+                // strength just fogs the playfield. Halved here and the shadow raised below, so
+                // the same weather reads correctly from either camera instead of identically
+                // from both.
+                float cloudMul = TopDownView ? 0.45f : 1f;
+                _cloudOverlay.Modulate = new Color(1, 1, 1, _cloudAlphaCurrent * cloudMul);
+            }
             if (_cloudShadowOverlay != null)
-                _cloudShadowOverlay.Modulate = new Color(1, 1, 1, _cloudShadowAlphaCurrent * CloudShadowStrength);
+            {
+                // CLOUD SHADOWS are the top-down sight: dapple moving across terrain you can see
+                // all of. In a side view there is no ground plane in frame for them to fall on,
+                // so they read as an unexplained darkening and are pulled right back.
+                float shadowMul = TopDownView ? 1.35f : 0.35f;
+                _cloudShadowOverlay.Modulate = new Color(
+                    1, 1, 1, _cloudShadowAlphaCurrent * CloudShadowStrength * shadowMul);
+            }
         }
 
         // 0 = no clouds, 1 = full overcast. Per-weather tuning.

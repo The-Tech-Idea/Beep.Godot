@@ -212,6 +212,7 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("ambient_temperature", out var at)) info.AmbientTemperature = at.AsSingle();
         if (genre.Tuning.TryGetValue("enable_forecast", out var ef)) info.EnableWeatherForecast = ef.AsBool();
         if (genre.Tuning.TryGetValue("auto_cycle", out var ac)) info.AutoCycleWeather = ac.AsBool();
+        if (genre.Tuning.TryGetValue("top_down_view", out var tv)) info.TopDownView = tv.AsBool();
         if (genre.Tuning.TryGetValue("forecast_days", out var fd)) info.ForecastDays = fd.AsInt32();
         if (genre.Tuning.TryGetValue("enable_save_load", out var esl)) info.EnableGameStateManager = esl.AsBool();
         if (genre.Tuning.TryGetValue("max_save_slots", out var mss)) info.MaxSaveSlots = mss.AsInt32();
@@ -232,7 +233,7 @@ public static class BeepGenreGenerator
     {
         "gravity", "jump_velocity", "move_speed", "fire_rate",
         "grid_width", "grid_height", "target_score",
-        "enable_weather", "enable_day_night", "default_weather", "auto_cycle",
+        "enable_weather", "enable_day_night", "default_weather", "auto_cycle", "top_down_view",
         "enable_seasons", "default_season", "days_per_season",
         "enable_temperature", "ambient_temperature",
         "enable_forecast", "forecast_days",

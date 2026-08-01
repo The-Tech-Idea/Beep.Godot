@@ -182,6 +182,18 @@ namespace Beep.ECS
         /// <summary>Multiplier on cloud-shadow visibility (set 0 to disable dapple).</summary>
         [Export] public float CloudShadowStrength { get; set; } = 1f;
 
+        /// <summary>
+        /// Looking DOWN at the world rather than across it. Set from the genre.
+        ///
+        /// The same weather has to be drawn differently depending on the camera axis, and the kit
+        /// drew both identically -- which is why a top-down game's rain looked like a
+        /// side-scroller's. From above you look THROUGH falling rain: it foreshortens into short
+        /// near-vertical streaks with barely any horizontal travel, and what actually sells the
+        /// weather is the cloud SHADOW sweeping over terrain you can see all of. Across, rain
+        /// crosses the frame at an angle and the clouds themselves are the backdrop.
+        /// </summary>
+        [Export] public bool TopDownView { get; set; }
+
         [ExportGroup("Transitions")]
         /// <summary>Seconds to cross-fade between weathers. 0 = instant.</summary>
         [Export] public float TransitionDuration { get; set; } = 1.5f;
@@ -228,6 +240,7 @@ namespace Beep.ECS
                 // weather and STAYED there -- with all ten defaulting to Clear, the whole system
                 // was enabled and produced nothing, which is what "weather isn't happening" means.
                 AutoCycle = info.AutoCycleWeather;
+                TopDownView = info.TopDownView;
                 IsActive = info.EnableWeather;
                 // info.EnableDayNightCycle now configures the standalone DayNightCycleComponent,
                 // not this one — day/night was moved out. See BeepGenreScene / DayNightCycleComponent.
@@ -503,6 +516,24 @@ namespace Beep.ECS
 
             Texture2D? Fallback(string file) => UseBundledParticleTextures ? Bundled(file) : null;
 
+            // THE VIEW AXIS, applied after the per-type switch below sets the side-on values.
+            // Foreshortening is the whole difference: from above, a drop travels mostly AWAY from
+            // the camera, so its on-screen streak is short, slow and near-vertical however hard it
+            // is actually falling. Leaving the side-on numbers made every top-down genre look like
+            // a platformer in the rain.
+            void ApplyViewAxis()
+            {
+                if (!TopDownView) return;
+                _particles.Direction = new Vector2(_particles.Direction.X * 0.25f, 1f);
+                _particles.Spread = Mathf.Min(_particles.Spread, 6f);
+                _particles.Gravity = new Vector2(0, _particles.Gravity.Y * 0.35f);
+                _particles.InitialVelocityMin *= 0.45f;
+                _particles.InitialVelocityMax *= 0.45f;
+                // Shorter, fatter marks rather than long streaks.
+                _particles.ScaleAmountMin *= 1.35f;
+                _particles.ScaleAmountMax *= 1.35f;
+            }
+
             switch (type)
             {
                 case WeatherType.Rain:
@@ -563,6 +594,10 @@ namespace Beep.ECS
                     // turbulence not available in this binding
                     break;
             }
+
+            // AFTER the switch: the cases above are authored side-on, and this foreshortens them
+            // for a top-down camera. Order matters -- doing it first would be overwritten.
+            ApplyViewAxis();
 
             // Emission is a thin strip at the top of the view (PositionEmitterAtCamera), so each
             // particle must LIVE long enough to fall across the whole viewport — otherwise slow

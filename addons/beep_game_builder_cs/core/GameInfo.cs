@@ -165,6 +165,16 @@ public partial class GameInfo : Resource
     /// <summary>Whether weather changes on its own. Genres whose weather is a MOOD cycle it;
     /// genres whose weather is a set-piece (a race, a mission) do not.</summary>
     [Export] public bool AutoCycleWeather { get; set; } = false;
+
+    /// <summary>
+    /// Is the camera looking ACROSS the world or DOWN at it?
+    ///
+    /// Weather looks fundamentally different by view axis and the kit rendered both the same. In a
+    /// side view rain crosses the screen and clouds are a backdrop; from above you look THROUGH
+    /// the rain, so it reads as short near-vertical streaks, and the cloud SHADOWS moving over the
+    /// terrain are the main event rather than the clouds themselves.
+    /// </summary>
+    [Export] public bool TopDownView { get; set; } = false;
     [Export] public int ForecastDays { get; set; } = 7;
 
     [ExportGroup("Time")]

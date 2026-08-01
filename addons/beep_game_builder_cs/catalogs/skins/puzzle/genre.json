@@ -1,13 +1,24 @@
 {
   "id": "puzzle",
   "display_name": "Puzzle",
-  "icon": "🧩",
+  "icon": "\ud83e\udde9",
   "description": "Match-3 / grid puzzle",
   "default_theme": "candy",
   "default_geometry": "puzzle",
-  "themes": ["candy", "cartoon", "modern", "sea", "japan"],
+  "themes": [
+    "candy",
+    "cartoon",
+    "modern",
+    "sea",
+    "japan"
+  ],
   "main_scene": "puzzle_main.tscn",
-  "scenes": ["level_map.tscn", "pre_level.tscn", "level_complete.tscn", "level_failed.tscn"],
+  "scenes": [
+    "level_map.tscn",
+    "pre_level.tscn",
+    "level_complete.tscn",
+    "level_failed.tscn"
+  ],
   "nav_wiring": {
     "NewGameScenePath": "level_map.tscn",
     "LevelMapPath": "level_map.tscn",
@@ -32,6 +43,7 @@
     "enable_save_load": true,
     "max_save_slots": 5,
     "autosave_enabled": true,
-    "autosave_interval_seconds": 300
+    "autosave_interval_seconds": 300,
+    "top_down_view": false
   }
 }

@@ -44,6 +44,7 @@ public partial class TuningProbe : Node
             CheckBool("enable_temperature", "EnableTemperature", info.EnableTemperature);
             CheckBool("enable_forecast", "EnableWeatherForecast", info.EnableWeatherForecast);
             CheckBool("auto_cycle", "AutoCycleWeather", info.AutoCycleWeather);
+            CheckBool("top_down_view", "TopDownView", info.TopDownView);
             Check("days_per_season", "DaysPerSeason", info.DaysPerSeason);
             Check("ambient_temperature", "AmbientTemperature", info.AmbientTemperature);
             Check("forecast_days", "ForecastDays", info.ForecastDays);

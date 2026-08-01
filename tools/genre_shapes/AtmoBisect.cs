@@ -16,9 +16,21 @@ using Godot;
 /// RULED OUT -- calling them directly at runtime emits nothing. Reading the file for editor-only
 /// APIs has found nothing either.
 ///
-/// The next step is the same technique one level down: stub out sections of _Ready and
-/// ConfigureParticleEmitter until the count drops. Do not guess; four wrong answers earlier in
-/// this work all came from reading code and deciding.
+/// NARROWED FURTHER, still by removal, all three ruled out:
+///
+///     ConfigureParticleEmitter() removed from _Ready ....... 5 errors  (not it)
+///     _Ready body skipped entirely ........................ 5 errors  (not _Ready AT ALL)
+///     ResourceLoader.Exists / GD.Load called directly ...... 0 errors  (not them)
+///
+/// And atmosphere.tscn sets NO properties on the Weather node -- it carries the script and
+/// nothing else. So the five errors are emitted while the script is being ATTACHED: field
+/// initialisers, the generated property registration, or an [Export] getter being probed. Not in
+/// any method this component chooses to run.
+///
+/// That reframes it. The next step is not more stubbing inside the class; it is to attach the
+/// script to a bare Node in an otherwise empty scene and see whether the five errors still
+/// appear. If they do, the cause is the class's declaration surface, not its behaviour -- and the
+/// exported Texture2D/Resource fields are where to look, because those are what Godot probes.
 public partial class AtmoBisect : Node
 {
     [Export] public string ScenePath { get; set; } =

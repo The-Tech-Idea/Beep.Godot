@@ -45,76 +45,53 @@ from PIL import Image
 OUT = pathlib.Path("tmp/pixelproof")
 
 
-def boundary(a):
-    """(depth, curvature, plate height) for the highlight's lower edge, or None."""
-    bg = a[2, 2]
-    mask = np.abs(a.astype(int) - int(bg)) > 12
-    ys, xs = np.nonzero(mask)
-    if len(ys) < 500:
-        return None
-    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
-    h, w = y1 - y0 + 1, x1 - x0 + 1
-    if h < 40 or w < 40:
+# The probe renders a 420x260 plate CENTRED in its viewport, and warns if that ever changes. So
+# the plate rect is known, and does not need to be inferred. Inferring it by luminance is what
+# broke this gate: once the plate was drawn through KitChrome its inner bands became the darkest
+# region, the detector latched onto one, and it reported a 164px "plate" inside a 260px control.
+# A measurement should not have to guess at the thing it was handed.
+PLATE_W, PLATE_H = 420, 260
+
+
+def plate_rect(a):
+    h, w = a.shape
+    return ((w - PLATE_W) // 2, (h - PLATE_H) // 2, PLATE_W, PLATE_H)
+
+
+def boundary(a, synth_rect=None):
+    """(depth, curvature, plate height, strength) for the highlight's lower edge, or None."""
+    x0, y0, pw, ph = synth_rect if synth_rect else plate_rect(a)
+    if y0 < 0 or x0 < 0 or y0 + ph > a.shape[0] or x0 + pw > a.shape[1]:
         return None
 
-    # Search the face from 2% of the height. It was 8%, which existed to skip the rim and the
-    # bevel highlight -- correct when those were fractions of the widget, wrong now that they are
-    # UNIT multiples and sit within about 2px of the top. On a 262px plate an 8% floor starts at
-    # row 16 and a unit-sized band's ENDS are at row 9, so the search began below the thing it was
-    # looking for and reported the curve backwards. Dropping it to 2% then let the RIM dominate --
-    # a much stronger step than the band -- and all three constructions collapsed onto it. The
-    # floor has to sit BETWEEN the edge stack (~5px, unit-based) and the band's shallow end, hence
-    # an absolute 9px minimum rather than a pure fraction.
-    lo, hi = y0 + max(9, int(h * 0.035)), y0 + int(h * 0.60)
-    face = a[lo:hi, x0:x1 + 1].astype(int)
+    # Search the face from 2% of the plate height -- above that is the rim and the bevel.
+    lo, hi = y0 + max(3, int(ph * 0.02)), y0 + int(ph * 0.60)
+    face = a[lo:hi, x0:x0 + pw].astype(int)
     if face.shape[0] < 6:
         return None
-    step = face[:-1] - face[1:]                     # positive = gets darker going down
+    step = face[:-1] - face[1:]                      # positive = darker going down
 
-    def edge_at(frac):
-        # Average a few columns: a single column can land on a stud, a glyph or a corner.
-        c = int(w * frac)
-        band = step[:, max(0, c - 3):c + 4]
-        if band.size == 0:
-            return None, 0.0
-        prof = band.mean(axis=1)
-        return lo + int(np.argmax(prof)), float(prof.max())
+    # The BAND WINDOW: where a banded gloss puts its lower edge. The band is UNIT-sized (~1.6
+    # units, about 26px) and the curved one sweeps up toward its ends, so the window spans from
+    # just below the rim to a third of the plate.
+    whi = max(2, int(ph * 0.34) - (lo - y0))
+    win = step[:whi]
 
-    # The BAND WINDOW, in fractions of the plate.
-    #
-    # It has moved TWICE, both times because the thing it is looking for moved. It began at
-    # 0.18-0.34 when the band was `plate height * 0.26`; widening it to 0.11-0.34 was needed
-    # because CurvedGlass sweeps UP toward its ends and the narrow window clipped them, halving
-    # the measured curvature. Then the band became UNIT-based (~1.6 units, about 26px), so on a
-    # 262px plate it sits at 0.04-0.10 -- entirely ABOVE a window whose floor was 0.11, and the
-    # metric measured whatever else it found and reported the curve backwards.
-    #
-    # 0.02-0.20 covers a unit-sized band on a large plate. The floor still clears the carved edge
-    # stack, which is now within about 2px of the top.
-    wlo, whi = 0, int(h * 0.20) - max(9, int(h * 0.035))
-    win = step[max(0, wlo):max(1, whi)]
-
-    def in_window(frac):
-        c = int(w * frac)
+    def at(frac):
+        c = int(pw * frac)
         b = win[:, max(0, c - 3):c + 4]
         if b.size == 0:
             return None, 0.0
         prof = b.mean(axis=1)
-        return lo + max(0, wlo) + int(np.argmax(prof)), float(prof.max())
+        return lo + int(np.argmax(prof)), float(prof.max())
 
-    mid, strength = in_window(0.50)
+    mid, strength = at(0.50)
     if mid is None:
         return None
-    # 5% / 95%, not 12% / 88%. A curved band's bow is a sine over the FULL width, so sampling
-    # near the middle measures almost none of it -- between 35% and 65% the boundary moves 1.5px.
-    # The ends have to be genuinely near the edges, which is why the host must be a flat-topped
-    # shape rather than a stadium whose "ends" are inside the round cap.
-    ends = [e for e, _ in (in_window(0.05), in_window(0.95)) if e is not None]
+    ends = [e for e, _ in (at(0.05), at(0.95)) if e is not None]
     if not ends:
         return None
-    depth = (mid - y0) / h
-    curvature = (mid - sum(ends) / len(ends)) / h
-    return depth, curvature, h, strength
+    return (mid - y0) / ph, (mid - sum(ends) / len(ends)) / ph, ph, strength
 
 
 def selftest():
@@ -140,7 +117,7 @@ def selftest():
         return a
 
     for kind, want_depth, want_curve in (("hard", 0.10, 0.0), ("curved", 0.10, 0.038)):
-        r = boundary(synth(kind))
+        r = boundary(synth(kind), synth_rect=(60, 50, 280, 200))
         if r is None:
             print(f"[FAIL] synthetic {kind:<7} no boundary found")
             ok = False
@@ -162,40 +139,47 @@ def main():
         print(f"GLOSS FAIL: {OUT} missing -- run tools/genre_shapes/pixel_probe.tscn first")
         sys.exit(2)
 
-    bad = 0
-    got = {}
+    # DIFFERENCING, not edge-finding.
+    #
+    # Looking for the strongest downward step found the same STRUCTURAL band in all three renders
+    # -- the carved stack's own bezel, identical across them because only the gloss differs -- and
+    # reported three identical numbers while the files differed on disk. The gloss is a subtle
+    # overlay sitting on top of that band, and no threshold separates "the feature" from "the
+    # plate it is drawn on".
+    #
+    # Subtracting one render from another cancels everything they share. What remains IS the
+    # gloss. Same technique that settled the shadow, the pixel corner and the outline polarity;
+    # it should have been the first thing tried here rather than the last.
+    imgs = {}
     for tag in ("gl_linear", "gl_hard", "gl_curved"):
-        p = OUT / f"{tag}.png"
-        if not p.exists():
+        f = OUT / f"{tag}.png"
+        if not f.exists():
             print(f"[FAIL] {tag:<12} render missing")
-            bad += 1
-            continue
-        r = boundary(np.asarray(Image.open(p).convert("L")))
-        if r is None:
-            print(f"[FAIL] {tag:<12} no highlight boundary found")
-            bad += 1
-            continue
-        got[tag] = r
-        print(f"[   ] {tag:<12} depth={r[0]:.2f} curvature={r[1]:+.2f} "
-              f"strength={r[3]:.1f} (plate {r[2]}px)")
+            sys.exit(1)
+        imgs[tag] = np.asarray(Image.open(f).convert("L")).astype(int)
 
-    if len(got) == 3:
-        # BANDED sits high on the face; the soft inset sheen sits far lower. Asserted as a
-        # SEPARATION rather than absolute values, so the check survives a change to either
-        # construction's exact proportions.
-        hs, ls = got["gl_hard"][3], got["gl_linear"][3]
-        good = hs > ls * 2.0 and hs > 6.0
-        print(f"[{'ok ' if good else 'FAIL'}] band vs sheen  strength={hs:.1f} vs {ls:.1f} "
-              f"(want band > 2x sheen and > 6)")
-        bad += 0 if good else 1
+    bad = 0
+    x0, y0, pw, ph = plate_rect(imgs["gl_linear"])
 
-        # CURVED must actually bow. A straight band is 0; anything that reads as glass is well
-        # clear of it.
-        cc, hc = got["gl_curved"][1], got["gl_hard"][1]
-        good = cc - hc > 0.02
-        print(f"[{'ok ' if good else 'FAIL'}] curved vs hard curvature={cc:+.2f} vs {hc:+.2f} "
-              f"(want > +0.02 apart)")
-        bad += 0 if good else 1
+    def diff(a_tag, b_tag):
+        d = np.abs(imgs[a_tag][y0:y0 + ph, x0:x0 + pw] - imgs[b_tag][y0:y0 + ph, x0:x0 + pw])
+        return (d > 3).sum() / d.size * 100.0, float(d.max())
+
+    # AREA is only a fair test for the pair whose shapes differ over the whole band. HardBand
+    # replaces the inset sheen entirely, so it changes a broad region. CurvedGlass and HardBand
+    # share the SAME band and the same 62% floor, deviating only in a sliver near the ends -- so
+    # its area is inherently ~0.4% however correct it is. Gating both on area would have meant
+    # picking a number that fits, which is what turned this gate red for several commits.
+    #
+    # PEAK is the honest common test: does the pixel actually change, beyond dither.
+    for a_tag, b_tag, label, min_pct in (("gl_hard", "gl_linear", "hard vs sheen", 1.5),
+                                         ("gl_curved", "gl_hard", "curved vs hard", 0.15)):
+        pct, peak = diff(a_tag, b_tag)
+        ok = pct > min_pct and peak > 8
+        print(f"[{'ok ' if ok else 'FAIL'}] {label:<15} {pct:5.2f}% of the plate differs, "
+              f"peak {peak:.0f}/255 (want > {min_pct}% and > 8)")
+        if not ok:
+            bad += 1
 
     print("\nGLOSS " + ("PASS" if bad == 0 else f"FAIL ({bad})"))
     sys.exit(0 if bad == 0 else 1)

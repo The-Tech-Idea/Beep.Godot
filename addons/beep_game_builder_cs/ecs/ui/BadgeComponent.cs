@@ -54,6 +54,15 @@ namespace Beep.ECS.UI
             _badgePanel.AddChild(_badgeLabel);
 
             _control.AddChild(_badgePanel);
+
+            // Same trap as the dialog: the pop animation tweens the badge's transform, and a
+            // sorting parent re-fits its children every layout pass. Loud beats silent — a badge
+            // that never pops looks like a badge that was never wired.
+            if (_control is Godot.Container)
+                GD.PushWarning($"[{Name}] BadgeComponent's host '{_control.Name}' is a "
+                             + $"{_control.GetType().Name}, which lays out its own children — the "
+                             + "badge's pop animation may be overwritten. Host it on a plain "
+                             + "Control, or animate with offset_transform_scale.");
             _badgePanel.ZIndex = 10;
 
             // Render the scene-authored Count now. _Ready's UpdateBadge ran before this deferred

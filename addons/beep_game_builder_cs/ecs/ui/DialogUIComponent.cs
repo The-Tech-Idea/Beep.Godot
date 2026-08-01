@@ -121,6 +121,17 @@ namespace Beep.ECS.UI
             // PanelContainer — the themed frame.
             _panel = new PanelContainer { Name = "DialogPanel" };
             parent.AddChild(_panel);
+
+            // The entry animation tweens _panel.position, which a CONTAINER parent would
+            // overwrite on its next layout pass — the dialog would simply snap into place with no
+            // animation and nothing logged. The parent is checked for Control above; a Container
+            // IS a Control, so that check passes and this one is still needed.
+            if (parent is Godot.Container)
+                GD.PushWarning($"[{Name}] DialogUIComponent's parent '{parent.Name}' is a "
+                             + $"{parent.GetType().Name}, which positions its own children — the "
+                             + "entry animation tweens position and will be overwritten every "
+                             + "layout pass. Parent the dialog to a plain Control, or animate it "
+                             + "with offset_transform_position instead.");
             _panel.Owner = parent;
 
             // AnimateIn/AnimateOut tween _panel.Position; a layout Container host re-sorts its

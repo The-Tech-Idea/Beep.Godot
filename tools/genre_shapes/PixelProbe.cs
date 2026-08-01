@@ -101,10 +101,24 @@ public partial class PixelProbe : Node
                     _ => KitGloss.Linear,
                 };
 
-            var plate = new KitButton { Text = "" };
+            // FIX THE FIXTURE. KitButton is a Godot Button now, and Button derives its own
+            // minimum size from its content margins -- so `plate.Size = ...` was being overruled
+            // and the plate rendered 164px where this gate was calibrated at 260. A gate whose
+            // fixture silently changes size is measuring something other than what it claims.
+            //
+            // KitButton._Ready only sets CustomMinimumSize when it is ZERO, so stating it here,
+            // before the node enters the tree, keeps the size the probe asked for.
+            var plate = new KitButton
+            {
+                Text = "",
+                CustomMinimumSize = new Vector2(420, 260),
+            };
             root.AddChild(plate);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             plate.Size = new Vector2(420, 260);
+            if (!Mathf.IsEqualApprox(plate.Size.Y, 260f))
+                GD.Print($"pixel:  WARNING plate is {plate.Size.X:0}x{plate.Size.Y:0}, "
+                       + "not 420x260 — the fixture moved and the thresholds no longer apply");
             plate.Position = ((root.Size - plate.Size) * 0.5f).Round();
             for (int f = 0; f < 3; f++)
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

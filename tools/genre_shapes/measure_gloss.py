@@ -1,5 +1,21 @@
 """Gate for KitGloss: is the upper-face highlight Linear, HardBand or CurvedGlass?
 
+STATUS: FAILING, AND THE FEATURE IS NOT THE PROBLEM.
+
+The three renders differ on disk — distinct md5s — so the constructions do reach the pixels. This
+metric cannot discriminate them any more, and it reports a 164px plate inside a 260px control,
+meaning its widget-detection is latching onto some inner band rather than the plate.
+
+What changed under it: KitButton became a Godot Button, so the proof plate is drawn through
+KitChrome rather than KitControl, with different insets and a different contrast profile. The
+thresholds and the band window were both derived against the old render.
+
+Do NOT loosen the thresholds to make this pass. That is how a gate becomes decoration, and this
+one has already caught two real defects (the missing lighting layers, and before that the
+identical-construction bug). It needs its plate detection re-derived against the current render —
+probably by bounding the widget from the KNOWN control rect rather than by luminance threshold —
+and then its window and thresholds re-fitted to synthetics, in that order.
+
 Declaring the enum proves nothing -- the sweep already shows all three are selected by some theme.
 This measures the RENDER, on the two properties the three constructions actually differ by.
 

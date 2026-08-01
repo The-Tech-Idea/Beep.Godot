@@ -861,6 +861,7 @@ namespace Beep.ECS.UI.Kit
         protected void FillPoly(Vector2[] poly, Color fill, Color rim, float rimWidth)
         {
             if (poly.Length < 3) return;
+            rimWidth = KitRim.Width(rimWidth);
             if (Geometry2D.TriangulatePolygon(poly).Length == 0) return;
             if (fill.A > 0.003f) DrawColoredPolygon(poly, fill);
             if (rimWidth > 0f && rim.A > 0.003f)

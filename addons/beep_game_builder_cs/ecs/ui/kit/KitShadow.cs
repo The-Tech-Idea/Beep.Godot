@@ -2,6 +2,28 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// Global off-switch for every rim the kit strokes. FOR THE GATE ONLY.
+    ///
+    /// Outline POLARITY -- is a genre's rim brighter or darker than its plate? -- resisted four
+    /// separate attempts to measure it, and every wrong answer came from reading one render and
+    /// deciding what a pixel was. The rim is a 1-3px stroke sharing a silhouette with the grain,
+    /// the bevel, the shadow's edge and the plate's own band stack; no threshold picks it out
+    /// reliably, and two of those attempts were reading stale renders on top of that.
+    ///
+    /// Differencing settles it the way it settled the shadow and the pixel corner: render the SAME
+    /// widget twice, once with the rim and once without, and the pixels that CHANGED are the rim,
+    /// exactly, whatever else is on the plate.
+    /// </summary>
+    public static class KitRim
+    {
+        public static bool Enabled = true;
+
+        /// <summary>Zero the width when rims are off. Every rim stroke in the kit runs through
+        /// this, so the toggle cannot miss one.</summary>
+        public static float Width(float w) => Enabled ? w : 0f;
+    }
+
     /// <summary>How a widget is separated from what is behind it.</summary>
     public enum KitShadowKind
     {

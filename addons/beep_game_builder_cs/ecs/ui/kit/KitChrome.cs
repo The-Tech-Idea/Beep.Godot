@@ -178,6 +178,7 @@ namespace Beep.ECS.UI.Kit
         {
             var g = KitGeometry.ForGenre(genre);
             if (r.Size.X < 1f || r.Size.Y < 1f) return;
+            rimWidth = KitRim.Width(rimWidth);
             var poly = Poly(shape, r, g, Unit(ctl));
             if (poly.Length < 3 || Geometry2D.TriangulatePolygon(poly).Length == 0) return;
             if (fill.A > 0f) ctl.DrawColoredPolygon(poly, fill);
@@ -342,6 +343,7 @@ namespace Beep.ECS.UI.Kit
         public static void Fill(CanvasItem ci, KitShape shape, Rect2 r, KitGeometry g,
                                 Color fill, Color rim, float rimWidth)
         {
+            rimWidth = KitRim.Width(rimWidth);
             if (r.Size.X < 1f || r.Size.Y < 1f) return;
             var poly = Poly(shape, r, g);
             if (poly.Length < 3) return;

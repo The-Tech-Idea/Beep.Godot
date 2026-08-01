@@ -104,7 +104,13 @@ namespace Beep.ECS.UI.Kit
             //
             // Insets are STEPS, expressed against height because the source was measured on a
             // 107px tile: 2/107, 4/107, 5/107.
-            new(KitLayerKind.Plate, inset: 0f,     shade: 2.05f, rim: 1f),   // bright outer rim
+            // POLARITY FROM THE THEME, `-1`, exactly as Casual's and Technical's outer bands
+            // already did. It was hardcoded 2.05, which meant `outline_shade` in a theme.json
+            // reached NOTHING on the four carved genres -- citybuilder/blueprint declared 1.02
+            // and still drew a bright 2.05 rim. The style-pack probe read the FIELD and reported
+            // success, so the axis looked authorable and was not. The genres below now declare
+            // 2.05 themselves, so the default render is unchanged.
+            new(KitLayerKind.Plate, inset: 0f,     shade: -1f,   rim: 1f),   // bright outer rim
             new(KitLayerKind.Plate, inset: 0.019f, shade: 1.14f),            // stone bezel
             new(KitLayerKind.Plate, inset: 0.037f, shade: 0.76f),            // inner shadow
             new(KitLayerKind.Plate, inset: 0.047f, shade: 1.00f, rim: 0.4f), // the plate itself

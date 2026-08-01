@@ -353,5 +353,31 @@ else
 fi
 [ $found -eq 0 ] && echo "  ok"
 
+# ── the Python checks, run from here so they cannot rot ─────────────────────────────────────
+#
+# Both were written this session and neither was wired into a runner, which is how a check dies:
+# it passes on the day it is added and nobody runs it again. validate_scenes.sh is what the docs
+# and the MCP gate actually invoke, so they belong here.
+#
+#   check_script_node_types  a C# script's Godot base must EQUAL its node's declared type, or
+#                            the managed object stands in for the wrong class and GetNode<T>
+#                            fails while the scene still loads and renders
+#   check_text_treatment     no kit widget may call DrawString directly, or a theme's
+#                            text_treatment reaches only the widgets that remembered to ask
+ROOT="../../../.."
+for check in check_script_node_types check_text_treatment; do
+  if [ -f "$ROOT/tools/$check.py" ]; then
+    echo "--- $check ---"
+    if (cd "$ROOT" && python "tools/$check.py" >/tmp/beep_$check.out 2>&1); then
+      tail -1 "/tmp/beep_$check.out" | sed 's/^/  /'
+    else
+      sed 's/^/  /' "/tmp/beep_$check.out"
+      fail=1
+    fi
+  else
+    echo "--- $check --- skipped: tools/$check.py not found"
+  fi
+done
+
 [ $fail -eq 0 ] && echo "PASS: all scenes valid" || echo "FAIL: see above"
 exit $fail

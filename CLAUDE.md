@@ -104,6 +104,7 @@ Beep.Godot/
 | Base | Location | Concrete subclasses |
 |---|---|---|
 | `UIComponent` | `ecs/categories/` | ~53 |
+| `UIScreenComponent` | `ecs/categories/` | 3 — a component that **IS** a screen |
 | `GameplayComponent` | `ecs/categories/` | ~41 |
 | `WorldComponent` | `ecs/categories/` | ~18 |
 | `ControllerComponent` | `ecs/categories/` | 18 |
@@ -212,6 +213,37 @@ over copying a neighbouring `.tscn`.
 
 The cost is that a name must identify one node: `validate_scenes.sh` fails when a scene has several Buttons sharing a name **that its root script resolves scene-wide**. Repeats scoped to a row are fine and are not flagged (`load_game_menu` has one `SlotButton` per slot, resolved via `container.FindChild`). This check caught four `SelectButton`s in `shooter/character_select` and two `Level1Button`s in `platformer/level_select` — real mis-wirings, since a scene-wide name lookup returns whichever comes first in the tree.
 
+### A kit widget inherits the Godot class it imitates
+
+Eight kit widgets used to be `KitControl` (a bare `Control`) drawn to look like a Button, a slider,
+a toggle. Godot **accepts** a Control-derived script on a `Button` node without complaint — the
+script attaches and runs — so this looked fine and rendered fine. What broke was C#: the managed
+object is a `Control` standing in for a `Button`, so `GetNode<Button>` fails, `is Button` is false,
+`Pressed` is unreachable, and you get CS1503 conversion errors in a project that never touched the
+kit's internals.
+
+| widget | is a | widget | is a |
+|---|---|---|---|
+| `KitButton`, `KitIconButton`, `KitPushButton` | `Button` | `KitMeter` | `ProgressBar` |
+| `KitToggle`, `KitCheckButton` | `CheckButton` | `KitPanel` | `Panel` |
+| `KitSlider`, `KitKnob`, `KitSliderBar` | `HSlider` | `KitTabStrip` | `TabBar` |
+| `KitStarRating` | `Range` | `KitTabPanel` | `TabContainer` |
+
+Two rules follow, and both have bitten:
+
+1. **`tools/check_script_node_types.py` requires the node's declared `type=` to EQUAL the script's
+   Godot base.** "Descends from" is not enough — `Button` descends from `Control`, which is exactly
+   how the mismatch hides. Run by `validate_scenes.sh`.
+2. **A property that is now a Godot BUILT-IN takes a snake_case key in `.tscn`.** `Text`, `Value`,
+   `Disabled`, `Icon` were C# `[Export]`s; after conversion the PascalCase line matches nothing and
+   is **silently discarded**. That blanked three button labels in `kit_gallery` — the same trap as
+   the `[Export]` rule above, arriving from the opposite direction.
+
+Widgets with no real Godot equivalent stay `KitControl`: `KitChip` (a drawn label — making it a
+Button would invent interactivity and start eating clicks), `KitTree` (a tier **graph**, not
+Godot's list `Tree`), `KitSpinner`, `KitPager`, `KitCollapsiblePanel`, and the slot/frame/card
+family.
+
 ### Never fail silently
 The dominant defect class in this repo, by a wide margin. A component resolves a collaborator, the cast fails, it early-returns, and **nothing says anything** — so it looks fine for months.
 
@@ -303,7 +335,9 @@ Two automated gates, then your eyes. Run both after any change:
 | Gate | Command | Catches |
 |---|---|---|
 | Build | `dotnet build` | compile errors. ~148 nullable warnings are pre-existing noise. |
-| Scene validator | `cd addons/beep_game_builder_cs/templates/scenes && ./validate_scenes.sh` | undeclared Ext/SubResources, bad parent paths, duplicate sibling names, missing scripts, atmosphere placement, **and `[Export]` names that Godot would silently drop** |
+| Scene validator | `cd addons/beep_game_builder_cs/templates/scenes && ./validate_scenes.sh` | undeclared Ext/SubResources, bad parent paths, duplicate sibling names, missing scripts, atmosphere placement, `[Export]` names that Godot would silently drop, **script/node type mismatches**, and **raw `DrawString` in a kit widget** |
+| Style system | `godot --headless --path . tools/genre_shapes/style_sweep_probe.tscn` | all 50 themes resolve DISTINCT styles; every register, text treatment and gloss construction is used by some theme; no `kit` block key or value is misspelt |
+| Rendered gates | `measure_material` · `measure_shadow` · `measure_pixel` · `measure_gloss` · `measure_edgerun` · `verify_greyscale` | that an axis reaches the PIXELS. Each renders paired images and differences them — a metric read off one render is how four wrong answers got made. **Run windowed:** `--headless` uses the dummy driver, draws nothing, and hangs at `FramePostDraw` |
 
 `validate_scenes.sh`'s header is the rule: **every check exists because it caught a real bug.** Add one when you fix a class of defect — and make it fail before you trust it (a check you've only seen pass is not evidence).
 

@@ -31,6 +31,19 @@ namespace Beep.ECS.UI.Kit
         /// <summary>State is fixed for a panel -- it is not an interactive control.</summary>
         private const KitState State = KitState.Normal;
 
+        /// <summary>
+        /// What this screen IS. Declaring it places the archetype's ornaments — a crown on a
+        /// victory panel, a gear on settings — so the screen is recognisable before it is read.
+        /// See <see cref="KitArchetypes"/>.
+        /// </summary>
+        [Export]
+        public KitArchetype Archetype
+        {
+            get => _archetype;
+            set { _archetype = value; if (IsNodeReady()) KitArchetypes.Apply(this, value); }
+        }
+        private KitArchetype _archetype = KitArchetype.None;
+
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
         private string _title = "";
 
@@ -143,6 +156,10 @@ namespace Beep.ECS.UI.Kit
         {
             _genre = KitChrome.GenreOf(this);
             Suppress();
+            // Placed after the panel has a size -- the ornaments are sized from its short edge,
+            // and at _Ready on a container-laid-out panel that is still zero.
+            Resized += () => KitArchetypes.Apply(this, _archetype);
+            KitArchetypes.Apply(this, _archetype);
 
             // A KitPanel is BACKGROUND ART. Used the way PanelFrameComponent is -- dropped inside
             // a PanelContainer whose own stylebox is blanked, so the container still lays out the

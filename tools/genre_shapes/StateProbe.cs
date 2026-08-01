@@ -73,6 +73,32 @@ public partial class StateProbe : Node
                + $"Danger={UiSurface.Semantic(probe, UiSurface.Role.Danger)}");
         probe.QueueFree();
 
+        // ── ARCHETYPES: the same plate, told apart by ornament alone ──
+        var arch = new HBoxContainer { Position = new Vector2(40, 330) };
+        arch.AddThemeConstantOverride("separation", 34);
+        root.AddChild(arch);
+        foreach (var a in new[] { KitArchetype.Victory, KitArchetype.Defeat,
+                                  KitArchetype.Settings, KitArchetype.LevelUp,
+                                  KitArchetype.Inventory })
+        {
+            var panel = new KitPanel
+            {
+                Title = a.ToString().ToUpperInvariant(),
+                Archetype = a,
+                CustomMinimumSize = new Vector2(140, 110),
+            };
+            arch.AddChild(panel);
+        }
+
+        // IDEMPOTENCE: applying twice must not stack a second crown on the first.
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var first = arch.GetChild<KitPanel>(0);
+        int before = first.GetChildCount();
+        first.Archetype = KitArchetype.Victory;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GD.Print($"state:  archetype idempotent: {before} -> {first.GetChildCount()} children "
+               + $"{(before == first.GetChildCount() ? "ok" : "FAIL -- ornaments stacked")}");
+
         for (int i = 0; i < 6; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         DirAccess.MakeDirRecursiveAbsolute("res://tmp/states");

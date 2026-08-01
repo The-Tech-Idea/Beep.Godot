@@ -23,15 +23,20 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitMeter : KitControl
+    public partial class KitMeter : ProgressBar
     {
         /// <summary>A bar: takes the theme's bar corner, which the
         /// references vary independently of the button corner.</summary>
-        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+        // A BAR takes the theme's bar corner, which the references vary independently of the
+        // button corner. KitControl exposed this as an override; deriving from ProgressBar means
+        // stating it directly instead.
+        private const KitWidgetClass Class = KitWidgetClass.Bar;
 
-        [Export(PropertyHint.Range, "0.0,1.0,0.001")]
-        public float Value { get => _value; set { _value = Mathf.Clamp(value, 0f, 1f); QueueRedraw(); } }
-        private float _value = 0.62f;
+        /// <summary>Overhanging sub-elements. KitControl kept this list for its subclasses;
+        /// deriving from ProgressBar means owning it here and drawing it through KitChrome, which
+        /// is the same resolve either way.</summary>
+        private readonly System.Collections.Generic.List<KitAttach> Attachments = new();
+
 
         /// <summary>Number of segments. 0 makes the meter continuous — deliberately available,
         /// but deliberately NOT the default.</summary>
@@ -45,9 +50,20 @@ namespace Beep.ECS.UI.Kit
         [Export] public Texture2D? CapIcon { get => _cap; set { _cap = value; Rebuild(); } }
         private Texture2D? _cap;
 
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+
         public override void _Ready()
         {
-            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            // 0..1, like KitSlider: every existing `Value = 0.72` keeps meaning 72%, and Range
+            // still offers a real domain to anyone who wants one. ProgressBar's own 0..100
+            // default would have silently reinterpreted every shipped scene as "1 percent".
+            MinValue = 0.0; MaxValue = 1.0; Step = 0.001;
+            ShowPercentage = false;      // the kit draws its own readout
+            foreach (string sb in new[] { "background", "fill" })
+                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
+            ValueChanged += _ => QueueRedraw();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -82,7 +98,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 4 || Size.Y <= 4) return;
 
             var g = Geo;
-            Color ink = InkColor();
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
             Color fill = UiSurface.Semantic(this, Fill);
 
             // The track is the fill's own hue driven dark — never a neutral grey.
@@ -94,14 +110,14 @@ namespace Beep.ECS.UI.Kit
             if (bar.Size.X <= 2) return;
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f * (UiSurface.FontSize(this) / 14f));
-            DrawShape(bar, ActiveShape, track, ink, rimPx);
+            KitChrome.DrawShape(this, _genre, bar, KitChrome.Shape(_genre), track, ink, rimPx);
 
-            if (_value > 0f)
+            if ((float)Value > 0f)
             {
                 if (_segments <= 0)
                 {
-                    var f = new Rect2(bar.Position, new Vector2(bar.Size.X * _value, bar.Size.Y));
-                    if (f.Size.X > 1) DrawShape(f, ActiveShape, fill, ink, 0f);
+                    var f = new Rect2(bar.Position, new Vector2(bar.Size.X * (float)Value, bar.Size.Y));
+                    if (f.Size.X > 1) KitChrome.DrawShape(this, _genre, f, KitChrome.Shape(_genre), fill, ink, 0f);
                 }
                 else
                 {
@@ -111,20 +127,20 @@ namespace Beep.ECS.UI.Kit
                     float segW = (bar.Size.X - gap * (_segments - 1)) / _segments;
                     if (segW > 0.5f)
                     {
-                        float lit = _value * _segments;
+                        float lit = (float)Value * _segments;
                         for (int i = 0; i < _segments; i++)
                         {
                             float amount = Mathf.Clamp(lit - i, 0f, 1f);
                             if (amount <= 0.001f) break;
                             var s = new Rect2(bar.Position.X + i * (segW + gap), bar.Position.Y,
                                               segW * amount, bar.Size.Y);
-                            if (s.Size.X > 0.5f) DrawShape(s, ActiveShape, fill, ink, 0f);
+                            if (s.Size.X > 0.5f) KitChrome.DrawShape(this, _genre, s, KitChrome.Shape(_genre), fill, ink, 0f);
                         }
                     }
                 }
             }
 
-            DrawAttachments();
+            KitChrome.DrawAttachments(this, _genre, Attachments);
         }
     }
 }

@@ -79,16 +79,16 @@ Value = "x3"
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Health" type="Control" parent="Margin/Root/Row1/Meters"]
+[node name="Health" type="ProgressBar" parent="Margin/Root/Row1/Meters"]
 layout_mode = 2
 script = ExtResource("k_meter")
-Value = 0.62
+value = 0.62
 Segments = 10
 
-[node name="Stamina" type="Control" parent="Margin/Root/Row1/Meters"]
+[node name="Stamina" type="ProgressBar" parent="Margin/Root/Row1/Meters"]
 layout_mode = 2
 script = ExtResource("k_meter")
-Value = 0.4
+value = 0.4
 Segments = 0
 Fill = 5
 
@@ -96,24 +96,24 @@ Fill = 5
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Build" type="Control" parent="Margin/Root/Row1/Actions"]
+[node name="Build" type="Button" parent="Margin/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "+"
 
-[node name="Info" type="Control" parent="Margin/Root/Row1/Actions"]
+[node name="Info" type="Button" parent="Margin/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "*"
 Accent = 6
 
-[node name="Off" type="Control" parent="Margin/Root/Row1/Actions"]
+[node name="Off" type="Button" parent="Margin/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "x"
-Disabled = true
+disabled = true
 
-[node name="Sealed" type="Control" parent="Margin/Root/Row1/Actions"]
+[node name="Sealed" type="Button" parent="Margin/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "?"

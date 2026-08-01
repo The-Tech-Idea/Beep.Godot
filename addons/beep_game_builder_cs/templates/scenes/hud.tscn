@@ -45,12 +45,12 @@ script = ExtResource("k_labelvalue")
 Label = "LIVES"
 Value = "× 3"
 
-[node name="HealthLabel" type="Control" parent="TopLeft/StatsVBox"]
+[node name="HealthLabel" type="ProgressBar" parent="TopLeft/StatsVBox"]
 custom_minimum_size = Vector2(148, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
-Value = 1.0
+value = 1.0
 Segments = 10
 Fill = 3
 

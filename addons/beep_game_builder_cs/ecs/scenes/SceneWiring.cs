@@ -48,10 +48,9 @@ namespace Beep.ECS.Scenes
                 // silently skipped, and every screen migrated onto them would have kept its layout
                 // and quietly lost all its wiring.
                 //
-                // The remaining cases are widgets with no Godot equivalent to derive from.
-                case KitIconButton kib:
-                    kib.Pressed += () => handler();
-                    return;
+                // KitIconButton is gone from here for the same reason KitButton was: it derives
+                // from Button now, so `case Button` catches it. What is left are the widgets with
+                // no Godot equivalent to derive from.
                 case KitNodeCard card:
                     card.Pressed += () => handler();
                     return;

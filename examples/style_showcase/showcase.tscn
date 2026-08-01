@@ -129,10 +129,10 @@ custom_minimum_size = Vector2(0, 44)
 text = "HEALTH"
 theme_type_variation = &"BeepCaption"
 
-[node name="HealthMeter" type="Control" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
+[node name="HealthMeter" type="ProgressBar" parent="Margin/Root/Body/WidgetPanel/WidgetPad/WidgetBox"]
 script = ExtResource("8_meter")
 custom_minimum_size = Vector2(0, 24)
-Value = 0.72
+value = 0.72
 
 [node name="WidgetTheme" type="Node" parent="Margin/Root/Body/WidgetPanel"]
 script = ExtResource("9_theme")

@@ -73,6 +73,36 @@ public partial class TypeProbe : Node
                + "(blanking the grabber icon must not collapse it)");
         if (!ok) bad++;
 
+        // ── KitMeter IS a ProgressBar (a Range) ──
+        var mt = new KitMeter { Name = "HP" };
+        root.AddChild(mt);
+        var pb = root.GetNodeOrNull<ProgressBar>("HP");
+        ok = pb != null && Mathf.IsEqualApprox((float)pb.MaxValue, 1f);
+        GD.Print($"mt:     {(ok ? "ok  " : "FAIL")} GetNode<ProgressBar>(\"HP\") -> "
+               + $"{(pb == null ? "NULL" : $"range {pb.MinValue:0.0}..{pb.MaxValue:0.0}")} "
+               + "(0..1 kept so shipped scenes still mean percent)");
+        if (!ok) bad++;
+
+        // ── KitIconButton IS a Button ──
+        var ib = new KitIconButton { Name = "Hammer", Glyph = "H" };
+        root.AddChild(ib);
+        var ibb = root.GetNodeOrNull<Button>("Hammer");
+        bool ibFired = false;
+        if (ibb != null) ibb.Pressed += () => ibFired = true;
+        ibb?.EmitSignal(BaseButton.SignalName.Pressed);
+        ok = ibb != null && ibFired;
+        GD.Print($"ib:     {(ok ? "ok  " : "FAIL")} GetNode<Button>(\"Hammer\") + Pressed");
+        if (!ok) bad++;
+
+        // ── KitKnob IS an HSlider ──
+        var kn = new KitKnob { Name = "Dial" };
+        root.AddChild(kn);
+        var kh = root.GetNodeOrNull<HSlider>("Dial");
+        ok = kh != null && kh.CustomMinimumSize.X > 20f;
+        GD.Print($"kn:     {(ok ? "ok  " : "FAIL")} GetNode<HSlider>(\"Dial\") min "
+               + $"{kh?.CustomMinimumSize.X:0}x{kh?.CustomMinimumSize.Y:0}");
+        if (!ok) bad++;
+
         GD.Print($"kb:     {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);
     }

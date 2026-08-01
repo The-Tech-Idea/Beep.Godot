@@ -23,28 +23,21 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitIconButton : KitControl
+    public partial class KitIconButton : Button
     {
-        [Export] public Texture2D? Icon { get => _icon; set { _icon = value; QueueRedraw(); } }
-        private Texture2D? _icon;
+        private Texture2D? Icon;
 
         /// <summary>Fallback glyph when no texture is supplied, so the button is never blank.</summary>
         [Export] public string Glyph { get => _glyph; set { _glyph = value ?? ""; QueueRedraw(); } }
         private string _glyph = "";
 
-        [Export] public bool Disabled
-        {
-            get => _disabled;
-            set { _disabled = value; SetState(value ? KitState.Disabled : KitState.Normal); }
-        }
-        private bool _disabled;
 
         /// <summary>Locked is not the same as disabled: a locked control states a REQUIREMENT and
         /// never shows hover or press. See <see cref="Requirement"/>.</summary>
         [Export] public bool Locked
         {
             get => _locked;
-            set { _locked = value; SetState(value ? KitState.Locked : KitState.Normal); }
+            set { _locked = value; Disabled = value || Disabled; QueueRedraw(); }
         }
         private bool _locked;
 
@@ -55,15 +48,25 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
 
+        private readonly System.Collections.Generic.List<KitAttach> _attach = new();
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private bool _suppressing;
+
+        /// <summary>State from BaseButton's own machine rather than a KitControl field.</summary>
+        private KitState State => Locked ? KitState.Locked
+                                : Disabled ? KitState.Disabled
+                                : (ButtonPressed || IsPressed()) ? KitState.Pressed
+                                : IsHovered() ? KitState.Hover : KitState.Normal;
+
         // NOTE: there is deliberately no `Straddle` export. An earlier draft had one that did
         // nothing at all — a silent no-op export is the same defect class as a snake_case one
         // Godot drops. Straddling an edge (gameui6's play/replay/home row, rpgui's close button)
         // is the HOST's job: it positions the button, or draws it as a KitAttach, because only
         // the host knows which edge is being crossed.
 
-        [Signal] public delegate void PressedEventHandler();
 
-        private bool Interactive => !_disabled && !_locked;
+        private bool Interactive => !Disabled && !_locked;
 
         public override void _Ready()
         {
@@ -76,29 +79,25 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        public override void _GuiInput(InputEvent @event)
-        {
-            if (!Interactive) return;
-            if (@event is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
-            {
-                if (mb.Pressed) SetState(KitState.Pressed);
-                else
-                {
-                    bool inside = new Rect2(Vector2.Zero, Size).HasPoint(mb.Position);
-                    SetState(inside ? KitState.Hover : KitState.Normal);
-                    if (inside) EmitSignal(SignalName.Pressed);
-                }
-                AcceptEvent();
-            }
-        }
-
         public override void _Notification(int what)
         {
             base._Notification(what);
-            // A locked or disabled control must not light up on hover.
-            if (!Interactive) return;
-            if (what == NotificationMouseEnter) SetState(KitState.Hover);
-            else if (what == NotificationMouseExit) SetState(KitState.Normal);
+            // Hover and press are BaseButton's job now -- and it already refuses both when
+            // Disabled, which is what `Interactive` was hand-checking for.
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
+            QueueRedraw();
+        }
+
+        private void Suppress()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            int fs = UiSurface.FontSize(this);
+            KitChrome.Suppress(this, new[] { "normal", "hover", "pressed", "disabled", "focus" },
+                               0f, Mathf.Max(4f, fs * 0.3f));
+            _suppressing = false;
         }
 
         public override void _Draw()
@@ -112,14 +111,15 @@ namespace Beep.ECS.UI.Kit
             float s = Mathf.Min(Size.X, Size.Y);
             var plate = new Rect2((Size.X - s) * 0.5f, (Size.Y - s) * 0.5f, s, s);
 
-            DrawMaterial(plate, ActiveShape);
+            KitChrome.DrawPlate(this, _genre, plate,
+                                KitChrome.StateFace(UiSurface.Of(this), State), State, fs / 14f);
 
             if (Accent != UiSurface.Role.Neutral && Interactive)
             {
                 // Accent goes on ONE element (5x rule) — here a keyline inside the plate, so the
                 // icon itself stays neutral and readable.
                 Color a = UiSurface.Semantic(this, Accent);
-                DrawShape(plate.Grow(-Mathf.Max(2f, s * 0.07f)), ActiveShape,
+                KitChrome.DrawShape(this, _genre, plate.Grow(-Mathf.Max(2f, s * 0.07f)), KitChrome.Shape(_genre),
                           new Color(0, 0, 0, 0), a, Mathf.Max(1.5f, s * 0.035f));
             }
 
@@ -128,16 +128,16 @@ namespace Beep.ECS.UI.Kit
             var box = new Rect2(plate.Position + new Vector2((s - gs) * 0.5f, (s - gs) * 0.5f),
                                 new Vector2(gs, gs));
 
-            if (_icon != null)
+            if (Icon != null)
             {
                 Color mod = Colors.White;
                 if (State == KitState.Disabled) mod = new Color(0.72f, 0.72f, 0.72f, 0.9f);
                 else if (State == KitState.Locked) mod = new Color(0.12f, 0.12f, 0.14f, 1f);
-                DrawTextureRect(_icon, box, false, mod);
+                DrawTextureRect(Icon, box, false, mod);
             }
             else if (!string.IsNullOrEmpty(_glyph))
             {
-                var font = KitFont();
+                var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
                     int size = Mathf.Max(8, Mathf.RoundToInt(gs));
@@ -155,7 +155,7 @@ namespace Beep.ECS.UI.Kit
             // The requirement, in words, under a locked button.
             if (_locked && !string.IsNullOrEmpty(_req))
             {
-                var font = KitFont();
+                var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
                     int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.66f));
@@ -167,7 +167,7 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
-            DrawAttachments();
+            KitChrome.DrawAttachments(this, _genre, _attach);
         }
     }
 }

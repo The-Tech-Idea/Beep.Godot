@@ -16,39 +16,44 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitKnob : KitControl
+    public partial class KitKnob : HSlider
     {
-        [Export(PropertyHint.Range, "0.0,1.0,0.001")]
-        public float Value
-        {
-            get => _value;
-            set
-            {
-                float v = Mathf.Clamp(value, 0f, 1f);
-                if (Mathf.IsEqualApprox(v, _value)) return;
-                _value = v; QueueRedraw(); EmitSignal(SignalName.ValueChanged, v);
-            }
-        }
-        private float _value = 0.35f;
 
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
         [Export(PropertyHint.Range, "0,24,1")] public int Ticks { get; set; } = 11;
         /// <summary>Sweep of the dial, degrees. 270 leaves a gap at the bottom.</summary>
         [Export(PropertyHint.Range, "90,360,1")] public float SweepDegrees { get; set; } = 270f;
 
-        [Signal] public delegate void ValueChangedEventHandler(float value);
 
         private bool _drag;
-        private float _dragStart, _valueStart;
+        private float _dragStart, _startValue;
+        private string _genre = "";
 
         public override void _Ready()
         {
-            base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 3.6f, fs * 3.6f);
-            }
+            _genre = KitChrome.GenreOf(this);
+            // Range gives Value/MinValue/MaxValue/ValueChanged; the DIAL's interaction is still
+            // ours, because a knob is dragged VERTICALLY and Slider's own handling is horizontal.
+            MinValue = 0.0; MaxValue = 1.0; Step = 0.001;
+            foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
+                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
+            foreach (string ic in new[] { "grabber", "grabber_highlight", "grabber_disabled", "tick" })
+                AddThemeIconOverride(ic, KitChrome.Blank);
+            ValueChanged += _ => QueueRedraw();
+
+            int fs = UiSurface.FontSize(this);
+            // Blanking the theme art removes the size it was providing -- restate it, or the
+            // control collapses and _Draw's own size guard makes it vanish silently.
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 3.6f),
+                                            Mathf.Max(CustomMinimumSize.Y, fs * 3.6f));
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            QueueRedraw();
         }
 
         public override void _GuiInput(InputEvent @event)
@@ -57,12 +62,12 @@ namespace Beep.ECS.UI.Kit
             {
                 case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
                     _drag = mb.Pressed;
-                    if (mb.Pressed) { _dragStart = mb.Position.Y; _valueStart = _value; }
+                    if (mb.Pressed) { _dragStart = mb.Position.Y; _startValue = (float)Value; }
                     AcceptEvent();
                     break;
                 case InputEventMouseMotion mm when _drag:
                     // Up increases. Full travel over roughly the knob's own height.
-                    Value = _valueStart + (_dragStart - mm.Position.Y) / Mathf.Max(24f, Size.Y);
+                    Value = _startValue + (_dragStart - mm.Position.Y) / Mathf.Max(24f, Size.Y);
                     AcceptEvent();
                     break;
             }
@@ -75,8 +80,8 @@ namespace Beep.ECS.UI.Kit
 
             var c = Size * 0.5f;
             float r = d * 0.5f * 0.74f;
-            Color face = FaceColor();
-            Color ink = InkColor();
+            Color face = UiSurface.Of(this);
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
             Color acc = UiSurface.Semantic(this, Role);
 
             float sweep = Mathf.DegToRad(Mathf.Clamp(SweepDegrees, 90f, 360f));
@@ -89,7 +94,7 @@ namespace Beep.ECS.UI.Kit
                 float t = Ticks <= 1 ? 0f : i / (float)(Ticks - 1);
                 float a = start + sweep * t;
                 var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                bool past = t <= _value + 0.0001f;
+                bool past = t <= (float)Value + 0.0001f;
                 DrawLine(c + dir * (tr * 0.86f), c + dir * tr,
                          past ? acc : new Color(ink.R, ink.G, ink.B, 0.55f),
                          Mathf.Max(1.5f, d * 0.035f));
@@ -99,7 +104,7 @@ namespace Beep.ECS.UI.Kit
             DrawArc(c, r, 0f, Mathf.Tau, 48, ink, Mathf.Max(2f, d * 0.045f));
 
             // Pointer: a spoke from centre to rim, the only accented part of the body.
-            float ang = start + sweep * _value;
+            float ang = start + sweep * (float)Value;
             var pd = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
             DrawLine(c + pd * (r * 0.25f), c + pd * (r * 0.86f), acc, Mathf.Max(2.5f, d * 0.06f));
             DrawCircle(c, r * 0.16f, acc);

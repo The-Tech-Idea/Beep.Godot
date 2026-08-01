@@ -43,11 +43,11 @@ theme_type_variation = &"BeepCaption"
 text = "COINS 0/0"
 theme_type_variation = &"BeepCaption"
 
-[node name="HealthMeter" type="Control" parent="StatPanel/Rows"]
+[node name="HealthMeter" type="ProgressBar" parent="StatPanel/Rows"]
 custom_minimum_size = Vector2(298, 20)
 mouse_filter = 2
 script = ExtResource("2_meter")
-Value = 1.0
+value = 1.0
 
 [node name="Theme" type="Node" parent="StatPanel"]
 script = ExtResource("3_theme")

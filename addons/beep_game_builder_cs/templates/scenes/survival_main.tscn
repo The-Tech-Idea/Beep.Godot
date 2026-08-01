@@ -78,39 +78,39 @@ offset_bottom = -16.0
 grow_vertical = 0
 theme_override_constants/separation = 4
 
-[node name="HealthLabel" type="Control" parent="HUD/Root/Vitals"]
+[node name="HealthLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
-Value = 1.0
+value = 1.0
 Segments = 10
 Fill = 3
 
-[node name="HungerLabel" type="Control" parent="HUD/Root/Vitals"]
+[node name="HungerLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
-Value = 0.75
+value = 0.75
 Segments = 10
 Fill = 4
 
-[node name="ThirstLabel" type="Control" parent="HUD/Root/Vitals"]
+[node name="ThirstLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
-Value = 0.8
+value = 0.8
 Segments = 10
 Fill = 6
 
-[node name="StaminaLabel" type="Control" parent="HUD/Root/Vitals"]
+[node name="StaminaLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
-Value = 1.0
+value = 1.0
 Segments = 10
 Fill = 2
 

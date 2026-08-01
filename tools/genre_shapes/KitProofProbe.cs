@@ -283,7 +283,7 @@ public partial class KitProofProbe : Node
         host.Theme = SheetTheme();
         root.AddChild(host);
 
-        var chips = new KitControl[]
+        var chips = new Godot.Control[]
         {
             new KitChip { Kind = KitChip.ChipKind.Rarity, Text = "RARE", Role = UiSurface.Role.Accent2 },
             new KitChip { Kind = KitChip.ChipKind.Count, Text = "9" },
@@ -383,7 +383,7 @@ public partial class KitProofProbe : Node
         var sp1 = new KitSpinner { Kind = KitSpinner.SpinnerKind.Ring };
         var sp2 = new KitSpinner { Kind = KitSpinner.SpinnerKind.Dots };
         var sp3 = new KitSpinner { Kind = KitSpinner.SpinnerKind.Bar, Progress = 0.45f };
-        foreach (var w in new KitControl[] { av, pg, pg2, seg, sp1, sp2, sp3 }) host.AddChild(w);
+        foreach (var w in new Godot.Control[] { av, pg, pg2, seg, sp1, sp2, sp3 }) host.AddChild(w);
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         for (int i = 0; i < rows.Length; i++)
@@ -412,7 +412,7 @@ public partial class KitProofProbe : Node
         var wheel = new KitSpinWheel();
         var book = new KitBookSpread { LeftTitle = "Quests", RightTitle = "Bestiary" };
         var torn = new KitPanel { Title = "NOTES", TornEdge = true, ShowClose = true };
-        foreach (var w in new KitControl[] { knob, gem1, gem2, gem3, path, wheel, book, torn })
+        foreach (var w in new Godot.Control[] { knob, gem1, gem2, gem3, path, wheel, book, torn })
             host.AddChild(w);
 
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

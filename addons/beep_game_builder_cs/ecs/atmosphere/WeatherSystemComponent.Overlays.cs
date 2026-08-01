@@ -296,6 +296,37 @@ void fragment(){
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>Called every frame by the main _Process to animate cloud drift.</summary>
+        private CloudSpriteLayer? _spriteClouds;
+
+        /// <summary>Create the sprite layer on demand, once, and only when it is asked for.</summary>
+        private void EnsureSpriteClouds()
+        {
+            if (CloudMode != CloudRender.Sprites || _spriteClouds != null) return;
+            if (_overlayLayer == null) return;
+
+            _spriteClouds = new CloudSpriteLayer
+            {
+                Name = "SpriteClouds",
+                Sprites = CloudSprites,
+                Field = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1280, 720),
+            };
+            _overlayLayer.AddChild(_spriteClouds);
+            if (CloudSprites.Length == 0)
+                GD.PushWarning($"[{Name}] CloudMode is Sprites but CloudSprites is empty, so no "
+                             + "clouds will draw. Assign textures (the addon ships a set under "
+                             + "textures/clouds/), or use CloudMode.Procedural.");
+        }
+
+        /// <summary>Cloud tint for the current weather: white in fair cover, grey overcast,
+        /// near-black under storm. The shipped sprite set is drawn in exactly those three tones,
+        /// which is what makes tinting a fair substitute for swapping the art.</summary>
+        private Color CloudTintForWeather() => CurrentWeather switch
+        {
+            WeatherType.Storm => new Color(0.42f, 0.44f, 0.50f),
+            WeatherType.Rain or WeatherType.Snow => new Color(0.66f, 0.68f, 0.74f),
+            _ => new Color(0.96f, 0.96f, 0.98f),
+        };
+
         private void ProcessClouds(double delta)
         {
             if (_cloudMat == null && _cloudShadowMat == null) return;
@@ -315,7 +346,25 @@ void fragment(){
             // Skip the fullscreen 5-octave FBM cloud fragment shader entirely when nothing shows
             // (Clear weather) — a visible ColorRect with a material runs its fragment every frame
             // regardless of whether we update its params. This is the system's most expensive draw.
-            if (_cloudOverlay != null) _cloudOverlay.Visible = _cloudAlphaCurrent > 0.001f;
+            // THE MODE DECIDES which cloud layer is live. Procedural keeps the density field;
+            // Sprites hands over to CloudSpriteLayer and hides the field so the two do not stack
+            // into soup; None hides both and leaves only the tint and the precipitation.
+            bool wantField = CloudMode == CloudRender.Procedural;
+            if (_cloudOverlay != null)
+                _cloudOverlay.Visible = wantField && _cloudAlphaCurrent > 0.001f;
+
+            EnsureSpriteClouds();
+            if (_spriteClouds != null)
+            {
+                _spriteClouds.Visible = CloudMode == CloudRender.Sprites;
+                if (_spriteClouds.Visible)
+                {
+                    // The sprite layer takes the same cover and tint the field would have, so
+                    // switching technique changes the LOOK and not the weather.
+                    _spriteClouds.Opacity = _cloudAlphaCurrent;
+                    _spriteClouds.Tint = CloudTintForWeather();
+                }
+            }
             if (_cloudShadowOverlay != null) _cloudShadowOverlay.Visible = _cloudShadowAlphaCurrent > 0.001f;
 
             // Camera position in screen-widths. The overlays are screen-space, so this is

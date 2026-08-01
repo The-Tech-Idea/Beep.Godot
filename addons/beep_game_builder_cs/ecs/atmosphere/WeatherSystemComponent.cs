@@ -194,6 +194,36 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool TopDownView { get; set; }
 
+        /// <summary>How clouds are drawn. Three techniques, none strictly better.</summary>
+        public enum CloudRender
+        {
+            /// <summary>The procedural density field. Costs nothing in assets and tiles forever,
+            /// but noise has no SILHOUETTE — it reads as fog, and at low sample resolution it
+            /// reads as blocky fog. Right for haze and overcast, wrong for distinct clouds.</summary>
+            Procedural,
+            /// <summary>Drifting sprite clouds (<see cref="CloudSpriteLayer"/>). Drawn art has the
+            /// silhouette noise cannot fake, and parallax comes free from the size variants. Needs
+            /// cloud textures; the addon ships a set under textures/clouds/.</summary>
+            Sprites,
+            /// <summary>No cloud layer at all. Weather still tints, and precipitation still
+            /// falls — for genres where an overhead cloud plane just occludes the playfield.</summary>
+            None,
+        }
+
+        /// <summary>
+        /// Which cloud technique this scene uses.
+        ///
+        /// Exposed rather than chosen for you because the right answer depends on the game, not on
+        /// the engine: a side-scroller wants sprite clouds against the sky, a top-down game may
+        /// want only the shadow they cast, and a puzzle game wants neither. All three paths are
+        /// supported and none is a fallback for another.
+        /// </summary>
+        [Export] public CloudRender CloudMode { get; set; } = CloudRender.Procedural;
+
+        /// <summary>Cloud sprites for <see cref="CloudRender.Sprites"/>. The addon ships a set
+        /// under textures/clouds/ in three tones and five sizes per shape.</summary>
+        [Export] public Texture2D[] CloudSprites { get; set; } = System.Array.Empty<Texture2D>();
+
         [ExportGroup("Transitions")]
         /// <summary>Seconds to cross-fade between weathers. 0 = instant.</summary>
         [Export] public float TransitionDuration { get; set; } = 1.5f;

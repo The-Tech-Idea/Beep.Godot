@@ -16,21 +16,32 @@ using Godot;
 /// RULED OUT -- calling them directly at runtime emits nothing. Reading the file for editor-only
 /// APIs has found nothing either.
 ///
-/// NARROWED FURTHER, still by removal, all three ruled out:
+/// CORRECTION to an earlier claim in this file: "not in any method it runs" OVERSTATED the
+/// evidence. Only _Ready was stubbed. _Process, _EnterTree and _ExitTree were never tested, and
+/// _EnterTree in particular runs on the base class. Ruling out one method is not ruling out all
+/// of them, and writing it that way is how a wrong conclusion gets inherited by the next attempt.
+///
+/// NARROWED, still by removal:
 ///
 ///     ConfigureParticleEmitter() removed from _Ready ....... 5 errors  (not it)
 ///     _Ready body skipped entirely ........................ 5 errors  (not _Ready AT ALL)
 ///     ResourceLoader.Exists / GD.Load called directly ...... 0 errors  (not them)
 ///
-/// And atmosphere.tscn sets NO properties on the Weather node -- it carries the script and
-/// nothing else. So the five errors are emitted while the script is being ATTACHED: field
-/// initialisers, the generated property registration, or an [Export] getter being probed. Not in
-/// any method this component chooses to run.
+///     script on a bare Node, empty scene ................. 5 errors  (it IS this script)
+///     empty scene, no script at all ...................... 0 errors  (the control -- clean)
+///     the five [Export] Texture2D properties un-exported .. 5 errors  (not them)
+///     EVERY [Export] in the file stripped ................ 5 errors  (not exports AT ALL)
+///     [Tool] / [GlobalClass] ............................. same as the components that emit 0
 ///
-/// That reframes it. The next step is not more stubbing inside the class; it is to attach the
-/// script to a bare Node in an otherwise empty scene and see whether the five errors still
-/// appear. If they do, the cause is the class's declaration surface, not its behaviour -- and the
-/// exported Texture2D/Resource fields are where to look, because those are what Godot probes.
+/// TWICE in this hunt a count coincidence looked decisive and was wrong: five particle textures
+/// matched five errors, then five exported Texture2D properties matched five errors. Both were
+/// ruled out by a two-minute test. A matching count is a hypothesis, never a finding.
+///
+/// STILL UNIDENTIFIED. What has NOT been tested: _Process, _EnterTree (which runs on the base
+/// class), _ExitTree, and the constructor. That is where to go next -- stub each in turn and
+/// re-count. The error is harmless at five occurrences on startup, so this is tidiness, not
+/// urgency; it is recorded this precisely so the next attempt starts from the eliminations rather
+/// than repeating them.
 public partial class AtmoBisect : Node
 {
     [Export] public string ScenePath { get; set; } =

@@ -20,7 +20,7 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitTabStrip : KitControl
+    public partial class KitTabStrip : TabBar
     {
         public enum SelectionStyle
         {
@@ -45,25 +45,54 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public SelectionStyle Selection { get; set; } = SelectionStyle.Weld;
 
-        [Export] public int Current
-        {
-            get => _current;
-            set { if (_current == value) return; _current = value; QueueRedraw(); EmitSignal(SignalName.TabChanged, value); }
-        }
-        private int _current;
-
-        [Signal] public delegate void TabChangedEventHandler(int index);
+        private string _genre = "";
+        private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private bool _suppressing;
 
         public override void _Ready()
         {
-            base._Ready();
+            _genre = KitChrome.GenreOf(this);
             if (Tabs.Count == 0)
-                Tabs.AddRange(new[] { new Tab { Text = "One" }, new Tab { Text = "Two" }, new Tab { Text = "Three" } });
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 5.5f * Tabs.Count, fs * 2.3f);
-            }
+                Tabs.AddRange(new[] { new Tab { Text = "One" }, new Tab { Text = "Two" },
+                                      new Tab { Text = "Three" } });
+
+            // Push the authored tabs into TabBar so IT owns selection, clicking, keyboard
+            // navigation and the CurrentTab/TabChanged/TabClicked signals. `Tabs` stays as the
+            // authoring surface because TabBar has no notion of a per-tab BADGE, which the
+            // reference sheets use constantly.
+            ClearTabs();
+            foreach (var t in Tabs) AddTab(t.Text);
+            Suppress();
+            TabChanged += _ => QueueRedraw();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what != NotificationThemeChanged) return;
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
+            QueueRedraw();
+        }
+
+        /// <summary>Blank TabBar's own tab plates, then restate the size they were providing —
+        /// the same trap the Slider grabber set: a control whose theme art is blanked collapses
+        /// and _Draw's size guard then makes it vanish in silence.</summary>
+        private void Suppress()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            foreach (string sb in new[] { "tab_selected", "tab_hovered", "tab_unselected",
+                                          "tab_disabled", "tab_focus", "button_pressed",
+                                          "button_highlight" })
+                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
+            int fs = UiSurface.FontSize(this);
+            AddThemeColorOverride("font_selected_color", new Color(0, 0, 0, 0));
+            AddThemeColorOverride("font_unselected_color", new Color(0, 0, 0, 0));
+            AddThemeColorOverride("font_hovered_color", new Color(0, 0, 0, 0));
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 5.5f * Mathf.Max(1, Tabs.Count)),
+                                            Mathf.Max(fs * 2.3f, 26f));
+            _suppressing = false;
         }
 
         private Rect2 TabRect(int i)
@@ -71,21 +100,8 @@ namespace Beep.ECS.UI.Kit
             float w = Size.X / Mathf.Max(1, Tabs.Count);
             // 6px separation at 14pt — tabs are near-touching, so the gap is deliberate and small.
             float sep = Mathf.Max(2f, UiSurface.FontSize(this) * 0.42f) * 0.5f;
-            float raise = Selection == SelectionStyle.Elevate && i == _current ? 0f : Size.Y * 0.12f;
+            float raise = Selection == SelectionStyle.Elevate && i == CurrentTab ? 0f : Size.Y * 0.12f;
             return new Rect2(i * w + sep, raise, w - sep * 2f, Size.Y - raise);
-        }
-
-        public override void _GuiInput(InputEvent @event)
-        {
-            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
-                return;
-            for (int i = 0; i < Tabs.Count; i++)
-            {
-                if (!TabRect(i).HasPoint(mb.Position)) continue;
-                Current = i;
-                AcceptEvent();
-                return;
-            }
         }
 
         public override void _Draw()
@@ -93,9 +109,9 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 8 || Size.Y <= 6 || Tabs.Count == 0) return;
 
             var g = Geo;
-            Color face = FaceColor();
-            Color ink = InkColor();
-            var font = KitFont();
+            Color face = UiSurface.Of(this);
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
+            var font = KitChrome.Font(this, _genre);
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f));
 
@@ -103,7 +119,7 @@ namespace Beep.ECS.UI.Kit
             {
                 Rect2 r = TabRect(i);
                 if (r.Size.X < 3f) continue;
-                bool sel = i == _current;
+                bool sel = i == CurrentTab;
 
                 // Unselected is the pressed surface, selected the panel's own colour: the pair
                 // must be clearly different, not two near-identical greys.
@@ -115,12 +131,12 @@ namespace Beep.ECS.UI.Kit
                 {
                     // The pill sits BEHIND the tab and is the only accented element.
                     Color acc = UiSurface.Semantic(this, UiSurface.Role.Accent);
-                    DrawShape(r, KitShape.Pill, acc, ink, rimPx);
+                    KitChrome.DrawShape(this, _genre, r, KitShape.Pill, acc, ink, rimPx);
                     plate = new Color(acc.R, acc.G, acc.B, 1f);
                 }
                 else
                 {
-                    DrawShape(r, ActiveShape, plate, sel ? RimColor() : ink, rimPx);
+                    KitChrome.DrawShape(this, _genre, r, KitChrome.Shape(_genre), plate, sel ? KitChrome.Rim(UiSurface.Of(this), Geo) : ink, rimPx);
                 }
 
                 if (font != null && !string.IsNullOrEmpty(Tabs[i].Text))
@@ -150,14 +166,14 @@ namespace Beep.ECS.UI.Kit
                     Vector2 m = font.GetStringSize(b, HorizontalAlignment.Left, -1, small);
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
                     var br = new Rect2(r.End.X - bw * 0.6f, r.Position.Y - bh * 0.35f, bw, bh);
-                    DrawShape(br, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Danger), ink, 1.5f);
+                    KitChrome.DrawShape(this, _genre, br, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Danger), ink, 1.5f);
                     DrawString(font, new Vector2(br.Position.X + (br.Size.X - m.X) * 0.5f,
                                                  br.Position.Y + (br.Size.Y + m.Y * 0.6f) * 0.5f),
                                b, HorizontalAlignment.Left, -1, small, new Color(0.98f, 0.96f, 0.92f));
                 }
             }
 
-            DrawAttachments();
+            
         }
     }
 }

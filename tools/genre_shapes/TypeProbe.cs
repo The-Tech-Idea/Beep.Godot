@@ -103,6 +103,24 @@ public partial class TypeProbe : Node
                + $"{kh?.CustomMinimumSize.X:0}x{kh?.CustomMinimumSize.Y:0}");
         if (!ok) bad++;
 
+        // ── KitTabStrip IS a TabBar ──
+        var ts = new KitTabStrip { Name = "Tabs" };
+        root.AddChild(ts);
+        var tb = root.GetNodeOrNull<TabBar>("Tabs");
+        ok = tb != null && tb.TabCount == 3;
+        GD.Print($"ts:     {(ok ? "ok  " : "FAIL")} GetNode<TabBar>(\"Tabs\") -> "
+               + $"{tb?.TabCount ?? -1} tabs pushed into TabBar");
+        if (!ok) bad++;
+        int picked = -1;
+        if (tb != null) { tb.TabChanged += i => picked = (int)i; tb.CurrentTab = 2; }
+        ok = picked == 2;
+        GD.Print($"ts:     {(ok ? "ok  " : "FAIL")} TabChanged fired with {picked} via CurrentTab");
+        if (!ok) bad++;
+        ok = tb != null && tb.CustomMinimumSize.Y >= 26f;
+        GD.Print($"ts:     {(ok ? "ok  " : "FAIL")} min height {tb?.CustomMinimumSize.Y:0} "
+               + "(blanking the tab styleboxes must not collapse it)");
+        if (!ok) bad++;
+
         GD.Print($"kb:     {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);
     }

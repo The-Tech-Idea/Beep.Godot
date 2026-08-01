@@ -502,13 +502,14 @@
   },
   "_kit_note": "flat-translucent (art 03): no depth at all",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 1.85,
-      "font": "sans",
-      "upper_case": false,
-      "wobble": 0.0,
-      "corner_panel": 0.12,
-      "grain_amount": 0.05
+    "shadow": "none",
+    "outline_shade": 1.85,
+    "font": "sans",
+    "upper_case": false,
+    "wobble": 0.0,
+    "corner_panel": 0.12,
+    "grain_amount": 0.05,
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

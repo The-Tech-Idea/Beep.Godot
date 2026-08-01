@@ -506,6 +506,7 @@
     "outline_shade": 0.16,
     "wobble": 0.016,
     "corner_panel": 0.3,
-    "text_treatment": "outlined"
+    "text_treatment": "outlined",
+    "gloss_style": "hardband"
   }
 }

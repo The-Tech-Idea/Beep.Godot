@@ -511,8 +511,10 @@
     "upper_case": false,
     "tracking": 0.06,
     "grain": "pattern_41",
-    "grain_amount": 0.10,
+    "grain_amount": 0.1,
     "grain_tiles": 7,
-    "select_slot": "border"
+    "select_slot": "border",
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

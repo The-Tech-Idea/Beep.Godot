@@ -512,6 +512,7 @@
     "grain": "pattern_37",
     "grain_amount": 0.14,
     "select_button": "glow|underline",
-    "text_treatment": "extruded"
+    "text_treatment": "extruded",
+    "gloss_style": "curvedglass"
   }
 }

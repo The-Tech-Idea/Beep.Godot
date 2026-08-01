@@ -510,6 +510,7 @@
     "grain": "pattern_58",
     "grain_amount": 0.16,
     "select_slot": "fill|lift",
-    "gloss_style": "hardband"
+    "gloss_style": "hardband",
+    "text_treatment": "plain"
   }
 }

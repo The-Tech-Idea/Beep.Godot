@@ -502,14 +502,15 @@
   },
   "_kit_note": "papery, fine sheet",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 1.02,
-      "font": "mono",
-      "tracking": 0.05,
-      "corner_panel": 0.06,
-      "grain": "pattern_41",
-      "grain_amount": 0.1,
-      "grain_tiles": 7
+    "shadow": "none",
+    "outline_shade": 1.02,
+    "font": "mono",
+    "tracking": 0.05,
+    "corner_panel": 0.06,
+    "grain": "pattern_41",
+    "grain_amount": 0.1,
+    "grain_tiles": 7,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

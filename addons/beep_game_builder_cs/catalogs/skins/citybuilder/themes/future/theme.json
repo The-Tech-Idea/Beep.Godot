@@ -502,15 +502,16 @@
   },
   "_kit_note": "sci-fi sheets (14/43): sheared, glowing",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 1.9,
-      "font": "condensed",
-      "tracking": 0.1,
-      "shear": 0.06,
-      "corner_bar": 0.02,
-      "grain": "pattern_37",
-      "grain_amount": 0.18,
-      "select_slot": "glow|border"
+    "shadow": "glow",
+    "outline_shade": 1.9,
+    "font": "condensed",
+    "tracking": 0.1,
+    "shear": 0.06,
+    "corner_bar": 0.02,
+    "grain": "pattern_37",
+    "grain_amount": 0.18,
+    "select_slot": "glow|border",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

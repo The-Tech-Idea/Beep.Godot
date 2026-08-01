@@ -510,6 +510,7 @@
     "grain": "pattern_78",
     "grain_amount": 0.16,
     "select_slot": "glow|border",
-    "text_treatment": "engraved"
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

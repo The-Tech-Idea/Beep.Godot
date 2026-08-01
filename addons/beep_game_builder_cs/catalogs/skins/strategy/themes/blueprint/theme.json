@@ -502,15 +502,16 @@
   },
   "_kit_note": "drafting sheet (art 03/04): flat and papery",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 1.02,
-      "font": "mono",
-      "upper_case": false,
-      "tracking": 0.05,
-      "corner_bar": 0.5,
-      "grain": "pattern_41",
-      "grain_amount": 0.1,
-      "grain_tiles": 7
+    "shadow": "none",
+    "outline_shade": 1.02,
+    "font": "mono",
+    "upper_case": false,
+    "tracking": 0.05,
+    "corner_bar": 0.5,
+    "grain": "pattern_41",
+    "grain_amount": 0.1,
+    "grain_tiles": 7,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

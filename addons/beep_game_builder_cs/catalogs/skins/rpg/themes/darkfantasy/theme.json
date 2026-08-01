@@ -509,6 +509,7 @@
     "grain": "pattern_50",
     "grain_amount": 0.34,
     "grain_tiles": 4,
-    "text_treatment": "engraved"
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

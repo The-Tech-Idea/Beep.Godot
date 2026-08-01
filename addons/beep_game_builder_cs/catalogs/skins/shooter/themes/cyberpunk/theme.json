@@ -2,7 +2,7 @@
   "id": "cyberpunk",
   "display_name": "Cyberpunk",
   "category": "SciFi",
-  "description": "Rain-slick neon dystopian UI — dark void surface, neon pink accent, cyan glow border, angular corners",
+  "description": "Rain-slick neon dystopian UI \u2014 dark void surface, neon pink accent, cyan glow border, angular corners",
   "colors": {
     "surface_primary": "#0D0D1AFF",
     "surface_hover": "#1A0D26FF",
@@ -502,11 +502,12 @@
   },
   "_kit_note": "art 43: sheared, glowing, wide tracking",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 2.05,
-      "tracking": 0.18,
-      "shear": 0.14,
-      "select_panel": "glow|border"
+    "shadow": "glow",
+    "outline_shade": 2.05,
+    "tracking": 0.18,
+    "shear": 0.14,
+    "select_panel": "glow|border",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

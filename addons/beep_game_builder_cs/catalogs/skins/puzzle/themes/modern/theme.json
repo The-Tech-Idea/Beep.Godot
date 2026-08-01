@@ -502,13 +502,14 @@
   },
   "_kit_note": "flat neutral",
   "kit": {
-  
-      "shadow": "none",
-      "outline_shade": 1.4,
-      "font": "sans",
-      "upper_case": false,
-      "wobble": 0.0,
-      "corner_panel": 0.1,
-      "grain_amount": 0.05
+    "shadow": "none",
+    "outline_shade": 1.4,
+    "font": "sans",
+    "upper_case": false,
+    "wobble": 0.0,
+    "corner_panel": 0.1,
+    "grain_amount": 0.05,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

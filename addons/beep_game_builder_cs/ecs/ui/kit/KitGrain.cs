@@ -63,7 +63,11 @@ namespace Beep.ECS.UI.Kit
                 pattern,
                 g.GrainAmount >= 0f ? g.GrainAmount : (has ? def.Amount : 0.3f),
                 g.GrainTiles > 0 ? g.GrainTiles : (has ? def.Tiles : 2),
-                has ? def.Material : "theme");
+                // The table's material NAME describes the table's PATTERN. Once a theme
+                // overrides the pattern the name no longer applies -- citybuilder/blueprint
+                // reported "pattern_41 (stone)" while pattern_41 is graph paper, and that string
+                // is shown in the style showcase. A wrong label is worse than no label.
+                g.GrainPattern.Length > 0 ? "theme" : (has ? def.Material : "theme"));
         }
 
         /// <summary>The mask texture for a genre. Null (with ONE warning) when the file is

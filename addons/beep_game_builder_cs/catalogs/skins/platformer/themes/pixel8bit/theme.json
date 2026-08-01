@@ -514,6 +514,8 @@
     "corner_chip": 0.0,
     "grain_amount": 0.0,
     "register": "pixel",
-    "pixel_size": 3
+    "pixel_size": 3,
+    "text_treatment": "outlined",
+    "gloss_style": "hardband"
   }
 }

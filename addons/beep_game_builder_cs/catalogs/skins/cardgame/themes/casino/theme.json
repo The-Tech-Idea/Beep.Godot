@@ -502,12 +502,13 @@
   },
   "_kit_note": "felt table: heavy weave, gold rim",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 2.0,
-      "grain": "pattern_57",
-      "grain_amount": 0.26,
-      "grain_tiles": 6,
-      "select_slot": "border|lift"
+    "shadow": "soft",
+    "outline_shade": 2.0,
+    "grain": "pattern_57",
+    "grain_amount": 0.26,
+    "grain_tiles": 6,
+    "select_slot": "border|lift",
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

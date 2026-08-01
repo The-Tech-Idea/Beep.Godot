@@ -2,7 +2,7 @@
   "id": "toxic",
   "display_name": "Toxic",
   "category": "Aesthetic",
-  "description": "Nuclear / biohazard / slime UI — sludge dark green surface, toxic neon green accent, oozing border, green glow shadow",
+  "description": "Nuclear / biohazard / slime UI \u2014 sludge dark green surface, toxic neon green accent, oozing border, green glow shadow",
   "colors": {
     "surface_primary": "#1A290AFF",
     "surface_hover": "#263D0FFF",
@@ -502,12 +502,13 @@
   },
   "_kit_note": "glow as hazard, on plate",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 1.7,
-      "shear": 0.12,
-      "grain": "pattern_08",
-      "grain_amount": 0.22,
-      "select_button": "glow|fill"
+    "shadow": "glow",
+    "outline_shade": 1.7,
+    "shear": 0.12,
+    "grain": "pattern_08",
+    "grain_amount": 0.22,
+    "select_button": "glow|fill",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

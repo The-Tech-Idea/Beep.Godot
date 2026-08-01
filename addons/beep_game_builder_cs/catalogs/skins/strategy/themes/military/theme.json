@@ -502,12 +502,13 @@
   },
   "_kit_note": "leather map case, square",
   "kit": {
-  
-      "shadow": "hard",
-      "outline_shade": 1.3,
-      "corner": 0.0,
-      "corner_panel": 0.0,
-      "grain": "pattern_49",
-      "grain_amount": 0.26
+    "shadow": "hard",
+    "outline_shade": 1.3,
+    "corner": 0.0,
+    "corner_panel": 0.0,
+    "grain": "pattern_49",
+    "grain_amount": 0.26,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

@@ -510,6 +510,8 @@
     "grain": "pattern_08",
     "grain_amount": 0.2,
     "grain_tiles": 7,
-    "edge_run": "none"
+    "edge_run": "none",
+    "text_treatment": "outlined",
+    "gloss_style": "hardband"
   }
 }

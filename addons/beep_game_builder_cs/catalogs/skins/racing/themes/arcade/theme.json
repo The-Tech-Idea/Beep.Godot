@@ -507,6 +507,7 @@
     "tracking": 0.14,
     "wobble": 0.0,
     "select_button": "fill|glow",
-    "gloss_style": "curvedglass"
+    "gloss_style": "curvedglass",
+    "text_treatment": "plain"
   }
 }

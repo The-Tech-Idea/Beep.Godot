@@ -509,6 +509,7 @@
     "corner_panel": 0.2,
     "grain": "pattern_19",
     "grain_amount": 0.22,
-    "gloss_style": "curvedglass"
+    "gloss_style": "curvedglass",
+    "text_treatment": "engraved"
   }
 }

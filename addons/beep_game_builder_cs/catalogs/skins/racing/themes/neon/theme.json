@@ -502,11 +502,12 @@
   },
   "_kit_note": "art 07: thin letter-spaced caps, max shear",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 2.05,
-      "tracking": 0.16,
-      "shear": 0.2,
-      "select_panel": "glow|border"
+    "shadow": "glow",
+    "outline_shade": 2.05,
+    "tracking": 0.16,
+    "shear": 0.2,
+    "select_panel": "glow|border",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

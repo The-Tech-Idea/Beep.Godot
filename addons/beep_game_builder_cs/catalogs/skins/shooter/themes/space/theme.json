@@ -569,6 +569,8 @@
           "fill": "gap"
         }
       ]
-    }
+    },
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

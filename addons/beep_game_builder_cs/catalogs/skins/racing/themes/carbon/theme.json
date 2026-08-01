@@ -502,12 +502,13 @@
   },
   "_kit_note": "diamond plate, slab depth",
   "kit": {
-  
-      "shadow": "extrude",
-      "outline_shade": 1.2,
-      "shear": 0.1,
-      "grain": "pattern_08",
-      "grain_amount": 0.28,
-      "grain_tiles": 6
+    "shadow": "extrude",
+    "outline_shade": 1.2,
+    "shear": 0.1,
+    "grain": "pattern_08",
+    "grain_amount": 0.28,
+    "grain_tiles": 6,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

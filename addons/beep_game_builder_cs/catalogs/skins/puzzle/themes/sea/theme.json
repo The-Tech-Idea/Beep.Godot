@@ -508,6 +508,7 @@
     "grain": "pattern_19",
     "grain_amount": 0.2,
     "select_slot": "glow|border",
-    "gloss_style": "curvedglass"
+    "gloss_style": "curvedglass",
+    "text_treatment": "plain"
   }
 }

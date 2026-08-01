@@ -502,13 +502,14 @@
   },
   "_kit_note": "art 13: wood-parchment, torn log frame",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 1.8,
-      "corner": 0.14,
-      "grain": "pattern_50",
-      "grain_amount": 0.32,
-      "grain_tiles": 3,
-      "select_slot": "border|lift"
+    "shadow": "soft",
+    "outline_shade": 1.8,
+    "corner": 0.14,
+    "grain": "pattern_50",
+    "grain_amount": 0.32,
+    "grain_tiles": 3,
+    "select_slot": "border|lift",
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

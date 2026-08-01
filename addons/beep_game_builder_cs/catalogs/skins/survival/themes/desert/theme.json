@@ -507,6 +507,7 @@
     "corner": 0.1,
     "grain": "pattern_78",
     "grain_amount": 0.14,
-    "text_treatment": "engraved"
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

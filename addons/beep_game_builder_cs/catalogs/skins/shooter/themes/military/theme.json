@@ -2,7 +2,7 @@
   "id": "military",
   "display_name": "Military",
   "category": "Genre",
-  "description": "Tactical / camo UI — olive drab surface, khaki brass accent, sharp square corners, hard utilitarian shadow",
+  "description": "Tactical / camo UI \u2014 olive drab surface, khaki brass accent, sharp square corners, hard utilitarian shadow",
   "colors": {
     "surface_primary": "#4A4D3DFF",
     "surface_hover": "#595C4AFF",
@@ -502,14 +502,15 @@
   },
   "_kit_note": "no shear, square, plate",
   "kit": {
-  
-      "shadow": "hard",
-      "outline_shade": 1.2,
-      "shear": 0.0,
-      "corner": 0.0,
-      "corner_panel": 0.0,
-      "corner_slot": 0.0,
-      "grain": "pattern_08",
-      "grain_amount": 0.24
+    "shadow": "hard",
+    "outline_shade": 1.2,
+    "shear": 0.0,
+    "corner": 0.0,
+    "corner_panel": 0.0,
+    "corner_slot": 0.0,
+    "grain": "pattern_08",
+    "grain_amount": 0.24,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

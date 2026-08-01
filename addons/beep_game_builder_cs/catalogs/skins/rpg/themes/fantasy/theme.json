@@ -502,11 +502,12 @@
   },
   "_kit_note": "art 11 ornate: the register the genre is built on",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 1.9,
-      "grain": "pattern_50",
-      "grain_amount": 0.3,
-      "select_slot": "border|lift"
+    "shadow": "soft",
+    "outline_shade": 1.9,
+    "grain": "pattern_50",
+    "grain_amount": 0.3,
+    "select_slot": "border|lift",
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

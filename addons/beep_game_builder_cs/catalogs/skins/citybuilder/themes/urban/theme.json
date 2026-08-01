@@ -510,6 +510,7 @@
     "font": "condensed",
     "upper_case": true,
     "select_slot": "border|glow",
-    "text_treatment": "engraved"
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

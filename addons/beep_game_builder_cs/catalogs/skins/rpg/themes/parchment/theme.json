@@ -502,14 +502,15 @@
   },
   "_kit_note": "papery/typewriter (art 45)",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 1.1,
-      "font": "mono",
-      "tracking": 0.03,
-      "corner_panel": 0.06,
-      "grain": "pattern_41",
-      "grain_amount": 0.11,
-      "grain_tiles": 6
+    "shadow": "soft",
+    "outline_shade": 1.1,
+    "font": "mono",
+    "tracking": 0.03,
+    "corner_panel": 0.06,
+    "grain": "pattern_41",
+    "grain_amount": 0.11,
+    "grain_tiles": 6,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

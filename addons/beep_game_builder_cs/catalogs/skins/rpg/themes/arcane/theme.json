@@ -502,12 +502,13 @@
   },
   "_kit_note": "gothic: blackletter is a KNOWN CC0 gap and warns",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 2.0,
-      "font": "blackletter",
-      "grain": "pattern_78",
-      "grain_amount": 0.16,
-      "select_slot": "glow|border"
+    "shadow": "glow",
+    "outline_shade": 2.0,
+    "font": "blackletter",
+    "grain": "pattern_78",
+    "grain_amount": 0.16,
+    "select_slot": "glow|border",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

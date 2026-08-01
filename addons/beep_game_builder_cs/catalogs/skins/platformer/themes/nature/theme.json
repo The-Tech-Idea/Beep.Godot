@@ -502,11 +502,12 @@
   },
   "_kit_note": "glossy leaf",
   "kit": {
-  
-      "shadow": "soft",
-      "wobble": 0.014,
-      "font": "rounded",
-      "grain": "pattern_19",
-      "grain_amount": 0.22
+    "shadow": "soft",
+    "wobble": 0.014,
+    "font": "rounded",
+    "grain": "pattern_19",
+    "grain_amount": 0.22,
+    "text_treatment": "plain",
+    "gloss_style": "linear"
   }
 }

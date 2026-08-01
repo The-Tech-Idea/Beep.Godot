@@ -502,14 +502,15 @@
   },
   "_kit_note": "glow, fine frost, sans",
   "kit": {
-  
-      "shadow": "glow",
-      "outline_shade": 2.0,
-      "font": "sans",
-      "corner": 0.12,
-      "grain": "pattern_41",
-      "grain_amount": 0.08,
-      "grain_tiles": 8,
-      "select_slot": "glow|border"
+    "shadow": "glow",
+    "outline_shade": 2.0,
+    "font": "sans",
+    "corner": 0.12,
+    "grain": "pattern_41",
+    "grain_amount": 0.08,
+    "grain_tiles": 8,
+    "select_slot": "glow|border",
+    "text_treatment": "plain",
+    "gloss_style": "curvedglass"
   }
 }

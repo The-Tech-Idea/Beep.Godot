@@ -502,13 +502,14 @@
   },
   "_kit_note": "living surface (art 22/28 foliage)",
   "kit": {
-  
-      "shadow": "soft",
-      "outline_shade": 1.6,
-      "font": "rounded",
-      "upper_case": false,
-      "corner_panel": 0.22,
-      "grain": "pattern_19",
-      "grain_amount": 0.2
+    "shadow": "soft",
+    "outline_shade": 1.6,
+    "font": "rounded",
+    "upper_case": false,
+    "corner_panel": 0.22,
+    "grain": "pattern_19",
+    "grain_amount": 0.2,
+    "text_treatment": "engraved",
+    "gloss_style": "linear"
   }
 }

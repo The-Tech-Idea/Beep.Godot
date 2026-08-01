@@ -367,11 +367,14 @@ fi
 #   check_control_layout     a Control NOT inside a Container must carry anchors/offsets, or it
 #                            sits at (0,0) and drifts with the viewport -- right at the size it
 #                            was authored in, wrong at every other one
+#   check_genre_weather      a genre main instances atmosphere.tscn IFF its genre.json declares
+#                            enable_weather. Both halves are individually valid, so nothing else
+#                            can see them disagree
 #   check_control_layout     a Control not inside a Container must carry anchors/offsets, or it
 #                            sits at (0,0) and moves with the viewport -- correct at the
 #                            resolution it was authored in, colliding at every other one
 ROOT="../../../.."
-for check in check_script_node_types check_text_treatment check_control_layout; do
+for check in check_script_node_types check_text_treatment check_control_layout check_genre_weather; do
   if [ -f "$ROOT/tools/$check.py" ]; then
     echo "--- $check ---"
     if (cd "$ROOT" && python "tools/$check.py" >/tmp/beep_$check.out 2>&1); then

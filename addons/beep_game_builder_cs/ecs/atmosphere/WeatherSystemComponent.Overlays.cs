@@ -46,6 +46,20 @@ uniform bool  use_cloud_tex = false;
 // fewer clouds; higher = smaller, denser. Only used when use_cloud_tex is on.
 uniform float tex_scale = 1.0;
 
+// TWO SAMPLED NOISE FIELDS, scrolled at different speeds and MULTIPLIED.
+//
+// The old path built its field from fract(sin(dot(p,...))) FBM. That hash loses floating-point
+// precision as p grows -- and world_offset feeds it camera position, so p grows without bound --
+// which is what broke the sky into hard square blocks. No amount of octaves fixes a hash that has
+// run out of mantissa.
+//
+// Sampling real NoiseTexture2Ds has no such limit, and multiplying two fields drifting at
+// different rates is what makes the result morph rather than pan rigidly: neither layer alone
+// looks like weather, and their product never repeats on either period.
+uniform sampler2D noise_a : repeat_enable, filter_linear;
+uniform sampler2D noise_b : repeat_enable, filter_linear;
+uniform float softness = 0.58;
+
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float noise(vec2 p){
     vec2 i = floor(p), f = fract(p);
@@ -72,16 +86,22 @@ float density(vec2 p, vec2 dir){
         // source and wants the layered treatment; a cloud texture is art.)
         return texture(cloud_tex, p * tex_scale).r;
     }
-    float n1 = fbm(p);
-    float n2 = fbm(p * 1.8 + vec2(5.2, 1.3) + dir * scroll * speed * 1.4);
-    return n1 * 0.6 + n2 * 0.4;
+    // filter_linear, not nearest -- nearest is exactly how a noise texture becomes visible
+    // squares, and it is the default that catches people out.
+    float n1 = texture(noise_a, p * 0.55 + dir * scroll * speed * 0.6).r;
+    float n2 = texture(noise_b, p * 0.36 - dir * scroll * speed * 0.35).r;
+    return n1 * n2;
 }
 
 void fragment(){
     vec2 dir = vec2(cos(wind_dir), sin(wind_dir));
     vec2 p = (UV + world_offset) * 4.0 + dir * scroll * speed;
 
-    float clouds = smoothstep(1.0 - coverage, 1.0 - coverage * 0.4, density(p, dir));
+    // Multiplying two 0..1 fields biases the result low, so the threshold tracks coverage
+    // directly and `softness` widens the ramp -- a hard step is the other way a cloud edge
+    // turns into a staircase.
+    float t = mix(0.42, 0.10, coverage);
+    float clouds = smoothstep(t, t + softness, density(p, dir));
 
     COLOR = vec4(cloud_col.rgb, clouds * cloud_col.a);
 }
@@ -109,6 +129,20 @@ uniform bool  use_cloud_tex = false;
 // fewer clouds; higher = smaller, denser. Only used when use_cloud_tex is on.
 uniform float tex_scale = 1.0;
 
+// TWO SAMPLED NOISE FIELDS, scrolled at different speeds and MULTIPLIED.
+//
+// The old path built its field from fract(sin(dot(p,...))) FBM. That hash loses floating-point
+// precision as p grows -- and world_offset feeds it camera position, so p grows without bound --
+// which is what broke the sky into hard square blocks. No amount of octaves fixes a hash that has
+// run out of mantissa.
+//
+// Sampling real NoiseTexture2Ds has no such limit, and multiplying two fields drifting at
+// different rates is what makes the result morph rather than pan rigidly: neither layer alone
+// looks like weather, and their product never repeats on either period.
+uniform sampler2D noise_a : repeat_enable, filter_linear;
+uniform sampler2D noise_b : repeat_enable, filter_linear;
+uniform float softness = 0.58;
+
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float noise(vec2 p){
     vec2 i = floor(p), f = fract(p);
@@ -129,9 +163,11 @@ float density(vec2 p, vec2 dir){
         // across scales the way the procedural noise is.
         return texture(cloud_tex, p * tex_scale).r;
     }
-    float n1 = fbm(p);
-    float n2 = fbm(p * 1.8 + vec2(5.2, 1.3) + dir * scroll * speed * 1.4);
-    return n1 * 0.6 + n2 * 0.4;
+    // filter_linear, not nearest -- nearest is exactly how a noise texture becomes visible
+    // squares, and it is the default that catches people out.
+    float n1 = texture(noise_a, p * 0.55 + dir * scroll * speed * 0.6).r;
+    float n2 = texture(noise_b, p * 0.36 - dir * scroll * speed * 0.35).r;
+    return n1 * n2;
 }
 
 void fragment(){
@@ -141,7 +177,11 @@ void fragment(){
     // ground as the camera moves and only drift with the wind.
     vec2 p = (UV + world_offset) * 4.0 + dir * scroll * speed + vec2(0.15, 0.08);
 
-    float clouds = smoothstep(1.0 - coverage, 1.0 - coverage * 0.4, density(p, dir));
+    // Multiplying two 0..1 fields biases the result low, so the threshold tracks coverage
+    // directly and `softness` widens the ramp -- a hard step is the other way a cloud edge
+    // turns into a staircase.
+    float t = mix(0.42, 0.10, coverage);
+    float clouds = smoothstep(t, t + softness, density(p, dir));
 
     COLOR = vec4(shadow_col.rgb, clouds * shadow_col.a);
 }
@@ -296,7 +336,61 @@ void fragment(){
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>Called every frame by the main _Process to animate cloud drift.</summary>
+        private static NoiseTexture2D? _noiseA, _noiseB;
+
+        /// <summary>
+        /// The two noise fields the cloud shaders sample. Built once and shared.
+        ///
+        /// SEAMLESS because they are scrolled: a non-tiling field shows a seam sweeping across the
+        /// sky. DIFFERENT SEEDS because two identical fields multiplied just square themselves --
+        /// the whole point is that they drift out of phase. And 512 rather than the fog's 256,
+        /// because clouds are looked AT while fog is looked through.
+        /// </summary>
+        private static void BindNoise(ShaderMaterial mat)
+        {
+            _noiseA ??= MakeNoise(1337, 0.004f);
+            _noiseB ??= MakeNoise(8891, 0.0026f);
+            if (mat.GetShaderParameter("noise_a").VariantType == Variant.Type.Nil)
+                mat.SetShaderParameter("noise_a", _noiseA);
+            if (mat.GetShaderParameter("noise_b").VariantType == Variant.Type.Nil)
+                mat.SetShaderParameter("noise_b", _noiseB);
+        }
+
+        private static NoiseTexture2D MakeNoise(int seed, float freq) => new()
+        {
+            Width = 512,
+            Height = 512,
+            Seamless = true,
+            Noise = new FastNoiseLite
+            {
+                NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth,
+                Seed = seed,
+                Frequency = freq,
+                FractalOctaves = 4,
+            },
+        };
+
         private CloudSpriteLayer? _spriteClouds;
+        private static readonly System.Collections.Generic.List<Texture2D> _defaultCloudSprites = new();
+
+        private static Texture2D[] DefaultCloudSprites()
+        {
+            if (_defaultCloudSprites.Count > 0) return _defaultCloudSprites.ToArray();
+            string[] picks =
+            {
+                "white_cloud_shape1_1.png", "white_cloud_shape1_2.png", "white_cloud_shape1_4.png",
+                "white_cloud_shape3_1.png", "white_cloud_shape3_2.png", "white_cloud_shape3_4.png",
+                "white_cloud_shape5_1.png", "white_cloud_shape5_2.png", "white_cloud_shape5_4.png",
+                "white_cloud_shape7_1.png", "white_cloud_shape7_2.png", "white_cloud_shape7_4.png",
+            };
+            foreach (string file in picks)
+            {
+                string path = $"res://addons/beep_game_builder_cs/textures/clouds/{file}";
+                if (ResourceLoader.Exists(path) && GD.Load<Texture2D>(path) is { } tex)
+                    _defaultCloudSprites.Add(tex);
+            }
+            return _defaultCloudSprites.ToArray();
+        }
 
         /// <summary>Create the sprite layer on demand, once, and only when it is asked for.</summary>
         private void EnsureSpriteClouds()
@@ -304,14 +398,15 @@ void fragment(){
             if (CloudMode != CloudRender.Sprites || _spriteClouds != null) return;
             if (_overlayLayer == null) return;
 
+            Texture2D[] sprites = CloudSprites.Length > 0 ? CloudSprites : DefaultCloudSprites();
             _spriteClouds = new CloudSpriteLayer
             {
                 Name = "SpriteClouds",
-                Sprites = CloudSprites,
+                Sprites = sprites,
                 Field = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1280, 720),
             };
             _overlayLayer.AddChild(_spriteClouds);
-            if (CloudSprites.Length == 0)
+            if (sprites.Length == 0)
                 GD.PushWarning($"[{Name}] CloudMode is Sprites but CloudSprites is empty, so no "
                              + "clouds will draw. Assign textures (the addon ships a set under "
                              + "textures/clouds/), or use CloudMode.Procedural.");
@@ -320,16 +415,36 @@ void fragment(){
         /// <summary>Cloud tint for the current weather: white in fair cover, grey overcast,
         /// near-black under storm. The shipped sprite set is drawn in exactly those three tones,
         /// which is what makes tinting a fair substitute for swapping the art.</summary>
-        private Color CloudTintForWeather() => CurrentWeather switch
+        private Color CloudTintForWeather()
         {
-            WeatherType.Storm => new Color(0.42f, 0.44f, 0.50f),
-            WeatherType.Rain or WeatherType.Snow => new Color(0.66f, 0.68f, 0.74f),
-            _ => new Color(0.96f, 0.96f, 0.98f),
-        };
+            // Weather first: fair cover is near-white, rain and snow grey, storm near-black. The
+            // shipped sprite set is drawn in exactly those three tones, which is what makes
+            // tinting a fair substitute for swapping the art.
+            Color c = CurrentWeather switch
+            {
+                WeatherType.Storm => new Color(0.42f, 0.44f, 0.50f),
+                WeatherType.Rain or WeatherType.Snow => new Color(0.66f, 0.68f, 0.74f),
+                _ => new Color(0.96f, 0.96f, 0.98f),
+            };
+
+            // THEN THE TIME OF DAY. Sprite clouds live on a CanvasLayer, which the world's
+            // CanvasModulate does not reach -- so without this they stay bright white at midnight
+            // over a world that has gone dark, which is the single most obvious way a sky can look
+            // wrong. Multiplying by the composed ambient makes them darken with everything else,
+            // and it stacks with the weather tint rather than replacing it: a storm at night is
+            // darker than either alone.
+            if (_ambient is { } amb)
+            {
+                Color a = amb.CurrentTint;
+                c = new Color(c.R * a.R, c.G * a.G, c.B * a.B, c.A);
+            }
+            return c;
+        }
 
         private void ProcessClouds(double delta)
         {
             if (_cloudMat == null && _cloudShadowMat == null) return;
+            WeatherViewMode view = EffectiveViewMode();
 
             // Keep wind direction in sync with the WindForce vector the main file mutates.
             if (WindForce != Vector2.Zero)
@@ -346,9 +461,9 @@ void fragment(){
             // Skip the fullscreen 5-octave FBM cloud fragment shader entirely when nothing shows
             // (Clear weather) — a visible ColorRect with a material runs its fragment every frame
             // regardless of whether we update its params. This is the system's most expensive draw.
-            // THE MODE DECIDES which cloud layer is live. Procedural keeps the density field;
-            // Sprites hands over to CloudSpriteLayer and hides the field so the two do not stack
-            // into soup; None hides both and leaves only the tint and the precipitation.
+            // THE MODE DECIDES which cloud layer is live. Procedural keeps the density field and
+            // its dapple shadow. Sprites hands over the whole cloud presentation to
+            // CloudSpriteLayer, so both fullscreen procedural layers stay hidden.
             bool wantField = CloudMode == CloudRender.Procedural;
             if (_cloudOverlay != null)
                 _cloudOverlay.Visible = wantField && _cloudAlphaCurrent > 0.001f;
@@ -361,11 +476,18 @@ void fragment(){
                 {
                     // The sprite layer takes the same cover and tint the field would have, so
                     // switching technique changes the LOOK and not the weather.
+                    _spriteClouds.Field = GetViewport()?.GetVisibleRect().Size ?? _spriteClouds.Field;
                     _spriteClouds.Opacity = _cloudAlphaCurrent;
                     _spriteClouds.Tint = CloudTintForWeather();
+                    _spriteClouds.WindDirection = WindForce.LengthSquared() > 0.0001f
+                        ? new Vector2(WindForce.X, IsTopDownLike(view) ? WindForce.Y : 0f)
+                        : PrevailingWind;
+                    _spriteClouds.DriftSpeed = Mathf.Lerp(10f, 46f,
+                        Mathf.Clamp(WindForce.Length() / Mathf.Max(0.01f, MaxWindMagnitude), 0f, 1f));
                 }
             }
-            if (_cloudShadowOverlay != null) _cloudShadowOverlay.Visible = _cloudShadowAlphaCurrent > 0.001f;
+            if (_cloudShadowOverlay != null)
+                _cloudShadowOverlay.Visible = wantField && _cloudShadowAlphaCurrent > 0.001f;
 
             // Camera position in screen-widths. The overlays are screen-space, so this is
             // what keeps the pattern tied to the world instead of to the viewport.
@@ -378,6 +500,7 @@ void fragment(){
             {
                 _cloudMat.SetShaderParameter("scroll", _cloudScroll);
                 _cloudMat.SetShaderParameter("wind_dir", _windDirectionRad);
+                BindNoise(_cloudMat);
                 _cloudMat.SetShaderParameter("coverage", _cloudAlphaCurrent);
                 _cloudMat.SetShaderParameter("speed", CloudDriftSpeed);
                 _cloudMat.SetShaderParameter("cloud_col", CloudColor);
@@ -388,6 +511,7 @@ void fragment(){
             {
                 _cloudShadowMat.SetShaderParameter("scroll", _cloudScroll);
                 _cloudShadowMat.SetShaderParameter("wind_dir", _windDirectionRad);
+                BindNoise(_cloudShadowMat);
                 _cloudShadowMat.SetShaderParameter("coverage", _cloudShadowAlphaCurrent);
                 _cloudShadowMat.SetShaderParameter("speed", CloudDriftSpeed);
                 _cloudShadowMat.SetShaderParameter("shadow_col", CloudShadowColor);
@@ -401,21 +525,26 @@ void fragment(){
             // Modulate alpha via the ColorRect modulate so unused weather hides them.
             if (_cloudOverlay != null)
             {
-                // THE CLOUDS THEMSELVES are a SIDE-ON sight: you are looking at the sky, so the
-                // cloud layer carries the weather. From above you are looking at the GROUND —
-                // the cloud plane is between the camera and the world, so showing it at full
-                // strength just fogs the playfield. Halved here and the shadow raised below, so
-                // the same weather reads correctly from either camera instead of identically
-                // from both.
-                float cloudMul = TopDownView ? 0.45f : 1f;
+                float cloudMul = view switch
+                {
+                    WeatherViewMode.Side => 1.0f,
+                    WeatherViewMode.Isometric => 0.32f,
+                    WeatherViewMode.CityBuilder => 0.18f,
+                    WeatherViewMode.RpgTopDown => 0.36f,
+                    _ => 0.45f,
+                };
                 _cloudOverlay.Modulate = new Color(1, 1, 1, _cloudAlphaCurrent * cloudMul);
             }
             if (_cloudShadowOverlay != null)
             {
-                // CLOUD SHADOWS are the top-down sight: dapple moving across terrain you can see
-                // all of. In a side view there is no ground plane in frame for them to fall on,
-                // so they read as an unexplained darkening and are pulled right back.
-                float shadowMul = TopDownView ? 1.35f : 0.35f;
+                float shadowMul = view switch
+                {
+                    WeatherViewMode.Side => 0.25f,
+                    WeatherViewMode.Isometric => 1.1f,
+                    WeatherViewMode.CityBuilder => 0.75f,
+                    WeatherViewMode.RpgTopDown => 1.0f,
+                    _ => 1.35f,
+                };
                 _cloudShadowOverlay.Modulate = new Color(
                     1, 1, 1, _cloudShadowAlphaCurrent * CloudShadowStrength * shadowMul);
             }

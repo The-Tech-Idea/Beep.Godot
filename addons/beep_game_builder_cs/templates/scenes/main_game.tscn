@@ -1,0 +1,88 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/MainGameComponent.cs" id="1_main"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="2_flow"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="3_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="4_binder"]
+
+[node name="MainGame" type="Node"]
+process_mode = 3
+script = ExtResource("1_main")
+
+[node name="Systems" type="Node" parent="."]
+process_mode = 3
+
+[node name="GameFlow" type="Node" parent="Systems"]
+process_mode = 3
+script = ExtResource("2_flow")
+
+[node name="World" type="Node2D" parent="."]
+process_mode = 1
+
+[node name="LevelRoot" type="Node2D" parent="World"]
+unique_name_in_owner = true
+
+[node name="EntityRoot" type="Node2D" parent="World"]
+unique_name_in_owner = true
+
+[node name="EffectRoot" type="Node2D" parent="World"]
+unique_name_in_owner = true
+
+[node name="HudLayer" type="CanvasLayer" parent="."]
+process_mode = 1
+layer = 10
+
+[node name="HudRoot" type="Control" parent="HudLayer"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Theme" type="Node" parent="HudLayer/HudRoot"]
+script = ExtResource("3_theme")
+HudMode = true
+
+[node name="GameInfoBinder" type="Node" parent="HudLayer/HudRoot"]
+script = ExtResource("4_binder")
+ThemeComponentPath = NodePath("Theme")
+
+[node name="PauseLayer" type="CanvasLayer" parent="."]
+process_mode = 2
+layer = 20
+
+[node name="PauseRoot" type="Control" parent="PauseLayer"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TransitionLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+layer = 100
+
+[node name="TransitionRoot" type="Control" parent="TransitionLayer"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DebugLayer" type="CanvasLayer" parent="."]
+process_mode = 3
+layer = 128
+
+[node name="DebugRoot" type="Control" parent="DebugLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

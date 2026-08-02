@@ -499,6 +499,8 @@ public partial class BeepGameBuilderDock : VBoxContainer
     /// nothing embedded in it can be tested headlessly. The dock formats; the helper decides.</summary>
     private void CheckSceneDrift()
     {
+        foreach (string line in BeepSceneTemplateAudit.Describe(BeepSceneTemplateAudit.AuditAll()))
+            Log(line);
         foreach (string line in BeepSceneDrift.Describe(BeepSceneDrift.Compare()))
             Log(line);
     }

@@ -25,7 +25,8 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitIconButton : Button
     {
-        private Texture2D? Icon;
+        [Export] public Texture2D? ButtonIcon { get => _icon; set { _icon = value; QueueRedraw(); } }
+        private Texture2D? _icon;
 
         /// <summary>Fallback glyph when no texture is supplied, so the button is never blank.</summary>
         [Export] public string Glyph { get => _glyph; set { _glyph = value ?? ""; QueueRedraw(); } }
@@ -71,6 +72,8 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            Suppress();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -128,19 +131,21 @@ namespace Beep.ECS.UI.Kit
             var box = new Rect2(plate.Position + new Vector2((s - gs) * 0.5f, (s - gs) * 0.5f),
                                 new Vector2(gs, gs));
 
-            if (Icon != null)
+            Texture2D? icon = _icon ?? Icon;
+            if (icon != null)
             {
                 Color mod = Colors.White;
                 if (State == KitState.Disabled) mod = new Color(0.72f, 0.72f, 0.72f, 0.9f);
                 else if (State == KitState.Locked) mod = new Color(0.12f, 0.12f, 0.14f, 1f);
-                DrawTextureRect(Icon, box, false, mod);
+                DrawTextureRect(icon, box, false, mod);
             }
             else if (!string.IsNullOrEmpty(_glyph))
             {
                 var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
-                    int size = Mathf.Max(8, Mathf.RoundToInt(gs));
+                    int size = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                                 new Vector2(gs, gs), _glyph, font, min: 8);
                     Vector2 m = font.GetStringSize(_glyph, HorizontalAlignment.Left, -1, size);
                     Color col = UiSurface.Text(this);
                     if (State == KitState.Locked) col = new Color(0.12f, 0.12f, 0.14f, 1f);
@@ -156,7 +161,9 @@ namespace Beep.ECS.UI.Kit
                 var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
-                    int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.66f));
+                    int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                                  new Vector2(s * 0.86f, s * 0.22f),
+                                                  _req, font, min: 7);
                     Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
                     KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.End.Y - small * 0.25f),
                                _req, small, UiSurface.Text(this));

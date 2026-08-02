@@ -89,7 +89,7 @@ namespace Beep.ECS.UI
         /// <summary>Value text size as a multiple of the theme's body font. A readout is
         /// slightly larger than body text; it is NOT a fixed 17px, because the themes run from
         /// 14 to 24 and a fixed size renders 24pt text out of a plate built for 17.</summary>
-        [Export(PropertyHint.Range, "0.5,3.0,0.05")] public float FontScale { get; set; } = 1.2f;
+        [Export(PropertyHint.Range, "0.5,3.0,0.05")] public float FontScale { get; set; } = 1.18f;
 
         /// <summary>Resolved value-text size for this draw.</summary>
         private int FontSize => UiSurface.FontSize(this, FontScale);
@@ -173,14 +173,18 @@ namespace Beep.ECS.UI
             if (font != null && !string.IsNullOrEmpty(_value))
             {
                 float pad = plateH * 0.45f;
-                float textW = font.GetStringSize(_value, HorizontalAlignment.Left, -1, FontSize).X;
+                float textAreaW = Mathf.Max(1f, plateRect.Size.X - pad * 2f - d * 0.18f);
+                int fs = UiSurface.FitText(this, new Vector2(textAreaW, plateH), 0.58f,
+                                           _value, font, min: 7, themeMax: FontScale);
+                float textW = font.GetStringSize(_value, HorizontalAlignment.Left, -1, fs).X;
                 float x = plateRect.Position.X + plateRect.Size.X - pad - textW;
-                float y = plateRect.Position.Y + plateRect.Size.Y * 0.5f + FontSize * 0.36f;
+                x = Mathf.Max(plateRect.Position.X + pad + d * 0.08f, x);
+                float y = plateRect.Position.Y + plateRect.Size.Y * 0.5f + fs * 0.36f;
                 // Outline first so the number stays legible over any fill or world behind it.
                 DrawString(font, new Vector2(x, y), _value, HorizontalAlignment.Left, -1,
-                           FontSize, new Color(0, 0, 0, 0.85f));
+                           fs, new Color(0, 0, 0, 0.85f));
                 DrawString(font, new Vector2(x - 1, y - 1), _value, HorizontalAlignment.Left, -1,
-                           FontSize, _text);
+                           fs, _text);
             }
 
             // Icon frame LAST so it sits on top of the plate it overhangs — that overlap is what

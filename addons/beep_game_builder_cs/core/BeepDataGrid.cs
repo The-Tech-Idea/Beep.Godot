@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Beep.ECS.UI;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.GameBuilder;
 
@@ -113,14 +115,13 @@ public partial class BeepDataGrid : VBoxContainer
         {
             foreach (var col in _columns)
             {
-                var hdr = new Label
+                var hdr = new KitTableCell
                 {
-                    Text = col.Name,
-                    HorizontalAlignment = HorizontalAlignment.Center,
+                    CellText = col.Name,
+                    Align = HorizontalAlignment.Center,
+                    Role = UiSurface.TextRole.Caption,
                     SizeFlagsHorizontal = SizeFlags.ExpandFill
                 };
-                hdr.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.9f));
-                hdr.AddThemeFontSizeOverride("font_size", ParseSize(HeaderFontSize, 16));
                 _headerRow.AddChild(hdr);
             }
         }
@@ -131,11 +132,15 @@ public partial class BeepDataGrid : VBoxContainer
         // content rect (sized to the cell HBox), so bg / cells / button share the full row width.
         for (int i = 0; i < data.Count; i++)
         {
-            var row = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            row.AddThemeStyleboxOverride("panel", new StyleBoxEmpty()); // no inset/border around the overlay
+            var row = new KitPanelContainer
+            {
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                ShowWell = false,
+                ExtraPadding = Vector2.Zero
+            };
             var bgColor = i % 2 == 0 ? _evenRowColor : _oddRowColor;
 
-            var bg = new ColorRect { Color = bgColor };
+            var bg = new KitColorOverlay { Color = bgColor };
             row.AddChild(bg); // added first → drawn behind the cells
 
             int idx = i; // capture for closure
@@ -145,22 +150,20 @@ public partial class BeepDataGrid : VBoxContainer
             foreach (var col in _columns)
             {
                 var val = col.GetValue(item)?.ToString() ?? "";
-                var cell = new Label
+                var cell = new KitTableCell
                 {
-                    Text = val,
-                    HorizontalAlignment = col.PropertyType == typeof(int) || col.PropertyType == typeof(float) || col.PropertyType == typeof(double)
+                    CellText = val,
+                    Align = col.PropertyType == typeof(int) || col.PropertyType == typeof(float) || col.PropertyType == typeof(double)
                         ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                     SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                    ClipText = true
                 };
-                cell.AddThemeFontSizeOverride("font_size", ParseSize(RowFontSize, 14));
                 cells.AddChild(cell);
             }
             row.AddChild(cells);
 
             if (Selectable)
             {
-                var btn = new Button { Flat = true };
+                var btn = new KitPushButton { Flat = true, Text = "", Accent = UiSurface.Role.Neutral };
                 btn.Modulate = new Color(1, 1, 1, 0);
                 btn.Pressed += () => SelectRow(idx, item);
                 row.AddChild(btn); // added last → on top, catches the whole-row click
@@ -186,7 +189,7 @@ public partial class BeepDataGrid : VBoxContainer
             foreach (var col in _columns)
             {
                 var val = col.GetValue(item)?.ToString() ?? "";
-                row.AddChild(new Label { Text = val, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+                row.AddChild(new KitTableCell { CellText = val, SizeFlagsHorizontal = SizeFlags.ExpandFill });
             }
             _bodyContainer.AddChild(row);
         }
@@ -200,7 +203,7 @@ public partial class BeepDataGrid : VBoxContainer
         int childIdx = 0;
         foreach (var child in _bodyContainer.GetChildren())
         {
-            if (child is PanelContainer row && row.GetChildCount() > 0 && row.GetChild(0) is ColorRect bg)
+            if (child is PanelContainer row && row.GetChildCount() > 0 && row.GetChild(0) is KitColorOverlay bg)
             {
                 bg.Color = childIdx == index ? _selectedColor : (childIdx % 2 == 0 ? _evenRowColor : _oddRowColor);
             }

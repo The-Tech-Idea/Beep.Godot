@@ -62,6 +62,16 @@ namespace Beep.ECS.UI.Kit
             pts.CopyTo(closed, 0);
             closed[^1] = pts[0];
             DrawPolyline(closed, ink, w);
+            if (pts.Length < 3) return;
+
+            Vector2 c = Vector2.Zero;
+            foreach (var p in pts) c += p;
+            c /= pts.Length;
+            var inner = new Vector2[pts.Length + 1];
+            for (int i = 0; i < pts.Length; i++)
+                inner[i] = c.Lerp(pts[i], 0.82f);
+            inner[^1] = inner[0];
+            DrawPolyline(inner, new Color(1, 1, 1, 0.18f), Mathf.Max(1f, w * 0.45f));
         }
 
         private void Crown(Color c, Color ink, float w)
@@ -102,7 +112,10 @@ namespace Beep.ECS.UI.Kit
                     float t = i / 4f;
                     float ang = Mathf.Pi * (0.55f + 0.35f * t) * side;
                     var p = Size * 0.5f + new Vector2(Mathf.Sin(ang), Mathf.Cos(ang)) * Size.X * 0.36f;
-                    DrawCircle(p, Mathf.Max(1.5f, Size.Y * (0.13f - t * 0.04f)), c);
+                    float rr = Mathf.Max(1.5f, Size.Y * (0.13f - t * 0.04f));
+                    DrawCircle(p, rr, c);
+                    DrawCircle(p - new Vector2(rr * 0.22f, rr * 0.22f), rr * 0.30f,
+                               new Color(1, 1, 1, 0.22f));
                 }
             }
         }
@@ -122,6 +135,7 @@ namespace Beep.ECS.UI.Kit
             // Handles.
             DrawArc(new Vector2(x * 0.28f, h * 0.26f), h * 0.14f, Mathf.Pi * 0.5f, Mathf.Pi * 1.5f, 12, ink, w);
             DrawArc(new Vector2(x * 0.72f, h * 0.26f), h * 0.14f, -Mathf.Pi * 0.5f, Mathf.Pi * 0.5f, 12, ink, w);
+            DrawCircle(new Vector2(x * 0.50f, h * 0.26f), h * 0.08f, new Color(1, 1, 1, 0.24f));
         }
 
         private void Starburst(Color c, Color ink, float w)

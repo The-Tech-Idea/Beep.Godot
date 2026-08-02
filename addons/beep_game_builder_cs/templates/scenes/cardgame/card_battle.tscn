@@ -1,10 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/cardgame/CardBattle.cs" id="3_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
 
 [node name="CardBattle" type="CanvasLayer"]
 layer = 20
@@ -25,6 +28,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.09, 0.08, 0.13, 1)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="Root"]
 anchors_preset = 15
 anchor_right = 1.0
@@ -59,14 +63,17 @@ theme_override_constants/separation = 8
 theme_type_variation = &"BeepSubtitle"
 text = "Bandit Leader"
 
+script = ExtResource("k_label")
 [node name="EnemyHealthBar" type="ProgressBar" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
 custom_minimum_size = Vector2(0, 16)
 value = 100.0
 show_percentage = false
 
+script = ExtResource("k_meter")
 [node name="HealthLabel" type="Label" parent="Root/Margin/VBox/TopBar/EnemyPanel/EnemyMargin/EnemyVBox"]
 text = "Enemy Health: 50 / 50"
 
+script = ExtResource("k_label")
 [node name="ForfeitButton" type="Button" parent="Root/Margin/VBox/TopBar"]
 custom_minimum_size = Vector2(120, 44)
 size_flags_vertical = 0
@@ -78,6 +85,7 @@ theme_type_variation = &"BeepTitle"
 text = "Your Turn  (Turn 1)"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BoardArea" type="PanelContainer" parent="Root/Margin/VBox"]
 size_flags_vertical = 3
 script = ExtResource("k_panelc")
@@ -94,12 +102,14 @@ text = "Play area — the game instances played cards here."
 horizontal_alignment = 1
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BottomArea" type="VBoxContainer" parent="Root/Margin/VBox"]
 theme_override_constants/separation = 10
 
 [node name="HandLabel" type="Label" parent="Root/Margin/VBox/BottomArea"]
 text = "Your Hand: 5 cards"
 
+script = ExtResource("k_label")
 [node name="BottomRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomArea"]
 theme_override_constants/separation = 16
 
@@ -121,11 +131,13 @@ theme_type_variation = &"BeepCaption"
 text = "Energy"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="EnergyValue" type="Label" parent="Root/Margin/VBox/BottomArea/BottomRow/EnergyPanel/EnergyMargin/EnergyVBox"]
 theme_type_variation = &"BeepValue"
 text = "3 / 3"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="HandRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomArea/BottomRow"]
 theme_override_constants/separation = 10
 size_flags_horizontal = 3

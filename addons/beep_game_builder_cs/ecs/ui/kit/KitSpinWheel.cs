@@ -112,9 +112,18 @@ namespace Beep.ECS.UI.Kit
                 if (font == null || string.IsNullOrEmpty(Wedges[i])) continue;
                 float mid = a0 + per * 0.5f;
                 var at = c + new Vector2(Mathf.Cos(mid), Mathf.Sin(mid)) * r * 0.66f;
-                Vector2 m = font.GetStringSize(Wedges[i], HorizontalAlignment.Left, -1, fs);
+                int wf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(r * 0.34f, r * 0.16f),
+                                           Wedges[i], font, min: 7);
+                Vector2 m = font.GetStringSize(Wedges[i], HorizontalAlignment.Left, -1, wf);
+                Color badge = UiSurface.Luminance(w) > 0.5f
+                    ? new Color(1f, 1f, 1f, 0.22f)
+                    : new Color(0f, 0f, 0f, 0.20f);
+                DrawShape(new Rect2(at.X - m.X * 0.5f - wf * 0.30f, at.Y - wf * 0.55f,
+                                    m.X + wf * 0.60f, wf * 1.20f),
+                          KitShape.Pill, badge, new Color(0, 0, 0, 0), 0f);
                 DrawText(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
-                           Wedges[i], fs, UiSurface.Luminance(w) > 0.5f
+                           Wedges[i], wf, UiSurface.Luminance(w) > 0.5f
                                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
             }
 

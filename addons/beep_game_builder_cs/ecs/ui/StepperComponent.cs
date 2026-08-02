@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -22,7 +23,7 @@ namespace Beep.ECS.UI
         private Container? _container;
         private Button? _minusBtn;
         private Button? _plusBtn;
-        private Label? _valueLabel;
+        private KitLabelValue? _valueLabel;
 
         public override void _Ready()
         {
@@ -40,17 +41,30 @@ namespace Beep.ECS.UI
         private void BuildStepper()
         {
             if (Engine.IsEditorHint()) return;
-            _minusBtn = new Button { Text = "−", CustomMinimumSize = new Vector2(ButtonSize, ButtonSize), Flat = true };
+            _minusBtn = new KitIconButton
+            {
+                Glyph = "-",
+                CustomMinimumSize = new Vector2(ButtonSize, ButtonSize),
+                SizeFlagsHorizontal = Godot.Control.SizeFlags.ShrinkCenter
+            };
             _minusBtn.Pressed += OnMinusPressed;
 
-            _valueLabel = new Label
+            _valueLabel = new KitLabelValue
             {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                CustomMinimumSize = new Vector2(48, ButtonSize)
+                Label = "",
+                Value = Value.ToString(LabelFormat),
+                LabelValueRatio = 0.0f,
+                Accent = UiSurface.Role.Neutral,
+                CustomMinimumSize = new Vector2(Mathf.Max(48, ButtonSize * 1.55f), ButtonSize),
+                SizeFlagsHorizontal = Godot.Control.SizeFlags.ShrinkCenter
             };
 
-            _plusBtn = new Button { Text = "+", CustomMinimumSize = new Vector2(ButtonSize, ButtonSize), Flat = true };
+            _plusBtn = new KitIconButton
+            {
+                Glyph = "+",
+                CustomMinimumSize = new Vector2(ButtonSize, ButtonSize),
+                SizeFlagsHorizontal = Godot.Control.SizeFlags.ShrinkCenter
+            };
             _plusBtn.Pressed += OnPlusPressed;
 
             _container?.AddChild(_minusBtn);
@@ -70,7 +84,7 @@ namespace Beep.ECS.UI
 
         private void UpdateDisplay()
         {
-            if (_valueLabel != null) _valueLabel.Text = Value.ToString(LabelFormat);
+            if (_valueLabel != null) _valueLabel.Value = Value.ToString(LabelFormat);
         }
 
         public override void _ExitTree()

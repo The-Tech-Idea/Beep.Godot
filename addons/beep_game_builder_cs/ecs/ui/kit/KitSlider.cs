@@ -92,6 +92,15 @@ namespace Beep.ECS.UI.Kit
             float span = Mathf.Max(1f, Size.X - KnobW);
             float kx = half + span * (float)Value;
 
+            for (int i = 1; i < 5; i++)
+            {
+                float x = half + span * (i / 5f);
+                float h = th * (i == 3 ? 1.28f : 0.92f);
+                DrawLine(new Vector2(x, track.Position.Y + (track.Size.Y - h) * 0.5f),
+                         new Vector2(x, track.Position.Y + (track.Size.Y + h) * 0.5f),
+                         ink with { A = 0.30f }, Mathf.Max(1f, rimPx * 0.55f));
+            }
+
             if (kx - half > 1f)
             {
                 var done = new Rect2(track.Position, new Vector2(kx, track.Size.Y));
@@ -107,6 +116,10 @@ namespace Beep.ECS.UI.Kit
                             Mathf.Lerp(fill.B, 1f, 0.28f), 1f)   // lightened, SAME hue
                 : fill;
             KitChrome.DrawShape(this, _genre, knob, KitChrome.Shape(_genre), kc, ink, Mathf.Max(1.5f, rimPx));
+
+            DrawLine(new Vector2(knob.Position.X + knob.Size.X * 0.5f, knob.Position.Y + Size.Y * 0.22f),
+                     new Vector2(knob.Position.X + knob.Size.X * 0.5f, knob.End.Y - Size.Y * 0.22f),
+                     new Color(1, 1, 1, 0.24f), Mathf.Max(1f, rimPx * 0.55f));
         }
     }
 }

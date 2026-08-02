@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/pickup_template.tscn" id="1_pickup"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary"]
 size = Vector2(4000, 200)
@@ -20,6 +21,7 @@ offset_right = 1280.0
 offset_bottom = 720.0
 color = Color(0.4, 0.6, 0.85, 1)
 
+script = ExtResource("k_color")
 [node name="MidLayer" type="ParallaxLayer" parent="Background"]
 motion_scale = Vector2(0.5, 0.5)
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
@@ -10,6 +10,9 @@
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/levels/racing/level_2.tscn" id="lvl_2"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_pair"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitRadialMeter.cs" id="k_radial"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="RacingMain" type="Node2D"]
 
@@ -57,7 +60,7 @@ offset_top = 20.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
-Title = "Race"
+Title = ""
 TargetPath = NodePath("../TopLeft")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
@@ -70,16 +73,31 @@ theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 50
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
-[node name="LapLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Lap: 1 / 3"
+[node name="LapLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(154, 30)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "LAP"
+Value = "1 / 3"
+Accent = 2
 
-[node name="PositionLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Pos: 1 / 8"
+[node name="PositionLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(154, 30)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "POS"
+Value = "1 / 8"
+Accent = 4
 
-[node name="LapTimeLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Lap Time: --:--"
+[node name="LapTimeLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(178, 30)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "TIME"
+Value = "--:--"
+Accent = 6
 
 [node name="SpeedBox" type="VBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
@@ -93,15 +111,25 @@ offset_bottom = -24.0
 grow_horizontal = 0
 grow_vertical = 0
 
-[node name="SpeedLabel" type="Label" parent="HUD/Root/SpeedBox"]
-text = "0"
-horizontal_alignment = 2
+[node name="SpeedLabel" type="Control" parent="HUD/Root/SpeedBox"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_radial")
+Value = 0.0
+Segments = 20
+Fill = 1
+GapDegrees = 70.0
+CentreText = "0"
 
 [node name="SpeedUnit" type="Label" parent="HUD/Root/SpeedBox"]
 text = "km/h"
 horizontal_alignment = 2
+text_overrun_behavior = 3
+clip_text = true
 
 
+script = ExtResource("k_label")
 [node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("hud_stat")
 
@@ -110,5 +138,6 @@ script = ExtResource("binder_gi")
 ThemeComponentPath = NodePath("Theme")
 
 [node name="Weather" parent="Atmosphere" index="3"]
+CloudMode = 0
 CurrentWeather = 0
 TopDownView = false

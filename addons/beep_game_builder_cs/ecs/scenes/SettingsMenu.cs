@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.Scenes
 {
@@ -266,11 +267,11 @@ namespace Beep.ECS.Scenes
                 var row = new HBoxContainer();
                 row.AddThemeConstantOverride("separation", 12);
 
-                var label = new Label { Text = Humanize(name), CustomMinimumSize = new Vector2(160, 0) };
+                var label = new KitLabel { Text = Humanize(name), CustomMinimumSize = new Vector2(160, 0), AutoRole = false, Role = UI.UiSurface.TextRole.Caption };
                 label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 row.AddChild(label);
 
-                var value = new Label { Text = bound, HorizontalAlignment = HorizontalAlignment.Right };
+                var value = new KitLabel { Text = bound, HorizontalAlignment = HorizontalAlignment.Right, AutoRole = false, Role = UI.UiSurface.TextRole.Value };
                 value.ThemeTypeVariation = "BeepValue";
                 row.AddChild(value);
 

@@ -34,6 +34,7 @@ namespace Beep.ECS.UI.Kit
         private bool _locked;
         private string _requirement = "";
         private bool _selected;
+        private bool _hover;
         private UiSurface.Role _rarity = UiSurface.Role.Neutral;
 
         /// <summary>The item's art. Null = an empty slot, which is a normal state.</summary>
@@ -128,6 +129,9 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
+            MouseEntered += () => { _hover = true; QueueRedraw(); };
+            MouseExited += () => { _hover = false; QueueRedraw(); };
             // A slot is square by default and big enough for its own badge to be legible.
             int fs = UiSurface.FontSize(this);
             float side = Mathf.Max(48f, fs * 3.4f);
@@ -165,6 +169,7 @@ namespace Beep.ECS.UI.Kit
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f);
             KitChrome.Fill(this, SlotShape, body, g, well, ink, rimPx);
+            DrawInset(body, well);
 
             // Rarity reads as a RIM, not a fill — the settled "palette goes on ONE element" rule,
             // and it keeps the item art readable against its own slot.
@@ -190,6 +195,10 @@ namespace Beep.ECS.UI.Kit
                 float pad = Mathf.Max(3f, Mathf.Min(Size.X, Size.Y) * 0.22f);
                 var box = new Rect2(pad, pad, Size.X - pad * 2f, Size.Y - pad * 2f);
                 DrawTextureRect(_ghost, box, false, new Color(1, 1, 1, 0.16f));
+            }
+            else if (!Locked)
+            {
+                DrawEmptyMark(body, ink);
             }
 
             if (Locked)
@@ -220,6 +229,29 @@ namespace Beep.ECS.UI.Kit
             if (_selected)
                 KitSelect.Draw(this, g.SelectFor(WidgetClass), KitChrome.Poly(SlotShape, body, g),
                                body, UiSurface.Semantic(this, UiSurface.Role.Accent), rimPx);
+            else if (_hover && !Locked)
+                KitSelect.Draw(this, g.SelectFor(WidgetClass), KitChrome.Poly(SlotShape, body, g),
+                               body, UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.5f, rimPx));
+        }
+
+        private void DrawInset(Rect2 r, Color well)
+        {
+            float w = Mathf.Max(1f, Mathf.Min(r.Size.X, r.Size.Y) * 0.035f);
+            Color light = new(Mathf.Min(1f, well.R * 1.35f), Mathf.Min(1f, well.G * 1.35f), Mathf.Min(1f, well.B * 1.35f), 0.38f);
+            Color shade = new(well.R * 0.45f, well.G * 0.45f, well.B * 0.45f, 0.42f);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.End.X - w, r.Position.Y + w), light, w);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.Position.X + w, r.End.Y - w), light, w);
+            DrawLine(new Vector2(r.Position.X + w, r.End.Y - w), r.End - new Vector2(w, w), shade, w);
+            DrawLine(new Vector2(r.End.X - w, r.Position.Y + w), r.End - new Vector2(w, w), shade, w);
+        }
+
+        private void DrawEmptyMark(Rect2 r, Color ink)
+        {
+            Vector2 c = r.Position + r.Size * 0.5f;
+            float a = Mathf.Min(r.Size.X, r.Size.Y) * 0.18f;
+            Color col = new(ink.R, ink.G, ink.B, 0.24f);
+            DrawArc(c, a, 0f, Mathf.Tau, 24, col, Mathf.Max(1.5f, a * 0.18f));
+            DrawLine(c - new Vector2(a * 0.55f, 0f), c + new Vector2(a * 0.55f, 0f), col, Mathf.Max(1.5f, a * 0.16f));
         }
 
         /// <summary>Bottom-right, straddling the corner — where every reference sheet puts it.

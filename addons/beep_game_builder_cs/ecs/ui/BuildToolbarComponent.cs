@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -99,6 +100,9 @@ namespace Beep.ECS.UI
         private void Build()
         {
             if (GetParent() is not Godot.Control parent) return;
+            int fs = UiSurface.FontSize(this);
+            int captionFs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
+            int smallFs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
 
             var root = new VBoxContainer { Name = "Toolbar" };
             root.AddThemeConstantOverride("separation", 6);
@@ -111,7 +115,7 @@ namespace Beep.ECS.UI
             var scroll = new ScrollContainer
             {
                 Name = "PaletteScroll",
-                CustomMinimumSize = new Vector2(0, 84),
+                CustomMinimumSize = new Vector2(0, fs * 5.8f),
                 VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
             };
             root.AddChild(scroll);
@@ -129,12 +133,14 @@ namespace Beep.ECS.UI
             foreach (string cat in seen)
             {
                 string c = cat;
-                var tab = new Button
+                var tab = new KitPushButton
                 {
                     Name = $"Tab{cat}", Text = cat, ToggleMode = true,
-                    CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.4f),
+                    CustomMinimumSize = new Vector2(0, fs * 2.4f),
                     FocusMode = Godot.Control.FocusModeEnum.None,
                 };
+                tab.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                tab.AddThemeFontSizeOverride("font_size", captionFs);
                 tab.Pressed += () => SelectCategory(c);
                 _tabs.AddChild(tab);
                 _tabButtons.Add(tab);
@@ -148,6 +154,9 @@ namespace Beep.ECS.UI
         public void SelectCategory(string category)
         {
             if (_palette == null) return;
+            int fs = UiSurface.FontSize(this);
+            int captionFs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
+            int smallFs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
             _category = category;
 
             foreach (var t in _tabButtons)
@@ -160,57 +169,17 @@ namespace Beep.ECS.UI
             {
                 if (b.Category != category) continue;
                 string id = b.Id;
-                var item = new Button
+                var item = new KitBuildTile
                 {
                     Name = $"Build_{b.Id}",
-                    Text = $"{b.Display}\n{b.Cost:N0}",
-                    CustomMinimumSize = new Vector2(ItemMinWidth, 92),
+                    Caption = b.Display,
+                    CostText = b.Cost.ToString("N0"),
+                    TileIcon = LoadIcon(b.Id),
+                    CustomMinimumSize = new Vector2(Mathf.Max(ItemMinWidth, Mathf.RoundToInt(fs * 5.8f)), fs * 6.0f),
                     TooltipText = Describe(b),
                 };
-                // Icon above the caption — the tile layout every city-builder reference uses.
-                //
-                // Composed from child controls rather than Button.Icon + Button.Text: Godot lays
-                // those out in a single ROW, so the caption printed straight across the icon no
-                // matter how the alignments were set. Children are mouse-transparent so the
-                // Button underneath still receives the click.
-                if (LoadIcon(b.Id) is { } tex)
-                {
-                    item.Text = "";
-                    var stack = new VBoxContainer
-                    {
-                        Name = "Tile",
-                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                    };
-                    stack.SetAnchorsPreset(Godot.Control.LayoutPreset.FullRect);
-                    stack.AddThemeConstantOverride("separation", 2);
-                    item.AddChild(stack);
-
-                    stack.AddChild(new TextureRect
-                    {
-                        Name = "Icon", Texture = tex,
-                        CustomMinimumSize = new Vector2(0, 40),
-                        SizeFlagsVertical = Godot.Control.SizeFlags.ExpandFill,
-                        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                    });
-                    var name = new Label
-                    {
-                        Name = "Caption", Text = b.Display,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                    };
-                    name.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
-                    stack.AddChild(name);
-                    var cost = new Label
-                    {
-                        Name = "Cost", Text = b.Cost.ToString("N0"),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                    };
-                    cost.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.79f));
-                    stack.AddChild(cost);
-                }
+                item.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                item.AddThemeFontSizeOverride("font_size", smallFs);
                 item.Pressed += () => Purchase(id);
                 _palette.AddChild(item);
                 _items[b.Id] = item;
@@ -261,10 +230,12 @@ namespace Beep.ECS.UI
                 int owned = _economy.CountOf(id);
                 string caption = owned > 0 ? $"{def.Display} ×{owned}" : def.Display;
 
-                // A composed tile keeps its text in child Labels; writing Button.Text would
-                // print a second caption straight across the icon.
-                if (button.GetNodeOrNull<Label>("Tile/Caption") is { } capLabel)
-                    capLabel.Text = caption;
+                if (button is KitBuildTile tile)
+                {
+                    tile.Caption = caption;
+                    tile.CostText = def.Cost.ToString("N0");
+                    tile.OwnedText = owned > 0 ? owned.ToString() : "";
+                }
                 else
                     button.Text = $"{caption}\n{def.Cost:N0}";
             }

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -11,6 +11,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="k_opt"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckButton.cs" id="k_check"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="SettingsMenu" type="CanvasLayer"]
@@ -25,6 +28,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.5)
 
+script = ExtResource("k_color")
 [node name="Center" type="CenterContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -39,6 +43,7 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 
 theme_override_styles/panel = SubResource("frame_plate")
+script = ExtResource("k_panel")
 [node name="Frame" type="Control" parent="Center/Panel"]
 layout_mode = 2
 mouse_filter = 2
@@ -64,6 +69,7 @@ text = "Settings"
 horizontal_alignment = 1
 
 visible = false
+script = ExtResource("k_label")
 [node name="TitleRule" type="HSeparator" parent="Center/Panel/Margin/ContentVBox"]
 layout_mode = 2
 
@@ -95,6 +101,7 @@ size_flags_vertical = 4
 text = "Master Volume"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MasterRow"]
 script = ExtResource("k_slider")
 layout_mode = 2
@@ -114,6 +121,7 @@ text = "80%"
 horizontal_alignment = 2
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="SfxRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
@@ -126,6 +134,7 @@ size_flags_vertical = 4
 text = "SFX Volume"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/SfxRow"]
 script = ExtResource("k_slider")
 layout_mode = 2
@@ -145,6 +154,7 @@ text = "90%"
 horizontal_alignment = 2
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="MusicRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
@@ -157,6 +167,7 @@ size_flags_vertical = 4
 text = "Music Volume"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MusicRow"]
 script = ExtResource("k_slider")
 layout_mode = 2
@@ -176,6 +187,7 @@ text = "70%"
 horizontal_alignment = 2
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="Display" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
 layout_mode = 2
 visible = false
@@ -198,6 +210,7 @@ size_flags_vertical = 4
 text = "Fullscreen"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="FullscreenCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/FullscreenRow"]
 script = ExtResource("k_check")
 layout_mode = 2
@@ -216,6 +229,7 @@ size_flags_vertical = 4
 text = "Resolution"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/ResolutionRow"]
 script = ExtResource("k_opt")
 layout_mode = 2
@@ -239,6 +253,7 @@ layout_mode = 2
 text = "Windowed only — fullscreen always uses the display's own resolution."
 autowrap_mode = 2
 
+script = ExtResource("k_label")
 [node name="Game" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
 layout_mode = 2
 visible = false
@@ -261,6 +276,7 @@ size_flags_vertical = 4
 text = "Language"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="LanguageOption" type="OptionButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/LanguageRow"]
 script = ExtResource("k_opt")
 layout_mode = 2
@@ -291,6 +307,7 @@ size_flags_vertical = 4
 text = "Subtitles"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="SubtitlesCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/SubtitlesRow"]
 script = ExtResource("k_check")
 layout_mode = 2
@@ -311,6 +328,7 @@ size_flags_vertical = 4
 text = "Screen Shake"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="ScreenShakeCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/ScreenShakeRow"]
 script = ExtResource("k_check")
 layout_mode = 2
@@ -331,6 +349,7 @@ size_flags_vertical = 4
 text = "Damage Numbers"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="DamageNumbersCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/DamageNumbersRow"]
 script = ExtResource("k_check")
 layout_mode = 2
@@ -355,6 +374,7 @@ layout_mode = 2
 text = "Your current controls. Rebinding is not available in this build."
 autowrap_mode = 2
 
+script = ExtResource("k_label")
 [node name="Footer" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox"]
 layout_mode = 2
 theme_override_constants/separation = 12

@@ -7,8 +7,8 @@ namespace Beep.GameBuilder
     /// Stamps a new genre screen that already obeys every convention this repo enforces,
     /// instead of leaving them to be rediscovered (and reviewed) each time:
     ///
-    ///  • an OPAQUE ColorRect named "Background", so ThemePresetComponent paints it from bg_canvas;
-    ///  • a header whose title carries <c>theme_type_variation = &amp;"BeepTitle"</c>, an accent rule,
+    ///  • an opaque KitColorRect named "Background", so ThemePresetComponent paints it from bg_canvas;
+    ///  • a kit-composed header whose title carries <c>theme_type_variation = &amp;"BeepTitle"</c>, an accent rule,
     ///    and a back button with a real height (120×44 — a 0-height button was the shipped default);
     ///  • ThemePresetComponent parented to the CONTENT Control with the right GenreName;
     ///  • GameInfoBinder bound to the title;
@@ -72,11 +72,15 @@ public partial class {cls} : Control
 ";
 
         private static string SceneSource(string cls, string snake, string title, string genreId, string scriptPath) =>
-$@"[gd_scene load_steps=3 format=3]
+$@"[gd_scene load_steps=7 format=3]
 
 [ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs"" id=""1_theme""]
 [ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs"" id=""2_binder""]
 [ext_resource type=""Script"" path=""{scriptPath}"" id=""3_script""]
+[ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs"" id=""k_color""]
+[ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs"" id=""k_label""]
+[ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs"" id=""k_pbtn""]
+[ext_resource type=""Script"" path=""res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs"" id=""k_panel""]
 
 [node name=""{cls}"" type=""Control""]
 anchors_preset = 15
@@ -93,6 +97,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.08, 0.11, 1)
+script = ExtResource(""k_color"")
 
 [node name=""Margin"" type=""MarginContainer"" parent="".""]
 anchors_preset = 15
@@ -116,15 +121,18 @@ theme_type_variation = &""BeepTitle""
 text = ""{title}""
 size_flags_horizontal = 3
 vertical_alignment = 1
+script = ExtResource(""k_label"")
 
 [node name=""BackButton"" type=""Button"" parent=""Margin/VBox/Header""]
 custom_minimum_size = Vector2(120, 44)
-text = ""← Back""
+text = ""< Back""
+script = ExtResource(""k_pbtn"")
 
 [node name=""HeaderRule"" type=""HSeparator"" parent=""Margin/VBox""]
 
 [node name=""Body"" type=""PanelContainer"" parent=""Margin/VBox""]
 size_flags_vertical = 3
+script = ExtResource(""k_panel"")
 
 [node name=""BodyMargin"" type=""MarginContainer"" parent=""Margin/VBox/Body""]
 theme_override_constants/margin_left = 20
@@ -138,10 +146,12 @@ theme_override_constants/separation = 14
 [node name=""BodyHeading"" type=""Label"" parent=""Margin/VBox/Body/BodyMargin/BodyVBox""]
 theme_type_variation = &""BeepSubtitle""
 text = ""Section""
+script = ExtResource(""k_label"")
 
 [node name=""BodyCaption"" type=""Label"" parent=""Margin/VBox/Body/BodyMargin/BodyVBox""]
 theme_type_variation = &""BeepCaption""
 text = ""Replace this with the screen's content.""
+script = ExtResource(""k_label"")
 
 [node name=""BodySpacer"" type=""Control"" parent=""Margin/VBox/Body/BodyMargin/BodyVBox""]
 size_flags_vertical = 3

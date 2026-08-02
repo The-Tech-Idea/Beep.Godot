@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -112,10 +113,10 @@ namespace Beep.ECS.UI
         {
             if (_panel?.GetParent() is not Godot.Control host) return;
 
-            _header = new Button
+            _header = new KitIconButton
             {
                 Name = $"{_panel.Name}Toggle",
-                Text = HeaderText(false),
+                Glyph = HeaderText(false),
                 ToggleMode = false,
                 FocusMode = Godot.Control.FocusModeEnum.None,
                 CustomMinimumSize = new Vector2(ButtonSize, ButtonSize),
@@ -219,7 +220,8 @@ namespace Beep.ECS.UI
         {
             if (_panel == null) return;
             _collapsed = collapsed;
-            if (_header != null) _header.Text = HeaderText(collapsed);
+            if (_header is KitIconButton icon) icon.Glyph = HeaderText(collapsed);
+            else if (_header != null) _header.Text = HeaderText(collapsed);
 
             float target = collapsed ? 0f : _expandedMin;
 

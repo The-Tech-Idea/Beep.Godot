@@ -89,6 +89,18 @@ namespace Beep.ECS.UI
             _time = parent.GetNodeOrNull<Label>(TimeLabelPath);
             _wind = parent.GetNodeOrNull<Label>(WindLabelPath);
             _icon = parent.GetNodeOrNull<TextureRect>(WeatherIconPath);
+            StyleLabel(_weather, UiSurface.TextRole.Subtitle);
+            StyleLabel(_intensity, UiSurface.TextRole.Value, HorizontalAlignment.Right);
+            StyleLabel(_forecast, UiSurface.TextRole.Caption, HorizontalAlignment.Right);
+            StyleLabel(_season, UiSurface.TextRole.Caption);
+            StyleLabel(_time, UiSurface.TextRole.Caption, HorizontalAlignment.Right);
+            StyleLabel(_wind, UiSurface.TextRole.Caption);
+            if (_icon != null)
+            {
+                _icon.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+                _icon.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
+                _icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
+            }
 
             // Discover the weather system.
             if (WeatherSystemPath != null)
@@ -187,6 +199,19 @@ namespace Beep.ECS.UI
         {
             if (_season != null && season >= 0 && season < SeasonDisplayNames.Length)
                 _season.Text = SeasonDisplayNames[season];
+        }
+
+        private static void StyleLabel(Label? label, UiSurface.TextRole role,
+                                       HorizontalAlignment alignment = HorizontalAlignment.Left)
+        {
+            if (label == null) return;
+            label.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+            label.HorizontalAlignment = alignment;
+            label.VerticalAlignment = VerticalAlignment.Center;
+            label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            label.AutowrapMode = TextServer.AutowrapMode.Off;
+            label.ClipText = true;
+            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(label, role));
         }
 
         private global::Beep.ECS.WeatherSystemComponent? FindWeatherSystem()

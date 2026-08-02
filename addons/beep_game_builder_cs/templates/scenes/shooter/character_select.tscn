@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -6,6 +6,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="3_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/shooter/CharacterSelect.cs" id="4_script"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panel"]
 
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
@@ -25,6 +28,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.04, 0.05, 0.09, 1)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -49,11 +53,13 @@ size_flags_horizontal = 3
 vertical_alignment = 1
 
 visible = false
+script = ExtResource("k_label")
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 metadata/action = "back"
 
+script = ExtResource("k_pbtn")
 [node name="HeaderRule" type="HSeparator" parent="Margin/VBox"]
 
 [node name="CharGrid" type="HBoxContainer" parent="Margin/VBox"]
@@ -65,6 +71,7 @@ custom_minimum_size = Vector2(220, 0)
 size_flags_horizontal = 3
 
 theme_override_styles/panel = SubResource("frame_plate")
+script = ExtResource("k_panel")
 [node name="Frame" type="Control" parent="Margin/VBox/CharGrid/MarineCard"]
 layout_mode = 2
 mouse_filter = 2
@@ -86,16 +93,19 @@ custom_minimum_size = Vector2(0, 140)
 size_flags_vertical = 3
 color = Color(0.2, 0.4, 0.7, 1)
 
+script = ExtResource("k_color")
 [node name="MarineNameLabel" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
 theme_type_variation = &"BeepSubtitle"
 text = "Marine"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="MarineWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
 theme_type_variation = &"BeepCaption"
 text = "Rifle · reliable"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="MarineStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 6
@@ -106,21 +116,25 @@ theme_type_variation = &"BeepCaption"
 text = "Damage"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="MarineDamageValue" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "B"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="MarineAccuracyCaption" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Accuracy"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="MarineAccuracyValue" type="Label" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox/MarineStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "A"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="MarineSelectButton" type="Button" parent="Margin/VBox/CharGrid/MarineCard/MarineMargin/MarineVBox"]
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
@@ -131,6 +145,7 @@ script = ExtResource("k_pbtn")
 custom_minimum_size = Vector2(220, 0)
 size_flags_horizontal = 3
 
+script = ExtResource("k_panel")
 [node name="PilotMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/PilotCard"]
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
@@ -145,16 +160,19 @@ custom_minimum_size = Vector2(0, 140)
 size_flags_vertical = 3
 color = Color(0.5, 0.4, 0.2, 1)
 
+script = ExtResource("k_color")
 [node name="PilotNameLabel" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
 theme_type_variation = &"BeepSubtitle"
 text = "Pilot"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="PilotWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
 theme_type_variation = &"BeepCaption"
 text = "Pistol · lockpick"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="PilotStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 6
@@ -165,21 +183,25 @@ theme_type_variation = &"BeepCaption"
 text = "Damage"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="PilotDamageValue" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "C"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="PilotSlotsCaption" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Item slots"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="PilotSlotsValue" type="Label" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox/PilotStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "+2"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="PilotSelectButton" type="Button" parent="Margin/VBox/CharGrid/PilotCard/PilotMargin/PilotVBox"]
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
@@ -190,6 +212,7 @@ script = ExtResource("k_pbtn")
 custom_minimum_size = Vector2(220, 0)
 size_flags_horizontal = 3
 
+script = ExtResource("k_panel")
 [node name="HunterMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/HunterCard"]
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
@@ -204,16 +227,19 @@ custom_minimum_size = Vector2(0, 140)
 size_flags_vertical = 3
 color = Color(0.2, 0.6, 0.3, 1)
 
+script = ExtResource("k_color")
 [node name="HunterNameLabel" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
 theme_type_variation = &"BeepSubtitle"
 text = "Hunter"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="HunterWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
 theme_type_variation = &"BeepCaption"
 text = "Crossbow · companion"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="HunterStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 6
@@ -224,21 +250,25 @@ theme_type_variation = &"BeepCaption"
 text = "Damage"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="HunterDamageValue" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "B"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="HunterPetCaption" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Companion"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="HunterPetValue" type="Label" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox/HunterStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "Dog"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="HunterSelectButton" type="Button" parent="Margin/VBox/CharGrid/HunterCard/HunterMargin/HunterVBox"]
 custom_minimum_size = Vector2(0, 44)
 text = "Select"
@@ -249,6 +279,7 @@ script = ExtResource("k_pbtn")
 custom_minimum_size = Vector2(220, 0)
 size_flags_horizontal = 3
 
+script = ExtResource("k_panel")
 [node name="BruiserMargin" type="MarginContainer" parent="Margin/VBox/CharGrid/BruiserCard"]
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
@@ -263,16 +294,19 @@ custom_minimum_size = Vector2(0, 140)
 size_flags_vertical = 3
 color = Color(0.7, 0.2, 0.3, 1)
 
+script = ExtResource("k_color")
 [node name="BruiserNameLabel" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
 theme_type_variation = &"BeepSubtitle"
 text = "Bruiser"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BruiserWeaponCaption" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
 theme_type_variation = &"BeepCaption"
 text = "Shotgun · spread"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BruiserStatGrid" type="GridContainer" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 6
@@ -283,21 +317,25 @@ theme_type_variation = &"BeepCaption"
 text = "Damage"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="BruiserDamageValue" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "A"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="BruiserRangeCaption" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Range"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="BruiserRangeValue" type="Label" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox/BruiserStatGrid"]
 theme_type_variation = &"BeepValue"
 text = "D"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="BruiserSelectButton" type="Button" parent="Margin/VBox/CharGrid/BruiserCard/BruiserMargin/BruiserVBox"]
 custom_minimum_size = Vector2(0, 44)
 text = "Select"

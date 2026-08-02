@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -14,9 +15,9 @@ namespace Beep.ECS.UI
         [Export] public float ResetTime { get; set; } = 2f;
         // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
         // literal renders a genre's larger type out of a control built for 14.
-        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float BaseFontScale { get; set; } = 2.6f;
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float BaseFontScale { get; set; } = 1.9f;
         private int BaseFontSize => UiSurface.FontSize(this, BaseFontScale);
-        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float MaxFontScale { get; set; } = 4.6f;
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float MaxFontScale { get; set; } = 3.2f;
         private int MaxFontSize => UiSurface.FontSize(this, MaxFontScale);
         // Palette-derived, not a literal. A colour baked into a component is a palette
         // pinned where no skin can reach it; these follow theme -> palette like every
@@ -25,7 +26,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ComboChangedEventHandler(int count);
         [Signal] public delegate void ComboResetEventHandler();
 
-        private Label? _label;
+        private KitHudText? _label;
         private int _count;
         private float _resetTimer;
         private Tween? _punchTween;
@@ -39,9 +40,15 @@ namespace Beep.ECS.UI
         private void SetupLabel()
         {
             if (Engine.IsEditorHint()) return;
-            _label = new Label { Name = "ComboLabel", Text = "", Visible = false };
-            _label.AddThemeFontSizeOverride("font_size", BaseFontSize);
-            _label.AddThemeColorOverride("font_color", ComboColor);
+            _label = new KitHudText
+            {
+                Name = "ComboLabel",
+                Text = "",
+                Visible = false,
+                Role = UiSurface.TextRole.Title,
+                Accent = UiSurface.Role.Warning,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+            };
             // Punch on the offset_transform layer so a container parent can't overwrite the
             // scale (matches the other migrated effects).
             _label.OffsetTransformEnabled = true;
@@ -82,7 +89,7 @@ namespace Beep.ECS.UI
 
             // Punch: scale up briefly then settle.
             int fontSize = Mathf.Clamp(BaseFontSize + _count * 2, BaseFontSize, MaxFontSize);
-            _label.AddThemeFontSizeOverride("font_size", fontSize);
+            _label.CustomMinimumSize = new Vector2(fontSize * 4f, fontSize * 1.8f);
             _punchTween?.Kill();
             _label.PivotOffset = _label.Size / 2f;   // punch from the center, not the corner
             _label.OffsetTransformScale = new Vector2(1.3f, 1.3f);

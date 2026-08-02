@@ -15,6 +15,11 @@ namespace Beep.ECS
         [Export] public AudioStream? AmbientTrack { get; set; }
         [Export] public AudioStream? CombatTrack { get; set; }
         [Export] public AudioStream? ThunderTrack { get; set; }
+
+        /// <summary>Seconds between the flash and its thunder, randomised per strike — the
+        /// perceived distance to the bolt. Both 0 = overhead.</summary>
+        [Export(PropertyHint.Range, "0,10,0.05")] public double ThunderDelayMin { get; set; } = 0.35;
+        [Export(PropertyHint.Range, "0,10,0.05")] public double ThunderDelayMax { get; set; } = 2.2;
         [Export] public float CrossfadeDuration { get; set; } = 1.5f;
         [Export] public string Bus { get; set; } = "Master";
         /// <summary>Loop the ambient/combat tracks while the zone is occupied / in combat. Applied
@@ -141,7 +146,26 @@ namespace Beep.ECS
             _fades[player] = tw;
         }
 
+        /// <summary>
+        /// Thunder LAGS the flash — see the same fix in WeatherAudioController. Playing it on the
+        /// strike frame is what made storms sound like a stock effect rather than distance.
+        /// </summary>
         private void OnLightningStruck()
+        {
+            if (!IsActive || ThunderTrack == null || _thunderPlayer == null) return;
+            // Distance from the bolt's own strength -- see WeatherAudioController for why this
+            // is not an independent roll.
+            float strength = _weather?.LastBoltStrength ?? 1f;
+            float delay = Mathf.Lerp((float)ThunderDelayMax, (float)ThunderDelayMin, strength);
+            if (delay <= 0f) { PlayThunderNow(); return; }
+            // Guard the callback: the timer survives a scene change that frees this node.
+            GetTree().CreateTimer(delay).Timeout += () =>
+            {
+                if (GodotObject.IsInstanceValid(this)) PlayThunderNow();
+            };
+        }
+
+        private void PlayThunderNow()
         {
             if (!IsActive || ThunderTrack == null || _thunderPlayer == null) return;
             _thunderPlayer.Stream = ThunderTrack;

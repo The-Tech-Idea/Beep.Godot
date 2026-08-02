@@ -1,6 +1,7 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CityBuilderHudComponent.cs" id="hud_stat"]
@@ -24,8 +25,18 @@
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_power.png" id="bi_power"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_happiness.png" id="bi_happiness"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_calendar.png" id="bi_calendar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
 
 [node name="CityBuilderMain" type="Node2D"]
+
+[node name="Atmosphere" parent="." instance=ExtResource("atmos_scene")]
+
+[node name="Weather" parent="Atmosphere" index="3"]
+CloudMode = 0
+CloudShadowStrength = 0.55
+CurrentWeather = 1
+TopDownView = true
+ViewMode = 4
 
 [node name="Background" type="ColorRect" parent="."]
 anchors_preset = 15
@@ -35,6 +46,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.2, 0.2, 0.15, 1)
 
+script = ExtResource("k_color")
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
 
@@ -231,4 +243,3 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 script = ExtResource("cb_toast")
-

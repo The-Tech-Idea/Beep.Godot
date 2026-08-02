@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="3_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/platformer/LevelResults.cs" id="4_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="LevelResults" type="CanvasLayer"]
 script = ExtResource("4_script")
@@ -19,6 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.65)
 
+script = ExtResource("k_color")
 [node name="Center" type="CenterContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -44,10 +47,12 @@ theme_type_variation = &"BeepTitle"
 text = "Level Complete!"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="LevelNameLabel" type="Label" parent="Center/Panel/Margin/VBox"]
 text = "1-1: Green Hills"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="StarRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
 theme_override_constants/separation = 20
@@ -56,14 +61,17 @@ theme_override_constants/separation = 20
 theme_type_variation = &"BeepTitle"
 text = "★"
 
+script = ExtResource("k_label")
 [node name="Star2" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
 theme_type_variation = &"BeepTitle"
 text = "★"
 
+script = ExtResource("k_label")
 [node name="Star3" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
 theme_type_variation = &"BeepTitle"
 text = "☆"
 
+script = ExtResource("k_label")
 [node name="StatsRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
 [node name="StatsGrid" type="GridContainer" parent="Center/Panel/Margin/VBox"]
@@ -76,41 +84,49 @@ theme_type_variation = &"BeepCaption"
 text = "Time"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="TimeValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "01:23.45"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="ScoreCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Score"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="ScoreValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "1240"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="CoinsCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Coins"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="CoinsValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "12 / 20"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="DeathsCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Deaths"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="DeathsValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "3"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
 theme_override_constants/separation = 12

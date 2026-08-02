@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -37,26 +38,40 @@ namespace Beep.ECS.UI
         private void BuildSearch()
         {
             if (Engine.IsEditorHint()) return;
+            int fs = UiSurface.FontSize(this);
+            float h = Mathf.Max(32f, fs * 2.25f);
             var hbox = new HBoxContainer();
             hbox.AddThemeConstantOverride("separation", 0);
 
-            var icon = new Label { Text = "🔍", VerticalAlignment = VerticalAlignment.Center };
-            icon.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.00f));
-            icon.CustomMinimumSize = new Vector2(32, 36);
+            var icon = new KitIconButton
+            {
+                Glyph = "Search",
+                Disabled = true,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+            };
+            icon.CustomMinimumSize = new Vector2(h, h);
 
             _input = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };
-            _input.CustomMinimumSize = new Vector2(0, 36);
+            _input.CustomMinimumSize = new Vector2(0, h);
+            _input.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, UiSurface.TextRole.Caption));
             _input.TextChanged += OnTextChanged;
             _input.TextSubmitted += OnTextSubmitted;
 
-            _clearBtn = new Button { Text = "×", Flat = true, Visible = false, CustomMinimumSize = new Vector2(28, 36) };
+            _clearBtn = new KitIconButton { Glyph = "X", Flat = true, Visible = false, CustomMinimumSize = new Vector2(h, h) };
+            _clearBtn.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, UiSurface.TextRole.Caption));
             _clearBtn.Pressed += OnClearPressed;
 
             // Style
-            var sb = new StyleBoxFlat { BgColor = new Color(0.15f, 0.15f, 0.2f, 1f) };
-            sb.SetCornerRadiusAll(18);
-            sb.ContentMarginLeft = 8;
-            sb.ContentMarginRight = 8;
+            Color surface = UiSurface.Of(this);
+            var sb = new StyleBoxFlat
+            {
+                BgColor = surface.Darkened(0.12f),
+                BorderColor = UiSurface.Semantic(this, UiSurface.Role.Accent) with { A = 0.62f }
+            };
+            sb.SetCornerRadiusAll(Mathf.RoundToInt(h * 0.5f));
+            sb.SetBorderWidthAll(Mathf.Max(1, Mathf.RoundToInt(fs * 0.08f)));
+            sb.ContentMarginLeft = fs * 0.6f;
+            sb.ContentMarginRight = fs * 0.6f;
             _input.AddThemeStyleboxOverride("normal", sb);
             _input.AddThemeStyleboxOverride("focus", sb);
 

@@ -96,6 +96,7 @@ namespace Beep.ECS.UI
             float maxH = (bottom - top) * 0.5f;
             float slot = (s.X - pad * 2f) / 3f;
             float barW = Mathf.Min(slot * 0.62f, 18f);
+            float round = Mathf.Max(2f, barW * 0.45f);
 
             // Centre line first: without it a short bar is ambiguous — the player cannot tell
             // a small positive from a small negative.
@@ -113,7 +114,8 @@ namespace Beep.ECS.UI
 
                 // A zero-demand bar would be invisible, leaving the player unsure whether the
                 // meter is at rest or simply broken. Draw the empty channel behind every bar.
-                DrawRect(new Rect2(cx - barW / 2f, top, barW, bottom - top), colour with { A = 0.14f });
+                var channel = new Rect2(cx - barW / 2f, top, barW, bottom - top);
+                DrawStyleBox(Box(colour with { A = 0.14f }, UiSurface.Ink(UiSurface.Of(this)) with { A = 0.28f }, round, 1), channel);
 
                 // Positive grows UP from the centre, negative grows DOWN — the SimCity reading.
                 if (h > 0.5f)
@@ -121,7 +123,11 @@ namespace Beep.ECS.UI
                     var rect = value >= 0
                         ? new Rect2(cx - barW / 2f, mid - h, barW, h)
                         : new Rect2(cx - barW / 2f, mid, barW, h);
-                    DrawRect(rect, colour);
+                    DrawStyleBox(Box(colour, UiSurface.Ink(colour), round, 1), rect);
+                    float shineY = value >= 0 ? rect.Position.Y + 2f : rect.End.Y - Mathf.Max(3f, h * 0.18f);
+                    DrawLine(new Vector2(rect.Position.X + barW * 0.28f, shineY),
+                             new Vector2(rect.End.X - barW * 0.28f, shineY),
+                             new Color(1, 1, 1, 0.22f), Mathf.Max(1f, barW * 0.10f));
                 }
 
                 if (!ShowLetters || font == null) return;
@@ -129,6 +135,14 @@ namespace Beep.ECS.UI
                 DrawString(font, new Vector2(cx - w / 2f, s.Y - pad * 0.5f), letter,
                            HorizontalAlignment.Left, -1, LetterFontSize, colour);
             }
+        }
+
+        private static StyleBoxFlat Box(Color fill, Color rim, float radius, int border)
+        {
+            var sb = new StyleBoxFlat { BgColor = fill, BorderColor = rim };
+            sb.SetCornerRadiusAll(Mathf.RoundToInt(radius));
+            sb.SetBorderWidthAll(border);
+            return sb;
         }
     }
 }

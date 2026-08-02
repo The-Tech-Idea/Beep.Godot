@@ -10,7 +10,9 @@ public static class BeepProjectGenerator
         var folders = new List<string>
         {
             "res://scenes/main","res://scenes/player","res://scenes/npc","res://scenes/ui",
-            "res://scenes/effects","res://scenes/projectiles",
+            "res://scenes/effects","res://scenes/projectiles","res://scenes/levels",
+            "res://src/core","res://src/gameplay","res://src/levels","res://src/ui",
+            "res://src/resources","res://src/shaders",
             "res://scripts/player","res://scripts/npc","res://scripts/managers",
             "res://scripts/ui","res://scripts/effects","res://scripts/projectiles",
             "res://assets/sprites","res://assets/audio","res://assets/fonts",

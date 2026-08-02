@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/topdown/PauseSubscreen.cs" id="3_script"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 [node name="PauseSubscreen" type="CanvasLayer"]
 script = ExtResource("3_script")
 layer = 10
@@ -20,6 +22,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.05, 0.08, 0.92)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -42,6 +45,7 @@ theme_override_constants/separation = 8
 theme_type_variation = &"BeepTitle"
 text = "Paused"
 
+script = ExtResource("k_label")
 [node name="Spacer" type="Control" parent="Margin/MainHBox/TabRail"]
 custom_minimum_size = Vector2(0, 12)
 
@@ -159,15 +163,19 @@ theme_override_constants/separation = 8
 theme_type_variation = &"BeepSubtitle"
 text = "Active Quests"
 
+script = ExtResource("k_label")
 [node name="Quest1" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
 text = "• Find the Master Sword (0/1)"
 
+script = ExtResource("k_label")
 [node name="Quest2" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
 text = "• Defeat 5 enemies (2/5)"
 
+script = ExtResource("k_label")
 [node name="Quest3" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Quest"]
 text = "• Collect 100 gold (45/100)"
 
+script = ExtResource("k_label")
 [node name="Status" type="GridContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
 theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 12
@@ -178,31 +186,37 @@ theme_type_variation = &"BeepCaption"
 size_flags_horizontal = 3
 text = "Health"
 
+script = ExtResource("k_label")
 [node name="HealthValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
 theme_type_variation = &"BeepValue"
 text = "♥ 8 / 10"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="MagicCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
 theme_type_variation = &"BeepCaption"
 size_flags_horizontal = 3
 text = "Magic"
 
+script = ExtResource("k_label")
 [node name="MagicValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
 theme_type_variation = &"BeepValue"
 text = "✦ 30 / 50"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="GoldCaption" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
 theme_type_variation = &"BeepCaption"
 size_flags_horizontal = 3
 text = "Gold"
 
+script = ExtResource("k_label")
 [node name="GoldValue" type="Label" parent="Margin/MainHBox/ContentArea/Tabs/Status"]
 theme_type_variation = &"BeepValue"
 text = "🪙 45"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="Save" type="VBoxContainer" parent="Margin/MainHBox/ContentArea/Tabs"]
 theme_override_constants/separation = 8
 
@@ -210,6 +224,7 @@ theme_override_constants/separation = 8
 theme_type_variation = &"BeepSubtitle"
 text = "Save Game"
 
+script = ExtResource("k_label")
 [node name="ConfirmSaveButton" type="Button" parent="Margin/MainHBox/ContentArea/Tabs/Save"]
 custom_minimum_size = Vector2(0, 48)
 text = "💾 Save to Slot 1"
@@ -221,6 +236,7 @@ theme_type_variation = &"BeepCaption"
 text = "(Saves are managed by the SaveManager autoload.)"
 
 
+script = ExtResource("k_label")
 [node name="Theme" type="Node" parent="Margin"]
 script = ExtResource("1_theme")
 GenreName = "topdown"

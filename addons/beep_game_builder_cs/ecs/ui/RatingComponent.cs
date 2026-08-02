@@ -1,6 +1,6 @@
 using Godot;
-using System;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -26,7 +26,7 @@ namespace Beep.ECS.UI
 
         private Container? _container;
         private readonly List<Godot.Control> _starLabels = new();
-        private readonly List<Action> _starDisconnectors = new();
+        private KitStarRating? _kitRating;
         // The committed rating. Value is only the DISPLAYED value and shows a preview while hovering;
         // _committed is the truth, so moving the mouse away restores it instead of keeping the preview.
         private float _committed;
@@ -57,54 +57,33 @@ namespace Beep.ECS.UI
         private void BuildStars()
         {
             if (Engine.IsEditorHint()) return;
-            for (int i = 0; i < MaxStars; i++)
+
+            _kitRating = new KitStarRating
             {
-                var label = new Label { Text = "★", HorizontalAlignment = HorizontalAlignment.Center };
-                label.AddThemeFontSizeOverride("font_size", (int)StarSize);
-                label.CustomMinimumSize = new Vector2(StarSize + 4, StarSize + 4);
+                Total = MaxStars,
+                Earned = Mathf.RoundToInt(Value),
+                Role = UiSurface.Role.Warning,
+                CustomMinimumSize = new Vector2((StarSize + 8f) * MaxStars, StarSize + 12f),
+                MouseFilter = Interactive ? Godot.Control.MouseFilterEnum.Stop : Godot.Control.MouseFilterEnum.Ignore
+            };
+            _kitRating.ValueChanged += OnKitRatingChanged;
+            _starLabels.Add(_kitRating);
+            _container?.AddChild(_kitRating);
+        }
 
-                if (Interactive)
-                {
-                    int idx = i;
-                    label.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
-                    // Named handlers stored for disconnection — they capture this and are attached to
-                    // labels that live under the parent Container, so a component freed alone would
-                    // otherwise fire them on a freed instance.
-                    Godot.Control.GuiInputEventHandler onGui = e =>
-                    {
-                        if (e is InputEventMouseButton mb && mb.Pressed)
-                        {
-                            _committed = idx + 1;        // commit the click
-                            Value = _committed;
-                            UpdateDisplay();
-                            EmitSignal(SignalName.RatingChanged, Value);
-                        }
-                    };
-                    Action onEnter = () => { Value = idx + 0.8f; UpdateDisplay(); };   // preview only
-                    Action onExit = () => { Value = _committed; UpdateDisplay(); };     // restore committed
-                    label.GuiInput += onGui;
-                    label.MouseEntered += onEnter;
-                    label.MouseExited += onExit;
-                    var lbl = label;
-                    _starDisconnectors.Add(() =>
-                    {
-                        if (!GodotObject.IsInstanceValid(lbl)) return;
-                        lbl.GuiInput -= onGui;
-                        lbl.MouseEntered -= onEnter;
-                        lbl.MouseExited -= onExit;
-                    });
-                }
-
-                _starLabels.Add(label);
-                _container?.AddChild(label);
-            }
+        private void OnKitRatingChanged(double value)
+        {
+            if (_kitRating == null) return;
+            Value = (float)value;
+            _committed = Value;
+            EmitSignal(SignalName.RatingChanged, Value);
         }
 
         public override void _ExitTree()
         {
             base._ExitTree();
-            foreach (var disconnect in _starDisconnectors) disconnect();
-            _starDisconnectors.Clear();
+            if (_kitRating != null && GodotObject.IsInstanceValid(_kitRating))
+                _kitRating.ValueChanged -= OnKitRatingChanged;
             // The stars are AddChild'd to the parent Container — free the ones we created.
             foreach (var s in _starLabels) if (GodotObject.IsInstanceValid(s)) s.QueueFree();
             _starLabels.Clear();
@@ -113,6 +92,12 @@ namespace Beep.ECS.UI
         public void UpdateDisplay()
         {
             if (_container == null) return;
+            if (_kitRating != null && GodotObject.IsInstanceValid(_kitRating))
+            {
+                _kitRating.Total = MaxStars;
+                _kitRating.Earned = Mathf.RoundToInt(Value);
+                return;
+            }
             var children = _container.GetChildren();
             for (int i = 0; i < children.Count && i < MaxStars; i++)
             {

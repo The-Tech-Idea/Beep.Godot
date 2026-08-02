@@ -5,17 +5,16 @@ using Beep.GameBuilder;      // GameInfo
 namespace Beep.ECS
 {
     /// <summary>
-    /// Picks a genre at design time and wires the rest at runtime.
+    /// Picks a genre at design time and wires the shared MainGame shell at runtime.
     ///
     /// Drop a <see cref="BeepGenreScene"/> into any scene root, set
     /// <see cref="GenreId"/> in the inspector, and at <c>_Ready</c> this node will:
     ///
     /// 1. Resolve <c>catalogs/skins/&lt;GenreId&gt;/genre.json</c>.
     /// 2. Apply the genre's default theme + tuning to <c>GameApp.Info</c>.
-    /// 3. If <see cref="AutoInstantiateMainScene"/> is true (default), load
-    ///    the genre's <c>main_scene.tscn</c> and add it as a child of self —
-    ///    so the genre's already-wired layout (player + HUD + levels) appears
-    ///    under this node without any further work.
+    /// 3. If <see cref="AutoInstantiateMainScene"/> is true (default), load the
+    ///    resolved game scene. In current projects this is the shared MainGame
+    ///    shell, which then loads the genre's level content under stable roots.
     /// 4. Drive a sibling <see cref="ThemePresetComponent"/> (if any) from
     ///    the resolved theme / palette / geometry.
     ///
@@ -56,13 +55,12 @@ namespace Beep.ECS
         /// <summary>Optional geometry profile name. Empty = "As-Authored".</summary>
         [Export] public string GeometryProfileName { get; set; } = "As-Authored";
 
-        /// <summary>If true (default), load <c>genre.json#main_scene</c> and add it
-        /// as a child at <c>_Ready</c>. Disable for sub-scenes that don't want
-        /// the full genre layout instantiated.</summary>
+        /// <summary>If true (default), load the resolved game scene and add it as a child
+        /// at <c>_Ready</c>. Disable for sub-scenes that only want genre/theme wiring.</summary>
         [Export] public bool AutoInstantiateMainScene { get; set; } = true;
 
-        /// <summary>If true, <c>GameInfo.GameScenePath</c> is set to this scene's
-        /// saved path. Disable for non-main scenes.</summary>
+        /// <summary>If true, <c>GameInfo.GameScenePath</c> is pointed at the shared
+        /// MainGame shell. Disable for non-game configuration scenes.</summary>
         [Export] public bool RegisterAsMainScene { get; set; } = true;
 
         // ── Signal ──────────────────────────────────────────────────────────
@@ -102,34 +100,34 @@ namespace Beep.ECS
         private void ApplyToGameInfo(GenreDef genre)
         {
             var app = GameApp.Instance;
-            if (app?.Info == null)
+            if (app == null)
             {
                 if (!Engine.IsEditorHint())
-                    GD.PushWarning($"[{Name}] BeepGenreScene found no GameApp autoload (or its Info is null) — genre/theme/scene-path wiring into GameInfo is skipped. Enable the GameApp autoload so the scene picks up this genre's config.");
+                    GD.PushWarning($"[{Name}] BeepGenreScene found no GameApp autoload — genre/theme/scene-path wiring into GameInfo is skipped. Enable the GameApp autoload so the scene picks up this genre's config.");
                 return;
             }
 
-            app.Info.GenreId = GenreId;
-            app.Info.DefaultThemePreset = string.IsNullOrEmpty(ThemePreset)
+            var info = app.ActiveInfo;
+            info.GenreId = GenreId;
+            info.DefaultThemePreset = string.IsNullOrEmpty(ThemePreset)
                 ? genre.DefaultTheme : ThemePreset;
-            if (!string.IsNullOrEmpty(PaletteName)) app.Info.PaletteName = PaletteName;
+            if (!string.IsNullOrEmpty(PaletteName)) info.PaletteName = PaletteName;
             if (!string.IsNullOrEmpty(GeometryProfileName))
-                app.Info.GeometryProfileName = GeometryProfileName;
+                info.GeometryProfileName = GeometryProfileName;
             // Shared with the generator rather than forked — the local copy recognised only
             // the 7 gameplay keys, so weather/season/save tuning never reached this path.
-            BeepGenreGenerator.ApplyTuning(app.Info, genre);
+            BeepGenreGenerator.ApplyTuning(info, genre);
 
             // Point the genre-specific scene paths at THIS genre's screens, exactly as the
             // generator does. Without this, a project set up the README way (drop in a
             // BeepGenreScene instead of running Generate) keeps GameInfo's hardcoded
             // defaults — which name the puzzle/platformer scenes — so every genre would
             // still finish a level on the puzzle end screen.
-            BeepGenreGenerator.ApplyNavWiring(app.Info, genre);
+            BeepGenreGenerator.ApplyNavWiring(info, genre);
 
             if (RegisterAsMainScene)
             {
-                string path = Owner?.SceneFilePath ?? SceneFilePath;
-                if (!string.IsNullOrEmpty(path)) app.Info.GameScenePath = path;
+                info.GameScenePath = GameInfo.DefaultGameScenePath;
             }
         }
 
@@ -155,13 +153,9 @@ namespace Beep.ECS
 
         private void InstantiateMainScene(GenreDef genre)
         {
-            if (string.IsNullOrEmpty(genre.MainScene)) return;
-
-            // Genre's MainScene path comes from genre.json. The actual file lives
-            // either at res://scenes/main/<file> (after a project has stamped one)
-            // OR at the addon's own template path. Try the runtime path first;
-            // fall back to the template so a fresh project works without setup.
-            string scenePath = TryResolveMainScenePath(genre.MainScene);
+            // Load the shared shell when it exists. GameInfo.ResolveGameScenePath still
+            // falls back to the legacy genre scene only for unstamped projects.
+            string scenePath = GameApp.Instance?.ActiveInfo.ResolveGameScenePath() ?? "";
             if (string.IsNullOrEmpty(scenePath)) return;
 
             var packed = ResourceLoader.Load<PackedScene>(scenePath);
@@ -172,7 +166,7 @@ namespace Beep.ECS
                 return;
             }
 
-            string childName = $"_{GenreId}Main";   // underscore prefix → sorts first
+            string childName = "_MainGame";   // underscore prefix sorts first
             // Idempotent: ApplyGenre is public and documented re-runnable, so remove a prior
             // main-scene instance before adding a new one — otherwise a second call stacks a
             // duplicate genre layout. RemoveChild is immediate (frees the name), then QueueFree.
@@ -184,19 +178,6 @@ namespace Beep.ECS
             var instance = packed.Instantiate();
             instance.Name = childName;
             AddChild(instance);
-        }
-
-        private static string TryResolveMainScenePath(string fileName)
-        {
-            // 1. Stamped into the user's project (the normal case after first run).
-            string stamped = $"res://scenes/main/{fileName}";
-            if (ResourceLoader.Exists(stamped)) return stamped;
-
-            // 2. Ships with the addon as a template (first-run case).
-            string template = $"res://addons/beep_game_builder_cs/templates/scenes/{fileName}";
-            if (ResourceLoader.Exists(template)) return template;
-
-            return "";
         }
 
         // ── Inspector dropdowns ─────────────────────────────────────────────

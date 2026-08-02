@@ -17,6 +17,11 @@ namespace Beep.ECS
         [Export] public AudioStream? RainLoop { get; set; }
         [Export] public AudioStream? WindLoop { get; set; }
         [Export] public AudioStream[]? ThunderVariants { get; set; }
+
+        /// <summary>Seconds between the flash and its thunder, randomised per strike — this IS the
+        /// perceived distance to the bolt. Set both to 0 for an overhead strike.</summary>
+        [Export(PropertyHint.Range, "0,10,0.05")] public double ThunderDelayMin { get; set; } = 0.35;
+        [Export(PropertyHint.Range, "0,10,0.05")] public double ThunderDelayMax { get; set; } = 2.2;
         [Export] public AudioStream? AmbientLoop { get; set; }
 
         /// <summary>OPTIONAL heavier rain/wind loops. When assigned, the mix crosses over from the
@@ -138,7 +143,7 @@ namespace Beep.ECS
                 // Play thunder on each lightning strike. PlayThunder had no caller — in the shipped
                 // atmosphere.tscn (which has this controller but not AmbientAudioComponent) the
                 // thunder path was dead. Now storms actually crack.
-                _weather.LightningStruck += PlayThunder;
+                _weather.LightningStruck += OnLightningStruck;
             }
         }
 
@@ -213,6 +218,36 @@ namespace Beep.ECS
         /// <summary>
         /// Play a random thunder sound from variants.
         /// </summary>
+        /// <summary>
+        /// Sound is slower than light, so thunder LAGS the flash — and the lag is how far away the
+        /// strike was. Firing both on the same frame is the single thing that makes a storm read as
+        /// a sound effect rather than as weather, and that is what this did.
+        ///
+        /// The delay is randomised per strike so successive bolts land at different distances. It
+        /// is deliberately NOT inside <see cref="PlayThunder"/>: that is public API, and a game
+        /// calling it for a scripted story beat wants the crack immediately.
+        /// </summary>
+        private void OnLightningStruck()
+        {
+            if (!IsActive) return;
+
+            // The delay is the bolt's DISTANCE, not a free roll. A strong (near) bolt cracks
+            // almost immediately; a weak, far one rumbles seconds later. Rolling the delay
+            // independently of the flash amplitude — which is what this did — produced blinding
+            // strikes that took two seconds to arrive, and faint ones that cracked instantly.
+            float strength = _weather?.LastBoltStrength ?? 1f;
+            float delay = Mathf.Lerp((float)ThunderDelayMax, (float)ThunderDelayMin, strength);
+            if (delay <= 0f) { PlayThunder(); return; }
+
+            // The timer outlives the node if the scene changes mid-storm, so re-check before
+            // calling back into ourselves — otherwise a strike during a level transition is a
+            // use-after-free rather than a missed sound.
+            GetTree().CreateTimer(delay).Timeout += () =>
+            {
+                if (GodotObject.IsInstanceValid(this)) PlayThunder();
+            };
+        }
+
         public void PlayThunder()
         {
             if (!IsActive || _thunderPlayer == null || ThunderVariants == null || ThunderVariants.Length == 0)
@@ -277,7 +312,7 @@ namespace Beep.ECS
             {
                 _weather.WeatherChanged -= OnWeatherChanged;
                 _weather.IntensityChanged -= SetWeatherIntensity;
-                _weather.LightningStruck -= PlayThunder;
+                _weather.LightningStruck -= OnLightningStruck;
             }
             // Remove the Weather bus we added, so it doesn't persist into menus after a run. Re-resolve
             // by name (indices shift) and never touch Master (index 0). Only if we created it.

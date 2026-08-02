@@ -48,6 +48,7 @@ namespace Beep.ECS.UI.Kit
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private bool _suppressing;
+        private int _hoverTab = -1;
 
         public override void _Ready()
         {
@@ -64,6 +65,21 @@ namespace Beep.ECS.UI.Kit
             foreach (var t in Tabs) AddTab(t.Text);
             Suppress();
             TabChanged += _ => QueueRedraw();
+            MouseExited += () => { _hoverTab = -1; QueueRedraw(); };
+        }
+
+        public override void _GuiInput(InputEvent @event)
+        {
+            base._GuiInput(@event);
+            if (@event is InputEventMouseMotion motion)
+            {
+                int hit = GetTabIdxAtPoint(motion.Position);
+                if (_hoverTab != hit)
+                {
+                    _hoverTab = hit;
+                    QueueRedraw();
+                }
+            }
         }
 
         public override void _Notification(int what)
@@ -120,12 +136,15 @@ namespace Beep.ECS.UI.Kit
                 Rect2 r = TabRect(i);
                 if (r.Size.X < 3f) continue;
                 bool sel = i == CurrentTab;
+                bool hover = i == _hoverTab && !sel && !IsTabDisabled(i);
 
                 // Unselected is the pressed surface, selected the panel's own colour: the pair
                 // must be clearly different, not two near-identical greys.
                 Color plate = sel
                     ? face
                     : new Color(face.R * 0.72f, face.G * 0.72f, face.B * 0.76f, 1f);
+                if (hover)
+                    plate = KitChrome.StateFace(plate, KitState.Hover);
 
                 if (sel && Selection == SelectionStyle.Pill)
                 {
@@ -137,6 +156,16 @@ namespace Beep.ECS.UI.Kit
                 else
                 {
                     KitChrome.DrawShape(this, _genre, r, KitChrome.Shape(_genre), plate, sel ? KitChrome.Rim(UiSurface.Of(this), Geo) : ink, rimPx);
+                }
+
+                if (sel || hover)
+                {
+                    Color acc = UiSurface.Semantic(this, UiSurface.Role.Accent);
+                    float y = r.End.Y - Mathf.Max(2f, fs * 0.18f);
+                    DrawLine(new Vector2(r.Position.X + r.Size.X * 0.18f, y),
+                             new Vector2(r.End.X - r.Size.X * 0.18f, y),
+                             acc with { A = sel ? 0.90f : 0.48f },
+                             Mathf.Max(2f, fs * 0.16f));
                 }
 
                 if (font != null && !string.IsNullOrEmpty(Tabs[i].Text))

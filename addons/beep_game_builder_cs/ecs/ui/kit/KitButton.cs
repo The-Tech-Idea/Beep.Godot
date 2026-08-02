@@ -146,7 +146,8 @@ namespace Beep.ECS.UI.Kit
             if (font == null) return;
 
             string text = Geo.UpperCase ? Text.ToUpperInvariant() : Text;
-            int fs = UiSurface.FontSize(this);
+            int fs = UiSurface.FitText(this, body.Size - new Vector2(UiSurface.FontSize(this) * 0.7f, 0f),
+                                       0.50f, text, font, min: 8, themeMax: 1.08f);
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             // Pressed text shifts with the plate, so the label looks pushed in with it.
             float dy = state == KitState.Pressed ? 1f : 0f;
@@ -164,7 +165,7 @@ namespace Beep.ECS.UI.Kit
         {
             if (string.IsNullOrEmpty(_badge) || state == KitState.Disabled) return;
 
-            int bfs = UiSurface.FontSize(this, 0.8f);
+            int bfs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
             var attach = new KitAttach
             {
                 Anchor = KitAnchor.TopRight,
@@ -190,6 +191,7 @@ namespace Beep.ECS.UI.Kit
 
             var font = KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
             if (font == null) return;
+            bfs = UiSurface.FitText(this, r.Size * 0.82f, 0.62f, _badge, font, min: 7, themeMax: 0.85f);
             Vector2 m = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, bfs);
             KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
                        _badge, bfs, UiSurface.Ink(fill));

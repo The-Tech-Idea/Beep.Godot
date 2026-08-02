@@ -97,8 +97,15 @@ namespace Beep.ECS.UI
             float r = Mathf.Min(center.X, center.Y);
             ResolveColors();
 
-            DrawCircle(center, r, _plate);
-            DrawArc(center, r, 0, Mathf.Tau, 48, _rim, 2f);
+            DrawCircle(center, r, _rim with { A = 0.28f });
+            DrawCircle(center, r * 0.94f, _plate);
+            DrawArc(center, r * 0.94f, 0, Mathf.Tau, 64, _rim, Mathf.Max(2f, r * 0.025f));
+            DrawArc(center, r * 0.62f, 0, Mathf.Tau, 48, _rim with { A = 0.22f }, 1f);
+            DrawArc(center, r * 0.32f, 0, Mathf.Tau, 32, _rim with { A = 0.16f }, 1f);
+            DrawLine(center + new Vector2(-r * 0.82f, 0), center + new Vector2(r * 0.82f, 0), _rim with { A = 0.18f }, 1f);
+            DrawLine(center + new Vector2(0, -r * 0.82f), center + new Vector2(0, r * 0.82f), _rim with { A = 0.18f }, 1f);
+            DrawLine(center + new Vector2(0, -r * 0.90f), center + new Vector2(r * 0.07f, -r * 0.75f), _player, Mathf.Max(1.5f, r * 0.02f));
+            DrawLine(center + new Vector2(0, -r * 0.90f), center + new Vector2(-r * 0.07f, -r * 0.75f), _player, Mathf.Max(1.5f, r * 0.02f));
 
             if (Engine.IsEditorHint()) return;
 
@@ -109,7 +116,8 @@ namespace Beep.ECS.UI
             foreach (var n in GetTree().GetNodesInGroup(BlipGroup))
             {
                 if (n is not Node2D blip || !GodotObject.IsInstanceValid(blip)) continue;
-                Vector2 rel = (blip.GlobalPosition - origin).LimitLength(WorldRadius) / WorldRadius * r;
+                Vector2 rel = (blip.GlobalPosition - origin).LimitLength(WorldRadius) / WorldRadius * (r * 0.78f);
+                DrawCircle(center + rel, BlipSize * 1.65f, _blip with { A = 0.22f });
                 DrawCircle(center + rel, BlipSize, _blip);
             }
 
@@ -120,7 +128,11 @@ namespace Beep.ECS.UI
                 float k = BlipSize * 2f;
                 DrawRect(new Rect2(center - new Vector2(k, k), new Vector2(k * 2, k * 2)), _player, false, 1.5f);
             }
-            else DrawCircle(center, BlipSize * 1.3f, _player);
+            else
+            {
+                DrawCircle(center, BlipSize * 2.0f, _player with { A = 0.26f });
+                DrawCircle(center, BlipSize * 1.3f, _player);
+            }
         }
     }
 }

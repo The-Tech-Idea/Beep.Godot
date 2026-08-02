@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.GameBuilder;
 
@@ -10,14 +11,11 @@ namespace Beep.GameBuilder;
 /// </summary>
 [Tool]
 [GlobalClass]
-public partial class BeepDropdown : Button
+public partial class BeepDropdown : KitPushButton
 {
-    private PopupMenu _popup;
-    private LineEdit _searchBox;
-    private VBoxContainer _popupContent;
     private List<string> _allItems = new();
     private List<string> _filteredItems = new();
-    private ItemList _itemList;
+    private KitContextMenu _menu;
 
     [Export] public string Placeholder { get; set; } = "Search...";
     public string SelectedItem { get; private set; }
@@ -29,32 +27,14 @@ public partial class BeepDropdown : Button
         Alignment = HorizontalAlignment.Left;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
 
-        // Build popup: a search box over the item list. Without the LineEdit the "filter-as-you-type"
-        // claim was unreachable — the popup only ever showed the full list and Filter() had no UI caller.
-        _popup = new PopupMenu();
-
-        _popupContent = new VBoxContainer();
-        _popupContent.SetAnchorsPreset(LayoutPreset.FullRect);
-
-        _searchBox = new LineEdit { PlaceholderText = Placeholder, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _searchBox.TextChanged += t => Filter(t);
-        _popupContent.AddChild(_searchBox);
-
-        _itemList = new ItemList { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _itemList.ItemSelected += OnItemClicked;
-        _popupContent.AddChild(_itemList);
-
-        _popup.AddChild(_popupContent);
-        AddChild(_popup);
+        _menu = new KitContextMenu();
+        _menu.ItemSelected += OnMenuItemSelected;
+        AddChild(_menu);
 
         Pressed += () =>
         {
-            _popup.Position = (Vector2I)GlobalPosition + new Vector2I(0, (int)Size.Y);
-            _popup.Size = new Vector2I((int)Size.X, 220);
-            _popup.Popup();
-            _searchBox.Clear();      // start unfiltered each open
             RefreshList("");
-            _searchBox.GrabFocus();
+            _menu.PopupAt(GlobalPosition + new Vector2(0, Size.Y));
         };
     }
 
@@ -78,20 +58,17 @@ public partial class BeepDropdown : Button
 
     private void RefreshListInternal()
     {
-        _itemList.Clear();
-        foreach (var item in _filteredItems)
-            _itemList.AddItem(item);
+        _menu.SetItems(_filteredItems.ToArray());
     }
 
-    private void OnItemClicked(long index)
+    private void OnMenuItemSelected(int index, string label)
     {
         if (index >= 0 && index < _filteredItems.Count)
         {
-            SelectedItem = _filteredItems[(int)index];
+            SelectedItem = label;
             Text = SelectedItem;
             ItemSelected?.Invoke(SelectedItem);
         }
-        _popup.Hide();
     }
 
     /// <summary>Get or set the selected value.</summary>

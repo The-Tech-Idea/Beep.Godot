@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -42,17 +43,9 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            // First child is the header button
-            _header = children[0] as Button;
-            if (_header != null)
-            {
-                _header.Pressed += Toggle;
-                UpdateHeaderText();
-            }
-            else
-            {
-                GD.PushWarning($"[{Name}] AccordionComponent's first child is '{children[0].GetType().Name}', not a Button — there's no header to toggle, so the section can't be expanded/collapsed by click. Make the first child a Button.");
-            }
+            _header = BuildKitHeader(children[0]);
+            _header.Pressed += Toggle;
+            UpdateHeaderText();
 
             if (!StartExpanded) SetExpanded(false, true);
             else _isExpanded = true;
@@ -116,6 +109,32 @@ namespace Beep.ECS.UI
         }
 
         private void OnCollapseFinished(Godot.Control ctrl) => ctrl.Visible = false;
+
+        private Button BuildKitHeader(Node firstChild)
+        {
+            string text = firstChild is Button b && !string.IsNullOrWhiteSpace(b.Text)
+                ? b.Text.TrimStart('▶', '▼', ' ').Trim()
+                : _container?.Name.ToString() ?? "Section";
+
+            if (firstChild is KitPushButton kit)
+                return kit;
+
+            var header = new KitPushButton
+            {
+                Name = "AccordionHeader",
+                Text = text,
+                Accent = UiSurface.Role.Info,
+                FocusMode = Godot.Control.FocusModeEnum.None,
+                SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.4f),
+            };
+
+            _container?.AddChild(header);
+            _container?.MoveChild(header, 0);
+            if (firstChild is Godot.Control oldHeader)
+                oldHeader.QueueFree();
+            return header;
+        }
 
         private void UpdateHeaderText()
         {

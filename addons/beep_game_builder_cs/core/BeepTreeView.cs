@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.GameBuilder;
 
@@ -10,7 +11,7 @@ namespace Beep.GameBuilder;
 /// </summary>
 [Tool]
 [GlobalClass]
-public partial class BeepTreeView : Tree
+public partial class BeepTreeView : KitGodotTree
 {
     [Export] public bool ShowRoot { get; set; } = true;
     [Export] public bool Selectable { get; set; } = true;

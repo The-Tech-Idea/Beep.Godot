@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -59,11 +60,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ChoiceSelectedEventHandler(int index);
 
         // ── Internal state ──
-        private PanelContainer? _panel;
-        private Label? _nameLabel;
-        private RichTextLabel? _textLabel;
-        private VBoxContainer? _choicesBox;
-        private Label? _continueIndicator;
+        private KitDialogBox? _panel;
         private DialogLine[] _lines = System.Array.Empty<DialogLine>();
         private int _lineIndex;
         private double _charTimer;
@@ -118,8 +115,8 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            // PanelContainer — the themed frame.
-            _panel = new PanelContainer { Name = "DialogPanel" };
+            _panel = new KitDialogBox { Name = "DialogPanel" };
+            _panel.ChoiceSelected += OnChoiceSelected;
             parent.AddChild(_panel);
 
             // The entry animation tweens _panel.position, which a CONTAINER parent would
@@ -139,46 +136,6 @@ namespace Beep.ECS.UI
             // just once, at build) — recommend a CanvasLayer/free Control host.
             if (!Engine.IsEditorHint() && parent is Container)
                 GD.PushWarning($"[{Name}] DialogUIComponent's host is a {parent.GetType().Name} — it will re-sort the dialog panel and overwrite the slide-in/out animation. Host the dialog under a CanvasLayer or a free (non-Container) Control.");
-
-            // MarginContainer — inner padding.
-            var margin = new MarginContainer { Name = "DialogMargin" };
-            margin.AddThemeConstantOverride("margin_left", ContentPadding);
-            margin.AddThemeConstantOverride("margin_right", ContentPadding);
-            margin.AddThemeConstantOverride("margin_top", ContentPadding / 2);
-            margin.AddThemeConstantOverride("margin_bottom", ContentPadding / 2);
-            _panel.AddChild(margin);
-
-            // VBox — speaker + text + choices + indicator.
-            var vbox = new VBoxContainer { Name = "DialogVBox" };
-            vbox.AddThemeConstantOverride("separation", 6);
-            margin.AddChild(vbox);
-
-            _nameLabel = new Label { Name = "SpeakerLabel", Text = "" };
-            vbox.AddChild(_nameLabel);
-
-            _textLabel = new RichTextLabel
-            {
-                Name = "TextLabel",
-                BbcodeEnabled = true,
-                FitContent = true,
-                ScrollFollowing = true,
-                SizeFlagsVertical = Godot.Control.SizeFlags.ExpandFill,
-                CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.9f)
-            };
-            vbox.AddChild(_textLabel);
-
-            _choicesBox = new VBoxContainer { Name = "ChoicesBox", Visible = false };
-            _choicesBox.AddThemeConstantOverride("separation", 4);
-            vbox.AddChild(_choicesBox);
-
-            _continueIndicator = new Label
-            {
-                Name = "ContinueIndicator",
-                Text = "▼",
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            _continueIndicator.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.79f));
-            vbox.AddChild(_continueIndicator);
 
             ApplyAnchors();
             DiscoverTheme();
@@ -279,30 +236,19 @@ namespace Beep.ECS.UI
 
             var line = _lines[_lineIndex];
 
-            // Speaker name with accent color.
-            if (_nameLabel != null)
+            if (_panel != null)
             {
-                _nameLabel.Text = line.Speaker;
-                Color sc = SpeakerColorOverride.A > 0 ? SpeakerColorOverride : _cachedAccent;
-                _nameLabel.AddThemeColorOverride("font_color", sc);
-            }
-
-            // Body text.
-            if (_textLabel != null)
-            {
-                _textLabel.Text = line.Text;
-                _textLabel.VisibleCharacters = 0;
+                _panel.Speaker = line.Speaker;
+                _panel.Body = line.Text;
+                _panel.VisibleCharacters = 0;
+                _panel.ChoicesVisible = false;
+                _panel.ContinueVisible = ShowContinueIndicator;
             }
 
             _charTimer = 0;
             _typewriterDone = false;
 
             // Continue indicator.
-            if (_continueIndicator != null)
-                _continueIndicator.Visible = ShowContinueIndicator;
-
-            // Hide choices until this line's typewriter completes.
-            if (_choicesBox != null) _choicesBox.Visible = false;
             _showingChoices = false;
         }
 
@@ -311,17 +257,17 @@ namespace Beep.ECS.UI
             if (!IsActive || _panel == null || !_panel.Visible || Engine.IsEditorHint()) return;
 
             // Typewriter reveal.
-            if (!_typewriterDone && _textLabel != null)
+            if (!_typewriterDone && _panel != null)
             {
                 _charTimer += delta;
                 if (_charTimer >= 1.0 / TypewriterSpeed)
                 {
                     _charTimer = 0;
-                    int total = _textLabel.GetTotalCharacterCount();
-                    int shown = _textLabel.VisibleCharacters;
+                    int total = CurrentTextLength();
+                    int shown = _panel.VisibleCharacters;
                     if (shown < total)
                     {
-                        _textLabel.VisibleCharacters = shown + 1;
+                        _panel.VisibleCharacters = shown + 1;
                     }
                     else
                     {
@@ -331,14 +277,11 @@ namespace Beep.ECS.UI
                 }
             }
 
-            // Pulsing continue indicator.
-            if (_continueIndicator != null && _continueIndicator.Visible && !_showingChoices)
-            {
-                _pulseTime += delta * 3.0;
-                float a = (float)((Mathf.Sin(_pulseTime) + 1f) * 0.5 * 0.7 + 0.3);
-                _continueIndicator.Modulate = new Color(1, 1, 1, a);
-            }
+            _pulseTime += delta * 3.0;
         }
+
+        private int CurrentTextLength()
+            => _lineIndex >= 0 && _lineIndex < _lines.Length ? _lines[_lineIndex].Text.Length : 0;
 
         private void OnTypewriterComplete()
         {
@@ -362,7 +305,7 @@ namespace Beep.ECS.UI
                 if (!_typewriterDone)
                 {
                     // Fast-complete the typewriter.
-                    if (_textLabel != null) _textLabel.VisibleCharacters = -1;
+                    if (_panel != null) _panel.VisibleCharacters = -1;
                     _typewriterDone = true;
                     OnTypewriterComplete();
                 }
@@ -387,46 +330,20 @@ namespace Beep.ECS.UI
         private void ShowChoices(string[] choices)
         {
             _showingChoices = true;
-            if (_choicesBox == null) return;
+            if (_panel == null) return;
 
             foreach (var t in _choiceTweens)
                 t?.Kill();
             _choiceTweens.Clear();
 
-            _choicesBox.Visible = true;
-
-            // Hide continue indicator while choices are shown.
-            if (_continueIndicator != null) _continueIndicator.Visible = false;
-
-            // Clear old buttons.
-            foreach (var c in _choicesBox.GetChildren()) c.QueueFree();
-
-            // Spawn + stagger-animate choice buttons.
-            for (int i = 0; i < choices.Length; i++)
-            {
-                var btn = new Button
-                {
-                    Text = choices[i],
-                    SizeFlagsHorizontal = Godot.Control.SizeFlags.Fill,
-                    Modulate = new Color(1, 1, 1, 0) // start invisible for stagger
-                };
-                _choicesBox.AddChild(btn);
-
-                int idx = i;
-                btn.Pressed += () => OnChoiceSelected(idx);
-
-                // Stagger fade-in.
-                var tw = btn.CreateTween();
-                _choiceTweens.Add(tw);
-                tw.TweenInterval(i * ChoiceStaggerDelay);
-                tw.TweenProperty(btn, "modulate:a", 1f, 0.15f).SetEase(Tween.EaseType.Out);
-            }
+            _panel.ContinueVisible = false;
+            _panel.SetChoices(choices);
         }
 
         private void OnChoiceSelected(int index)
         {
             _showingChoices = false;
-            if (_choicesBox != null) _choicesBox.Visible = false;
+            if (_panel != null) _panel.ChoicesVisible = false;
             EmitSignal(SignalName.ChoiceSelected, index);
             Advance();
         }
@@ -480,6 +397,8 @@ namespace Beep.ECS.UI
             _choiceTweens.Clear();
             if (_engine != null && GodotObject.IsInstanceValid(_engine))
                 _engine.DialogStarted -= StartFromDialogComponent;
+            if (_panel != null && GodotObject.IsInstanceValid(_panel))
+                _panel.ChoiceSelected -= OnChoiceSelected;
             // _panel is AddChild'd to the parent Control — free it or the built dialog is orphaned.
             if (_panel != null && GodotObject.IsInstanceValid(_panel)) _panel.QueueFree();
             _panel = null;

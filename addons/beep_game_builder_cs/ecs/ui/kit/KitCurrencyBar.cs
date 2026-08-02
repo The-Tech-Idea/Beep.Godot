@@ -56,7 +56,12 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             if (Entries.Count == 0)
-                Entries.Add(new Entry { Value = "0", Glyph = "$" });
+                Entries.AddRange(new[]
+                {
+                    new Entry { Value = "1,240", Glyph = "$", Accent = UiSurface.Role.Warning },
+                    new Entry { Value = "38", Glyph = "*", Accent = UiSurface.Role.Info },
+                    new Entry { Value = "7", Glyph = "+", Accent = UiSurface.Role.Success },
+                });
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -125,9 +130,12 @@ namespace Beep.ECS.UI.Kit
                 // Value, right of the cap.
                 if (font != null && !string.IsNullOrEmpty(e.Value))
                 {
-                    Vector2 m = font.GetStringSize(e.Value, HorizontalAlignment.Left, -1, fs);
+                    int vf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                               new Vector2(capsule.Size.X - capR * 1.10f - fs * 0.40f, capsule.Size.Y * 0.62f),
+                                               e.Value, font, min: 8);
+                    Vector2 m = font.GetStringSize(e.Value, HorizontalAlignment.Left, -1, vf);
                     DrawText(font, new Vector2(capsule.Position.X + capR * 0.9f, capsule.Position.Y + (capsule.Size.Y + m.Y * 0.6f) * 0.5f),
-                               e.Value, fs, new Color(0.97f, 0.95f, 0.90f));
+                               e.Value, vf, new Color(0.97f, 0.95f, 0.90f));
                 }
 
                 // The cap LAST and OVERHANGING the capsule's left end — the element that makes
@@ -141,7 +149,8 @@ namespace Beep.ECS.UI.Kit
                     DrawTextureRect(e.Icon, cap.Grow(-cap.Size.X * 0.22f), false);
                 else if (font != null && !string.IsNullOrEmpty(e.Glyph))
                 {
-                    int gs = Mathf.Max(8, Mathf.RoundToInt(cap.Size.Y * 0.55f));
+                    int gs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                               cap.Size * 0.58f, e.Glyph, font, min: 8);
                     Vector2 m = font.GetStringSize(e.Glyph, HorizontalAlignment.Left, -1, gs);
                     DrawText(font, new Vector2(cap.Position.X + (cap.Size.X - m.X) * 0.5f, cap.Position.Y + (cap.Size.Y + m.Y * 0.6f) * 0.5f),
                                e.Glyph, gs, UiSurface.Luminance(capCol) > 0.5f

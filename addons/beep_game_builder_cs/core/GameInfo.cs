@@ -3,12 +3,10 @@ using Godot;
 namespace Beep.GameBuilder;
 
 /// <summary>
-/// Central game descriptor read by every scene template. Registered as the
-/// "GameInfo" autoload so any node — C# or GDScript — can access it via
-/// /root/GameInfo. GDScript reads it transparently:
-///   var info = get_node("/root/GameInfo")
-///   title.text = info.game_name
-/// Saved as res://game_info.tres so it round-trips through the inspector.
+/// Central game descriptor read by every scene template. This is a Resource,
+/// saved as res://game_info.tres so it round-trips through the inspector.
+/// The GameApp node autoload loads it and exposes it as GameApp.Info; C# code
+/// can use GameInfo.Instance as a convenience accessor.
 /// </summary>
 [Tool]
 [GlobalClass]
@@ -73,6 +71,7 @@ public partial class GameInfo : Resource
     [Export] public string GameScenePath { get; set; } = "res://scenes/main/main.tscn";
     [Export] public string SettingsScenePath { get; set; } = "res://scenes/ui/settings_menu.tscn";
     [Export] public string GameOverScenePath { get; set; } = "res://scenes/ui/game_over.tscn";
+    [Export] public string PlayerScenePath { get; set; } = "res://scenes/player/player_template.tscn";
 
     // Pausing shows the MAIN MENU as an overlay over the frozen game (GameFlowComponent), so there is
     // no separate pause-menu path — MainMenuPath is reused. A genre that wants its own pause screen sets
@@ -175,6 +174,9 @@ public partial class GameInfo : Resource
     /// terrain are the main event rather than the clouds themselves.
     /// </summary>
     [Export] public bool TopDownView { get; set; } = false;
+    /// <summary>Genre-aware weather projection. Keeps TopDownView for old scenes but gives
+    /// RPG, city-builder and isometric layouts their own 2D tuning.</summary>
+    [Export] public ECS.WeatherSystemComponent.WeatherViewMode WeatherViewMode { get; set; } = ECS.WeatherSystemComponent.WeatherViewMode.Side;
     [Export] public int ForecastDays { get; set; } = 7;
 
     [ExportGroup("Time")]
@@ -211,11 +213,60 @@ public partial class GameInfo : Resource
     /// <summary>Default path for the game-over scene.</summary>
     public const string DefaultGameOverScenePath = "res://scenes/ui/game_over.tscn";
 
+    private const string SceneTemplatesDir = "res://addons/beep_game_builder_cs/templates/scenes";
+
     /// <summary>
     /// The active GameInfo — loaded from game_info.tres by the GameApp autoload.
-    /// Returns GameApp.Instance?.Info, or null if GameApp hasn't loaded yet.
+    /// Returns GameApp.Instance?.ActiveInfo, or null if GameApp is not registered.
     /// </summary>
-    public static GameInfo? Instance => ECS.GameApp.Instance?.Info;
+    public static GameInfo? Instance => ECS.GameApp.Instance?.ActiveInfo;
+
+    /// <summary>Main gameplay scene. The shared MainGame shell is the canonical runtime
+    /// entry; genre main scenes are content/reference templates and are only a last-resort
+    /// fallback for projects that have not stamped the shared shell yet.</summary>
+    public string ResolveGameScenePath()
+    {
+        if (Exists(GameScenePath)) return GameScenePath;
+        if (Exists(DefaultGameScenePath)) return DefaultGameScenePath;
+
+        string shellTemplate = $"{SceneTemplatesDir}/main_game.tscn";
+        if (Exists(shellTemplate)) return shellTemplate;
+
+        var genre = Beep.ECS.UI.SkinCatalog.GetGenre(GenreId);
+        if (!string.IsNullOrEmpty(genre?.MainScene))
+        {
+            string stamped = $"res://scenes/main/{genre.MainScene}";
+            if (Exists(stamped)) return stamped;
+
+            string template = $"{SceneTemplatesDir}/{genre.MainScene}";
+            if (Exists(template)) return template;
+        }
+
+        return string.IsNullOrEmpty(GameScenePath) ? DefaultGameScenePath : GameScenePath;
+    }
+
+    public string ResolveMainMenuPath()
+        => ResolveSharedScenePath(MainMenuPath, DefaultMainMenuPath, "main_menu.tscn");
+
+    public string ResolveSettingsScenePath()
+        => ResolveSharedScenePath(SettingsScenePath, DefaultSettingsScenePath, "settings_menu.tscn");
+
+    public string ResolveGameOverScenePath()
+        => ResolveSharedScenePath(GameOverScenePath, DefaultGameOverScenePath, "game_over.tscn");
+
+    private static string ResolveSharedScenePath(string configured, string fallback, string templateFile)
+    {
+        if (Exists(configured)) return configured;
+        if (Exists(fallback)) return fallback;
+
+        string template = $"{SceneTemplatesDir}/{templateFile}";
+        if (Exists(template)) return template;
+
+        return string.IsNullOrEmpty(configured) ? fallback : configured;
+    }
+
+    private static bool Exists(string path)
+        => !string.IsNullOrEmpty(path) && ResourceLoader.Exists(path);
 
     /// <summary>Genre → the default theme id, straight from that genre's genre.json.
     /// Returns "" when the genre isn't in the catalog — there is no hardcoded theme to

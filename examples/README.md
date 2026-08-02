@@ -1,7 +1,8 @@
 # Examples — the addon, demonstrated
 
-Two examples. The first shows **what the addon does**; the second shows **its components in
-motion**. Run them windowed — `--headless` uses the dummy renderer and draws nothing.
+Three examples. The first shows **what the addon does**; the second shows the addon
+platformer scene as a playable game; the third shows **its components in motion** in a
+topdown arena. Run them windowed — `--headless` uses the dummy renderer and draws nothing.
 
 ---
 
@@ -42,7 +43,34 @@ prove anything was *visible*.
 
 ---
 
-## 2. `topdown_arena/` — the components in motion
+## 2. `platformer_demo/` — the generated platformer scene, playable
+
+```
+godot --path . examples/platformer_demo/platformer_demo.tscn
+godot --path . examples/platformer_demo/smoke.tscn
+```
+
+**A/D or arrows** to move · **Space/W/Up** to jump. Collect the authored pickup-template
+coins and reach the flag.
+
+This example instances the addon scene directly:
+
+```
+addons/beep_game_builder_cs/templates/scenes/platformer_main.tscn
+```
+
+That means it uses the same platformer controller, level loader, kit HUD,
+GameInfoBinder, weather/atmosphere scene, cloud sprites copied into the addon, and
+platformer level templates that a generated platformer project uses. The example script
+only adds solid demo terrain, a finish flag and runtime input actions so the template can
+be played from this repository without stamping a full project.
+
+The smoke scene loads the game, verifies the template pieces exist, holds `move_right`,
+then jumps and asserts the player moved through the addon controller.
+
+---
+
+## 3. `topdown_arena/` — the components in motion
 
 ```
 godot --path . examples/topdown_arena/ui/main_menu.tscn   # menu -> game -> pause -> result

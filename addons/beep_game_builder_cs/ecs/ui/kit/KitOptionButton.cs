@@ -81,11 +81,21 @@ namespace Beep.ECS.UI.Kit
 
             var textBox = new Rect2(frame + pad, 0,
                                     Mathf.Max(4f, Size.X - (frame + pad) * 2f - fs * 1.6f), Size.Y);
+            var readout = new Rect2(textBox.Position.X - pad * 0.35f, Size.Y * 0.16f,
+                                    textBox.Size.X + pad * 0.70f, Size.Y * 0.68f);
+            Color well = UiSurface.Of(this);
+            KitChrome.Fill(this, KitShape.Pill, readout, KitGeometry.ForGenre(_genre),
+                           new Color(well.R * 0.62f, well.G * 0.60f, well.B * 0.66f, 1f),
+                           UiSurface.Ink(well), Mathf.Max(1f, fs * 0.06f));
             KitChrome.DrawLabel(this, this, Text, textBox, ink, 0f, HorizontalAlignment.Left);
 
             float ax = Size.X - frame - pad - fs * 0.55f;
             float ay = Size.Y * 0.5f;
             float s = fs * 0.34f;
+            var arrowBox = new Rect2(ax - fs * 0.85f, Size.Y * 0.18f, fs * 1.7f, Size.Y * 0.64f);
+            KitChrome.Fill(this, KitShape.Round, arrowBox, KitGeometry.ForGenre(_genre),
+                           state == KitState.Hover ? UiSurface.Semantic(this, UiSurface.Role.Info) : face,
+                           UiSurface.Ink(face), Mathf.Max(1f, fs * 0.06f));
             DrawColoredPolygon(new[]
             {
                 new Vector2(ax - s, ay - s * 0.55f), new Vector2(ax + s, ay - s * 0.55f),

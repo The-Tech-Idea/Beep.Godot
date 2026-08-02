@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -28,7 +29,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ClosedEventHandler();
 
         private Godot.Control? _dialog;
-        private ColorRect? _overlay;
+        private KitModalShade? _overlay;
         private Tween? _tween;
         private bool _containerWarned;   // one-shot guard for the Container-host warning in Open()
 
@@ -80,9 +81,9 @@ namespace Beep.ECS.UI
                 _overlay.QueueFree();
 
             // Create overlay
-            _overlay = new ColorRect { Color = OverlayColor, MouseFilter = Godot.Control.MouseFilterEnum.Stop };
+            _overlay = new KitModalShade { OverlayColor = OverlayColor };
             _overlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            if (CloseOnOverlayClick) _overlay.GuiInput += OnOverlayClicked;
+            if (CloseOnOverlayClick) _overlay.ShadePressed += OnOverlayClicked;
 
             var root = _dialog.GetParent();
             int dialogIndex = _dialog.GetIndex();
@@ -146,9 +147,9 @@ namespace Beep.ECS.UI
             _tween.Finished += OnCloseFinished;
         }
 
-        private void OnOverlayClicked(InputEvent e)
+        private void OnOverlayClicked()
         {
-            if (CloseOnOverlayClick && e is InputEventMouseButton mb && mb.Pressed)
+            if (CloseOnOverlayClick)
             {
                 Close();
                 GetViewport()?.SetInputAsHandled();

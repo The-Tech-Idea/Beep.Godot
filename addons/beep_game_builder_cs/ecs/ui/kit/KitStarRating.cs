@@ -43,12 +43,14 @@ namespace Beep.ECS.UI.Kit
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
+        private int _hover = -1;
 
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
 
         public override void _Ready()
         {
             _genre = KitChrome.GenreOf(this);
+            MouseFilter = MouseFilterEnum.Stop;
             // Range has NO theme art of its own -- no stylebox, no icon -- so unlike Slider and
             // ProgressBar there is nothing to blank and nothing whose minimum size vanishes with
             // it. That is what makes it the right base here rather than a convenient one.
@@ -60,6 +62,36 @@ namespace Beep.ECS.UI.Kit
                 int fs = UiSurface.FontSize(this);
                 CustomMinimumSize = new Vector2(fs * 1.9f * Total, fs * 2f);
             }
+        }
+
+        public override void _GuiInput(InputEvent @event)
+        {
+            if (@event is InputEventMouseMotion mm)
+            {
+                int next = HitStar(mm.Position);
+                if (next != _hover)
+                {
+                    _hover = next;
+                    QueueRedraw();
+                }
+                return;
+            }
+
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+            {
+                int hit = HitStar(mb.Position);
+                if (hit < 0) return;
+                Earned = hit + 1;
+                AcceptEvent();
+            }
+        }
+
+        private int HitStar(Vector2 p)
+        {
+            int total = Total;
+            if (total <= 0 || Size.X <= 1f) return -1;
+            int i = Mathf.FloorToInt(p.X / (Size.X / total));
+            return i >= 0 && i < total && p.Y >= 0f && p.Y <= Size.Y ? i : -1;
         }
 
         public override void _Draw()
@@ -83,7 +115,11 @@ namespace Beep.ECS.UI.Kit
                 // Earned stars sit slightly higher — the reference screens lift them so the row
                 // reads even in a thumbnail.
                 if (i < Earned) c.Y -= Size.Y * 0.06f;
+                if (i == _hover) c.Y -= Size.Y * 0.04f;
                 DrawStar(c, r, i < Earned ? lit : dim, ink);
+                if (i == _hover)
+                    DrawArc(c, r * 1.08f, 0f, Mathf.Tau, 24,
+                            UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.2f, r * 0.08f));
             }
         }
 

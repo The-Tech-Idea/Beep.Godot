@@ -1,10 +1,13 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/cardgame/DeckBuilder.cs" id="3_script"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panel"]
 
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
@@ -24,6 +27,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.08, 0.12, 1)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -48,10 +52,12 @@ size_flags_horizontal = 3
 vertical_alignment = 1
 
 visible = false
+script = ExtResource("k_label")
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Back"
 
+script = ExtResource("k_pbtn")
 [node name="StartBattleButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(180, 44)
 text = "Start Battle"
@@ -67,6 +73,7 @@ size_flags_vertical = 3
 size_flags_horizontal = 3
 
 theme_override_styles/panel = SubResource("frame_plate")
+script = ExtResource("k_panel")
 [node name="Frame" type="Control" parent="Margin/VBox/Body/CollectionPanel"]
 layout_mode = 2
 mouse_filter = 2
@@ -87,6 +94,7 @@ theme_override_constants/separation = 12
 theme_type_variation = &"BeepSubtitle"
 text = "Collection"
 
+script = ExtResource("k_label")
 [node name="CollectionScroll" type="ScrollContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox"]
 size_flags_vertical = 3
 
@@ -99,30 +107,39 @@ size_flags_horizontal = 3
 [node name="CardSlot1" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot2" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot3" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot4" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot5" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot6" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot7" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="CardSlot8" type="PanelContainer" parent="Margin/VBox/Body/CollectionPanel/CollectionMargin/CollectionVBox/CollectionScroll/CardGrid"]
 custom_minimum_size = Vector2(110, 154)
 
+script = ExtResource("k_panel")
 [node name="DeckPanel" type="PanelContainer" parent="Margin/VBox/Body"]
 custom_minimum_size = Vector2(320, 0)
 
+script = ExtResource("k_panel")
 [node name="DeckMargin" type="MarginContainer" parent="Margin/VBox/Body/DeckPanel"]
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_right = 20
@@ -136,6 +153,7 @@ theme_override_constants/separation = 12
 theme_type_variation = &"BeepSubtitle"
 text = "Current Deck"
 
+script = ExtResource("k_label")
 [node name="DeckCountRow" type="HBoxContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
 theme_override_constants/separation = 12
 
@@ -145,11 +163,13 @@ text = "Cards"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="DeckCountValue" type="Label" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckCountRow"]
 theme_type_variation = &"BeepValue"
 text = "18 / 20"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="DeckRule" type="HSeparator" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
 
 [node name="DeckScroll" type="ScrollContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox"]
@@ -162,18 +182,23 @@ size_flags_horizontal = 3
 [node name="DeckEntry1" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
 custom_minimum_size = Vector2(0, 44)
 
+script = ExtResource("k_panel")
 [node name="DeckEntry2" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
 custom_minimum_size = Vector2(0, 44)
 
+script = ExtResource("k_panel")
 [node name="DeckEntry3" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
 custom_minimum_size = Vector2(0, 44)
 
+script = ExtResource("k_panel")
 [node name="DeckEntry4" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
 custom_minimum_size = Vector2(0, 44)
 
+script = ExtResource("k_panel")
 [node name="DeckEntry5" type="PanelContainer" parent="Margin/VBox/Body/DeckPanel/DeckMargin/DeckVBox/DeckScroll/DeckList"]
 custom_minimum_size = Vector2(0, 44)
 
+script = ExtResource("k_panel")
 [node name="Theme" type="Node" parent="."]
 script = ExtResource("1_theme")
 GenreName = "cardgame"

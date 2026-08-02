@@ -21,5 +21,7 @@ namespace Beep.ECS.UI
             BindLives(LivesPath);
             BindHealth(HealthPath);
         }
+
+        protected override string FormatHealthReadout(float cur, float max) => "";
     }
 }

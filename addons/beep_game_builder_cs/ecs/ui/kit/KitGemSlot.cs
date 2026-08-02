@@ -35,12 +35,16 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public string Requirement { get => _req; set { _req = value ?? ""; QueueRedraw(); } }
         private string _req = "";
+        private bool _hover;
 
         [Signal] public delegate void ActivatedEventHandler();
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
+            MouseEntered += () => { _hover = true; QueueRedraw(); };
+            MouseExited += () => { _hover = false; QueueRedraw(); };
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -76,6 +80,9 @@ namespace Beep.ECS.UI.Kit
             DrawArc(c, r, Mathf.Pi, Mathf.Tau, 24, new Color(0, 0, 0, 0.35f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Pi, 24, new Color(1, 1, 1, 0.22f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Tau, 32, ink, Mathf.Max(1.5f, d * 0.035f));
+            if (_hover && _state != SocketState.Locked)
+                DrawArc(c, r * 1.10f, 0f, Mathf.Tau, 32, UiSurface.Semantic(this, UiSurface.Role.Info),
+                        Mathf.Max(1.5f, d * 0.030f));
 
             switch (_state)
             {
@@ -112,6 +119,13 @@ namespace Beep.ECS.UI.Kit
                     DrawLine(c - new Vector2(0f, a), c + new Vector2(0f, a), col, w);
                     break;
                 }
+                case SocketState.Empty:
+                {
+                    float a = r * 0.28f, w = Mathf.Max(1.5f, d * 0.035f);
+                    var col = new Color(ink.R, ink.G, ink.B, 0.30f);
+                    DrawArc(c, a, 0f, Mathf.Tau, 18, col, w);
+                    break;
+                }
                 case SocketState.Locked:
                 {
                     float a = r * 0.34f, w = Mathf.Max(2f, d * 0.055f);
@@ -120,7 +134,9 @@ namespace Beep.ECS.UI.Kit
                     DrawLine(c - new Vector2(a, -a), c + new Vector2(a, -a), col, w);
                     if (!string.IsNullOrEmpty(_req) && KitFont() is { } font)
                     {
-                        int s = Mathf.Max(8, Mathf.RoundToInt(fs * 0.6f));
+                        int s = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                                  new Vector2(Size.X * 0.86f, Size.Y * 0.22f),
+                                                  _req, font, min: 7);
                         Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, s);
                         DrawText(font, new Vector2(c.X - m.X * 0.5f, Size.Y - s * 0.1f),
                                    _req, s, UiSurface.Text(this));

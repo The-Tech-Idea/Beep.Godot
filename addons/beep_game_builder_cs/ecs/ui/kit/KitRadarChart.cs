@@ -66,7 +66,7 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
             Color face = FaceColor();
             var font = KitFont();
-            int fs = UiSurface.FontSize(this, 0.75f);
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small, min: 8);
 
             Vector2 At(int i, float t)
             {
@@ -100,10 +100,16 @@ namespace Beep.ECS.UI.Kit
             {
                 string t = Axes[i] ?? "";
                 if (t.Length == 0) continue;
-                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
+                int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(d * 0.18f, d * 0.08f), t, font, min: 7);
+                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, tf);
                 var at = At(i, 1.28f);
+                var badge = new Rect2(at.X - m.X * 0.5f - tf * 0.35f, at.Y - tf * 0.55f,
+                                      m.X + tf * 0.70f, tf * 1.25f);
+                DrawShape(badge, KitShape.Pill, new Color(face.R * 0.85f, face.G * 0.85f, face.B * 0.90f, 0.92f),
+                          ink with { A = 0.55f }, Mathf.Max(1f, tf * 0.08f));
                 DrawText(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
-                           t, fs, UiSurface.Text(this));
+                           t, tf, UiSurface.Text(this));
             }
         }
     }

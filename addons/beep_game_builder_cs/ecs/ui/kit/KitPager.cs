@@ -38,10 +38,12 @@ namespace Beep.ECS.UI.Kit
         [Export(PropertyHint.Range, "3,20,1")] public int MaxDots { get; set; } = 8;
 
         [Signal] public delegate void PageChangedEventHandler(int page);
+        private int _hoverButton;
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -53,16 +55,36 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventMouseMotion mm)
+            {
+                int next = HitButton(mm.Position.X);
+                if (next != _hoverButton)
+                {
+                    _hoverButton = next;
+                    QueueRedraw();
+                }
+                return;
+            }
+
             if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
                 return;
-            float w = BtnW;
-            float x = mb.Position.X;
-            if (ShowJump && x < w) Page = 0;
-            else if (x < w * (ShowJump ? 2f : 1f)) Page = _page - 1;
-            else if (ShowJump && x > Size.X - w) Page = _count - 1;
-            else if (x > Size.X - w * (ShowJump ? 2f : 1f)) Page = _page + 1;
+            int hit = HitButton(mb.Position.X);
+            if (hit == -2) Page = 0;
+            else if (hit == -1) Page = _page - 1;
+            else if (hit == 2) Page = _count - 1;
+            else if (hit == 1) Page = _page + 1;
             else return;
             AcceptEvent();
+        }
+
+        private int HitButton(float x)
+        {
+            float w = BtnW;
+            if (ShowJump && x < w) return -2;
+            if (x < w * (ShowJump ? 2f : 1f)) return -1;
+            if (ShowJump && x > Size.X - w) return 2;
+            if (x > Size.X - w * (ShowJump ? 2f : 1f)) return 1;
+            return 0;
         }
 
         public override void _Draw()
@@ -77,11 +99,11 @@ namespace Beep.ECS.UI.Kit
 
             if (ShowJump)
             {
-                Arrow(new Rect2(0f, 0f, w, Size.Y), -1, true, _page > 0);
-                Arrow(new Rect2(Size.X - w, 0f, w, Size.Y), 1, true, _page < _count - 1);
+                Arrow(new Rect2(0f, 0f, w, Size.Y), -1, true, _page > 0, _hoverButton == -2);
+                Arrow(new Rect2(Size.X - w, 0f, w, Size.Y), 1, true, _page < _count - 1, _hoverButton == 2);
             }
-            Arrow(new Rect2(ShowJump ? w : 0f, 0f, w, Size.Y), -1, false, _page > 0);
-            Arrow(new Rect2(Size.X - inner, 0f, w, Size.Y), 1, false, _page < _count - 1);
+            Arrow(new Rect2(ShowJump ? w : 0f, 0f, w, Size.Y), -1, false, _page > 0, _hoverButton == -1);
+            Arrow(new Rect2(Size.X - inner, 0f, w, Size.Y), 1, false, _page < _count - 1, _hoverButton == 1);
 
             var mid = new Rect2(inner, 0f, Size.X - inner * 2f, Size.Y);
             if (mid.Size.X < 8f) return;
@@ -100,21 +122,30 @@ namespace Beep.ECS.UI.Kit
             else if (font != null)
             {
                 string t = $"{_page + 1} / {_count}";
-                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
+                int tf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                           new Vector2(mid.Size.X * 0.90f, Size.Y * 0.70f),
+                                           t, font, min: 8);
+                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, tf);
                 DrawText(font, new Vector2(mid.Position.X + (mid.Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
-                           t, fs, UiSurface.Text(this));
+                           t, tf, UiSurface.Text(this));
             }
         }
 
         /// <summary>A jump arrow is a step arrow with a bar against it — the standard idiom, and
         /// it keeps the two pairs distinguishable at a glance.</summary>
-        private void Arrow(Rect2 box, int dir, bool jump, bool enabled)
+        private void Arrow(Rect2 box, int dir, bool jump, bool enabled, bool hover)
         {
             var c = box.Position + box.Size * 0.5f;
             float a = Mathf.Min(box.Size.X, box.Size.Y) * 0.20f;
             float w = Mathf.Max(2f, a * 0.5f);
             Color col = UiSurface.Text(this);
             if (!enabled) col = col with { A = 0.25f };
+            if (enabled)
+            {
+                Color plate = hover ? UiSurface.Semantic(this, UiSurface.Role.Info) : FaceColor();
+                DrawShape(box.Grow(-box.Size.Y * 0.15f), KitShape.Round, plate, InkColor(), Mathf.Max(1f, w * 0.35f));
+                if (hover) col = UiSurface.Luminance(plate) > 0.5f ? new Color(0.10f, 0.09f, 0.08f) : Colors.White;
+            }
             var tip = c + new Vector2(a * dir, 0f);
             DrawLine(c + new Vector2(-a * dir, -a), tip, col, w);
             DrawLine(c + new Vector2(-a * dir, a), tip, col, w);

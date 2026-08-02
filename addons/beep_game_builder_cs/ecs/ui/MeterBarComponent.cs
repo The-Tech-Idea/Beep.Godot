@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -53,10 +54,8 @@ namespace Beep.ECS.UI
         /// <summary>`"normal"`, `"warn"` or `"critical"`. Emitted once per crossing, not per frame.</summary>
         [Signal] public delegate void ThresholdCrossedEventHandler(string level);
 
-        private ProgressBar? _bar;
-        private Label? _text;
-        private Label? _name;
-        private TextureRect? _icon;
+        private KitMeter? _bar;
+        private KitHudText? _name;
         private string _level = "normal";
         private float _pulse;
 
@@ -91,66 +90,37 @@ namespace Beep.ECS.UI
         private void Build()
         {
             if (GetParent() is not Godot.Control parent) return;
+            int fs = UiSurface.FontSize(this);
+            float rowH = Mathf.Max(fs * 1.55f, 22f);
 
             var row = new HBoxContainer { Name = "MeterRow", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             row.AddThemeConstantOverride("separation", 8);
             parent.AddChild(row);
 
-            if (Icon != null)
-            {
-                _icon = new TextureRect
-                {
-                    Name = "MeterIcon", Texture = Icon,
-                    CustomMinimumSize = new Vector2(20, 20),
-                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                    SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter,
-                    MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                };
-                row.AddChild(_icon);
-            }
-
             if (!string.IsNullOrEmpty(Label))
             {
-                _name = new Label
+                _name = new KitHudText
                 {
                     Name = "MeterLabel", Text = Label,
-                    CustomMinimumSize = new Vector2(78, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
+                    CustomMinimumSize = new Vector2(fs * 5.6f, rowH),
+                    Role = UiSurface.TextRole.Caption,
+                    Align = HorizontalAlignment.Left,
                     SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter,
                     MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 };
-                _name.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.93f));
                 row.AddChild(_name);
             }
 
-            // The bar and its readout share a cell, so the number cannot drift away from the fill.
-            var stack = new Godot.Control
+            _bar = new KitMeter
             {
-                Name = "MeterStack",
-                CustomMinimumSize = new Vector2(120, 20),
+                Name = "MeterFill",
+                CustomMinimumSize = new Vector2(fs * 8.5f, rowH),
                 SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill,
                 SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter,
-                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                CapIcon = Icon,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
             };
-            row.AddChild(stack);
-
-            _bar = new ProgressBar { Name = "MeterFill", ShowPercentage = false, MinValue = 0, MaxValue = 1 };
-            _bar.SetAnchorsPreset(Godot.Control.LayoutPreset.FullRect);
-            _bar.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
-            stack.AddChild(_bar);
-
-            _text = new Label
-            {
-                Name = "MeterValue",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Visible = ShowValue,
-                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-            };
-            _text.SetAnchorsPreset(Godot.Control.LayoutPreset.FullRect);
-            _text.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
-            stack.AddChild(_text);
+            row.AddChild(_bar);
         }
 
         private void Refresh()
@@ -165,16 +135,12 @@ namespace Beep.ECS.UI
 
             var fill = level switch
             {
-                "critical" => CriticalColor,
-                "warn" => WarnColor,
-                _ => FillColor,
+                "critical" => UiSurface.Role.Danger,
+                "warn" => UiSurface.Role.Warning,
+                _ => UiSurface.Role.Accent,
             };
-            var box = new StyleBoxFlat { BgColor = fill };
-            box.SetCornerRadiusAll(3);
-            _bar.AddThemeStyleboxOverride("fill", box);
-
-            if (_text != null && ShowValue)
-                _text.Text = $"{Mathf.RoundToInt(_value)} / {Mathf.RoundToInt(_max)}";
+            _bar.Fill = fill;
+            _bar.Readout = ShowValue ? $"{Mathf.RoundToInt(_value)} / {Mathf.RoundToInt(_max)}" : "";
 
             // Latch: emit only on a genuine crossing. A per-frame signal would make any
             // listener (toast, vignette, audio sting) fire continuously while low.

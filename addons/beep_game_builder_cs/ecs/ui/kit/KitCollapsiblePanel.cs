@@ -48,6 +48,7 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
         private string _title = "";
+        private bool _hoverHandle;
 
         [Signal] public delegate void ToggledEventHandler(bool collapsed);
 
@@ -58,6 +59,7 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -95,6 +97,17 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventMouseMotion mm)
+            {
+                bool next = HandleRect().HasPoint(mm.Position);
+                if (next != _hoverHandle)
+                {
+                    _hoverHandle = next;
+                    QueueRedraw();
+                }
+                return;
+            }
+
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb
                 && HandleRect().HasPoint(mb.Position))
             {
@@ -122,9 +135,12 @@ namespace Beep.ECS.UI.Kit
 
                 if (font != null && !string.IsNullOrEmpty(_title))
                 {
-                    Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
-                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + fs * 1.5f),
-                               _title, fs, UiSurface.Text(this));
+                    int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
+                                               new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.14f),
+                                               _title, font, min: 9);
+                    Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
+                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + tf * 1.45f),
+                               _title, tf, UiSurface.Text(this));
                 }
             }
 
@@ -135,6 +151,13 @@ namespace Beep.ECS.UI.Kit
             // Dark plate at the measured L=0.26 relative to the surface, so it stays the darkest
             // element whatever the skin does.
             Color plate = new Color(face.R * 0.30f, face.G * 0.30f, face.B * 0.32f, 1f);
+            if (_hoverHandle)
+            {
+                Color info = UiSurface.Semantic(this, UiSurface.Role.Info);
+                plate = new Color(Mathf.Lerp(plate.R, info.R, 0.32f),
+                                  Mathf.Lerp(plate.G, info.G, 0.32f),
+                                  Mathf.Lerp(plate.B, info.B, 0.32f), 1f);
+            }
             DrawShape(h, KitShape.Round, plate, ink, Mathf.Max(1f, Geo.Rim * 0.6f * (fs / 14f)));
 
             DrawChevron(h);

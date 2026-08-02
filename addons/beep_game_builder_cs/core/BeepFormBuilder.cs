@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
+using Beep.ECS.UI;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.GameBuilder;
 
@@ -46,13 +48,13 @@ public partial class BeepFormBuilder : VBoxContainer
             row.AddThemeConstantOverride("separation", 8);
 
             // Label
-            var label = new Label
+            var label = new KitHudText
             {
                 Text = prop.Name.PrettyName(),
                 CustomMinimumSize = new Vector2(LabelWidth, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                Role = UiSurface.TextRole.Caption,
+                Align = HorizontalAlignment.Left
             };
-            label.AddThemeFontSizeOverride("font_size", FieldFontSize);
             row.AddChild(label);
 
             // Input based on type
@@ -75,7 +77,7 @@ public partial class BeepFormBuilder : VBoxContainer
 
         // Recreate the submit button every build: ClearChildren above QueueFree'd the previous one, and
         // re-adding a node already flagged for deletion makes it vanish at frame end (taking its handler).
-        _submitBtn = new Button { Text = SubmitText, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
+        _submitBtn = new KitPushButton { Text = SubmitText, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
         _submitBtn.Pressed += OnSubmit;
         AddChild(_submitBtn);
     }
@@ -99,13 +101,13 @@ public partial class BeepFormBuilder : VBoxContainer
         }
         if (type == typeof(bool))
         {
-            var cb = new CheckBox { ButtonPressed = (bool)(currentValue ?? false) };
+            var cb = new KitCheckBox { ButtonPressed = (bool)(currentValue ?? false) };
             cb.Toggled += v => onChanged(v);
             return cb;
         }
         if (type.IsEnum)
         {
-            var ob = new OptionButton();
+            var ob = new KitOptionButton();
             foreach (var name in Enum.GetNames(type)) ob.AddItem(name);
             ob.ItemSelected += i => onChanged(Enum.GetValues(type).GetValue(i));
             return ob;

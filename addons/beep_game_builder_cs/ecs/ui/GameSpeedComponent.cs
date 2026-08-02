@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -92,6 +93,7 @@ namespace Beep.ECS.UI
         private void Build()
         {
             if (GetParent() is not Godot.Control parent) return;
+            int fs = UiSurface.FontSize(this);
             var row = new HBoxContainer { Name = "SpeedButtons" };
             row.AddThemeConstantOverride("separation", 4);
             parent.AddChild(row);
@@ -99,14 +101,15 @@ namespace Beep.ECS.UI
             for (int i = 0; i < 4; i++)
             {
                 int speed = i;
-                var b = new Button
+                var b = new KitIconButton
                 {
                     Name = $"Speed{i}",
-                    Text = Labels[i],
+                    Glyph = Labels[i],
                     TooltipText = Tips[i],
                     ToggleMode = true,           // shows WHICH speed is active, not just that it was clicked
-                    CustomMinimumSize = new Vector2(34, 30),
+                    CustomMinimumSize = new Vector2(fs * 2.25f, fs * 2.25f),
                     FocusMode = Godot.Control.FocusModeEnum.None,
+                    Accent = i == 0 ? UiSurface.Role.Warning : UiSurface.Role.Info,
                 };
                 b.Pressed += () => Select(speed);
                 row.AddChild(b);

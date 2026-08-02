@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
@@ -14,6 +14,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/CollapsiblePanelComponent.cs" id="collapsible"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="panelframe"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="player_ctrl"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_pair"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="RPGMain" type="Node2D"]
 
@@ -61,7 +64,7 @@ offset_top = 20.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
-Title = "Hero"
+Title = ""
 TargetPath = NodePath("../TopLeft")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
@@ -74,16 +77,33 @@ theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 50
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
-theme_override_constants/separation = 4
+theme_override_constants/separation = 7
 
-[node name="LevelLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Level 1"
+[node name="LevelLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(156, 30)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "LEVEL"
+Value = "Level 1"
+Accent = 2
 
-[node name="HealthLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Health: 100 / 100"
+[node name="HealthLabel" type="ProgressBar" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(176, 22)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_meter")
+Value = 1.0
+Fill = 5
+EndCaps = true
 
-[node name="ManaLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "Mana: 50 / 50"
+[node name="ManaLabel" type="ProgressBar" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(176, 22)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_meter")
+Value = 1.0
+Fill = 6
+EndCaps = true
 
 [node name="Minimap" type="Control" parent="HUD/Root"]
 anchor_left = 1.0
@@ -99,17 +119,20 @@ PlayerPath = NodePath("../../../Player")
 [node name="QuestBox" type="VBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -280.0
+offset_left = -330.0
 offset_top = 188.0
 offset_right = -16.0
-offset_bottom = 260.0
+offset_bottom = 238.0
 grow_horizontal = 0
+mouse_filter = 2
 
 [node name="QuestLabel" type="Label" parent="HUD/Root/QuestBox"]
 text = "Quest: Reach the village"
 horizontal_alignment = 2
-autowrap_mode = 2
+text_overrun_behavior = 3
+clip_text = true
 
+script = ExtResource("k_label")
 [node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("20_hud")
 
@@ -139,5 +162,7 @@ position = Vector2(640, 360)
 script = ExtResource("player_ctrl")
 
 [node name="Weather" parent="Atmosphere" index="3"]
+CloudMode = 0
 CurrentWeather = 1
 TopDownView = true
+ViewMode = 2

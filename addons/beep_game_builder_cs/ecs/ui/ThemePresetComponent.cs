@@ -568,11 +568,11 @@ namespace Beep.ECS.UI
 /// what made "Save Name:" render at 13px disabled-grey beside a 16px input.</summary>
 		private int SizeFor(string role) => role switch
 		{
-			DisplayVariation => Mathf.RoundToInt(Fs * 2.5f),
-			TitleVariation => Mathf.RoundToInt(Fs * 1.75f),
-			SubtitleVariation => Mathf.RoundToInt(Fs * 1.3f),
-			ValueVariation => Mathf.RoundToInt(Fs * 1.1f),
-			_ => Mathf.Max(12, Mathf.RoundToInt(Fs * 0.85f)),
+			DisplayVariation => Mathf.RoundToInt(Fs * 2.15f),
+			TitleVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Title)),
+			SubtitleVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Subtitle)),
+			ValueVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Value)),
+			_ => Mathf.Max(12, Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Caption))),
 		};
 
 		private static Color ColorFor(string role, ColorSchema c) => role switch

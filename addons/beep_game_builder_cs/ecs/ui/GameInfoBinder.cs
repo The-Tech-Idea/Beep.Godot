@@ -3,8 +3,8 @@ using Godot;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Runtime binder between the <c>GameInfo</c> autoload and scene nodes.
-    /// Attach as a child of any UI root. On _Ready it reads GameInfo and pushes
+    /// Runtime binder between the active <c>GameInfo</c> resource and scene nodes.
+    /// Attach as a child of any UI root. On _Ready it reads GameApp.Info and pushes
     /// values into the configured nodes — so a dev edits game_info.tres ONCE and
     /// every menu reflects it. Without this, scene .tscn files hold baked literals.
     ///
@@ -45,7 +45,7 @@ namespace Beep.ECS.UI
             var info = GameBuilder.GameInfo.Instance;
             if (info == null)
             {
-                GD.PushWarning("[GameInfoBinder] No GameInfo autoload found — scene will show placeholder values.");
+                GD.PushWarning("[GameInfoBinder] No GameApp.Info resource found — scene will show placeholder values.");
                 return;
             }
 

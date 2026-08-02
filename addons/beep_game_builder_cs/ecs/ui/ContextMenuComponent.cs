@@ -1,6 +1,6 @@
 using Godot;
 using System;
-using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -18,7 +18,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void MenuItemSelectedEventHandler(int index, string label);
 
         private Godot.Control? _control;
-        private PopupMenu? _menu;
+        private KitContextMenu? _menu;
         private string[] _cachedItems = System.Array.Empty<string>();
 
         public override void _Ready()
@@ -37,9 +37,8 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            _menu = new PopupMenu();
-            _menu.Name = "ContextMenu";
-            _menu.IndexPressed += OnMenuItemPressed;   // once — Clear() in RebuildMenu drops items, not connections
+            _menu = new KitContextMenu { Name = "ContextMenu" };
+            _menu.ItemSelected += OnMenuItemPressed;
             RebuildMenu();
             _control.AddChild(_menu);
 
@@ -49,19 +48,15 @@ namespace Beep.ECS.UI
         private void RebuildMenu()
         {
             if (_menu == null) return;
-            _menu.Clear();
             _cachedItems = MenuItems.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < _cachedItems.Length; i++)
-                _menu.AddItem(_cachedItems[i].Trim(), i);
-            // IndexPressed is connected ONCE in _Ready. Re-subscribing here (RebuildMenu runs on
-            // every SetItems) stacked a new handler each call, firing MenuItemSelected N+1 times.
+            for (int i = 0; i < _cachedItems.Length; i++) _cachedItems[i] = _cachedItems[i].Trim();
+            _menu.SetItems(_cachedItems);
         }
 
-        private void OnMenuItemPressed(long idx)
+        private void OnMenuItemPressed(int index, string label)
         {
-            int index = (int)idx;
             if (index >= 0 && index < _cachedItems.Length)
-                EmitSignal(SignalName.MenuItemSelected, index, _cachedItems[index].Trim());
+                EmitSignal(SignalName.MenuItemSelected, index, label);
         }
 
         private void OnControlGuiInput(InputEvent e)
@@ -69,8 +64,7 @@ namespace Beep.ECS.UI
             if (!IsActive || _menu == null) return;
             if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Right && mb.Pressed)
             {
-                _menu.Position = (Vector2I)mb.GlobalPosition;
-                _menu.Popup();
+                _menu.PopupAt(mb.GlobalPosition);
                 GetViewport()?.SetInputAsHandled();
             }
         }

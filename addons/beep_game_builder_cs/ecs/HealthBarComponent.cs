@@ -1,4 +1,6 @@
 using Godot;
+using Beep.ECS.UI;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -20,7 +22,7 @@ namespace Beep.ECS
         [Export] public float HideDelay { get; set; } = 3f;
 
         private HealthComponent? _health;
-        private ProgressBar? _bar;
+        private KitMeter? _bar;
         private float _hideTimer;
 
         public override void _Ready()
@@ -42,14 +44,14 @@ namespace Beep.ECS
                 return;
             }
 
-            _bar = new ProgressBar();
+            _bar = new KitMeter();
             _bar.CustomMinimumSize = Size;
             _bar.MaxValue = _health.MaxHealth;
             _bar.Value = _health.CurrentHealth;
             _bar.ShowPercentage = false;
             _bar.Position = BarOffset - Size / 2f;
-            _bar.AddThemeStyleboxOverride("fill", CreateStyleBox(HealthyColor));
-            _bar.AddThemeStyleboxOverride("background", CreateStyleBox(BgColor));
+            _bar.Segments = 6;
+            _bar.Fill = UiSurface.Role.Success;
 
             var parent = GetParent();
             if (parent != null)
@@ -70,8 +72,7 @@ namespace Beep.ECS
             _bar.MaxValue = max;
             _bar.Value = cur;
             float pct = cur / (float)max;
-            Color fillColor = pct > 0.5f ? HealthyColor : pct > 0.25f ? WarningColor : DangerColor;
-            _bar.AddThemeStyleboxOverride("fill", CreateStyleBox(fillColor));
+            _bar.Fill = pct > 0.5f ? UiSurface.Role.Success : pct > 0.25f ? UiSurface.Role.Warning : UiSurface.Role.Danger;
             _bar.Visible = true;
             _hideTimer = HideDelay;
         }
@@ -81,13 +82,6 @@ namespace Beep.ECS
             if (_bar == null || !ShowOnlyWhenDamaged || !_bar.Visible) return;
             _hideTimer -= (float)delta;
             if (_hideTimer <= 0) _bar.Visible = false;
-        }
-
-        private static StyleBoxFlat CreateStyleBox(Color c)
-        {
-            var sb = new StyleBoxFlat { BgColor = c };
-            sb.SetCornerRadiusAll(2);
-            return sb;
         }
 
         public override void _ExitTree()

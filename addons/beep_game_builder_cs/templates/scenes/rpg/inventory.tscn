@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -7,6 +7,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs" id="panelframe"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs" id="k_slot"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panel"]
 [sub_resource type="StyleBoxEmpty" id="frame_plate"]
 
 [node name="Inventory" type="Control"]
@@ -25,6 +28,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.08, 0.12, 1)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -49,11 +53,13 @@ size_flags_horizontal = 3
 vertical_alignment = 1
 
 visible = false
+script = ExtResource("k_label")
 [node name="GoldValue" type="Label" parent="Margin/VBox/Header"]
 theme_type_variation = &"BeepValue"
 text = "1,250 g"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="CloseButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "Close"
@@ -69,6 +75,7 @@ size_flags_vertical = 3
 size_flags_horizontal = 3
 
 theme_override_styles/panel = SubResource("frame_plate")
+script = ExtResource("k_panel")
 [node name="Frame" type="Control" parent="Margin/VBox/Body/GridPanel"]
 layout_mode = 2
 mouse_filter = 2
@@ -89,6 +96,7 @@ theme_override_constants/separation = 12
 theme_type_variation = &"BeepSubtitle"
 text = "Carried"
 
+script = ExtResource("k_label")
 [node name="ItemGrid" type="GridContainer" parent="Margin/VBox/Body/GridPanel/GridMargin/GridVBox"]
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
@@ -154,6 +162,7 @@ size_flags_vertical = 3
 [node name="DetailPanel" type="PanelContainer" parent="Margin/VBox/Body"]
 custom_minimum_size = Vector2(300, 0)
 
+script = ExtResource("k_panel")
 [node name="DetailMargin" type="MarginContainer" parent="Margin/VBox/Body/DetailPanel"]
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_right = 20
@@ -167,15 +176,18 @@ theme_override_constants/separation = 12
 theme_type_variation = &"BeepSubtitle"
 text = "No item selected"
 
+script = ExtResource("k_label")
 [node name="ItemIcon" type="ColorRect" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
 custom_minimum_size = Vector2(0, 120)
 color = Color(0.14, 0.13, 0.2, 1)
 
+script = ExtResource("k_color")
 [node name="ItemDescription" type="Label" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
 theme_type_variation = &"BeepCaption"
 text = "Select an item to see its details."
 autowrap_mode = 3
 
+script = ExtResource("k_label")
 [node name="DetailSpacer" type="Control" parent="Margin/VBox/Body/DetailPanel/DetailMargin/DetailVBox"]
 size_flags_vertical = 3
 

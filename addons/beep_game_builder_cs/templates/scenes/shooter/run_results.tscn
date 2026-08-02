@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/shooter/RunResults.cs" id="3_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="RunResults" type="CanvasLayer"]
 script = ExtResource("3_script")
@@ -18,6 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.7)
 
+script = ExtResource("k_color")
 [node name="Center" type="CenterContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -43,6 +46,7 @@ theme_type_variation = &"BeepTitle"
 text = "Run Over"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BannerRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
 [node name="StatsGrid" type="GridContainer" parent="Center/Panel/Margin/VBox"]
@@ -55,66 +59,79 @@ theme_type_variation = &"BeepCaption"
 text = "Time Survived"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="TimeValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "12:34"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="FloorCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Floor Reached"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="FloorValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "5"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="KillCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Kills"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="KillValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "127"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="ScoreCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Score"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="ScoreValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "8420"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="GoldCaption" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepCaption"
 text = "Gold Earned"
 size_flags_horizontal = 3
 
+script = ExtResource("k_label")
 [node name="GoldValue" type="Label" parent="Center/Panel/Margin/VBox/StatsGrid"]
 theme_type_variation = &"BeepValue"
 text = "156"
 horizontal_alignment = 2
 
+script = ExtResource("k_label")
 [node name="UnlocksRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
 [node name="UnlocksHeading" type="Label" parent="Center/Panel/Margin/VBox"]
 theme_type_variation = &"BeepSubtitle"
 text = "Unlocks"
 
+script = ExtResource("k_label")
 [node name="UnlocksList" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
 theme_override_constants/separation = 6
 
 [node name="Unlock1" type="Label" parent="Center/Panel/Margin/VBox/UnlocksList"]
 text = "NEW  ·  Heavy Shotgun"
 
+script = ExtResource("k_label")
 [node name="Unlock2" type="Label" parent="Center/Panel/Margin/VBox/UnlocksList"]
 text = "NEW  ·  Bruiser character"
 
+script = ExtResource("k_label")
 [node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
 theme_override_constants/separation = 12

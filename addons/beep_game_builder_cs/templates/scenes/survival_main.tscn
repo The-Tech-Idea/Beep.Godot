@@ -66,7 +66,7 @@ offset_top = -150.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
-Title = "Vitals"
+Title = ""
 TargetPath = NodePath("../Vitals")
 
 [node name="Vitals" type="VBoxContainer" parent="HUD/Root"]
@@ -77,7 +77,7 @@ offset_top = -118.0
 offset_right = 220.0
 offset_bottom = -16.0
 grow_vertical = 0
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="HealthLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
@@ -87,6 +87,8 @@ script = ExtResource("k_meter")
 value = 1.0
 Segments = 10
 Fill = 3
+Readout = "100"
+EndCaps = true
 
 [node name="HungerLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
@@ -96,6 +98,8 @@ script = ExtResource("k_meter")
 value = 0.75
 Segments = 10
 Fill = 4
+Readout = "75"
+EndCaps = true
 
 [node name="ThirstLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
@@ -105,6 +109,8 @@ script = ExtResource("k_meter")
 value = 0.8
 Segments = 10
 Fill = 6
+Readout = "80"
+EndCaps = true
 
 [node name="StaminaLabel" type="ProgressBar" parent="HUD/Root/Vitals"]
 custom_minimum_size = Vector2(186, 18)
@@ -114,6 +120,8 @@ script = ExtResource("k_meter")
 value = 1.0
 Segments = 10
 Fill = 2
+Readout = "100"
+EndCaps = true
 
 [node name="Minimap" type="Control" parent="HUD/Root"]
 anchor_left = 1.0
@@ -155,5 +163,6 @@ position = Vector2(640, 360)
 script = ExtResource("player_ctrl")
 
 [node name="Weather" parent="Atmosphere" index="3"]
+CloudMode = 0
 CurrentWeather = 1
 TopDownView = true

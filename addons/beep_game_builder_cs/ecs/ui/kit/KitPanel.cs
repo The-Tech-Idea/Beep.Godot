@@ -235,6 +235,17 @@ namespace Beep.ECS.UI.Kit
             DrawLine(ctr - new Vector2(a, -a), ctr + new Vector2(a, -a), on, w);
         }
 
+        private void DrawWellInset(Rect2 r, Color sunk)
+        {
+            float w = Mathf.Max(1f, Mathf.Min(r.Size.X, r.Size.Y) * 0.012f);
+            Color light = new(Mathf.Min(1f, sunk.R * 1.35f), Mathf.Min(1f, sunk.G * 1.35f), Mathf.Min(1f, sunk.B * 1.35f), 0.28f);
+            Color shade = new(sunk.R * 0.45f, sunk.G * 0.45f, sunk.B * 0.45f, 0.35f);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.End.X - w, r.Position.Y + w), light, w);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.Position.X + w, r.End.Y - w), light, w);
+            DrawLine(new Vector2(r.Position.X + w, r.End.Y - w), r.End - new Vector2(w, w), shade, w);
+            DrawLine(new Vector2(r.End.X - w, r.Position.Y + w), r.End - new Vector2(w, w), shade, w);
+        }
+
         public Rect2 ContentRect()
         {
             Rect2 body = BodyRect();
@@ -299,6 +310,7 @@ namespace Beep.ECS.UI.Kit
                     float ps = g.WellShade;
                     var sunk = new Color(face.R * ps, face.G * ps, face.B * ps, face.A);
                     KitChrome.DrawShape(this, _genre, well, KitChrome.Shape(_genre), sunk, ink, Mathf.Max(1f, rimPx * 0.5f));
+                    DrawWellInset(well, sunk);
                 }
             }
 

@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -14,14 +15,14 @@ namespace Beep.ECS.UI
         [Export] public string Prefix { get; set; } = "";
         // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
         // literal renders a genre's larger type out of a control built for 14.
-        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.3f;
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.18f;
         private int FontSize => UiSurface.FontSize(this, FontScale);
         [Export] public bool AutoStart { get; set; } = false;
 
         [Signal] public delegate void TimeUpEventHandler();
         [Signal] public delegate void TickEventHandler(double remaining);
 
-        private Label? _label;
+        private Godot.Control? _label;
         private bool _createdLabel;   // true only when we new'd the label (vs adopting a parent Label)
         private double _remaining;
         private bool _running;
@@ -41,20 +42,43 @@ namespace Beep.ECS.UI
         private void EnsureLabel()
         {
             var parent = GetParent();
-            if (parent is Label existing) { _label = existing; UpdateText(); return; }
+            if (parent is Label existing) { _label = existing; StyleLabel(); UpdateText(); return; }
             if (parent == null)
             {
                 GD.PushWarning($"[{Name}] MatchTimerComponent has no parent to host its timer label.");
                 return;
             }
             _createdLabel = true;
-            _label = new Label { Name = "TimerLabel" };
-            _label.AddThemeFontSizeOverride("font_size", FontSize);
+            _label = new KitHudText
+            {
+                Name = "TimerLabel",
+                Role = UiSurface.TextRole.Value,
+                ShowPlate = true,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+            };
+            StyleLabel();
             parent.AddChild(_label);
             if (parent.IsInsideTree()) _label.Owner = parent.Owner;
             // Render the initial time now — _Ready's UpdateText ran before this deferred build, so the
             // label showed blank until the first tick.
             UpdateText();
+        }
+
+        private void StyleLabel()
+        {
+            if (_label == null) return;
+            _label.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+            if (_label is Label label)
+            {
+                label.HorizontalAlignment = HorizontalAlignment.Center;
+                label.VerticalAlignment = VerticalAlignment.Center;
+                label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                label.ClipText = true;
+                label.AddThemeFontSizeOverride("font_size", FontSize);
+                label.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.78f));
+                label.AddThemeConstantOverride("shadow_offset_x", 1);
+                label.AddThemeConstantOverride("shadow_offset_y", 2);
+            }
         }
 
         public void Start()
@@ -88,7 +112,9 @@ namespace Beep.ECS.UI
             int total = (int)Mathf.Ceil(_remaining);
             int m = total / 60;
             int s = total % 60;
-            _label.Text = $"{Prefix}{m:D2}:{s:D2}";
+            string text = $"{Prefix}{m:D2}:{s:D2}";
+            if (_label is KitHudText hud) hud.Text = text;
+            else if (_label is Label label) label.Text = text;
         }
 
         public override void _ExitTree()

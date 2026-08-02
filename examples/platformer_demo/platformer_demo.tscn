@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/platformer_main.tscn" id="1_platform"]
+[ext_resource type="Script" path="res://examples/platformer_demo/PlatformerDemo.cs" id="2_demo"]
+
+[node name="PlatformerDemo" type="Node"]
+script = ExtResource("2_demo")
+
+[node name="PlatformerMain" parent="." instance=ExtResource("1_platform")]

@@ -160,28 +160,28 @@ namespace Beep.ECS.UI
         /// </summary>
         public enum TextRole
         {
-            /// <summary>Screen and card titles. 1.9× — matches `BeepTitle`.</summary>
+            /// <summary>Screen and card titles. 1.6x -- matches `BeepTitle`.</summary>
             Title,
-            /// <summary>Section headings, banner text. 1.35× — matches `BeepSubtitle`.</summary>
+            /// <summary>Section headings, banner text. 1.22x -- matches `BeepSubtitle`.</summary>
             Subtitle,
-            /// <summary>A number that carries the meaning. 1.25× — matches `BeepValue`.</summary>
+            /// <summary>A number that carries the meaning. 1.18x -- matches `BeepValue`.</summary>
             Value,
-            /// <summary>Default running text. 1.0×.</summary>
+            /// <summary>Default running text. 1.0x.</summary>
             Body,
-            /// <summary>Stat labels, hints, footers. 0.85× — matches `BeepCaption`.</summary>
+            /// <summary>Stat labels, hints, footers. 0.9x -- matches `BeepCaption`.</summary>
             Caption,
             /// <summary>Count badges and corner overlays, where the box is genuinely tiny.
-            /// 0.70× — no Label variation equivalent; drawn widgets need a step below Caption.</summary>
+            /// 0.76x -- no Label variation equivalent; drawn widgets need a step below Caption.</summary>
             Small,
         }
 
         public static float Multiplier(TextRole role) => role switch
         {
-            TextRole.Title => 1.90f,
-            TextRole.Subtitle => 1.35f,
-            TextRole.Value => 1.25f,
-            TextRole.Caption => 0.85f,
-            TextRole.Small => 0.70f,
+            TextRole.Title => 1.60f,
+            TextRole.Subtitle => 1.22f,
+            TextRole.Value => 1.18f,
+            TextRole.Caption => 0.90f,
+            TextRole.Small => 0.76f,
             _ => 1.00f,
         };
 

@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/LoadGameMenuComponent.cs" id="1_menu"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="3_binder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="LoadGameMenu" type="Control"]
 layout_mode = 3
@@ -22,6 +24,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.7)
 
+script = ExtResource("k_color")
 [node name="PanelContainer" type="PanelContainer" parent="."]
 custom_minimum_size = Vector2(720, 620)
 layout_mode = 1
@@ -60,6 +63,7 @@ layout_mode = 2
 text = "Load Game"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="SlotsScroll" type="ScrollContainer" parent="PanelContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -103,6 +107,7 @@ layout_mode = 2
 text = "No autosave"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -115,6 +120,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/AutosaveContainer/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -123,6 +129,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/AutosaveContainer/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
@@ -158,6 +165,7 @@ layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot0Container/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -170,6 +178,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot0Container/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -178,6 +187,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot0Container/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
@@ -213,6 +223,7 @@ layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot1Container/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -225,6 +236,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot1Container/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -233,6 +245,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot1Container/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
@@ -268,6 +281,7 @@ layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot2Container/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -280,6 +294,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot2Container/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -288,6 +303,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot2Container/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
@@ -323,6 +339,7 @@ layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot3Container/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -335,6 +352,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot3Container/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -343,6 +361,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot3Container/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2
@@ -378,6 +397,7 @@ layout_mode = 2
 text = "Empty Slot"
 text_overrun_behavior = 1
 
+script = ExtResource("k_label")
 [node name="SlotMeta" type="HBoxContainer" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot4Container/SlotHBox/SlotInfo"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -390,6 +410,7 @@ size_flags_horizontal = 3
 text = "Level: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="SlotPlaytimeLabel" type="Label" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot4Container/SlotHBox/SlotInfo/SlotMeta"]
 theme_type_variation = &"BeepCaption"
 custom_minimum_size = Vector2(90, 0)
@@ -398,6 +419,7 @@ size_flags_horizontal = 3
 text = "Time: --"
 text_overrun_behavior = 3
 
+script = ExtResource("k_label")
 [node name="DeleteButton" type="Button" parent="PanelContainer/Margin/VBox/SlotsScroll/SlotsMargin/SlotsVBox/Slot4Container/SlotHBox"]
 custom_minimum_size = Vector2(88, 36)
 layout_mode = 2

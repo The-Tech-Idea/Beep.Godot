@@ -30,7 +30,7 @@ namespace Beep.ECS
 
         // ── Static config (the GameInfo resource) ──
         /// <summary>The game's static configuration. Loaded from res://game_info.tres
-        /// on _Ready if not set, or assigned via the inspector.</summary>
+        /// on _Ready if not set, or created with defaults when the resource is missing.</summary>
         [Export] public GameBuilder.GameInfo? Info { get; set; }
 
         /// <summary>OPTIONAL texture-based UI skin. When set, the theme engine builds
@@ -120,6 +120,10 @@ namespace Beep.ECS
         /// User settings (audio/display/language) are owned by SettingsComponent, not here.</summary>
         public UI.SettingsComponent? Settings => UI.SettingsComponent.Instance;
 
+        /// <summary>The active static game config. Always returns a resource when GameApp exists,
+        /// loading game_info.tres or creating defaults as needed.</summary>
+        public GameBuilder.GameInfo ActiveInfo => EnsureInfo();
+
         private static GameApp? _instance;
 
         /// <summary>The autoloaded GameApp, or null if not registered.</summary>
@@ -147,9 +151,7 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
-            // Load the static config resource if one wasn't assigned in the inspector.
-            if (Info == null && ResourceLoader.Exists(GameBuilder.GameInfo.TresPath))
-                Info = ResourceLoader.Load<GameBuilder.GameInfo>(GameBuilder.GameInfo.TresPath);
+            EnsureInfo();
             // Load the UI skin from GameInfo if not already set in the inspector.
             if (Skin == null)
                 Skin = Info?.Skin;
@@ -162,34 +164,38 @@ namespace Beep.ECS
         }
 
         // ── Convenience accessors (so callers can do GameApp.Instance.GameName etc.) ──
-        public string GameName => Info?.GameName ?? "My Game";
-        public string Version => Info?.Version ?? "0.1.0";
-        public string ThemePreset => Info?.DefaultThemePreset ?? "Modern";
-        /// <summary>Path to the genre's main gameplay scene. Prefers the value stamped into
-        /// game_info.tres, but falls back to the genre's main_scene from the skin catalog
-        /// when that value is missing or points at a file that isn't there — a stale or
-        /// never-generated game_info.tres otherwise left this pointing at
-        /// "res://scenes/main/main.tscn", which the generator never creates (it stamps
-        /// res://scenes/main/&lt;genre&gt;_main.tscn), so New Game silently did nothing.</summary>
-        public string GameScenePath
-        {
-            get
-            {
-                string? path = Info?.GameScenePath;
-                if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path)) return path;
-
-                var genre = UI.SkinCatalog.GetGenre(Info?.GenreId ?? "");
-                if (!string.IsNullOrEmpty(genre?.MainScene))
-                    return $"res://scenes/main/{genre!.MainScene}";
-
-                return path ?? "";
-            }
-        }
-        public string MainMenuPath => Info?.MainMenuPath ?? "res://scenes/ui/main_menu.tscn";
-        public string SettingsScenePath => Info?.SettingsScenePath ?? "res://scenes/ui/settings_menu.tscn";
-        public string GameOverScenePath => Info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
+        public string GameName => EnsureInfo().GameName;
+        public string Version => EnsureInfo().Version;
+        public string ThemePreset => EnsureInfo().DefaultThemePreset;
+        /// <summary>Path to the active gameplay scene, with stale generated paths resolved
+        /// through GameInfo's shared fallback rules.</summary>
+        public string GameScenePath => EnsureInfo().ResolveGameScenePath();
+        public string MainMenuPath => EnsureInfo().ResolveMainMenuPath();
+        public string SettingsScenePath => EnsureInfo().ResolveSettingsScenePath();
+        public string GameOverScenePath => EnsureInfo().ResolveGameOverScenePath();
         public double CurrentSessionElapsed => ((long)Time.GetTicksMsec() - SessionStartTicks) / 1000.0;
         public float WinRate => GamesPlayedTotal > 0 ? (float)GamesWonTotal / GamesPlayedTotal * 100f : 0f;
+
+        private GameBuilder.GameInfo EnsureInfo()
+        {
+            if (Info != null) return Info;
+
+            if (ResourceLoader.Exists(GameBuilder.GameInfo.TresPath))
+            {
+                Info = ResourceLoader.Load<GameBuilder.GameInfo>(GameBuilder.GameInfo.TresPath);
+                if (Info != null) return Info;
+
+                if (!Engine.IsEditorHint())
+                    GD.PushWarning($"[GameApp] Failed to load {GameBuilder.GameInfo.TresPath}; using default GameInfo.");
+            }
+            else if (!Engine.IsEditorHint())
+            {
+                GD.PushWarning($"[GameApp] {GameBuilder.GameInfo.TresPath} is missing; using default GameInfo. Run the genre generator to stamp project config.");
+            }
+
+            Info = new GameBuilder.GameInfo();
+            return Info;
+        }
 
         public override void _Process(double delta)
         {

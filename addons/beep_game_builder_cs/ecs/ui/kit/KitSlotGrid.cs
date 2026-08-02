@@ -60,18 +60,32 @@ namespace Beep.ECS.UI.Kit
         [Export(PropertyHint.Range, "0.3,1.0,0.01")] public float InteriorRatio { get; set; } = 0.58f;
 
         public readonly List<Slot> Slots = new();
+        private int _hover = -1;
 
         [Signal] public delegate void SlotActivatedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
+            if (Slots.Count == 0)
+                SeedDemoSlots();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
                 float pitch = fs * 3.2f;
                 CustomMinimumSize = new Vector2(pitch * _cols, pitch * _rows);
             }
+        }
+
+        private void SeedDemoSlots()
+        {
+            Slots.Add(new Slot { Kind = SlotKind.Filled, Count = 12, Tint = UiSurface.Role.Info });
+            Slots.Add(new Slot { Kind = SlotKind.Filled, Count = 3, Tint = UiSurface.Role.Success });
+            Slots.Add(new Slot { Kind = SlotKind.Invite });
+            Slots.Add(new Slot { Kind = SlotKind.Blank });
+            Slots.Add(new Slot { Kind = SlotKind.Locked, Requirement = "Lv 12" });
+            Slots.Add(new Slot { Kind = SlotKind.Filled, Count = 1, Tint = UiSurface.Role.Warning });
         }
 
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _rows);
@@ -87,16 +101,33 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
-                return;
-            for (int i = 0; i < _cols * _rows; i++)
+            if (@event is InputEventMouseMotion mm)
             {
-                if (!SlotRect(i).HasPoint(mb.Position)) continue;
-                Selected = i;
-                EmitSignal(SignalName.SlotActivated, i);
-                AcceptEvent();
+                int next = HitSlot(mm.Position);
+                if (next != _hover)
+                {
+                    _hover = next;
+                    QueueRedraw();
+                }
                 return;
             }
+
+            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+                return;
+            int hit = HitSlot(mb.Position);
+            if (hit >= 0)
+            {
+                Selected = hit;
+                EmitSignal(SignalName.SlotActivated, hit);
+                AcceptEvent();
+            }
+        }
+
+        private int HitSlot(Vector2 p)
+        {
+            for (int i = 0; i < _cols * _rows; i++)
+                if (SlotRect(i).HasPoint(p)) return i;
+            return -1;
         }
 
         public override void _Draw()
@@ -139,6 +170,7 @@ namespace Beep.ECS.UI.Kit
                 }
 
                 DrawShape(r, ActiveShape, plate, ink, rimPx);
+                DrawSlotInset(r, plate);
 
                 switch (s.Kind)
                 {
@@ -168,6 +200,12 @@ namespace Beep.ECS.UI.Kit
                         DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.End.Y - small * 0.15f),
                                    s.Requirement, small, UiSurface.Text(this));
                 }
+
+                if (_hover == i && _sel != i)
+                    KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
+                                   KitChrome.Poly(ActiveShape, r, Geo), r,
+                                   UiSurface.Semantic(this, UiSurface.Role.Info),
+                                   Mathf.Max(1.5f, 2f * (fs / 14f)));
             }
 
             // Selection LAST and OUTSIDE the slot, so it reads over any contents and does not
@@ -193,6 +231,17 @@ namespace Beep.ECS.UI.Kit
             var col = new Color(ink.R, ink.G, ink.B, 0.75f);
             DrawLine(c - new Vector2(a, 0), c + new Vector2(a, 0), col, w);
             DrawLine(c - new Vector2(0, a), c + new Vector2(0, a), col, w);
+        }
+
+        private void DrawSlotInset(Rect2 r, Color plate)
+        {
+            float w = Mathf.Max(1f, r.Size.X * 0.035f);
+            Color light = new(Mathf.Min(1f, plate.R * 1.35f), Mathf.Min(1f, plate.G * 1.35f), Mathf.Min(1f, plate.B * 1.35f), 0.45f);
+            Color shade = new(plate.R * 0.45f, plate.G * 0.45f, plate.B * 0.45f, 0.45f);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.End.X - w, r.Position.Y + w), light, w);
+            DrawLine(r.Position + new Vector2(w, w), new Vector2(r.Position.X + w, r.End.Y - w), light, w);
+            DrawLine(new Vector2(r.Position.X + w, r.End.Y - w), r.End - new Vector2(w, w), shade, w);
+            DrawLine(new Vector2(r.End.X - w, r.Position.Y + w), r.End - new Vector2(w, w), shade, w);
         }
 
         private void DrawCross(Rect2 r)

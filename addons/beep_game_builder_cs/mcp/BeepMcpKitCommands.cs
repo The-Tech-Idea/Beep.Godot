@@ -38,6 +38,7 @@ namespace Beep.GameBuilder
         {
             McpCommandRegistry.RegisterCommand("beep.kit_widgets", _ => Widgets());
             McpCommandRegistry.RegisterCommand("beep.kit_scene_audit", args => Audit(Str(args, "scene")));
+            McpCommandRegistry.RegisterCommand("beep.kit_template_audit", _ => AuditTemplates());
             McpCommandRegistry.RegisterCommand("beep.kit_convert_scene", args =>
                 Convert(Str(args, "scene"), Bool(args, "dry_run", true)));
         }
@@ -94,6 +95,30 @@ namespace Beep.GameBuilder
                 ["scene"] = scenePath,
                 ["controls"] = counts,
                 ["convertible"] = convertible,
+            };
+        }
+
+        private static JsonObject AuditTemplates()
+        {
+            var audit = BeepSceneTemplateAudit.AuditAll();
+            var issues = new JsonArray();
+            foreach (var issue in audit.Issues)
+            {
+                issues.Add(new JsonObject
+                {
+                    ["scene"] = issue.Scene,
+                    ["line"] = issue.Line,
+                    ["kind"] = issue.Kind,
+                    ["detail"] = issue.Detail,
+                });
+            }
+
+            return new JsonObject
+            {
+                ["ok"] = audit.Ok,
+                ["scene_count"] = audit.SceneCount,
+                ["issue_count"] = audit.Issues.Count,
+                ["issues"] = issues,
             };
         }
 

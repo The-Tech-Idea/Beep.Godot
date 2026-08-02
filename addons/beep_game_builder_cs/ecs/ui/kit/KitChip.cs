@@ -108,7 +108,7 @@ namespace Beep.ECS.UI.Kit
             if (fill.A < 0.02f) fill = UiSurface.Of(this);
             Color ink = InkColor();
             var font = KitFont();
-            int fs = UiSurface.FontSize(this);
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
             float rimPx = Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f));
 
             DrawShape(r, ShapeFor(), fill, ink, rimPx);
@@ -132,7 +132,8 @@ namespace Beep.ECS.UI.Kit
                 DrawArrow(r, on, _delta >= 0f);
                 if (font == null) return;
                 string txt = (_delta >= 0f ? "+" : "") + _delta.ToString("0.##");
-                int dfs = Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f));
+                int dfs = UiSurface.FitText(this, new Vector2(r.Size.X * 0.58f, r.Size.Y * 0.86f),
+                                            0.66f, txt, font, min: 7, themeMax: 0.82f);
                 Vector2 dm = font.GetStringSize(txt, HorizontalAlignment.Left, -1, dfs);
                 DrawText(font, new Vector2(r.Position.X + r.Size.X * 0.60f - dm.X * 0.5f,
                                            r.Position.Y + (r.Size.Y + dm.Y * 0.6f) * 0.5f),
@@ -141,9 +142,7 @@ namespace Beep.ECS.UI.Kit
             }
 
             if (font == null || string.IsNullOrEmpty(_text)) return;
-            int size = _kind == ChipKind.Count
-                ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.75f))
-                : Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
+            int size = UiSurface.FitText(this, r.Size * 0.82f, 0.66f, _text, font, min: 7, themeMax: 0.85f);
             Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, size);
             DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
                        _text, size, on);

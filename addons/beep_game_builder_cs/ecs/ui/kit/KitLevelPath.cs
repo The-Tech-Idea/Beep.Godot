@@ -38,12 +38,14 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Index of the player's current position. -1 for none.</summary>
         [Export] public int Current { get => _cur; set { _cur = value; QueueRedraw(); } }
         private int _cur = 2;
+        private int _hover = -1;
 
         [Signal] public delegate void LevelActivatedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (Levels.Count == 0)
                 for (int i = 0; i < 8; i++)
                     Levels.Add(new Level
@@ -79,17 +81,34 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
-                return;
-            float r = NodeRadius();
-            for (int i = 0; i < Levels.Count; i++)
+            if (@event is InputEventMouseMotion mm)
             {
-                if (mb.Position.DistanceTo(NodeAt(i)) > r * 1.2f) continue;
-                if (Levels[i].State == LevelState.Locked) return;
-                EmitSignal(SignalName.LevelActivated, i);
-                AcceptEvent();
+                int next = HitLevel(mm.Position);
+                if (next != _hover)
+                {
+                    _hover = next;
+                    QueueRedraw();
+                }
                 return;
             }
+
+            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+                return;
+            int hit = HitLevel(mb.Position);
+            if (hit >= 0)
+            {
+                if (Levels[hit].State == LevelState.Locked) return;
+                EmitSignal(SignalName.LevelActivated, hit);
+                AcceptEvent();
+            }
+        }
+
+        private int HitLevel(Vector2 p)
+        {
+            float r = NodeRadius();
+            for (int i = 0; i < Levels.Count; i++)
+                if (p.DistanceTo(NodeAt(i)) <= r * 1.2f) return i;
+            return -1;
         }
 
         public override void _Draw()
@@ -136,6 +155,11 @@ namespace Beep.ECS.UI.Kit
                 DrawCircle(p, r, plate);
                 DrawArc(p, r, 0f, Mathf.Tau, 28, ink, Mathf.Max(1.5f, r * 0.14f));
 
+                if (lv.State == LevelState.Available)
+                    DrawArc(p, r * 1.18f, 0f, Mathf.Tau, 32,
+                            UiSurface.Semantic(this, UiSurface.Role.Info),
+                            Mathf.Max(1.8f, r * 0.10f));
+
                 // "You are here": a ring outside the node, so it does not restyle the node
                 // itself. The COLOUR comes from the palette rather than a hardcoded cream, so it
                 // reskins with the theme like every other selection cue.
@@ -144,12 +168,20 @@ namespace Beep.ECS.UI.Kit
                             UiSurface.Semantic(this, UiSurface.Role.Accent),
                             Mathf.Max(2f, r * 0.14f));
 
+                if (i == _hover && lv.State != LevelState.Locked && i != _cur)
+                    DrawArc(p, r * 1.30f, 0f, Mathf.Tau, 32,
+                            UiSurface.Semantic(this, UiSurface.Role.Info),
+                            Mathf.Max(1.5f, r * 0.09f));
+
                 // A locked node shows NO number.
                 if (lv.State != LevelState.Locked && font != null && !string.IsNullOrEmpty(lv.Label))
                 {
-                    Vector2 m = font.GetStringSize(lv.Label, HorizontalAlignment.Left, -1, fs);
+                    int lf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                               new Vector2(r * 1.45f, r * 0.90f),
+                                               lv.Label, font, min: 8);
+                    Vector2 m = font.GetStringSize(lv.Label, HorizontalAlignment.Left, -1, lf);
                     DrawText(font, new Vector2(p.X - m.X * 0.5f, p.Y + m.Y * 0.32f),
-                               lv.Label, fs, UiSurface.Luminance(plate) > 0.5f
+                               lv.Label, lf, UiSurface.Luminance(plate) > 0.5f
                                    ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
                 }
 

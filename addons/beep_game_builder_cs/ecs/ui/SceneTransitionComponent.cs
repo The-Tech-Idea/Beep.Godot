@@ -1,9 +1,10 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Full-screen fade transition. Creates a child ColorRect covering the screen
+    /// Full-screen fade transition. Creates a child kit overlay covering the screen
     /// (on the parent CanvasLayer). TransitionIn() fades the rect in then hides
     /// the scene; TransitionOut() fades it out to reveal the scene. Connect a
     /// NavigationComponent.BeforeNavigate signal → TransitionIn, then change_scene
@@ -21,7 +22,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void FinishedEventHandler();
 
-        private ColorRect? _rect;
+        private KitColorOverlay? _rect;
         private Tween? _tween;
 
         /// <summary>True when the fade can actually run (active and its rect exists). SceneNav
@@ -32,7 +33,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            // EnsureRect spawns a ColorRect. This is [Tool] and lives in the menu scenes,
+            // EnsureRect spawns a runtime overlay. This is [Tool] and lives in the menu scenes,
             // so without the guard opening one in the editor adds a runtime-only node.
             if (Engine.IsEditorHint()) return;
             // Defer rect creation — adding children during _Ready can fail with
@@ -47,7 +48,7 @@ namespace Beep.ECS.UI
             if (GetParent() is not Node parent) return;
             if (!IsInsideTree()) return;
 
-            _rect = new ColorRect
+            _rect = new KitColorOverlay
             {
                 Name = "TransitionRect",
                 Color = new Color(FadeColor.R, FadeColor.G, FadeColor.B, 0),

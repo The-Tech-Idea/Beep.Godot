@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -18,14 +19,14 @@ namespace Beep.ECS.UI
         [Export] public bool Removable { get; set; } = true;
         // Scale of the theme's body font, not a fixed size. The themes run 14-24, so a
         // literal renders a genre's larger type out of a control built for 14.
-        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 0.85f;
+        [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 0.76f;
         private int FontSize => UiSurface.FontSize(this, FontScale);
 
         [Signal] public delegate void RemovedEventHandler(string label);
         [Signal] public delegate void ClickedEventHandler(string label);
 
         private Container? _container;
-        private Panel? _chip;
+        private KitRemovableChip? _chip;
 
         public override void _Ready()
         {
@@ -42,42 +43,15 @@ namespace Beep.ECS.UI
         private void BuildChip()
         {
             if (Engine.IsEditorHint()) return;
-            _chip = new Panel();
-            _chip.CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.0f);
-            var sb = new StyleBoxFlat { BgColor = ChipColor };
-            sb.SetCornerRadiusAll(14);
-            _chip.AddThemeStyleboxOverride("panel", sb);
-
-            var hbox = new HBoxContainer();
-            hbox.AddThemeConstantOverride("separation", 4);
-
-            var margin = new MarginContainer();
-            margin.AddThemeConstantOverride("margin_left", 12);
-            margin.AddThemeConstantOverride("margin_right", Removable ? 4 : 12);
-            margin.AddThemeConstantOverride("margin_top", 4);
-            margin.AddThemeConstantOverride("margin_bottom", 4);
-
-            var label = new Label { Text = Label, VerticalAlignment = VerticalAlignment.Center };
-            label.AddThemeFontSizeOverride("font_size", FontSize);
-            label.AddThemeColorOverride("font_color", Colors.White);
-            margin.AddChild(label);
-            hbox.AddChild(margin);
-
-            if (Removable)
+            _chip = new KitRemovableChip
             {
-                var closeBtn = new Button { Text = "×", Flat = true,
-                    CustomMinimumSize = new Vector2(UiSurface.FontSize(this) * 1.7f, UiSurface.FontSize(this) * 1.7f) };
-                closeBtn.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.00f));
-                closeBtn.AddThemeColorOverride("font_color", new Color(1, 1, 1, 0.7f));
-                closeBtn.Pressed += () =>
-                {
-                    EmitSignal(SignalName.Removed, Label);
-                    _chip?.QueueFree();
-                };
-                hbox.AddChild(closeBtn);
-            }
-
-            _chip.AddChild(hbox);
+                ChipText = Label,
+                Removable = Removable,
+                Role = UiSurface.Role.Accent
+            };
+            int bodyFs = UiSurface.FontSize(this);
+            _chip.CustomMinimumSize = new Vector2(0, bodyFs * 2.0f);
+            _chip.RemovePressed += OnRemovePressed;
             _container?.AddChild(_chip);
 
             // Focusable so a keyboard/gamepad player can select and activate it (ui_accept),
@@ -91,6 +65,12 @@ namespace Beep.ECS.UI
                     _chip?.AcceptEvent();
                 }
             };
+        }
+
+        private void OnRemovePressed()
+        {
+            EmitSignal(SignalName.Removed, Label);
+            _chip?.QueueFree();
         }
 
         public override void _ExitTree()

@@ -70,10 +70,10 @@ namespace Beep.ECS
             if (nav == null)
             {
                 // No NavigationComponent sibling — change scene directly.
-                var info = GameBuilder.GameInfo.Instance;
+                var app = GameApp.Instance;
                 string target = GoToMenuAfterBoot
-                    ? (info?.MainMenuPath ?? "res://scenes/ui/main_menu.tscn")
-                    : (info?.GameScenePath ?? "res://scenes/main/main.tscn");
+                    ? (app?.MainMenuPath ?? GameBuilder.GameInfo.DefaultMainMenuPath)
+                    : (app?.GameScenePath ?? GameBuilder.GameInfo.DefaultGameScenePath);
                 GetTree().ChangeSceneToFile(target);
                 return;
             }

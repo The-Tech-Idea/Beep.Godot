@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -58,36 +59,32 @@ namespace Beep.ECS.UI
         public void ShowToast(string message, ToastType type = ToastType.Info)
         {
             if (!IsActive) return;
+            int fs = UiSurface.FontSize(this);
+            Vector2 toastSize = ToastSize;
+            if (toastSize == new Vector2(300, 48))
+                toastSize = new Vector2(fs * 21f, fs * 3.4f);
 
             // TopLevel so the absolutely-positioned toast isn't re-laid-out when this component is
             // parented under a Container.
-            var toast = new Panel { TopLevel = true };
-            toast.Size = ToastSize;
-            toast.Position = new Vector2((GetViewport().GetVisibleRect().Size.X - ToastSize.X) / 2f, -ToastSize.Y);
-
-            Color bgColor = type switch
-            {
-                ToastType.Success => new Color(0.15f, 0.6f, 0.2f, 0.95f),
-                ToastType.Warning => new Color(0.8f, 0.6f, 0.1f, 0.95f),
-                ToastType.Error => new Color(0.8f, 0.15f, 0.15f, 0.95f),
-                _ => new Color(0.15f, 0.2f, 0.3f, 0.95f)
-            };
-
-            var sb = new StyleBoxFlat { BgColor = bgColor };
-            sb.SetCornerRadiusAll(8);
-            toast.AddThemeStyleboxOverride("panel", sb);
+            var toast = new KitToast { TopLevel = true };
+            toast.Size = toastSize;
+            toast.Position = new Vector2((GetViewport().GetVisibleRect().Size.X - toastSize.X) / 2f, -toastSize.Y);
+            toast.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
 
             string icon = type switch
             { ToastType.Success => "✓", ToastType.Warning => "⚠", ToastType.Error => "✕", _ => "ℹ" };
-
-            var label = new Label { Text = $"{icon}  {message}", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            label.AddThemeColorOverride("font_color", Colors.White);
-            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.93f));
-            toast.AddChild(label);
+            toast.IconGlyph = icon;
+            toast.Message = message;
+            toast.Role = type switch
+            {
+                ToastType.Success => UiSurface.Role.Success,
+                ToastType.Warning => UiSurface.Role.Warning,
+                ToastType.Error => UiSurface.Role.Danger,
+                _ => UiSurface.Role.Info
+            };
 
             // Stack existing toasts up (guard: entries are pruned on dismiss, but stay defensive).
-            float yOffset = ToastSize.Y + 8;
+            float yOffset = toastSize.Y + 8;
             foreach (var t in _activeToasts)
                 if (GodotObject.IsInstanceValid(t)) t.Position += new Vector2(0, yOffset);
 

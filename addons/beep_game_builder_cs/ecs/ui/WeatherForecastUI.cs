@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -41,8 +42,8 @@ namespace Beep.ECS
                                    1, Mathf.Max(1, ForecastData?.DaysForward?.Length ?? 7));
             }
         }
-        [Export] public Vector2 ItemSize { get; set; } = new(80, 100);
-        [Export] public float ItemSpacing { get; set; } = 10f;
+        [Export] public Vector2 ItemSize { get; set; } = new(72, 88);
+        [Export] public float ItemSpacing { get; set; } = 8f;
 
         private VBoxContainer? _forecastContainer;
         private Button? _toggle;
@@ -82,12 +83,16 @@ namespace Beep.ECS
             root.SetAnchorsPreset(LayoutPreset.FullRect);
             AddChild(root);
 
-            _toggle = new Button
+            _toggle = new KitPushButton
             {
                 Name = "WeatherToggle",
                 SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
                 ToggleMode = true,
             };
+            _toggle.CustomMinimumSize = new Vector2(Beep.ECS.UI.UiSurface.FontSize(this) * 7.5f,
+                                                    Beep.ECS.UI.UiSurface.FontSize(this) * 2.0f);
+            _toggle.AddThemeFontSizeOverride("font_size", Beep.ECS.UI.UiSurface.FontSize(this, Beep.ECS.UI.UiSurface.TextRole.Caption));
+            _toggle.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             _toggle.Pressed += () => SetOpen(!_open);
 
             // ClipContents on a wrapper is what makes it a SLIDE rather than a pop: the cards
@@ -200,72 +205,19 @@ namespace Beep.ECS
             _ => "☁",
         };
 
-        private PanelContainer CreateForecastItem(int dayIndex, Beep.GameBuilder.WeatherData dayData)
+        private Godot.Control CreateForecastItem(int dayIndex, Beep.GameBuilder.WeatherData dayData)
         {
-            var panel = new PanelContainer
+            return new KitWeatherForecastCard
             {
                 CustomMinimumSize = ItemSize,
-                Name = $"Day{dayIndex}"
+                Name = $"Day{dayIndex}",
+                MouseFilter = MouseFilterEnum.Ignore,
+                DayText = $"Day {dayIndex + 1}",
+                WeatherGlyph = GetWeatherIcon(dayData.WeatherType),
+                TemperatureText = $"{dayData.Temperature:F0}°C",
+                WindText = $"Wind {dayData.WindSpeed:F1}",
+                WeatherRole = GetWeatherRole(dayData.WeatherType),
             };
-
-            // Built from the live theme rather than overriding it with a hand-made box.
-            // AddThemeStyleboxOverride beats the generated theme outright, which is exactly why
-            // these cards ignored the skin entirely. The weather colour survives as a tinted
-            // TOP EDGE — the card belongs to the skin, and still reads its weather at a glance.
-            Color surface = Beep.ECS.UI.UiSurface.Of(this);
-            var styleBox = new StyleBoxFlat
-            {
-                BgColor = surface,
-                BorderColor = GetWeatherColor(dayData.WeatherType),
-                BorderWidthLeft = 1,
-                BorderWidthTop = 4,
-                BorderWidthRight = 1,
-                BorderWidthBottom = 1,
-            };
-            styleBox.SetCornerRadiusAll(4);
-            panel.AddThemeStyleboxOverride("panel", styleBox);
-
-            // Content layout
-            var vbox = new VBoxContainer { Name = "Content" };
-            panel.AddChild(vbox);
-
-            // Day label
-            var dayLabel = new Label
-            {
-                Text = $"Day {dayIndex + 1}",
-                CustomMinimumSize = new Vector2(0, 20),
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            vbox.AddChild(dayLabel);
-
-            // Weather icon (text for now, could be replaced with TextureRect)
-            var weatherLabel = new Label
-            {
-                Text = GetWeatherIcon(dayData.WeatherType),
-                CustomMinimumSize = new Vector2(0, 30),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            vbox.AddChild(weatherLabel);
-
-            // Temperature
-            var tempLabel = new Label
-            {
-                Text = $"{dayData.Temperature:F0}°C",
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            vbox.AddChild(tempLabel);
-
-            // Wind speed
-            var windLabel = new Label
-            {
-                Text = $"💨 {dayData.WindSpeed:F1}",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Modulate = Beep.ECS.UI.UiSurface.Text(this)
-            };
-            vbox.AddChild(windLabel);
-
-            return panel;
         }
 
         // Keys match the names WeatherForecast stamps into WeatherData.WeatherType (Clear/Cloudy/Rain/
@@ -278,6 +230,15 @@ namespace Beep.ECS
             "Rain" or "Rainy" => RainyColor,
             "Storm" or "Stormy" => StormyColor,
             _ => Beep.ECS.UI.UiSurface.Semantic(this, Beep.ECS.UI.UiSurface.Role.Neutral)
+        };
+
+        private static Beep.ECS.UI.UiSurface.Role GetWeatherRole(string weatherType) => weatherType switch
+        {
+            "Clear" => Beep.ECS.UI.UiSurface.Role.Warning,
+            "Cloudy" => Beep.ECS.UI.UiSurface.Role.Neutral,
+            "Rain" or "Rainy" => Beep.ECS.UI.UiSurface.Role.Info,
+            "Storm" or "Stormy" => Beep.ECS.UI.UiSurface.Role.Accent2,
+            _ => Beep.ECS.UI.UiSurface.Role.Neutral,
         };
 
         private string GetWeatherIcon(string weatherType) => weatherType switch

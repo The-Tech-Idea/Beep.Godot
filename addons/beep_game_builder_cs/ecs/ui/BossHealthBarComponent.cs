@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -26,8 +27,8 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void PhaseChangedEventHandler(int phase);
 
-        private ProgressBar? _bar;
-        private Label? _nameLabel;
+        private KitMeter? _bar;
+        private KitHudText? _nameLabel;
         private int _currentPhase;
         private VBoxContainer? _vbox;
         private HealthComponent? _health;
@@ -41,19 +42,30 @@ namespace Beep.ECS.UI
         private void Setup()
         {
             if (Engine.IsEditorHint()) return;
-            _bar = new ProgressBar
+            int fs = UiSurface.FontSize(this);
+            _bar = new KitMeter
             {
                 Name = "BossBar",
-                CustomMinimumSize = new Vector2(600, UiSurface.FontSize(this) * 1.7f),
-                ShowPercentage = false,
-                Visible = false
+                CustomMinimumSize = new Vector2(fs * 28f, fs * 1.7f),
+                SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill,
+                Fill = UiSurface.Role.Danger,
+                EndCaps = true,
+                Visible = false,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
             };
-            _nameLabel = new Label { Name = "BossName", Text = _bossName, HorizontalAlignment = HorizontalAlignment.Center };
-            _nameLabel.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 1.29f));
+            _nameLabel = new KitHudText
+            {
+                Name = "BossName",
+                Text = _bossName,
+                Role = UiSurface.TextRole.Subtitle,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+            };
 
-            _vbox = new VBoxContainer();
+            _vbox = new VBoxContainer { MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             _vbox.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);
             _vbox.AddThemeConstantOverride("separation", 4);
+            _vbox.OffsetLeft = fs * 4f;
+            _vbox.OffsetRight = -fs * 4f;
             _vbox.AddChild(_nameLabel);
             _vbox.AddChild(_bar);
 
@@ -68,8 +80,8 @@ namespace Beep.ECS.UI
             if (_health != null)
             {
                 _health.HealthChanged += OnHealthChanged;
-                _bar.MaxValue = _health.MaxHealth;
-                _bar.Value = _health.CurrentHealth;
+                _bar.Value = _health.MaxHealth <= 0f ? 0f : _health.CurrentHealth / _health.MaxHealth;
+                _bar.Readout = $"{Mathf.RoundToInt(_health.CurrentHealth)} / {Mathf.RoundToInt(_health.MaxHealth)}";
                 _bar.Visible = true;
             }
             else
@@ -81,8 +93,8 @@ namespace Beep.ECS.UI
         private void OnHealthChanged(float current, float max)
         {
             if (_bar == null || !IsActive) return;
-            _bar.MaxValue = max;
-            _bar.Value = current;
+            _bar.Value = max <= 0f ? 0f : current / max;
+            _bar.Readout = $"{Mathf.RoundToInt(current)} / {Mathf.RoundToInt(max)}";
 
             if (max <= 0f || PhaseCount <= 0) return;   // guard 0/0 → NaN on a degenerate config
 
@@ -92,8 +104,10 @@ namespace Beep.ECS.UI
             {
                 _currentPhase = phase;
                 float phasePct = (float)phase / PhaseCount;
-                _bar.AddThemeStyleboxOverride("fill",
-                    new StyleBoxFlat { BgColor = BarColor.Darkened(1f - phasePct) });
+                _bar.Fill = phasePct <= 0.34f ? UiSurface.Role.Danger
+                    : phasePct <= 0.67f ? UiSurface.Role.Warning
+                    : UiSurface.Role.Success;
+                _bar.Tier = Mathf.Max(1, phase);
                 EmitSignal(SignalName.PhaseChanged, phase);
             }
         }

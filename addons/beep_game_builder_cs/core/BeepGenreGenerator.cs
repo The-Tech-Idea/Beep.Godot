@@ -73,9 +73,9 @@ public static class BeepGenreGenerator
             || string.Equals(info.DefaultThemePreset, "modern", System.StringComparison.OrdinalIgnoreCase))
             info.DefaultThemePreset = genre.DefaultTheme;
 
-        // Main scene path from genre.json — validate the filename like CopyGenreScene/CopyGenreUiScenes do.
-        if (!string.IsNullOrEmpty(genre.MainScene) && IsSafeSceneFileName(genre.MainScene))
-            info.GameScenePath = $"res://scenes/main/{genre.MainScene}";
+        // Runtime uses a shared MainGame shell; genre main scenes are still stamped below as
+        // reference/content scenes, but the play entry should be the stable shell.
+        info.GameScenePath = GameInfo.DefaultGameScenePath;
 
         // Apply tuning defaults from genre.json (only if user hasn't overridden).
         ApplyTuning(info, genre);
@@ -213,6 +213,13 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("enable_forecast", out var ef)) info.EnableWeatherForecast = ef.AsBool();
         if (genre.Tuning.TryGetValue("auto_cycle", out var ac)) info.AutoCycleWeather = ac.AsBool();
         if (genre.Tuning.TryGetValue("top_down_view", out var tv)) info.TopDownView = tv.AsBool();
+        if (genre.Tuning.TryGetValue("weather_view", out var wv))
+        {
+            if (System.Enum.TryParse<Beep.ECS.WeatherSystemComponent.WeatherViewMode>(wv.AsString(), true, out var parsedView))
+                info.WeatherViewMode = parsedView;
+            else
+                GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.weather_view = '{wv.AsString()}' is not a WeatherViewMode — ignored.");
+        }
         if (genre.Tuning.TryGetValue("forecast_days", out var fd)) info.ForecastDays = fd.AsInt32();
         if (genre.Tuning.TryGetValue("enable_save_load", out var esl)) info.EnableGameStateManager = esl.AsBool();
         if (genre.Tuning.TryGetValue("max_save_slots", out var mss)) info.MaxSaveSlots = mss.AsInt32();
@@ -233,7 +240,7 @@ public static class BeepGenreGenerator
     {
         "gravity", "jump_velocity", "move_speed", "fire_rate",
         "grid_width", "grid_height", "target_score",
-        "enable_weather", "enable_day_night", "default_weather", "auto_cycle", "top_down_view",
+        "enable_weather", "enable_day_night", "default_weather", "auto_cycle", "top_down_view", "weather_view",
         "enable_seasons", "default_season", "days_per_season",
         "enable_temperature", "ambient_temperature",
         "enable_forecast", "forecast_days",
@@ -263,6 +270,7 @@ public static class BeepGenreGenerator
     {
         var log = new List<string>();
         log.Add($"=== Stamping {genre.DisplayName} project: {info.GameName} (mode: {mode}) ===");
+        log.AddRange(BeepSceneTemplateAudit.Describe(BeepSceneTemplateAudit.AuditAll()));
 
         // 1) Standard scaffold (folders, defaults, input).
         log.AddRange(BeepProjectGenerator.CreateStandardFolders());
@@ -306,7 +314,7 @@ public static class BeepGenreGenerator
         // GameInfo is a Resource, not a Node — it CANNOT be autoloaded directly.
         // Instead, GameApp (the Node autoload above) loads game_info.tres in its
         // _Ready and exposes it via GameApp.Info. GameInfo.Instance is a convenience
-        // accessor that reads from the tree if a GameInfo node somehow exists.
+        // accessor for that loaded resource.
         log.Add("C# autoloads registered (GameApp + Settings + Locale). GameInfo loaded by GameApp.");
 
         // 2b) Stamp the translation CSV + configure the Locale autoload to load it.
@@ -314,6 +322,7 @@ public static class BeepGenreGenerator
 
         // 4) Shared UI scenes (all genres reuse these). No pause_menu: pausing shows the main menu
         //    as an overlay (GameFlowComponent), so main_menu.tscn doubles as the pause screen.
+        CopyUiScene("main_game.tscn", GameInfo.DefaultGameScenePath, mode, log);
         CopyUiScene("main_menu.tscn", "res://scenes/ui/main_menu.tscn", mode, log);
         CopyUiScene("settings_menu.tscn", "res://scenes/ui/settings_menu.tscn", mode, log);
         CopyUiScene("game_over.tscn", "res://scenes/ui/game_over.tscn", mode, log);
@@ -346,6 +355,7 @@ public static class BeepGenreGenerator
             }
             string gScenePath = $"res://scenes/main/{g.MainScene}";
             CopyGenreScene(g, gScenePath, mode, log);
+            CopyGenreLevelScenes(g, mode, log);
         }
 
         // 6) Project settings from GameInfo.
@@ -434,6 +444,31 @@ public static class BeepGenreGenerator
             string dst = $"{dstDir}/{scene}";
             CopyUiSceneFromPath(src, dst, mode, log);
         }
+    }
+
+    /// <summary>Copy level templates into project space so the shared MainGame shell can load
+    /// by convention: res://scenes/levels/&lt;genre&gt;/level_N.tscn.</summary>
+    private static void CopyGenreLevelScenes(Beep.ECS.UI.GenreDef genre, RegenMode mode, List<string> log)
+    {
+        string srcDir = $"{SceneTemplatesDir}/levels/{genre.Id}";
+        string dstDir = $"res://scenes/levels/{genre.Id}";
+        using var dir = DirAccess.Open(srcDir);
+        if (dir == null) return;
+
+        dir.ListDirBegin();
+        while (true)
+        {
+            string file = dir.GetNext();
+            if (string.IsNullOrEmpty(file)) break;
+            if (dir.CurrentIsDir() || !file.EndsWith(".tscn")) continue;
+            if (!IsSafeSceneFileName(file))
+            {
+                log.Add($"WARN: genre '{genre.Id}' has an unusable level scene '{file}' — skipped.");
+                continue;
+            }
+            CopyUiSceneFromPath($"{srcDir}/{file}", $"{dstDir}/{file}", mode, log);
+        }
+        dir.ListDirEnd();
     }
 
     /// <summary>Whether a catalog-supplied scene filename is safe to concatenate into a write

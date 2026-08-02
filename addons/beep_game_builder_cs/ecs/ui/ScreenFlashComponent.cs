@@ -1,9 +1,10 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Full-screen color flash overlay. Creates a ColorRect on a CanvasLayer,
+    /// Full-screen color flash overlay. Creates a kit overlay on a CanvasLayer,
     /// tweens its alpha up then down for a brief flash. Good for damage taken,
     /// healing received, level-up, explosions.
     /// </summary>
@@ -19,7 +20,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void FlashCompleteEventHandler();
 
-        private ColorRect? _rect;
+        private KitColorOverlay? _rect;
         private CanvasLayer? _layer;
         private Tween? _tween;
 
@@ -34,7 +35,7 @@ namespace Beep.ECS.UI
         private void SetupOverlay()
         {
             _layer = new CanvasLayer { Name = "ScreenFlash", Layer = CanvasLayer };
-            _rect = new ColorRect
+            _rect = new KitColorOverlay
             {
                 Name = "FlashRect",
                 Color = new Color(0, 0, 0, 0),

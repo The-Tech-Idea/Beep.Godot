@@ -1252,8 +1252,10 @@ namespace Beep.ECS.UI.Kit
                     DrawTextureRect(a.Icon, r.Grow(-r.Size.X * 0.22f), false);
                 else if (!string.IsNullOrEmpty(a.Text))
                 {
-                    var font = GetThemeDefaultFont();
-                    int fs = UiSurface.FontSize(this, 0.8f);
+                    var font = KitFont();
+                    int fs = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
+                                               new Vector2(r.Size.X * 0.72f, r.Size.Y * 0.64f),
+                                               a.Text, font);
                     if (font != null)
                     {
                         Vector2 m = font.GetStringSize(a.Text, HorizontalAlignment.Left, -1, fs);

@@ -83,6 +83,7 @@ namespace Beep.ECS.UI.Kit
             Color face = UiSurface.Of(this);
             Color ink = UiSurface.Ink(UiSurface.Of(this));
             Color acc = UiSurface.Semantic(this, Role);
+            var font = KitChrome.Font(this, _genre);
 
             float sweep = Mathf.DegToRad(Mathf.Clamp(SweepDegrees, 90f, 360f));
             float start = Mathf.Pi * 0.5f + (Mathf.Tau - sweep) * 0.5f;
@@ -108,6 +109,21 @@ namespace Beep.ECS.UI.Kit
             var pd = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
             DrawLine(c + pd * (r * 0.25f), c + pd * (r * 0.86f), acc, Mathf.Max(2.5f, d * 0.06f));
             DrawCircle(c, r * 0.16f, acc);
+
+            if (font != null && d > 42f)
+            {
+                string value = Mathf.RoundToInt((float)Value * 100f).ToString();
+                int vf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(r * 0.74f, r * 0.34f), value, font, min: 7);
+                Vector2 m = font.GetStringSize(value, HorizontalAlignment.Left, -1, vf);
+                var b = new Rect2(c.X - m.X * 0.5f - vf * 0.35f, c.Y + r * 0.35f - vf * 0.52f,
+                                  m.X + vf * 0.70f, vf * 1.18f);
+                KitChrome.Fill(this, KitShape.Pill, b, KitGeometry.ForGenre(_genre),
+                               new Color(face.R * 0.58f, face.G * 0.56f, face.B * 0.62f, 1f),
+                               ink, Mathf.Max(1f, vf * 0.08f));
+                DrawString(font, new Vector2(c.X - m.X * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.58f) * 0.5f),
+                           value, HorizontalAlignment.Left, -1, vf, UiSurface.Text(this));
+            }
         }
     }
 }

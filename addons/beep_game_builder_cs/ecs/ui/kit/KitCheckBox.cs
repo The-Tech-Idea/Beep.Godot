@@ -98,6 +98,12 @@ namespace Beep.ECS.UI.Kit
                 : new Color(surface.R * 0.42f, surface.G * 0.40f, surface.B * 0.46f, 1f);
 
             KitChrome.DrawPlate(this, _genre, box, face, state, 0.55f);
+            if (state == KitState.Hover && !ButtonPressed)
+            {
+                Color h = UiSurface.Semantic(this, OnRole);
+                DrawRect(box.Grow(-b * 0.18f), new Color(h.R, h.G, h.B, 0.18f), false,
+                         Mathf.Max(1.5f, b * 0.09f));
+            }
 
             if (ButtonPressed)
             {

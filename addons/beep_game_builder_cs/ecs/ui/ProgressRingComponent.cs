@@ -50,10 +50,40 @@ namespace Beep.ECS.UI
         {
             var center = Size / 2f;
             float radius = Mathf.Min(center.X, center.Y) - RingThickness;
-            DrawArc(center, radius, 0, Mathf.Pi * 2, 64, BgColor, RingThickness, true);
+            if (radius <= 2f) return;
+
+            Color ink = UiSurface.Ink(UiSurface.Of(this));
+            DrawCircle(center, radius + RingThickness * 0.72f, UiSurface.Of(this) with { A = 0.72f });
+            DrawArc(center, radius + RingThickness * 0.46f, 0, Mathf.Tau, 64, ink with { A = 0.42f },
+                    Mathf.Max(1f, RingThickness * 0.34f), true);
+            DrawArc(center, radius, 0, Mathf.Pi * 2, 64, BgColor with { A = 0.42f }, RingThickness, true);
+
+            for (int i = 0; i < 12; i++)
+            {
+                float a = -Mathf.Pi * 0.5f + i * Mathf.Tau / 12f;
+                var d = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                DrawLine(center + d * (radius - RingThickness * 0.62f),
+                         center + d * (radius + RingThickness * 0.18f),
+                         ink with { A = i % 3 == 0 ? 0.42f : 0.20f },
+                         Mathf.Max(1f, RingThickness * 0.16f));
+            }
+
             float angleFrom = -Mathf.Pi / 2f;
             float angleTo = angleFrom + Mathf.Pi * 2f * _displayValue;
             DrawArc(center, radius, angleFrom, angleTo, 64, RingColor, RingThickness, false);
+
+            DrawCircle(center, Mathf.Max(2f, radius * 0.34f), UiSurface.Of(this));
+            DrawArc(center, Mathf.Max(2f, radius * 0.34f), 0, Mathf.Tau, 32, ink with { A = 0.45f },
+                    Mathf.Max(1f, RingThickness * 0.22f));
+
+            var font = GetThemeDefaultFont();
+            if (font == null) return;
+            string text = $"{Mathf.RoundToInt(Mathf.Clamp(_displayValue, 0f, 1f) * 100f)}";
+            int fs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                       new Vector2(radius * 0.88f, radius * 0.52f), text, font, min: 8);
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+            DrawString(font, center - new Vector2(m.X * 0.5f, -m.Y * 0.30f),
+                       text, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
         }
 
         // Value's setter already emits ValueChanged; assign through it (guarded against a no-op).

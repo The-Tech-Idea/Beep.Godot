@@ -126,14 +126,31 @@ namespace Beep.ECS
             // same-value early-out in Godot 4), so writing it each frame reset the pool every frame —
             // precipitation flickered at the emitter and never fell (which also masked the per-type
             // Lifetime tuning). Cache the last applied amount.
+            // SHELTER, eased. Cutting precipitation off on the frame the player crosses a
+            // doorway reads as a glitch, so the bool slides into a 0-1 factor over ~0.3s and
+            // everything downstream scales by it. It multiplies intensity rather than replacing
+            // it: standing indoors during a light shower must not look like standing indoors
+            // during a storm.
+            ShelterFactor = Mathf.MoveToward(ShelterFactor, InsideShelter ? 1f : 0f, 3.5f * (float)delta);
+            float exposure = _intensityCurrent * (1f - ShelterFactor);
+
             if (_particles != null && _particles.Emitting)
             {
-                int amount = Mathf.Max(1, (int)(ParticleCount * _intensityCurrent));
+                int amount = Mathf.Max(1, (int)(ParticleCount * exposure));
                 if (amount != _lastParticleAmount)
                 {
                     _particles.Amount = amount;
                     _lastParticleAmount = amount;
                 }
+            }
+
+            // Splashes are impacts on ground you can see — under a roof there are none. Emitting
+            // is a cheap toggle (no pool realloc), but guard it anyway so it only writes on a
+            // change, matching the Amount discipline above.
+            if (_splashes != null)
+            {
+                bool wet = ShelterFactor < 0.5f && _splashWanted;
+                if (wet != _splashes.Emitting) _splashes.Emitting = wet;
             }
 
             // (Fog density now lives in the standalone DynamicFogLayer, which reads

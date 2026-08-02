@@ -135,16 +135,24 @@ namespace Beep.ECS.UI.Kit
         private void DrawLabel(KitState state)
         {
             if (string.IsNullOrEmpty(Text)) return;
-            var font = GetThemeDefaultFont();
+            var font = KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
             if (font == null) return;
 
-            int fs = UiSurface.FontSize(this);
+            string[] lines = Text.Split('\n');
+            string longest = "";
+            foreach (string line in lines)
+                if (line.Length > longest.Length) longest = line;
+
+            int fs = UiSurface.FitText(this,
+                                       Size - new Vector2(UiSurface.FontSize(this) * 1.4f,
+                                                          UiSurface.FontSize(this) * 0.35f),
+                                       lines.Length > 1 ? 0.38f : 0.50f,
+                                       longest, font, min: 8, themeMax: 1.08f);
             Color col = UiSurface.Text(this);
             if (state == KitState.Disabled) col = col with { A = 0.45f };
             // Pressed text shifts with the plate, so the label looks pushed in with it.
             float dy = state == KitState.Pressed ? 1f : 0f;
 
-            string[] lines = Text.Split('\n');
             float lh = fs * 1.15f;
             float top = (Size.Y - lh * lines.Length) * 0.5f + fs * 0.82f + dy;
             for (int i = 0; i < lines.Length; i++)

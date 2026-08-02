@@ -105,6 +105,8 @@ namespace Beep.ECS.UI.Kit
             // A slight lean, so two ropes converge to a fixing above rather than running parallel.
             float lean = (x < Size.X * 0.5f ? 1f : -1f) * Size.X * 0.03f;
             DrawLine(new Vector2(x + lean, 0f), new Vector2(x, Size.Y), c, w * 1.2f);
+            DrawLine(new Vector2(x + lean + w * 0.7f, 0f), new Vector2(x + w * 0.7f, Size.Y),
+                     new Color(1, 1, 1, 0.18f), Mathf.Max(1f, w * 0.35f));
             DrawCircle(new Vector2(x, Size.Y - w), w * 0.9f, ink);
         }
 
@@ -131,6 +133,8 @@ namespace Beep.ECS.UI.Kit
                 new Vector2(r.Position.X + (left ? th * 0.35f : 0f), r.End.Y),
             };
             DrawColoredPolygon(pts, new Color(c.R, c.G, c.B, 0.72f));
+            DrawPolyline(new[] { pts[0], pts[1], pts[2], pts[3], pts[0] },
+                         new Color(ink.R, ink.G, ink.B, 0.38f), Mathf.Max(1f, th * 0.035f));
         }
 
         /// <summary>A rolled top edge spanning the full width — parchment and scroll panels.</summary>
@@ -160,6 +164,12 @@ namespace Beep.ECS.UI.Kit
             float lr = Size.Y * 0.16f;
             DrawCircle(new Vector2(x + lr * 0.8f, Size.Y * 0.35f), lr, c);
             DrawCircle(new Vector2(x - lr * 0.8f, Size.Y * 0.65f), lr * 0.85f, c);
+            DrawLine(new Vector2(x + lr * 0.25f, Size.Y * 0.35f),
+                     new Vector2(x + lr * 1.20f, Size.Y * 0.35f),
+                     new Color(ink.R, ink.G, ink.B, 0.28f), Mathf.Max(1f, w * 0.35f));
+            DrawLine(new Vector2(x - lr * 0.25f, Size.Y * 0.65f),
+                     new Vector2(x - lr * 1.10f, Size.Y * 0.65f),
+                     new Color(ink.R, ink.G, ink.B, 0.28f), Mathf.Max(1f, w * 0.35f));
         }
     }
 }

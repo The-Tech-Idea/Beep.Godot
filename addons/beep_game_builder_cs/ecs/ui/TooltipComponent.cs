@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -22,7 +23,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void TooltipHiddenEventHandler();
 
         private Godot.Control? _control;
-        private Panel? _tooltipPanel;
+        private KitTooltip? _tooltipPanel;
         private float _hoverTime;
         private bool _showing;
         private bool _hovering;
@@ -62,22 +63,16 @@ namespace Beep.ECS.UI
 
             // TopLevel so an absolutely-positioned popup isn't re-laid-out (and mispositioned) when
             // the control's parent is a Container.
-            _tooltipPanel = new Panel { TopLevel = true };
-            var label = new Label { Text = TooltipText, AutowrapMode = TextServer.AutowrapMode.Word };
-            label.AddThemeColorOverride("font_color", Colors.White);
-            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
-
-            var margin = new MarginContainer();
-            margin.AddThemeConstantOverride("margin_left", 8);
-            margin.AddThemeConstantOverride("margin_top", 6);
-            margin.AddThemeConstantOverride("margin_right", 8);
-            margin.AddThemeConstantOverride("margin_bottom", 6);
-            margin.AddChild(label);
-            _tooltipPanel.AddChild(margin);
-
-            var sb = new StyleBoxFlat { BgColor = BgColor };
-            sb.SetCornerRadiusAll(4);
-            _tooltipPanel.AddThemeStyleboxOverride("panel", sb);
+            int fs = UiSurface.FontSize(this);
+            _tooltipPanel = new KitTooltip
+            {
+                Text = TooltipText,
+                Tail = KitTooltip.TailSide.Top,
+                TailOffset = 0.18f,
+                TopLevel = true,
+                CustomMinimumSize = new Vector2(Mathf.Max(fs * 8f, TooltipText.Length * fs * 0.42f), fs * 2.8f),
+                Size = new Vector2(Mathf.Max(fs * 8f, TooltipText.Length * fs * 0.42f), fs * 2.8f)
+            };
 
             _tooltipPanel.Position = _control.GetGlobalMousePosition() + Offset + new Vector2(0, 20);
             _control.GetParent()?.AddChild(_tooltipPanel);

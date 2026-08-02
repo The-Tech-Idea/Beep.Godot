@@ -62,13 +62,17 @@ namespace Beep.ECS.UI.Kit
 
             if (_art != null)
                 DrawTextureRect(_art, frame.Grow(-rw * 1.8f), false);
+            else
+                DrawPortraitPlaceholder(frame.Grow(-rw * 1.8f), rim, ink);
 
             if (string.IsNullOrEmpty(_badge)) return;
             var font = KitFont();
             if (font == null) return;
 
             // Bottom-right, straddling the rim — the attention anchor measured 8x.
-            int bs = Mathf.Max(8, Mathf.RoundToInt(fs * 0.72f));
+            int bs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                       new Vector2(d * 0.36f, d * 0.20f),
+                                       _badge, font, min: 8);
             Vector2 m = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, bs);
             float bw = Mathf.Max(m.X + bs * 0.7f, bs * 1.5f), bh = bs * 1.3f;
             var b = new Rect2(frame.End.X - bw * 0.55f, frame.End.Y - bh * 0.65f, bw, bh);
@@ -77,6 +81,19 @@ namespace Beep.ECS.UI.Kit
             DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
                        _badge, bs, UiSurface.Luminance(bc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+        }
+
+        private void DrawPortraitPlaceholder(Rect2 r, Color rim, Color ink)
+        {
+            Color bg = new(Mathf.Lerp(FaceColor().R, rim.R, 0.24f),
+                           Mathf.Lerp(FaceColor().G, rim.G, 0.24f),
+                           Mathf.Lerp(FaceColor().B, rim.B, 0.24f), 1f);
+            DrawShape(r, Round ? KitShape.Pill : ActiveShape, bg, new Color(0, 0, 0, 0), 0f);
+            Vector2 c = r.Position + r.Size * 0.5f;
+            float d = Mathf.Min(r.Size.X, r.Size.Y);
+            DrawCircle(c + new Vector2(0f, -d * 0.12f), d * 0.16f, new Color(ink.R, ink.G, ink.B, 0.45f));
+            DrawArc(c + new Vector2(0f, d * 0.30f), d * 0.30f, Mathf.Pi * 1.08f, Mathf.Pi * 1.92f,
+                    24, new Color(ink.R, ink.G, ink.B, 0.45f), Mathf.Max(2f, d * 0.08f));
         }
     }
 }

@@ -5,6 +5,8 @@ public partial class LoadAll : Node
     {
         string[] scenes = {
             "res://examples/style_showcase/showcase.tscn",
+            "res://examples/platformer_demo/platformer_demo.tscn",
+            "res://examples/platformer_demo/smoke.tscn",
             "res://examples/topdown_arena/arena.tscn",
             "res://examples/topdown_arena/ui/main_menu.tscn",
             "res://examples/topdown_arena/ui/hud.tscn",

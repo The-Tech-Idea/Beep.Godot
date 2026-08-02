@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/platformer/LevelSelect.cs" id="3_script"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs" id="k_tabs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 [node name="LevelSelect" type="Control"]
 script = ExtResource("3_script")
 anchors_preset = 15
@@ -22,6 +24,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.09, 0.13, 0.18, 1)
 
+script = ExtResource("k_color")
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -45,16 +48,19 @@ text = "Select Level"
 size_flags_horizontal = 3
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="CoinsCaption" type="Label" parent="Margin/VBox/Header"]
 theme_type_variation = &"BeepCaption"
 text = "Coins"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="CoinsValue" type="Label" parent="Margin/VBox/Header"]
 theme_type_variation = &"BeepValue"
 text = "42"
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BackButton" type="Button" parent="Margin/VBox/Header"]
 custom_minimum_size = Vector2(120, 44)
 text = "← Menu"
@@ -77,10 +83,12 @@ size_flags_horizontal = 3
 theme_type_variation = &"BeepSubtitle"
 text = "World 1: Green Hills"
 
+script = ExtResource("k_label")
 [node name="W1ProgressCaption" type="Label" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
 theme_type_variation = &"BeepCaption"
 text = "5 of 15 stars collected"
 
+script = ExtResource("k_label")
 [node name="LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World1/W1VBox"]
 theme_override_constants/h_separation = 18
 theme_override_constants/v_separation = 18
@@ -134,10 +142,12 @@ size_flags_horizontal = 3
 theme_type_variation = &"BeepSubtitle"
 text = "World 2: Desert Dunes"
 
+script = ExtResource("k_label")
 [node name="W2ProgressCaption" type="Label" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
 theme_type_variation = &"BeepCaption"
 text = "Locked — finish World 1 to unlock."
 
+script = ExtResource("k_label")
 [node name="W2LevelGrid" type="GridContainer" parent="Margin/VBox/WorldTabs/World2/W2VBox"]
 theme_override_constants/h_separation = 18
 theme_override_constants/v_separation = 18

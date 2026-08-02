@@ -42,6 +42,7 @@
     "autosave_enabled": true,
     "autosave_interval_seconds": 300,
     "time_axis": "turns",
-    "top_down_view": true
+    "top_down_view": true,
+    "weather_view": "Isometric"
   }
 }

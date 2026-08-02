@@ -46,6 +46,11 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Success;
 
+        /// <summary>Optional value printed inside the rail. HUD binders set this when they have
+        /// an exact value; decorative meters can leave it empty and stay purely visual.</summary>
+        [Export] public string Readout { get => _readout; set { _readout = value ?? ""; QueueRedraw(); } }
+        private string _readout = "";
+
         /// <summary>Icon pinned over the bar's leading end, overhanging it. Optional.</summary>
         [Export] public Texture2D? CapIcon { get => _cap; set { _cap = value; Rebuild(); } }
         private Texture2D? _cap;
@@ -179,7 +184,25 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
+            DrawReadout(bar);
             KitChrome.DrawAttachments(this, _genre, Attachments);
+        }
+
+        private void DrawReadout(Rect2 bar)
+        {
+            if (string.IsNullOrEmpty(_readout)) return;
+            var font = GetThemeDefaultFont();
+            if (font == null) return;
+
+            int fs = UiSurface.FitText(this, bar.Size - new Vector2(UiSurface.FontSize(this) * 1.1f, 0f),
+                                       0.62f, _readout, font, min: 7, themeMax: 0.9f);
+            Vector2 size = font.GetStringSize(_readout, HorizontalAlignment.Left, -1, fs);
+            var p = new Vector2(bar.Position.X + (bar.Size.X - size.X) * 0.5f,
+                                bar.Position.Y + (bar.Size.Y + size.Y * 0.62f) * 0.5f);
+            DrawString(font, p + new Vector2(1, 1), _readout, HorizontalAlignment.Left, -1,
+                       fs, new Color(0, 0, 0, 0.78f));
+            DrawString(font, p, _readout, HorizontalAlignment.Left, -1, fs,
+                       UiSurface.Text(this));
         }
     }
 }

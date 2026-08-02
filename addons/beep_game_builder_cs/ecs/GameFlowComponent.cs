@@ -136,8 +136,10 @@ namespace Beep.ECS
             // Mirrors OnLevelComplete's fallback chain. Only NavigationComponent read
             // LevelFailedPath before, and nothing instances that, so level_failed was unreachable.
             var info = GameBuilder.GameInfo.Instance;
-            string path = info?.LevelFailedPath;
-            if (string.IsNullOrEmpty(path)) path = info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
+            string path = FirstExistingPath(info?.LevelFailedPath,
+                                            GameApp.Instance?.GameOverScenePath,
+                                            info?.ResolveGameOverScenePath(),
+                                            GameBuilder.GameInfo.DefaultGameOverScenePath);
             NavigateToScene(path);
         }
 
@@ -149,15 +151,23 @@ namespace Beep.ECS
             // Use LevelCompletePath if set (puzzle), otherwise LevelResultsPath (platformer),
             // otherwise fall back to game over.
             var info = GameBuilder.GameInfo.Instance;
-            string path = info?.LevelCompletePath;
-            if (string.IsNullOrEmpty(path)) path = info?.LevelResultsPath;
-            if (string.IsNullOrEmpty(path)) path = info?.GameOverScenePath ?? "res://scenes/ui/game_over.tscn";
+            string path = FirstExistingPath(info?.LevelCompletePath,
+                                            info?.LevelResultsPath,
+                                            GameApp.Instance?.GameOverScenePath,
+                                            info?.ResolveGameOverScenePath(),
+                                            GameBuilder.GameInfo.DefaultGameOverScenePath);
             NavigateToScene(path);
         }
 
         private void NavigateToScene(string path)
         {
             if (string.IsNullOrEmpty(path) || !IsActive) return;
+            if (!ResourceLoader.Exists(path))
+            {
+                GD.PushError($"[GameFlow] End-state scene not found: '{path}'. Check GameInfo scene paths.");
+                return;
+            }
+
             if (NavigateDelay > 0f)
             {
                 // Defer the scene change so animations can play first.
@@ -180,6 +190,18 @@ namespace Beep.ECS
                 var tree2 = GetTree();
                 tree2?.ChangeSceneToFile(path);
             }
+        }
+
+        private static string FirstExistingPath(params string?[] paths)
+        {
+            string firstConfigured = "";
+            foreach (string? path in paths)
+            {
+                if (string.IsNullOrEmpty(path)) continue;
+                firstConfigured = string.IsNullOrEmpty(firstConfigured) ? path : firstConfigured;
+                if (ResourceLoader.Exists(path)) return path;
+            }
+            return firstConfigured;
         }
 
         // ── Pause = the main menu, shown as an overlay ───────────────────────

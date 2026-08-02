@@ -31,7 +31,7 @@ namespace Beep.ECS.UI
         private GameApp? _app;
         private HealthComponent? _health;
 
-        private Label? _score, _lives, _level, _healthLabel;
+        private Godot.Control? _score, _lives, _level, _healthReadout;
         private string _levelFormat = "Level {0}";
         private readonly Dictionary<string, Godot.Control> _placeholders = new();
 
@@ -87,32 +87,33 @@ namespace Beep.ECS.UI
 
         protected void BindScore(NodePath path)
         {
-            var l = Resolve(path); if (l == null) { MissingLabel(path, "score"); return; }
-            _score = l;
+            _score = ResolveCoreReadout(path, "score", UiSurface.TextRole.Value, HorizontalAlignment.Right);
+            if (_score == null) return;
             if (_flow != null) { _flow.ScoreChanged += OnScore; OnScore(_flow.Score); }
             else NoFlow("score");
         }
 
         protected void BindLives(NodePath path)
         {
-            var l = Resolve(path); if (l == null) { MissingLabel(path, "lives"); return; }
-            _lives = l;
+            _lives = ResolveCoreReadout(path, "lives", UiSurface.TextRole.Value, HorizontalAlignment.Right);
+            if (_lives == null) return;
             if (_flow != null) { _flow.LivesChanged += OnLives; OnLives(_flow.Lives); }
             else NoFlow("lives");
         }
 
         protected void BindLevel(NodePath path, string format = "Level {0}")
         {
-            var l = Resolve(path); if (l == null) { MissingLabel(path, "level"); return; }
-            _level = l; _levelFormat = format;
+            _level = ResolveCoreReadout(path, "level", UiSurface.TextRole.Caption, HorizontalAlignment.Left);
+            if (_level == null) return;
+            _levelFormat = format;
             if (_app != null) { _app.LevelChanged += OnLevel; OnLevel(_app.CurrentLevel); }
             else GD.PushWarning($"[{Name}] {Genre} HUD: no GameApp autoload — the level readout will not update.");
         }
 
         protected void BindHealth(NodePath path)
         {
-            var l = Resolve(path); if (l == null) { MissingLabel(path, "health"); return; }
-            _healthLabel = l;
+            _healthReadout = ResolveCoreReadout(path, "health", UiSurface.TextRole.Value, HorizontalAlignment.Right);
+            if (_healthReadout == null) return;
             if (_health != null) { _health.HealthChanged += OnHealth; OnHealth(_health.CurrentHealth, _health.MaxHealth); }
             else GD.PushWarning($"[{Name}] {Genre} HUD: no HealthComponent in the scene (no player yet) — the health readout stays at its authored text; drive it with SetStat(\"health\", ...).");
         }
@@ -137,11 +138,39 @@ namespace Beep.ECS.UI
             if (TryResolveNode<Kit.KitMeter>(path) is { } meter) return meter;
             if (TryResolveNode<Kit.KitRadialMeter>(path) is { } ring) return ring;
             if (TryResolveNode<Kit.KitLabelValue>(path) is { } pair) return pair;
-            if (Resolve(path) is { } label) return label;
+            if (Resolve(path) is { } label)
+            {
+                StyleHudLabel(label, UiSurface.TextRole.Value, HorizontalAlignment.Right);
+                return label;
+            }
             GD.PushWarning($"[{Name}] {Genre} HUD: '{path}' is not a Label, ResourceBadge, "
                          + $"KitMeter, KitRadialMeter or KitLabelValue, so {what} has nowhere "
                          + "to display.");
             return null;
+        }
+
+        private Godot.Control? ResolveCoreReadout(NodePath path, string what,
+                                                  UiSurface.TextRole labelRole,
+                                                  HorizontalAlignment labelAlignment)
+        {
+            var c = ResolveReadout(path, what);
+            if (c is Label l) StyleHudLabel(l, labelRole, labelAlignment);
+            return c;
+        }
+
+        /// <summary>HUD readouts sit over moving gameplay, so every plain Label gets the same
+        /// behavior: pass-through mouse, vertically centred text and ellipsis instead of growth
+        /// that pushes neighbouring readouts around.</summary>
+        protected static void StyleHudLabel(Label label, UiSurface.TextRole role,
+                                            HorizontalAlignment alignment = HorizontalAlignment.Left)
+        {
+            label.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+            label.VerticalAlignment = VerticalAlignment.Center;
+            label.HorizontalAlignment = alignment;
+            label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            label.AutowrapMode = TextServer.AutowrapMode.Off;
+            label.ClipText = true;
+            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(label, role));
         }
 
         /// <summary>Write a value, and a 0..1 fill when the readout is a badge.</summary>
@@ -153,8 +182,14 @@ namespace Beep.ECS.UI
                 // A bar shows the FRACTION; the exact number is the Label's job. A vital that is
                 // only a number cannot be read at a glance, which is the whole complaint Stage 30
                 // opens with ("a player cannot read health at a glance from 'Health: 72'").
-                case Kit.KitMeter m when fill >= 0f: m.Value = fill; break;
-                case Kit.KitRadialMeter rm when fill >= 0f: rm.Value = fill; rm.CentreText = text; break;
+                case Kit.KitMeter m:
+                    if (fill >= 0f) m.Value = fill;
+                    m.Readout = text;
+                    break;
+                case Kit.KitRadialMeter rm:
+                    if (fill >= 0f) rm.Value = fill;
+                    rm.CentreText = text;
+                    break;
                 case Kit.KitLabelValue p: p.Value = text; break;
                 case Label l: l.Text = text; break;
             }
@@ -216,10 +251,15 @@ namespace Beep.ECS.UI
 
         // ── Signal handlers ────────────────────────────────────────────
 
-        private void OnScore(int v) { if (_score != null) _score.Text = v.ToString(); }
-        private void OnLives(int v) { if (_lives != null) _lives.Text = $"× {v}"; }
-        private void OnHealth(float cur, float max) { if (_healthLabel != null) _healthLabel.Text = $"{(int)cur} / {(int)max}"; }
-        private void OnLevel(int level) { if (_level != null) _level.Text = string.Format(_levelFormat, System.Math.Max(0, level) + 1); }
+        private void OnScore(int v) => SetReadout(_score, v.ToString());
+        private void OnLives(int v) => SetReadout(_lives, $"× {v}");
+        protected virtual string FormatHealthReadout(float cur, float max) => $"{(int)cur} / {(int)max}";
+
+        private void OnHealth(float cur, float max)
+            => SetReadout(_healthReadout, FormatHealthReadout(cur, max),
+                          max <= 0f ? -1f : Mathf.Clamp(cur / max, 0f, 1f));
+        private void OnLevel(int level)
+            => SetReadout(_level, string.Format(_levelFormat, System.Math.Max(0, level) + 1));
 
         public override void _ExitTree()
         {

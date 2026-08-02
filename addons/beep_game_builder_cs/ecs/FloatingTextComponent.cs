@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -35,11 +36,14 @@ namespace Beep.ECS
 
             int size = type == "crit" ? CritFontSize : FontSize;
 
-            var label = new Label();
+            var label = new KitLabel();
             label.Text = text;
+            label.AutoRole = false;
+            label.Role = type == "crit" ? UI.UiSurface.TextRole.Title : UI.UiSurface.TextRole.Value;
             label.AddThemeColorOverride("font_color", color);
             label.AddThemeFontSizeOverride("font_size", size);
             label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.CustomMinimumSize = new Vector2(Mathf.Max(48, size * Mathf.Max(2, text.Length)), size * 1.6f);
             label.Position = new Vector2(
                 (GD.Randf() * 2f - 1f) * RandomOffset,
                 -(GD.Randf() * RandomOffset / 2f));

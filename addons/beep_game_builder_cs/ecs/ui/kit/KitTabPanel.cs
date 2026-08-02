@@ -89,6 +89,9 @@ namespace Beep.ECS.UI.Kit
 
             AddThemeColorOverride("font_selected_color", UiSurface.Text(this));
             AddThemeColorOverride("font_unselected_color", UiSurface.Text(this) with { A = 0.72f });
+            AddThemeColorOverride("font_hovered_color", UiSurface.Text(this));
+            AddThemeFontSizeOverride("font_size", Mathf.Max(10, UiSurface.FitRole(this, UiSurface.TextRole.Body,
+                new Vector2(fs * 7.0f, fs * 1.5f), "Options", GetThemeDefaultFont())));
 
             _applying = false;
         }

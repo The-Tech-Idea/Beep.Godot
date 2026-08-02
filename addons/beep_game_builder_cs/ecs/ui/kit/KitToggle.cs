@@ -105,6 +105,7 @@ namespace Beep.ECS.UI.Kit
                           ink, rimPx);
                 if (_on) DrawTick(r, UiSurface.Luminance(on) > 0.5f
                                         ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+                else DrawOffMark(r, UiSurface.Text(this) with { A = 0.42f });
                 return;
             }
 
@@ -118,6 +119,20 @@ namespace Beep.ECS.UI.Kit
             var knob = new Rect2(_on ? Size.X - kw : 0f, 0f, kw, Size.Y);
             KitChrome.DrawShape(this, _genre, knob, KitShape.Pill, _on ? on : new Color(face.R * 0.85f, face.G * 0.85f, face.B * 0.9f, 1f),
                       ink, rimPx);
+            if (GetThemeDefaultFont() is { } font)
+            {
+                string mark = _on ? "ON" : "OFF";
+                int mf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(knob.Size.X * 0.76f, knob.Size.Y * 0.44f),
+                                           mark, font, min: 7);
+                Vector2 m = font.GetStringSize(mark, HorizontalAlignment.Left, -1, mf);
+                Color text = UiSurface.Luminance(_on ? on : face) > 0.5f
+                    ? new Color(0.10f, 0.09f, 0.08f)
+                    : new Color(0.98f, 0.96f, 0.92f);
+                DrawString(font, new Vector2(knob.Position.X + (knob.Size.X - m.X) * 0.5f,
+                                             knob.Position.Y + (knob.Size.Y + m.Y * 0.6f) * 0.5f),
+                           mark, HorizontalAlignment.Left, -1, mf, text);
+            }
         }
 
         private void DrawTick(Rect2 r, Color col)
@@ -127,6 +142,15 @@ namespace Beep.ECS.UI.Kit
             float w = Mathf.Max(2f, a * 0.45f);
             DrawLine(c + new Vector2(-a, 0f), c + new Vector2(-a * 0.25f, a * 0.8f), col, w);
             DrawLine(c + new Vector2(-a * 0.25f, a * 0.8f), c + new Vector2(a, -a * 0.75f), col, w);
+        }
+
+        private void DrawOffMark(Rect2 r, Color col)
+        {
+            var c = r.Position + r.Size * 0.5f;
+            float a = Mathf.Min(r.Size.X, r.Size.Y) * 0.24f;
+            float w = Mathf.Max(2f, a * 0.36f);
+            DrawLine(c - new Vector2(a, a), c + new Vector2(a, a), col, w);
+            DrawLine(c - new Vector2(a, -a), c + new Vector2(a, -a), col, w);
         }
     }
 }

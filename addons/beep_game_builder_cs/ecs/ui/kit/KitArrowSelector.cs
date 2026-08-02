@@ -36,10 +36,12 @@ namespace Beep.ECS.UI.Kit
         [Export] public bool Clamp { get; set; }
 
         [Signal] public delegate void OptionChangedEventHandler(int index);
+        private int _hoverSide;
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (Options.Count == 0) Options.AddRange(new[] { "Low", "Medium", "High" });
             if (CustomMinimumSize == Vector2.Zero)
             {
@@ -52,6 +54,17 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventMouseMotion mm)
+            {
+                int side = mm.Position.X < ArrowW ? -1 : mm.Position.X > Size.X - ArrowW ? 1 : 0;
+                if (side != _hoverSide)
+                {
+                    _hoverSide = side;
+                    QueueRedraw();
+                }
+                return;
+            }
+
             if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
                 return;
             if (mb.Position.X < ArrowW) Step(-1);
@@ -88,25 +101,34 @@ namespace Beep.ECS.UI.Kit
             DrawShape(r, ActiveShape, new Color(face.R * ps, face.G * ps, face.B * ps, 1f), ink, rimPx);
 
             float aw = ArrowW;
-            DrawArrow(new Rect2(0f, 0f, aw, Size.Y), -1, ink, CanStep(-1));
-            DrawArrow(new Rect2(Size.X - aw, 0f, aw, Size.Y), 1, ink, CanStep(1));
+            DrawArrow(new Rect2(0f, 0f, aw, Size.Y), -1, ink, CanStep(-1), _hoverSide == -1);
+            DrawArrow(new Rect2(Size.X - aw, 0f, aw, Size.Y), 1, ink, CanStep(1), _hoverSide == 1);
 
             if (font == null || Options.Count == 0) return;
             string txt = Options[Mathf.Clamp(_current, 0, Options.Count - 1)];
-            Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, fs);
+            int tf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                       new Vector2(Size.X - aw * 2.25f, Size.Y * 0.72f),
+                                       txt, font, min: 8);
+            Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, tf);
             DrawText(font, new Vector2((Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
-                       txt, fs, UiSurface.Text(this));
+                       txt, tf, UiSurface.Text(this));
         }
 
         /// <summary>An arrow that cannot be taken drains saturation rather than disappearing —
         /// a missing control is harder to read than a muted one.</summary>
-        private void DrawArrow(Rect2 box, int dir, Color ink, bool enabled)
+        private void DrawArrow(Rect2 box, int dir, Color ink, bool enabled, bool hover)
         {
             var c = box.Position + box.Size * 0.5f;
             float a = Mathf.Min(box.Size.X, box.Size.Y) * 0.22f;
             float w = Mathf.Max(2f, a * 0.5f);
             Color col = UiSurface.Text(this);
             if (!enabled) col = col with { A = 0.28f };
+            if (enabled)
+            {
+                Color plate = hover ? UiSurface.Semantic(this, UiSurface.Role.Info) : FaceColor();
+                DrawShape(box.Grow(-box.Size.Y * 0.16f), KitShape.Round, plate, ink, Mathf.Max(1f, w * 0.35f));
+                if (hover) col = UiSurface.Luminance(plate) > 0.5f ? new Color(0.10f, 0.09f, 0.08f) : Colors.White;
+            }
             var tip = c + new Vector2(a * dir, 0f);
             DrawLine(c + new Vector2(-a * dir, -a), tip, col, w);
             DrawLine(c + new Vector2(-a * dir, a), tip, col, w);

@@ -41,6 +41,7 @@
     "autosave_enabled": true,
     "autosave_interval_seconds": 300,
     "auto_cycle": false,
-    "top_down_view": false
+    "top_down_view": false,
+    "weather_view": "Side"
   }
 }

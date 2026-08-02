@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -23,8 +24,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ToggledEventHandler(bool isOn);
 
         private Button? _checkbox;   // Button, not CheckBox — covers both (CheckBox : Button); both have Text + Toggled
-        private ColorRect? _bg;
-        private ColorRect? _knob;
+        private KitSwitchVisual? _visual;
         private Tween? _tween;
 
         public override void _Ready()
@@ -53,14 +53,14 @@ namespace Beep.ECS.UI
         private void BuildSwitch()
         {
             if (Engine.IsEditorHint()) return;
-            _bg = new ColorRect { Size = SwitchSize, Color = IsOn ? OnColor : OffColor };
-            _bg.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
-
-            _knob = new ColorRect { Size = new Vector2(SwitchSize.Y - 6, SwitchSize.Y - 6), Color = KnobColor };
-            _knob.Position = new Vector2(3, 3);
-
-            _bg.AddChild(_knob);
-            _checkbox?.AddChild(_bg);
+            _visual = new KitSwitchVisual
+            {
+                Size = SwitchSize,
+                CustomMinimumSize = SwitchSize,
+                IsOn = IsOn,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+            };
+            _checkbox?.AddChild(_visual);
         }
 
         public void SetState(bool on, bool emit = true)
@@ -69,17 +69,14 @@ namespace Beep.ECS.UI
             IsOn = on;
             _tween?.Kill();
 
-            float targetX = on ? SwitchSize.X - SwitchSize.Y + 3 : 3;
-            var targetBg = on ? OnColor : OffColor;
-
-            _tween = _knob?.CreateTween().SetParallel(true);
-            if (_tween != null && _knob != null && _bg != null)
-            {
-                _tween.TweenProperty(_knob, "position:x", targetX, AnimationDuration)
-                    .SetEase(Tween.EaseType.Out);
-                _tween.TweenProperty(_bg, "color", targetBg, AnimationDuration);
-            }
+            if (_visual != null) _visual.IsOn = on;
             if (emit) EmitSignal(SignalName.Toggled, on);
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == Godot.Control.NotificationThemeChanged && _visual != null) _visual.QueueRedraw();
         }
 
         public override void _ExitTree()
@@ -88,9 +85,8 @@ namespace Beep.ECS.UI
             _tween?.Kill();
             if (_checkbox != null && GodotObject.IsInstanceValid(_checkbox))
                 _checkbox.Toggled -= OnCheckboxToggled;
-            // _bg is AddChild'd to the parent Button — free it or the toggle visual is orphaned.
-            if (_bg != null && GodotObject.IsInstanceValid(_bg)) _bg.QueueFree();
-            _bg = null;
+            if (_visual != null && GodotObject.IsInstanceValid(_visual)) _visual.QueueFree();
+            _visual = null;
         }
     }
 }

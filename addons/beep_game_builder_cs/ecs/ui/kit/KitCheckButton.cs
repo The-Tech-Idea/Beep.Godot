@@ -119,6 +119,23 @@ namespace Beep.ECS.UI.Kit
             DrawArc(kc, kr, 0f, Mathf.Tau, 20, UiSurface.Ink(trackCol),
                     Mathf.Max(1f, kr * 0.18f));
 
+            if (GetThemeDefaultFont() is { } font)
+            {
+                string mark = ButtonPressed ? "ON" : "OFF";
+                int mf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(track.Size.X * 0.34f, track.Size.Y * 0.42f),
+                                           mark, font, min: 7);
+                Vector2 m = font.GetStringSize(mark, HorizontalAlignment.Left, -1, mf);
+                float tx = ButtonPressed
+                    ? track.Position.X + h * 0.24f
+                    : track.End.X - h * 0.24f - m.X;
+                Color text = UiSurface.Luminance(trackCol) > 0.5f
+                    ? new Color(0.10f, 0.09f, 0.08f, 0.78f)
+                    : new Color(0.98f, 0.96f, 0.92f, 0.78f);
+                DrawString(font, new Vector2(tx, track.Position.Y + (track.Size.Y + m.Y * 0.6f) * 0.5f),
+                           mark, HorizontalAlignment.Left, -1, mf, text);
+            }
+
 
             // NO label drawn here. The plate above covers only the box/switch, so the base
             // class's own text is still visible — drawing it again renders "Textures" twice,

@@ -71,11 +71,15 @@ namespace Beep.ECS.UI.Kit
         {
             float d = Mathf.Min(Size.X, Size.Y);
             var ctr = Size * 0.5f;
-            float r = d * 0.38f;
+            float outer = d * 0.46f;
+            float r = d * 0.34f;
             float w = Mathf.Max(2.5f, r * 0.30f);
+            DrawCircle(ctr, outer, new Color(track.R, track.G, track.B, 0.26f));
+            DrawArc(ctr, outer, 0f, Mathf.Tau, 40, InkColor() with { A = 0.42f }, Mathf.Max(1f, w * 0.45f));
             DrawArc(ctr, r, 0f, Mathf.Tau, 48, track, w);
             float start = _t * Mathf.Tau;
-            DrawArc(ctr, r, start, start + Mathf.Tau * 0.28f, 24, c, w);
+            DrawArc(ctr, r, start, start + Mathf.Tau * 0.30f, 24, c, w);
+            DrawCircle(ctr, Mathf.Max(2f, w * 0.55f), c with { A = 0.82f });
         }
 
         private void Dots(Color c)
@@ -89,7 +93,9 @@ namespace Beep.ECS.UI.Kit
                 float phase = _t * Mathf.Tau - i * (Mathf.Tau / n);
                 float lift = (Mathf.Sin(phase) + 1f) * 0.5f;
                 var p = new Vector2(pitch * (i + 0.5f), Size.Y * 0.5f - lift * Size.Y * 0.16f);
+                DrawCircle(p + new Vector2(0f, r * 0.45f), r * (0.85f + lift * 0.25f), InkColor() with { A = 0.24f });
                 DrawCircle(p, r * (0.75f + lift * 0.35f), c with { A = 0.55f + lift * 0.45f });
+                DrawCircle(p + new Vector2(-r * 0.25f, -r * 0.25f), r * 0.25f, new Color(1, 1, 1, 0.22f));
             }
         }
 
@@ -97,6 +103,9 @@ namespace Beep.ECS.UI.Kit
         {
             var r = new Rect2(Vector2.Zero, Size);
             DrawShape(r, KitShape.Pill, track, InkColor(), 0f);
+            DrawLine(new Vector2(r.Position.X + Size.Y * 0.45f, r.Position.Y + Size.Y * 0.28f),
+                     new Vector2(r.End.X - Size.Y * 0.45f, r.Position.Y + Size.Y * 0.28f),
+                     new Color(1, 1, 1, 0.10f), Mathf.Max(1f, Size.Y * 0.12f));
             if (Progress >= 0f)
             {
                 var f = new Rect2(0f, 0f, Size.X * Mathf.Clamp(Progress, 0f, 1f), Size.Y);
@@ -107,6 +116,9 @@ namespace Beep.ECS.UI.Kit
             float w = Size.X * 0.3f;
             float x = (Mathf.Sin(_t * 2f) * 0.5f + 0.5f) * (Size.X - w);
             DrawShape(new Rect2(x, 0f, w, Size.Y), KitShape.Pill, c, InkColor(), 0f);
+            DrawLine(new Vector2(x + w * 0.20f, Size.Y * 0.28f),
+                     new Vector2(x + w * 0.80f, Size.Y * 0.28f),
+                     new Color(1, 1, 1, 0.18f), Mathf.Max(1f, Size.Y * 0.10f));
         }
     }
 }

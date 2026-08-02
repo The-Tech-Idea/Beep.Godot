@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_pbtn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="2_binder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="3_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelComplete.cs" id="4_script"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="LevelComplete" type="CanvasLayer"]
 script = ExtResource("4_script")
@@ -19,6 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.65)
 
+script = ExtResource("k_color")
 [node name="Center" type="CenterContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -44,6 +47,7 @@ theme_type_variation = &"BeepTitle"
 text = "Level Complete!"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="StarRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
 theme_override_constants/separation = 20
@@ -52,14 +56,17 @@ theme_override_constants/separation = 20
 theme_type_variation = &"BeepTitle"
 text = "★"
 
+script = ExtResource("k_label")
 [node name="Star2" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
 theme_type_variation = &"BeepTitle"
 text = "★"
 
+script = ExtResource("k_label")
 [node name="Star3" type="Label" parent="Center/Panel/Margin/VBox/StarRow"]
 theme_type_variation = &"BeepTitle"
 text = "★"
 
+script = ExtResource("k_label")
 [node name="ScoreRule" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 
 [node name="ScoreLabel" type="Label" parent="Center/Panel/Margin/VBox"]
@@ -67,10 +74,12 @@ theme_type_variation = &"BeepValue"
 text = "Score: 1820"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="HighScoreLabel" type="Label" parent="Center/Panel/Margin/VBox"]
 text = "New High Score!"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
 alignment = 1
 theme_override_constants/separation = 12

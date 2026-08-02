@@ -19,11 +19,15 @@ namespace Beep.ECS.UI.Kit
 
         private string _genre = "";
         private bool _suppressing;
+        private bool _dragging;
 
         public override void _Ready()
         {
             _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
             Suppress();
+            DragStarted += () => { _dragging = true; QueueRedraw(); };
+            DragEnded += _ => { _dragging = false; QueueRedraw(); };
+            ValueChanged += _ => QueueRedraw();
         }
 
         public override void _Notification(int what)
@@ -96,8 +100,15 @@ namespace Beep.ECS.UI.Kit
             float kr = Mathf.Max(6f, Size.Y * 0.44f);
             var kc = new Vector2(Mathf.Lerp(kr, Size.X - kr, t), Size.Y * 0.5f);
             var knob = new Rect2(kc - new Vector2(kr, kr), new Vector2(kr * 2f, kr * 2f));
+            Color knobFace = _dragging
+                ? new Color(Mathf.Lerp(surface.R, accent.R, 0.28f),
+                            Mathf.Lerp(surface.G, accent.G, 0.28f),
+                            Mathf.Lerp(surface.B, accent.B, 0.28f), 1f)
+                : surface;
             KitChrome.DrawPlate(this, _genre, knob,
-                                KitChrome.StateFace(surface, state), state, 0.8f);
+                                KitChrome.StateFace(knobFace, state), state, 0.8f);
+            DrawLine(kc + new Vector2(0f, -kr * 0.45f), kc + new Vector2(0f, kr * 0.45f),
+                     UiSurface.Ink(knobFace) with { A = 0.50f }, Mathf.Max(1f, kr * 0.12f));
         }
     }
 }

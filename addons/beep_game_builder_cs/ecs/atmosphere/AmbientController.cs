@@ -99,6 +99,17 @@ namespace Beep.ECS
         /// <summary>Find the AmbientController driving <paramref name="node"/>'s tree, so
         /// contributors don't need a hard reference. Null (with a one-line warning) if the
         /// scene has none — the caller's other effects still work, it just won't tint.</summary>
+        /// <summary>
+        /// The COMPOSED ambient tint — day/night multiplied by weather, exactly what the
+        /// CanvasModulate is applying to the world.
+        ///
+        /// Exposed because anything drawn OUTSIDE that modulate has to match it by hand.
+        /// Sprite clouds are the case that forced it: they live on a CanvasLayer, which the
+        /// world's CanvasModulate does not reach, so without this they stayed bright white at
+        /// midnight over a world that had gone dark.
+        /// </summary>
+        public Color CurrentTint => _target;
+
         public static AmbientController? ForTree(Node node)
         {
             var found = EntityComponent.FindComponent<AmbientController>(node.GetTree()?.Root, true);

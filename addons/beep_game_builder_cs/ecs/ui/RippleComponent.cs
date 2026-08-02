@@ -1,9 +1,10 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Material-style click ripple effect. Attach as a child of a Godot.Control.
+    /// Kit click ripple effect. Attach as a child of a Godot.Control.
     ///
     /// TWO modes (inherited from <see cref="EffectComponent"/>):
     /// • Single (ApplyToChildren = false, default): ripples the parent Control only.
@@ -29,7 +30,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            if (Engine.IsEditorHint()) return;   // don't wire GuiInput / spawn ColorRects at edit time
+            if (Engine.IsEditorHint()) return;   // don't wire GuiInput / spawn runtime overlays at edit time
             // After ResolveTargets runs (deferred), hook GuiInput on each target.
             Callable.From(HookInputs).CallDeferred();
         }
@@ -57,13 +58,15 @@ namespace Beep.ECS.UI
 
         private void SpawnRipple(Vector2 localPos, Godot.Control owner)
         {
-            var ripple = new ColorRect();
-            ripple.Color = RippleColor;
-            ripple.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
-            ripple.PivotOffset = new Vector2(MaxRadius, MaxRadius);
-            ripple.Size = new Vector2(MaxRadius * 2, MaxRadius * 2);
-            ripple.Position = localPos - new Vector2(MaxRadius, MaxRadius);
-            ripple.Scale = Vector2.Zero;
+            var ripple = new KitColorOverlay
+            {
+                Color = RippleColor,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                PivotOffset = new Vector2(MaxRadius, MaxRadius),
+                Size = new Vector2(MaxRadius * 2, MaxRadius * 2),
+                Position = localPos - new Vector2(MaxRadius, MaxRadius),
+                Scale = Vector2.Zero
+            };
 
             owner.AddChild(ripple);
 

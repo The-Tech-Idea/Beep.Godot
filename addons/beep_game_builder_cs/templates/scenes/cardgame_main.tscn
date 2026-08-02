@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
@@ -6,6 +6,11 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs" id="panelframe"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_pair"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="CardGameMain" type="Node2D"]
 
@@ -17,6 +22,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.1, 0.1, 0.15, 1)
 
+script = ExtResource("k_color")
 [node name="GameFlow" type="Node" parent="."]
 script = ExtResource("1_flow")
 
@@ -43,7 +49,7 @@ offset_top = 20.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
-Title = "Hand"
+Title = ""
 TargetPath = NodePath("../TopLeft")
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
@@ -56,10 +62,16 @@ theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 50
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
-[node name="HealthLabel" type="Label" parent="HUD/Root/TopLeft/StatsVBox"]
-text = "HP: 80 / 80"
+[node name="HealthLabel" type="ProgressBar" parent="HUD/Root/TopLeft/StatsVBox"]
+custom_minimum_size = Vector2(176, 22)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_meter")
+Value = 1.0
+Fill = 5
+EndCaps = true
 
 [node name="TopRight" type="VBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
@@ -70,9 +82,13 @@ offset_right = -16.0
 offset_bottom = 48.0
 grow_horizontal = 0
 
-[node name="GoldLabel" type="Label" parent="HUD/Root/TopRight"]
-text = "Gold: 0"
-horizontal_alignment = 2
+[node name="GoldLabel" type="Control" parent="HUD/Root/TopRight"]
+custom_minimum_size = Vector2(164, 30)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "GOLD"
+Value = "0"
+Accent = 4
 
 [node name="EnergyBox" type="VBoxContainer" parent="HUD/Root"]
 anchor_top = 1.0
@@ -83,8 +99,15 @@ offset_right = 180.0
 offset_bottom = -16.0
 grow_vertical = 0
 
-[node name="EnergyLabel" type="Label" parent="HUD/Root/EnergyBox"]
-text = "Energy: 3 / 3"
+[node name="EnergyLabel" type="ProgressBar" parent="HUD/Root/EnergyBox"]
+custom_minimum_size = Vector2(164, 24)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("k_meter")
+Value = 1.0
+Segments = 3
+Fill = 6
+EndCaps = true
 
 [node name="HandZone" type="PanelContainer" parent="HUD/Root"]
 anchor_left = 0.5
@@ -98,11 +121,13 @@ offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 0
 
+script = ExtResource("k_panel")
 [node name="HandLabel" type="Label" parent="HUD/Root/HandZone"]
 text = "Your hand — deal cards here"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+script = ExtResource("k_label")
 [node name="BottomRight" type="VBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
 anchor_top = 1.0
@@ -115,13 +140,21 @@ offset_bottom = -16.0
 grow_horizontal = 0
 grow_vertical = 0
 
-[node name="DeckLabel" type="Label" parent="HUD/Root/BottomRight"]
-text = "Deck: 30"
-horizontal_alignment = 2
+[node name="DeckLabel" type="Control" parent="HUD/Root/BottomRight"]
+custom_minimum_size = Vector2(164, 28)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "DECK"
+Value = "30"
+Accent = 1
 
-[node name="DiscardLabel" type="Label" parent="HUD/Root/BottomRight"]
-text = "Discard: 0"
-horizontal_alignment = 2
+[node name="DiscardLabel" type="Control" parent="HUD/Root/BottomRight"]
+custom_minimum_size = Vector2(164, 28)
+layout_mode = 2
+script = ExtResource("k_pair")
+Label = "DISCARD"
+Value = "0"
+Accent = 0
 
 [node name="DeckBuilderScreen" type="Node" parent="."]
 script = ExtResource("30_screen")

@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Beep.ECS.UI.Kit;
 using SizeFlags = Godot.Control.SizeFlags;
 namespace Beep.ECS.UI
 {
@@ -40,7 +41,7 @@ namespace Beep.ECS.UI
 
         private VBoxContainer? _container;
         private HBoxContainer? _headerRow;
-        private readonly List<PanelContainer> _rows = new();
+        private readonly List<KitPanelContainer> _rows = new();
         private readonly List<string[]> _data = new();
         private readonly List<Button> _headerButtons = new();
         private readonly Dictionary<Button, Action> _headerHandlers = new();
@@ -68,12 +69,16 @@ namespace Beep.ECS.UI
 
             for (int i = 0; i < ColumnHeaders.Length; i++)
             {
-                var btn = new Button();
-                btn.Text = ColumnHeaders[i];
-                btn.Flat = true;
-                btn.Alignment = HorizontalAlignment.Left;
-                btn.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
-                btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                var btn = new KitPushButton
+                {
+                    Text = ColumnHeaders[i],
+                    Flat = true,
+                    Alignment = HorizontalAlignment.Left,
+                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                    CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight),
+                    SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                    Accent = UiSurface.Role.Neutral,
+                };
                 Action handler = () => OnHeaderButtonPressed(btn);
                 _headerHandlers[btn] = handler;
                 btn.Pressed += handler;
@@ -130,7 +135,12 @@ namespace Beep.ECS.UI
             // never rendered and UpdateRowBg found no Panel to recolor. A PanelContainer draws its
             // "panel" stylebox behind whatever it wraps, which is exactly the colored-row idiom.
             Color bg = index % 2 == 0 ? RowEven : RowOdd;
-            var rowPanel = new PanelContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
+            var rowPanel = new KitPanelContainer
+            {
+                CustomMinimumSize = new Vector2(0, RowHeight),
+                ShowWell = false,
+                ExtraPadding = Vector2.Zero
+            };
             rowPanel.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
             ApplyRowBg(rowPanel, bg);
 
@@ -141,11 +151,13 @@ namespace Beep.ECS.UI
 
             for (int i = 0; i < values.Length; i++)
             {
-                var label = new Label { Text = values[i], VerticalAlignment = VerticalAlignment.Center };
+                var label = new KitTableCell
+                {
+                    CellText = values[i],
+                    MouseFilter = Godot.Control.MouseFilterEnum.Ignore
+                };
                 label.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
                 label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                label.AddThemeFontSizeOverride("font_size", FontSize);
-                label.AddThemeColorOverride("font_color", TextPrimary);
                 row.AddChild(label);
             }
 

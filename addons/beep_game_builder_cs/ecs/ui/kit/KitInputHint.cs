@@ -58,7 +58,10 @@ namespace Beep.ECS.UI.Kit
             for (int i = 0; i < _keys.Length; i++)
             {
                 string k = _keys[i] ?? "";
-                Vector2 km = font.GetStringSize(k, HorizontalAlignment.Left, -1, fs);
+                int kfs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                            new Vector2(keyH * 1.8f, keyH * 0.70f),
+                                            k, font, min: 8);
+                Vector2 km = font.GetStringSize(k, HorizontalAlignment.Left, -1, kfs);
                 float kw = Mathf.Max(keyH, km.X + fs * 0.8f);
                 var cap = new Rect2(x, y, kw, keyH);
 
@@ -66,7 +69,7 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(face.B, 1f, 0.84f), 1f);
                 DrawShape(cap, ActiveShape, plate, ink, Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f)));
                 DrawText(font, new Vector2(cap.Position.X + (cap.Size.X - km.X) * 0.5f, cap.Position.Y + (cap.Size.Y + km.Y * 0.6f) * 0.5f),
-                           k, fs, new Color(0.10f, 0.09f, 0.08f));
+                           k, kfs, new Color(0.10f, 0.09f, 0.08f));
                 x += kw;
 
                 // The chord separator sits BETWEEN caps and is not a cap itself.
@@ -81,9 +84,13 @@ namespace Beep.ECS.UI.Kit
             }
 
             if (string.IsNullOrEmpty(_action)) return;
-            Vector2 am = font.GetStringSize(_action, HorizontalAlignment.Left, -1, fs);
+            float remaining = Mathf.Max(8f, Size.X - x - fs * 0.5f);
+            int afs = UiSurface.FitRole(this, UiSurface.TextRole.Body,
+                                        new Vector2(remaining, keyH * 0.70f),
+                                        _action, font, min: 8);
+            Vector2 am = font.GetStringSize(_action, HorizontalAlignment.Left, -1, afs);
             DrawText(font, new Vector2(x + fs * 0.5f, y + (keyH + am.Y * 0.6f) * 0.5f),
-                       _action, fs, UiSurface.Text(this));
+                       _action, afs, UiSurface.Text(this));
         }
     }
 }

@@ -21,10 +21,10 @@ namespace Beep.ECS.UI.Kit
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
 
         [Export] public string LeftTitle { get => _lt; set { _lt = value ?? ""; QueueRedraw(); } }
-        private string _lt = "";
+        private string _lt = "Quests";
 
         [Export] public string RightTitle { get => _rt; set { _rt = value ?? ""; QueueRedraw(); } }
-        private string _rt = "";
+        private string _rt = "Rewards";
 
         /// <summary>Ribbon bookmark hanging over the top edge. Empty hides it.</summary>
         [Export] public bool ShowRibbon { get; set; } = true;
@@ -81,6 +81,8 @@ namespace Beep.ECS.UI.Kit
             var rp = new Rect2(Size.X * 0.5f + gut, inset, Size.X * 0.5f - gut - inset, Size.Y - inset * 2f);
             DrawShape(lp, ActiveShape, page, ink, Mathf.Max(1f, rimPx * 0.6f));
             DrawShape(rp, ActiveShape, page, ink, Mathf.Max(1f, rimPx * 0.6f));
+            DrawPageLines(lp, page);
+            DrawPageLines(rp, page);
 
             // The spine: a shaded gutter, darkest at the centre, which is what makes the two
             // pages read as one opened object.
@@ -112,12 +114,25 @@ namespace Beep.ECS.UI.Kit
             void Title(string t, Rect2 p)
             {
                 if (string.IsNullOrEmpty(t)) return;
-                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, fs);
-                DrawText(font, new Vector2(p.Position.X + (p.Size.X - m.X) * 0.5f, p.Position.Y + fs * 1.6f),
-                           t, fs, new Color(0.16f, 0.13f, 0.10f));
+                int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
+                                           new Vector2(p.Size.X * 0.82f, p.Size.Y * 0.12f),
+                                           t, font, min: 9);
+                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, tf);
+                DrawText(font, new Vector2(p.Position.X + (p.Size.X - m.X) * 0.5f, p.Position.Y + tf * 1.45f),
+                           t, tf, new Color(0.16f, 0.13f, 0.10f));
             }
             Title(_lt, lp);
             Title(_rt, rp);
+        }
+
+        private void DrawPageLines(Rect2 p, Color page)
+        {
+            Color line = new(page.R * 0.70f, page.G * 0.70f, page.B * 0.72f, 0.45f);
+            float start = p.Position.Y + p.Size.Y * 0.28f;
+            float step = Mathf.Max(8f, p.Size.Y * 0.095f);
+            for (float y = start; y < p.End.Y - p.Size.Y * 0.12f; y += step)
+                DrawLine(new Vector2(p.Position.X + p.Size.X * 0.16f, y),
+                         new Vector2(p.End.X - p.Size.X * 0.14f, y), line, Mathf.Max(1f, p.Size.Y * 0.006f));
         }
     }
 }

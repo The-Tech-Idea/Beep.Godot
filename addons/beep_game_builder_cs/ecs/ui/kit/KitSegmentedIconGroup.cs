@@ -39,12 +39,14 @@ namespace Beep.ECS.UI.Kit
             }
         }
         private int _current;
+        private int _hover = -1;
 
         [Signal] public delegate void SegmentChangedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (Segments.Count == 0)
                 Segments.AddRange(new[]
                 {
@@ -65,15 +67,32 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
-                return;
-            for (int i = 0; i < Segments.Count; i++)
+            if (@event is InputEventMouseMotion mm)
             {
-                if (!SegRect(i).HasPoint(mb.Position)) continue;
-                Current = i;
-                AcceptEvent();
+                int next = HitSegment(mm.Position);
+                if (next != _hover)
+                {
+                    _hover = next;
+                    QueueRedraw();
+                }
                 return;
             }
+
+            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+                return;
+            int hit = HitSegment(mb.Position);
+            if (hit >= 0)
+            {
+                Current = hit;
+                AcceptEvent();
+            }
+        }
+
+        private int HitSegment(Vector2 p)
+        {
+            for (int i = 0; i < Segments.Count; i++)
+                if (SegRect(i).HasPoint(p)) return i;
+            return -1;
         }
 
         public override void _Draw()
@@ -105,6 +124,15 @@ namespace Beep.ECS.UI.Kit
                     if (fillRect.Size.X > 2f && fillRect.Size.Y > 2f)
                         DrawShape(fillRect, ActiveShape, acc, ink, 0f);
                 }
+                else if (_hover == i)
+                {
+                    var fillRect = r.Grow(-rimPx);
+                    if (fillRect.Size.X > 2f && fillRect.Size.Y > 2f)
+                    {
+                        Color hover = UiSurface.Semantic(this, UiSurface.Role.Info);
+                        DrawShape(fillRect, ActiveShape, new Color(hover.R, hover.G, hover.B, 0.42f), ink, 0f);
+                    }
+                }
                 else if (i > 0)
                 {
                     // Divider between unselected members — the weld line.
@@ -127,9 +155,12 @@ namespace Beep.ECS.UI.Kit
                 }
                 else if (font != null && !string.IsNullOrEmpty(Segments[i].Glyph))
                 {
-                    Vector2 m = font.GetStringSize(Segments[i].Glyph, HorizontalAlignment.Left, -1, fs);
+                    int gf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                               new Vector2(r.Size.X * 0.64f, r.Size.Y * 0.58f),
+                                               Segments[i].Glyph, font, min: 8);
+                    Vector2 m = font.GetStringSize(Segments[i].Glyph, HorizontalAlignment.Left, -1, gf);
                     DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Segments[i].Glyph, fs, on);
+                               Segments[i].Glyph, gf, on);
                 }
             }
         }

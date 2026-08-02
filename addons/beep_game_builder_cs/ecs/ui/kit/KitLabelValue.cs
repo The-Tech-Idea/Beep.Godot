@@ -69,7 +69,8 @@ namespace Beep.ECS.UI.Kit
             Color face = FaceColor();
             Color ink = InkColor();
             var font = KitFont();
-            int fs = UiSurface.FontSize(this);
+            int fs = UiSurface.FitText(this, Size, 0.58f, _label.Length > _value.Length ? _label : _value,
+                                       font, min: 8, themeMax: 1.0f);
 
             // 2px weld at 14pt, scaled with the type so the joint stays a hairline rather than
             // becoming a gap on a large row.
@@ -105,9 +106,14 @@ namespace Beep.ECS.UI.Kit
             if (font == null) return;
 
             // Label text reads light on its dark plate; value text reads dark on its light one.
-            DrawTextIn(font, labelRect, _label, TextOn(labelPlate), fs, HorizontalAlignment.Left,
+            int labelFs = UiSurface.FitText(this, labelRect.Size - new Vector2(fs * 0.8f, 0f),
+                                            0.58f, _label, font, min: 8, themeMax: 1.0f);
+            int valueFs = UiSurface.FitText(this, valueRect.Size * 0.9f,
+                                            0.66f, _value, font, min: 8, themeMax: 1.12f);
+
+            DrawTextIn(font, labelRect, _label, TextOn(labelPlate), labelFs, HorizontalAlignment.Left,
                        fs * 0.6f);
-            DrawTextIn(font, valueRect, _value, TextOn(valuePlate), fs, HorizontalAlignment.Center, 0f);
+            DrawTextIn(font, valueRect, _value, TextOn(valuePlate), valueFs, HorizontalAlignment.Center, 0f);
 
             DrawAttachments();
         }

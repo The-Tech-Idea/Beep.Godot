@@ -98,7 +98,7 @@ namespace Beep.ECS.UI
             Tint(_units, _empire.Units > _empire.SustainableUnits ? UiSurface.Role.Warning : null);
         }
 
-        private void OnTurn(int turn) => SetReadout(_turn, $"Turn {turn}");
+        private void OnTurn(int turn) => SetReadout(_turn, turn.ToString());
 
         private void OnAlert(string severity, string text)
             => _alerts?.ShowToast(text, severity switch

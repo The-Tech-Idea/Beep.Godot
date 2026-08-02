@@ -213,7 +213,10 @@ namespace Beep.ECS.UI.Kit
             if (font == null) return;
 
             float h = Mathf.Max(fs * 1.5f, host.Size.Y * 0.14f);
-            float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
+            int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
+                                       new Vector2(host.Size.X * 0.88f, h * 0.68f),
+                                       _title, font, min: 9);
+            float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf).X + tf * 2f;
             float w = Mathf.Max(host.Size.X * 0.62f, Mathf.Min(need, host.Size.X * 1.08f));
             var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
                               host.Position.Y - h * 0.5f, w, h);
@@ -227,11 +230,11 @@ namespace Beep.ECS.UI.Kit
             Color plate = Tint(face, BannerShade);
             Cut(r, shape, plate, ink, Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
 
-            Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, fs);
+            Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
             Color txt = UiSurface.Luminance(plate) > 0.5f
                 ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
             KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                       _title, fs, txt);
+                       _title, tf, txt);
         }
     }
 }

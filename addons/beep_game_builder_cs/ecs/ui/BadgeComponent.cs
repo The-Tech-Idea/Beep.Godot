@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -21,8 +22,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void CountChangedEventHandler(int count);
 
         private Godot.Control? _control;
-        private Label? _badgeLabel;
-        private Panel? _badgePanel;
+        private KitChip? _badgePanel;
         private Tween? _tween;
 
         public override void _Ready()
@@ -40,18 +40,17 @@ namespace Beep.ECS.UI
             if (Engine.IsEditorHint()) return;
             if (_control == null) return;
 
-            _badgePanel = new Panel();
-            _badgePanel.CustomMinimumSize = new Vector2(UiSurface.FontSize(this) * 1.6f, UiSurface.FontSize(this) * 1.6f);
-            _badgePanel.Size = new Vector2(22, 22);
+            _badgePanel = new KitChip
+            {
+                Kind = KitChip.ChipKind.Count,
+                Role = UiSurface.Role.Danger
+            };
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
+            float d = Mathf.Max(fs * 2.0f, 18f);
+            _badgePanel.CustomMinimumSize = new Vector2(d, d);
+            _badgePanel.Size = new Vector2(d, d);
             _badgePanel.Position = Position;
-
-            var sb = new StyleBoxFlat { BgColor = BadgeColor };
-            sb.SetCornerRadiusAll(11);
-            _badgePanel.AddThemeStyleboxOverride("panel", sb);
-
-            _badgeLabel = new Label { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            _badgeLabel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            _badgePanel.AddChild(_badgeLabel);
+            _badgePanel.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
 
             _control.AddChild(_badgePanel);
 
@@ -80,13 +79,13 @@ namespace Beep.ECS.UI
 
         private void UpdateBadge(bool emit = true)
         {
-            if (_badgePanel == null || _badgeLabel == null) return;
+            if (_badgePanel == null) return;
             bool show = Count > 0;
             _badgePanel.Visible = show;
 
             if (show)
             {
-                _badgeLabel.Text = Count > MaxDisplay ? $"{MaxDisplay}+" : Count.ToString();
+                _badgePanel.Text = Count > MaxDisplay ? $"{MaxDisplay}+" : Count.ToString();
                 // Pop animation
                 _tween?.Kill();
                 _tween = _badgePanel.CreateTween();

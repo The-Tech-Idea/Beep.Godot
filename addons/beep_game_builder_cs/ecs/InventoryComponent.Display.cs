@@ -1,5 +1,7 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -12,9 +14,8 @@ namespace Beep.ECS
     public partial class InventoryComponent
     {
         private GridContainer? _grid;
-        private PanelContainer? _tooltipPanel;
-        private Label? _tooltipLabel;
-        private readonly Dictionary<int, Label> _slotQtyLabels = new();
+        private KitTooltip? _tooltipPanel;
+        private readonly Dictionary<int, KitInventorySlot> _slotViews = new();
 
         // Hover state
         private int _hoveredSlot = -1;
@@ -43,13 +44,12 @@ namespace Beep.ECS
         {
             if (_grid == null) return;
             foreach (var c in _grid.GetChildren()) c.QueueFree();
-            _slotQtyLabels.Clear();
+            _slotViews.Clear();
 
             for (int i = 0; i < MaxSlots; i++)
             {
-                var slot = new PanelContainer { Name = $"Slot_{i}", CustomMinimumSize = SlotSize };
+                var slot = new KitInventorySlot { Name = $"Slot_{i}", CustomMinimumSize = SlotSize };
                 slot.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
-                slot.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = SlotColor, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 });
 
                 // Wire the interaction handlers (Interact partial). Without this, drag-to-move,
                 // right-click split, slot-click and hover tooltips were all built but never reached —
@@ -60,6 +60,7 @@ namespace Beep.ECS
                 slot.MouseExited += OnSlotMouseExited;
 
                 _grid.AddChild(slot);
+                _slotViews[i] = slot;
             }
         }
 
@@ -78,7 +79,7 @@ namespace Beep.ECS
             if (_tooltipPanel != null && GodotObject.IsInstanceValid(_tooltipPanel)) _tooltipPanel.QueueFree();
             _grid = null;
             _tooltipPanel = null;
-            _slotQtyLabels.Clear();
+            _slotViews.Clear();
         }
 
         /// <summary>Rebuild the grid to the current MaxSlots/Columns and repaint. Used after a Load
@@ -103,46 +104,20 @@ namespace Beep.ECS
         private void RefreshSlot(int index)
         {
             if (_grid == null || index >= _grid.GetChildCount()) return;
-            if (_grid.GetChild(index) is not PanelContainer slot) return;
+            if (_grid.GetChild(index) is not KitInventorySlot slot) return;
 
-            foreach (var c in slot.GetChildren()) c.QueueFree();
-            _slotQtyLabels.Remove(index);
+            slot.Icon = null;
+            slot.Count = 0;
+            slot.Rarity = UiSurface.Role.Neutral;
+            slot.Locked = false;
+            slot.Requirement = "";
 
             var entry = GetItemAt(index);
             if (entry != null)
             {
-                slot.AddThemeStyleboxOverride("panel",
-                    new StyleBoxFlat { BgColor = SlotColorOccupied, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 });
-
-                if (entry.Item.Icon != null)
-                {
-                    var tex = new TextureRect
-                    {
-                        Texture = entry.Item.Icon,
-                        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                        CustomMinimumSize = SlotSize,
-                        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered
-                    };
-                    slot.AddChild(tex);
-                }
-
-                if (entry.Quantity > 1)
-                {
-                    var qty = new Label
-                    {
-                        Text = entry.Quantity.ToString(),
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Position = new Vector2(SlotSize.X - 22, SlotSize.Y - 16)
-                    };
-                    qty.AddThemeFontSizeOverride("font_size", 10);
-                    slot.AddChild(qty);
-                    _slotQtyLabels[index] = qty;
-                }
-            }
-            else
-            {
-                slot.AddThemeStyleboxOverride("panel",
-                    new StyleBoxFlat { BgColor = SlotColor, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 });
+                slot.Icon = entry.Item.Icon;
+                slot.Count = entry.Quantity;
+                slot.Rarity = RoleFor(entry.Item.Rarity);
             }
         }
 
@@ -150,15 +125,13 @@ namespace Beep.ECS
 
         private void SetupTooltip()
         {
-            _tooltipLabel = new Label
+            _tooltipPanel = new KitTooltip
             {
+                Name = "InventoryTooltip",
                 MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                CustomMinimumSize = new Vector2(220, 0)
+                CustomMinimumSize = new Vector2(240, 58),
+                Visible = false
             };
-            _tooltipLabel.AddThemeFontSizeOverride("font_size", 12);
-            _tooltipPanel = new PanelContainer { Visible = false };
-            _tooltipPanel.AddChild(_tooltipLabel);
 
             if (GetParent() is Node parent)
             {
@@ -181,7 +154,7 @@ namespace Beep.ECS
 
         private void ShowTooltip(int slot)
         {
-            if (_tooltipPanel == null || _tooltipLabel == null) return;
+            if (_tooltipPanel == null) return;
             var entry = GetItemAt(slot);
             if (entry == null) { _tooltipPanel.Visible = false; return; }
 
@@ -195,10 +168,19 @@ namespace Beep.ECS
             };
             // The class is the type: "GameWeapon" -> "Weapon". No ItemType string anymore.
             string type = entry.Item.GetType().Name.Replace("Game", "");
-            _tooltipLabel.Text = $"{rarity}{entry.Item.DisplayName}\nType: {type}  x{entry.Quantity}\n{entry.Item.Description}";
+            _tooltipPanel.Text = $"{rarity}{entry.Item.DisplayName}  {type} x{entry.Quantity}";
             _tooltipPanel.Visible = true;
             _tooltipPanel.Position = (_tooltipPanel.GetViewport()?.GetMousePosition() ?? Vector2.Zero) + new Vector2(16, 16);
         }
+
+        private static UiSurface.Role RoleFor(ItemRarity rarity) => rarity switch
+        {
+            ItemRarity.Uncommon => UiSurface.Role.Info,
+            ItemRarity.Rare => UiSurface.Role.Accent,
+            ItemRarity.Epic => UiSurface.Role.Accent2,
+            ItemRarity.Legendary => UiSurface.Role.Warning,
+            _ => UiSurface.Role.Neutral,
+        };
 
         private void SetHoverSlot(int slot)
         {

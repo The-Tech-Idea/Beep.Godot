@@ -67,12 +67,16 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public int Selected { get => _sel; set { _sel = value; QueueRedraw(); } }
         private int _sel = -1;
+        private int _hover = -1;
 
         [Signal] public delegate void NodeActivatedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
+            if (Nodes.Count == 0)
+                SeedDemoNodes();
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -82,6 +86,21 @@ namespace Beep.ECS.UI.Kit
         }
 
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _tiers);
+
+        private void SeedDemoNodes()
+        {
+            _cols = Mathf.Max(_cols, 4);
+            _tiers = Mathf.Max(_tiers, 3);
+
+            Nodes.Add(new Node { Column = 1, Tier = 0, Branch = 0, State = NodeState.Owned, Cost = 1 });
+            Nodes.Add(new Node { Column = 0, Tier = 1, Branch = 0, State = NodeState.Owned, Cost = 1, Parents = { 0 } });
+            Nodes.Add(new Node { Column = 1, Tier = 1, Branch = 1, State = NodeState.Available, Cost = 2, Parents = { 0 } });
+            Nodes.Add(new Node { Column = 2, Tier = 1, Branch = 2, State = NodeState.Locked, Parents = { 0 } });
+            Nodes.Add(new Node { Column = 0, Tier = 2, Branch = 0, State = NodeState.Available, Cost = 3, Parents = { 1 } });
+            Nodes.Add(new Node { Column = 1, Tier = 2, Branch = 1, State = NodeState.Locked, Parents = { 2 } });
+            Nodes.Add(new Node { Column = 2, Tier = 2, Branch = 2, State = NodeState.Locked, Parents = { 3 } });
+            Nodes.Add(new Node { Column = 3, Tier = 2, Branch = 3, State = NodeState.Locked, Parents = { 3 } });
+        }
 
         /// <summary>Node box. The gutter is ~12% of the tile, per the measured 7-14px on ~50px.</summary>
         private Rect2 NodeRect(Node n)
@@ -114,16 +133,33 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
-                return;
-            for (int i = 0; i < Nodes.Count; i++)
+            if (@event is InputEventMouseMotion mm)
             {
-                if (!NodeRect(Nodes[i]).HasPoint(mb.Position)) continue;
-                Selected = i;
-                EmitSignal(SignalName.NodeActivated, i);
-                AcceptEvent();
+                int next = HitNode(mm.Position);
+                if (next != _hover)
+                {
+                    _hover = next;
+                    QueueRedraw();
+                }
                 return;
             }
+
+            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+                return;
+            int hit = HitNode(mb.Position);
+            if (hit >= 0)
+            {
+                Selected = hit;
+                EmitSignal(SignalName.NodeActivated, hit);
+                AcceptEvent();
+            }
+        }
+
+        private int HitNode(Vector2 p)
+        {
+            for (int i = 0; i < Nodes.Count; i++)
+                if (NodeRect(Nodes[i]).HasPoint(p)) return i;
+            return -1;
         }
 
         public override void _Draw()
@@ -137,7 +173,15 @@ namespace Beep.ECS.UI.Kit
             int fs = UiSurface.FontSize(this);
             float pitch = Pitch();
 
-            // ── connectors FIRST, so they run behind the nodes ──
+            float lane = Mathf.Max(1f, pitch * 0.025f);
+            for (int c = 0; c < _cols; c++)
+            {
+                float x = pitch * (c + 0.5f);
+                DrawLine(new Vector2(x, pitch * 0.18f), new Vector2(x, Size.Y - pitch * 0.18f),
+                         new Color(face.R * 0.65f, face.G * 0.65f, face.B * 0.70f, 0.28f), lane);
+            }
+
+            // Connectors first, so they run behind the nodes.
             float lw = Mathf.Max(2f, pitch * 0.055f);
             foreach (var n in Nodes)
             {
@@ -164,7 +208,7 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
-            // ── nodes ──
+            // Nodes.
             for (int i = 0; i < Nodes.Count; i++)
             {
                 Node n = Nodes[i];
@@ -188,6 +232,14 @@ namespace Beep.ECS.UI.Kit
 
                 DrawShape(r, ActiveShape, plate, ink, Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
 
+                if (n.State == NodeState.Available)
+                {
+                    Color ring = cue == default ? UiSurface.Semantic(this, UiSurface.Role.Info) : cue;
+                    var poly = KitChrome.Poly(ActiveShape, r.Grow(r.Size.X * 0.08f), Geo);
+                    KitSelect.Draw(this, Geo.SelectFor(WidgetClass), poly, r.Grow(r.Size.X * 0.08f),
+                                   ring, Mathf.Max(1.5f, pitch * 0.035f));
+                }
+
                 if (n.Icon != null)
                 {
                     Color mod = n.State == NodeState.Locked
@@ -195,12 +247,18 @@ namespace Beep.ECS.UI.Kit
                         : Colors.White;
                     DrawTextureRect(n.Icon, r.Grow(-r.Size.X * 0.20f), false, mod);
                 }
+                else
+                {
+                    DrawNodeGlyph(r, n, cue == default ? ink : cue, face);
+                }
 
                 // Cost badge at the corner — and never on a locked node, which shows "no number".
                 if (n.Cost > 0 && n.State != NodeState.Locked && font != null)
                 {
                     string txt = n.Cost.ToString();
-                    int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.7f));
+                    int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                                  new Vector2(r.Size.X * 0.50f, r.Size.Y * 0.34f),
+                                                  txt, font, min: 8);
                     Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, small);
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
                     var b = new Rect2(r.End.X - bw * 0.55f, r.Position.Y - bh * 0.35f, bw, bh);
@@ -209,7 +267,15 @@ namespace Beep.ECS.UI.Kit
                                txt, small, new Color(0.10f, 0.09f, 0.08f));
                 }
 
-                // The theme's declared cues, not a hardcoded cream ring — see KitSelect.
+                DrawStatePip(r, n, cue == default ? ink : cue, face);
+
+                // The theme's declared cues, not a hardcoded cream ring.
+                if (i == _hover && i != _sel)
+                    KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
+                                   KitChrome.Poly(ActiveShape, r, Geo), r,
+                                   UiSurface.Semantic(this, UiSurface.Role.Info),
+                                   Mathf.Max(1.5f, 2f * (fs / 14f)));
+
                 if (i == _sel)
                     KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
                                    KitChrome.Poly(ActiveShape, r, Geo), r,
@@ -218,6 +284,49 @@ namespace Beep.ECS.UI.Kit
             }
 
             DrawAttachments();
+        }
+
+        private void DrawNodeGlyph(Rect2 r, Node n, Color cue, Color face)
+        {
+            Vector2 c = r.Position + r.Size * 0.5f;
+            float w = Mathf.Max(2f, r.Size.X * 0.07f);
+            if (n.State == NodeState.Locked)
+            {
+                Color lockInk = new Color(0.86f, 0.86f, 0.88f, 0.50f);
+                DrawArc(c + new Vector2(0, -r.Size.Y * 0.05f), r.Size.X * 0.15f,
+                        Mathf.Pi, Mathf.Tau, 12, lockInk, w);
+                DrawRect(new Rect2(c.X - r.Size.X * 0.17f, c.Y, r.Size.X * 0.34f, r.Size.Y * 0.22f),
+                         lockInk);
+                return;
+            }
+
+            Color glyph = n.State == NodeState.Owned
+                ? new Color(face.R * 0.12f, face.G * 0.12f, face.B * 0.12f, 0.95f)
+                : new Color(cue.R, cue.G, cue.B, 0.92f);
+            DrawArc(c, r.Size.X * 0.23f, 0f, Mathf.Tau, 24, glyph, w);
+            DrawLine(c - new Vector2(r.Size.X * 0.17f, 0), c + new Vector2(r.Size.X * 0.17f, 0), glyph, w);
+            DrawLine(c - new Vector2(0, r.Size.X * 0.17f), c + new Vector2(0, r.Size.X * 0.17f), glyph, w);
+        }
+
+        private void DrawStatePip(Rect2 r, Node n, Color cue, Color face)
+        {
+            Vector2 c = r.Position + new Vector2(r.Size.X * 0.18f, r.Size.Y * 0.18f);
+            float rr = r.Size.X * 0.10f;
+            if (n.State == NodeState.Owned)
+            {
+                Color ok = UiSurface.Semantic(this, UiSurface.Role.Success);
+                DrawCircle(c, rr, ok);
+                DrawLine(c + new Vector2(-rr * 0.48f, -rr * 0.04f), c + new Vector2(-rr * 0.12f, rr * 0.35f),
+                         face, Mathf.Max(1.2f, rr * 0.25f));
+                DrawLine(c + new Vector2(-rr * 0.12f, rr * 0.35f), c + new Vector2(rr * 0.55f, -rr * 0.45f),
+                         face, Mathf.Max(1.2f, rr * 0.25f));
+            }
+            else if (n.State == NodeState.Available)
+            {
+                DrawCircle(c, rr, cue);
+                DrawLine(c - new Vector2(rr * 0.45f, 0), c + new Vector2(rr * 0.45f, 0), face, Mathf.Max(1.2f, rr * 0.22f));
+                DrawLine(c - new Vector2(0, rr * 0.45f), c + new Vector2(0, rr * 0.45f), face, Mathf.Max(1.2f, rr * 0.22f));
+            }
         }
     }
 }

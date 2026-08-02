@@ -55,12 +55,16 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public string Requirement { get => _req; set { _req = value ?? ""; QueueRedraw(); } }
         private string _req = "";
+        private bool _hover;
 
         [Signal] public delegate void PressedEventHandler();
 
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
+            MouseEntered += () => { _hover = true; QueueRedraw(); };
+            MouseExited += () => { _hover = false; QueueRedraw(); };
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -110,14 +114,23 @@ namespace Beep.ECS.UI.Kit
             }
 
             DrawShape(body, ActiveShape, plate, _locked ? ink : RimColor(), rimPx);
+            if (_hover && !_locked)
+                KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
+                               KitChrome.Poly(ActiveShape, body, Geo), body,
+                               UiSurface.Semantic(this, UiSurface.Role.Info),
+                               Mathf.Max(1.5f, rimPx * 0.75f));
 
             // Art fills the upper portion, inset into the card the way every reference does.
+            var art = new Rect2(body.Position + new Vector2(body.Size.X * 0.12f, body.Size.Y * 0.10f),
+                                new Vector2(body.Size.X * 0.76f, body.Size.Y * 0.55f));
             if (_art != null)
             {
-                var art = new Rect2(body.Position + new Vector2(body.Size.X * 0.12f, body.Size.Y * 0.10f),
-                                    new Vector2(body.Size.X * 0.76f, body.Size.Y * 0.55f));
                 DrawTextureRect(_art, art, false,
                                 _locked ? new Color(0.55f, 0.55f, 0.58f, 1f) : Colors.White);
+            }
+            else
+            {
+                DrawArtPlaceholder(art, font, fs, face, ink);
             }
 
             if (font != null && !string.IsNullOrEmpty(_title))
@@ -157,13 +170,39 @@ namespace Beep.ECS.UI.Kit
             DrawShape(foot, ActiveShape, fc, ink, Mathf.Max(1f, rimPx * 0.7f));
 
             if (font == null || string.IsNullOrEmpty(_footer)) return;
-            int ffs = Footer == FooterKind.Action
-                ? Mathf.Max(8, Mathf.RoundToInt(fs * 0.85f))
-                : Mathf.Max(8, Mathf.RoundToInt(fs * 0.8f));
+            int ffs = UiSurface.FitRole(this,
+                                        Footer == FooterKind.Action ? UiSurface.TextRole.Caption : UiSurface.TextRole.Small,
+                                        new Vector2(foot.Size.X * 0.86f, foot.Size.Y * 0.70f),
+                                        _footer, font, min: 8);
             Vector2 fm = font.GetStringSize(_footer, HorizontalAlignment.Left, -1, ffs);
             DrawText(font, new Vector2(foot.Position.X + (foot.Size.X - fm.X) * 0.5f, foot.Position.Y + (foot.Size.Y + fm.Y * 0.6f) * 0.5f),
                        _footer, ffs, UiSurface.Luminance(fc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+        }
+
+        private void DrawArtPlaceholder(Rect2 r, Font? font, int fs, Color face, Color ink)
+        {
+            Color accent = _locked
+                ? new Color(face.R * 0.60f, face.G * 0.60f, face.B * 0.62f, 1f)
+                : UiSurface.Semantic(this, FooterRole);
+            Color well = new Color(Mathf.Lerp(face.R, accent.R, 0.22f),
+                                   Mathf.Lerp(face.G, accent.G, 0.22f),
+                                   Mathf.Lerp(face.B, accent.B, 0.22f), 1f);
+            DrawShape(r, ActiveShape, well, RimColor(), Mathf.Max(1f, r.Size.X * 0.025f));
+
+            Vector2 c = r.Position + r.Size * 0.5f;
+            float rr = Mathf.Min(r.Size.X, r.Size.Y) * 0.24f;
+            DrawCircle(c, rr, accent);
+            DrawArc(c, rr, 0f, Mathf.Tau, 24, ink, Mathf.Max(1.5f, rr * 0.10f));
+
+            if (font == null || string.IsNullOrEmpty(_title)) return;
+            string mark = KitCase(_title[..1]);
+            int mf = UiSurface.FitRole(this, UiSurface.TextRole.Title,
+                                       new Vector2(rr * 1.35f, rr * 1.35f), mark, font, min: 9);
+            Vector2 m = font.GetStringSize(mark, HorizontalAlignment.Left, -1, mf);
+            DrawText(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
+                     mark, mf, UiSurface.Luminance(accent) > 0.5f
+                         ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }
     }
 }

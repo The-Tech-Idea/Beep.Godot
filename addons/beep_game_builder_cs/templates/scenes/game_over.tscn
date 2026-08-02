@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_btn"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs" id="4_transition"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs" id="5_anim"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/GameOver.cs" id="6_scene"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 
 [node name="GameOver" type="CanvasLayer"]
 script = ExtResource("6_scene")
@@ -19,6 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.6)
 
+script = ExtResource("k_color")
 [node name="Center" type="CenterContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,11 +37,13 @@ theme_type_variation = &"BeepTitle"
 text = "Game Over"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="StatsLabel" type="Label" parent="Center/GameOverVBox"]
 theme_type_variation = &"BeepValue"
 text = "Score: 0"
 horizontal_alignment = 1
 
+script = ExtResource("k_label")
 [node name="RetryButton" type="Button" parent="Center/GameOverVBox"]
 custom_minimum_size = Vector2(260, 44)
 script = ExtResource("k_btn")

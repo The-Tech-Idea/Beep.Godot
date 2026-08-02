@@ -12,7 +12,7 @@ namespace Beep.ECS
     ///   Clear, Cloudy, Rain, Snow, Storm, Fog, Sandstorm, Hail, LeafFall, Heatwave
     ///
     /// Features (grounded in Godot 2D best practices — shader fakes, not 3D volumetric):
-    /// • Precipitation via CpuParticles2D (rain/snow/hail/leaves).
+    /// • Pixel-art sprite weather for rain/storm/snow/hail/sand plus CpuParticles2D leaves.
     /// • Ambient lighting via CanvasModulate (dark for storms, warm for heatwave, etc.).
     /// • Lightning flashes: random full-screen ColorRect brightness bursts during Storm.
     /// • Wind force (Vector2) that gameplay components can read for leaf-drift, projectile drift, etc.
@@ -45,7 +45,7 @@ namespace Beep.ECS
         [Export] public WeatherType CurrentWeather { get; set; } = WeatherType.Clear;
         [Export] public bool AutoCycle { get; set; } = false;
         [Export] public double CycleInterval { get; set; } = 60.0;
-        [Export] public int ParticleCount { get; set; } = 250;
+        [Export] public int ParticleCount { get; set; } = 600;
         [Export] public Material? ParticleMaterial { get; set; }
 
         // ── Particle sprites ──
@@ -60,8 +60,8 @@ namespace Beep.ECS
         // fragile. The bundled sprite is resolved lazily in ConfigureParticles instead, so
         // leaving these empty still gives you textured weather out of the box.
         [ExportGroup("Particle Textures")]
-        /// <summary>Rain and Storm. Empty = the bundled streak (a streak reads as falling
-        /// water; a blob doesn't).</summary>
+        /// <summary>Rain and Storm. Empty = the bundled 2D droplet. Line-trail textures are not
+        /// used as the default because they read as screen-space streak curtains.</summary>
         [Export] public Texture2D? RainTexture { get; set; }
 
         /// <summary>Snow. Empty = the bundled soft round flake.</summary>
@@ -77,6 +77,9 @@ namespace Beep.ECS
         /// reads as snow, not foliage. Supply your own, or leaves stay untextured.</summary>
         [Export] public Texture2D? LeafTexture { get; set; }
 
+        /// <summary>Rain/Storm impact splashes. Empty = the bundled soft round dot.</summary>
+        [Export] public Texture2D? SplashTexture { get; set; }
+
         /// <summary>Set false to use no sprite at all unless you assign one explicitly
         /// (particles fall back to Godot's default white point).</summary>
         [Export] public bool UseBundledParticleTextures { get; set; } = true;
@@ -84,17 +87,46 @@ namespace Beep.ECS
         // Loaded on first use and shared by every instance — these are small CC0 sprites
         // (textures/particles/CREDITS.md) and Godot caches the resource anyway.
         private const string TexDir = "res://addons/beep_game_builder_cs/textures/particles/";
+        private const string CloudTexDir = "res://addons/beep_game_builder_cs/textures/clouds/";
         private static readonly System.Collections.Generic.Dictionary<string, Texture2D?> _bundledCache = new();
+        private static readonly System.Collections.Generic.List<Texture2D> _bundledLightning = new();
 
         private static Texture2D? Bundled(string file)
         {
             if (_bundledCache.TryGetValue(file, out var cached)) return cached;
             string path = TexDir + file;
-            // Cache the miss too, so a missing file warns once rather than every weather change.
             Texture2D? tex = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+            if (tex == null)
+            {
+                // New addon PNGs may not have a .import sidecar yet. Runtime loading keeps the
+                // effect visible instead of silently falling back to no texture until the editor
+                // import pass catches up.
+                string global = ProjectSettings.GlobalizePath(path);
+                if (FileAccess.FileExists(global))
+                {
+                    Image img = Image.LoadFromFile(global);
+                    if (img != null && !img.IsEmpty())
+                        tex = ImageTexture.CreateFromImage(img);
+                }
+            }
+            // Cache the miss too, so a missing file warns once rather than every weather change.
             if (tex == null) GD.PushWarning($"[Weather] Bundled particle texture not found: {path}");
             _bundledCache[file] = tex;
             return tex;
+        }
+
+        private static Texture2D[] BundledLightningSprites()
+        {
+            if (_bundledLightning.Count > 0) return _bundledLightning.ToArray();
+            for (int i = 1; i <= 5; i++)
+            {
+                string path = $"{CloudTexDir}lightning{i}.png";
+                if (ResourceLoader.Exists(path) && GD.Load<Texture2D>(path) is { } tex)
+                    _bundledLightning.Add(tex);
+            }
+            if (_bundledLightning.Count == 0)
+                GD.PushWarning($"[Weather] Bundled lightning sprites not found under {CloudTexDir}");
+            return _bundledLightning.ToArray();
         }
 
         // ── Public read-only state for HUDs / forecast UIs ──
@@ -103,6 +135,28 @@ namespace Beep.ECS
             ? System.Math.Max(0, _currentWeatherDuration - _cycleTimer) : 0;
         /// <summary>Human-readable name of the current weather type.</summary>
         public string CurrentWeatherName => CurrentWeather.ToString();
+
+        /// <summary>
+        /// How near the most recent strike was, 0.4–1.0. Rolled once per bolt, BEFORE
+        /// <c>LightningStruck</c> fires, so every listener describes the same lightning: the flash
+        /// scales its amplitude by it, and the audio controllers use it to pick crack-vs-rumble and
+        /// to set the thunder delay. Read it in a <c>LightningStruck</c> handler.
+        /// </summary>
+        public float LastBoltStrength { get; private set; } = 1f;
+
+        /// <summary>
+        /// Set true while the player is under a roof — precipitation stops and weather audio
+        /// muffles. This is YOURS to drive: an Area2D over each building, a tile check, whatever
+        /// your level uses. The addon cannot know where your roofs are.
+        /// </summary>
+        [Export] public bool InsideShelter { get; set; }
+
+        /// <summary>
+        /// The eased 0–1 form of <see cref="InsideShelter"/>. Snapping precipitation off the frame
+        /// the player crosses a threshold looks like a bug; this slides over ~0.3s. Components that
+        /// react to being sheltered should read THIS, not the bool.
+        /// </summary>
+        public float ShelterFactor { get; private set; }
 
         [ExportGroup("Ambient Tints")]
         [Export] public Color ClearTint { get; set; } = new(1f, 1f, 1f, 1f);
@@ -125,16 +179,30 @@ namespace Beep.ECS
         [ExportGroup("Lightning Bolts")]
         /// <summary>Spawn procedural Line2D bolts (in addition to the screen flash) on each strike.</summary>
         [Export] public bool EnableLightningBolts { get; set; } = true;
+        public enum LightningVisual
+        {
+            Sprite,
+            Line,
+            Both,
+        }
+        /// <summary>Side-view 2D games read lightning best as a flat sky sprite flash.</summary>
+        [Export] public LightningVisual LightningMode { get; set; } = LightningVisual.Sprite;
         /// <summary>Node to parent spawned bolts to. If null, uses the weather parent. Should be a world-space Node2D.</summary>
         [Export] public NodePath? BoltContainer { get; set; }
         /// <summary>Camera shake intensity on a strike (0 = no shake). Scaled by weather intensity.</summary>
         [Export] public float LightningShakeIntensity { get; set; } = 12f;
+        /// <summary>Optional lightning sprites. Empty = bundled cloud-pack lightning PNGs.</summary>
+        [Export] public Texture2D[] LightningSprites { get; set; } = System.Array.Empty<Texture2D>();
 
         [ExportGroup("Wind")]
         [Export] public bool EnableWind { get; set; } = true;
         [Export] public Vector2 WindForce { get; set; } = Vector2.Zero;
         [Export] public float WindChangeSpeed { get; set; } = 0.5f;
         [Export] public float MaxWindMagnitude { get; set; } = 3f;
+        /// <summary>Base side-view wind direction. Weather strength scales this.</summary>
+        [Export] public Vector2 PrevailingWind { get; set; } = new(1f, 0f);
+        /// <summary>Extra intermittent wind for Storm/Snow/Sandstorm.</summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float GustStrength { get; set; } = 0.35f;
 
         [ExportGroup("Overlays")]
         /// <summary>
@@ -194,6 +262,21 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool TopDownView { get; set; }
 
+        /// <summary>
+        /// Genre-aware 2D weather projection. <see cref="TopDownView"/> is kept for existing
+        /// scenes; when it is true and this remains Side, the component treats it as TopDown.
+        /// </summary>
+        public enum WeatherViewMode
+        {
+            Side,
+            TopDown,
+            RpgTopDown,
+            Isometric,
+            CityBuilder,
+        }
+
+        [Export] public WeatherViewMode ViewMode { get; set; } = WeatherViewMode.Side;
+
         /// <summary>How clouds are drawn. Three techniques, none strictly better.</summary>
         public enum CloudRender
         {
@@ -238,6 +321,10 @@ namespace Beep.ECS
         // AmbientController, which composes it with the day/night tint. See AmbientController.
         private AmbientController? _ambient;
         private const string AmbientKey = "weather";
+        private CpuParticles2D? _splashes;
+        private bool _splashWanted;
+        private Vector2 _splashCameraOffset = Vector2.Zero;
+        private WeatherSpriteLayer? _weatherSprites;
         private ColorRect? _flashOverlay;
         private Node2D? _boltContainer;  // cached container for lightning bolts
         private readonly System.Collections.Generic.List<Node> _activeLightningBolts = new();  // track active bolts for cleanup
@@ -249,6 +336,7 @@ namespace Beep.ECS
         private double _lightningTimer;
         private bool _lightningActive;
         private double _lightningFlashTime;
+        private float _gustPhase;
 
         /// <summary>
         /// Frame-lerp rate for the weather→ambient transition. Higher = snappier.
@@ -270,7 +358,8 @@ namespace Beep.ECS
                 // weather and STAYED there -- with all ten defaulting to Clear, the whole system
                 // was enabled and produced nothing, which is what "weather isn't happening" means.
                 AutoCycle = info.AutoCycleWeather;
-                TopDownView = info.TopDownView;
+                ViewMode = info.WeatherViewMode;
+                TopDownView = info.TopDownView || ViewMode != WeatherViewMode.Side;
                 IsActive = info.EnableWeather;
                 // info.EnableDayNightCycle now configures the standalone DayNightCycleComponent,
                 // not this one — day/night was moved out. See BeepGenreScene / DayNightCycleComponent.
@@ -360,16 +449,38 @@ namespace Beep.ECS
 
             // Cloud + cloud-shadow overlays (built/owned by the Overlays partial).
             if (EnableClouds) EnsureCloudOverlays(overlayRoot);
+            EnsureWeatherSpriteLayer(overlayRoot);
 
             // The lightning flash was added before the clouds, so it drew UNDER them — a full-screen
-            // white-out must be topmost. Move it to the end after the cloud overlays exist.
+            // white-out must be topmost. Move it to the end after the cloud/rain overlays exist.
             if (_flashOverlay != null && GodotObject.IsInstanceValid(_flashOverlay))
                 overlayRoot.MoveChild(_flashOverlay, -1);
         }
 
+        private void EnsureWeatherSpriteLayer(Node parent)
+        {
+            _weatherSprites = parent.GetNodeOrNull<WeatherSpriteLayer>("WeatherSprites");
+            if (_weatherSprites == null)
+            {
+                _weatherSprites = new WeatherSpriteLayer { Name = "WeatherSprites", Visible = false };
+                parent.AddChild(_weatherSprites);
+            }
+            ApplyWeatherSpriteTextures();
+        }
+
+        private void ApplyWeatherSpriteTextures()
+        {
+            if (_weatherSprites == null) return;
+            _weatherSprites.RainTexture = RainTexture ?? (UseBundledParticleTextures ? Bundled("rain_drop_2d.png") : null);
+            _weatherSprites.SplashTexture = SplashTexture ?? (UseBundledParticleTextures ? Bundled("rain_splash_2d.png") : null);
+            _weatherSprites.SnowTexture = SnowTexture ?? (UseBundledParticleTextures ? Bundled("snow_flake_2d.png") : null);
+            _weatherSprites.HailTexture = HailTexture ?? (UseBundledParticleTextures ? Bundled("hail_pellet_2d.png") : null);
+            _weatherSprites.SandTexture = SandTexture ?? (UseBundledParticleTextures ? Bundled("sand_mote_2d.png") : null);
+        }
+
         /// <summary>
         /// Configure the CpuParticles2D emitter as a screen-spanning box so
-        /// rain/snow/hail cover the viewport. Called once on build and again from
+        /// snow/hail/sand/leaves cover the viewport. Called once on build and again from
         /// _Process when the viewport resizes (early-outs if no change). Uses local
         /// coords so weather moves naturally with the camera.
         /// </summary>
@@ -398,6 +509,11 @@ namespace Beep.ECS
             // is what real rain looks like and what removes the dependency on lifetime tuning.
             _particles.EmissionRectExtents = new Vector2(size.X * 0.6f, size.Y * 0.6f);
 
+            // The splash band is sized off the same viewport, so re-place it whenever the
+            // emission box moves rather than only on a weather change — otherwise a resize
+            // leaves the splashes at the old ground line.
+            ConfigureSplashes(CurrentWeather, size);
+
             // Local coords → emission is pinned to the emitter's transform; PositionEmitterAtCamera
             // moves the emitter to the camera each frame so the field tracks the view.
             _particles.LocalCoords = true;
@@ -408,10 +524,47 @@ namespace Beep.ECS
         /// no active camera (a fixed-view scene keeps the emitter at its parent origin).</summary>
         private void PositionEmitterAtCamera()
         {
-            if (_particles == null) return;
             if (GetViewport()?.GetCamera2D() is not Camera2D cam) return;
             Vector2 center = cam.GetScreenCenterPosition();
-            _particles.GlobalPosition = new Vector2(center.X, center.Y - _lastEmitSize.Y * 0.5f);
+            if (_particles != null)
+                _particles.GlobalPosition = new Vector2(center.X, center.Y - _lastEmitSize.Y * 0.5f);
+            if (_splashes != null && _splashes.IsInsideTree())
+                _splashes.GlobalPosition = center + _splashCameraOffset;
+        }
+
+        private void UpdateWeatherSpriteLayer()
+        {
+            if (_weatherSprites == null) return;
+
+            bool wantsSprites = CurrentWeather is WeatherType.Rain or WeatherType.Storm
+                or WeatherType.Snow or WeatherType.Hail or WeatherType.Sandstorm;
+            WeatherViewMode view = EffectiveViewMode();
+            Vector2 size = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1280, 720);
+
+            _weatherSprites.Field = size;
+            _weatherSprites.ViewMode = view;
+            _weatherSprites.Kind = CurrentWeather switch
+            {
+                WeatherType.Storm => WeatherSpriteLayer.PixelWeatherKind.Storm,
+                WeatherType.Snow => WeatherSpriteLayer.PixelWeatherKind.Snow,
+                WeatherType.Hail => WeatherSpriteLayer.PixelWeatherKind.Hail,
+                WeatherType.Sandstorm => WeatherSpriteLayer.PixelWeatherKind.Sandstorm,
+                _ => WeatherSpriteLayer.PixelWeatherKind.Rain,
+            };
+            _weatherSprites.Wind = WindForce;
+            _weatherSprites.Intensity = wantsSprites ? _intensityCurrent * (1f - ShelterFactor) : 0f;
+            float spriteDensity = CurrentWeather switch
+            {
+                WeatherType.Storm => 0.55f,
+                WeatherType.Rain => 0.42f,
+                WeatherType.Snow => 0.24f,
+                WeatherType.Hail => 0.22f,
+                WeatherType.Sandstorm => 0.48f,
+                _ => 0.25f,
+            };
+            _weatherSprites.MaxSprites = Mathf.Clamp((int)(ParticleCount * spriteDensity), 60, 360);
+            ApplyWeatherSpriteTextures();
+            _weatherSprites.Visible = wantsSprites && _weatherSprites.Intensity > 0.01f;
         }
 
         public override void _Process(double delta)
@@ -461,14 +614,11 @@ namespace Beep.ECS
             // Wind drift — pushes particle gravity (clouds read WindForce in ProcessClouds).
             if (EnableWind)
             {
-                WindForce = new Vector2(
-                    WindForce.X + (float)GD.RandRange(-WindChangeSpeed, WindChangeSpeed) * (float)delta * 60f,
-                    WindForce.Y + (float)GD.RandRange(-WindChangeSpeed, WindChangeSpeed) * (float)delta * 60f
-                );
-                WindForce = WindForce.LimitLength(MaxWindMagnitude);
-                if (_particles != null)
-                    _particles.Gravity = new Vector2(WindForce.X * 100f, _particles.Gravity.Y);
+                UpdateWeatherWind(delta);
+                ApplyWindToParticles();
             }
+
+            UpdateWeatherSpriteLayer();
 
             // Re-fit the particle emitter if the viewport was resized.
             ConfigureParticleEmitter();
@@ -485,6 +635,85 @@ namespace Beep.ECS
             // Lightning (Storm only).
             ProcessLightning(delta);
         }
+
+        private void UpdateWeatherWind(double delta)
+        {
+            WeatherViewMode view = EffectiveViewMode();
+            Vector2 dir = PrevailingWind.LengthSquared() > 0.0001f
+                ? PrevailingWind.Normalized()
+                : Vector2.Right;
+
+            if (view == WeatherViewMode.Isometric)
+                dir = new Vector2(dir.X >= 0f ? 0.86f : -0.86f, 0.5f).Normalized();
+            else if (IsTopDownLike(view))
+                dir = new Vector2(dir.X * 0.35f, 0.18f).Normalized();
+
+            float weatherWind = CurrentWeather switch
+            {
+                WeatherType.Clear => 0.08f,
+                WeatherType.Cloudy => 0.35f,
+                WeatherType.Rain => 0.65f,
+                WeatherType.Snow => 1.25f,
+                WeatherType.Storm => 1.8f,
+                WeatherType.Fog => 0.12f,
+                WeatherType.Sandstorm => 1.65f,
+                WeatherType.Hail => 1.1f,
+                WeatherType.LeafFall => 0.55f,
+                WeatherType.Heatwave => 0.08f,
+                _ => 0.25f,
+            };
+            if (view == WeatherViewMode.CityBuilder)
+                weatherWind *= 0.65f;
+            else if (view == WeatherViewMode.RpgTopDown)
+                weatherWind *= 0.85f;
+
+            float gustWeight = CurrentWeather is WeatherType.Storm or WeatherType.Snow
+                or WeatherType.Sandstorm or WeatherType.Hail ? GustStrength : GustStrength * 0.35f;
+            _gustPhase += (float)delta * Mathf.Lerp(0.5f, 1.6f, gustWeight);
+            float gust = 1f + Mathf.Sin(_gustPhase * 1.7f) * gustWeight
+                         + Mathf.Sin(_gustPhase * 3.9f + 1.4f) * gustWeight * 0.35f;
+
+            Vector2 target = dir * Mathf.Min(MaxWindMagnitude, weatherWind * gust * _intensityCurrent);
+            WindForce = WindForce.Lerp(target, Mathf.Clamp(WindChangeSpeed * (float)delta, 0f, 1f));
+        }
+
+        private void ApplyWindToParticles()
+        {
+            if (_particles == null) return;
+            WeatherViewMode view = EffectiveViewMode();
+            float x = WindForce.X * 120f;
+            switch (CurrentWeather)
+            {
+                case WeatherType.Snow:
+                    _particles.Gravity = new Vector2(x * 0.85f, _particles.Gravity.Y);
+                    _particles.Direction = view == WeatherViewMode.Isometric
+                        ? new Vector2(Mathf.Clamp(WindForce.X * 0.28f, -0.7f, 0.7f), 0.82f)
+                        : new Vector2(Mathf.Clamp(WindForce.X * 0.45f, -0.9f, 0.9f), 1f);
+                    break;
+                case WeatherType.Storm:
+                    _particles.Gravity = new Vector2(x * 0.65f, _particles.Gravity.Y);
+                    _particles.Direction = view == WeatherViewMode.Isometric
+                        ? new Vector2(Mathf.Clamp(0.55f + WindForce.X * 0.12f, -0.8f, 0.8f), 0.9f)
+                        : new Vector2(Mathf.Clamp(0.25f + WindForce.X * 0.18f, -0.75f, 0.75f), 1f);
+                    break;
+                case WeatherType.Sandstorm:
+                    _particles.Gravity = new Vector2(Mathf.Sign(WindForce.X == 0f ? 1f : WindForce.X) * 300f, 0);
+                    break;
+                default:
+                    _particles.Gravity = new Vector2(x * 0.45f, _particles.Gravity.Y);
+                    break;
+            }
+        }
+
+        private WeatherViewMode EffectiveViewMode()
+        {
+            if (ViewMode == WeatherViewMode.Side && TopDownView) return WeatherViewMode.TopDown;
+            return ViewMode;
+        }
+
+        private static bool IsTopDownLike(WeatherViewMode view) =>
+            view is WeatherViewMode.TopDown or WeatherViewMode.RpgTopDown
+                or WeatherViewMode.Isometric or WeatherViewMode.CityBuilder;
 
         // ════════════════════════════════════════════════════════════════
         // Weather switching
@@ -509,8 +738,7 @@ namespace Beep.ECS
             _cycleTimer = 0;
 
             // Particle configuration.
-            bool usesParticles = type is WeatherType.Rain or WeatherType.Snow or WeatherType.Storm
-                or WeatherType.Sandstorm or WeatherType.Hail or WeatherType.LeafFall;
+            bool usesParticles = type is WeatherType.LeafFall;
             if (_particles != null)
             {
                 _particles.Emitting = usesParticles;
@@ -521,6 +749,14 @@ namespace Beep.ECS
                     ConfigureParticles(type);
                 }
             }
+            UpdateWeatherSpriteLayer();
+
+            // The old particle splash emitter is kept dormant; rain/storm impacts now come from
+            // WeatherSpriteLayer so all wet-weather pixels belong to one 2D renderer.
+            {
+                var vp = GetViewport();
+                ConfigureSplashes(type, vp != null ? vp.GetVisibleRect().Size : new Vector2(1280, 720));
+            }
 
             // Lightning enabled only for Storm.
             _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
@@ -529,9 +765,126 @@ namespace Beep.ECS
             EmitSignal(SignalName.WeatherChanged, (int)type);
         }
 
+        /// <summary>
+        /// Keep precipitation in one 2D visual layer.
+        ///
+        /// Earlier tuning varied opacity strongly per particle to fake near/far depth. That reads
+        /// like a 3D volume camera, which is wrong for this addon. A narrow alpha ramp still breaks
+        /// up mechanical repetition without turning rain into foreground/background streaks.
+        /// </summary>
+        private void ApplyFlatAlphaVariation(float lowAlpha, float highAlpha)
+        {
+            if (_particles == null) return;
+            var g = new Gradient();
+            g.SetOffset(0, 0f);
+            g.SetOffset(1, 1f);
+            g.SetColor(0, new Color(1f, 1f, 1f, lowAlpha));
+            g.SetColor(1, new Color(1f, 1f, 1f, highAlpha));
+            _particles.ColorInitialRamp = g;
+        }
+
+        /// <summary>
+        /// Impact SPLASHES — the cue that separates rain from a screen of falling lines.
+        ///
+        /// Rain reads as rain because it LANDS. Ours never did: one emitter dropped streaks that
+        /// vanished at the end of their lifetime with nothing to show they had arrived, so however
+        /// well the drops themselves were tuned the picture stayed a moving texture rather than
+        /// weather happening to a place.
+        ///
+        /// A second short-lived emitter does it. The splashes are NOT parented to the drops (no
+        /// collision, no per-drop bookkeeping) — they are an independent scatter at the same
+        /// density, which at rain speeds is indistinguishable and costs nothing.
+        ///
+        /// WHERE they land is the view axis. Side-on, water hits the ground: a strip along the
+        /// bottom. Top-down, you are looking AT the ground, so it hits everywhere you can see.
+        /// </summary>
+        private void ConfigureSplashes(WeatherType type, Vector2 size)
+        {
+            bool wants = false;
+            WeatherViewMode view = EffectiveViewMode();
+            _splashes ??= new CpuParticles2D { Name = "WeatherSplashes", LocalCoords = true };
+
+            // ADOPT, don't assume. The first version created the node with
+            // `_particles?.GetParent()?.AddChild(_splashes)` — and when that ran before
+            // EnsureNodes had made _particles, the `?.` turned AddChild into a NO-OP. The field
+            // was non-null, so every later call skipped creation and configured an ORPHAN that
+            // was never in the tree and never drew a pixel. Nothing logged; the splashes simply
+            // did not exist. Re-checking parentage each time is what makes call order irrelevant.
+            if (!_splashes.IsInsideTree())
+            {
+                var host = _particles?.GetParent() ?? GetParent();
+                if (host == null)
+                {
+                    GD.PushWarning($"[{Name}] Rain splashes have nowhere to attach (no parent node) "
+                                 + "— impacts will not render. Parent the weather system to a Node2D.");
+                    return;
+                }
+                host.AddChild(_splashes);
+            }
+
+            _splashWanted = wants;
+            if (!wants) { _splashes.Emitting = false; return; }
+
+
+            bool storm = type == WeatherType.Storm;
+            _splashes.Texture = SplashTexture ?? (UseBundledParticleTextures ? Bundled("rain_splash_2d.png") : null);
+            _splashes.Amount = Mathf.Max(1, (int)(ParticleCount * (storm ? 0.22f : 0.15f)));
+            _splashes.Lifetime = 0.18f;
+            _splashes.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
+
+            if (IsTopDownLike(view))
+            {
+                // Looking down at the ground — impacts scatter across the whole visible field.
+                _splashCameraOffset = Vector2.Zero;
+                _splashes.Position = _splashCameraOffset;
+                _splashes.EmissionRectExtents = view == WeatherViewMode.Isometric
+                    ? new Vector2(size.X * 0.55f, size.Y * 0.36f)
+                    : new Vector2(size.X * 0.55f, size.Y * (view == WeatherViewMode.CityBuilder ? 0.48f : 0.55f));
+            }
+            else
+            {
+                // Side-on — a band at the foot of the view, where the ground plane reads.
+                _splashCameraOffset = new Vector2(0, size.Y * 0.42f);
+                _splashes.Position = _splashCameraOffset;
+                _splashes.EmissionRectExtents = new Vector2(size.X * 0.55f, size.Y * 0.06f);
+            }
+
+            // Flat impact flecks on the 2D playfield. No upward spray arc: that was the main cue
+            // making the splash feel like a 3D camera looking across the ground.
+            _splashes.Direction = view switch
+            {
+                WeatherViewMode.Isometric => new Vector2(0.8f, 0.28f),
+                WeatherViewMode.Side => new Vector2(0, -0.15f),
+                _ => Vector2.Right,
+            };
+            _splashes.Spread = IsTopDownLike(view) ? (view == WeatherViewMode.Isometric ? 95f : 180f) : 95f;
+            _splashes.InitialVelocityMin = 4f;
+            _splashes.InitialVelocityMax = storm ? 18f : 12f;
+            _splashes.Gravity = Vector2.Zero;
+            _splashes.ScaleAmountMin = 0.55f;
+            _splashes.ScaleAmountMax = storm ? 1.05f : 0.85f;
+            _splashes.Color = new Color(0.70f, 0.84f, 1f, storm ? 0.46f : 0.36f);
+
+            // Fade out over the splash's life — a droplet that blinks out at full opacity is the
+            // thing that makes cheap splash effects read as sparkles.
+            var fade = new Gradient();
+            fade.SetOffset(0, 0f);
+            fade.SetOffset(1, 1f);
+            fade.SetColor(0, new Color(1, 1, 1, 1));
+            fade.SetColor(1, new Color(1, 1, 1, 0));
+            _splashes.ColorRamp = fade;
+
+            PositionEmitterAtCamera();
+        }
+
         private void ConfigureParticles(WeatherType type)
         {
             if (_particles == null) return;
+
+            // Cleared up front so a type with no depth call (Fog, LeafFall) does not inherit the
+            // previous type's ramp. Weather changes at runtime, so a stale ramp would silently
+            // recolour the next precipitation — the kind of leak that only shows after a cycle.
+            _particles.ColorInitialRamp = null;
 
             // The sprite, alongside the motion/colour each case tunes below. Without this
             // every weather type drew as a white square no matter how well-tuned the rest
@@ -539,10 +892,10 @@ namespace Beep.ECS
             // sprite (unless that's switched off).
             _particles.Texture = type switch
             {
-                WeatherType.Rain or WeatherType.Storm => RainTexture ?? Fallback("trace_01.png"),
-                WeatherType.Snow                      => SnowTexture ?? Fallback("circle_05.png"),
-                WeatherType.Hail                      => HailTexture ?? Fallback("circle_02.png"),
-                WeatherType.Sandstorm                 => SandTexture ?? Fallback("dirt_02.png"),
+                WeatherType.Rain or WeatherType.Storm => RainTexture ?? Fallback("rain_drop_2d.png"),
+                WeatherType.Snow                      => SnowTexture ?? Fallback("snow_flake_2d.png"),
+                WeatherType.Hail                      => HailTexture ?? Fallback("hail_pellet_2d.png"),
+                WeatherType.Sandstorm                 => SandTexture ?? Fallback("sand_mote_2d.png"),
                 // No bundled leaf sprite exists — a circle would read as snow.
                 WeatherType.LeafFall                  => LeafTexture,
                 _                                     => null
@@ -563,72 +916,91 @@ namespace Beep.ECS
             // a platformer in the rain.
             void ApplyViewAxis()
             {
-                if (!TopDownView) return;
-                _particles.Direction = new Vector2(_particles.Direction.X * 0.25f, 1f);
-                _particles.Spread = Mathf.Min(_particles.Spread, 6f);
-                _particles.Gravity = new Vector2(0, _particles.Gravity.Y * 0.35f);
-                _particles.InitialVelocityMin *= 0.45f;
-                _particles.InitialVelocityMax *= 0.45f;
-                // Shorter, fatter marks rather than long streaks.
-                _particles.ScaleAmountMin *= 1.35f;
-                _particles.ScaleAmountMax *= 1.35f;
+                WeatherViewMode view = EffectiveViewMode();
+                if (view == WeatherViewMode.Side) return;
 
-                // AND THE LIFETIME, or the slowdown kills the effect. Emission is a thin strip at
-                // the top of the view, so a particle has to LIVE long enough to cross the whole
-                // viewport -- the file already says so a few lines down. Cutting velocity and
-                // gravity by ~60% without this made top-down rain stop a third of the way down
-                // the screen and leave the rest dry, which the very first render showed.
-                _particles.Lifetime *= 2.2;
+                if (view == WeatherViewMode.Isometric)
+                {
+                    _particles.Direction = new Vector2(0.62f, 0.78f);
+                    _particles.Spread = Mathf.Min(_particles.Spread, 7f);
+                    _particles.Gravity = new Vector2(_particles.Gravity.Y * 0.28f, _particles.Gravity.Y * 0.45f);
+                    _particles.InitialVelocityMin *= 0.55f;
+                    _particles.InitialVelocityMax *= 0.55f;
+                    _particles.ScaleAmountMin *= 0.9f;
+                    _particles.ScaleAmountMax *= 0.9f;
+                    _particles.Lifetime *= 1.7f;
+                    return;
+                }
+
+                float cityMul = view == WeatherViewMode.CityBuilder ? 0.7f : 1f;
+                _particles.Direction = new Vector2(_particles.Direction.X * 0.25f, 1f);
+                _particles.Spread = Mathf.Min(_particles.Spread, view == WeatherViewMode.RpgTopDown ? 8f : 6f);
+                _particles.Gravity = new Vector2(0, _particles.Gravity.Y * 0.35f * cityMul);
+                _particles.InitialVelocityMin *= 0.45f * cityMul;
+                _particles.InitialVelocityMax *= 0.45f * cityMul;
+                _particles.ScaleAmountMin *= view == WeatherViewMode.RpgTopDown ? 0.95f : 0.8f;
+                _particles.ScaleAmountMax *= view == WeatherViewMode.RpgTopDown ? 0.95f : 0.8f;
+                _particles.Lifetime *= view == WeatherViewMode.CityBuilder ? 2.4f : 2.0f;
             }
 
+            WeatherViewMode viewMode = EffectiveViewMode();
             switch (type)
             {
                 case WeatherType.Rain:
-                    _particles.Direction = new Vector2(0.15f, 1f);
-                    _particles.Spread = 10f;
-                    _particles.Gravity = new Vector2(0, 600);
-                    _particles.InitialVelocityMax = 500;
-                    _particles.InitialVelocityMin = 300;
-                    _particles.ScaleAmountMin = 0.2f;
-                    _particles.ScaleAmountMax = 0.4f;
-                    _particles.Color = new Color(0.6f, 0.7f, 0.9f, 0.6f);
+                    _particles.Direction = new Vector2(0.18f, 1f);
+                    _particles.Spread = 16f;
+                    _particles.Gravity = new Vector2(0, 360);
+                    _particles.InitialVelocityMax = 300;
+                    _particles.InitialVelocityMin = 150;
+                    _particles.ScaleAmountMin = 0.85f;
+                    _particles.ScaleAmountMax = 1.25f;
+                    _particles.Color = new Color(0.72f, 0.86f, 1f, 0.72f);
+                    ApplyFlatAlphaVariation(0.7f, 1f);
                     break;
                 case WeatherType.Snow:
-                    _particles.Direction = new Vector2(0.05f, 1f);
-                    _particles.Spread = 30f;
-                    _particles.Gravity = new Vector2(0, 50);
-                    _particles.InitialVelocityMax = 60;
-                    _particles.ScaleAmountMin = 0.8f;
-                    _particles.ScaleAmountMax = 1.5f;
-                    _particles.Color = new Color(0.9f, 0.95f, 1f, 0.8f);
-                    // turbulence not available in this binding
+                    bool topLike = IsTopDownLike(viewMode);
+                    _particles.Direction = topLike ? new Vector2(0.05f, 1f) : new Vector2(0.32f, 1f);
+                    _particles.Spread = topLike ? (viewMode == WeatherViewMode.RpgTopDown ? 34f : 26f) : 44f;
+                    _particles.Gravity = new Vector2(topLike ? 0 : 70, topLike ? 28 : 46);
+                    _particles.InitialVelocityMin = topLike ? 10 : 26;
+                    _particles.InitialVelocityMax = topLike ? 42 : 82;
+                    _particles.ScaleAmountMin = topLike ? 0.95f : 0.85f;
+                    _particles.ScaleAmountMax = topLike ? 1.45f : 1.25f;
+                    _particles.Color = new Color(0.92f, 0.98f, 1f, topLike ? 0.9f : 0.82f);
+                    ApplyFlatAlphaVariation(0.82f, 1f);
                     break;
                 case WeatherType.Storm:
-                    _particles.Direction = new Vector2(0.45f, 1f);
-                    _particles.Spread = 20f;
-                    _particles.Gravity = new Vector2(0, 900);
-                    _particles.InitialVelocityMax = 700;
-                    _particles.ScaleAmountMin = 0.15f;
-                    _particles.ScaleAmountMax = 0.3f;
-                    _particles.Color = new Color(0.5f, 0.55f, 0.7f, 0.5f);
+                    _particles.Direction = new Vector2(0.32f, 1f);
+                    _particles.Spread = 18f;
+                    _particles.Gravity = new Vector2(0, 460);
+                    _particles.InitialVelocityMax = 380;
+                    _particles.InitialVelocityMin = 210;
+                    _particles.ScaleAmountMin = 0.95f;
+                    _particles.ScaleAmountMax = 1.38f;
+                    _particles.Color = new Color(0.62f, 0.78f, 1f, 0.82f);
+                    ApplyFlatAlphaVariation(0.76f, 1f);
                     break;
                 case WeatherType.Sandstorm:
-                    _particles.Direction = new Vector2(1f, 0.1f);
-                    _particles.Spread = 15f;
-                    _particles.Gravity = new Vector2(300, 0);
-                    _particles.InitialVelocityMax = 400;
-                    _particles.ScaleAmountMin = 0.3f;
-                    _particles.ScaleAmountMax = 0.8f;
-                    _particles.Color = new Color(0.85f, 0.65f, 0.35f, 0.5f);
+                    _particles.Direction = new Vector2(1f, 0.08f);
+                    _particles.Spread = 22f;
+                    _particles.Gravity = new Vector2(220, 18);
+                    _particles.InitialVelocityMin = 90;
+                    _particles.InitialVelocityMax = 260;
+                    _particles.ScaleAmountMin = 0.9f;
+                    _particles.ScaleAmountMax = 1.65f;
+                    _particles.Color = new Color(0.88f, 0.68f, 0.40f, 0.68f);
+                    ApplyFlatAlphaVariation(0.58f, 1f);
                     break;
                 case WeatherType.Hail:
-                    _particles.Direction = new Vector2(0.1f, 1f);
-                    _particles.Spread = 5f;
-                    _particles.Gravity = new Vector2(0, 1200);
-                    _particles.InitialVelocityMax = 800;
-                    _particles.ScaleAmountMin = 0.5f;
-                    _particles.ScaleAmountMax = 0.9f;
-                    _particles.Color = new Color(0.85f, 0.88f, 0.92f, 0.9f);
+                    _particles.Direction = new Vector2(0.18f, 1f);
+                    _particles.Spread = 7f;
+                    _particles.Gravity = new Vector2(0, 760);
+                    _particles.InitialVelocityMin = 260;
+                    _particles.InitialVelocityMax = 560;
+                    _particles.ScaleAmountMin = 1.0f;
+                    _particles.ScaleAmountMax = 1.45f;
+                    _particles.Color = new Color(0.88f, 0.92f, 1f, 0.95f);
+                    ApplyFlatAlphaVariation(0.82f, 1f);
                     break;
                 case WeatherType.LeafFall:
                     _particles.Direction = new Vector2(0.2f, 1f);
@@ -642,10 +1014,6 @@ namespace Beep.ECS
                     break;
             }
 
-            // AFTER the switch: the cases above are authored side-on, and this foreshortens them
-            // for a top-down camera. Order matters -- doing it first would be overwritten.
-            ApplyViewAxis();
-
             // Emission is a thin strip at the top of the view (PositionEmitterAtCamera), so each
             // particle must LIVE long enough to fall across the whole viewport — otherwise slow
             // types (snow/leaves) die near the top and only the top band is covered. Fast precip
@@ -653,13 +1021,18 @@ namespace Beep.ECS
             // longer lifetime just lowers density, which is correct for slow, sparse snow/leaves.
             _particles.Lifetime = type switch
             {
-                WeatherType.Rain or WeatherType.Storm => 1.6f,
+                WeatherType.Rain                      => 1.7f,
+                WeatherType.Storm                     => 1.45f,
                 WeatherType.Hail                      => 1.2f,
-                WeatherType.Snow                      => 12f,
+                WeatherType.Snow                      => IsTopDownLike(viewMode) ? 12f : 7.5f,
                 WeatherType.LeafFall                  => 16f,
                 WeatherType.Sandstorm                 => 4f,
                 _                                     => 1f
             };
+
+            // AFTER the switch and base lifetime: the cases above are authored side-on, and this
+            // foreshortens them for a top-down camera.
+            ApplyViewAxis();
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -677,16 +1050,12 @@ namespace Beep.ECS
 
             if (_lightningActive)
             {
-                // Flash decay — quick bright burst then fade.
                 _lightningFlashTime += delta;
-                float intensity;
-                if (_lightningFlashTime < 0.06) // initial bright flash
-                    intensity = 1f;
-                else if (_lightningFlashTime < 0.12) // brief flicker
-                    intensity = 0.6f;
-                else if (_lightningFlashTime < 0.2) // secondary
-                    intensity = 0.3f;
-                else // done
+                // Scaled by THIS bolt's strength — see LastBoltStrength. A fixed-amplitude
+                // envelope makes every strike the same distance away, which is the tell that
+                // it is an effect on a timer rather than a storm.
+                float intensity = FlashEnvelope((float)_lightningFlashTime) * LastBoltStrength;
+                if (_lightningFlashTime >= FlashDuration)
                 {
                     intensity = 0f;
                     _lightningActive = false;
@@ -702,11 +1071,20 @@ namespace Beep.ECS
                 {
                     _lightningActive = true;
                     _lightningFlashTime = 0;
+                    // Roll this strike's DISTANCE before announcing it, so every listener
+                    // (thunder delay, sample choice, camera shake) reads the same bolt.
+                    LastBoltStrength = (float)GD.RandRange(0.4, 1.0);
                     EmitSignal(SignalName.LightningStruck);
-                    // Spawn a procedural bolt + shake the camera. The bolt is a
-                    // world-space Line2D so it renders against the level; the
-                    // flash overlay (_flashOverlay) handled above does the screen white-out.
-                    if (EnableLightningBolts) SpawnLightningBolt();
+
+                    // The sprite path is the default for 2D platformer scenes: it uses the same
+                    // authored weather art pack as the clouds. The Line2D bolt is still available.
+                    if (EnableLightningBolts)
+                    {
+                        if (LightningMode is LightningVisual.Sprite or LightningVisual.Both)
+                            SpawnLightningSprite();
+                        if (LightningMode is LightningVisual.Line or LightningVisual.Both)
+                            SpawnLightningBolt();
+                    }
                     TriggerCameraShake();
                 }
             }
@@ -721,6 +1099,45 @@ namespace Beep.ECS
         /// viewport down to a random ground point near the camera. Uses
         /// LightningBoltComponent (auto-frees after its Lifetime).
         /// </summary>
+        /// <summary>
+        /// The flash envelope, as (time, intensity) keys interpolated between.
+        ///
+        /// A real strike is a PRIMARY bolt followed by a return stroke down the same channel a few
+        /// hundredths of a second later, and it is that second peak the eye reads as "lightning"
+        /// rather than "something flickered". The previous envelope was a monotonic staircase
+        /// (1.0 → 0.6 → 0.3 → 0) whose third step was even commented "secondary" — but a step that
+        /// is DIMMER than the one before it is just decay. There was no return stroke, and holding
+        /// each level flat made it four visible brightness plateaus at 60fps.
+        ///
+        /// So: it dips to 0.2 and climbs BACK to 0.8. The non-monotonicity is the whole signature.
+        /// The long tail is the storm re-darkening, and is deliberately ~7× the rise.
+        /// </summary>
+        private static readonly (float T, float V)[] FlashKeys =
+        {
+            (0.00f, 0.00f),  // dark
+            (0.04f, 1.00f),  // primary bolt — near-instant, blinding
+            (0.10f, 0.20f),  // channel dims between strokes
+            (0.13f, 0.80f),  // RETURN STROKE — the second peak
+            (0.58f, 0.00f),  // long fade back into the storm
+        };
+
+        private const double FlashDuration = 0.58;
+
+        private static float FlashEnvelope(float t)
+        {
+            for (int i = 1; i < FlashKeys.Length; i++)
+            {
+                var (t1, v1) = FlashKeys[i];
+                if (t > t1) continue;
+                var (t0, v0) = FlashKeys[i - 1];
+                // Guard the zero-length span rather than trusting the table: a duplicated
+                // timestamp would divide by zero and blow the whole overlay to NaN.
+                float span = t1 - t0;
+                return span <= 0f ? v1 : Mathf.Lerp(v0, v1, (t - t0) / span);
+            }
+            return 0f;
+        }
+
         private void SpawnLightningBolt()
         {
             if (_boltContainer == null) return;
@@ -747,6 +1164,46 @@ namespace Beep.ECS
             bolt.GlobalPosition = Vector2.Zero; // bolts use global coords passed to Strike()
             bolt.Strike(startSky, endGround);
             _activeLightningBolts.Add(bolt);
+        }
+
+        private void SpawnLightningSprite()
+        {
+            if (_overlayLayer == null) return;
+            Texture2D[] sprites = LightningSprites.Length > 0 ? LightningSprites : BundledLightningSprites();
+            if (sprites.Length == 0) return;
+
+            var vp = GetViewport();
+            Vector2 size = vp != null ? vp.GetVisibleRect().Size : new Vector2(1280, 720);
+            var tex = sprites[(int)(GD.Randi() % (uint)sprites.Length)];
+            WeatherViewMode view = EffectiveViewMode();
+            var sprite = new Sprite2D
+            {
+                Name = "LightningSprite",
+                Texture = tex,
+                Centered = true,
+                Position = new Vector2(
+                    (float)GD.RandRange(size.X * 0.18f, size.X * 0.82f),
+                    (float)GD.RandRange(size.Y * 0.05f, size.Y * (IsTopDownLike(view) ? 0.55f : 0.38f))),
+                Modulate = new Color(1f, 1f, 1f, 0.95f),
+                ZIndex = 200,
+            };
+            float targetH = size.Y * (IsTopDownLike(view) ? 0.42f : 0.58f);
+            float texH = Mathf.Max(1f, tex.GetHeight());
+            float scale = targetH / texH * (float)GD.RandRange(0.75f, 1.15f);
+            sprite.Scale = new Vector2(scale * (GD.Randf() > 0.5f ? -1f : 1f), scale);
+
+            _overlayLayer.AddChild(sprite);
+            _activeLightningBolts.Add(sprite);
+
+            var tween = CreateTween();
+            tween.TweenProperty(sprite, "modulate:a", 0.0f, 0.18f)
+                 .SetTrans(Tween.TransitionType.Quad)
+                 .SetEase(Tween.EaseType.Out);
+            tween.TweenCallback(Callable.From(() =>
+            {
+                _activeLightningBolts.Remove(sprite);
+                if (GodotObject.IsInstanceValid(sprite)) sprite.QueueFree();
+            }));
         }
 
         /// <summary>

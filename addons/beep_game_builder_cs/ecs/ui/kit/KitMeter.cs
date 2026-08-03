@@ -153,14 +153,14 @@ namespace Beep.ECS.UI.Kit
             if (bar.Size.X <= 2) return;
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f * (UiSurface.FontSize(this) / 14f));
-            KitChrome.DrawShape(this, _genre, bar, KitChrome.Shape(_genre), track, ink, rimPx);
+            KitChrome.DrawShape(this, _genre, bar, KitChrome.Shape(_genre, Class), track, ink, rimPx);
 
             if ((float)Value > 0f)
             {
                 if (_segments <= 0)
                 {
                     var f = new Rect2(bar.Position, new Vector2(bar.Size.X * (float)Value, bar.Size.Y));
-                    if (f.Size.X > 1) KitChrome.DrawShape(this, _genre, f, KitChrome.Shape(_genre), fill, ink, 0f);
+                    if (f.Size.X > 1) KitChrome.DrawShape(this, _genre, f, KitChrome.Shape(_genre, Class), fill, ink, 0f);
                 }
                 else
                 {
@@ -177,7 +177,7 @@ namespace Beep.ECS.UI.Kit
                             if (amount <= 0.001f) break;
                             var s = new Rect2(bar.Position.X + i * (segW + gap), bar.Position.Y,
                                               segW * amount, bar.Size.Y);
-                            if (s.Size.X > 0.5f) KitChrome.DrawShape(this, _genre, s, KitChrome.Shape(_genre), fill, ink, 0f);
+                            if (s.Size.X > 0.5f) KitChrome.DrawShape(this, _genre, s, KitChrome.Shape(_genre, Class), fill, ink, 0f);
                         }
                     }
                 }
@@ -198,10 +198,9 @@ namespace Beep.ECS.UI.Kit
             Vector2 size = font.GetStringSize(_readout, HorizontalAlignment.Left, -1, fs);
             var p = new Vector2(bar.Position.X + (bar.Size.X - size.X) * 0.5f,
                                 bar.Position.Y + (bar.Size.Y + size.Y * 0.62f) * 0.5f);
-            DrawString(font, p + new Vector2(1, 1), _readout, HorizontalAlignment.Left, -1,
-                       fs, new Color(0, 0, 0, 0.78f));
-            DrawString(font, p, _readout, HorizontalAlignment.Left, -1, fs,
-                       UiSurface.Text(this));
+            // Routed, not hand-shadowed: the 1px black copy this used to draw was a fifth text
+            // treatment the theme never asked for, and it doubled up with Engraved/Extruded.
+            KitChrome.DrawText(this, _genre, font, p, _readout, fs, UiSurface.Text(this));
         }
     }
 }

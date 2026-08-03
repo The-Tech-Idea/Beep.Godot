@@ -30,9 +30,16 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public bool ShowLabels { get; set; } = true;
 
+        [Export] public bool Editable { get; set; } = true;
+
+        [Signal] public delegate void ValueChangedEventHandler(int axis, float value);
+
+        private int _activeAxis = -1;
+
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (Axes.Count == 0)
             {
                 Axes.AddRange(new[] { "SPD", "ACC", "GRIP", "BRK", "AIR" });
@@ -52,16 +59,86 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
+        public override void _GuiInput(InputEvent @event)
+        {
+            if (!Editable) return;
+            switch (@event)
+            {
+                case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
+                    if (mb.Pressed)
+                    {
+                        _activeAxis = NearestAxis(mb.Position);
+                        ApplyPointerValue(mb.Position);
+                    }
+                    else
+                    {
+                        _activeAxis = -1;
+                    }
+                    AcceptEvent();
+                    break;
+                case InputEventMouseMotion mm when _activeAxis >= 0:
+                    ApplyPointerValue(mm.Position);
+                    AcceptEvent();
+                    break;
+            }
+        }
+
+        private int Count() => Mathf.Min(Axes.Count, Values.Count);
+
+        private Vector2 Centre() => Size * 0.5f;
+
+        private float Radius()
+        {
+            float d = Mathf.Min(Size.X, Size.Y);
+            return d * 0.5f * (ShowLabels ? 0.68f : 0.88f);
+        }
+
+        private Vector2 AxisDirection(int i, int n)
+        {
+            float ang = -Mathf.Pi * 0.5f + i * Mathf.Tau / n;
+            return new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+        }
+
+        private int NearestAxis(Vector2 p)
+        {
+            int n = Count();
+            if (n < 3) return -1;
+            Vector2 v = p - Centre();
+            if (v.LengthSquared() < 1f) return 0;
+
+            int best = 0;
+            float bestDot = -999f;
+            Vector2 dir = v.Normalized();
+            for (int i = 0; i < n; i++)
+            {
+                float dot = dir.Dot(AxisDirection(i, n));
+                if (dot <= bestDot) continue;
+                bestDot = dot;
+                best = i;
+            }
+            return best;
+        }
+
+        private void ApplyPointerValue(Vector2 p)
+        {
+            int n = Count();
+            if (_activeAxis < 0 || _activeAxis >= n) return;
+            Vector2 dir = AxisDirection(_activeAxis, n);
+            float value = (p - Centre()).Dot(dir) / Mathf.Max(1f, Radius());
+            SetValue(_activeAxis, value);
+            EmitSignal(SignalName.ValueChanged, _activeAxis, Values[_activeAxis]);
+        }
+
         public override void _Draw()
         {
-            int n = Mathf.Min(Axes.Count, Values.Count);
+            int n = Count();
             if (n < 3) return;
             float d = Mathf.Min(Size.X, Size.Y);
             if (d < 24f) return;
 
-            var c = Size * 0.5f;
+            var c = Centre();
             // Leave room for labels outside the web rather than clipping them.
-            float r = d * 0.5f * (ShowLabels ? 0.68f : 0.88f);
+            float r = Radius();
             Color fill = UiSurface.Semantic(this, Role);
             Color ink = InkColor();
             Color face = FaceColor();
@@ -70,8 +147,7 @@ namespace Beep.ECS.UI.Kit
 
             Vector2 At(int i, float t)
             {
-                float ang = -Mathf.Pi * 0.5f + i * Mathf.Tau / n;
-                return c + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * r * t;
+                return c + AxisDirection(i, n) * r * t;
             }
 
             // Guide web: rings in the surface's own hue driven dark, never grey.

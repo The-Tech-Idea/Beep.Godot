@@ -68,15 +68,17 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                // Cards are markedly taller than wide in every reference.
-                CustomMinimumSize = new Vector2(fs * 8f, fs * 13f);
+                // Upgrade/shop cards need a stable compact footprint. The art does not use
+                // screen-title text inside the card; the icon and welded footer carry the read.
+                CustomMinimumSize = new Vector2(Mathf.Clamp(fs * 7.4f, 104f, 132f),
+                                                Mathf.Clamp(fs * 10.4f, 146f, 188f));
             }
         }
 
         private float FooterHeight() => Footer switch
         {
-            FooterKind.Status => Size.Y * 0.19f,
-            FooterKind.Action => Size.Y * 0.10f,
+            FooterKind.Status => Mathf.Clamp(Size.Y * 0.16f, 22f, 30f),
+            FooterKind.Action => Mathf.Clamp(Size.Y * 0.13f, 20f, 28f),
             _ => 0f,
         };
 
@@ -120,9 +122,16 @@ namespace Beep.ECS.UI.Kit
                                UiSurface.Semantic(this, UiSurface.Role.Info),
                                Mathf.Max(1.5f, rimPx * 0.75f));
 
-            // Art fills the upper portion, inset into the card the way every reference does.
-            var art = new Rect2(body.Position + new Vector2(body.Size.X * 0.12f, body.Size.Y * 0.10f),
-                                new Vector2(body.Size.X * 0.76f, body.Size.Y * 0.55f));
+            float pad = Mathf.Clamp(Mathf.Min(body.Size.X, body.Size.Y) * 0.10f, 8f, 13f);
+            float titleH = Mathf.Clamp(body.Size.Y * 0.18f, 22f, 32f);
+            float reqH = _locked && !string.IsNullOrEmpty(_req) ? Mathf.Clamp(body.Size.Y * 0.12f, 14f, 22f) : 0f;
+            float artBottom = body.End.Y - pad - titleH - reqH;
+
+            // Art fills the upper portion, but it is boxed by named bands so it cannot collide
+            // with title/requirement text on short cards.
+            var art = new Rect2(body.Position + new Vector2(pad, pad),
+                                new Vector2(body.Size.X - pad * 2f,
+                                            Mathf.Max(26f, artBottom - body.Position.Y - pad)));
             if (_art != null)
             {
                 DrawTextureRect(_art, art, false,
@@ -135,26 +144,19 @@ namespace Beep.ECS.UI.Kit
 
             if (font != null && !string.IsNullOrEmpty(_title))
             {
-                // A card's name is its TITLE. Drawn at body size it read as a caption on a large
-                // card ("Iron Axe", "Rune Axe" on the widget sheet), and the role now scales it
-                // with the card while still shrinking to fit a narrow one.
-                int tf = UiSurface.FitRole(this, UiSurface.TextRole.Title,
-                                           new Vector2(body.Size.X * 0.88f, body.Size.Y * 0.22f),
-                                           _title, font);
-                Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-                DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + body.Size.Y * 0.78f),
-                           _title, tf, UiSurface.Text(this));
+                Rect2 titleBox = new(body.Position.X + pad, art.End.Y + pad * 0.35f,
+                                     body.Size.X - pad * 2f, titleH);
+                DrawFittedText(font, titleBox, _title, UiSurface.TextRole.Caption,
+                               UiSurface.Text(this), HorizontalAlignment.Center, 8);
             }
 
             // Requirement, in words, for a locked card.
             if (_locked && !string.IsNullOrEmpty(_req) && font != null)
             {
-                int small = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
-                                              new Vector2(body.Size.X * 0.92f, body.Size.Y * 0.12f),
-                                              _req, font, min: 8);
-                Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
-                DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + body.Size.Y * 0.93f),
-                           _req, small, UiSurface.Text(this));
+                Rect2 reqBox = new(body.Position.X + pad, body.End.Y - pad - reqH,
+                                   body.Size.X - pad * 2f, reqH);
+                DrawFittedText(font, reqBox, _req, UiSurface.TextRole.Small,
+                               UiSurface.Text(this) with { A = 0.78f }, HorizontalAlignment.Center, 7);
             }
 
             // ── the welded footer ──
@@ -170,14 +172,11 @@ namespace Beep.ECS.UI.Kit
             DrawShape(foot, ActiveShape, fc, ink, Mathf.Max(1f, rimPx * 0.7f));
 
             if (font == null || string.IsNullOrEmpty(_footer)) return;
-            int ffs = UiSurface.FitRole(this,
-                                        Footer == FooterKind.Action ? UiSurface.TextRole.Caption : UiSurface.TextRole.Small,
-                                        new Vector2(foot.Size.X * 0.86f, foot.Size.Y * 0.70f),
-                                        _footer, font, min: 8);
-            Vector2 fm = font.GetStringSize(_footer, HorizontalAlignment.Left, -1, ffs);
-            DrawText(font, new Vector2(foot.Position.X + (foot.Size.X - fm.X) * 0.5f, foot.Position.Y + (foot.Size.Y + fm.Y * 0.6f) * 0.5f),
-                       _footer, ffs, UiSurface.Luminance(fc) > 0.5f
-                           ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+            DrawFittedText(font, foot.Grow(-Mathf.Max(3f, foot.Size.Y * 0.14f)), _footer,
+                           UiSurface.TextRole.Small,
+                           UiSurface.Luminance(fc) > 0.5f
+                               ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f),
+                           HorizontalAlignment.Center, 8);
         }
 
         private void DrawArtPlaceholder(Rect2 r, Font? font, int fs, Color face, Color ink)
@@ -203,6 +202,21 @@ namespace Beep.ECS.UI.Kit
             DrawText(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
                      mark, mf, UiSurface.Luminance(accent) > 0.5f
                          ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+        }
+
+        private void DrawFittedText(Font font, Rect2 r, string text, UiSurface.TextRole role,
+                                    Color color, HorizontalAlignment align, int min)
+        {
+            if (string.IsNullOrEmpty(text) || r.Size.X <= 1f || r.Size.Y <= 1f) return;
+            int fs = UiSurface.FitRole(this, role, r.Size, text, font, min: min);
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+            float x = align == HorizontalAlignment.Center
+                ? r.Position.X + (r.Size.X - m.X) * 0.5f
+                : align == HorizontalAlignment.Right
+                    ? r.End.X - m.X
+                    : r.Position.X;
+            float y = r.Position.Y + (r.Size.Y - font.GetHeight(fs)) * 0.5f + font.GetAscent(fs);
+            DrawText(font, new Vector2(x, y), text, fs, color);
         }
     }
 }

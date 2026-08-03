@@ -14,8 +14,15 @@ namespace Beep.ECS.UI
     public partial class ThemePresetComponent
     {
         /// <summary>Font size: geometry.json override takes priority, then the loaded
-        /// theme's own font_size from theme.json, then 14 as last-resort fallback.</summary>
-        private int Fs => _geometry != null && _geometry.FontSize >= 0
+        /// theme's own font_size from theme.json, then 14 as last-resort fallback.
+        ///
+        /// The override test is <c>&gt; 0</c>, not <c>&gt;= 0</c>. The unset sentinel is -1, so
+        /// <c>&gt;= 0</c> let a literal 0 through as if it were a real size — and a font size of 0
+        /// reaches Godot's text server, which then rejects it once PER GLYPH PER FRAME
+        /// (<c>p_size.x &lt;= 0</c>) rather than failing loudly. No shipped geometry.json declares
+        /// 0, so this is defensive; the cost of it being wrong is a scene that cannot finish a
+        /// frame, which is not a failure mode worth leaving reachable.</summary>
+        private int Fs => _geometry != null && _geometry.FontSize > 0
             ? _geometry.FontSize
             : (_loadedThemeGeometry.FontSize > 0 ? _loadedThemeGeometry.FontSize : 14);
 

@@ -77,7 +77,7 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                float s = Mathf.Clamp(fs * 3.0f, 42f, 58f);
+                float s = Mathf.Clamp(fs * 2.65f, 38f, 52f);
                 CustomMinimumSize = new Vector2(s, s);
             }
         }
@@ -115,7 +115,8 @@ namespace Beep.ECS.UI.Kit
             var plate = new Rect2((Size.X - s) * 0.5f, (Size.Y - s) * 0.5f, s, s);
 
             KitChrome.DrawPlate(this, _genre, plate,
-                                KitChrome.StateFace(UiSurface.Of(this), State), State, fs / 14f);
+                                KitChrome.StateFace(UiSurface.Of(this), State), State, fs / 14f,
+                                KitWidgetClass.Button);
 
             if (Accent != UiSurface.Role.Neutral && Interactive)
             {

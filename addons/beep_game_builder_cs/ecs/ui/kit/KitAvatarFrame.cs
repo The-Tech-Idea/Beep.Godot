@@ -69,16 +69,22 @@ namespace Beep.ECS.UI.Kit
             var font = KitFont();
             if (font == null) return;
 
-            // Bottom-right, straddling the rim — the attention anchor measured 8x.
+            // Bottom-right, straddling the rim. Badge is always a circle so every avatar uses
+            // the same visual language whether the text is "3" or "12".
+            float dia = Mathf.Clamp(d * 0.32f, 18f, 30f);
             int bs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                       new Vector2(d * 0.36f, d * 0.20f),
+                                       new Vector2(dia * 0.68f, dia * 0.58f),
                                        _badge, font, min: 8);
             Vector2 m = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, bs);
-            float bw = Mathf.Max(m.X + bs * 0.7f, bs * 1.5f), bh = bs * 1.3f;
-            var b = new Rect2(frame.End.X - bw * 0.55f, frame.End.Y - bh * 0.65f, bw, bh);
+            var b = new Rect2(frame.End.X - dia * 0.60f, frame.End.Y - dia * 0.66f, dia, dia);
+            b.Position = new Vector2(Mathf.Clamp(b.Position.X, 0f, Mathf.Max(0f, Size.X - dia)),
+                                     Mathf.Clamp(b.Position.Y, 0f, Mathf.Max(0f, Size.Y - dia)));
             Color bc = UiSurface.Semantic(this, BadgeRole);
-            DrawShape(b, KitShape.Pill, bc, ink, Mathf.Max(1.5f, rw * 0.6f));
-            DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.6f) * 0.5f),
+            Vector2 centre = b.Position + b.Size * 0.5f;
+            DrawCircle(centre, dia * 0.5f, bc);
+            DrawArc(centre, dia * 0.5f, 0f, Mathf.Tau, 32, ink, Mathf.Max(1.5f, rw * 0.45f));
+            float baseline = b.Position.Y + (b.Size.Y - font.GetHeight(bs)) * 0.5f + font.GetAscent(bs);
+            DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, baseline),
                        _badge, bs, UiSurface.Luminance(bc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }

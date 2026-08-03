@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Beep.Godot** is a Godot 4.7 (.NET 8) game builder addon **framework**. It ships as two independent addons:
 
 1. **`beep_ui`** (GDScript) — UI theming engine: 22 presets, 11 effects, 114 drag-and-drop widgets. Self-contained; runs in any Godot 4.7+ project.
-2. **`beep_game_builder_cs`** (C#) — Game building layer: ~146 categorized components, file-based skin system (10 genres × themes × palettes), scene templates, weather system, day/night cycle, translations, MCP bridge for AI agents.
+2. **`beep_game_builder_cs`** (C#) — Game building layer: ~149 categorized components + ~73 Game UI Kit widgets, file-based skin system (10 genres × 50 themes × palettes), scene templates, weather system, day/night cycle, translations, MCP bridge for AI agents.
+
+> Counts here were re-counted 2026-08-03 and had drifted badly before that (the table below claimed 205 `[GlobalClass]` files against an actual 300). **Re-count rather than trust them** — `grep -rl '\[GlobalClass\]' addons --include=*.cs | wc -l`.
 
 Both addons live in `addons/` and are enabled via Project Settings → Plugins. `beep_game_builder_cs` requires a **.NET-enabled Godot project**. A **third addon, `addons/godot_mcp/`** (the generic MCP transport/registry), ships alongside them — `beep_game_builder_cs` depends on it one-way for the AI-agent bridge (see *Debug MCP Bridge* below); it is not a user-facing content addon.
 
@@ -103,14 +105,14 @@ Beep.Godot/
 
 | Base | Location | Concrete subclasses |
 |---|---|---|
-| `UIComponent` | `ecs/categories/` | ~53 |
+| `UIComponent` | `ecs/categories/` | 57 |
 | `UIScreenComponent` | `ecs/categories/` | 3 — a component that **IS** a screen |
-| `GameplayComponent` | `ecs/categories/` | ~41 |
-| `WorldComponent` | `ecs/categories/` | ~18 |
+| `GameplayComponent` | `ecs/categories/` | 49 |
+| `WorldComponent` | `ecs/categories/` | 18 |
 | `ControllerComponent` | `ecs/categories/` | 18 |
 | `EffectComponent : UIComponent` | `ecs/ui/` | 4 |
 
-~134 concrete components in total (205 files carry `[GlobalClass]` — the remainder are Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
+149 concrete category components (300 files carry `[GlobalClass]` — the remainder are the Game UI Kit widgets, which do **not** derive from `EntityComponent` at all, plus Resources like `GameInfo`, `UISkin`, `ColorPalette`, `GeometryProfile`). Drop them in via Add Node → Beep. No "magic" — pure Godot nodes, no runtime code generation.
 
 ## Key Patterns & Rules
 
@@ -213,6 +215,16 @@ over copying a neighbouring `.tscn`.
 
 The cost is that a name must identify one node: `validate_scenes.sh` fails when a scene has several Buttons sharing a name **that its root script resolves scene-wide**. Repeats scoped to a row are fine and are not flagged (`load_game_menu` has one `SlotButton` per slot, resolved via `container.FindChild`). This check caught four `SelectButton`s in `shooter/character_select` and two `Level1Button`s in `platformer/level_select` — real mis-wirings, since a scene-wide name lookup returns whichever comes first in the tree.
 
+### The Game UI Kit — `ecs/ui/kit/`, and it is the default for UI
+
+~73 files under `addons/beep_game_builder_cs/ecs/ui/kit/`, drawn (not themed rectangles) so they read as game UI rather than as a settings dialog. **Prefer these over raw Godot controls for anything user-facing.** The anatomy spec is **[docs/GAME_UI_KIT_SPEC.md](docs/GAME_UI_KIT_SPEC.md)**, derived from seven commercial kits; its thesis in one line: *every element in a real game kit is made of overlapping parts — ours were one rectangle with text inside it.* Hence heavy 3–5px outlines, title banners that overhang the panel edge, corner chips that float off the border, frame-plus-recessed-well panels, bars with icon caps, and buttons shipped as Normal/Over/Click/Disabled state sets.
+
+Shared machinery lives beside the widgets: `KitChrome` (the draw path), `KitCore`, `KitArt`, `KitGrain`, `KitFonts`, `KitEdgeRun`, `KitArchetypes`. `templates/scenes/kit_gallery.tscn` renders every widget.
+
+Over MCP (`mcp/BeepMcpKitCommands.cs`): `beep.kit_widgets` lists them, `beep.kit_scene_audit` / `beep.kit_template_audit` report what a scene or template still has as generic `Button`/`PanelContainer`, `beep.kit_convert_scene` attaches the drop-ins (`dry_run` defaults to **true**).
+
+> **After ANY UI change, render the scene and look at it.** A converted control that draws blank still compiles and still passes `validate_scenes.sh`. Neither gate can see a blank widget.
+
 ### A kit widget inherits the Godot class it imitates
 
 Eight kit widgets used to be `KitControl` (a bare `Control`) drawn to look like a Button, a slider,
@@ -284,6 +296,16 @@ Corollaries:
 - Screens that sit over a running game are **overlays**: instance them and `QueueFree()` to close. `ChangeScene` frees the run behind them. Use `SceneNav.CloseOrReturn` (handles both overlay and current-scene cases) and `SettingsOverlay` / `GenreScreenComponent` to open.
 - Genre screens resolve through `GameInfo.GenreScenePaths` (open key→path registry from `nav_wiring`); the named `*Path` properties cover only platformer/shooter/puzzle.
 
+### Weather is drawn for the camera axis, and the genre declares it
+
+`ecs/atmosphere/` — `WeatherSystemComponent` (plus `.DayNight` / `.Intensity` / `.Overlays` partials), `CloudSpriteLayer`, `DynamicFogLayer`, `LightningBoltComponent`, `WeatherSpriteLayer`, `WeatherAudioController`, `AmbientController`, `DayNightCycleComponent`, `SeasonalComponent`. It ships as `templates/scenes/atmosphere.tscn`, and `validate_scenes.sh` enforces that atmosphere scripts appear **only** there.
+
+Three things are deliberately the developer's choice, and each is an `[Export]` rather than something inferred:
+
+- **`ViewMode`** (`Side` · `TopDown` · `RpgTopDown` · `Isometric` · `CityBuilder`) — the same storm is a different projection per camera. Side-on, rain crosses the frame at an angle against a cloud backdrop; overhead, the weather is the cloud *shadow* sweeping terrain. The legacy `TopDownView` bool is kept for existing scenes: true + `ViewMode` still `Side` is treated as `TopDown`.
+- **`CloudRender`** (`Procedural` · `Sprites` · `None`) — **none is strictly better.** Procedural noise costs no assets and tiles forever but has no silhouette, so it reads as fog; sprites have the silhouette noise can't fake and get parallax free, but need textures (a set ships under `textures/clouds/`); `None` still tints and still precipitates, for genres where an overhead cloud plane just occludes the playfield.
+- **`tuning.enable_weather`** in `genre.json` ↔ whether the genre main instances `atmosphere.tscn`. Both halves are individually valid, so only `tools/check_genre_weather.py` can see them disagree — flip one and a puzzle game grows rain.
+
 ### File-Based Skin System
 **Zero C# changes needed to add content.** All JSON keys are **snake_case**:
 - New genre: `catalogs/skins/<genre>/genre.json` — `id`, `display_name`, `icon`, `description`, `default_theme`, `default_geometry`, `themes[]`, `main_scene`, `scenes[]`, `tuning{}`, optional `nav_wiring{}`.
@@ -339,11 +361,27 @@ Components have no "magic" — just overrides of `_Ready()`, `_Process()`, `_Phy
 ### Debug MCP Bridge (AI Agent Communication)
 The MCP bridge is a **third, separate addon**: `addons/godot_mcp/` (the transport/registry), which `beep_game_builder_cs` depends on one-way. Beep never depends *back* on it.
 - **`addons/godot_mcp/`** — the generic bridge: `GodotMcpBridgeController.cs` (setup/lifecycle), `GodotMcpSettings.cs` (URL + `DefaultUrl`/`Initialize`), `GodotMcpPlugin.cs`, `GodotMcpRuntime.cs`, and the generic `McpCommandRegistry`. Security gates: `allow_editor_writes` / `allow_runtime_writes`.
-- **`addons/beep_game_builder_cs/mcp/BeepMcpCommands.cs`** (+ the `BeepMcpSceneCommands.cs` partial) — Beep's command layer only. Its `Register()` registers `beep.*` handlers (read: `list_genres`, `catalog`, `list_components`, `get_game_info`…; editor writes: `add_component`, `apply_skin`, `generate_project`; runtime writes, gated: `save_game`, `add_score`, `set_weather`…) into the `godot_mcp` registry.
+- **`addons/beep_game_builder_cs/mcp/BeepMcpCommands.cs`** (+ the `BeepMcpSceneCommands.cs` and `BeepMcpKitCommands.cs` partials) — Beep's command layer only. Its `Register()` registers `beep.*` handlers (read: `list_genres`, `catalog`, `list_components`, `get_game_info`…; editor writes: `add_component`, `apply_skin`, `generate_project`; runtime writes, gated: `save_game`, `add_score`, `set_weather`…) into the `godot_mcp` registry.
   **Scene management** lives in the partial: read `list_scenes`, `open_scene`, `inspect_scene`, `get_node_property`, `screenshot`; editor-write `set_node_property`, `add_node`, `remove_node`, `save_scene`, `bake_textures`, `new_screen`. Reuse `McpTreeSerializer` / `McpJson` rather than re-serialising. Two guards worth keeping: `set_node_property` **refuses** a snake_case name that matches a C# `[Export]` (Godot would silently drop it), and `remove_node` refuses while another node's `NodePath` export still points at the target.
 - Auto-enables on plugin load. Default URL `ws://127.0.0.1:8789` (`GodotMcpSettings.DefaultUrl`), stored in `ProjectSettings` under `godot_mcp/bridge/url`, overridable via the `GODOT_MCP_BRIDGE_URL` env var. `GodotMcpSettings.Initialize` **force-writes** it on load so stale cached ports get corrected — a manual `ProjectSettings` edit will be overwritten. Logs go to Godot's Output panel.
 
-> ⚠️ **The bridge is a WebSocket _client_ and nothing serves it yet.** `McpWebSocketClient` dials **out** to `ws://127.0.0.1:8789/{role}?token=…`; there is no server in this repo, so every bridge method is currently unreachable from Claude. The planned server and the phased plan to fix it live in **[docs/mcp/MCP_ROADMAP.md](docs/mcp/MCP_ROADMAP.md)** (master tracker) — start at Phase 0.
+**The server half: `tools/beep-mcp-server/`** (Node + TypeScript). The addon is a WebSocket *client* — it dials **out** to `ws://127.0.0.1:8789/{role}?token=…` — so something has to listen. That listener is also the MCP server, and one process joins the two halves:
+
+```
+Claude Code ──MCP over stdio──► beep-mcp-server ◄──WebSocket :8789── Godot editor  (role=editor)
+                                                ◄──WebSocket :8789── Godot runtime (role=runtime)
+```
+
+The router picks by role: `beep.add_component` needs the editor, `beep.add_score` needs a running game. No transport code in the addon changes.
+
+- **Setup is already done here** — the repo ships [`.mcp.json`](.mcp.json) pointing at `tools/beep-mcp-server/prepare-and-start.mjs`, which installs deps and compiles TypeScript on first launch. Confirm with `/mcp` (should list **beep-godot**). To put it in *another* game, copy `addons/godot_mcp` + `tools/beep-mcp-server` and run that folder's `setup.cmd` / `setup.sh` — it registers at **local** scope deliberately (a project-scoped `.mcp.json` sits at "pending approval" and reads as nothing happening; `--scope user` would collide across games).
+- **Two verification levels**, both repeatable, from `tools/beep-mcp-server/`:
+  - `npm run smoke` — server logic against a simulated addon, no Godot needed. 28 checks.
+  - `npm run live` — launches a **real** headless Godot editor, waits for the addon to dial in, drives the surface end to end. 14 checks. Set `BEEP_GODOT_BIN`.
+- **The live run is the one that matters.** Three protocol faults survived every simulated check and died on first contact with a real editor — the same lesson as the rest of this file.
+- **Godot is usually closed.** Call `godot_status` first; every other tool reports `NOT_CONNECTED` otherwise. Writes are refused unless `godot_mcp/security/allow_editor_writes` (editor) or `allow_runtime_writes` (running game) is on in Project Settings.
+
+All five roadmap phases are ✅ in **[docs/mcp/MCP_ROADMAP.md](docs/mcp/MCP_ROADMAP.md)** (master tracker), which stays the owner doc — update its status column in the same commit that lands the work.
 
 ## Testing
 
@@ -357,8 +395,19 @@ Two automated gates, then your eyes. Run both after any change:
 | Genre tuning, runtime | `godot --headless --path . tools/genre_shapes/runtime_tuning_probe.tscn` | the second half: `GameInfo` reaches the COMPONENTS. `GameInfo.Instance` resolves `/root/GameApp`, so the probe scene's ROOT is the GameApp — no autoload, no generated project needed |
 | Style system | `godot --headless --path . tools/genre_shapes/style_sweep_probe.tscn` | all 50 themes resolve DISTINCT styles; every register, text treatment and gloss construction is used by some theme; no `kit` block key or value is misspelt |
 | Rendered gates | `measure_material` · `measure_shadow` · `measure_pixel` · `measure_gloss` · `measure_edgerun` · `verify_greyscale` | that an axis reaches the PIXELS. Each renders paired images and differences them — a metric read off one render is how four wrong answers got made. **Run windowed:** `--headless` uses the dummy driver, draws nothing, and hangs at `FramePostDraw` |
+| MCP bridge | `cd tools/beep-mcp-server && npm run smoke` (28 checks, no Godot) then `npm run live` (14 checks, real editor) | the bridge protocol. Simulation passed three faults that died on first contact with a real editor — `live` is the honest one |
 
-`validate_scenes.sh`'s header is the rule: **every check exists because it caught a real bug.** Add one when you fix a class of defect — and make it fail before you trust it (a check you've only seen pass is not evidence).
+`validate_scenes.sh` also shells out to five Python checks in `tools/` and **fails silently-ish if they're absent** (it prints `skipped: tools/<name>.py not found` and passes). Keep them findable:
+
+| Check | Catches |
+|---|---|
+| `check_script_node_types.py` | a script's Godot base ≠ the node's declared `type=`. **Equality, not "descends from"** — `Button` descends from `Control`, which is exactly how the kit mismatch hid |
+| `check_control_layout.py` | a Control outside a Container with no anchors/offsets — correct at its authored resolution, wrong at every other |
+| `check_genre_weather.py` | a genre main instances `atmosphere.tscn` **iff** its `genre.json` declares `tuning.enable_weather`. Both halves are individually valid, so nothing else can see them disagree |
+| `check_text_treatment.py` | text treatment / kit style keys |
+| `check_lightning_envelope.py` | the flash has a primary bolt **and** a return stroke — the shipped envelope decayed monotonically while its own comment said otherwise |
+
+`validate_scenes.sh`'s header is the rule: **every check exists because it caught a real bug.** Add one when you fix a class of defect — and make it fail before you trust it (a check you've only seen pass is not evidence). `tools/genre_shapes/measure_gloss.py` currently carries a `STATUS: FAILING` banner explaining that the *metric*, not the feature, is broken, and saying **do not loosen the thresholds to make it pass** — that is how a gate becomes decoration.
 
 **Neither gate runs the game.** Compile-clean + validator-PASS says the code loads, not that it works. Anything touching input, physics, shaders, or scene structure needs a real editor pass:
 1. Generate a project → open `scenes/ui/main_menu.tscn` → F5.

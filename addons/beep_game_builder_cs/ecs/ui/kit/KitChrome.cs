@@ -62,11 +62,12 @@ namespace Beep.ECS.UI.Kit
         /// material grain, and the rim. Everything a kit widget's face is made of, minus text.
         /// </summary>
         public static void DrawPlate(CanvasItem ci, string genre, Rect2 body, Color face,
-                                     KitState state, float rimScale = 1f)
+                                     KitState state, float rimScale = 1f,
+                                     KitWidgetClass widgetClass = KitWidgetClass.Button)
         {
             if (body.Size.X < 3f || body.Size.Y < 3f) return;
             var g = KitGeometry.ForGenre(genre);
-            KitShape shape = KitMaterial.ShapeForGenre(genre);
+            KitShape shape = KitMaterial.WidgetShapeForGenre(genre, widgetClass);
 
             // THE PIXEL REGISTER'S STAIRCASE. This rule lived only in KitControl.DrawMaterial, so
             // the moment KitButton became a Godot Button and started drawing through here, every
@@ -295,7 +296,8 @@ namespace Beep.ECS.UI.Kit
         public static float Unit(Godot.Control ctl) => Mathf.Max(8f, UiSurface.FontSize(ctl));
 
         /// <summary>The genre's silhouette.</summary>
-        public static KitShape Shape(string genre) => KitMaterial.ShapeForGenre(genre);
+        public static KitShape Shape(string genre, KitWidgetClass widgetClass = KitWidgetClass.Button)
+            => KitMaterial.WidgetShapeForGenre(genre, widgetClass);
 
         /// <summary>Fill a shape inside <paramref name="r"/>, unit-aware.</summary>
         public static void DrawShape(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
@@ -340,16 +342,17 @@ namespace Beep.ECS.UI.Kit
 
             var g = KitGeometry.ForGenre(genre);
             var font = Font(ctl, genre);
-            // A banner is a SUBTITLE, not body text: it names the panel it straddles.
-            int fs = UiSurface.FontSize(ctl, UiSurface.TextRole.Subtitle);
+            // Panel headers are labels, not screen titles. Keep them compact so the chrome
+            // frames the content instead of becoming the main object.
+            int fs = UiSurface.FontSize(ctl, 0.78f, min: 8);
 
             // Floor the height at the type, or the banner clips its own text on a short host.
-            float h = Mathf.Max(fs * 1.5f, host.Size.Y * heightRatio);
+            float h = Mathf.Max(fs * 1.32f, host.Size.Y * Mathf.Min(heightRatio, 0.095f));
             float w = host.Size.X * widthRatio;
             if (font != null)
             {
-                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 2f;
-                w = Mathf.Max(w, Mathf.Min(need, host.Size.X * 1.08f));
+                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 1.35f;
+                w = Mathf.Max(host.Size.X * Mathf.Min(widthRatio, 0.54f), Mathf.Min(need, host.Size.X * 0.92f));
             }
 
             // Centred ON the edge, so half the plate sits outside the host. This is the move

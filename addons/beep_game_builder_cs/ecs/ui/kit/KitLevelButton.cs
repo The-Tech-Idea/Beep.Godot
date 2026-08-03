@@ -34,7 +34,7 @@ namespace Beep.ECS.UI.Kit
             MouseExited += () => { if (!_locked) SetState(KitState.Normal); };
             if (CustomMinimumSize == Vector2.Zero)
             {
-                float s = Mathf.Clamp(UiSurface.FontSize(this) * 4.2f, 52f, 78f);
+                float s = Mathf.Clamp(UiSurface.FontSize(this) * 3.65f, 46f, 68f);
                 CustomMinimumSize = new Vector2(s, s);
             }
         }

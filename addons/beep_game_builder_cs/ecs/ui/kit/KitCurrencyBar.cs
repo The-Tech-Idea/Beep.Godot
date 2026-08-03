@@ -127,15 +127,29 @@ namespace Beep.ECS.UI.Kit
                     }
                 }
 
-                // Value, right of the cap.
+                // Value, CLEAR of the cap.
+                //
+                // The cap overhangs INTO the capsule by capR and is drawn LAST, so anything at
+                // x < capsule.X + capR gets painted over. The text started at capR * 0.9 — inside
+                // that — and the leading character was buried under the icon: "12,480" rendered
+                // as "2,480" with a sliver of the 1. Start past the cap's real right edge, budget
+                // the fit against what is actually left, and centre it in that well instead of
+                // jamming it against the cap with dead space trailing off to the right.
                 if (font != null && !string.IsNullOrEmpty(e.Value))
                 {
-                    int vf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                               new Vector2(capsule.Size.X - capR * 1.10f - fs * 0.40f, capsule.Size.Y * 0.62f),
-                                               e.Value, font, min: 8);
-                    Vector2 m = font.GetStringSize(e.Value, HorizontalAlignment.Left, -1, vf);
-                    DrawText(font, new Vector2(capsule.Position.X + capR * 0.9f, capsule.Position.Y + (capsule.Size.Y + m.Y * 0.6f) * 0.5f),
-                               e.Value, vf, new Color(0.97f, 0.95f, 0.90f));
+                    float padX = Mathf.Max(3f, h * 0.14f);
+                    float textX0 = capsule.Position.X + capR + padX;
+                    float avail = capsule.End.X - padX - textX0;
+                    if (avail > 6f)
+                    {
+                        int vf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
+                                                   new Vector2(avail, capsule.Size.Y * 0.52f),
+                                                   e.Value, font, min: 8);
+                        Vector2 m = font.GetStringSize(e.Value, HorizontalAlignment.Left, -1, vf);
+                        float tx = textX0 + Mathf.Max(0f, (avail - m.X) * 0.5f);
+                        DrawText(font, new Vector2(tx, capsule.Position.Y + (capsule.Size.Y + m.Y * 0.6f) * 0.5f),
+                                 e.Value, vf, new Color(0.97f, 0.95f, 0.90f));
+                    }
                 }
 
                 // The cap LAST and OVERHANGING the capsule's left end — the element that makes

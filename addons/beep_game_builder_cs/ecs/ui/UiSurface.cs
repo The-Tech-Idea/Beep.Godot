@@ -177,11 +177,11 @@ namespace Beep.ECS.UI
 
         public static float Multiplier(TextRole role) => role switch
         {
-            TextRole.Title => 1.60f,
-            TextRole.Subtitle => 1.22f,
-            TextRole.Value => 1.18f,
+            TextRole.Title => 1.34f,
+            TextRole.Subtitle => 1.12f,
+            TextRole.Value => 1.06f,
             TextRole.Caption => 0.90f,
-            TextRole.Small => 0.76f,
+            TextRole.Small => 0.74f,
             _ => 1.00f,
         };
 

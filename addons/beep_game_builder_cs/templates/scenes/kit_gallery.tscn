@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/KitGallery.cs" id="2_script"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs" id="k_tree"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs" id="k_toggle"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs" id="k_knob"]
 
 [node name="KitGallery" type="Control"]
 anchors_preset = 15
@@ -123,6 +125,26 @@ script = ExtResource("k_iconbutton")
 Glyph = "?"
 Locked = true
 Requirement = "Lv 5"
+
+[node name="SwitchOn" type="CheckButton" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("k_toggle")
+button_pressed = true
+
+[node name="SwitchBox" type="CheckButton" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("k_toggle")
+Style = 1
+
+[node name="Dial" type="HSlider" parent="Margin/Root/Row1/Actions"]
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("k_knob")
+max_value = 1.0
+step = 0.001
+value = 0.65
 
 [node name="Row2" type="HBoxContainer" parent="Margin/Root"]
 layout_mode = 2

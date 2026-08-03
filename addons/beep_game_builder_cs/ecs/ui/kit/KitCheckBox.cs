@@ -55,11 +55,22 @@ namespace Beep.ECS.UI.Kit
                 AddThemeStyleboxOverride(s, new StyleBoxEmpty
                 {
                     // Room on the LEFT for the box this class draws; the label follows it.
-                    ContentMarginLeft = box + fs * 0.55f,
-                    ContentMarginRight = 2f,
-                    ContentMarginTop = fs * 0.3f,
-                    ContentMarginBottom = fs * 0.3f,
+                    //
+                    // The gap has to clear the box AND everything DrawPlate puts around it — its
+                    // shadow, and the hover ring drawn on top. This script's _Draw runs AFTER
+                    // Button has already laid out and drawn the label, so anything of ours that
+                    // reaches the label's first glyph paints over it, and hover is when it shows
+                    // because that is when the plate is brightest. 0.55 left too little.
+                    ContentMarginLeft = box + fs * 0.72f,
+                    ContentMarginRight = fs * 0.25f,
+                    ContentMarginTop = fs * 0.18f,
+                    ContentMarginBottom = fs * 0.18f,
                 });
+            AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, UiSurface.TextRole.Caption));
+            foreach (string c in new[] { "font_color", "font_hover_color", "font_pressed_color",
+                                         "font_hover_pressed_color", "font_focus_color",
+                                         "font_disabled_color" })
+                AddThemeColorOverride(c, new Color(0, 0, 0, 0));
 
             // CheckBox's tick is a set of ICONS, so blanking styleboxes alone still leaves
             // Godot's stock 16px glyph drawn on top of ours — that is precisely what the
@@ -75,7 +86,7 @@ namespace Beep.ECS.UI.Kit
             _suppressing = false;
         }
 
-        private static float BoxSize(int fs) => Mathf.Max(16f, fs * 1.25f);
+        private static float BoxSize(int fs) => Mathf.Clamp(fs * 1.08f, 15f, 22f);
 
         public override void _Draw()
         {
@@ -89,7 +100,7 @@ namespace Beep.ECS.UI.Kit
             Color on = UiSurface.Semantic(this, OnRole);
             if (on.A < 0.02f) on = surface;
 
-            var box = new Rect2(0f, (Size.Y - b) * 0.5f, b, b);
+            var box = new Rect2(Mathf.Max(1f, fs * 0.10f), (Size.Y - b) * 0.5f, b, b);
 
             // An EMPTY box is a recessed well, not a flat square: the same dark tint of the
             // surface's own hue the slider track and toggle use, so the three read as one family.
@@ -101,8 +112,8 @@ namespace Beep.ECS.UI.Kit
             if (state == KitState.Hover && !ButtonPressed)
             {
                 Color h = UiSurface.Semantic(this, OnRole);
-                DrawRect(box.Grow(-b * 0.18f), new Color(h.R, h.G, h.B, 0.18f), false,
-                         Mathf.Max(1.5f, b * 0.09f));
+                DrawRect(box.Grow(-b * 0.12f), new Color(h.R, h.G, h.B, 0.20f), false,
+                         Mathf.Max(1f, b * 0.07f));
             }
 
             if (ButtonPressed)
@@ -123,14 +134,25 @@ namespace Beep.ECS.UI.Kit
             }
 
 
-            // NO label drawn here. The plate above covers only the box/switch, so the base
-            // class's own text is still visible — drawing it again renders "Textures" twice,
-            // overlapping. The content margin set in Suppress() is what reserves space for the
-            // box; Button lays the label out after it.
-            //
-            // This differs from KitPushButton, whose plate covers the WHOLE control and therefore
-            // paints over the base text, so that one must redraw it. The rule is: redraw the
-            // label only if your plate hid it.
+            DrawCaption(box);
+        }
+
+        private void DrawCaption(Rect2 box)
+        {
+            if (string.IsNullOrEmpty(Text)) return;
+            Font? font = ThemeDB.FallbackFont;
+            if (font == null) return;
+
+            int fs = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
+                                       new Vector2(Mathf.Max(1f, Size.X - box.End.X - fsPadding()),
+                                                   Mathf.Max(1f, Size.Y * 0.70f)),
+                                       Text, font, min: 8);
+            Vector2 labelPos = new(box.End.X + Mathf.Max(7f, fs * 0.45f),
+                                   (Size.Y - font.GetHeight(fs)) * 0.5f + font.GetAscent(fs));
+            DrawString(font, labelPos, Text, HorizontalAlignment.Left, -1f, fs,
+                       Disabled ? UiSurface.Text(this) with { A = 0.45f } : UiSurface.Text(this));
+
+            float fsPadding() => UiSurface.FontSize(this) * 0.35f;
         }
     }
 }

@@ -66,8 +66,8 @@ namespace Beep.ECS.UI.Kit
                     AcceptEvent();
                     break;
                 case InputEventMouseMotion mm when _drag:
-                    // Up increases. Full travel over roughly the knob's own height.
-                    Value = _startValue + (_dragStart - mm.Position.Y) / Mathf.Max(24f, Size.Y);
+                    // Match pointer movement: dragging down increases the dial in screen-space.
+                    Value = _startValue + (mm.Position.Y - _dragStart) / Mathf.Max(24f, Size.Y);
                     AcceptEvent();
                     break;
             }
@@ -121,8 +121,9 @@ namespace Beep.ECS.UI.Kit
                 KitChrome.Fill(this, KitShape.Pill, b, KitGeometry.ForGenre(_genre),
                                new Color(face.R * 0.58f, face.G * 0.56f, face.B * 0.62f, 1f),
                                ink, Mathf.Max(1f, vf * 0.08f));
-                DrawString(font, new Vector2(c.X - m.X * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.58f) * 0.5f),
-                           value, HorizontalAlignment.Left, -1, vf, UiSurface.Text(this));
+                KitChrome.DrawText(this, _genre, font,
+                                   new Vector2(c.X - m.X * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.58f) * 0.5f),
+                                   value, vf, UiSurface.Text(this));
             }
         }
     }

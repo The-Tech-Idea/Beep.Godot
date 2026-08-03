@@ -6,7 +6,7 @@
   "shadow_size": 8,
   "shadow_offset_y": 2,
   "content_padding": 12,
-  "font_size": 16,
+  "font_size": 14,
   "background_image": "res://addons/beep_game_builder_cs/textures/backgrounds/strategy_grid.png",
   "background_mode": "tile",
   "shapes": {

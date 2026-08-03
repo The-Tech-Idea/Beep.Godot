@@ -92,7 +92,7 @@ namespace Beep.ECS.UI.Kit
         protected string KitCase(string t) => Geo.UpperCase ? t.ToUpperInvariant() : t;
 
         protected KitMaterial Material => KitMaterial.ForGenre(_genre);
-        protected KitShape ActiveShape => OverrideShape ? Shape : KitMaterial.ShapeForGenre(_genre);
+        protected KitShape ActiveShape => OverrideShape ? Shape : KitMaterial.WidgetShapeForGenre(_genre, WidgetClass);
 
         /// <summary>Surface for this widget's elevation and state. Every colour in the kit
         /// resolves here — no literals, per PLAN.md §4 rule 1.</summary>

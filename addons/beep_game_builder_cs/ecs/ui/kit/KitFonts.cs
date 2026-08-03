@@ -63,6 +63,25 @@ namespace Beep.ECS.UI.Kit
             // Serif, Blackletter and Handwritten are deliberately absent. See fonts/LICENSE.txt.
         };
 
+        /// <summary>
+        /// Nearest shipped face for a role with no licence-clear font of its own.
+        ///
+        /// Returning null for these meant falling through to the THEME DEFAULT — i.e. the same
+        /// face every other theme uses — so the 4 themes asking for serif/blackletter lost the
+        /// font axis entirely and were tellable apart only by shape and material. A substitute in
+        /// roughly the right weight keeps the axis alive.
+        ///
+        /// This is explicitly NOT a claim that Kenney_Thick is a serif. It is not, and the warning
+        /// still fires naming the substitution, because a developer shipping a fantasy RPG needs
+        /// to know the storybook face they asked for is not what is on screen.
+        /// </summary>
+        private static readonly Dictionary<KitFontRole, KitFontRole> Substitute = new()
+        {
+            [KitFontRole.Serif] = KitFontRole.Heavy,          // slab weight over technical sans
+            [KitFontRole.Blackletter] = KitFontRole.Heavy,    // gothic display -> heaviest shipped
+            [KitFontRole.Handwritten] = KitFontRole.Rounded,  // soft marker -> soft display
+        };
+
         private static readonly Dictionary<KitFontRole, Font?> _cache = new();
         private static readonly HashSet<KitFontRole> _warned = new();
 
@@ -88,15 +107,28 @@ namespace Beep.ECS.UI.Kit
             Font? font = null;
             if (!Files.TryGetValue(role, out string? file))
             {
-                if (_warned.Add(role))
+                // Substitute rather than fall through to the theme default: the default is what
+                // every other theme already uses, so returning null erased the font axis for this
+                // theme instead of merely approximating it.
+                if (Substitute.TryGetValue(role, out var stand) && Files.TryGetValue(stand, out string? sf))
+                {
+                    if (_warned.Add(role))
+                        GD.PushWarning(
+                            $"[KitFonts] role '{role}' has no CC0 face in this addon — substituting "
+                            + $"'{stand}' ({sf}) so this theme still differs from a sans one. It is "
+                            + $"NOT a real {role} face. Serif / Blackletter / Handwritten are a known "
+                            + "gap — see addons/beep_game_builder_cs/fonts/LICENSE.txt. Ship your own "
+                            + "licensed face and point the theme at it.");
+                    file = sf;
+                }
+                else if (_warned.Add(role))
                     GD.PushWarning(
                         $"[KitFonts] role '{role}' has no CC0 face in this addon, so text falls "
                         + "back to the theme's default font and this theme will look like every "
-                        + "other one. Serif / Blackletter / Handwritten are a known gap — see "
-                        + "addons/beep_game_builder_cs/fonts/LICENSE.txt. Ship your own licensed "
-                        + "face and point the theme at it.");
+                        + "other one. See addons/beep_game_builder_cs/fonts/LICENSE.txt.");
             }
-            else
+
+            if (file != null)
             {
                 string path = Dir + file;
                 font = ResourceLoader.Exists(path) ? GD.Load<Font>(path) : null;

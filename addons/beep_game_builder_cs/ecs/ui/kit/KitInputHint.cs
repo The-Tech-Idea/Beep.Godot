@@ -36,7 +36,7 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 10f, fs * 2f);
+                CustomMinimumSize = new Vector2(fs * 9f, fs * 1.75f);
             }
         }
 
@@ -49,7 +49,7 @@ namespace Beep.ECS.UI.Kit
             Color face = FaceColor();
             Color ink = InkColor();
             int fs = UiSurface.FontSize(this);
-            float keyH = Mathf.Min(Size.Y, fs * 1.6f);
+            float keyH = Mathf.Min(Size.Y * 0.82f, fs * 1.28f);
             float y = (Size.Y - keyH) * 0.5f;
             float x = 0f;
 
@@ -67,7 +67,12 @@ namespace Beep.ECS.UI.Kit
 
                 Color plate = new(Mathf.Lerp(face.R, 1f, 0.82f), Mathf.Lerp(face.G, 1f, 0.82f),
                                   Mathf.Lerp(face.B, 1f, 0.84f), 1f);
-                DrawShape(cap, ActiveShape, plate, ink, Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f)));
+                // A keycap is Round in EVERY genre. ActiveShape gave RPG a Chamfer cap, which at
+                // this size cuts every corner off a ~26px square and renders the key as a diamond
+                // — unreadable as a keyboard key. This is the same exemption KitTree and KitChip
+                // take: a widget that depicts a real-world object keeps that object's silhouette
+                // rather than the genre's.
+                DrawShape(cap, KitShape.Round, plate, ink, Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f)));
                 DrawText(font, new Vector2(cap.Position.X + (cap.Size.X - km.X) * 0.5f, cap.Position.Y + (cap.Size.Y + km.Y * 0.6f) * 0.5f),
                            k, kfs, new Color(0.10f, 0.09f, 0.08f));
                 x += kw;
@@ -85,8 +90,8 @@ namespace Beep.ECS.UI.Kit
 
             if (string.IsNullOrEmpty(_action)) return;
             float remaining = Mathf.Max(8f, Size.X - x - fs * 0.5f);
-            int afs = UiSurface.FitRole(this, UiSurface.TextRole.Body,
-                                        new Vector2(remaining, keyH * 0.70f),
+            int afs = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
+                                        new Vector2(remaining, keyH * 0.62f),
                                         _action, font, min: 8);
             Vector2 am = font.GetStringSize(_action, HorizontalAlignment.Left, -1, afs);
             DrawText(font, new Vector2(x + fs * 0.5f, y + (keyH + am.Y * 0.6f) * 0.5f),

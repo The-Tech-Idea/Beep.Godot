@@ -57,7 +57,7 @@ namespace Beep.ECS.UI.Kit
                     Mathf.DegToRad(205), Mathf.DegToRad(292), 24,
                     new Color(1, 1, 1, 0.26f), Mathf.Max(2f, d * 0.030f));
 
-            DrawText(c, r);
+            DrawCentreText(c, r);
         }
 
         private void DrawFill(Vector2 c, float r, Color fill)
@@ -92,7 +92,10 @@ namespace Beep.ECS.UI.Kit
                      new Color(1, 1, 1, 0.18f), Mathf.Max(1f, r * 0.035f));
         }
 
-        private void DrawText(Vector2 c, float r)
+        /// <summary>Named DrawCentreText, not DrawText: a DrawText member declared here would HIDE
+        /// <see cref="KitControl.DrawText"/> by name (C# looks up the most-derived declaration and
+        /// stops), so the routed helper became uncallable and this drew its own shadow instead.</summary>
+        private void DrawCentreText(Vector2 c, float r)
         {
             var font = KitFont();
             if (font == null) return;
@@ -104,9 +107,9 @@ namespace Beep.ECS.UI.Kit
                                        new Vector2(r * 1.35f, r * 0.58f), text, font, min: 8);
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             Vector2 p = new(c.X - m.X * 0.5f, c.Y + m.Y * 0.34f);
-            DrawString(font, p + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, fs,
-                       new Color(0, 0, 0, 0.72f));
-            DrawString(font, p, text, HorizontalAlignment.Left, -1, fs, UiSurface.Text(this));
+            // Routed through KitControl.DrawText so the theme's text_treatment reaches the orb's
+            // centre value. The hand-drawn 1px shadow it replaced was a treatment of its own.
+            DrawText(font, p, text, fs, UiSurface.Text(this));
         }
     }
 }

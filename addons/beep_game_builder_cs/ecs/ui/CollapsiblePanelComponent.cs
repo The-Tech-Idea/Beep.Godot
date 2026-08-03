@@ -36,7 +36,7 @@ namespace Beep.ECS.UI
 
         /// <summary>Chevron size, from the theme font: a fixed 22px button is a thumbnail
         /// beside 24pt type and oversized beside 14pt.</summary>
-        private float ButtonSize => UiSurface.FontSize(this) * 1.6f;
+        private float ButtonSize => Mathf.Clamp(UiSurface.FontSize(this) * 1.28f, 18f, 26f);
 
         private Godot.Control? _panel;      // the parent being folded
         private Button? _header;            // the floating toggle
@@ -128,7 +128,7 @@ namespace Beep.ECS.UI
                 Alignment = HorizontalAlignment.Center,
                 TooltipText = string.IsNullOrEmpty(Title) ? "Collapse this panel" : $"Collapse {Title}",
             };
-            _header.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
+            _header.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(ButtonSize * 0.58f));
             _header.Pressed += () => SetCollapsed(!_collapsed, animate: true);
 
             var layer = TopLevelControl(parent);
@@ -152,7 +152,7 @@ namespace Beep.ECS.UI
             {
                 if (!_header.HasThemeStylebox(state, "Button")) continue;
                 if (_header.GetThemeStylebox(state, "Button").Duplicate() is not StyleBox box) continue;
-                box.ContentMarginLeft = box.ContentMarginRight = 2;
+                box.ContentMarginLeft = box.ContentMarginRight = 1;
                 box.ContentMarginTop = box.ContentMarginBottom = 1;
                 _header.AddThemeStyleboxOverride(state, box);
             }

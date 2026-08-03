@@ -39,11 +39,11 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 8f, fs * 2.6f);
+                CustomMinimumSize = new Vector2(fs * 9f, fs * 2.35f);
             }
         }
 
-        private float TailSize => Mathf.Max(6f, UiSurface.FontSize(this) * 0.55f);
+        private float TailSize => Mathf.Clamp(UiSurface.FontSize(this) * 0.42f, 5f, 9f);
 
         public override void _Draw()
         {
@@ -73,13 +73,16 @@ namespace Beep.ECS.UI.Kit
                 TailSide.Right => new Rect2(0f, 0f, Size.X - t, Size.Y),
                 _ => new Rect2(0f, 0f, Size.X, Size.Y - t),
             };
-            DrawShape(body, ActiveShape, plate, ink, Mathf.Max(1f, Geo.Rim * 0.6f * (fs / 14f)));
+            DrawShape(body, KitShape.Round, plate, ink, Mathf.Max(1f, Geo.Rim * 0.45f * (fs / 14f)));
 
             DrawTail(body, plate, t);
 
             if (font == null || string.IsNullOrEmpty(_text)) return;
-            int tf = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
-                                       new Vector2(body.Size.X * 0.86f, body.Size.Y * 0.58f),
+            // A tooltip is quiet supporting text, not a headline. 0.86 x 0.58 of the body let the
+            // caption grow until it filled the plate edge to edge with no breathing room, which
+            // is what made it read as shouting.
+            int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                       new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.38f),
                                        _text, font, min: 8);
             Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, tf);
             DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + (body.Size.Y + m.Y * 0.6f) * 0.5f),

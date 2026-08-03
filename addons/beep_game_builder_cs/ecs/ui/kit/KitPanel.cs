@@ -261,7 +261,7 @@ namespace Beep.ECS.UI.Kit
             => string.IsNullOrEmpty(_title)
                 || Intent == KitPanelIntent.Hud
                 ? 0f
-                : Mathf.Max(UiSurface.FontSize(this) * 1.5f, Size.Y * 0.14f) * 0.5f;
+                : Mathf.Max(UiSurface.FontSize(this, 0.78f, min: 8) * 1.32f, Size.Y * 0.085f) * 0.5f;
 
         /// <summary>
         /// The frame, inset from the top by the banner's overhang.
@@ -308,20 +308,24 @@ namespace Beep.ECS.UI.Kit
             }
 
             // Frame.
-            KitChrome.DrawShape(this, _genre, body, KitChrome.Shape(_genre), face, KitChrome.Rim(UiSurface.Of(this), Geo), rimPx);
+            KitChrome.DrawShape(this, _genre, body, KitChrome.Shape(_genre, KitWidgetClass.Panel), face, KitChrome.Rim(UiSurface.Of(this), Geo), rimPx);
 
             if (ShowWell)
             {
-                // 0.79-0.80 x host, measured independently by two families. Derived from the
-                // frame thickness where that is larger, so a carved genre's well clears its frame.
-                float ft = Mathf.Max(g.FramePx(body.Size.Y), Mathf.Min(body.Size.X, body.Size.Y) * 0.10f);
+                // Well inset. The measured 0.79-0.80 x host came off large reference panels; at
+                // the sizes the kit actually gets used it ate the interior, leaving a thick band
+                // of frame around a small well. Now ~0.88-0.90 x: the frame still reads as a
+                // frame, the content gets the room. Still derived from the frame thickness so a
+                // carved genre's well clears its own frame.
+                float ft = Mathf.Max(g.FramePx(body.Size.Y) * 0.55f,
+                                     Mathf.Min(body.Size.X, body.Size.Y) * 0.05f);
                 var well = new Rect2(body.Position + new Vector2(ft, ft),
                                      body.Size - new Vector2(ft * 2f, ft * 2f));
                 if (well.Size.X > 4 && well.Size.Y > 4)
                 {
                     float ps = g.WellShade;
                     var sunk = new Color(face.R * ps, face.G * ps, face.B * ps, face.A);
-                    KitChrome.DrawShape(this, _genre, well, KitChrome.Shape(_genre), sunk, ink, Mathf.Max(1f, rimPx * 0.5f));
+                    KitChrome.DrawShape(this, _genre, well, KitChrome.Shape(_genre, KitWidgetClass.Panel), sunk, ink, Mathf.Max(1f, rimPx * 0.5f));
                     DrawWellInset(well, sunk);
                 }
             }

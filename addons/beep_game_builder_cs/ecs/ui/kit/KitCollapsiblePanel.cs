@@ -54,7 +54,7 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>33px at the reference's scale. Expressed against the type so it holds at any
         /// resolution rather than pinning a pixel height the way the measurement does.</summary>
-        private float HandleSize => Mathf.Max(20f, UiSurface.FontSize(this) * 2.35f);
+        private float HandleSize => Mathf.Clamp(UiSurface.FontSize(this) * 1.45f, 18f, 28f);
 
         public override void _Ready()
         {
@@ -75,10 +75,10 @@ namespace Beep.ECS.UI.Kit
             float s = HandleSize;
             return _edge switch
             {
-                Edge.Bottom => new Rect2((Size.X - s * 1.6f) * 0.5f, Size.Y - s * 0.5f, s * 1.6f, s),
-                Edge.Left => new Rect2(-s * 0.5f, (Size.Y - s * 1.6f) * 0.5f, s, s * 1.6f),
-                Edge.Right => new Rect2(Size.X - s * 0.5f, (Size.Y - s * 1.6f) * 0.5f, s, s * 1.6f),
-                _ => new Rect2((Size.X - s * 1.6f) * 0.5f, -s * 0.5f, s * 1.6f, s),
+                Edge.Bottom => new Rect2((Size.X - s * 1.25f) * 0.5f, Size.Y - s * 0.42f, s * 1.25f, s),
+                Edge.Left => new Rect2(-s * 0.42f, (Size.Y - s * 1.25f) * 0.5f, s, s * 1.25f),
+                Edge.Right => new Rect2(Size.X - s * 0.58f, (Size.Y - s * 1.25f) * 0.5f, s, s * 1.25f),
+                _ => new Rect2((Size.X - s * 1.25f) * 0.5f, -s * 0.42f, s * 1.25f, s),
             };
         }
 
@@ -135,11 +135,11 @@ namespace Beep.ECS.UI.Kit
 
                 if (font != null && !string.IsNullOrEmpty(_title))
                 {
-                    int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
-                                               new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.14f),
-                                               _title, font, min: 9);
+                    int tf = UiSurface.FitText(this,
+                                               new Vector2(body.Size.X * 0.82f, Mathf.Max(12f, body.Size.Y * 0.11f)),
+                                               0.62f, _title, font, min: 8, themeMax: 0.78f);
                     Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + tf * 1.45f),
+                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + tf * 1.25f),
                                _title, tf, UiSurface.Text(this));
                 }
             }

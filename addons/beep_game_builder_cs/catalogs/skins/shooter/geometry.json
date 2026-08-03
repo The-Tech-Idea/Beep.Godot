@@ -6,7 +6,7 @@
   "shadow_size": 6,
   "shadow_offset_y": 2,
   "content_padding": 10,
-  "font_size": 28,
+  "font_size": 14,
   "shapes": {
     "panel":      { "shadow_reduction": 1 },
     "input":      { "inset_x": 3, "inset_y": 2, "min_x": 3, "min_y": 2, "focus_border_min": 2 },

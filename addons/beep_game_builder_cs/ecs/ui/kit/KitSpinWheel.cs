@@ -36,6 +36,7 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
+            MouseFilter = MouseFilterEnum.Stop;
             if (Wedges.Count == 0)
                 Wedges.AddRange(new[] { "50", "10", "x2", "5", "100", "1", "x3", "25" });
             if (CustomMinimumSize == Vector2.Zero)
@@ -43,6 +44,15 @@ namespace Beep.ECS.UI.Kit
                 int fs = UiSurface.FontSize(this);
                 CustomMinimumSize = new Vector2(fs * 9f, fs * 9f);
             }
+        }
+
+        public override void _GuiInput(InputEvent @event)
+        {
+            if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+                return;
+            if (_spinning || Wedges.Count == 0) return;
+            Spin(_target + 1);
+            AcceptEvent();
         }
 
         /// <summary>Spin to a caller-chosen wedge. Extra whole turns are cosmetic.</summary>

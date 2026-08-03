@@ -25,6 +25,8 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
 
+        [Export(PropertyHint.Range, "0.35,1.0,0.05")] public float OrnamentScale { get; set; } = 0.62f;
+
         public override void _Ready()
         {
             base._Ready();
@@ -33,7 +35,7 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 3f, fs * 2f);
+                CustomMinimumSize = new Vector2(fs * 2.1f, fs * 1.35f);
             }
         }
 
@@ -42,7 +44,14 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 6f || Size.Y < 5f) return;
             Color c = UiSurface.Semantic(this, Role);
             Color ink = InkColor();
-            float w = Mathf.Max(1.5f, Mathf.Min(Size.X, Size.Y) * 0.09f);
+            // 0.09 of the short side put a ~5px black band around a 60px crown, and Outline()
+            // draws an inner pass on top of that — the silhouette disappeared under its own
+            // border. An ornament is a SHAPE; the outline only has to separate it from the
+            // ground, so it stays thin and the form does the work.
+            float w = Mathf.Max(1f, Mathf.Min(Size.X, Size.Y) * 0.032f);
+
+            float scale = Mathf.Clamp(OrnamentScale, 0.35f, 1f);
+            DrawSetTransform(Size * (1f - scale) * 0.5f, 0f, Vector2.One * scale);
 
             switch (_kind)
             {
@@ -53,6 +62,7 @@ namespace Beep.ECS.UI.Kit
                 case OrnamentKind.Starburst: Starburst(c, ink, w); break;
                 case OrnamentKind.RibbonTail: RibbonTail(c, ink, w); break;
             }
+            DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
         }
 
         private void Outline(Vector2[] pts, Color fill, Color ink, float w)
@@ -68,10 +78,13 @@ namespace Beep.ECS.UI.Kit
             foreach (var p in pts) c += p;
             c /= pts.Length;
             var inner = new Vector2[pts.Length + 1];
-            for (int i = 0; i < pts.Length; i++)
-                inner[i] = c.Lerp(pts[i], 0.82f);
-            inner[^1] = inner[0];
-            DrawPolyline(inner, new Color(1, 1, 1, 0.18f), Mathf.Max(1f, w * 0.45f));
+            if (Size.X >= 46f && Size.Y >= 32f)
+            {
+                for (int i = 0; i < pts.Length; i++)
+                    inner[i] = c.Lerp(pts[i], 0.84f);
+                inner[^1] = inner[0];
+                DrawPolyline(inner, new Color(1, 1, 1, 0.12f), Mathf.Max(1f, w * 0.35f));
+            }
         }
 
         private void Crown(Color c, Color ink, float w)
@@ -142,11 +155,11 @@ namespace Beep.ECS.UI.Kit
         {
             var ctr = Size * 0.5f;
             float r = Mathf.Min(Size.X, Size.Y) * 0.48f;
-            var pts = new Vector2[16];
-            for (int i = 0; i < 16; i++)
+            var pts = new Vector2[10];
+            for (int i = 0; i < 10; i++)
             {
-                float rad = (i % 2 == 0) ? r : r * 0.52f;
-                float ang = -Mathf.Pi * 0.5f + i * Mathf.Tau / 16f;
+                float rad = (i % 2 == 0) ? r : r * 0.58f;
+                float ang = -Mathf.Pi * 0.5f + i * Mathf.Tau / 10f;
                 pts[i] = ctr + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * rad;
             }
             Outline(pts, c, ink, w);

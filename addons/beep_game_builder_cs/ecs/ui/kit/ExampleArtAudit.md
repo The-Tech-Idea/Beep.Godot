@@ -94,3 +94,17 @@ to a reusable kit component under `addons/beep_game_builder_cs/ecs/ui/kit/`.
 - City-builder HUD should prefer compact currency/resource strips, edge rails, build tiles, and small info cards.
 - Skill trees use square or stepped nodes and clear connectors. They do not inherit heavy panel silhouettes.
 - Shop, quest, inventory, equipment, and mission rows use `KitItemCard`, not arbitrary `PanelContainer + Label + Button` compositions.
+
+## Second Pass Decisions
+
+- Font scale is intentionally quieter than the first kit pass. The references use large display
+  text for splash/menu moments, but HUD panels, build widgets, store rows, skill nodes, and RPG
+  stat panels mostly use compact text inside fixed shapes.
+- Silhouette is now widget-class aware. Bars resolve as bars, chips as chips, slots as slots,
+  and panels as panels. A genre-specific special shape no longer leaks into every component.
+- Platformer and puzzle no longer use capsule/ellipse as the default shape for all controls.
+  Those forms remain valid for bars, badges, meters, and explicit controls.
+- RPG/city-builder/survival/strategy panels use less frame, less sparkle, and smaller base type
+  so generated HUDs read as playable game overlays instead of decorative menu plates.
+- Base geometry font sizes are normalized by genre. Large typography must be requested through
+  `BeepDisplay`/`BeepTitle`, not baked into every widget from the base font size.

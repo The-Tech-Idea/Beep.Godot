@@ -129,9 +129,10 @@ namespace Beep.ECS.UI.Kit
                 Color text = UiSurface.Luminance(_on ? on : face) > 0.5f
                     ? new Color(0.10f, 0.09f, 0.08f)
                     : new Color(0.98f, 0.96f, 0.92f);
-                DrawString(font, new Vector2(knob.Position.X + (knob.Size.X - m.X) * 0.5f,
-                                             knob.Position.Y + (knob.Size.Y + m.Y * 0.6f) * 0.5f),
-                           mark, HorizontalAlignment.Left, -1, mf, text);
+                KitChrome.DrawText(this, _genre, font,
+                                   new Vector2(knob.Position.X + (knob.Size.X - m.X) * 0.5f,
+                                               knob.Position.Y + (knob.Size.Y + m.Y * 0.6f) * 0.5f),
+                                   mark, mf, text);
             }
         }
 

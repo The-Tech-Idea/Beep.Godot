@@ -62,8 +62,8 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                float h = Mathf.Clamp(fs * 2.45f, 30f, 44f);
-                CustomMinimumSize = new Vector2(Mathf.Max(88f, h * 3.4f), h);
+                float h = Mathf.Clamp(fs * 2.15f, 28f, 40f);
+                CustomMinimumSize = new Vector2(Mathf.Max(78f, h * 3.15f), h);
             }
         }
 
@@ -129,7 +129,7 @@ namespace Beep.ECS.UI.Kit
 
             // One shared band walk (KitChrome), not a second copy. The register stack is the
             // kit's definition of what a plate IS; two implementations of it drift.
-            KitChrome.DrawPlate(this, _genre, body, face, state, fs / 14f);
+            KitChrome.DrawPlate(this, _genre, body, face, state, fs / 14f, KitWidgetClass.Button);
 
             // The label LAST, and drawn by us. A script's _Draw runs AFTER the base class's, so
             // the plate above paints straight over the text Button already drew.
@@ -145,7 +145,7 @@ namespace Beep.ECS.UI.Kit
 
             string text = Geo.UpperCase ? Text.ToUpperInvariant() : Text;
             int fs = UiSurface.FitText(this, body.Size - new Vector2(UiSurface.FontSize(this) * 0.7f, 0f),
-                                       0.50f, text, font, min: 8, themeMax: 1.08f);
+                                       0.46f, text, font, min: 8, themeMax: 1.0f);
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             // Pressed text shifts with the plate, so the label looks pushed in with it.
             float dy = state == KitState.Pressed ? 1f : 0f;

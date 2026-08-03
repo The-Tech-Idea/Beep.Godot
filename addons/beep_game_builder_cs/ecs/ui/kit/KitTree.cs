@@ -69,6 +69,8 @@ namespace Beep.ECS.UI.Kit
         private int _sel = -1;
         private int _hover = -1;
 
+        [Export] public bool CycleStateOnClick { get; set; } = true;
+
         [Signal] public delegate void NodeActivatedEventHandler(int index);
 
         public override void _Ready()
@@ -150,8 +152,16 @@ namespace Beep.ECS.UI.Kit
             if (hit >= 0)
             {
                 Selected = hit;
+                if (CycleStateOnClick)
+                    Nodes[hit].State = Nodes[hit].State switch
+                    {
+                        NodeState.Locked => NodeState.Available,
+                        NodeState.Available => NodeState.Owned,
+                        _ => NodeState.Locked,
+                    };
                 EmitSignal(SignalName.NodeActivated, hit);
                 AcceptEvent();
+                QueueRedraw();
             }
         }
 

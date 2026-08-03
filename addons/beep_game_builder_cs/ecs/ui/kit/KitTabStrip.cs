@@ -53,16 +53,15 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             _genre = KitChrome.GenreOf(this);
-            if (Tabs.Count == 0)
+            if (Tabs.Count == 0 && GetTabCount() == 0)
                 Tabs.AddRange(new[] { new Tab { Text = "One" }, new Tab { Text = "Two" },
                                       new Tab { Text = "Three" } });
 
-            // Push the authored tabs into TabBar so IT owns selection, clicking, keyboard
-            // navigation and the CurrentTab/TabChanged/TabClicked signals. `Tabs` stays as the
-            // authoring surface because TabBar has no notion of a per-tab BADGE, which the
-            // reference sheets use constantly.
-            ClearTabs();
-            foreach (var t in Tabs) AddTab(t.Text);
+            // Preserve tabs authored on the real TabBar. Only seed from the C# list when the
+            // native TabBar has no tabs yet; clearing here breaks scene-authored tabs and their
+            // selection/click behaviour.
+            if (GetTabCount() == 0)
+                foreach (var t in Tabs) AddTab(t.Text);
             Suppress();
             TabChanged += _ => QueueRedraw();
             MouseExited += () => { _hoverTab = -1; QueueRedraw(); };
@@ -70,16 +69,31 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            base._GuiInput(@event);
             if (@event is InputEventMouseMotion motion)
             {
-                int hit = GetTabIdxAtPoint(motion.Position);
+                int hit = HitTab(motion.Position);
                 if (_hoverTab != hit)
                 {
                     _hoverTab = hit;
                     QueueRedraw();
                 }
+                return;
             }
+
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+            {
+                int hit = HitTab(mb.Position);
+                if (hit >= 0 && !IsTabDisabled(hit))
+                {
+                    CurrentTab = hit;
+                    _hoverTab = hit;
+                    AcceptEvent();
+                    QueueRedraw();
+                    return;
+                }
+            }
+
+            base._GuiInput(@event);
         }
 
         public override void _Notification(int what)
@@ -106,8 +120,9 @@ namespace Beep.ECS.UI.Kit
             AddThemeColorOverride("font_selected_color", new Color(0, 0, 0, 0));
             AddThemeColorOverride("font_unselected_color", new Color(0, 0, 0, 0));
             AddThemeColorOverride("font_hovered_color", new Color(0, 0, 0, 0));
-            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, 88f * Mathf.Max(1, Tabs.Count)),
-                                            Mathf.Clamp(fs * 2.0f, 28f, 38f));
+            int count = Mathf.Max(1, GetTabCount() > 0 ? GetTabCount() : Tabs.Count);
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, 72f * count),
+                                            Mathf.Clamp(fs * 1.75f, 26f, 34f));
             _suppressing = false;
         }
 
@@ -115,16 +130,36 @@ namespace Beep.ECS.UI.Kit
 
         private Rect2 TabRect(int i)
         {
-            float w = Size.X / Mathf.Max(1, Tabs.Count);
+            int count = Mathf.Max(1, GetTabCount() > 0 ? GetTabCount() : Tabs.Count);
+            float w = Size.X / count;
             // 6px separation at 14pt — tabs are near-touching, so the gap is deliberate and small.
-            float sep = Mathf.Max(2f, UiSurface.FontSize(this) * 0.42f) * 0.5f;
-            float raise = Selection == SelectionStyle.Elevate && i == CurrentTab ? 0f : Size.Y * 0.12f;
+            float sep = Mathf.Max(2f, UiSurface.FontSize(this) * 0.24f) * 0.5f;
+            float raise = Selection == SelectionStyle.Elevate && i == CurrentTab ? 0f : Size.Y * 0.08f;
             return new Rect2(i * w + sep, raise, w - sep * 2f, Size.Y - raise);
         }
 
+        private int HitTab(Vector2 p)
+        {
+            int count = GetTabCount();
+            if (count <= 0) count = Tabs.Count;
+            for (int i = 0; i < count; i++)
+                if (TabRect(i).HasPoint(p)) return i;
+            return -1;
+        }
+
+        private string TabText(int i)
+            => i >= 0 && i < Tabs.Count && !string.IsNullOrEmpty(Tabs[i].Text)
+                ? Tabs[i].Text
+                : GetTabTitle(i);
+
+        private int TabBadge(int i)
+            => i >= 0 && i < Tabs.Count ? Tabs[i].Badge : 0;
+
         public override void _Draw()
         {
-            if (Size.X <= 8 || Size.Y <= 6 || Tabs.Count == 0) return;
+            int count = GetTabCount();
+            if (count <= 0) count = Tabs.Count;
+            if (Size.X <= 8 || Size.Y <= 6 || count == 0) return;
 
             var g = Geo;
             Color face = UiSurface.Of(this);
@@ -133,7 +168,7 @@ namespace Beep.ECS.UI.Kit
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f));
 
-            for (int i = 0; i < Tabs.Count; i++)
+            for (int i = 0; i < count; i++)
             {
                 Rect2 r = TabRect(i);
                 if (r.Size.X < 3f) continue;
@@ -170,7 +205,8 @@ namespace Beep.ECS.UI.Kit
                              Mathf.Max(2f, fs * 0.16f));
                 }
 
-                if (font != null && !string.IsNullOrEmpty(Tabs[i].Text))
+                string text = TabText(i);
+                if (font != null && !string.IsNullOrEmpty(text))
                 {
                     // An unselected tab is a place you CAN go: normal text at reduced alpha, not
                     // the disabled colour. Reading it as unavailable was a real Stage 28 defect.
@@ -180,21 +216,28 @@ namespace Beep.ECS.UI.Kit
                     // to shrink to its own tab rather than run into the next one.
                     int tf = UiSurface.FitRole(this, UiSurface.TextRole.Body,
                                                new Vector2(r.Size.X * 0.86f, r.Size.Y * 0.62f),
-                                               Tabs[i].Text, font);
-                    Vector2 m = font.GetStringSize(Tabs[i].Text, HorizontalAlignment.Left, -1, tf);
+                                               text, font);
+                    Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, tf);
                     KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Tabs[i].Text, tf, txt);
+                               text, tf, txt);
                 }
 
                 // Corner flash badge, straddling the tab's top-right — the attention anchor the
                 // art pass measured eight independent times.
-                if (Tabs[i].Badge > 0 && font != null)
+                int badge = TabBadge(i);
+                if (badge > 0 && font != null)
                 {
-                    string b = Tabs[i].Badge.ToString();
+                    string b = badge.ToString();
                     int small = Mathf.Max(8, Mathf.RoundToInt(fs * 0.7f));
                     Vector2 m = font.GetStringSize(b, HorizontalAlignment.Left, -1, small);
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
-                    var br = new Rect2(r.End.X - bw * 0.6f, r.Position.Y - bh * 0.35f, bw, bh);
+                    // Straddle the corner, but stay inside the STRIP: at -bh*0.35 the badge was
+                    // drawn above y=0 and got cut off by the control's own top edge, and a 0.6
+                    // overhang pushed it into the next tab. Sit it just inside the top and
+                    // overhang less, so it still reads as a corner flash without being clipped
+                    // or colliding with its neighbour.
+                    var br = new Rect2(r.End.X - bw * 0.78f,
+                                       Mathf.Max(0f, r.Position.Y - bh * 0.12f), bw, bh);
                     KitChrome.DrawShape(this, _genre, br, KitShape.Pill, UiSurface.Semantic(this, UiSurface.Role.Danger), ink, 1.5f);
                     KitChrome.DrawText(this, _genre, font, new Vector2(br.Position.X + (br.Size.X - m.X) * 0.5f, br.Position.Y + (br.Size.Y + m.Y * 0.6f) * 0.5f),
                                b, small, new Color(0.98f, 0.96f, 0.92f));

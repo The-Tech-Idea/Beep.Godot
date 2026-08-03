@@ -53,7 +53,7 @@ namespace Beep.ECS.UI.Kit
         /// compact utility headers; RPG/dialog panels can leave the larger default.</summary>
         [Export(PropertyHint.Range, "0.45,1.4,0.01")]
         public float TitleFontScale { get => _titleFontScale; set { _titleFontScale = value; Refresh(); } }
-        private float _titleFontScale = 1.0f;
+        private float _titleFontScale = 0.72f;
         [Export] public HeaderStyle TitleStyle { get => _titleStyle; set { _titleStyle = value; Refresh(); } }
         private HeaderStyle _titleStyle = HeaderStyle.Banner;
         [Export] public KitPanelIntent Intent { get => _intent; set { _intent = value; Refresh(); } }
@@ -65,7 +65,10 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Extra inset for children, on top of the frame. Use when content needs to sit
         /// further inside the well than the frame alone requires.</summary>
         [Export] public Vector2 ExtraPadding { get => _extraPadding; set { _extraPadding = value; Refresh(); } }
-        private Vector2 _extraPadding = new(6, 6);
+        // Was (6,6) ON TOP of the frame thickness, which on a small container doubled the inset
+        // and left the content squeezed into the middle. The frame already provides the visual
+        // breathing room; this is only the gap between frame and content.
+        private Vector2 _extraPadding = new(2, 2);
 
         private string _genre = "";
         private StyleBoxEmpty? _spacer;
@@ -124,8 +127,8 @@ namespace Beep.ECS.UI.Kit
                 : TitleStyle == HeaderStyle.None
                     ? 0f
                 : TitleStyle == HeaderStyle.UtilityStrip
-                    ? Mathf.Max(UiSurface.FontSize(this, TitleFontScale) * 1.65f, 18f)
-                    : Mathf.Max(UiSurface.FontSize(this, TitleFontScale) * 1.5f, Size.Y * 0.14f) * 0.5f;
+                    ? Mathf.Max(UiSurface.FontSize(this, TitleFontScale, min: 8) * 1.35f, 14f)
+                    : Mathf.Max(UiSurface.FontSize(this, TitleFontScale, min: 8) * 1.28f, Size.Y * 0.085f) * 0.5f;
 
         private float BodyOverhang()
             => TitleStyle == HeaderStyle.Banner ? HeaderRoom() : 0f;
@@ -280,12 +283,12 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
-            float titleFs = UiSurface.FontSize(this, TitleFontScale);
-            float h = Mathf.Max(titleFs * 1.5f, host.Size.Y * 0.14f);
-            int tf = UiSurface.FitText(this, new Vector2(host.Size.X * 0.88f, h * 0.68f),
-                                       0.72f, _title, font, min: 8, themeMax: TitleFontScale);
-            float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf).X + tf * 2f;
-            float w = Mathf.Max(host.Size.X * 0.62f, Mathf.Min(need, host.Size.X * 1.08f));
+            float titleFs = UiSurface.FontSize(this, TitleFontScale, min: 8);
+            float h = Mathf.Max(titleFs * 1.28f, host.Size.Y * 0.085f);
+            int tf = UiSurface.FitText(this, new Vector2(host.Size.X * 0.82f, h * 0.74f),
+                                       0.64f, _title, font, min: 8, themeMax: TitleFontScale);
+            float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf).X + tf * 1.35f;
+            float w = Mathf.Max(host.Size.X * 0.48f, Mathf.Min(need, host.Size.X * 0.92f));
             var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
                               host.Position.Y - h * 0.5f, w, h);
 
@@ -307,14 +310,14 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawUtilityHeader(Rect2 host, int fs, Color face, Color ink, Font font)
         {
-            float titleFs = UiSurface.FontSize(this, TitleFontScale);
-            float frame = Geo.FramePx(host.Size.Y);
-            float h = Mathf.Max(titleFs * 1.45f, 17f);
-            float padX = Mathf.Max(8f, fs * 0.55f);
+            float titleFs = UiSurface.FontSize(this, TitleFontScale, min: 8);
+            float frame = FramePx(host.Size.Y);
+            float h = Mathf.Max(titleFs * 1.18f, 13f);
+            float padX = Mathf.Max(6f, fs * 0.38f);
             var r = new Rect2(host.Position.X + frame, host.Position.Y + frame,
                               Mathf.Max(4f, host.Size.X - frame * 2f), h);
-            int tf = UiSurface.FitText(this, new Vector2(r.Size.X - padX * 2f, h * 0.72f),
-                                       0.68f, _title, font, min: 8, themeMax: TitleFontScale);
+            int tf = UiSurface.FitText(this, new Vector2(r.Size.X - padX * 2f, h * 0.76f),
+                                       0.60f, _title, font, min: 8, themeMax: TitleFontScale);
             Color plate = Tint(face, Mathf.Max(0.48f, BannerShade));
             DrawRect(r, plate with { A = Mathf.Min(0.92f, plate.A) });
             DrawLine(new Vector2(r.Position.X, r.End.Y), new Vector2(r.End.X, r.End.Y),

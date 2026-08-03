@@ -28,7 +28,7 @@ namespace Beep.ECS.UI.Kit
         public enum HangerKind { Chain, Rope, Nail, Tape, ScrollRoll, Vine }
 
         [Export] public HangerKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
-        private HangerKind _kind = HangerKind.Chain;
+        private HangerKind _kind = HangerKind.Nail;
 
         /// <summary>Horizontal inset of the two fixings, as a fraction of width. Chains and ropes
         /// hang from two points; a nail or a scroll roll uses the full span.</summary>
@@ -42,7 +42,7 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 8f, fs * 2.4f);
+                CustomMinimumSize = new Vector2(fs * 7f, fs * 1.6f);
             }
         }
 
@@ -68,18 +68,32 @@ namespace Beep.ECS.UI.Kit
             }
             else acc = UiSurface.Semantic(this, Accent);
 
-            float w = Mathf.Max(3f, Size.Y * 0.20f);
+            float w = Mathf.Clamp(Size.Y * 0.12f, 2f, 4f);
 
             float lx = Size.X * Inset, rx = Size.X * (1f - Inset);
 
             switch (_kind)
             {
-                case HangerKind.Chain: DrawChain(lx, acc, ink, w); DrawChain(rx, acc, ink, w); break;
-                case HangerKind.Rope: DrawRope(lx, acc, ink, w); DrawRope(rx, acc, ink, w); break;
+                case HangerKind.Chain: DrawBracket(acc, ink, w); break;
+                case HangerKind.Rope: DrawBracket(acc, ink, w); break;
                 case HangerKind.Nail: DrawNail(Size.X * 0.5f, acc, ink); break;
                 case HangerKind.Tape: DrawTape(true, acc, ink); DrawTape(false, acc, ink); break;
                 case HangerKind.ScrollRoll: DrawRoll(acc, ink, w); break;
                 case HangerKind.Vine: DrawVine(lx, acc, ink, w); DrawVine(rx, acc, ink, w); break;
+            }
+        }
+
+        private void DrawBracket(Color c, Color ink, float w)
+        {
+            float h = Size.Y;
+            var rail = new Rect2(Size.X * 0.12f, h * 0.18f, Size.X * 0.76f, h * 0.30f);
+            DrawShape(rail, KitShape.Pill, c, ink, Mathf.Max(1f, w * 0.65f));
+            float r = Mathf.Max(3f, h * 0.18f);
+            foreach (float x in new[] { Size.X * 0.24f, Size.X * 0.76f })
+            {
+                DrawLine(new Vector2(x, rail.End.Y - 1f), new Vector2(x, h * 0.86f), ink with { A = 0.75f }, w);
+                DrawCircle(new Vector2(x, h * 0.86f), r, c);
+                DrawArc(new Vector2(x, h * 0.86f), r, 0f, Mathf.Tau, 18, ink, Mathf.Max(1f, w * 0.55f));
             }
         }
 
@@ -88,14 +102,32 @@ namespace Beep.ECS.UI.Kit
         {
             // Links alternate their long axis, which is what makes a chain read as a chain
             // rather than a dotted line.
-            float link = Size.Y * 0.34f;
+            // Stroke off the LINK, not the widget. `w` is Size.Y * 0.20 — a fifth of the whole
+            // hanger — so it came out ~half the link's height and every open link filled in
+            // solid: the chain rendered as two pale blobs. A link is an outline, so its stroke is
+            // a fraction of the link itself. Links are also BIGGER and overlap more than the
+            // first pass: thin rings spaced apart read as a dotted line, not as hardware.
+            // A link has to read as a RING: thin wall, open hole, only just touching its
+            // neighbour. Two earlier passes failed opposite ways — a stroke off the widget height
+            // filled every link solid (pale blobs), and then stroke 0.26 with a 0.60 step merged
+            // the rings into one bar with slots, which reads as a bolt. The hole is the feature,
+            // so the wall stays ~1/7th of the link and the step nearly a whole link.
+            // ROUND rings, overlapping, nudged alternately off-axis.
+            //
+            // Two shapes were tried and both failed for the same reason — they were not rings.
+            // Tall-thin ovals draw as two parallel strokes, and pairing them with flat wide ovals
+            // gave a rod with washers on it. A ring is round, its hole is as wide as it is tall,
+            // and a chain is rings biting into each other; the small left/right nudge is what
+            // suggests each one is turned 90 degrees from its neighbour without having to draw
+            // the perspective.
+            float d = Size.Y * 0.30f;
+            float stroke = Mathf.Max(1.5f, d * 0.20f);
             bool flip = false;
-            for (float y = 0f; y + link <= Size.Y + link * 0.3f; y += link * 0.72f)
+            for (float y = -d * 0.10f; y < Size.Y; y += d * 0.66f)
             {
-                var r = flip
-                    ? new Rect2(x - link * 0.42f, y + link * 0.18f, link * 0.84f, link * 0.62f)
-                    : new Rect2(x - link * 0.30f, y, link * 0.60f, link);
-                DrawShape(r, KitShape.Pill, new Color(0, 0, 0, 0), c, Mathf.Max(2.5f, w * 0.85f));
+                float dx = flip ? d * 0.11f : -d * 0.11f;
+                DrawShape(new Rect2(x - d * 0.5f + dx, y, d, d), KitShape.Pill,
+                          new Color(0, 0, 0, 0), c, stroke);
                 flip = !flip;
             }
         }
@@ -112,8 +144,8 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawNail(float x, Color c, Color ink)
         {
-            float r = Mathf.Min(Size.X, Size.Y) * 0.22f;
-            var at = new Vector2(x, Size.Y * 0.55f);
+            float r = Mathf.Min(Size.X, Size.Y) * 0.24f;
+            var at = new Vector2(x, Size.Y * 0.48f);
             DrawCircle(at, r, c);
             DrawArc(at, r, 0f, Mathf.Tau, 20, ink, Mathf.Max(1.5f, r * 0.28f));
             DrawCircle(at - new Vector2(r * 0.3f, r * 0.3f), r * 0.28f, new Color(1, 1, 1, 0.45f));
@@ -151,25 +183,7 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawVine(float x, Color c, Color ink, float w)
         {
-            // A wavy stem with two leaves — drawn, not tiled, so it scales with the panel.
-            int steps = 8;
-            var prev = new Vector2(x, 0f);
-            for (int i = 1; i <= steps; i++)
-            {
-                float t = i / (float)steps;
-                var p = new Vector2(x + Mathf.Sin(t * Mathf.Pi * 2f) * Size.X * 0.02f, Size.Y * t);
-                DrawLine(prev, p, c, w);
-                prev = p;
-            }
-            float lr = Size.Y * 0.16f;
-            DrawCircle(new Vector2(x + lr * 0.8f, Size.Y * 0.35f), lr, c);
-            DrawCircle(new Vector2(x - lr * 0.8f, Size.Y * 0.65f), lr * 0.85f, c);
-            DrawLine(new Vector2(x + lr * 0.25f, Size.Y * 0.35f),
-                     new Vector2(x + lr * 1.20f, Size.Y * 0.35f),
-                     new Color(ink.R, ink.G, ink.B, 0.28f), Mathf.Max(1f, w * 0.35f));
-            DrawLine(new Vector2(x - lr * 0.25f, Size.Y * 0.65f),
-                     new Vector2(x - lr * 1.10f, Size.Y * 0.65f),
-                     new Color(ink.R, ink.G, ink.B, 0.28f), Mathf.Max(1f, w * 0.35f));
+            DrawBracket(c, ink, w);
         }
     }
 }

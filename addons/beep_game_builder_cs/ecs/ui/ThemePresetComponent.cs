@@ -568,7 +568,7 @@ namespace Beep.ECS.UI
 /// what made "Save Name:" render at 13px disabled-grey beside a 16px input.</summary>
 		private int SizeFor(string role) => role switch
 		{
-			DisplayVariation => Mathf.RoundToInt(Fs * 2.15f),
+			DisplayVariation => Mathf.RoundToInt(Fs * 1.72f),
 			TitleVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Title)),
 			SubtitleVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Subtitle)),
 			ValueVariation => Mathf.RoundToInt(Fs * UiSurface.Multiplier(UiSurface.TextRole.Value)),
@@ -903,7 +903,9 @@ namespace Beep.ECS.UI
 			btn.AddThemeStyleboxOverride("disabled", StampGeometry(Duplicate(preset.GetButtonDisabled())));
 			btn.AddThemeStyleboxOverride("focus", StampGeometry(Duplicate(preset.GetButtonFocus())));
 			btn.AddThemeColorOverride("font_color", preset.Colors.TextPrimary);
-			int fontSize = _geometry != null && _geometry.FontSize >= 0
+			// > 0, not >= 0 — see the note on Fs in ThemePresetComponent.NodeTheming.cs. A 0 here
+			// is not a size, and it reaches the text server as one.
+			int fontSize = _geometry != null && _geometry.FontSize > 0
 				? _geometry.FontSize
 				: (_loadedThemeGeometry.FontSize > 0 ? _loadedThemeGeometry.FontSize : 14);
 			btn.AddThemeFontSizeOverride("font_size", fontSize);

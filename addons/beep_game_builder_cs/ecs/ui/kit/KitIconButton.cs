@@ -77,7 +77,7 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                float s = fs * 3.4f;                   // one size for every icon button
+                float s = Mathf.Clamp(fs * 3.0f, 42f, 58f);
                 CustomMinimumSize = new Vector2(s, s);
             }
         }

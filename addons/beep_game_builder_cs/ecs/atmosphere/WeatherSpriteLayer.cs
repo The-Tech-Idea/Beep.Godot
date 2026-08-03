@@ -31,6 +31,10 @@ namespace Beep.ECS
         [Export] public Vector2 Wind { get; set; } = Vector2.Zero;
         [Export] public WeatherSystemComponent.WeatherViewMode ViewMode { get; set; } = WeatherSystemComponent.WeatherViewMode.Side;
         [Export] public int MaxSprites { get; set; } = 260;
+        [Export] public bool UseCollisionSplashes { get; set; } = true;
+        [Export(PropertyHint.Layers2DPhysics)] public uint SplashCollisionMask { get; set; } = 1;
+        [Export] public Vector2 CameraCenter { get; set; } = Vector2.Zero;
+        [Export] public Vector2 CameraZoom { get; set; } = Vector2.One;
         [Export] public int Seed { get; set; } = 44621;
 
         private readonly List<Fleck> _flecks = new();
@@ -57,6 +61,7 @@ namespace Beep.ECS
             public float Life;
             public float Scale;
             public float Alpha;
+            public float WidthMul;
         }
 
         public override void _Ready()
@@ -96,11 +101,19 @@ namespace Beep.ECS
             for (int i = 0; i < active; i++)
             {
                 Fleck f = _flecks[i];
+                Vector2 previous = f.Position;
                 f.Position += dir * f.Speed * dt;
                 f.Position += Wobble(f) * dt;
+                if (CanImpact() && TryGetCollisionImpact(previous, f.Position, out Vector2 impact))
+                {
+                    SpawnImpact(impact);
+                    f = NewFleck(false);
+                    _flecks[i] = f;
+                    continue;
+                }
                 if (Offscreen(f.Position))
                 {
-                    if (Kind is PixelWeatherKind.Rain or PixelWeatherKind.Storm or PixelWeatherKind.Hail)
+                    if (CanImpact())
                         SpawnImpact(f.Position);
                     f = NewFleck(false);
                 }
@@ -230,6 +243,40 @@ namespace Beep.ECS
             return p.Y > Field.Y + 24f || p.X < -48f || p.X > Field.X + 48f;
         }
 
+        private bool CanImpact() =>
+            Kind is PixelWeatherKind.Rain or PixelWeatherKind.Storm or PixelWeatherKind.Hail;
+
+        private bool TryGetCollisionImpact(Vector2 fromScreen, Vector2 toScreen, out Vector2 hitScreen)
+        {
+            hitScreen = Vector2.Zero;
+            if (!UseCollisionSplashes || IsTopDownLike(ViewMode) || SplashCollisionMask == 0)
+                return false;
+
+            World2D? world = GetWorld2D();
+            var space = world?.DirectSpaceState;
+            if (space == null) return false;
+
+            Vector2 fromWorld = ScreenToWorld(fromScreen);
+            Vector2 toWorld = ScreenToWorld(toScreen);
+            var query = PhysicsRayQueryParameters2D.Create(fromWorld, toWorld, SplashCollisionMask);
+            query.CollideWithAreas = false;
+            query.CollideWithBodies = true;
+
+            var result = space.IntersectRay(query);
+            if (result.Count == 0) return false;
+
+            Vector2 hitWorld = result["position"].AsVector2();
+            hitScreen = WorldToScreen(hitWorld);
+            return hitScreen.X >= -16f && hitScreen.X <= Field.X + 16f
+                && hitScreen.Y >= -16f && hitScreen.Y <= Field.Y + 16f;
+        }
+
+        private Vector2 ScreenToWorld(Vector2 screen) =>
+            CameraCenter + (screen - Field * 0.5f) * CameraZoom;
+
+        private Vector2 WorldToScreen(Vector2 world) =>
+            (world - CameraCenter) / CameraZoom + Field * 0.5f;
+
         private Texture2D? TextureForKind() => Kind switch
         {
             PixelWeatherKind.Rain or PixelWeatherKind.Storm => RainTexture,
@@ -268,14 +315,17 @@ namespace Beep.ECS
             bool topLike = IsTopDownLike(ViewMode);
             float y = topLike
                 ? _rng.RandfRange(Field.Y * 0.18f, Field.Y * 0.95f)
-                : _rng.RandfRange(Field.Y * 0.83f, Field.Y * 0.97f);
+                : source.Y;
+            if (!topLike && (y < -8f || y > Field.Y + 8f))
+                y = _rng.RandfRange(Field.Y * 0.83f, Field.Y * 0.97f);
             _impacts.Add(new Impact
             {
                 Position = new Vector2(Mathf.Wrap(source.X, 0f, Field.X), y),
                 Age = 0f,
-                Life = Kind == PixelWeatherKind.Hail ? _rng.RandfRange(0.08f, 0.14f) : _rng.RandfRange(0.12f, 0.2f),
-                Scale = _rng.RandfRange(0.65f, Kind == PixelWeatherKind.Storm ? 1.15f : 0.95f),
-                Alpha = _rng.RandfRange(0.28f, Kind == PixelWeatherKind.Hail ? 0.62f : 0.45f),
+                Life = Kind == PixelWeatherKind.Hail ? _rng.RandfRange(0.10f, 0.18f) : _rng.RandfRange(0.16f, 0.28f),
+                Scale = _rng.RandfRange(0.95f, Kind == PixelWeatherKind.Storm ? 1.55f : 1.25f),
+                Alpha = _rng.RandfRange(0.55f, Kind == PixelWeatherKind.Hail ? 0.9f : 0.82f),
+                WidthMul = _rng.RandfRange(0.85f, 1.35f),
             });
         }
 
@@ -285,20 +335,35 @@ namespace Beep.ECS
             foreach (Impact impact in _impacts)
             {
                 float t = Mathf.Clamp(impact.Age / impact.Life, 0f, 1f);
-                Texture2D? texture = Kind == PixelWeatherKind.Hail ? HailTexture : SplashTexture;
-                Vector2 baseSize = texture != null
-                    ? new Vector2(texture.GetWidth(), texture.GetHeight())
-                    : new Vector2(5f, 2f);
-                Vector2 size = new Vector2(baseSize.X * Mathf.Lerp(0.75f, 1.35f, t), baseSize.Y * Mathf.Lerp(0.8f, 0.35f, t)) * impact.Scale;
-                Rect2 rect = new(Snap(impact.Position - size * 0.5f), Snap(size));
                 Color c = (Kind == PixelWeatherKind.Hail
                     ? new Color(0.86f, 0.94f, 1f, impact.Alpha)
                     : new Color(0.62f, 0.78f, 1f, impact.Alpha)) with { A = impact.Alpha * (1f - t) * visibleIntensity };
-                if (texture != null)
-                    DrawTextureRect(texture, rect, false, c);
-                else
-                    DrawRect(rect, c);
+                DrawPixelSplash(impact, t, c);
             }
+        }
+
+        private void DrawPixelSplash(Impact impact, float t, Color color)
+        {
+            float spread = Mathf.Lerp(4f, Kind == PixelWeatherKind.Hail ? 8f : 12f, t) * impact.Scale * impact.WidthMul;
+            float pixel = Mathf.Max(1f, Mathf.Round(impact.Scale));
+            Vector2 p = Snap(impact.Position);
+
+            // Ground contact: a short hard-edged horizontal pixel mark.
+            DrawRect(new Rect2(Snap(new Vector2(p.X - spread * 0.5f, p.Y)), new Vector2(Mathf.Round(spread), pixel)), color);
+
+            if (Kind == PixelWeatherKind.Hail)
+            {
+                DrawRect(new Rect2(Snap(new Vector2(p.X - pixel, p.Y - pixel * 2f)), new Vector2(pixel, pixel)), color);
+                DrawRect(new Rect2(Snap(new Vector2(p.X + pixel * 2f, p.Y - pixel)), new Vector2(pixel, pixel)), color);
+                return;
+            }
+
+            // Two side flecks and one center fleck sell the splash without looking like bubbles.
+            float lift = Mathf.Lerp(3f, 0f, t) * impact.Scale;
+            DrawRect(new Rect2(Snap(new Vector2(p.X - spread * 0.55f, p.Y - lift)), new Vector2(pixel, pixel)), color);
+            DrawRect(new Rect2(Snap(new Vector2(p.X + spread * 0.45f, p.Y - lift * 0.8f)), new Vector2(pixel, pixel)), color);
+            if (Kind == PixelWeatherKind.Storm)
+                DrawRect(new Rect2(Snap(new Vector2(p.X, p.Y - lift * 1.35f - pixel)), new Vector2(pixel, pixel)), color);
         }
 
         private static Vector2 Snap(Vector2 v) => new(Mathf.Round(v.X), Mathf.Round(v.Y));

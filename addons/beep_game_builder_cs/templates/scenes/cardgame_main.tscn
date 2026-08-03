@@ -1,7 +1,8 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs" id="hud_collapse"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CardGameHudComponent.cs" id="hud_stat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs" id="binder_gi"]
@@ -42,30 +43,39 @@ script = ExtResource("hud_theme")
 GenreName = "cardgame"
 HudMode = true
 
+[node name="HudCollapse" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_collapse")
+
 [node name="StatsFrame" type="Panel" parent="HUD/Root"]
 anchors_preset = 0
-offset_left = 8.0
-offset_top = 20.0
+offset_left = 14.0
+offset_top = 14.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
 Title = ""
+Intent = 0
 TargetPath = NodePath("../TopLeft")
+TargetPadding = Vector2(42, 30)
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
-anchors_preset = 1
-anchor_right = 1.0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 28.0
+offset_right = 230.0
+offset_bottom = 76.0
 grow_vertical = 1
-theme_override_constants/margin_left = 22
-theme_override_constants/margin_top = 50
+mouse_filter = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="HealthLabel" type="ProgressBar" parent="HUD/Root/TopLeft/StatsVBox"]
-custom_minimum_size = Vector2(176, 22)
+custom_minimum_size = Vector2(196, 24)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
@@ -76,14 +86,15 @@ EndCaps = true
 [node name="TopRight" type="VBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -180.0
-offset_top = 16.0
+offset_left = -210.0
+offset_top = 18.0
 offset_right = -16.0
-offset_bottom = 48.0
+offset_bottom = 54.0
 grow_horizontal = 0
+mouse_filter = 2
 
 [node name="GoldLabel" type="Control" parent="HUD/Root/TopRight"]
-custom_minimum_size = Vector2(164, 30)
+custom_minimum_size = Vector2(194, 34)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "GOLD"
@@ -93,14 +104,15 @@ Accent = 4
 [node name="EnergyBox" type="VBoxContainer" parent="HUD/Root"]
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = -96.0
-offset_right = 180.0
-offset_bottom = -16.0
+offset_left = 24.0
+offset_top = -78.0
+offset_right = 224.0
+offset_bottom = -18.0
 grow_vertical = 0
+mouse_filter = 2
 
 [node name="EnergyLabel" type="ProgressBar" parent="HUD/Root/EnergyBox"]
-custom_minimum_size = Vector2(164, 24)
+custom_minimum_size = Vector2(196, 28)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
@@ -115,13 +127,17 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -280.0
-offset_top = -132.0
+offset_top = -144.0
 offset_right = 280.0
 offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 0
+mouse_filter = 2
 
 script = ExtResource("k_panel")
+Title = ""
+TitleStyle = 2
+Intent = 0
 [node name="HandLabel" type="Label" parent="HUD/Root/HandZone"]
 text = "Your hand — deal cards here"
 horizontal_alignment = 1

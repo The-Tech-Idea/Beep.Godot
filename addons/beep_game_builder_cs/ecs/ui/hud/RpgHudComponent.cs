@@ -78,14 +78,16 @@ namespace Beep.ECS.UI
 
             // Level shows progress toward the NEXT level as its fill — a bare level number says
             // nothing about how close the next one is.
-            SetReadout(_level, $"Lv {_party.Level}", _party.XpFraction);
+            SetReadout(_level, _party.Level.ToString(), _party.XpFraction);
 
-            SetReadout(_health, $"{_party.Health} / {_party.MaxHealth}", _party.HealthFraction);
+            SetReadout(_health, "HP", _party.HealthFraction);
+            if (_health != null) _health.TooltipText = $"HP {_party.Health} / {_party.MaxHealth}";
             Tint(_health, _party.IsDead ? UiSurface.Role.Danger
                  : _party.HealthFraction <= _party.LowThreshold ? UiSurface.Role.Warning
                  : null);
 
-            SetReadout(_mana, $"{_party.Mana} / {_party.MaxMana}", _party.ManaFraction);
+            SetReadout(_mana, "MP", _party.ManaFraction);
+            if (_mana != null) _mana.TooltipText = $"MP {_party.Mana} / {_party.MaxMana}";
         }
 
         private void OnQuest()

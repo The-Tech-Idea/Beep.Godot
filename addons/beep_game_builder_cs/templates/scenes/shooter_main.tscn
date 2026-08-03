@@ -1,6 +1,7 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs" id="hud_collapse"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/CrosshairComponent.cs" id="crosshair"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ShooterController.cs" id="1_player"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="21_codex"]
@@ -100,6 +101,9 @@ script = ExtResource("hud_theme")
 GenreName = "shooter"
 HudMode = true
 
+[node name="HudCollapse" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_collapse")
+
 [node name="CrosshairLayer" type="Control" parent="HUD/Root"]
 anchors_preset = 15
 anchor_right = 1.0
@@ -112,38 +116,48 @@ mouse_filter = 2
 script = ExtResource("crosshair")
 
 [node name="WeatherForecast" type="Control" parent="HUD/Root"]
-anchors_preset = 1
+anchors_preset = 3
+anchor_left = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 100
-offset_right = -640
-offset_bottom = -600
+offset_left = -292.0
+offset_top = 22.0
+offset_right = -22.0
+offset_bottom = 104.0
+grow_horizontal = 0
+grow_vertical = 1
+mouse_filter = 2
 script = ExtResource("9_forecast")
 
 [node name="StatsFrame" type="Panel" parent="HUD/Root"]
 anchors_preset = 0
-offset_left = 8.0
-offset_top = 20.0
+offset_left = 14.0
+offset_top = 14.0
 grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
 Title = ""
+Intent = 0
 TargetPath = NodePath("../TopLeft")
+TargetPadding = Vector2(42, 26)
 
 [node name="TopLeft" type="MarginContainer" parent="HUD/Root"]
-anchors_preset = 1
-anchor_right = 1.0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 224.0
+offset_bottom = 166.0
 grow_vertical = 1
-theme_override_constants/margin_left = 22
-theme_override_constants/margin_top = 50
+mouse_filter = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
 [node name="StatsVBox" type="VBoxContainer" parent="HUD/Root/TopLeft"]
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="ScoreLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
-custom_minimum_size = Vector2(148, 30)
+custom_minimum_size = Vector2(180, 28)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "SCORE"
@@ -151,7 +165,7 @@ Value = "0"
 Accent = 1
 
 [node name="LevelLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
-custom_minimum_size = Vector2(148, 28)
+custom_minimum_size = Vector2(180, 28)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "LEVEL"
@@ -159,7 +173,7 @@ Value = "Level 1"
 Accent = 2
 
 [node name="LivesLabel" type="Control" parent="HUD/Root/TopLeft/StatsVBox"]
-custom_minimum_size = Vector2(148, 28)
+custom_minimum_size = Vector2(180, 28)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "LIVES"
@@ -167,7 +181,7 @@ Value = "× 3"
 Accent = 4
 
 [node name="HealthLabel" type="ProgressBar" parent="HUD/Root/TopLeft/StatsVBox"]
-custom_minimum_size = Vector2(168, 22)
+custom_minimum_size = Vector2(180, 18)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
@@ -180,16 +194,17 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -220.0
-offset_top = -72.0
+offset_left = -238.0
+offset_top = -92.0
 offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_constants/separation = 2
+mouse_filter = 2
+theme_override_constants/separation = 5
 
 [node name="AmmoLabel" type="Control" parent="HUD/Root/BottomRight"]
-custom_minimum_size = Vector2(190, 30)
+custom_minimum_size = Vector2(210, 34)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "AMMO"
@@ -197,7 +212,7 @@ Value = "30 / 30"
 Accent = 6
 
 [node name="WaveLabel" type="Control" parent="HUD/Root/BottomRight"]
-custom_minimum_size = Vector2(190, 28)
+custom_minimum_size = Vector2(210, 30)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "WAVE"

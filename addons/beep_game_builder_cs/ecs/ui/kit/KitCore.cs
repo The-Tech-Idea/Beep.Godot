@@ -74,6 +74,15 @@ namespace Beep.ECS.UI.Kit
         Chip,
     }
 
+    /// <summary>Where a panel is used. HUD panels in the reference images are compact edge
+    /// readouts; menu/dialog panels carry the decorative frames and title plates.</summary>
+    public enum KitPanelIntent
+    {
+        Hud,
+        Sheet,
+        Dialog,
+    }
+
     /// <summary>
     /// How the highlight across the upper face is CONSTRUCTED.
     ///
@@ -173,15 +182,11 @@ namespace Beep.ECS.UI.Kit
         /// drawn widgets and the generated 9-patch art cut to the same outline.</summary>
         public static KitShape ShapeForGenre(string? genre) => genre?.ToLowerInvariant() switch
         {
-            "rpg" => KitShape.Spiked,       // rpgui PLAY: points below the plate
-            "survival" => KitShape.Torn,     // store cards: non-parallel torn edges
+            "rpg" => KitShape.Chamfer,      // RPG plates: carved corners without jagged HUD panels
+            "survival" => KitShape.Round,   // parchment tabs/cards: soft rectangular controls
             "shooter" => KitShape.Asymmetric,   // sci-fi HUD sheet: two corners cut, two square
-            // NO genre renders as a bare Rect. A rectangle with a border is a Godot UI button,
-            // whatever shading is put on it -- and the greyscale gate said so: citybuilder and
-            // strategy scored as INDISTINGUISHABLE precisely because both were KitShape.Rect and
-            // had no silhouette to tell apart. That was the diagnosis; corner brackets were not.
-            "citybuilder" => KitShape.Octagon,   // citybuilder5's stone tiles: near-square, corners cut
-            "strategy" => KitShape.Shield,       // faction crest / command panel (AoE, StarCraft)
+            "citybuilder" => KitShape.Round,     // builder HUD: simple resource pills and square icon buttons
+            "strategy" => KitShape.Chamfer,      // command UI: restrained tactical panels
             "racing" => KitShape.Speed,
             "platformer" => KitShape.Capsule, // ui1 mission bar: cap overhanging the left
             "puzzle" => KitShape.Ellipse,        // candy/bubble, not another rounded rect
@@ -189,6 +194,30 @@ namespace Beep.ECS.UI.Kit
             "cardgame" => KitShape.Round,
             _ => KitShape.Round,
         };
+
+        public static KitShape PanelShapeForGenre(string? genre, KitPanelIntent intent)
+        {
+            string g = genre?.ToLowerInvariant() ?? "";
+            if (intent == KitPanelIntent.Hud)
+            {
+                return g switch
+                {
+                    "citybuilder" => KitShape.Round,
+                    "rpg" => KitShape.Round,
+                    "survival" => KitShape.Round,
+                    "strategy" => KitShape.Chamfer,
+                    "shooter" => KitShape.Asymmetric,
+                    "racing" => KitShape.Parallelogram,
+                    "platformer" => KitShape.Pill,
+                    "puzzle" => KitShape.Round,
+                    "topdown" => KitShape.Stepped,
+                    "cardgame" => KitShape.Round,
+                    _ => KitShape.Round,
+                };
+            }
+
+            return ShapeForGenre(g);
+        }
     }
 
     /// <summary>

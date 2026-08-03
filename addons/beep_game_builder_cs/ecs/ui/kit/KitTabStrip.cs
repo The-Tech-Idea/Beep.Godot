@@ -106,10 +106,12 @@ namespace Beep.ECS.UI.Kit
             AddThemeColorOverride("font_selected_color", new Color(0, 0, 0, 0));
             AddThemeColorOverride("font_unselected_color", new Color(0, 0, 0, 0));
             AddThemeColorOverride("font_hovered_color", new Color(0, 0, 0, 0));
-            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 5.5f * Mathf.Max(1, Tabs.Count)),
-                                            Mathf.Max(fs * 2.3f, 26f));
+            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, 88f * Mathf.Max(1, Tabs.Count)),
+                                            Mathf.Clamp(fs * 2.0f, 28f, 38f));
             _suppressing = false;
         }
+
+        private KitShape TabShape => Geo.Register == KitRegister.Pixel ? KitShape.Stepped : KitShape.Round;
 
         private Rect2 TabRect(int i)
         {
@@ -155,7 +157,7 @@ namespace Beep.ECS.UI.Kit
                 }
                 else
                 {
-                    KitChrome.DrawShape(this, _genre, r, KitChrome.Shape(_genre), plate, sel ? KitChrome.Rim(UiSurface.Of(this), Geo) : ink, rimPx);
+                    KitChrome.DrawShape(this, _genre, r, TabShape, plate, sel ? KitChrome.Rim(UiSurface.Of(this), Geo) : ink, rimPx);
                 }
 
                 if (sel || hover)

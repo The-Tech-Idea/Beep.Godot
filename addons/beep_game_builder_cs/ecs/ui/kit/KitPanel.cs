@@ -46,6 +46,7 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
         private string _title = "";
+        [Export] public KitPanelIntent Intent { get; set; } = KitPanelIntent.Sheet;
 
         /// <summary>Banner silhouette. Plaque/Ribbon/Shield/Ellipse are the four the reference
         /// kits use; the genre picks one unless this is overridden.</summary>
@@ -258,6 +259,7 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Half the banner's height — the amount it hangs above the frame.</summary>
         private float BannerOverhang()
             => string.IsNullOrEmpty(_title)
+                || Intent == KitPanelIntent.Hud
                 ? 0f
                 : Mathf.Max(UiSurface.FontSize(this) * 1.5f, Size.Y * 0.14f) * 0.5f;
 
@@ -294,6 +296,16 @@ namespace Beep.ECS.UI.Kit
             Color ink = UiSurface.Ink(UiSurface.Of(this));
             float fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
+
+            if (Intent == KitPanelIntent.Hud)
+            {
+                var shape = KitMaterial.PanelShapeForGenre(_genre, Intent);
+                Color plate = new Color(face.R * 0.82f, face.G * 0.82f, face.B * 0.84f, Mathf.Min(0.90f, face.A));
+                KitChrome.DrawShape(this, _genre, body, shape, plate, ink with { A = 0.50f },
+                                    Mathf.Clamp(rimPx * 0.42f, 1f, 2.5f));
+                KitChrome.DrawAttachments(this, _genre, Attachments);
+                return;
+            }
 
             // Frame.
             KitChrome.DrawShape(this, _genre, body, KitChrome.Shape(_genre), face, KitChrome.Rim(UiSurface.Of(this), Geo), rimPx);

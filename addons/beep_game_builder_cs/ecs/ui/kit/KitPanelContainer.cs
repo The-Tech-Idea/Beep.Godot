@@ -34,24 +34,44 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitPanelContainer : PanelContainer
     {
+        public enum HeaderStyle
+        {
+            Banner,
+            UtilityStrip,
+            None,
+        }
+
         [Export] public string Title { get => _title; set { _title = value ?? ""; Refresh(); } }
         private string _title = "";
 
         /// <summary>Banner lightness as a multiple of the frame. 0.44 (gameui2) reads recessed;
         /// above 1 gives gameui4's white plate.</summary>
-        [Export(PropertyHint.Range, "0.1,1.6,0.01")] public float BannerShade { get; set; } = 0.44f;
+        [Export(PropertyHint.Range, "0.1,1.6,0.01")]
+        public float BannerShade { get => _bannerShade; set { _bannerShade = value; Refresh(); } }
+        private float _bannerShade = 0.44f;
+        /// <summary>Title scale relative to the current UI font. City-builder/status panels use
+        /// compact utility headers; RPG/dialog panels can leave the larger default.</summary>
+        [Export(PropertyHint.Range, "0.45,1.4,0.01")]
+        public float TitleFontScale { get => _titleFontScale; set { _titleFontScale = value; Refresh(); } }
+        private float _titleFontScale = 1.0f;
+        [Export] public HeaderStyle TitleStyle { get => _titleStyle; set { _titleStyle = value; Refresh(); } }
+        private HeaderStyle _titleStyle = HeaderStyle.Banner;
+        [Export] public KitPanelIntent Intent { get => _intent; set { _intent = value; Refresh(); } }
+        private KitPanelIntent _intent = KitPanelIntent.Sheet;
 
-        [Export] public bool ShowWell { get; set; } = true;
+        [Export] public bool ShowWell { get => _showWell; set { _showWell = value; Refresh(); } }
+        private bool _showWell = true;
 
         /// <summary>Extra inset for children, on top of the frame. Use when content needs to sit
         /// further inside the well than the frame alone requires.</summary>
-        [Export] public Vector2 ExtraPadding { get; set; } = new(6, 6);
+        [Export] public Vector2 ExtraPadding { get => _extraPadding; set { _extraPadding = value; Refresh(); } }
+        private Vector2 _extraPadding = new(6, 6);
 
         private string _genre = "";
         private StyleBoxEmpty? _spacer;
 
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
-        private KitShape ActiveShape => KitMaterial.ShapeForGenre(_genre);
+        private KitShape ActiveShape => KitMaterial.PanelShapeForGenre(_genre, Intent);
 
         public override void _Ready()
         {
@@ -84,8 +104,8 @@ namespace Beep.ECS.UI.Kit
             _refreshing = true;
 
             float h = Mathf.Max(Size.Y, 1f);
-            float frame = Geo.FramePx(h);
-            float banner = BannerRoom();
+            float frame = FramePx(h);
+            float banner = HeaderRoom();
 
             _spacer ??= new StyleBoxEmpty();
             _spacer.ContentMarginLeft = frame + ExtraPadding.X;
@@ -98,10 +118,23 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private float BannerRoom()
+        private float HeaderRoom()
             => string.IsNullOrEmpty(_title)
                 ? 0f
-                : Mathf.Max(UiSurface.FontSize(this) * 1.5f, Size.Y * 0.14f) * 0.5f;
+                : TitleStyle == HeaderStyle.None
+                    ? 0f
+                : TitleStyle == HeaderStyle.UtilityStrip
+                    ? Mathf.Max(UiSurface.FontSize(this, TitleFontScale) * 1.65f, 18f)
+                    : Mathf.Max(UiSurface.FontSize(this, TitleFontScale) * 1.5f, Size.Y * 0.14f) * 0.5f;
+
+        private float BodyOverhang()
+            => TitleStyle == HeaderStyle.Banner ? HeaderRoom() : 0f;
+
+        private float FramePx(float height)
+        {
+            float f = Geo.FramePx(height);
+            return Intent == KitPanelIntent.Hud ? Mathf.Clamp(f * 0.42f, 1f, 3f) : f;
+        }
 
         public override void _Draw()
         {
@@ -113,14 +146,20 @@ namespace Beep.ECS.UI.Kit
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
 
+            if (Intent == KitPanelIntent.Hud)
+            {
+                DrawHudPanel(face, ink, fs);
+                return;
+            }
+
             // The body is inset from the top by the banner's overhang, so the banner straddles the
             // FRAME's edge while the whole widget stays inside its own rect.
-            float over = BannerRoom();
+            float over = BodyOverhang();
             var body = new Rect2(0f, over, Size.X, Mathf.Max(4f, Size.Y - over));
 
             // Walk the register's stack, exactly as KitControl does, so a panel and a button in
             // the same genre are built from the same bands.
-            float frame = g.FramePx(body.Size.Y);
+            float frame = FramePx(body.Size.Y);
             Rect2 cur = body;
             foreach (var layer in KitStacks.For(g.Register))
             {
@@ -150,6 +189,29 @@ namespace Beep.ECS.UI.Kit
             }
 
             DrawBanner(body, fs, face, ink);
+        }
+
+        private void DrawHudPanel(Color face, Color ink, int fs)
+        {
+            var body = new Rect2(Vector2.Zero, Size);
+            float rimPx = Mathf.Clamp(Geo.Rim * 0.42f * (fs / 14f), 1f, 2.5f);
+            Color panel = Tint(face, 0.82f) with { A = Mathf.Min(0.92f, face.A) };
+            Cut(body, ActiveShape, panel, ink with { A = 0.54f }, rimPx);
+
+            if (ShowWell)
+            {
+                float inset = Mathf.Max(2f, Mathf.Min(Size.X, Size.Y) * 0.045f);
+                var well = Inset(body, inset);
+                if (well.Size.X > 4f && well.Size.Y > 4f)
+                    Cut(well, ActiveShape, Tint(face, Geo.WellShade) with { A = panel.A * 0.75f },
+                        ink with { A = 0.24f }, 1f);
+            }
+
+            if (!string.IsNullOrEmpty(_title) && TitleStyle != HeaderStyle.None)
+            {
+                var font = GetThemeDefaultFont();
+                if (font != null) DrawUtilityHeader(body, fs, face, ink, font);
+            }
         }
 
         private static Rect2 Inset(Rect2 r, float by)
@@ -211,11 +273,17 @@ namespace Beep.ECS.UI.Kit
             if (string.IsNullOrEmpty(_title)) return;
             var font = GetThemeDefaultFont();
             if (font == null) return;
+            if (TitleStyle == HeaderStyle.None) return;
+            if (TitleStyle == HeaderStyle.UtilityStrip)
+            {
+                DrawUtilityHeader(host, fs, face, ink, font);
+                return;
+            }
 
-            float h = Mathf.Max(fs * 1.5f, host.Size.Y * 0.14f);
-            int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
-                                       new Vector2(host.Size.X * 0.88f, h * 0.68f),
-                                       _title, font, min: 9);
+            float titleFs = UiSurface.FontSize(this, TitleFontScale);
+            float h = Mathf.Max(titleFs * 1.5f, host.Size.Y * 0.14f);
+            int tf = UiSurface.FitText(this, new Vector2(host.Size.X * 0.88f, h * 0.68f),
+                                       0.72f, _title, font, min: 8, themeMax: TitleFontScale);
             float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf).X + tf * 2f;
             float w = Mathf.Max(host.Size.X * 0.62f, Mathf.Min(need, host.Size.X * 1.08f));
             var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
@@ -235,6 +303,30 @@ namespace Beep.ECS.UI.Kit
                 ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
             KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
                        _title, tf, txt);
+        }
+
+        private void DrawUtilityHeader(Rect2 host, int fs, Color face, Color ink, Font font)
+        {
+            float titleFs = UiSurface.FontSize(this, TitleFontScale);
+            float frame = Geo.FramePx(host.Size.Y);
+            float h = Mathf.Max(titleFs * 1.45f, 17f);
+            float padX = Mathf.Max(8f, fs * 0.55f);
+            var r = new Rect2(host.Position.X + frame, host.Position.Y + frame,
+                              Mathf.Max(4f, host.Size.X - frame * 2f), h);
+            int tf = UiSurface.FitText(this, new Vector2(r.Size.X - padX * 2f, h * 0.72f),
+                                       0.68f, _title, font, min: 8, themeMax: TitleFontScale);
+            Color plate = Tint(face, Mathf.Max(0.48f, BannerShade));
+            DrawRect(r, plate with { A = Mathf.Min(0.92f, plate.A) });
+            DrawLine(new Vector2(r.Position.X, r.End.Y), new Vector2(r.End.X, r.End.Y),
+                     ink with { A = 0.52f }, Mathf.Max(1f, Geo.Rim * 0.35f * (fs / 14f)));
+
+            Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
+            Color txt = UiSurface.Luminance(plate) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
+            KitChrome.DrawText(this, _genre, font,
+                new Vector2(r.Position.X + padX,
+                            r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                _title, tf, txt);
         }
     }
 }

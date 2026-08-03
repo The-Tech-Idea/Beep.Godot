@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs" id="hud_collapse"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/CityBuilderHudComponent.cs" id="hud_stat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
@@ -18,7 +19,6 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GameSpeedComponent.cs" id="cb_speed"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/BuildToolbarComponent.cs" id="cb_build"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ToastNotificationComponent.cs" id="cb_toast"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/CollapsiblePanelComponent.cs" id="collapsible"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ResourceBadgeComponent.cs" id="badge"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_population.png" id="bi_population"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_treasury.png" id="bi_treasury"]
@@ -66,6 +66,9 @@ script = ExtResource("hud_theme")
 GenreName = "citybuilder"
 HudMode = true
 
+[node name="HudCollapse" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_collapse")
+
 [node name="BuildScreen" type="Node" parent="."]
 script = ExtResource("30_screen")
 ScreenKey = "build"
@@ -81,61 +84,63 @@ script = ExtResource("30_screen")
 ScreenKey = "districts"
 OpenAction = "map"
 
-[node name="Badges" type="VBoxContainer" parent="HUD/Root"]
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -210.0
-offset_top = 56.0
-offset_right = -14.0
-offset_bottom = 300.0
-grow_horizontal = 0
-grow_vertical = 1
+[node name="ResourceStrip" type="HBoxContainer" parent="HUD/Root"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 796.0
+offset_bottom = 64.0
+grow_horizontal = 1
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
-[node name="Population" type="Control" parent="HUD/Root/Badges"]
-custom_minimum_size = Vector2(196, 46)
+[node name="Population" type="Control" parent="HUD/Root/ResourceStrip"]
+custom_minimum_size = Vector2(148, 48)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("badge")
 Icon = ExtResource("bi_population")
+Accent = 1
 
-[node name="Budget" type="Control" parent="HUD/Root/Badges"]
-custom_minimum_size = Vector2(196, 46)
+[node name="Budget" type="Control" parent="HUD/Root/ResourceStrip"]
+custom_minimum_size = Vector2(176, 48)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("badge")
 Icon = ExtResource("bi_treasury")
+Accent = 3
 
-[node name="Power" type="Control" parent="HUD/Root/Badges"]
-custom_minimum_size = Vector2(196, 46)
+[node name="Power" type="Control" parent="HUD/Root/ResourceStrip"]
+custom_minimum_size = Vector2(148, 48)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("badge")
 Icon = ExtResource("bi_power")
+Accent = 6
 
-[node name="Happiness" type="Control" parent="HUD/Root/Badges"]
-custom_minimum_size = Vector2(196, 46)
+[node name="Happiness" type="Control" parent="HUD/Root/ResourceStrip"]
+custom_minimum_size = Vector2(148, 48)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("badge")
 Icon = ExtResource("bi_happiness")
+Accent = 2
 
-[node name="Date" type="Control" parent="HUD/Root/Badges"]
-custom_minimum_size = Vector2(196, 46)
+[node name="Date" type="Control" parent="HUD/Root/ResourceStrip"]
+custom_minimum_size = Vector2(172, 48)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("badge")
 Icon = ExtResource("bi_calendar")
+Accent = 4
 
 [node name="GenreHud" type="Node" parent="HUD/Root"]
 script = ExtResource("hud_stat")
-PopulationPath = NodePath("Badges/Population")
-BudgetPath = NodePath("Badges/Budget")
-PowerPath = NodePath("Badges/Power")
-HappinessPath = NodePath("Badges/Happiness")
-DatePath = NodePath("Badges/Date")
-DemandMeterPath = NodePath("BottomDock/MinimapRow/DemandStack/DemandMeter")
+PopulationPath = NodePath("ResourceStrip/Population")
+BudgetPath = NodePath("ResourceStrip/Budget")
+PowerPath = NodePath("ResourceStrip/Power")
+HappinessPath = NodePath("ResourceStrip/Happiness")
+DatePath = NodePath("ResourceStrip/Date")
+DemandMeterPath = NodePath("RightGadget/Body/DemandMeter")
 AlertHostPath = NodePath("AlertStack/Alerts")
 
 [node name="GameInfoBinder" type="Node" parent="HUD/Root"]
@@ -148,84 +153,85 @@ script = ExtResource("cb_econ")
 [node name="SpeedBar" type="HBoxContainer" parent="HUD/Root"]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -170.0
-offset_top = 10.0
+offset_left = -190.0
+offset_top = 12.0
 offset_right = -16.0
-offset_bottom = 44.0
+offset_bottom = 50.0
 grow_horizontal = 0
+mouse_filter = 2
 
 [node name="Speed" type="Node" parent="HUD/Root/SpeedBar"]
 script = ExtResource("cb_speed")
 TogglePauseAction = ""
 
-[node name="BottomDock" type="VBoxContainer" parent="HUD/Root"]
-anchor_top = 1.0
+[node name="RightGadget" type="PanelContainer" parent="HUD/Root"]
+anchor_left = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -20.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 0
+offset_left = -258.0
+offset_top = 78.0
+offset_right = -16.0
+offset_bottom = 386.0
+grow_horizontal = 0
+mouse_filter = 2
+script = ExtResource("k_panelc")
+Title = ""
+TitleFontScale = 0.72
+TitleStyle = 2
+Intent = 0
+ShowWell = false
+ExtraPadding = Vector2(10, 8)
+
+[node name="Body" type="VBoxContainer" parent="HUD/Root/RightGadget"]
+layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="MinimapRow" type="HBoxContainer" parent="HUD/Root/BottomDock"]
+[node name="DemandMeter" type="Control" parent="HUD/Root/RightGadget/Body"]
 layout_mode = 2
-mouse_filter = 2
-alignment = 2
-
-[node name="DemandStack" type="VBoxContainer" parent="HUD/Root/BottomDock/MinimapRow"]
-layout_mode = 2
-size_flags_vertical = 8
-theme_override_constants/separation = 2
-mouse_filter = 2
-
-[node name="DemandMeter" type="Control" parent="HUD/Root/BottomDock/MinimapRow/DemandStack"]
-layout_mode = 2
-custom_minimum_size = Vector2(104, 152)
+custom_minimum_size = Vector2(218, 96)
 mouse_filter = 2
 script = ExtResource("cb_demand")
+DrawBackdrop = false
+LetterFontScale = 0.72
 
-[node name="Collapse" type="Node" parent="HUD/Root/BottomDock/MinimapRow/DemandStack/DemandMeter"]
-script = ExtResource("collapsible")
-Title = "RCI"
-
-[node name="MapStack" type="VBoxContainer" parent="HUD/Root/BottomDock/MinimapRow"]
+[node name="Minimap" type="Control" parent="HUD/Root/RightGadget/Body"]
 layout_mode = 2
-size_flags_vertical = 8
-theme_override_constants/separation = 2
-mouse_filter = 2
-
-[node name="Minimap" type="Control" parent="HUD/Root/BottomDock/MinimapRow/MapStack"]
-layout_mode = 2
-custom_minimum_size = Vector2(180, 180)
+custom_minimum_size = Vector2(218, 168)
 mouse_filter = 2
 script = ExtResource("minimap")
 PlayerPath = NodePath("")
 
-[node name="Collapse" type="Node" parent="HUD/Root/BottomDock/MinimapRow/MapStack/Minimap"]
-script = ExtResource("collapsible")
-Title = "Map"
-
-[node name="BuildBar" type="PanelContainer" parent="HUD/Root/BottomDock"]
-layout_mode = 2
+[node name="BottomDock" type="PanelContainer" parent="HUD/Root"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -148.0
+offset_right = -14.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
 script = ExtResource("k_panelc")
+Title = ""
+TitleFontScale = 0.72
+TitleStyle = 2
+Intent = 0
+ShowWell = false
+ExtraPadding = Vector2(10, 8)
 
-[node name="Collapse" type="Node" parent="HUD/Root/BottomDock/BuildBar"]
-script = ExtResource("collapsible")
-Title = "Build"
-ToggleAction = "ui_end"
-
-[node name="BuildMargin" type="MarginContainer" parent="HUD/Root/BottomDock/BuildBar"]
+[node name="BuildMargin" type="MarginContainer" parent="HUD/Root/BottomDock"]
+layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="Toolbar" type="Node" parent="HUD/Root/BottomDock/BuildBar/BuildMargin"]
+[node name="Toolbar" type="Node" parent="HUD/Root/BottomDock/BuildMargin"]
 script = ExtResource("cb_build")
+ItemSize = Vector2(104, 82)
+TabSize = Vector2(104, 34)
+PaletteHeight = 88.0
 
 [node name="AlertStack" type="VBoxContainer" parent="HUD/Root"]
 anchor_top = 1.0

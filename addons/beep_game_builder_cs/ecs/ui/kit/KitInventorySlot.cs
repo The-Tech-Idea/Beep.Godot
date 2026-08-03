@@ -134,7 +134,7 @@ namespace Beep.ECS.UI.Kit
             MouseExited += () => { _hover = false; QueueRedraw(); };
             // A slot is square by default and big enough for its own badge to be legible.
             int fs = UiSurface.FontSize(this);
-            float side = Mathf.Max(48f, fs * 3.4f);
+            float side = Mathf.Clamp(fs * 3.0f, 44f, 58f);
             if (CustomMinimumSize == Vector2.Zero)
                 CustomMinimumSize = new Vector2(side, side);
         }

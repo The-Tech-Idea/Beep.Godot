@@ -1,8 +1,9 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs" id="hud_collapse"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/hud/StrategyHudComponent.cs" id="hud_stat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs" id="minimap"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs" id="30_screen"]
@@ -42,16 +43,26 @@ script = ExtResource("hud_theme")
 GenreName = "strategy"
 HudMode = true
 
+[node name="HudCollapse" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_collapse")
+
 [node name="TopBar" type="PanelContainer" parent="HUD/Root"]
 anchor_right = 1.0
-offset_bottom = 52.0
+custom_minimum_size = Vector2(0, 64)
+offset_bottom = 64.0
+mouse_filter = 2
 script = ExtResource("k_panelc")
+Title = ""
+TitleStyle = 2
+Intent = 0
+ExtraPadding = Vector2(10, 8)
 
 [node name="Bar" type="HBoxContainer" parent="HUD/Root/TopBar"]
-theme_override_constants/separation = 8
+theme_override_constants/separation = 10
+alignment = 1
 
 [node name="GoldLabel" type="Control" parent="HUD/Root/TopBar/Bar"]
-custom_minimum_size = Vector2(170, 32)
+custom_minimum_size = Vector2(184, 34)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "GOLD"
@@ -59,7 +70,7 @@ Value = "100"
 Accent = 4
 
 [node name="FoodLabel" type="Control" parent="HUD/Root/TopBar/Bar"]
-custom_minimum_size = Vector2(170, 32)
+custom_minimum_size = Vector2(184, 34)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "FOOD"
@@ -67,7 +78,7 @@ Value = "80"
 Accent = 3
 
 [node name="WoodLabel" type="Control" parent="HUD/Root/TopBar/Bar"]
-custom_minimum_size = Vector2(170, 32)
+custom_minimum_size = Vector2(184, 34)
 layout_mode = 2
 script = ExtResource("k_pair")
 Label = "WOOD"
@@ -75,7 +86,7 @@ Value = "60"
 Accent = 1
 
 [node name="UnitsLabel" type="ProgressBar" parent="HUD/Root/TopBar/Bar"]
-custom_minimum_size = Vector2(150, 24)
+custom_minimum_size = Vector2(168, 26)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("k_meter")
@@ -87,10 +98,11 @@ EndCaps = true
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -120.0
-offset_top = 60.0
+offset_top = 76.0
 offset_right = 120.0
-offset_bottom = 92.0
+offset_bottom = 112.0
 grow_horizontal = 2
+mouse_filter = 2
 script = ExtResource("k_pair")
 Label = "TURN"
 Value = "1"

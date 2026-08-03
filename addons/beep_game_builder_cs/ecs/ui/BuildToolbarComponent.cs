@@ -25,6 +25,9 @@ namespace Beep.ECS.UI
         /// <summary>Economy to buy from. Empty = search the scene for the first one.</summary>
         [Export] public NodePath EconomyPath { get; set; } = new("");
         [Export] public int ItemMinWidth { get; set; } = 96;
+        [Export] public Vector2 ItemSize { get; set; } = new(104, 82);
+        [Export] public Vector2 TabSize { get; set; } = new(104, 34);
+        [Export] public float PaletteHeight { get; set; } = 88f;
 
         /// <summary>Folder holding `icon_&lt;id&gt;.png` for each catalogue entry. A palette of
         /// icon tiles is what every city-builder reference uses; a column of
@@ -100,9 +103,7 @@ namespace Beep.ECS.UI
         private void Build()
         {
             if (GetParent() is not Godot.Control parent) return;
-            int fs = UiSurface.FontSize(this);
             int captionFs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
-            int smallFs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
 
             var root = new VBoxContainer { Name = "Toolbar" };
             root.AddThemeConstantOverride("separation", 6);
@@ -115,7 +116,7 @@ namespace Beep.ECS.UI
             var scroll = new ScrollContainer
             {
                 Name = "PaletteScroll",
-                CustomMinimumSize = new Vector2(0, fs * 5.8f),
+                CustomMinimumSize = new Vector2(0, PaletteHeight),
                 VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
             };
             root.AddChild(scroll);
@@ -136,7 +137,7 @@ namespace Beep.ECS.UI
                 var tab = new KitPushButton
                 {
                     Name = $"Tab{cat}", Text = cat, ToggleMode = true,
-                    CustomMinimumSize = new Vector2(0, fs * 2.4f),
+                    CustomMinimumSize = TabSize,
                     FocusMode = Godot.Control.FocusModeEnum.None,
                 };
                 tab.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
@@ -154,8 +155,6 @@ namespace Beep.ECS.UI
         public void SelectCategory(string category)
         {
             if (_palette == null) return;
-            int fs = UiSurface.FontSize(this);
-            int captionFs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
             int smallFs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
             _category = category;
 
@@ -175,7 +174,10 @@ namespace Beep.ECS.UI
                     Caption = b.Display,
                     CostText = b.Cost.ToString("N0"),
                     TileIcon = LoadIcon(b.Id),
-                    CustomMinimumSize = new Vector2(Mathf.Max(ItemMinWidth, Mathf.RoundToInt(fs * 5.8f)), fs * 6.0f),
+                    FixedSize = new Vector2(Mathf.Max(ItemMinWidth, ItemSize.X), ItemSize.Y),
+                    CustomMinimumSize = new Vector2(Mathf.Max(ItemMinWidth, ItemSize.X), ItemSize.Y),
+                    SizeFlagsHorizontal = Godot.Control.SizeFlags.ShrinkBegin,
+                    SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkBegin,
                     TooltipText = Describe(b),
                 };
                 item.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;

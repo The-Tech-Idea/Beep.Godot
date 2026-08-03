@@ -53,6 +53,7 @@ namespace Beep.ECS
         // SetWeatherIntensity. Default true so the mix behaves until the first WeatherChanged.
         private bool _rainWanted = true;
         private bool _windWanted = true;
+        private bool _ambientWanted = true;
         private bool _wasActive = true;   // watch IsActive transitions so reactivation re-seeds the mix
         // One tween PER player: a single shared field killed sibling fades — SetWeatherIntensity's
         // three back-to-back Fades (rain, wind, ambient) all cancelled but the last.
@@ -202,7 +203,7 @@ namespace Beep.ECS
                 SetPlayerVolume(_windHeavyPlayer, Mathf.Lerp(-80f, WindMaxVolume, windHeavyMix));
 
             // Fade ambient with inverse intensity (quiet when storm is loud)
-            var ambientTarget = Mathf.Lerp(AmbientMaxVolume, -80f, intensity);
+            var ambientTarget = _ambientWanted ? Mathf.Lerp(AmbientMaxVolume, -80f, intensity) : -80f;
             SetPlayerVolume(_ambientPlayer, ambientTarget);
         }
 
@@ -244,13 +245,20 @@ namespace Beep.ECS
             // use-after-free rather than a missed sound.
             GetTree().CreateTimer(delay).Timeout += () =>
             {
-                if (GodotObject.IsInstanceValid(this)) PlayThunder();
+                if (GodotObject.IsInstanceValid(this)
+                    && _weather != null
+                    && _weather.CurrentWeather == WeatherSystemComponent.WeatherType.Storm)
+                {
+                    PlayThunder();
+                }
             };
         }
 
         public void PlayThunder()
         {
             if (!IsActive || _thunderPlayer == null || ThunderVariants == null || ThunderVariants.Length == 0)
+                return;
+            if (_weather != null && _weather.CurrentWeather != WeatherSystemComponent.WeatherType.Storm)
                 return;
 
             var variant = ThunderVariants[GD.Randi() % ThunderVariants.Length];
@@ -294,6 +302,10 @@ namespace Beep.ECS
             _windWanted = type is WeatherSystemComponent.WeatherType.Storm
                               or WeatherSystemComponent.WeatherType.Sandstorm
                               or WeatherSystemComponent.WeatherType.Snow;
+            _ambientWanted = type is WeatherSystemComponent.WeatherType.Rain
+                                or WeatherSystemComponent.WeatherType.Storm;
+            if (type == WeatherSystemComponent.WeatherType.Clear && _thunderPlayer != null && _thunderPlayer.Playing)
+                _thunderPlayer.Stop();
             // Re-apply so the layers mute/unmute immediately for the new type.
             if (_weather != null) SetWeatherIntensity(_weather.WeatherIntensity);
         }

@@ -1,32 +1,13 @@
 using Godot;
 using Beep.ECS.UI.Kit;
+using System.Collections.Generic;
 
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Makes a HUD panel collapsible via a small floating toggle pinned to the panel's corner.
-    ///
-    /// Why every HUD panel needs this, not just the big ones: a HUD competes with the game for
-    /// the same pixels. A build toolbar, a quest log, a minimap and a resource strip are each
-    /// useful *some* of the time, and permanently occupying the screen for the rest of it is
-    /// how HUDs end up feeling cluttered. Letting the player fold what they are not using is
-    /// the standard answer across every genre — and it costs the developer nothing here,
-    /// because this attaches to a panel that already exists rather than replacing it.
-    ///
-    /// Attach as a CHILD of the panel you want to collapse. The component finds its parent
-    /// <see cref="Godot.Control"/> and floats a chevron button over its top-right corner.
-    ///
-    /// Floating rather than a title bar, for two reasons. It is what games use — a HUD panel
-    /// folds from a corner chevron, not from a desktop-style header row. And it is the only
-    /// form that works everywhere: a full-width header only lands correctly inside a
-    /// VBoxContainer, whereas a floating button is positioned from the panel's own rect and so
-    /// works over a panel in an HBox, a bare Control, or anything else. The button lives on the
-    /// CanvasLayer's top-level Control so no container can reflow it and the panel's node path
-    /// is never disturbed.
-    ///
-    /// State persists through <see cref="ISaveable"/>: a player who folded the build bar
-    /// expects it folded after a reload, and a HUD that silently reopens everything on load
-    /// is the thing this is meant to avoid.
+    /// Makes a screen-edge HUD block collapsible with a floating kit toggle.
+    /// Collapse moves the whole widget off the nearest screen edge. It does not resize the
+    /// widget and it does not hide the widget's child content.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -53,23 +34,30 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void ToggledEventHandler(bool collapsed);
 
-        /// <summary>Floating toggle size and its inset from the panel corner, in DESIGN pixels
-        /// (see BeepProjectDefaults.DesignWidth) — the canvas_items stretch scales them to the
-        /// player's resolution, so these stay correct at 720p and 4K alike.</summary>
         /// <summary>Chevron size, from the theme font: a fixed 22px button is a thumbnail
         /// beside 24pt type and oversized beside 14pt.</summary>
         private float ButtonSize => UiSurface.FontSize(this) * 1.6f;
-        private const float Inset = 4f;
 
         private Godot.Control? _panel;      // the parent being folded
         private Button? _header;            // the floating toggle
-        private VBoxContainer? _wrapper;
         private bool _collapsed;
-        private float _expandedMin = -1f;
         private Rect2 _anchor;              // last known panel rect, so the toggle survives the fold
         private Tween? _tween;
+        private Vector2 _expandedPosition;
+        private Vector2 _collapsedPosition;
+        private CollapseEdge _edge = CollapseEdge.Left;
+        private Godot.Control.MouseFilterEnum _expandedMouseFilter;
+        private readonly List<Godot.Control> _linkedFrames = new();
 
         public bool IsCollapsed => _collapsed;
+
+        private enum CollapseEdge
+        {
+            Left,
+            Right,
+            Top,
+            Bottom
+        }
 
         public override void _Ready()
         {
@@ -100,18 +88,33 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            // Remember the natural height BEFORE folding, or expanding restores to zero.
-            _expandedMin = _panel.CustomMinimumSize.Y > 0 ? _panel.CustomMinimumSize.Y : _panel.Size.Y;
-
+            _anchor = new Rect2(_panel.GlobalPosition, _panel.Size);
+            _expandedPosition = _panel.Position;
+            _expandedMouseFilter = _panel.MouseFilter;
+            ResolveLinkedFrames();
             BuildHeader();
             SetCollapsed(StartCollapsed, animate: false);
         }
 
-        /// <summary>Build the floating toggle. It must NOT be a child of the panel — a child is
-        /// folded away with everything else, leaving no way to unfold.</summary>
+        private void ResolveLinkedFrames()
+        {
+            _linkedFrames.Clear();
+            if (_panel?.GetParent() is not Node parent) return;
+            foreach (Node child in parent.GetChildren())
+            {
+                if (child == _panel || child is not KitPanel frame || frame.TargetPath.IsEmpty) continue;
+                if (frame.GetNodeOrNull<Godot.Control>(frame.TargetPath) == _panel)
+                    _linkedFrames.Add(frame);
+            }
+        }
+
+        /// <summary>Build the floating toggle. It must not be a child of the panel; otherwise it
+        /// disappears with the panel and there is no way to unfold.</summary>
         private void BuildHeader()
         {
-            if (_panel?.GetParent() is not Godot.Control host) return;
+            if (_panel == null) return;
+            Node? parent = _panel.GetParent();
+            if (parent == null) return;
 
             _header = new KitIconButton
             {
@@ -119,6 +122,7 @@ namespace Beep.ECS.UI
                 Glyph = HeaderText(false),
                 ToggleMode = false,
                 FocusMode = Godot.Control.FocusModeEnum.None,
+                MouseFilter = Godot.Control.MouseFilterEnum.Stop,
                 CustomMinimumSize = new Vector2(ButtonSize, ButtonSize),
                 Size = new Vector2(ButtonSize, ButtonSize),
                 Alignment = HorizontalAlignment.Center,
@@ -127,19 +131,10 @@ namespace Beep.ECS.UI
             _header.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(this, 0.86f));
             _header.Pressed += () => SetCollapsed(!_collapsed, animate: true);
 
-            // Floating, positioned over the panel's own corner each frame — not a row in the
-            // host's layout. That is what games actually use, and it also removes the host
-            // constraint the previous header bar had: a full-width title bar only lands
-            // correctly in a VBoxContainer, whereas a floating button works over a panel in an
-            // HBox, a bare Control or anything else, because the host never lays it out.
-            //
-            // It is added to the CanvasLayer's top-level Control rather than to the host, so no
-            // container can reflow it and the panel's own node path is untouched. (Reparenting
-            // the panel under a wrapper was tried and reverted — it silently broke
-            // CityBuilderHudComponent.DemandMeterPath.)
-            var layer = TopLevelControl(host);
-            (layer ?? host).AddChild(_header);
-            _header.TopLevel = layer == null;
+            var layer = TopLevelControl(parent);
+            (layer ?? parent).AddChild(_header);
+            _header.TopLevel = layer == null && parent is not CanvasLayer;
+            _header.ZIndex = Mathf.Max(_panel.ZIndex + 200, 200);
             CallDeferred(nameof(CompactToggleStyle));
         }
 
@@ -190,18 +185,16 @@ namespace Beep.ECS.UI
             if (Engine.IsEditorHint() || _header == null || !GodotObject.IsInstanceValid(_header)) return;
             if (_panel == null || !GodotObject.IsInstanceValid(_panel)) return;
 
-            // While expanded, track the live rect. While collapsed the panel may be hidden and
-            // its rect stale or zero, so the button holds the last good position — otherwise it
-            // would jump to the origin and the player would lose the way to unfold.
-            if (!_collapsed && _panel.Size.Y > 1f)
-                _anchor = new Rect2(_panel.GlobalPosition, _panel.Size);
+            // While expanded, track the live rect. While collapsed the panel is off-screen, so
+            // the toggle holds the last good on-screen anchor.
+            if (!_collapsed && _panel.Size.X > 1f && _panel.Size.Y > 1f)
+            {
+                _anchor = WidgetRect();
+                _expandedPosition = _panel.Position;
+                _edge = NearestEdge(_anchor);
+            }
 
-            // Centred ON the panel's top-right corner, so it hangs half outside the border.
-            // Every kit in Example_Art/gameui4,5,7 places the close chip this way, and it is
-            // what distinguishes a game UI chip from a toolbar button tucked inside a rect: the
-            // overlap is what makes the two pieces read as one assembled object.
-            var pos = new Vector2(_anchor.Position.X + _anchor.Size.X - ButtonSize * 0.5f,
-                                  _anchor.Position.Y - ButtonSize * 0.5f);
+            var pos = TogglePosition();
             _header.GlobalPosition = pos;
             _header.Size = new Vector2(ButtonSize, ButtonSize);
         }
@@ -223,44 +216,118 @@ namespace Beep.ECS.UI
             if (_header is KitIconButton icon) icon.Glyph = HeaderText(collapsed);
             else if (_header != null) _header.Text = HeaderText(collapsed);
 
-            float target = collapsed ? 0f : _expandedMin;
-
             _tween?.Kill();
+            if (collapsed)
+            {
+                _anchor = WidgetRect();
+                _expandedPosition = _panel.Position;
+                _edge = NearestEdge(_anchor);
+                _collapsedPosition = CollapsedPosition();
+            }
+
+            Vector2 target = collapsed ? _collapsedPosition : _expandedPosition;
             if (!animate || AnimSeconds <= 0f)
             {
-                Apply(target);
+                Apply(target, collapsed);
                 EmitSignal(SignalName.Toggled, collapsed);
                 return;
             }
 
-            // Height is tweened rather than toggling Visible, so neighbouring controls in the
-            // container reflow smoothly instead of snapping.
             _tween = CreateTween();
-            _tween.TweenMethod(Callable.From<float>(Apply),
-                               _panel.CustomMinimumSize.Y, target, AnimSeconds)
+            _tween.TweenMethod(Callable.From<Vector2>(p => Apply(p, collapsed)),
+                               _panel.Position, target, AnimSeconds)
                   .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
-            _tween.TweenCallback(Callable.From(() => EmitSignal(SignalName.Toggled, collapsed)));
+            _tween.TweenCallback(Callable.From(() =>
+            {
+                Apply(target, collapsed);
+                EmitSignal(SignalName.Toggled, collapsed);
+            }));
         }
 
-        private void Apply(float height)
+        private void Apply(Vector2 position, bool collapsed)
         {
             if (_panel == null || !GodotObject.IsInstanceValid(_panel)) return;
-            _panel.CustomMinimumSize = new Vector2(_panel.CustomMinimumSize.X, height);
-
-            // Hide the CONTENT rather than the panel wherever the panel has children, so a
-            // folded panel leaves a thin plate the floating toggle can sit on — which is how a
-            // collapsed HUD panel reads in a game, and what tells the player where it went.
-            // A self-drawing panel (a meter, a map) has no child controls to hide, so there the
-            // panel itself goes; the toggle keeps its last position via _anchor.
-            bool showContent = height > 0.5f;
-            bool hasChildControls = false;
-            foreach (var child in _panel.GetChildren())
+            Vector2 delta = position - _panel.Position;
+            _panel.Position = position;
+            _panel.Visible = true;
+            _panel.Modulate = _panel.Modulate with { A = 1f };
+            _panel.MouseFilter = collapsed ? Godot.Control.MouseFilterEnum.Ignore : _expandedMouseFilter;
+            foreach (var linked in _linkedFrames)
             {
-                if (child is not Godot.Control cc || cc == _header) continue;
-                hasChildControls = true;
-                cc.Visible = showContent;
+                if (!GodotObject.IsInstanceValid(linked)) continue;
+                linked.Position += delta;
+                linked.Visible = true;
+                linked.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
             }
-            _panel.Visible = showContent || hasChildControls;
+        }
+
+        private Rect2 WidgetRect()
+        {
+            if (_panel == null) return _anchor;
+            Rect2 rect = new(_panel.GlobalPosition, _panel.Size);
+            foreach (var linked in _linkedFrames)
+            {
+                if (!GodotObject.IsInstanceValid(linked) || linked.Size.X <= 1f || linked.Size.Y <= 1f) continue;
+                rect = rect.Merge(new Rect2(linked.GlobalPosition, linked.Size));
+            }
+            return rect;
+        }
+
+        private CollapseEdge NearestEdge(Rect2 rect)
+        {
+            Vector2 viewport = GetViewport()?.GetVisibleRect().Size ?? Vector2.Zero;
+            Vector2 center = rect.GetCenter();
+            float left = center.X;
+            float right = Mathf.Max(0f, viewport.X - center.X);
+            float top = center.Y;
+            float bottom = Mathf.Max(0f, viewport.Y - center.Y);
+            float nearest = Mathf.Min(Mathf.Min(left, right), Mathf.Min(top, bottom));
+
+            if (Mathf.IsEqualApprox(nearest, left)) return CollapseEdge.Left;
+            if (Mathf.IsEqualApprox(nearest, right)) return CollapseEdge.Right;
+            if (Mathf.IsEqualApprox(nearest, bottom)) return CollapseEdge.Bottom;
+            return CollapseEdge.Top;
+        }
+
+        private Vector2 CollapsedPosition()
+        {
+            if (_panel == null) return _expandedPosition;
+            Vector2 viewport = GetViewport()?.GetVisibleRect().Size ?? Vector2.Zero;
+            Vector2 delta = _edge switch
+            {
+                CollapseEdge.Left => new Vector2(-_anchor.End.X - ButtonSize, 0f),
+                CollapseEdge.Right => new Vector2(viewport.X - _anchor.Position.X + ButtonSize, 0f),
+                CollapseEdge.Top => new Vector2(0f, -_anchor.End.Y - ButtonSize),
+                CollapseEdge.Bottom => new Vector2(0f, viewport.Y - _anchor.Position.Y + ButtonSize),
+                _ => Vector2.Zero,
+            };
+            return _panel.Position + delta;
+        }
+
+        private Vector2 TogglePosition()
+        {
+            if (_header == null) return _anchor.Position;
+            Vector2 viewport = GetViewport()?.GetVisibleRect().Size ?? Vector2.Zero;
+            Vector2 center = _anchor.GetCenter();
+            if (_collapsed)
+            {
+                return _edge switch
+                {
+                    CollapseEdge.Left => new Vector2(2f, center.Y - ButtonSize * 0.5f),
+                    CollapseEdge.Right => new Vector2(viewport.X - ButtonSize - 2f, center.Y - ButtonSize * 0.5f),
+                    CollapseEdge.Top => new Vector2(center.X - ButtonSize * 0.5f, 2f),
+                    CollapseEdge.Bottom => new Vector2(center.X - ButtonSize * 0.5f, viewport.Y - ButtonSize - 2f),
+                    _ => _anchor.Position,
+                };
+            }
+
+            return _edge switch
+            {
+                CollapseEdge.Left => new Vector2(_anchor.Position.X - ButtonSize * 0.5f, center.Y - ButtonSize * 0.5f),
+                CollapseEdge.Right => new Vector2(_anchor.End.X - ButtonSize * 0.5f, center.Y - ButtonSize * 0.5f),
+                CollapseEdge.Bottom => new Vector2(center.X - ButtonSize * 0.5f, _anchor.End.Y - ButtonSize * 0.5f),
+                _ => new Vector2(center.X - ButtonSize * 0.5f, _anchor.Position.Y - ButtonSize * 0.5f),
+            };
         }
 
         public void Toggle() => SetCollapsed(!_collapsed, animate: true);

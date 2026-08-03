@@ -162,6 +162,8 @@ namespace Beep.ECS.UI.Kit
             return -1;
         }
 
+        private KitShape NodeShape => Geo.Register == KitRegister.Pixel ? KitShape.Stepped : KitShape.Round;
+
         public override void _Draw()
         {
             if (Size.X <= 8 || Size.Y <= 8 || Nodes.Count == 0) return;
@@ -230,12 +232,12 @@ namespace Beep.ECS.UI.Kit
                                       Mathf.Lerp(face.B, cue.B, k), 1f);
                 }
 
-                DrawShape(r, ActiveShape, plate, ink, Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
+                DrawShape(r, NodeShape, plate, ink, Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
 
                 if (n.State == NodeState.Available)
                 {
                     Color ring = cue == default ? UiSurface.Semantic(this, UiSurface.Role.Info) : cue;
-                    var poly = KitChrome.Poly(ActiveShape, r.Grow(r.Size.X * 0.08f), Geo);
+                    var poly = KitChrome.Poly(NodeShape, r.Grow(r.Size.X * 0.08f), Geo);
                     KitSelect.Draw(this, Geo.SelectFor(WidgetClass), poly, r.Grow(r.Size.X * 0.08f),
                                    ring, Mathf.Max(1.5f, pitch * 0.035f));
                 }
@@ -272,13 +274,13 @@ namespace Beep.ECS.UI.Kit
                 // The theme's declared cues, not a hardcoded cream ring.
                 if (i == _hover && i != _sel)
                     KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
-                                   KitChrome.Poly(ActiveShape, r, Geo), r,
+                                   KitChrome.Poly(NodeShape, r, Geo), r,
                                    UiSurface.Semantic(this, UiSurface.Role.Info),
                                    Mathf.Max(1.5f, 2f * (fs / 14f)));
 
                 if (i == _sel)
                     KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
-                                   KitChrome.Poly(ActiveShape, r, Geo), r,
+                                   KitChrome.Poly(NodeShape, r, Geo), r,
                                    UiSurface.Semantic(this, UiSurface.Role.Accent),
                                    Mathf.Max(2f, 3f * (fs / 14f)));
             }

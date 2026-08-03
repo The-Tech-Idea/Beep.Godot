@@ -42,7 +42,7 @@ namespace Beep.ECS.UI.Kit
         /// but deliberately NOT the default.</summary>
         [Export(PropertyHint.Range, "0,40,1")]
         public int Segments { get => _segments; set { _segments = Mathf.Max(0, value); QueueRedraw(); } }
-        private int _segments = 10;
+        private int _segments = 0;
 
         [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Success;
 
@@ -88,9 +88,8 @@ namespace Beep.ECS.UI.Kit
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
-                // HUD rail height : text cap-height = 2.6 (citybuilder1), and the rail itself is
-                // ~3% of screen height across five references. Sized off the type so it holds.
-                CustomMinimumSize = new Vector2(fs * 10f, fs * 1.15f);
+                float h = Mathf.Clamp(fs * 1.25f, 14f, 22f);
+                CustomMinimumSize = new Vector2(fs * 10f, h);
             }
             Rebuild();
         }

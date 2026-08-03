@@ -133,3 +133,15 @@ arena:  PASS
 > left the player — with an enemy already 27px away, *inside* `AIController`'s `AttackRange` of 26,
 > where it deliberately stops. "closed 0" was correct behaviour and a broken test. The precondition
 > is now asserted rather than assumed.
+
+---
+
+## 4. `rpg_demo/` — RPG template in motion
+
+```
+godot --path . examples/rpg_demo/rpg_demo.tscn
+godot --path . examples/rpg_demo/smoke.tscn
+```
+
+Instances the addon's RPG main scene, copies a small Kenney roguelike atlas into the example, and
+adds a top-down village with NPCs, collision, pickups, weather controls, and the RPG HUD.

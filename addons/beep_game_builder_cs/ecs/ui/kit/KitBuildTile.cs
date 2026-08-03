@@ -8,6 +8,7 @@ namespace Beep.ECS.UI.Kit
     {
         [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
         [Export] public Texture2D? TileIcon { get; set; }
+        [Export] public Vector2 FixedSize { get; set; } = Vector2.Zero;
 
         [Export]
         public string Caption
@@ -41,8 +42,13 @@ namespace Beep.ECS.UI.Kit
         {
             _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
             Text = "";
+            if (FixedSize != Vector2.Zero)
+                CustomMinimumSize = FixedSize;
             Suppress();
         }
+
+        public override Vector2 _GetMinimumSize()
+            => FixedSize != Vector2.Zero ? FixedSize : base._GetMinimumSize();
 
         public override void _Notification(int what)
         {

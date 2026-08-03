@@ -26,7 +26,7 @@ namespace Beep.ECS.UI
 
         [Signal] public delegate void SpeedSelectedEventHandler(int speed);
 
-        private static readonly string[] Labels = { "‖", "▶", "▶▶", "▶▶▶" };
+        private static readonly string[] Labels = { "II", "1x", "2x", "3x" };
         private static readonly string[] Tips = { "Pause", "Normal speed", "Fast", "Fastest" };
 
         private readonly Button[] _buttons = new Button[4];

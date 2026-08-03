@@ -25,7 +25,7 @@ namespace Beep.ECS.UI
         [Export(PropertyHint.Range, "-1,1,0.01")] public float Industrial { get => _i; set { _i = value; QueueRedraw(); } }
         private float _r, _c, _i;
 
-        // R/C/I take the palette's meaning colours rather than three literals. Residential,
+        // RES/COM/IND take the palette's meaning colours rather than three literals. Residential,
         // commercial and industrial demand are green / blue / amber in every city-builder
         // reference, which is exactly what success / info / warning already encode — so the
         // meter now reskins with the theme instead of staying the same three colours in all 50.
@@ -40,7 +40,7 @@ namespace Beep.ECS.UI
         /// thin coloured marks floating directly on the world, which is unreadable over a busy
         /// city — the one thing this widget cannot afford to be.</summary>
         [Export] public bool DrawBackdrop { get; set; } = true;
-        /// <summary>R/C/I letter size as a multiple of the theme's body font — the reserved
+        /// <summary>Demand label size as a multiple of the theme's body font — the reserved
         /// letter strip is computed from it, so larger type widens the strip instead of
         /// overprinting the bars.</summary>
         [Export(PropertyHint.Range, "0.4,2.0,0.05")] public float LetterFontScale { get; set; } = 0.85f;
@@ -103,9 +103,9 @@ namespace Beep.ECS.UI
             var line = GetThemeColor("font_color", "Label") with { A = 0.35f };
             DrawLine(new Vector2(pad, mid), new Vector2(s.X - pad, mid), line, 1f);
 
-            Bar(0, _r, ResidentialColor, "R");
-            Bar(1, _c, CommercialColor, "C");
-            Bar(2, _i, IndustrialColor, "I");
+            Bar(0, _r, ResidentialColor, "RES");
+            Bar(1, _c, CommercialColor, "COM");
+            Bar(2, _i, IndustrialColor, "IND");
 
             void Bar(int index, float value, Color colour, string letter)
             {
@@ -131,9 +131,12 @@ namespace Beep.ECS.UI
                 }
 
                 if (!ShowLetters || font == null) return;
-                float w = font.GetStringSize(letter, HorizontalAlignment.Left, -1, LetterFontSize).X;
+                int labelFs = UiSurface.FitText(this, new Vector2(slot - 2f, LetterFontSize + 4f),
+                                                LetterFontScale, letter, font, min: 7,
+                                                themeMax: LetterFontScale);
+                float w = font.GetStringSize(letter, HorizontalAlignment.Left, -1, labelFs).X;
                 DrawString(font, new Vector2(cx - w / 2f, s.Y - pad * 0.5f), letter,
-                           HorizontalAlignment.Left, -1, LetterFontSize, colour);
+                           HorizontalAlignment.Left, -1, labelFs, colour);
             }
         }
 

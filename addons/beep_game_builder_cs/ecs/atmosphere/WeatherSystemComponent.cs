@@ -540,6 +540,7 @@ namespace Beep.ECS
                 or WeatherType.Snow or WeatherType.Hail or WeatherType.Sandstorm;
             WeatherViewMode view = EffectiveViewMode();
             Vector2 size = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1280, 720);
+            Camera2D? camera = GetViewport()?.GetCamera2D();
 
             _weatherSprites.Field = size;
             _weatherSprites.ViewMode = view;
@@ -552,6 +553,8 @@ namespace Beep.ECS
                 _ => WeatherSpriteLayer.PixelWeatherKind.Rain,
             };
             _weatherSprites.Wind = WindForce;
+            _weatherSprites.CameraCenter = camera?.GetScreenCenterPosition() ?? Vector2.Zero;
+            _weatherSprites.CameraZoom = camera?.Zoom ?? Vector2.One;
             _weatherSprites.Intensity = wantsSprites ? _intensityCurrent * (1f - ShelterFactor) : 0f;
             float spriteDensity = CurrentWeather switch
             {

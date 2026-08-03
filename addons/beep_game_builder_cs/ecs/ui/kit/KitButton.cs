@@ -61,11 +61,9 @@ namespace Beep.ECS.UI.Kit
             Suppress();
             if (CustomMinimumSize == Vector2.Zero)
             {
-                // Size from the GENRE's ratios, so a racing chip is lean and a platformer plate is
-                // chunky without either restating a pixel size.
                 int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * (5.5f + Geo.PadRatio * 1.6f),
-                                                fs * Geo.HeightRatio);
+                float h = Mathf.Clamp(fs * 2.45f, 30f, 44f);
+                CustomMinimumSize = new Vector2(Mathf.Max(88f, h * 3.4f), h);
             }
         }
 

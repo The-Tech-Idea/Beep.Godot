@@ -136,6 +136,7 @@ namespace Beep.ECS.UI
             // Kit widgets, so a genre HUD can move from a Label stack to real bars and stat
             // pairs one node at a time instead of all ten scenes in lockstep.
             if (TryResolveNode<Kit.KitMeter>(path) is { } meter) return meter;
+            if (TryResolveNode<Kit.KitOrbMeter>(path) is { } orb) return orb;
             if (TryResolveNode<Kit.KitRadialMeter>(path) is { } ring) return ring;
             if (TryResolveNode<Kit.KitLabelValue>(path) is { } pair) return pair;
             if (Resolve(path) is { } label)
@@ -144,7 +145,7 @@ namespace Beep.ECS.UI
                 return label;
             }
             GD.PushWarning($"[{Name}] {Genre} HUD: '{path}' is not a Label, ResourceBadge, "
-                         + $"KitMeter, KitRadialMeter or KitLabelValue, so {what} has nowhere "
+                         + $"KitMeter, KitOrbMeter, KitRadialMeter or KitLabelValue, so {what} has nowhere "
                          + "to display.");
             return null;
         }
@@ -186,6 +187,10 @@ namespace Beep.ECS.UI
                     if (fill >= 0f) m.Value = fill;
                     m.Readout = text;
                     break;
+                case Kit.KitOrbMeter om:
+                    if (fill >= 0f) om.Value = fill;
+                    om.CentreText = text;
+                    break;
                 case Kit.KitRadialMeter rm:
                     if (fill >= 0f) rm.Value = fill;
                     rm.CentreText = text;
@@ -212,6 +217,10 @@ namespace Beep.ECS.UI
                 case Kit.KitMeter m:
                     m.Fill = role ?? UiSurface.Role.Success;
                     m.QueueRedraw();
+                    break;
+                case Kit.KitOrbMeter om:
+                    om.Fill = role ?? UiSurface.Role.Success;
+                    om.QueueRedraw();
                     break;
                 case Kit.KitRadialMeter rm:
                     rm.Fill = role ?? UiSurface.Role.Success;

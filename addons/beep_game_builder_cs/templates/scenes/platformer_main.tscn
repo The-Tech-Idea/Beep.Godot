@@ -1,6 +1,7 @@
-[gd_scene load_steps=31 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs" id="hud_collapse"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/PlatformerController.cs" id="1_player"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="2_health"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs" id="30_gameover"]
@@ -96,6 +97,9 @@ script = ExtResource("hud_theme")
 GenreName = "platformer"
 HudMode = true
 
+[node name="HudCollapse" type="Node" parent="HUD/Root"]
+script = ExtResource("hud_collapse")
+
 [node name="WeatherForecast" type="Control" parent="HUD/Root"]
 anchors_preset = 3
 anchor_left = 1.0
@@ -117,6 +121,7 @@ grow_vertical = 1
 mouse_filter = 2
 script = ExtResource("panelframe")
 Title = ""
+Intent = 0
 TargetPath = NodePath("../TopLeft")
 TargetPadding = Vector2(42, 26)
 

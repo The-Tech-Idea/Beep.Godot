@@ -35,3 +35,5 @@ tmp/
 
 # Python bytecode from the tools/ and plans/ scripts
 __pycache__/
+/.vs/Beep.Godot/CopilotIndices/18.8.1093.27292
+/.vs/Beep.Godot.slnx/VSGitHubCopilot/ContextSpill/522b2a1ff75741cf9649c676428f5d8a/73d06f443f0d4616a0dd4a5698a5892a

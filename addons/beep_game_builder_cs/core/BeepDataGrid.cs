@@ -15,19 +15,19 @@ namespace Beep.GameBuilder;
 [GlobalClass]
 public partial class BeepDataGrid : VBoxContainer
 {
-    private HBoxContainer _headerRow;
-    private VBoxContainer _bodyContainer;
-    private ScrollContainer _scroll;
-    private List<PropertyInfo> _columns = new();
-    private object _dataSource;
-    private string _sourcePropName;
+    private HBoxContainer? _headerRow;
+    private VBoxContainer? _bodyContainer;
+    private ScrollContainer? _scroll;
+    private readonly List<PropertyInfo> _columns = new();
+    private object? _dataSource;
+    private string _sourcePropName = "";
     private Color _headerColor = new(0.15f, 0.15f, 0.2f);
     private Color _evenRowColor = new(0.1f, 0.1f, 0.15f);
     private Color _oddRowColor = new(0.12f, 0.12f, 0.18f);
     private Color _selectedColor = new(0.2f, 0.3f, 0.5f);
     private int _selectedRow = -1;
 
-    public event Action<int, object> RowSelected;
+    public event Action<int, object>? RowSelected;
 
     [Export] public string HeaderFontSize { get; set; } = "16";
     [Export] public string RowFontSize { get; set; } = "14";
@@ -108,6 +108,7 @@ public partial class BeepDataGrid : VBoxContainer
     {
         // Clear existing
         if (_headerRow != null) ClearChildren(_headerRow);
+        if (_bodyContainer == null) return;
         ClearChildren(_bodyContainer);
 
         // Build headers
@@ -165,7 +166,7 @@ public partial class BeepDataGrid : VBoxContainer
             {
                 var btn = new KitPushButton { Flat = true, Text = "", Accent = UiSurface.Role.Neutral };
                 btn.Modulate = new Color(1, 1, 1, 0);
-                btn.Pressed += () => SelectRow(idx, item);
+                btn.Pressed += () => SelectRow(idx, item!);
                 row.AddChild(btn); // added last → on top, catches the whole-row click
             }
 
@@ -181,6 +182,7 @@ public partial class BeepDataGrid : VBoxContainer
         if (listType.GetProperty("Count")?.GetValue(listObj) is not int count) return; // not a countable list
         var indexer = listType.GetProperty("Item");
 
+        if (_bodyContainer == null) return;
         ClearChildren(_bodyContainer);
         for (int i = 0; i < count; i++)
         {
@@ -200,6 +202,7 @@ public partial class BeepDataGrid : VBoxContainer
         _selectedRow = index;
         RowSelected?.Invoke(index, item);
         // Highlight
+        if (_bodyContainer == null) return;
         int childIdx = 0;
         foreach (var child in _bodyContainer.GetChildren())
         {

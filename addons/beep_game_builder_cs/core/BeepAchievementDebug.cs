@@ -7,21 +7,23 @@ namespace Beep.GameBuilder;
 /// <summary>Achievement system. Define achievements with progress, unlock conditions, and notifications.</summary>
 public static class BeepAchievementSystem
 {
-    private static Dictionary<string, Achievement> _achievements = new();
-    private static List<string> _unlockedThisSession = new();
-    public static Action<Achievement> AchievementUnlocked;
+    private static readonly Dictionary<string, Achievement> _achievements = new();
+    private static readonly List<string> _unlockedThisSession = new();
+    public static Action<Achievement>? AchievementUnlocked;
 
     public class Achievement
     {
-        public string Id, Title, Description;
-        public Texture2D Icon;
+        public string Id = "";
+        public string Title = "";
+        public string Description = "";
+        public Texture2D? Icon;
         public bool Unlocked;
         public int Progress, Target;
         public bool HasProgress => Target > 0;
     }
 
     public static void Register(Achievement ach) { _achievements[ach.Id] = ach; }
-    public static Achievement Get(string id) => _achievements.GetValueOrDefault(id);
+    public static Achievement? Get(string id) => _achievements.GetValueOrDefault(id);
 
     public static void SetProgress(string id, int progress)
     {
@@ -60,12 +62,12 @@ public static class BeepAchievementSystem
 /// <summary>Simple game analytics helper. Track events with timestamps for debugging/balancing.</summary>
 public static class BeepAnalyticsHelper
 {
-    private static List<Event> _events = new();
+    private static readonly List<Event> _events = new();
     private static bool _enabled = true;
 
-    public struct Event { public string Name; public Dictionary<string, object> Data; public float Time; }
+    public struct Event { public string Name; public Dictionary<string, object>? Data; public float Time; }
 
-    public static void Track(string name, Dictionary<string, object> data = null)
+    public static void Track(string name, Dictionary<string, object>? data = null)
     {
         if (!_enabled) return;
         _events.Add(new Event { Name = name, Data = data, Time = Time.GetTicksMsec() / 1000f });
@@ -96,12 +98,12 @@ public static class BeepAnalyticsHelper
 [Tool]
 public partial class BeepDebugConsole : Godot.Control
 {
-    private RichTextLabel _output;
-    private LineEdit _input;
-    private VBoxContainer _box;
-    private Dictionary<string, Action<string[]>> _commands = new();
+    private RichTextLabel _output = null!;
+    private LineEdit _input = null!;
+    private VBoxContainer _box = null!;
+    private readonly Dictionary<string, Action<string[]>> _commands = new();
     private bool _open;
-    private List<string> _history = new();
+    private readonly List<string> _history = new();
     private int _historyIdx = -1;
     private readonly List<string> _lines = new(); // raw BBCode lines — the trim source of truth
 

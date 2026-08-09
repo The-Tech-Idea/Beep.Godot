@@ -23,6 +23,7 @@ public static class GodotMcpSettings
 
     public const string DefaultUrl = "ws://127.0.0.1:8789";
     public const string DefaultScreenshotDirectory = "user://mcp_screenshots";
+    private static string _sessionToken = string.Empty;
 
     public static void EnsureProjectSettings()
     {
@@ -45,7 +46,6 @@ public static class GodotMcpSettings
             dirty = true;
         }
 
-        dirty |= EnsureString(Token, GenerateTokenIfNeeded());
         dirty |= EnsureBool(AutoConnectEditor, true);
         dirty |= EnsureBool(AutoConnectRuntime, true);
         dirty |= EnsureFloat(ReconnectSeconds, 2.0f);
@@ -78,7 +78,7 @@ public static class GodotMcpSettings
         string? env = Environment.GetEnvironmentVariable("GODOT_MCP_BRIDGE_TOKEN");
         if (!string.IsNullOrWhiteSpace(env))
             return env.Trim();
-        return GetString(Token, string.Empty);
+        return GenerateTokenIfNeeded();
     }
 
     public static bool GetBool(string key, bool fallback)
@@ -132,7 +132,18 @@ public static class GodotMcpSettings
             if (!string.IsNullOrWhiteSpace(existing))
                 return existing;
         }
-        return Guid.NewGuid().ToString("N");
+        if (string.IsNullOrWhiteSpace(_sessionToken))
+            _sessionToken = Guid.NewGuid().ToString("N");
+        return _sessionToken;
+    }
+
+    private static void AddStringPropertyInfo(string key)
+    {
+        ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
+        {
+            ["name"] = key,
+            ["type"] = (int)Variant.Type.String
+        });
     }
 
     /// <summary>Seed the setting if absent. Returns true when it actually wrote, so the
@@ -147,11 +158,7 @@ public static class GodotMcpSettings
             wrote = true;
         }
 
-        ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
-        {
-            ["name"] = key,
-            ["type"] = (int)Variant.Type.String
-        });
+        AddStringPropertyInfo(key);
         return wrote;
     }
 

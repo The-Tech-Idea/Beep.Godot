@@ -10,16 +10,16 @@ namespace Beep.GameBuilder;
 /// </summary>
 public static class BeepKeybindManager
 {
-    private static List<Keybind> _bindings = new();
+    private static readonly List<Keybind> _bindings = new();
     private static bool _enabled = true;
 
     public class Keybind
     {
-        public string Id;
-        public string Label;
+        public string Id = "";
+        public string Label = "";
         public Key Key;
         public Key Modifiers;
-        public Action Action;
+        public Action? Action;
         public bool Ctrl => Modifiers.HasFlag(Key.Ctrl);
         public bool Shift => Modifiers.HasFlag(Key.Shift);
         public bool Alt => Modifiers.HasFlag(Key.Alt);

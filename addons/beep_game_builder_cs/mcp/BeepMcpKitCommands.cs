@@ -43,6 +43,8 @@ namespace Beep.GameBuilder
                 Convert(Str(args, "scene"), Bool(args, "dry_run", true)));
         }
 
+        public static void Unregister() => McpCommandRegistry.UnregisterPrefix("beep.kit_");
+
         // ── read ────────────────────────────────────────────────────────────────────────
 
         /// <summary>Every kit widget, what it is for, and which Godot control it drops in for.</summary>

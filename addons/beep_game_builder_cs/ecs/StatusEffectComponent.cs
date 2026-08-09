@@ -30,7 +30,7 @@ namespace Beep.ECS
 
         public class ActiveEffect
         {
-            public string Id;
+            public string Id = "";
             public float Duration;
             public float TickInterval;
             public float TimeSinceTick;
@@ -156,7 +156,7 @@ namespace Beep.ECS
 
         public class EffectDisplayData
         {
-            public string Id;
+            public string Id = "";
             public float Progress;      // 0-1 for progress bars
             public int StackCount;      // For stack badges
             public bool IsBuff;         // For color coding

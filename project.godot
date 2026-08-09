@@ -33,7 +33,6 @@ enabled=PackedStringArray("res://addons/beep_game_builder_cs/plugin.cfg", "res:/
 [godot_mcp]
 
 bridge/url="ws://127.0.0.1:8789"
-bridge/token="d9fba08052344ed5a7f41b648aa74f3e"
 bridge/auto_connect_editor=true
 bridge/auto_connect_runtime=true
 bridge/reconnect_seconds=2.0

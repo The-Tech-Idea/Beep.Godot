@@ -5,7 +5,7 @@ namespace Beep.ECS
     /// <summary>
     /// Tween preset component. Attach to any Node to add a tween animation.
     /// Blind — works on any Control or Node2D regardless of what it is.
-    /// All 90+ tween presets available via the Preset enum.
+    /// All presets in the Preset enum have concrete behavior.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -49,6 +49,7 @@ namespace Beep.ECS
             if (ctrl) ((Godot.Control)node).OffsetTransformEnabled = true;
             string sProp = ctrl ? "offset_transform_scale" : "scale";
             string pProp = ctrl ? "offset_transform_position" : "position";
+            string rProp = ctrl ? "offset_transform_rotation" : "rotation";
 
             switch (Animation)
             {
@@ -70,10 +71,42 @@ namespace Beep.ECS
                 case Preset.SlideIn:
                     _tween.TweenProperty(node, $"{pProp}:x", 0f, Duration).From(-200f).SetEase(Tween.EaseType.Out);
                     break;
+                case Preset.SlideOut:
+                    _tween.TweenProperty(node, $"{pProp}:x", 200f, Duration).From(0f).SetEase(Tween.EaseType.In);
+                    break;
                 case Preset.BounceIn:
                     _tween.TweenProperty(node, sProp, Vector2.One, Duration)
                         .From(Vector2.Zero)
                         .SetTrans(Tween.TransitionType.Elastic).SetEase(Tween.EaseType.Out);
+                    break;
+                case Preset.BounceOut:
+                    _tween.TweenProperty(node, sProp, Vector2.Zero, Duration)
+                        .From(Vector2.One)
+                        .SetTrans(Tween.TransitionType.Elastic).SetEase(Tween.EaseType.In);
+                    break;
+                case Preset.ScaleUp:
+                    _tween.TweenProperty(node, sProp, Vector2.One * 1.15f, Duration)
+                        .From(Vector2.One)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                    break;
+                case Preset.ScaleDown:
+                    _tween.TweenProperty(node, sProp, Vector2.One * 0.85f, Duration)
+                        .From(Vector2.One)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                    break;
+                case Preset.RotateIn:
+                    _tween.SetParallel(true);
+                    _tween.TweenProperty(node, rProp, 0f, Duration)
+                        .From(Mathf.DegToRad(-90f))
+                        .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                    _tween.TweenProperty(node, "modulate:a", 1f, Duration).From(0f);
+                    break;
+                case Preset.RotateOut:
+                    _tween.SetParallel(true);
+                    _tween.TweenProperty(node, rProp, Mathf.DegToRad(90f), Duration)
+                        .From(0f)
+                        .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.In);
+                    _tween.TweenProperty(node, "modulate:a", 0f, Duration);
                     break;
                 case Preset.Wobble:
                     _tween.SetParallel(true);
@@ -95,6 +128,19 @@ namespace Beep.ECS
                     _tween.TweenProperty(node, sProp, Vector2.One * 1.1f, Duration * 0.5f);
                     _tween.TweenProperty(node, sProp, Vector2.One, Duration * 0.5f);
                     break;
+                case Preset.Flip:
+                    _tween.TweenProperty(node, $"{sProp}:x", -1f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _tween.TweenProperty(node, $"{sProp}:x", 1f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                    break;
+                case Preset.Float:
+                    _tween.SetLoops(0);
+                    _tween.TweenProperty(node, $"{pProp}:y", -12f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+                    _tween.TweenProperty(node, $"{pProp}:y", 0f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+                    break;
                 case Preset.BtnHoverWobble:
                     _tween.SetParallel(true);
                     _tween.TweenProperty(node, $"{sProp}:x", 1.2f, 0.1f);
@@ -110,14 +156,34 @@ namespace Beep.ECS
                     // only on Control), so on a Node2D card this must animate raw scale/rotation or it
                     // errors at runtime.
                     _tween.TweenProperty(node, sProp, Vector2.One * 1.03f, 0.1f);
-                    _tween.TweenProperty(node, ctrl ? "offset_transform_rotation" : "rotation", 0f, 0.1f);
+                    _tween.TweenProperty(node, rProp, 0f, 0.1f);
                     break;
-                default:
-                    // ~10 enum presets (SlideOut, ScaleUp/Down, RotateIn/Out, Flip, Float, …) have no
-                    // case and land here, producing a generic scale-reset that looks nothing like the
-                    // chosen preset. Warn rather than fail silently until they're implemented.
-                    GD.PushWarning($"[{Name}] Animation preset '{Animation}' is not implemented — using a scale reset. Pick a defined preset or implement it.");
-                    _tween.TweenProperty(node, "scale", Vector2.One, Duration);
+                case Preset.SpriteStretch:
+                    _tween.SetParallel(true);
+                    _tween.TweenProperty(node, $"{sProp}:x", 1.25f, Duration * 0.35f)
+                        .From(0.8f)
+                        .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                    _tween.TweenProperty(node, $"{sProp}:y", 0.75f, Duration * 0.35f)
+                        .From(1.2f)
+                        .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                    _tween.Chain().TweenProperty(node, sProp, Vector2.One, Duration * 0.35f)
+                        .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                    break;
+                case Preset.TeleportIn:
+                    _tween.SetParallel(true);
+                    _tween.TweenProperty(node, sProp, Vector2.One, Duration)
+                        .From(Vector2.One * 0.2f)
+                        .SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                    _tween.TweenProperty(node, rProp, 0f, Duration)
+                        .From(Mathf.DegToRad(180f))
+                        .SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                    _tween.TweenProperty(node, "modulate:a", 1f, Duration * 0.75f).From(0f);
+                    break;
+                case Preset.FlipCard:
+                    _tween.TweenProperty(node, $"{sProp}:x", 0f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _tween.TweenProperty(node, $"{sProp}:x", 1f, Duration * 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
                     break;
             }
 

@@ -11,14 +11,14 @@ namespace Beep.GameBuilder;
 /// </summary>
 public static class BeepDataBinder
 {
-    internal static List<Binding> _bindings = new();
+    internal static readonly List<Binding> _bindings = new();
     private static double _pollTimer = 0;
     private const double PollInterval = 0.1;
 
     /// <summary>Bind a single object property to a UI node's property.</summary>
     public static Binding Bind(object source, string sourceProp, Node target, string targetProp, BindingMode mode = BindingMode.OneWay)
     {
-        var b = new Binding { Source = source, SourceProp = sourceProp, Target = target, TargetProp = targetProp, Mode = mode };
+        var b = new Binding { Source = source, SourceProp = sourceProp, Target = target, TargetProp = NormalizeTargetProperty(targetProp), Mode = mode };
         _bindings.Add(b);
         b.Refresh();
         b.ConnectSourceWriteback(); // TwoWay / OneWayToSource: propagate target edits back to the source
@@ -97,20 +97,33 @@ public static class BeepDataBinder
 
     /// <summary>Clear all bindings.</summary>
     public static void Clear() => _bindings.Clear();
+
+    internal static string NormalizeTargetProperty(string property)
+    {
+        return property switch
+        {
+            "Text" => "text",
+            "Value" => "value",
+            "ButtonPressed" => "button_pressed",
+            "Visible" => "visible",
+            "Color" => "color",
+            _ => property
+        };
+    }
 }
 
 public enum BindingMode { OneWay, TwoWay, OneWayToSource }
 
 public class Binding
 {
-    public object Source;
-    public string SourceProp;
-    public Node Target;
-    public string TargetProp;
+    public object Source = null!;
+    public string SourceProp = "";
+    public Node Target = null!;
+    public string TargetProp = "";
     public BindingMode Mode;
-    public Func<object, object> Formatter;
+    public Func<object?, object?>? Formatter;
 
-    public Binding WithFormatter(Func<object, object> f) { Formatter = f; return this; }
+    public Binding WithFormatter(Func<object?, object?> f) { Formatter = f; return this; }
 
     public virtual void Refresh()
     {
@@ -119,7 +132,7 @@ public class Binding
         {
             var val = Source.GetType().GetProperty(SourceProp)?.GetValue(Source);
             if (Formatter != null) val = Formatter(val);
-            Target.Set(TargetProp, Variant.From(val));
+            Target.Set(TargetProp, ToVariant(val));
         }
         catch { /* silent fail on missing property */ }
     }
@@ -133,7 +146,7 @@ public class Binding
         if (prop == null || !prop.CanWrite) return;
         try
         {
-            object raw = Target.Get(TargetProp).Obj;
+            object? raw = Target.Get(TargetProp).Obj;
             if (raw != null && raw is IConvertible && prop.PropertyType != raw.GetType())
                 raw = Convert.ChangeType(raw, prop.PropertyType);
             prop.SetValue(Source, raw);
@@ -146,13 +159,13 @@ public class Binding
     {
         if (Target == null) return;
         if (Mode != BindingMode.TwoWay && Mode != BindingMode.OneWayToSource) return;
-        StringName signal = TargetProp switch
+        StringName? signal = TargetProp switch
         {
-            "ButtonPressed" => BaseButton.SignalName.Toggled,
-            "Text"          => LineEdit.SignalName.TextChanged,
-            "Value"         => Godot.Range.SignalName.ValueChanged,
-            "Color"         => ColorPickerButton.SignalName.ColorChanged,
-            _               => null
+            "button_pressed" => BaseButton.SignalName.Toggled,
+            "text"           => LineEdit.SignalName.TextChanged,
+            "value"          => Godot.Range.SignalName.ValueChanged,
+            "color"          => ColorPickerButton.SignalName.ColorChanged,
+            _               => default
         };
         if (signal == null || !Target.HasSignal(signal)) return;
         // A 0-arg callable connected to a signal that carries args: Godot drops the extra args.
@@ -160,13 +173,41 @@ public class Binding
     }
 
     public void Unbind() => BeepDataBinder._bindings.Remove(this);
+
+    private static Variant ToVariant(object? value)
+    {
+        return value switch
+        {
+            null => default,
+            Variant variant => variant,
+            string text => Variant.From(text),
+            bool flag => Variant.From(flag),
+            int number => Variant.From(number),
+            long number => Variant.From(number),
+            float number => Variant.From(number),
+            double number => Variant.From(number),
+            Color color => Variant.From(color),
+            Vector2 vector => Variant.From(vector),
+            Vector2I vector => Variant.From(vector),
+            Vector3 vector => Variant.From(vector),
+            Vector3I vector => Variant.From(vector),
+            Rect2 rect => Variant.From(rect),
+            Rect2I rect => Variant.From(rect),
+            NodePath path => Variant.From(path),
+            StringName name => Variant.From(name),
+            GodotObject godotObject => Variant.From(godotObject),
+            Enum enumValue => Variant.From(Convert.ToInt64(enumValue)),
+            IConvertible convertible => Variant.From(convertible.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            _ => Variant.From(value.ToString() ?? string.Empty)
+        };
+    }
 }
 
 public class ListBinding<T> : Binding
 {
-    public IList<T> SourceList;
-    public new ItemList Target;
-    public Func<T, string> DisplaySelector;
+    public IList<T> SourceList = null!;
+    public new ItemList Target = null!;
+    public Func<T, string> DisplaySelector = null!;
 
     public override void Refresh()
     {
@@ -179,9 +220,9 @@ public class ListBinding<T> : Binding
 
 public class OptionBinding<T> : Binding
 {
-    public IList<T> SourceList;
-    public new OptionButton Target;
-    public Func<T, string> DisplaySelector;
+    public IList<T> SourceList = null!;
+    public new OptionButton Target = null!;
+    public Func<T, string> DisplaySelector = null!;
 
     public override void Refresh()
     {

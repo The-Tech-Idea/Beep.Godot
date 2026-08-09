@@ -23,7 +23,7 @@ namespace Beep.ECS.Scenes
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitBrowser : Control
+    public partial class KitBrowser : Godot.Control
     {
         // One place for the browser's own chrome type scale. These are the TOOL's sizes, not the
         // kit's — widget text sizes itself from UiSurface/the active theme and must not be
@@ -83,7 +83,7 @@ namespace Beep.ECS.Scenes
             title.AddThemeFontSizeOverride("font_size", TitleFont);
             header.AddChild(title);
 
-            header.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
+            header.AddChild(new Godot.Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
 
             header.AddChild(new Label { Text = "Genre:" });
             _genrePicker = new OptionButton { CustomMinimumSize = new Vector2(180, 0) };
@@ -225,7 +225,7 @@ namespace Beep.ECS.Scenes
 
         /// <summary>One labelled cell. <paramref name="size"/> is a floor, not a cap: widgets that
         /// size themselves in _Ready keep their own minimum when it is larger.</summary>
-        private static void Card(HFlowContainer row, string name, Control w, Vector2 size)
+        private static void Card(HFlowContainer row, string name, Godot.Control w, Vector2 size)
         {
             var box = new VBoxContainer();
             box.AddThemeConstantOverride("separation", 4);
@@ -442,7 +442,7 @@ namespace Beep.ECS.Scenes
         /// <summary>Set the domain BEFORE the value. Range.Step defaults to 1, so assigning 0.62
         /// first snaps it to 1.0 — the widgets restate the range in _Ready, which is too late for
         /// an assignment made here. This is what made a KitKnob read 100 instead of 65.</summary>
-        private static T Ranged<T>(T range, double value) where T : Range
+        private static T Ranged<T>(T range, double value) where T : Godot.Range
         {
             range.MinValue = 0.0;
             range.MaxValue = 1.0;

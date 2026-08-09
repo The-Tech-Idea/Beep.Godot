@@ -58,7 +58,7 @@ namespace Beep.ECS
                 if (node is Button btn)
                 {
                     string name = btn.Name.ToString().ToLowerInvariant();
-                    if (ButtonNameToAction.TryGetValue(name, out string action))
+                    if (ButtonNameToAction.TryGetValue(name, out var action))
                     {
                         // If the scene already wired this button's Pressed (an explicit .tscn
                         // [connection]), respect it and don't add a second handler. The old guard

@@ -1,7 +1,7 @@
 # Beep UI
 
 A GDScript Godot 4.3+ addon for **drag-and-drop, themed UI**: 22 theme presets
-that style an entire scene, 11 UI effects, and 84+ ready themed widgets.
+that style an entire scene, 11 UI effects, and 114 ready themed widgets.
 Self-contained — works in **every** Godot project (no C#/.NET required).
 
 It is a faithful GDScript port of the original C# theming engine, with the
@@ -18,7 +18,7 @@ It is a faithful GDScript port of the original C# theming engine, with the
 5. [BeepThemeApplier — style a whole scene](#beepthemeapplier--style-a-whole-scene)
 6. [The 22 theme presets](#the-22-theme-presets)
 7. [BeepUIEffect — 11 animated effects](#beepuieffect--11-animated-effects)
-8. [Widgets — 84+ themed, drag-and-drop](#widgets--84-themed-drag-and-drop)
+8. [Widgets — 114 themed, drag-and-drop](#widgets--114-themed-drag-and-drop)
 9. [BeepToastHost API](#beeptoasthost-api)
 10. [Creating / customizing a preset](#creating--customizing-a-preset)
 11. [File map](#file-map)
@@ -42,7 +42,7 @@ It is a faithful GDScript port of the original C# theming engine, with the
 - **11 UI effects** — Slide, Shake, Pulse, Bob, Flash, Glitch, Rotate, Fade,
   Typewriter, Bounce, Offset — with 4 scopes (Self/Children/Scene/Global) and
   automatic per-effect inspector property visibility.
-- **84+ themed widgets** — bars, stat displays, captions, panels, button lists,
+- **114 themed widgets** — bars, stat displays, captions, panels, button lists,
   grids, crosshairs, overlays, a working toast host, and clearly-labeled starter
   scaffolds for complex items (minimap, compass, FX).
 - **Theme Studio dock** — visual gallery with live swatches, a styled preview,
@@ -94,7 +94,7 @@ The dock has two tabs.
 
 ### Widgets tab
 
-- A searchable, categorized list of all 84+ widgets.
+- A searchable, categorized list of all 114 widgets.
 - Click a widget to drop a **real, themed** instance under the current selection
   (each carries its own `BeepThemeApplier`).
 - Status line reports what was added and where.
@@ -198,7 +198,7 @@ $BeepUIEffect.reset()
 
 ---
 
-## Widgets — 84+ themed, drag-and-drop
+## Widgets — 114 themed, drag-and-drop
 
 Open the dock's **Widgets** tab and click any widget to drop a themed instance
 under the selection. Each widget is a real `Control` subtree with a child

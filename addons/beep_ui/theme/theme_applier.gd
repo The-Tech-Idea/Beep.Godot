@@ -11,7 +11,7 @@ extends Node
 
 signal theme_applied
 
-@export_enum("Modern", "SciFi", "Cartoon", "Classic", "Desert", "OilGas", "Sea", "Sports", "Soccer", "Fantasy", "Horror", "Nature", "Space", "Military", "Steampunk", "Retro80s", "Pixel8Bit", "Winter", "Cyberpunk", "Japan", "Toxic", "Candy") var preset: String = "Modern" : set = set_preset
+var preset: String = "Modern" : set = set_preset
 @export var enable_animations: bool = true
 @export var enable_ripple: bool = true
 @export var active: bool = true : set = set_active
@@ -34,6 +34,16 @@ var _a_hover_dur: float = 0.15
 var _a_press: float = 0.96
 var _a_press_dur: float = 0.08
 var _a_lift: bool = true
+
+
+func _get_property_list() -> Array[Dictionary]:
+	return [{
+		"name": "preset",
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_ENUM,
+		"hint_string": ",".join(BeepPreset.preset_names()),
+		"usage": PROPERTY_USAGE_DEFAULT,
+	}]
 
 
 func _ready() -> void:

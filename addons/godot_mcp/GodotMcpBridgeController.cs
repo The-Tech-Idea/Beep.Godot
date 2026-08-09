@@ -221,7 +221,7 @@ public partial class GodotMcpBridgeController : Node
     {
         JsonArray nodes = new();
 #if TOOLS
-        EditorInterface? editor = _editorPlugin?.GetEditorInterface();
+        EditorInterface? editor = EditorInterface.Singleton;
         if (editor is not null)
         {
             foreach (Node node in editor.GetSelection().GetSelectedNodes())
@@ -236,7 +236,7 @@ public partial class GodotMcpBridgeController : Node
         RequireWrites();
         Node node = RequireNode(p);
 #if TOOLS
-        EditorInterface? editor = _editorPlugin?.GetEditorInterface();
+        EditorInterface? editor = EditorInterface.Singleton;
         if (editor is not null)
         {
             EditorSelection selection = editor.GetSelection();
@@ -608,7 +608,7 @@ public partial class GodotMcpBridgeController : Node
     private Node? GetCurrentSceneRootOrNull()
     {
 #if TOOLS
-        EditorInterface? editor = _editorPlugin?.GetEditorInterface();
+        EditorInterface? editor = EditorInterface.Singleton;
         Node? edited = editor?.GetEditedSceneRoot();
         if (edited is not null)
             return edited;

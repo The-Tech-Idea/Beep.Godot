@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace Beep.ECS.UI
 {
     /// <summary>
-    /// Adds collapse handles to screen-edge HUD blocks under the parent Control.
+    /// Adds collapse handles to screen-edge HUD blocks under the parent Godot.Control.
     /// Attach once under HUD/Root. Direct HUD children are treated as widgets; nested content
     /// is left alone unless IncludeNestedPanels is explicitly enabled.
     /// </summary>
@@ -42,9 +42,9 @@ namespace Beep.ECS.UI
                     _excluded.Add(name);
 
             Node? root = GetParent();
-            if (root is not Control && root is not CanvasLayer)
+            if (root is not Godot.Control && root is not CanvasLayer)
             {
-                GD.PushWarning($"[{Name}] HudCollapseComponent must be a child of a HUD root Control or CanvasLayer.");
+                GD.PushWarning($"[{Name}] HudCollapseComponent must be a child of a HUD root Godot.Control or CanvasLayer.");
                 return;
             }
 
@@ -55,7 +55,7 @@ namespace Beep.ECS.UI
         private void Visit(Node node, bool directChild)
         {
             if (node == this || _excluded.Contains(node.Name.ToString())) return;
-            if (node is Control control && ShouldAttach(control, directChild))
+            if (node is Godot.Control control && ShouldAttach(control, directChild))
                 EnsureCollapse(control);
 
             if (!IncludeNestedPanels) return;
@@ -63,7 +63,7 @@ namespace Beep.ECS.UI
                 Visit(child, directChild: false);
         }
 
-        private bool ShouldAttach(Control control, bool directChild)
+        private bool ShouldAttach(Godot.Control control, bool directChild)
         {
             if (!control.Visible) return false;
             if (control.GetNodeOrNull<CollapsiblePanelComponent>("Collapse") != null) return false;
@@ -82,7 +82,7 @@ namespace Beep.ECS.UI
             return false;
         }
 
-        private static void EnsureCollapse(Control control)
+        private static void EnsureCollapse(Godot.Control control)
         {
             var collapse = new CollapsiblePanelComponent
             {

@@ -118,7 +118,8 @@ namespace Beep.ECS
                 // Schedule auto-cleanup after lifetime
                 ScheduleDropCleanup(inst);
 
-                EmitSignal(SignalName.DropSpawned, entry.Item, inst.GlobalPosition);
+                if (entry.Item != null)
+                    EmitSignal(SignalName.DropSpawned, entry.Item, inst.GlobalPosition);
             }
         }
 

@@ -639,8 +639,8 @@ namespace Beep.ECS.UI
 
         private class TypewriterState
         {
-            public string FullText;
-            public string CursorStr;
+            public string FullText = "";
+            public string CursorStr = "";
             public float Elapsed;
             public bool IsRichLabel;
         }

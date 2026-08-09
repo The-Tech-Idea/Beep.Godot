@@ -7,28 +7,30 @@ namespace Beep.GameBuilder;
 /// <summary>Simple finite state machine for UI states. Add states with enter/update/exit callbacks.</summary>
 public class BeepStateMachine
 {
-    private Dictionary<string, State> _states = new();
-    private State _current;
-    private string _previousState;
+    private readonly Dictionary<string, State> _states = new();
+    private State? _current;
+    private string? _previousState;
 
-    public string CurrentState => _current?.Name;
-    public string PreviousState => _previousState;
+    public string? CurrentState => _current?.Name;
+    public string? PreviousState => _previousState;
 
     public class State
     {
-        public string Name;
-        public Action OnEnter, OnUpdate, OnExit;
-        public Dictionary<string, string> Transitions = new();
+        public string Name = "";
+        public Action? OnEnter;
+        public Action? OnUpdate;
+        public Action? OnExit;
+        public readonly Dictionary<string, string> Transitions = new();
     }
 
-    public State AddState(string name, Action onEnter = null, Action onUpdate = null, Action onExit = null)
+    public State AddState(string name, Action? onEnter = null, Action? onUpdate = null, Action? onExit = null)
     {
         var s = new State { Name = name, OnEnter = onEnter, OnUpdate = onUpdate, OnExit = onExit };
         _states[name] = s;
         return s;
     }
 
-    public void AddTransition(string from, string to, string trigger = null)
+    public void AddTransition(string from, string to, string? trigger = null)
     {
         if (_states.TryGetValue(from, out var s))
             s.Transitions[trigger ?? to] = to;
@@ -71,10 +73,10 @@ public class BeepStateMachine
 /// <summary>Lightweight pub/sub event bus for decoupled UI communication.</summary>
 public static class BeepEventBus
 {
-    private static Dictionary<string, List<Action<object>>> _listeners = new();
-    private static Dictionary<string, List<Action>> _simpleListeners = new();
+    private static readonly Dictionary<string, List<Action<object?>>> _listeners = new();
+    private static readonly Dictionary<string, List<Action>> _simpleListeners = new();
 
-    public static void Subscribe(string eventName, Action<object> callback)
+    public static void Subscribe(string eventName, Action<object?> callback)
     {
         if (!_listeners.ContainsKey(eventName)) _listeners[eventName] = new();
         _listeners[eventName].Add(callback);
@@ -86,7 +88,7 @@ public static class BeepEventBus
         _simpleListeners[eventName].Add(callback);
     }
 
-    public static void Unsubscribe(string eventName, Action<object> callback)
+    public static void Unsubscribe(string eventName, Action<object?> callback)
     {
         if (_listeners.TryGetValue(eventName, out var list)) list.Remove(callback);
     }
@@ -96,7 +98,7 @@ public static class BeepEventBus
         if (_simpleListeners.TryGetValue(eventName, out var list)) list.Remove(callback);
     }
 
-    public static void Emit(string eventName, object data = null)
+    public static void Emit(string eventName, object? data = null)
     {
         // Snapshot before dispatch: a listener that Subscribes/Unsubscribes while handling the event
         // would otherwise mutate the list mid-iteration and throw.

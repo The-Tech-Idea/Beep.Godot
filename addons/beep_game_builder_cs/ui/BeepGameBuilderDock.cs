@@ -20,30 +20,30 @@ namespace Beep.GameBuilder;
 [Tool]
 public partial class BeepGameBuilderDock : VBoxContainer
 {
-    public EditorPlugin EditorPlugin { get; set; }
+    public EditorPlugin EditorPlugin { get; set; } = null!;
 
-    private TextEdit _output;
+    private TextEdit _output = null!;
 
     // ── Picker state ──
-    private OptionButton _genrePicker, _themePicker, _palettePicker;
-    private EditorResourcePicker _skinPicker;
+    private OptionButton _genrePicker = null!, _themePicker = null!, _palettePicker = null!;
+    private EditorResourcePicker _skinPicker = null!;
     private readonly List<string> _genreIds = new();
     private readonly List<string> _themeIds = new();
     private readonly List<string> _paletteIds = new();
-    private Label _genreDescription;
+    private Label _genreDescription = null!;
 
     // ── Game identity ──
-    private LineEdit _gameName, _version;
+    private LineEdit _gameName = null!, _version = null!;
 
     // ── Display ──
-    private SpinBox _resW, _resH, _targetFps;
-    private CheckBox _pixelArt;
+    private SpinBox _resW = null!, _resH = null!, _targetFps = null!;
+    private CheckBox _pixelArt = null!;
 
     // ── Skin & screen tools ──
-    private LineEdit _newScreenName;
-    private CheckBox _overwriteScenes;
-    private OptionButton _textureSource;
-    private LineEdit _textureRoot;
+    private LineEdit _newScreenName = null!;
+    private CheckBox _overwriteScenes = null!;
+    private OptionButton _textureSource = null!;
+    private LineEdit _textureRoot = null!;
 
     /// <summary>
     /// The editor's own UI scale. Every metric in this dock is multiplied by it.
@@ -311,7 +311,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void OnGenreChanged()
     {
-        string gid = GetSelectedGenreId();
+        string? gid = GetSelectedGenreId();
         if (gid == null) return;                 // nothing picked yet: not an error
         var genre = SkinCatalog.GetGenre(gid);
         if (genre == null)
@@ -342,7 +342,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void OnThemeChanged()
     {
-        string gid = GetSelectedGenreId(), tid = GetSelectedThemeId();
+        string? gid = GetSelectedGenreId(), tid = GetSelectedThemeId();
         if (gid == null || tid == null) return;   // nothing picked yet: not an error
         var theme = SkinCatalog.GetTheme(gid, tid);
         if (theme == null)
@@ -363,11 +363,11 @@ public partial class BeepGameBuilderDock : VBoxContainer
         if (_paletteIds.Count > 0) _palettePicker.Select(defaultIdx);
     }
 
-    private string GetSelectedGenreId()
+    private string? GetSelectedGenreId()
         => _genrePicker.Selected >= 0 && _genrePicker.Selected < _genreIds.Count
             ? _genreIds[_genrePicker.Selected] : null;
 
-    private string GetSelectedThemeId()
+    private string? GetSelectedThemeId()
         => _themePicker.Selected >= 0 && _themePicker.Selected < _themeIds.Count
             ? _themeIds[_themePicker.Selected] : null;
 
@@ -388,13 +388,13 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     private void GenerateFullProject()
     {
-        string gid = GetSelectedGenreId();
+        string? gid = GetSelectedGenreId();
         if (gid == null) { Log("[ERROR] No genre selected."); return; }
 
         var genre = SkinCatalog.GetGenre(gid);
         // Fall back through the catalog only — the genre's declared default, then whatever
         // theme folder actually exists. Never guess a theme name that may not be there.
-        string tid = GetSelectedThemeId() ?? FirstAvailableTheme(genre);
+        string? tid = GetSelectedThemeId() ?? FirstAvailableTheme(genre);
         if (tid == null) { Log($"[ERROR] Genre '{gid}' has no themes in the skin catalog."); return; }
         string pid = (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
             ? _paletteIds[_palettePicker.Selected] : "default";
@@ -475,9 +475,9 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.TargetFps = (int)_targetFps.Value;
         info.PixelArt = _pixelArt.ButtonPressed;
         info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
-        string gid = GetSelectedGenreId();
+        string? gid = GetSelectedGenreId();
         if (gid != null) info.GenreId = gid;
-        string tid = GetSelectedThemeId();
+        string? tid = GetSelectedThemeId();
         if (tid != null) info.DefaultThemePreset = tid;
         // Save must persist the same fields Generate does — it previously dropped Palette and Geometry,
         // so the two paths disagreed and a saved non-default palette was silently lost.
@@ -561,11 +561,11 @@ public partial class BeepGameBuilderDock : VBoxContainer
     /// slot falls back to the procedural box.</summary>
     private void RunBake(bool allGenres)
     {
-        string genreId = GetSelectedGenreId();
+        string? genreId = GetSelectedGenreId();
         if (!allGenres && string.IsNullOrEmpty(genreId)) { Log("✗ Pick a genre first."); return; }
 
         Log(allGenres ? "Baking every genre…" : $"Baking '{genreId}'…");
-        var log = allGenres ? BeepTextureBaker.BakeAll() : BeepTextureBaker.BakeGenre(genreId);
+        var log = allGenres ? BeepTextureBaker.BakeAll() : BeepTextureBaker.BakeGenre(genreId!);
         foreach (var line in log) Log("  " + line);
         Log("Done. Godot re-imports the new files automatically; toggle Textures in the Theme Gallery to compare.");
     }
@@ -583,7 +583,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
     /// content Control, and a script wiring by NAME).</summary>
     private void CreateNewScreen()
     {
-        string genreId = GetSelectedGenreId();
+        string? genreId = GetSelectedGenreId();
         if (string.IsNullOrEmpty(genreId)) { Log("✗ Pick a genre first."); return; }
         string name = _newScreenName?.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(name)) { Log("✗ Type a screen name first."); return; }

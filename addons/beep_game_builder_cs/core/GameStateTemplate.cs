@@ -70,7 +70,7 @@ namespace Beep.GameBuilder
 		/// <summary>Platformer-specific: lives are not part of the base HealthComponent.</summary>
 		[Export] public int Lives { get; set; } = 3;
 
-		public void Save(GameBuilder.GameStateData state)
+		public new void Save(GameBuilder.GameStateData state)
 		{
 			// Sync this component's state TO the global GameStateData
 			state.Combat.Health = CurrentHealth;
@@ -78,7 +78,7 @@ namespace Beep.GameBuilder
 			state.Combat.Lives = Lives;
 		}
 
-		public void Load(GameBuilder.GameStateData state)
+		public new void Load(GameBuilder.GameStateData state)
 		{
 			// Restore this component's state FROM the global GameStateData
 			CurrentHealth = state.Combat.Health;

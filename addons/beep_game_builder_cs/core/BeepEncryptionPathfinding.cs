@@ -23,7 +23,7 @@ public static class BeepEncryptionHelper
         return Convert.ToBase64String(ms.ToArray());
     }
 
-    public static string Decrypt(string cipherText, string password)
+    public static string? Decrypt(string cipherText, string password)
     {
         try
         {
@@ -53,7 +53,7 @@ public static class BeepEncryptionHelper
         return true;
     }
 
-    public static T LoadEncrypted<T>(string path, string password) where T : class
+    public static T? LoadEncrypted<T>(string path, string password) where T : class
     {
         if (!Godot.FileAccess.FileExists(path)) return null;
         using var f = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
@@ -86,7 +86,7 @@ public class BeepPathfindingGrid
 
     public void SetObstacle(int x, int y, bool blocked) { if (InBounds(x, y)) _walkable[x, y] = !blocked; }
 
-    public System.Collections.Generic.List<Vector2I> FindPath(Vector2I start, Vector2I end)
+    public System.Collections.Generic.List<Vector2I>? FindPath(Vector2I start, Vector2I end)
     {
         var openSet = new System.Collections.Generic.PriorityQueue<Vector2I, float>();
         var cameFrom = new System.Collections.Generic.Dictionary<Vector2I, Vector2I>();

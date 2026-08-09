@@ -9,13 +9,13 @@ public class BeepCommandHistory
     // Undo history is a deque, not a Stack, so it can drop the OLDEST entry when it exceeds
     // MaxHistory (a Stack can only remove the newest). Newest is at the end.
     private readonly LinkedList<ICommand> _undoStack = new();
-    private Stack<ICommand> _redoStack = new();
+    private readonly Stack<ICommand> _redoStack = new();
     private int _maxHistory = 50;
 
     public int MaxHistory { get => _maxHistory; set => _maxHistory = value; }
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;
-    public event Action Changed;
+    public event Action? Changed;
 
     public interface ICommand
     {
@@ -64,10 +64,12 @@ public class BeepCommandHistory
 
     private class SimpleCommand : ICommand
     {
-        private string _desc; private Action _exec, _undo;
+        private readonly string _desc;
+        private readonly Action _exec;
+        private readonly Action _undo;
         public SimpleCommand(string d, Action e, Action u) { _desc = d; _exec = e; _undo = u; }
-        public void Execute() => _exec?.Invoke();
-        public void Undo() => _undo?.Invoke();
+        public void Execute() => _exec.Invoke();
+        public void Undo() => _undo.Invoke();
         public string Description => _desc;
     }
 }

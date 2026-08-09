@@ -31,12 +31,12 @@ namespace Beep.ECS.UI
 
         private class Binding
         {
-            public object Source;
-            public string SourceProp;
-            public Node Target;
-            public string TargetProp;
+            public object Source = null!;
+            public string SourceProp = "";
+            public Node Target = null!;
+            public string TargetProp = "";
             public BindingMode Mode;
-            public Func<object, object> Formatter;
+            public Func<object?, object?>? Formatter;
 
             // Latch so a broken binding reports itself once instead of either spamming every
             // frame or (as before) failing completely silently.
@@ -67,19 +67,23 @@ namespace Beep.ECS.UI
                     if (_hasLast && Equals(val, _lastRaw)) return;
                     _lastRaw = val;
                     _hasLast = true;
-                    Target.Set(TargetProp, Variant.From(val));
+                    Target.Set(TargetProp, ToVariant(val));
                 }
                 catch (System.Exception ex) { WarnOnce("Source→Target", ex); }
             }
 
-            public void RefreshTwoWay()
+            public void RefreshToSource()
             {
-                if (Mode != BindingMode.TwoWay) return;
+                if (Mode != BindingMode.TwoWay && Mode != BindingMode.OneWayToSource) return;
                 if (Source == null || Target == null) return;
                 try
                 {
-                    var val = Target.Get(TargetProp);
-                    Source.GetType().GetProperty(SourceProp)?.SetValue(Source, val.Obj);
+                    var prop = Source.GetType().GetProperty(SourceProp);
+                    if (prop == null || !prop.CanWrite) return;
+                    object? raw = Target.Get(TargetProp).Obj;
+                    if (raw != null && raw is IConvertible && prop.PropertyType != raw.GetType())
+                        raw = Convert.ChangeType(raw, prop.PropertyType);
+                    prop.SetValue(Source, raw);
                 }
                 catch (System.Exception ex) { WarnOnce("Target→Source", ex); }
             }
@@ -87,6 +91,47 @@ namespace Beep.ECS.UI
 
         private readonly List<Binding> _bindings = new();
         private double _pollTimer = 0;
+
+        private static Variant ToVariant(object? value)
+        {
+            return value switch
+            {
+                null => default,
+                Variant variant => variant,
+                string text => Variant.From(text),
+                bool flag => Variant.From(flag),
+                int number => Variant.From(number),
+                long number => Variant.From(number),
+                float number => Variant.From(number),
+                double number => Variant.From(number),
+                Color color => Variant.From(color),
+                Vector2 vector => Variant.From(vector),
+                Vector2I vector => Variant.From(vector),
+                Vector3 vector => Variant.From(vector),
+                Vector3I vector => Variant.From(vector),
+                Rect2 rect => Variant.From(rect),
+                Rect2I rect => Variant.From(rect),
+                NodePath path => Variant.From(path),
+                StringName name => Variant.From(name),
+                GodotObject godotObject => Variant.From(godotObject),
+                Enum enumValue => Variant.From(Convert.ToInt64(enumValue)),
+                IConvertible convertible => Variant.From(convertible.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                _ => Variant.From(value.ToString() ?? string.Empty)
+            };
+        }
+
+        private static string NormalizeTargetProperty(string property)
+        {
+            return property switch
+            {
+                "Text" => "text",
+                "Value" => "value",
+                "ButtonPressed" => "button_pressed",
+                "Visible" => "visible",
+                "Color" => "color",
+                _ => property
+            };
+        }
 
         public override void _Ready()
         {
@@ -117,7 +162,7 @@ namespace Beep.ECS.UI
 
         /// <summary>Create a data binding between a source property and target UI property.</summary>
         public void Bind(object source, string sourceProp, Node target, string targetProp,
-            BindingMode mode = BindingMode.OneWay, Func<object, object> formatter = null)
+            BindingMode mode = BindingMode.OneWay, Func<object?, object?>? formatter = null)
         {
             if (source == null || target == null)
             {
@@ -130,13 +175,16 @@ namespace Beep.ECS.UI
                 Source = source,
                 SourceProp = sourceProp,
                 Target = target,
-                TargetProp = targetProp,
+                TargetProp = NormalizeTargetProperty(targetProp),
                 Mode = mode,
                 Formatter = formatter
             };
 
             _bindings.Add(binding);
-            binding.Refresh();
+            if (mode == BindingMode.OneWayToSource)
+                binding.RefreshToSource();
+            else
+                binding.Refresh();
             EmitSignal(SignalName.BindingCreated, sourceProp);
         }
 
@@ -194,18 +242,18 @@ namespace Beep.ECS.UI
         {
             foreach (var binding in _bindings)
             {
-                if (binding.Mode == BindingMode.OneWay || binding.Mode == BindingMode.OneWayToSource)
+                if (binding.Mode == BindingMode.OneWay || binding.Mode == BindingMode.TwoWay)
                     binding.Refresh();
             }
         }
 
-        /// <summary>Refresh two-way bindings (push UI changes back to source).</summary>
+        /// <summary>Refresh target-to-source bindings.</summary>
         public void RefreshTwoWay()
         {
             foreach (var binding in _bindings)
             {
-                if (binding.Mode == BindingMode.TwoWay)
-                    binding.RefreshTwoWay();
+                if (binding.Mode == BindingMode.TwoWay || binding.Mode == BindingMode.OneWayToSource)
+                    binding.RefreshToSource();
             }
         }
 

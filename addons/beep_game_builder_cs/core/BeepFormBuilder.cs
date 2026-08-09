@@ -15,16 +15,16 @@ namespace Beep.GameBuilder;
 [GlobalClass]
 public partial class BeepFormBuilder : VBoxContainer
 {
-    private object _dataObject;
-    private List<FieldBinding> _fields = new();
-    private Button _submitBtn;
+    private object? _dataObject;
+    private readonly List<FieldBinding> _fields = new();
+    private Button? _submitBtn;
 
     [Export] public string SubmitText { get; set; } = "Save";
     [Export] public int LabelWidth { get; set; } = 120;
     [Export] public int FieldFontSize { get; set; } = 14;
 
-    public event Action<object> Submitted;
-    public event Action<object, string, string> ValidationFailed;
+    public event Action<object>? Submitted;
+    public event Action<object, string, string>? ValidationFailed;
 
     public override void _Ready()
     {
@@ -32,7 +32,7 @@ public partial class BeepFormBuilder : VBoxContainer
     }
 
     /// <summary>Build form fields from an object's properties.</summary>
-    public void BuildForm(object obj, string[] excludeProps = null)
+    public void BuildForm(object obj, string[]? excludeProps = null)
     {
         _dataObject = obj;
         ClearChildren(this);
@@ -82,7 +82,7 @@ public partial class BeepFormBuilder : VBoxContainer
         AddChild(_submitBtn);
     }
 
-    private Godot.Control CreateInputForType(Type type, object currentValue, Action<object> onChanged)
+    private Godot.Control CreateInputForType(Type type, object? currentValue, Action<object?> onChanged)
     {
         if (type == typeof(string))
         {
@@ -139,6 +139,8 @@ public partial class BeepFormBuilder : VBoxContainer
 
     private void OnSubmit()
     {
+        if (_dataObject == null) return;
+
         // Basic validation: check required string fields aren't empty
         foreach (var f in _fields)
         {
@@ -152,13 +154,14 @@ public partial class BeepFormBuilder : VBoxContainer
                 }
             }
         }
-        Submitted?.Invoke(_dataObject);
+        if (_dataObject != null)
+            Submitted?.Invoke(_dataObject);
     }
 
     private class FieldBinding
     {
-        public PropertyInfo Property;
-        public Godot.Control Input;
+        public PropertyInfo Property = null!;
+        public Godot.Control Input = null!;
     }
 
     private static void ClearChildren(Node parent)

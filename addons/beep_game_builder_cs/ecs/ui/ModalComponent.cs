@@ -160,6 +160,7 @@ namespace Beep.ECS.UI
 
         private void OnCloseFinished()
         {
+            if (_dialog == null) return;
             _dialog.Visible = false;
             _dialog.Scale = Vector2.One;
             _dialog.Modulate = Colors.White;

@@ -16,11 +16,11 @@ public partial class BeepTreeView : KitGodotTree
     [Export] public bool ShowRoot { get; set; } = true;
     [Export] public bool Selectable { get; set; } = true;
 
-    private TreeItem _root;
-    private Dictionary<string, TreeItem> _lookup = new();
+    private TreeItem? _root;
+    private readonly Dictionary<string, TreeItem> _lookup = new();
 
-    public event Action<TreeItem, object> ItemSelected;
-    public event Action<TreeItem, object> ItemActivated;
+    public new event Action<TreeItem, object>? ItemSelected;
+    public new event Action<TreeItem, object>? ItemActivated;
 
     public override void _Ready()
     {
@@ -56,7 +56,7 @@ public partial class BeepTreeView : KitGodotTree
     // Read the stored payload without forcing a GodotObject cast. AsGodotObject() returns null for the
     // POCO/int/string payloads BuildTree/AddNode store via Variant.From, which silently killed the
     // selection/activation events for the common (non-GodotObject) case. .Obj hands back the boxed value.
-    private static object MetadataOf(TreeItem item)
+    private static object? MetadataOf(TreeItem item)
     {
         var meta = item.GetMetadata(0);
         return meta.VariantType == Variant.Type.Nil ? null : meta.Obj;
@@ -64,18 +64,18 @@ public partial class BeepTreeView : KitGodotTree
 
     /// <summary>Build tree from a recursive data structure.</summary>
     public void BuildTree<T>(IEnumerable<T> items, Func<T, string> textSelector,
-        Func<T, IEnumerable<T>> childrenSelector = null, Func<T, Texture2D> iconSelector = null)
+        Func<T, IEnumerable<T>>? childrenSelector = null, Func<T, Texture2D>? iconSelector = null)
     {
         // Clear() already recreates _root and clears _lookup; a second CreateItem() here made a *child*
         // of that root, so _root pointed at an empty phantom row and every node sat one level too deep.
         Clear();
 
         foreach (var item in items)
-            BuildNode(_root, item, textSelector, childrenSelector, iconSelector);
+            BuildNode(_root!, item, textSelector, childrenSelector, iconSelector);
     }
 
     /// <summary>Add a leaf node with metadata.</summary>
-    public TreeItem AddNode(TreeItem parent, string text, object data = null, Texture2D icon = null)
+    public TreeItem AddNode(TreeItem parent, string text, object? data = null, Texture2D? icon = null)
     {
         var item = parent.CreateChild();
         item.SetText(0, text);
@@ -94,7 +94,7 @@ public partial class BeepTreeView : KitGodotTree
     }
 
     /// <summary>Get selected data object.</summary>
-    public T GetSelectedData<[MustBeVariant] T>() where T : class
+    public T? GetSelectedData<[MustBeVariant] T>() where T : class
     {
         var item = GetSelected();
         return item?.GetMetadata(0).As<T>();
@@ -109,7 +109,7 @@ public partial class BeepTreeView : KitGodotTree
     }
 
     private void BuildNode<T>(TreeItem parent, T item, Func<T, string> textSelector,
-        Func<T, IEnumerable<T>> childrenSelector, Func<T, Texture2D> iconSelector)
+        Func<T, IEnumerable<T>>? childrenSelector, Func<T, Texture2D>? iconSelector)
     {
         var node = parent.CreateChild();
         node.SetText(0, textSelector(item));

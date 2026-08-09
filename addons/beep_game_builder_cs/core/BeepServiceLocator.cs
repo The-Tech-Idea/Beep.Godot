@@ -7,16 +7,16 @@ namespace Beep.GameBuilder;
 /// <summary>Simple service locator / DI container. Register and resolve services by type.</summary>
 public static class BeepServiceLocator
 {
-    private static Dictionary<Type, object> _services = new();
-    private static Dictionary<Type, Func<object>> _factories = new();
+    private static readonly Dictionary<Type, object> _services = new();
+    private static readonly Dictionary<Type, Func<object?>> _factories = new();
 
-    public static void Register<T>(T instance) { _services[typeof(T)] = instance; }
+    public static void Register<T>(T instance) where T : notnull { _services[typeof(T)] = instance; }
     public static void Register<T>(Func<T> factory) { _factories[typeof(T)] = () => factory(); }
-    public static T Resolve<T>() where T : class
+    public static T? Resolve<T>() where T : class
     {
         var t = typeof(T);
         if (_services.TryGetValue(t, out var svc)) return svc as T;
-        if (_factories.TryGetValue(t, out var fac)) { var inst = fac() as T; _services[t] = inst; return inst; }
+        if (_factories.TryGetValue(t, out var fac) && fac() is T inst) { _services[t] = inst; return inst; }
         return null;
     }
     public static bool Has<T>() => _services.ContainsKey(typeof(T)) || _factories.ContainsKey(typeof(T));
@@ -26,19 +26,19 @@ public static class BeepServiceLocator
 /// <summary>Grid-based menu navigation for keyboard/controller. Wrap a GridContainer and navigate with arrows.</summary>
 public class BeepGridNavigator
 {
-    private Godot.Control[,] _grid;
+    private Godot.Control?[,] _grid = new Godot.Control?[0, 0];
     private int _cols, _rows;
     private int _cx, _cy;
 
     public int CurrentIndex => _cy * _cols + _cx;
-    public Godot.Control CurrentItem => _grid[_cy, _cx];
-    public Action<Godot.Control, int, int> ItemSelected;
+    public Godot.Control? CurrentItem => _grid[_cy, _cx];
+    public Action<Godot.Control?, int, int>? ItemSelected;
 
     public void Setup(Godot.Collections.Array<Node> children, int columns)
     {
         _cols = columns;
         _rows = Mathf.CeilToInt((float)children.Count / columns);
-        _grid = new Godot.Control[_rows, _cols];
+        _grid = new Godot.Control?[_rows, _cols];
         for (int i = 0; i < children.Count; i++)
         {
             int r = i / columns, c = i % columns;
@@ -118,8 +118,8 @@ public static class BeepTweenChain
 {
     public class Builder
     {
-        private Node _host;
-        private Tween _tween;
+        private readonly Node _host;
+        private readonly Tween _tween;
         public Builder(Node host) { _host = host; _tween = host.CreateTween(); }
 
         public Builder ThenProp(Node target, string property, Variant finalVal, float duration)
@@ -154,7 +154,7 @@ public static class BeepTweenChain
 
     public class ParallelBuilder
     {
-        private Tween _tween;
+        private readonly Tween _tween;
         public ParallelBuilder(Tween t) => _tween = t;
         public ParallelBuilder Prop(Node t, string p, Variant v, float d) { _tween.TweenProperty(t, p, v, d); return this; }
         public ParallelBuilder Call(Action a) { _tween.TweenCallback(Callable.From(a)); return this; }

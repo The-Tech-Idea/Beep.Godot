@@ -5,12 +5,20 @@ namespace Beep.GameBuilder;
 [Tool]
 public partial class BeepGameBuilderPlugin : EditorPlugin
 {
-    private Godot.Control? _dock;
+    private EditorDock? _dock;
 
     public override void _EnterTree()
     {
-        _dock = new BeepGameBuilderDock { EditorPlugin = this };
-        AddControlToDock(DockSlot.RightUl, _dock);
+        var dockContent = new BeepGameBuilderDock { EditorPlugin = this };
+        _dock = new EditorDock
+        {
+            Name = "BeepGameBuilderDock",
+            Title = "Beep Game Builder",
+            DefaultSlot = EditorDock.DockSlot.RightUl,
+            AvailableLayouts = EditorDock.DockLayout.Vertical | EditorDock.DockLayout.Floating
+        };
+        _dock.AddChild(dockContent);
+        AddDock(_dock);
 
         // Expose Beep's own tools to an AI agent. This only registers handlers in a
         // static registry — it is a no-op unless the separate `godot_mcp` addon is
@@ -26,10 +34,11 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
     public override void _ExitTree()
     {
         BeepMcpCommands.Unregister();
+        BeepMcpKitCommands.Unregister();
 
         if (_dock is not null)
         {
-            RemoveControlFromDocks(_dock);
+            RemoveDock(_dock);
             _dock.QueueFree();
             _dock = null;
         }

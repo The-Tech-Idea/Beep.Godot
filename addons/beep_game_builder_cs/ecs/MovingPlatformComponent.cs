@@ -25,7 +25,7 @@ namespace Beep.ECS
         [Signal] public delegate void RunCompletedEventHandler();
 
         private AnimatableBody2D? _body;
-        private Vector2[] _points;
+        private Vector2[] _points = System.Array.Empty<Vector2>();
         private int _target;
         private bool _forward = true;
         private double _pauseTimer;

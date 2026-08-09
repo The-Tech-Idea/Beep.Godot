@@ -15,11 +15,11 @@ public partial class BeepDropdown : KitPushButton
 {
     private List<string> _allItems = new();
     private List<string> _filteredItems = new();
-    private KitContextMenu _menu;
+    private KitContextMenu? _menu;
 
     [Export] public string Placeholder { get; set; } = "Search...";
-    public string SelectedItem { get; private set; }
-    public event Action<string> ItemSelected;
+    public string SelectedItem { get; private set; } = "";
+    public event Action<string>? ItemSelected;
 
     public override void _Ready()
     {
@@ -58,7 +58,7 @@ public partial class BeepDropdown : KitPushButton
 
     private void RefreshListInternal()
     {
-        _menu.SetItems(_filteredItems.ToArray());
+        _menu?.SetItems(_filteredItems.ToArray());
     }
 
     private void OnMenuItemSelected(int index, string label)

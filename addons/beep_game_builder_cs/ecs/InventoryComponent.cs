@@ -90,7 +90,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            Slots = new InventorySlot[MaxSlots];
+            Slots = new InventorySlot?[MaxSlots];
             // Don't build the grid/tooltip in the editor — this [Tool] node lands in scenes the dev
             // opens, and BuildUI injects Owner-stamped nodes into the parent that a scene save would
             // then serialize (and re-add on each reopen). Matches Particle/Trail/Spawner's guard.
@@ -312,8 +312,8 @@ namespace Beep.ECS
 
         public void Resize(int newMaxSlots)
         {
-            if (Slots == null) { MaxSlots = newMaxSlots; Slots = new InventorySlot[newMaxSlots]; return; }
-            var newSlots = new InventorySlot[newMaxSlots];
+            if (Slots == null) { MaxSlots = newMaxSlots; Slots = new InventorySlot?[newMaxSlots]; return; }
+            var newSlots = new InventorySlot?[newMaxSlots];
             for (int i = 0; i < Mathf.Min(MaxSlots, newMaxSlots); i++) newSlots[i] = Slots[i];
             Slots = newSlots;
             MaxSlots = newMaxSlots;
@@ -359,7 +359,7 @@ namespace Beep.ECS
         {
             bool capacityChanged = MaxSlots != state.Inventory.MaxSlots;
             MaxSlots = state.Inventory.MaxSlots;
-            Slots = new InventorySlot[MaxSlots];
+            Slots = new InventorySlot?[MaxSlots];
 
             // The grid was built for the pre-load MaxSlots in _Ready; if the save carries a different
             // capacity, rebuild it or slots past the old count have no cell to render into.

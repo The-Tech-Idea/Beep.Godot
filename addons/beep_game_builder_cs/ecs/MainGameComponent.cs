@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using Beep.ECS.UI;
 using Beep.ECS.UI.Kit;
@@ -45,18 +46,18 @@ namespace Beep.ECS
         private Node2D? _levelRoot;
         private Node2D? _entityRoot;
         private Node2D? _effectRoot;
-        private Control? _hudRoot;
-        private Control? _pauseRoot;
-        private Control? _transitionRoot;
+        private Godot.Control? _hudRoot;
+        private Godot.Control? _pauseRoot;
+        private Godot.Control? _transitionRoot;
         private Node? _currentLevel;
         private Node2D? _player;
         private readonly List<string> _resolvedLevelPaths = new();
 
         public Node? CurrentLevel => _currentLevel;
         public Node2D? Player => _player;
-        public Control? HudRoot => _hudRoot;
-        public Control? PauseRoot => _pauseRoot;
-        public Control? TransitionRoot => _transitionRoot;
+        public Godot.Control? HudRoot => _hudRoot;
+        public Godot.Control? PauseRoot => _pauseRoot;
+        public Godot.Control? TransitionRoot => _transitionRoot;
 
         public override void _Ready()
         {
@@ -72,9 +73,9 @@ namespace Beep.ECS
             _levelRoot = GetNodeOrNull<Node2D>(LevelRootPath);
             _entityRoot = GetNodeOrNull<Node2D>(EntityRootPath);
             _effectRoot = GetNodeOrNull<Node2D>(EffectRootPath);
-            _hudRoot = GetNodeOrNull<Control>(HudRootPath);
-            _pauseRoot = GetNodeOrNull<Control>(PauseRootPath);
-            _transitionRoot = GetNodeOrNull<Control>(TransitionRootPath);
+            _hudRoot = GetNodeOrNull<Godot.Control>(HudRootPath);
+            _pauseRoot = GetNodeOrNull<Godot.Control>(PauseRootPath);
+            _transitionRoot = GetNodeOrNull<Godot.Control>(TransitionRootPath);
 
             _systemsRoot ??= EnsureChild<Node>("Systems", this);
             _levelRoot ??= EnsurePath<Node2D>("World/LevelRoot");
@@ -187,11 +188,11 @@ namespace Beep.ECS
             if (!BuildDefaultHud || _hudRoot == null) return;
             if (_hudRoot.FindChild("RuntimeHud", false, false) != null) return;
 
-            var host = new Control
+            var host = new Godot.Control
             {
                 Name = "RuntimeHud",
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-                AnchorsPreset = (int)Control.LayoutPreset.FullRect,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+                AnchorsPreset = (int)Godot.Control.LayoutPreset.FullRect,
             };
             host.AnchorRight = 1;
             host.AnchorBottom = 1;
@@ -214,33 +215,33 @@ namespace Beep.ECS
             }
         }
 
-        private void BuildCommonHud(Control host, string componentName, GenreHudComponent component)
+        private void BuildCommonHud(Godot.Control host, string componentName, GenreHudComponent component)
         {
             EnsureHudCollapse(host);
             var stack = AddFramedStack(host, "TopLeft", "StatsFrame", componentName.Contains("TopDown") ? "Field" : "Run",
-                                       Control.LayoutPreset.TopLeft, 24, 24, new Vector2(200, 142));
+                                       Godot.Control.LayoutPreset.TopLeft, 24, 24, new Vector2(200, 142));
             AddPair(stack, "ScoreLabel", "SCORE", "0", 180);
             AddPair(stack, "LevelLabel", componentName.Contains("TopDown") ? "AREA" : "LEVEL", "1", 180);
             AddPair(stack, "LivesLabel", "LIVES", "x 3", 180);
             AddMeter(stack, "HealthLabel", "100", UiSurface.Role.Success, 180, 18);
             AddForecast(host);
             if (componentName.Contains("TopDown"))
-                AddMinimap(host, "Minimap", Control.LayoutPreset.TopRight, new Vector2(156, 156), new Vector2(-18, 120));
+                AddMinimap(host, "Minimap", Godot.Control.LayoutPreset.TopRight, new Vector2(156, 156), new Vector2(-18, 120));
             component.Name = componentName;
             host.AddChild(component);
         }
 
-        private void BuildRpgHud(Control host)
+        private void BuildRpgHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
-            var dock = AddEdgePanel(host, "BottomDock", Control.LayoutPreset.CenterBottom,
+            var dock = AddEdgePanel(host, "BottomDock", Godot.Control.LayoutPreset.CenterBottom,
                                     new Vector2(724, 118), new Vector2(0, -20), "BottomFrame", "", new Vector2(26, 18));
             dock.AddThemeConstantOverride("margin_left", 18);
             dock.AddThemeConstantOverride("margin_top", 12);
             dock.AddThemeConstantOverride("margin_right", 18);
             dock.AddThemeConstantOverride("margin_bottom", 12);
 
-            var bar = new HBoxContainer { Name = "Bar", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var bar = new HBoxContainer { Name = "Bar", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             bar.AddThemeConstantOverride("separation", 14);
             bar.Alignment = BoxContainer.AlignmentMode.Center;
             dock.AddChild(bar);
@@ -250,14 +251,14 @@ namespace Beep.ECS
             {
                 Name = "CommandStack",
                 CustomMinimumSize = new Vector2(456, 94),
-                SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
             };
             command.AddThemeConstantOverride("separation", 8);
             command.Alignment = BoxContainer.AlignmentMode.Center;
             bar.AddChild(command);
             AddPair(command, "LevelLabel", "LV", "1", 72);
-            var slots = new HBoxContainer { Name = "ActionSlots", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var slots = new HBoxContainer { Name = "ActionSlots", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             slots.AddThemeConstantOverride("separation", 8);
             slots.Alignment = BoxContainer.AlignmentMode.Center;
             command.AddChild(slots);
@@ -266,7 +267,7 @@ namespace Beep.ECS
             AddSlot(slots, "Potion2", false, 2, UiSurface.Role.Info);
             AddOrb(bar, "ManaLabel", "MP", UiSurface.Role.Info, 92);
 
-            var quest = AddEdgePanel(host, "QuestBox", Control.LayoutPreset.TopRight,
+            var quest = AddEdgePanel(host, "QuestBox", Godot.Control.LayoutPreset.TopRight,
                                      new Vector2(300, 42), new Vector2(-34, 196), "QuestFrame", "Quest", new Vector2(20, 16));
             var q = new KitLabel
             {
@@ -276,10 +277,10 @@ namespace Beep.ECS
                 VerticalAlignment = VerticalAlignment.Center,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                 ClipText = true,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
             };
             quest.AddChild(q);
-            AddMinimap(host, "Minimap", Control.LayoutPreset.TopRight, new Vector2(140, 140), new Vector2(-18, 18));
+            AddMinimap(host, "Minimap", Godot.Control.LayoutPreset.TopRight, new Vector2(140, 140), new Vector2(-18, 18));
             host.AddChild(new RpgHudComponent
             {
                 Name = "RpgHud",
@@ -290,12 +291,12 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildShooterHud(Control host)
+        private void BuildShooterHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             BuildCommonReadouts(host);
             AddForecast(host);
-            var bottom = AddCornerStack(host, "BottomRight", Control.LayoutPreset.BottomRight, 24, 16, new Vector2(214, 76));
+            var bottom = AddCornerStack(host, "BottomRight", Godot.Control.LayoutPreset.BottomRight, 24, 16, new Vector2(214, 76));
             AddPair(bottom, "AmmoLabel", "AMMO", "30 / 90", 210);
             AddPair(bottom, "WaveLabel", "WAVE", "1", 210);
             host.AddChild(new ShooterHudComponent
@@ -306,17 +307,17 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildSurvivalHud(Control host)
+        private void BuildSurvivalHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             AddForecast(host);
             var stack = AddFramedStack(host, "Vitals", "StatsFrame", "Vitals",
-                                       Control.LayoutPreset.BottomLeft, 24, 18, new Vector2(226, 106));
+                                       Godot.Control.LayoutPreset.BottomLeft, 24, 18, new Vector2(226, 106));
             AddMeter(stack, "HealthLabel", "100", UiSurface.Role.Success, 214, 20);
             AddMeter(stack, "HungerLabel", "100", UiSurface.Role.Warning, 214, 20);
             AddMeter(stack, "ThirstLabel", "100", UiSurface.Role.Info, 214, 20);
             AddMeter(stack, "StaminaLabel", "100", UiSurface.Role.Success, 214, 20);
-            AddMinimap(host, "Minimap", Control.LayoutPreset.TopRight, new Vector2(156, 156), new Vector2(-16, 120));
+            AddMinimap(host, "Minimap", Godot.Control.LayoutPreset.TopRight, new Vector2(156, 156), new Vector2(-16, 120));
             host.AddChild(new SurvivalHudComponent
             {
                 Name = "SurvivalHud",
@@ -327,17 +328,17 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildCityBuilderHud(Control host)
+        private void BuildCityBuilderHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             var strip = new HBoxContainer
             {
                 Name = "ResourceStrip",
                 CustomMinimumSize = new Vector2(780, 52),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
             strip.AddThemeConstantOverride("separation", 8);
-            PlaceEdge(strip, Control.LayoutPreset.TopLeft, strip.CustomMinimumSize, new Vector2(16, 12));
+            PlaceEdge(strip, Godot.Control.LayoutPreset.TopLeft, strip.CustomMinimumSize, new Vector2(16, 12));
             host.AddChild(strip);
             AddResourceBadge(strip, "Population", "0", UiSurface.Role.Success, "icon_population.png", 148);
             AddResourceBadge(strip, "Budget", "50,000", UiSurface.Role.Warning, "icon_treasury.png", 176);
@@ -345,9 +346,9 @@ namespace Beep.ECS
             AddResourceBadge(strip, "Happiness", "100%", UiSurface.Role.Success, "icon_happiness.png", 148);
             AddResourceBadge(strip, "Date", "Yr 1", UiSurface.Role.Neutral, "icon_calendar.png", 172);
 
-            var speed = new HBoxContainer { Name = "SpeedBar", MouseFilter = Control.MouseFilterEnum.Pass };
+            var speed = new HBoxContainer { Name = "SpeedBar", MouseFilter = Godot.Control.MouseFilterEnum.Pass };
             speed.CustomMinimumSize = new Vector2(174, 38);
-            PlaceEdge(speed, Control.LayoutPreset.TopRight, speed.CustomMinimumSize, new Vector2(16, 12));
+            PlaceEdge(speed, Godot.Control.LayoutPreset.TopRight, speed.CustomMinimumSize, new Vector2(16, 12));
             speed.AddChild(new GameSpeedComponent { Name = "Speed", TogglePauseAction = "" });
             host.AddChild(speed);
 
@@ -361,18 +362,18 @@ namespace Beep.ECS
                 ShowWell = false,
                 ExtraPadding = new Vector2(10, 8),
                 CustomMinimumSize = new Vector2(242, 308),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
-            PlaceEdge(right, Control.LayoutPreset.TopRight, right.CustomMinimumSize, new Vector2(16, 78));
+            PlaceEdge(right, Godot.Control.LayoutPreset.TopRight, right.CustomMinimumSize, new Vector2(16, 78));
             host.AddChild(right);
-            var body = new VBoxContainer { Name = "Body", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var body = new VBoxContainer { Name = "Body", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             body.AddThemeConstantOverride("separation", 8);
             right.AddChild(body);
             body.AddChild(new DemandMeterComponent
             {
                 Name = "DemandMeter",
                 CustomMinimumSize = new Vector2(218, 96),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 DrawBackdrop = false,
                 LetterFontScale = 0.72f,
             });
@@ -380,7 +381,7 @@ namespace Beep.ECS
             {
                 Name = "Minimap",
                 CustomMinimumSize = new Vector2(218, 168),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
             });
 
             var bottom = new KitPanelContainer
@@ -393,11 +394,11 @@ namespace Beep.ECS
                 ShowWell = false,
                 ExtraPadding = new Vector2(10, 8),
                 CustomMinimumSize = new Vector2(0, 134),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
-            PlaceEdge(bottom, Control.LayoutPreset.BottomWide, bottom.CustomMinimumSize, new Vector2(14, 14));
+            PlaceEdge(bottom, Godot.Control.LayoutPreset.BottomWide, bottom.CustomMinimumSize, new Vector2(14, 14));
             host.AddChild(bottom);
-            var margin = new MarginContainer { Name = "BuildMargin", MouseFilter = Control.MouseFilterEnum.Pass };
+            var margin = new MarginContainer { Name = "BuildMargin", MouseFilter = Godot.Control.MouseFilterEnum.Pass };
             margin.AddThemeConstantOverride("margin_left", 12);
             margin.AddThemeConstantOverride("margin_top", 10);
             margin.AddThemeConstantOverride("margin_right", 12);
@@ -423,7 +424,7 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildStrategyHud(Control host)
+        private void BuildStrategyHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             var bar = AddTopPanelBar(host, "TopBar", "Command", 64);
@@ -431,9 +432,9 @@ namespace Beep.ECS
             AddPair(bar, "FoodLabel", "FOOD", "0", 184);
             AddPair(bar, "WoodLabel", "WOOD", "0", 184);
             AddMeter(bar, "UnitsLabel", "0", UiSurface.Role.Info, 168, 26);
-            AddPair(AddCornerStack(host, "TurnBox", Control.LayoutPreset.CenterTop, 0, 76, new Vector2(240, 36)),
+            AddPair(AddCornerStack(host, "TurnBox", Godot.Control.LayoutPreset.CenterTop, 0, 76, new Vector2(240, 36)),
                     "TurnLabel", "TURN", "1", 240);
-            AddMinimap(host, "Minimap", Control.LayoutPreset.BottomRight, new Vector2(180, 180), new Vector2(-16, -16));
+            AddMinimap(host, "Minimap", Godot.Control.LayoutPreset.BottomRight, new Vector2(180, 180), new Vector2(-16, -16));
             host.AddChild(new StrategyHudComponent
             {
                 Name = "StrategyHud",
@@ -441,11 +442,11 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildPuzzleHud(Control host)
+        private void BuildPuzzleHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             var stack = AddFramedStack(host, "TopCenter", "StatsFrame", "Puzzle",
-                                       Control.LayoutPreset.CenterTop, 0, 22, new Vector2(300, 92));
+                                       Godot.Control.LayoutPreset.CenterTop, 0, 22, new Vector2(300, 92));
             AddPair(stack, "ScoreLabel", "SCORE", "0", 260);
             AddMeter(stack, "TargetLabel", "0 / 1000", UiSurface.Role.Info, 300, 24);
             AddMeter(stack, "MovesLabel", "30 moves", UiSurface.Role.Warning, 260, 22);
@@ -458,23 +459,23 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildRacingHud(Control host)
+        private void BuildRacingHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             AddForecast(host);
             var stats = AddFramedStack(host, "TopLeft", "StatsFrame", "Race",
-                                       Control.LayoutPreset.TopLeft, 24, 24, new Vector2(222, 106));
+                                       Godot.Control.LayoutPreset.TopLeft, 24, 24, new Vector2(222, 106));
             AddPair(stats, "LapLabel", "LAP", "1 / 3", 198);
             AddPair(stats, "PositionLabel", "POS", "P1", 198);
             AddPair(stats, "LapTimeLabel", "TIME", "00:00.00", 198);
-            var speed = AddCornerStack(host, "SpeedBox", Control.LayoutPreset.BottomRight, 24, 24, new Vector2(190, 146));
+            var speed = AddCornerStack(host, "SpeedBox", Godot.Control.LayoutPreset.BottomRight, 24, 24, new Vector2(190, 146));
             AddRadial(speed, "SpeedLabel", "0", UiSurface.Role.Info, 154);
             speed.AddChild(new KitLabel
             {
                 Name = "SpeedUnit",
                 Text = "km/h",
                 CustomMinimumSize = new Vector2(154, 20),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             });
@@ -485,15 +486,15 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildCardGameHud(Control host)
+        private void BuildCardGameHud(Godot.Control host)
         {
             EnsureHudCollapse(host);
             var topLeft = AddFramedStack(host, "TopLeft", "StatsFrame", "Hero",
-                                         Control.LayoutPreset.TopLeft, 24, 28, new Vector2(206, 48));
+                                         Godot.Control.LayoutPreset.TopLeft, 24, 28, new Vector2(206, 48));
             AddMeter(topLeft, "HealthLabel", "30", UiSurface.Role.Success, 196, 24);
-            AddPair(AddCornerStack(host, "TopRight", Control.LayoutPreset.TopRight, 16, 18, new Vector2(194, 34)),
+            AddPair(AddCornerStack(host, "TopRight", Godot.Control.LayoutPreset.TopRight, 16, 18, new Vector2(194, 34)),
                     "GoldLabel", "GOLD", "0", 194);
-            AddMeter(AddCornerStack(host, "EnergyBox", Control.LayoutPreset.BottomLeft, 24, 18, new Vector2(200, 60)),
+            AddMeter(AddCornerStack(host, "EnergyBox", Godot.Control.LayoutPreset.BottomLeft, 24, 18, new Vector2(200, 60)),
                      "EnergyLabel", "3 / 3", UiSurface.Role.Info, 196, 28);
             var hand = new KitPanelContainer
             {
@@ -503,19 +504,19 @@ namespace Beep.ECS
                 Intent = KitPanelIntent.Hud,
                 CustomMinimumSize = new Vector2(460, 76),
                 ExtraPadding = new Vector2(14, 8),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
-            PlaceEdge(hand, Control.LayoutPreset.CenterBottom, hand.CustomMinimumSize, new Vector2(0, 18));
+            PlaceEdge(hand, Godot.Control.LayoutPreset.CenterBottom, hand.CustomMinimumSize, new Vector2(0, 18));
             hand.AddChild(new KitLabel
             {
                 Name = "HandLabel",
                 Text = "Cards in hand",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
             });
             host.AddChild(hand);
-            var bottom = AddCornerStack(host, "BottomRight", Control.LayoutPreset.BottomRight, 18, 18, new Vector2(190, 70));
+            var bottom = AddCornerStack(host, "BottomRight", Godot.Control.LayoutPreset.BottomRight, 18, 18, new Vector2(190, 70));
             AddPair(bottom, "DeckLabel", "DECK", "0", 170);
             AddPair(bottom, "DiscardLabel", "DISCARD", "0", 170);
             host.AddChild(new CardGameHudComponent
@@ -529,22 +530,22 @@ namespace Beep.ECS
             });
         }
 
-        private void BuildCommonReadouts(Control host)
+        private void BuildCommonReadouts(Godot.Control host)
         {
             var stack = AddFramedStack(host, "TopLeft", "StatsFrame", "Combat",
-                                       Control.LayoutPreset.TopLeft, 24, 24, new Vector2(200, 142));
+                                       Godot.Control.LayoutPreset.TopLeft, 24, 24, new Vector2(200, 142));
             AddPair(stack, "ScoreLabel", "SCORE", "0", 180);
             AddPair(stack, "LevelLabel", "LEVEL", "1", 180);
             AddPair(stack, "LivesLabel", "LIVES", "x 3", 180);
             AddMeter(stack, "HealthLabel", "100", UiSurface.Role.Success, 180, 18);
         }
 
-        private static VBoxContainer AddCornerStack(Control host, string name, Control.LayoutPreset preset, int x, int y, Vector2? minSize = null)
+        private static VBoxContainer AddCornerStack(Godot.Control host, string name, Godot.Control.LayoutPreset preset, int x, int y, Vector2? minSize = null)
         {
             var margin = new MarginContainer
             {
                 Name = name,
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
             Vector2 size = minSize ?? new Vector2(176, 30);
             margin.CustomMinimumSize = size;
@@ -555,22 +556,22 @@ namespace Beep.ECS
             margin.AddThemeConstantOverride("margin_bottom", 0);
             host.AddChild(margin);
 
-            var stack = new VBoxContainer { Name = name == "TopLeft" ? "StatsVBox" : "Stack", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var stack = new VBoxContainer { Name = name == "TopLeft" ? "StatsVBox" : "Stack", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             stack.AddThemeConstantOverride("separation", 5);
             margin.AddChild(stack);
             return stack;
         }
 
-        private static VBoxContainer AddFramedStack(Control host, string panelName, string frameName, string title,
-                                                    Control.LayoutPreset preset, int x, int y, Vector2 minSize)
+        private static VBoxContainer AddFramedStack(Godot.Control host, string panelName, string frameName, string title,
+                                                    Godot.Control.LayoutPreset preset, int x, int y, Vector2 minSize)
         {
             var stack = AddCornerStack(host, panelName, preset, x, y, minSize);
             AddLinkedFrame(host, frameName, title, $"../{panelName}", new Vector2(42, 26),
-                           preset, new Vector2(x, y), minSize, stack.GetParent<Control>());
+                           preset, new Vector2(x, y), minSize, stack.GetParent<Godot.Control>());
             return stack;
         }
 
-        private static MarginContainer AddEdgePanel(Control host, string name, Control.LayoutPreset preset,
+        private static MarginContainer AddEdgePanel(Godot.Control host, string name, Godot.Control.LayoutPreset preset,
                                                     Vector2 minSize, Vector2 offset, string frameName,
                                                     string title, Vector2 padding)
         {
@@ -578,7 +579,7 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = minSize,
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
             Vector2 inset = InsetFromLegacyOffset(preset, offset);
             PlaceEdge(panel, preset, minSize, inset);
@@ -587,8 +588,8 @@ namespace Beep.ECS
             return panel;
         }
 
-        private static void AddLinkedFrame(Control host, string frameName, string title, string targetPath, Vector2 padding,
-                                           Control.LayoutPreset preset, Vector2 targetInset, Vector2 targetSize, Control target)
+        private static void AddLinkedFrame(Node host, string frameName, string title, string targetPath, Vector2 padding,
+                                           Godot.Control.LayoutPreset preset, Vector2 targetInset, Vector2 targetSize, Node target)
         {
             Vector2 frameSize = targetSize + padding;
             var frame = new KitPanel
@@ -598,7 +599,7 @@ namespace Beep.ECS
                 Intent = KitPanelIntent.Hud,
                 TargetPath = new NodePath(targetPath),
                 TargetPadding = padding,
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 CustomMinimumSize = frameSize,
             };
             PlaceEdge(frame, preset, frameSize, FrameInset(preset, targetInset, padding));
@@ -606,19 +607,19 @@ namespace Beep.ECS
             host.MoveChild(frame, Mathf.Max(0, target.GetIndex()));
         }
 
-        private static Vector2 FrameInset(Control.LayoutPreset preset, Vector2 targetInset, Vector2 padding)
+        private static Vector2 FrameInset(Godot.Control.LayoutPreset preset, Vector2 targetInset, Vector2 padding)
         {
             float x = Mathf.Max(0f, targetInset.X - padding.X * 0.5f);
             float y = Mathf.Max(0f, targetInset.Y - padding.Y * 0.5f);
             return preset switch
             {
-                Control.LayoutPreset.TopWide or Control.LayoutPreset.BottomWide => new Vector2(0f, y),
-                Control.LayoutPreset.CenterTop or Control.LayoutPreset.CenterBottom => new Vector2(targetInset.X, y),
+                Godot.Control.LayoutPreset.TopWide or Godot.Control.LayoutPreset.BottomWide => new Vector2(0f, y),
+                Godot.Control.LayoutPreset.CenterTop or Godot.Control.LayoutPreset.CenterBottom => new Vector2(targetInset.X, y),
                 _ => new Vector2(x, y),
             };
         }
 
-        private static HBoxContainer AddTopPanelBar(Control host, string name, string title, float height)
+        private static HBoxContainer AddTopPanelBar(Godot.Control host, string name, string title, float height)
         {
             var panel = new KitPanelContainer
             {
@@ -628,12 +629,12 @@ namespace Beep.ECS
                 Intent = KitPanelIntent.Hud,
                 ExtraPadding = new Vector2(10, 8),
                 CustomMinimumSize = new Vector2(0, height),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
-            PlaceEdge(panel, Control.LayoutPreset.TopWide, panel.CustomMinimumSize, Vector2.Zero);
+            PlaceEdge(panel, Godot.Control.LayoutPreset.TopWide, panel.CustomMinimumSize, Vector2.Zero);
             host.AddChild(panel);
 
-            var bar = new HBoxContainer { Name = "Bar", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var bar = new HBoxContainer { Name = "Bar", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             bar.AddThemeConstantOverride("separation", 10);
             bar.Alignment = BoxContainer.AlignmentMode.Center;
             panel.AddChild(bar);
@@ -642,12 +643,12 @@ namespace Beep.ECS
 
         private static void AddResourceRow(Container bar, string rowName, string labelName, string label, string value)
         {
-            var row = new HBoxContainer { Name = rowName, MouseFilter = Control.MouseFilterEnum.Ignore };
+            var row = new HBoxContainer { Name = rowName, MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
             row.AddChild(new KitLabelValue
             {
                 Name = labelName,
                 CustomMinimumSize = new Vector2(150, 30),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 Label = label,
                 Value = value,
             });
@@ -666,7 +667,7 @@ namespace Beep.ECS
                 Accent = accent,
                 Icon = icon,
                 CustomMinimumSize = new Vector2(width, 48),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
             });
         }
 
@@ -676,7 +677,7 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = new Vector2(width, height),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 Value = 1,
                 Segments = 10,
                 Fill = fill,
@@ -691,7 +692,7 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = new Vector2(side, side),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 Value = 1,
                 Fill = fill,
                 CentreText = text,
@@ -705,7 +706,7 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = new Vector2(side, side),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 Value = 0,
                 Segments = 20,
                 Fill = fill,
@@ -720,105 +721,108 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = new Vector2(46, 46),
-                MouseFilter = Control.MouseFilterEnum.Stop,
+                MouseFilter = Godot.Control.MouseFilterEnum.Stop,
                 Selected = selected,
                 Count = count,
                 Rarity = rarity,
             });
         }
 
-        private static WeatherForecastUI AddForecast(Control host)
+        private static WeatherForecastUI AddForecast(Godot.Control host)
         {
             var forecast = new WeatherForecastUI
             {
                 Name = "WeatherForecast",
                 CustomMinimumSize = new Vector2(270, 82),
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
                 StartCollapsed = true,
                 ItemSize = new Vector2(58, 70),
                 ItemSpacing = 6,
             };
-            PlaceEdge(forecast, Control.LayoutPreset.TopRight, forecast.CustomMinimumSize, new Vector2(22, 22));
+            PlaceEdge(forecast, Godot.Control.LayoutPreset.TopRight, forecast.CustomMinimumSize, new Vector2(22, 22));
             host.AddChild(forecast);
             return forecast;
         }
 
-        private static MinimapComponent AddMinimap(Control host, string name, Control.LayoutPreset preset, Vector2 size, Vector2 offset)
+        private static MinimapComponent AddMinimap(Godot.Control host, string name, Godot.Control.LayoutPreset preset, Vector2 size, Vector2 offset)
         {
             var map = new MinimapComponent
             {
                 Name = name,
                 CustomMinimumSize = size,
-                MouseFilter = Control.MouseFilterEnum.Pass,
+                MouseFilter = Godot.Control.MouseFilterEnum.Pass,
             };
             PlaceEdge(map, preset, size, InsetFromLegacyOffset(preset, offset));
             host.AddChild(map);
             return map;
         }
 
-        private static Vector2 InsetFromLegacyOffset(Control.LayoutPreset preset, Vector2 offset) => preset switch
+        private static Vector2 InsetFromLegacyOffset(Godot.Control.LayoutPreset preset, Vector2 offset) => preset switch
         {
-            Control.LayoutPreset.TopRight or Control.LayoutPreset.BottomRight
+            Godot.Control.LayoutPreset.TopRight or Godot.Control.LayoutPreset.BottomRight
                 => new Vector2(Mathf.Abs(offset.X), Mathf.Abs(offset.Y)),
-            Control.LayoutPreset.CenterBottom
+            Godot.Control.LayoutPreset.CenterBottom
                 => new Vector2(Mathf.Abs(offset.X), Mathf.Abs(offset.Y)),
-            Control.LayoutPreset.BottomLeft or Control.LayoutPreset.BottomWide
+            Godot.Control.LayoutPreset.BottomLeft or Godot.Control.LayoutPreset.BottomWide
                 => new Vector2(Mathf.Abs(offset.X), Mathf.Abs(offset.Y)),
             _ => new Vector2(Mathf.Abs(offset.X), Mathf.Abs(offset.Y)),
         };
 
-        private static void PlaceEdge(Control c, Control.LayoutPreset preset, Vector2 size, Vector2 inset)
+        private static void PlaceEdge(Node node, Godot.Control.LayoutPreset preset, Vector2 size, Vector2 inset)
         {
+            if (node is not Godot.Control control)
+                throw new InvalidOperationException("PlaceEdge requires a Godot Godot.Control node.");
+
             switch (preset)
             {
-                case Control.LayoutPreset.TopLeft:
-                    c.AnchorLeft = c.AnchorTop = c.AnchorRight = c.AnchorBottom = 0f;
-                    c.OffsetLeft = inset.X; c.OffsetTop = inset.Y;
-                    c.OffsetRight = inset.X + size.X; c.OffsetBottom = inset.Y + size.Y;
+                case Godot.Control.LayoutPreset.TopLeft:
+                    control.AnchorLeft = control.AnchorTop = control.AnchorRight = control.AnchorBottom = 0f;
+                    control.OffsetLeft = inset.X; control.OffsetTop = inset.Y;
+                    control.OffsetRight = inset.X + size.X; control.OffsetBottom = inset.Y + size.Y;
                     break;
-                case Control.LayoutPreset.TopRight:
-                    c.AnchorLeft = c.AnchorRight = 1f; c.AnchorTop = c.AnchorBottom = 0f;
-                    c.OffsetLeft = -inset.X - size.X; c.OffsetRight = -inset.X;
-                    c.OffsetTop = inset.Y; c.OffsetBottom = inset.Y + size.Y;
+                case Godot.Control.LayoutPreset.TopRight:
+                    control.AnchorLeft = control.AnchorRight = 1f; control.AnchorTop = control.AnchorBottom = 0f;
+                    control.OffsetLeft = -inset.X - size.X; control.OffsetRight = -inset.X;
+                    control.OffsetTop = inset.Y; control.OffsetBottom = inset.Y + size.Y;
                     break;
-                case Control.LayoutPreset.BottomLeft:
-                    c.AnchorLeft = c.AnchorRight = 0f; c.AnchorTop = c.AnchorBottom = 1f;
-                    c.OffsetLeft = inset.X; c.OffsetRight = inset.X + size.X;
-                    c.OffsetTop = -inset.Y - size.Y; c.OffsetBottom = -inset.Y;
+                case Godot.Control.LayoutPreset.BottomLeft:
+                    control.AnchorLeft = control.AnchorRight = 0f; control.AnchorTop = control.AnchorBottom = 1f;
+                    control.OffsetLeft = inset.X; control.OffsetRight = inset.X + size.X;
+                    control.OffsetTop = -inset.Y - size.Y; control.OffsetBottom = -inset.Y;
                     break;
-                case Control.LayoutPreset.BottomRight:
-                    c.AnchorLeft = c.AnchorRight = c.AnchorTop = c.AnchorBottom = 1f;
-                    c.OffsetLeft = -inset.X - size.X; c.OffsetRight = -inset.X;
-                    c.OffsetTop = -inset.Y - size.Y; c.OffsetBottom = -inset.Y;
+                case Godot.Control.LayoutPreset.BottomRight:
+                    control.AnchorLeft = control.AnchorRight = control.AnchorTop = control.AnchorBottom = 1f;
+                    control.OffsetLeft = -inset.X - size.X; control.OffsetRight = -inset.X;
+                    control.OffsetTop = -inset.Y - size.Y; control.OffsetBottom = -inset.Y;
                     break;
-                case Control.LayoutPreset.CenterTop:
-                    c.AnchorLeft = c.AnchorRight = 0.5f; c.AnchorTop = c.AnchorBottom = 0f;
-                    c.OffsetLeft = -size.X * 0.5f + inset.X; c.OffsetRight = size.X * 0.5f + inset.X;
-                    c.OffsetTop = inset.Y; c.OffsetBottom = inset.Y + size.Y;
+                case Godot.Control.LayoutPreset.CenterTop:
+                    control.AnchorLeft = control.AnchorRight = 0.5f; control.AnchorTop = control.AnchorBottom = 0f;
+                    control.OffsetLeft = -size.X * 0.5f + inset.X; control.OffsetRight = size.X * 0.5f + inset.X;
+                    control.OffsetTop = inset.Y; control.OffsetBottom = inset.Y + size.Y;
                     break;
-                case Control.LayoutPreset.CenterBottom:
-                    c.AnchorLeft = c.AnchorRight = 0.5f; c.AnchorTop = c.AnchorBottom = 1f;
-                    c.OffsetLeft = -size.X * 0.5f + inset.X; c.OffsetRight = size.X * 0.5f + inset.X;
-                    c.OffsetTop = -inset.Y - size.Y; c.OffsetBottom = -inset.Y;
+                case Godot.Control.LayoutPreset.CenterBottom:
+                    control.AnchorLeft = control.AnchorRight = 0.5f; control.AnchorTop = control.AnchorBottom = 1f;
+                    control.OffsetLeft = -size.X * 0.5f + inset.X; control.OffsetRight = size.X * 0.5f + inset.X;
+                    control.OffsetTop = -inset.Y - size.Y; control.OffsetBottom = -inset.Y;
                     break;
-                case Control.LayoutPreset.TopWide:
-                    c.AnchorLeft = 0f; c.AnchorRight = 1f; c.AnchorTop = c.AnchorBottom = 0f;
-                    c.OffsetLeft = inset.X; c.OffsetRight = -inset.X;
-                    c.OffsetTop = inset.Y; c.OffsetBottom = inset.Y + size.Y;
+                case Godot.Control.LayoutPreset.TopWide:
+                    control.AnchorLeft = 0f; control.AnchorRight = 1f; control.AnchorTop = control.AnchorBottom = 0f;
+                    control.OffsetLeft = inset.X; control.OffsetRight = -inset.X;
+                    control.OffsetTop = inset.Y; control.OffsetBottom = inset.Y + size.Y;
                     break;
-                case Control.LayoutPreset.BottomWide:
-                    c.AnchorLeft = 0f; c.AnchorRight = 1f; c.AnchorTop = c.AnchorBottom = 1f;
-                    c.OffsetLeft = inset.X; c.OffsetRight = -inset.X;
-                    c.OffsetTop = -inset.Y - size.Y; c.OffsetBottom = -inset.Y;
+                case Godot.Control.LayoutPreset.BottomWide:
+                    control.AnchorLeft = 0f; control.AnchorRight = 1f; control.AnchorTop = control.AnchorBottom = 1f;
+                    control.OffsetLeft = inset.X; control.OffsetRight = -inset.X;
+                    control.OffsetTop = -inset.Y - size.Y; control.OffsetBottom = -inset.Y;
                     break;
                 default:
-                    c.SetAnchorsAndOffsetsPreset(preset);
-                    c.CustomMinimumSize = size;
+                    control.SetAnchorsAndOffsetsPreset(preset);
+                    control.CustomMinimumSize = size;
                     break;
             }
         }
 
-        private static void EnsureHudCollapse(Control host)
+        private static void EnsureHudCollapse(Godot.Control host)
         {
             if (host.GetNodeOrNull<HudCollapseComponent>("HudCollapse") != null) return;
             host.AddChild(new HudCollapseComponent { Name = "HudCollapse" });
@@ -830,7 +834,7 @@ namespace Beep.ECS
             {
                 Name = name,
                 CustomMinimumSize = new Vector2(width, 30),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 Label = label,
                 Value = value,
             });

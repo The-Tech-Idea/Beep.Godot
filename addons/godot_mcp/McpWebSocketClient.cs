@@ -25,7 +25,7 @@ public partial class McpWebSocketClient : Node
     private bool _helloSent;
     private WebSocketPeer.State _lastState = WebSocketPeer.State.Closed;
 
-    public bool IsConnected => _socket.GetReadyState() == WebSocketPeer.State.Open;
+    public new bool IsConnected => _socket.GetReadyState() == WebSocketPeer.State.Open;
     public string Url => _url;
     public string Role => _role;
 

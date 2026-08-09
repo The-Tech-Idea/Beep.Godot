@@ -7,7 +7,7 @@ namespace Beep.GameBuilder;
 /// <summary>Weighted random table. Add items with weights, then roll for random selection. Great for loot tables.</summary>
 public class BeepWeightedTable<T>
 {
-    private List<(T Item, float Weight)> _entries = new();
+    private readonly List<(T Item, float Weight)> _entries = new();
     private float _totalWeight;
 
     public void Add(T item, float weight)
@@ -35,7 +35,7 @@ public class BeepWeightedTable<T>
             cumulative += weight;
             if (roll <= cumulative) return item;
         }
-        return _entries.Count > 0 ? _entries[_entries.Count - 1].Item : default;
+        return _entries.Count > 0 ? _entries[_entries.Count - 1].Item : default!;
     }
 
     /// <summary>Roll N times without replacement (each item can only be selected once).</summary>

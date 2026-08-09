@@ -91,7 +91,7 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Apply the genre's case rule to a string before drawing it.</summary>
         protected string KitCase(string t) => Geo.UpperCase ? t.ToUpperInvariant() : t;
 
-        protected KitMaterial Material => KitMaterial.ForGenre(_genre);
+        protected new KitMaterial Material => KitMaterial.ForGenre(_genre);
         protected KitShape ActiveShape => OverrideShape ? Shape : KitMaterial.WidgetShapeForGenre(_genre, WidgetClass);
 
         /// <summary>Surface for this widget's elevation and state. Every colour in the kit
@@ -181,7 +181,7 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         internal static Vector2[] Modify(Vector2[] poly, Rect2 r, float shear, float wobble)
         {
-            if (poly == null || poly.Length < 3) return poly;
+            if (poly == null || poly.Length < 3) return System.Array.Empty<Vector2>();
             if (shear <= 0.0001f && wobble <= 0.0001f) return poly;
 
             float h = Mathf.Max(1f, r.Size.Y);

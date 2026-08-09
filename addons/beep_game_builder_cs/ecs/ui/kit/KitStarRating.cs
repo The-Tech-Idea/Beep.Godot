@@ -16,7 +16,7 @@ namespace Beep.ECS.UI.Kit
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class KitStarRating : Range
+    public partial class KitStarRating : Godot.Range
     {
         /// <summary>A chip: takes the theme's chip corner, which the references vary
         /// independently of the button corner.</summary>

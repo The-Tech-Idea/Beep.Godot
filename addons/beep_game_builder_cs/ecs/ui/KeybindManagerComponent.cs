@@ -37,8 +37,8 @@ namespace Beep.ECS.UI
 
         private class RegisteredKeybind
         {
-            public string Id;
-            public string Label;
+            public string Id = "";
+            public string Label = "";
             public Key Key;
             public Key Modifiers;
             public Action? Action;
@@ -62,7 +62,7 @@ namespace Beep.ECS.UI
             }
         }
 
-        private Dictionary<string, RegisteredKeybind> _keybinds = new();
+        private readonly Dictionary<string, RegisteredKeybind> _keybinds = new();
         private bool _enabled = true;
 
         public override void _UnhandledInput(InputEvent @event)

@@ -82,7 +82,7 @@ namespace Beep.ECS.UI
         }
 
         /// <summary>Schedule a one-shot callback after a delay (seconds).</summary>
-        public string Delay(double seconds, Action callback, string jobId = null)
+        public string Delay(double seconds, Action callback, string? jobId = null)
         {
             jobId ??= Guid.NewGuid().ToString();
             var job = new Job
@@ -98,14 +98,14 @@ namespace Beep.ECS.UI
         }
 
         /// <summary>Schedule a callback to run on the next frame.</summary>
-        public string NextFrame(Action callback, string jobId = null)
+        public string NextFrame(Action callback, string? jobId = null)
         {
             return Delay(0, callback, jobId);
         }
 
         /// <summary>Schedule a repeating callback at the given interval (seconds).
         /// Returns the job ID; use Cancel(jobId) to stop it.</summary>
-        public string Repeat(double interval, Action callback, string jobId = null)
+        public string Repeat(double interval, Action callback, string? jobId = null)
         {
             jobId ??= Guid.NewGuid().ToString();
             var job = new Job
@@ -146,7 +146,7 @@ namespace Beep.ECS.UI
         public bool IsJobActive(string jobId) => _jobs.Exists(j => j.Id == jobId);
 
         /// <summary>Wait for a signal, then run a callback. Usage: coro.WaitSignal(timer, "timeout", () => Done()).</summary>
-        public async void WaitSignal(GodotObject source, StringName signal, Action then = null)
+        public async void WaitSignal(GodotObject source, StringName signal, Action? then = null)
         {
             await ToSignal(source, signal);
             then?.Invoke();

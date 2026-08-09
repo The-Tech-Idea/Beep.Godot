@@ -972,22 +972,24 @@ namespace Beep.ECS.UI
 					_targetControl.MoveChild(_backgroundRect, canvasIndex + 1);
 					_backgroundRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 			}
-			_backgroundRect.Texture = ResourceLoader.Load<Texture2D>(img);
+			var background = _backgroundRect;
+			if (background == null || geo == null) return;
+			background.Texture = ResourceLoader.Load<Texture2D>(img);
 
 			switch ((geo.BackgroundMode ?? "stretch").ToLowerInvariant())
 			{
 				case "tile":
-					_backgroundRect.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-					_backgroundRect.StretchMode = TextureRect.StretchModeEnum.Tile;
+					background.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
+					background.StretchMode = TextureRect.StretchModeEnum.Tile;
 					break;
 				case "center":
-					_backgroundRect.ExpandMode = TextureRect.ExpandModeEnum.KeepSize;
-					_backgroundRect.StretchMode = TextureRect.StretchModeEnum.KeepCentered;
+					background.ExpandMode = TextureRect.ExpandModeEnum.KeepSize;
+					background.StretchMode = TextureRect.StretchModeEnum.KeepCentered;
 					break;
 				case "stretch":
 				default:
-					_backgroundRect.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-					_backgroundRect.StretchMode = TextureRect.StretchModeEnum.Scale;
+					background.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
+					background.StretchMode = TextureRect.StretchModeEnum.Scale;
 					break;
 			}
 		}

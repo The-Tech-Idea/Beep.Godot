@@ -52,6 +52,8 @@ namespace Beep.ECS
 
         private void SetupParticles()
         {
+            if (_particles != null && GodotObject.IsInstanceValid(_particles)) return;
+
             var scene = ParticleScene;
             if (scene == null)
             {

@@ -45,6 +45,11 @@ public partial class BeepGameBuilderDock : VBoxContainer
     private OptionButton _textureSource = null!;
     private LineEdit _textureRoot = null!;
 
+    // ── Create-row widgets (kept as fields so the busy guard can disable them) ──
+    private Button _genBtn = null!;
+    private Label _statusLabel = null!;
+    private bool _generating;
+
     /// <summary>
     /// The editor's own UI scale. Every metric in this dock is multiplied by it.
     ///
@@ -148,12 +153,19 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
         // ── 4. Actions ──
         AddSectionHeader(b, "4. Create");
-        var genBtn = new Button { Text = "▶ Create Game (one-click)" };
-        genBtn.Pressed += GenerateFullProject;
-        b.AddChild(genBtn);
+        var validateBtn = new Button { Text = "✔ Validate templates (read-only)" };
+        validateBtn.Pressed += ValidateTemplates;
+        b.AddChild(validateBtn);
+        _genBtn = new Button { Text = "▶ Create Game (one-click)" };
+        _genBtn.Pressed += GenerateFullProject;
+        b.AddChild(_genBtn);
+
+        _statusLabel = new Label { Text = "", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _statusLabel.AddThemeFontSizeOverride("font_size", DockFont(0.85f));
+        b.AddChild(_statusLabel);
 
         b.AddChild(new HSeparator());
-        b.AddChild(new Label { Text = "After creating, the main scene is set to scenes/ui/main_menu.tscn — just press Play (F5)." });
+        b.AddChild(new Label { Text = "After creating, reload the project (Project → Reload) so the editor picks up the rebuilt assembly, then press Play (F5)." });
         var saveBtn = new Button { Text = "💾 Save current settings to game_info.tres" };
         saveBtn.Pressed += SaveGameInfo;
         b.AddChild(saveBtn);
@@ -363,13 +375,23 @@ public partial class BeepGameBuilderDock : VBoxContainer
         if (_paletteIds.Count > 0) _palettePicker.Select(defaultIdx);
     }
 
+    // OptionButton.Selected can be -1 even with items present: Select() sets the visual without
+    // raising ItemSelected, and the property reads -1 until the user actively picks. Treating -1
+    // as "nothing selected" made GetSelectedGenreId() return null with a full list — the generate
+    // button then returned before its first Log, looking completely dead. Fall back to item 0.
     private string? GetSelectedGenreId()
-        => _genrePicker.Selected >= 0 && _genrePicker.Selected < _genreIds.Count
-            ? _genreIds[_genrePicker.Selected] : null;
+        => SelectedOrFirst(_genrePicker, _genreIds);
 
     private string? GetSelectedThemeId()
-        => _themePicker.Selected >= 0 && _themePicker.Selected < _themeIds.Count
-            ? _themeIds[_themePicker.Selected] : null;
+        => SelectedOrFirst(_themePicker, _themeIds);
+
+    private static string? SelectedOrFirst(OptionButton btn, List<string> ids)
+    {
+        if (ids.Count == 0) return null;
+        int idx = btn.Selected;
+        if (idx < 0 || idx >= ids.Count) idx = 0;
+        return ids[idx];
+    }
 
     // ════════════════════════════════════════════════════════════════
     // One-click generate
@@ -386,18 +408,77 @@ public partial class BeepGameBuilderDock : VBoxContainer
         return null;
     }
 
+    /// <summary>Read-only template health check, runnable any time. The same audit generation
+    /// runs as a pre-flight, but standalone so the user can check before committing to a stamp.</summary>
+    private void ValidateTemplates()
+    {
+        var audit = BeepSceneTemplateAudit.AuditAll();
+        foreach (var line in BeepSceneTemplateAudit.Describe(audit)) Log(line);
+        SetStatus(audit.Ok
+            ? $"✔ {audit.SceneCount} templates OK."
+            : $"✖ {audit.Issues.Count} template issue(s) — see the log. Generation would skip/warn past these.", !audit.Ok);
+    }
+
     private void GenerateFullProject()
     {
+        // Busy guard: generation is a long synchronous file-stamp and the button stays live, so a
+        // double-click used to run the whole stamp twice (double autoload writes, double settings
+        // saves). Reject a re-entry while one is in flight.
+        if (_generating) { Log("Already generating — please wait."); return; }
+
+        // Entry log FIRST: the old path could return before any Log, so a silent bail left the
+        // output box empty and the button looking dead. Now a click always prints something.
+        Log("Create Game clicked…");
+        SetBusy(true);
+        try
+        {
+            GenerateFullProjectCore();
+        }
+        catch (System.Exception ex)
+        {
+            // A throw anywhere in the generator (autoload registration, project-settings save,
+            // file writes) would otherwise escape the signal handler and abort mid-stamp with no
+            // visible error — the exact "clicked and nothing happened" report. Surface it.
+            Log($"[ERROR] Generation failed: {ex.GetType().Name}: {ex.Message}");
+            SetStatus($"✖ Generation failed: {ex.Message}", true);
+            GD.PushError($"[BeepGameBuilderDock] GenerateFullProject threw:\n{ex}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private void GenerateFullProjectCore()
+    {
         string? gid = GetSelectedGenreId();
-        if (gid == null) { Log("[ERROR] No genre selected."); return; }
+        if (gid == null) { SetStatus("✖ No genre available — the skin catalog loaded no genres.", true); Log("[ERROR] No genre available (catalogs/skins/)."); return; }
 
         var genre = SkinCatalog.GetGenre(gid);
         // Fall back through the catalog only — the genre's declared default, then whatever
         // theme folder actually exists. Never guess a theme name that may not be there.
         string? tid = GetSelectedThemeId() ?? FirstAvailableTheme(genre);
-        if (tid == null) { Log($"[ERROR] Genre '{gid}' has no themes in the skin catalog."); return; }
-        string pid = (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
-            ? _paletteIds[_palettePicker.Selected] : "default";
+        if (tid == null) { SetStatus($"✖ Genre '{gid}' has no themes in the catalog.", true); Log($"[ERROR] Genre '{gid}' has no themes in the skin catalog."); return; }
+        string pid = SelectedOrFirst(_palettePicker, _paletteIds) ?? "default";
+
+        // ── Pre-flight: gate on the template audit BEFORE writing folders/autoloads. Stamping used
+        // to discover broken templates only as WARN lines mid-stamp, after the project was already
+        // half-written. Run the read-only audit up front and bail out cleanly if it's unhealthy.
+        var audit = BeepSceneTemplateAudit.AuditAll();
+        if (!audit.Ok)
+        {
+            foreach (var line in BeepSceneTemplateAudit.Describe(audit)) Log(line);
+            SetStatus($"✖ Template audit failed ({audit.Issues.Count} issue(s)) — fix the templates, then retry.", true);
+            Log("[ERROR] Aborted before writing anything: the scene template audit found problems.");
+            return;
+        }
+
+        // ── Overwrite warning: 'Overwrite existing scenes' discards in-place edits to
+        // player_template/levels. Surface it loudly in the log so it isn't a silent foot-gun.
+        bool overwrite = _overwriteScenes.ButtonPressed;
+        if (overwrite)
+            Log("[WARN] 'Overwrite existing scenes' is ON — your edits to generated scenes " +
+                "(player_template, levels, menus) will be DISCARDED and refreshed from templates.");
 
         var info = LoadGameInfoFromDisk() ?? new GameInfo();
         info.GameName = string.IsNullOrWhiteSpace(_gameName.Text) ? "My Game" : _gameName.Text;
@@ -415,10 +496,52 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.PixelArt = _pixelArt.ButtonPressed;
 
         Log($"Stamping {genre?.DisplayName ?? gid} project: {info.GameName} ({tid}/{pid}) …");
-        var log = BeepGenreGenerator.CreateProject(gid, info, overwrite: _overwriteScenes.ButtonPressed);
+        var log = BeepGenreGenerator.CreateProject(gid, info, overwrite: overwrite);
         foreach (var line in log) Log(line);
+        Summarize(log, info);
+    }
 
-        Log("Done. The run/main scene is set to scenes/ui/main_menu.tscn — press Play (F5).");
+    /// <summary>Turn the raw stamp log into a one-line verdict. The generator reports per-file
+    /// lines ("Copied"/"Skipped"/"WARN"/"ERROR") but never a count, so the user had to eyeball a
+    /// long dump to tell success from a quiet partial stamp. Count and surface it.</summary>
+    private void Summarize(List<string> log, GameInfo info)
+    {
+        int copied = 0, skipped = 0, warnings = 0, errors = 0;
+        foreach (var line in log)
+        {
+            if (line.StartsWith("Copied:", StringComparison.Ordinal)) copied++;
+            else if (line.StartsWith("Skipped", StringComparison.Ordinal)) skipped++;
+            else if (line.StartsWith("WARN", StringComparison.Ordinal)) warnings++;
+            else if (line.StartsWith("ERROR", StringComparison.Ordinal)) errors++;
+        }
+
+        if (errors > 0)
+            SetStatus($"✖ Finished with {errors} error(s): {copied} copied, {skipped} skipped, {warnings} warning(s). See the log.", true);
+        else if (warnings > 0)
+            SetStatus($"⚠ Done with {warnings} warning(s): {copied} copied, {skipped} skipped. Reload the project, then Play (F5).", true);
+        else
+            SetStatus($"✔ {info.GameName} created: {copied} copied, {skipped} skipped. Reload the project, then Play (F5).", false);
+
+        Log($"Summary: {copied} copied, {skipped} skipped, {warnings} warning(s), {errors} error(s). " +
+            "Reload the project (Project → Reload Current Project) so the editor picks up the rebuilt assembly, then press Play (F5).");
+    }
+
+    /// <summary>Enable/disable the Create button and show in-progress state. Generation is
+    /// synchronous on the UI thread, so this can't show a live spinner — but it blocks the
+    /// double-click re-entry and the label tells the user work is under way / how it ended.</summary>
+    private void SetBusy(bool busy)
+    {
+        _generating = busy;
+        if (_genBtn != null) _genBtn.Disabled = busy;
+        if (busy) SetStatus("Generating…", false);
+    }
+
+    private void SetStatus(string text, bool isProblem)
+    {
+        if (_statusLabel == null) return;
+        _statusLabel.Text = text;
+        // Modulate only — no theme color lookups, so it works before the theme is fully built.
+        _statusLabel.Modulate = isProblem ? new Color(1f, 0.55f, 0.5f) : new Color(0.6f, 1f, 0.65f);
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -480,9 +603,10 @@ public partial class BeepGameBuilderDock : VBoxContainer
         string? tid = GetSelectedThemeId();
         if (tid != null) info.DefaultThemePreset = tid;
         // Save must persist the same fields Generate does — it previously dropped Palette and Geometry,
-        // so the two paths disagreed and a saved non-default palette was silently lost.
-        if (_palettePicker.Selected >= 0 && _palettePicker.Selected < _paletteIds.Count)
-            info.PaletteName = _paletteIds[_palettePicker.Selected];
+        // so the two paths disagreed and a saved non-default palette was silently lost. Read the palette
+        // through SelectedOrFirst (the -1 desync fix) so Save keeps the palette Generate would use.
+        string? selectedPalette = SelectedOrFirst(_palettePicker, _paletteIds);
+        if (selectedPalette != null) info.PaletteName = selectedPalette;
         var genre = gid != null ? SkinCatalog.GetGenre(gid) : null;
         info.GeometryProfileName = genre?.Geometry?.DisplayName ?? info.GeometryProfileName;
         return info;

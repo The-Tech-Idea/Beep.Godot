@@ -89,7 +89,8 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsActive || _weather == null || _area == null) return;
+            if (!IsActive || _weather == null || _area == null || !GodotObject.IsInstanceValid(_area)) return;
+            PruneCharacters();
 
             // Mirror the weather wind into the Area2D gravity (drives RigidBodies).
             Vector2 wind = _weather.WindForce * PhysicsWindScale;
@@ -121,6 +122,16 @@ namespace Beep.ECS
         }
 
         // ── Discovery + body tracking ──
+
+        private void PruneCharacters()
+        {
+            for (int i = _characters.Count - 1; i >= 0; i--)
+            {
+                var body = _characters[i];
+                if (!GodotObject.IsInstanceValid(body))
+                    _characters.RemoveAt(i);
+            }
+        }
 
         private WeatherSystemComponent? FindWeatherSystem()
         {

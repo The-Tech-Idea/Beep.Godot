@@ -28,9 +28,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            _canvas = GetParent() as CanvasItem;
-            if (_canvas != null) _resting = _canvas.Modulate;   // the tint/alpha to return to after a flash
-            else GD.PushWarning($"[{Name}] parent is not a CanvasItem — Flash() can never run. Parent this to the Sprite2D/Control it should flash.");
+            ResolveCanvas();
 
             _health = GetSiblingComponent<HealthComponent>();
             if (FlashOnDamage && _health != null)
@@ -44,9 +42,23 @@ namespace Beep.ECS
                 GD.PushWarning($"[{Name}] FlashOnDamage is on but there is no sibling HealthComponent — it will never flash on damage. Add a HealthComponent or disable FlashOnDamage.");
         }
 
+        private void ResolveCanvas()
+        {
+            _canvas = GetParent() as CanvasItem;
+            if (_canvas != null && GodotObject.IsInstanceValid(_canvas))
+            {
+                _resting = _canvas.Modulate;
+                return;
+            }
+
+            _canvas = null;
+            GD.PushWarning($"[{Name}] parent is not a CanvasItem — Flash() can never run. Parent this to the Sprite2D/Control it should flash.");
+        }
+
         public void Flash()
         {
-            if (_canvas == null || !IsActive) return;
+            if (_canvas == null || !GodotObject.IsInstanceValid(_canvas) || !IsActive) return;
+            _resting = _canvas.Modulate;
             _tween?.Kill();
 
             _tween = _canvas.CreateTween();

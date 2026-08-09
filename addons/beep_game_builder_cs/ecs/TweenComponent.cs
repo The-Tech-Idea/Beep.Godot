@@ -33,10 +33,10 @@ namespace Beep.ECS
         public void Play()
         {
             if (Engine.IsEditorHint()) return;
-            if (!IsActive || GetParent() == null) return;
+            var parent = GetParent();
+            if (!IsActive || parent == null || !GodotObject.IsInstanceValid(parent)) return;
             _tween?.Kill();
-            var node = GetParent();
-            if (node == null) return;
+            var node = parent;
 
             _tween = CreateTween();
             EmitSignal(SignalName.TweenStarted);
@@ -198,6 +198,7 @@ namespace Beep.ECS
         {
             base._ExitTree();
             _tween?.Kill();
+            _tween = null;
         }
     }
 }

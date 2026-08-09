@@ -60,11 +60,23 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
-            if (CustomMinimumSize == Vector2.Zero)
+            UpdateMinimumSize();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationThemeChanged)
             {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 14f, fs * 8f);
+                QueueRedraw();
             }
+        }
+
+        private void UpdateMinimumSize()
+        {
+            if (CustomMinimumSize != Vector2.Zero) return;
+            int fs = UiSurface.FontSize(this);
+            CustomMinimumSize = new Vector2(fs * 14f, fs * 8f);
         }
 
         /// <summary>The handle's rect in local space. It deliberately falls OUTSIDE the panel

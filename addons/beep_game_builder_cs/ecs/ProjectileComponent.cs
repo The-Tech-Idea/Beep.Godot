@@ -20,6 +20,19 @@ namespace Beep.ECS
         [Export] public float GravityStrength { get; set; } = 980f;
         [Export] public bool Pierce { get; set; } = false;
 
+        [ExportGroup("Height (2.5D)")]
+        /// <summary>When true, the projectile travels in a ballistic arc over the ground plane: it
+        /// gains a sibling HeightComponent, is lobbed upward with <see cref="ArcHeight"/> peak, and
+        /// lands (Height 0) at the end — firing its own Hit/impact instead of expiring mid-air.
+        /// For top-down/isometric grenades, thrown items, lobbed shots. Flat bullets leave this off.</summary>
+        [Export] public bool UseArc { get; set; } = false;
+        /// <summary>Peak arc height in px when <see cref="UseArc"/> is on.</summary>
+        [Export] public float ArcHeight { get; set; } = 80f;
+        /// <summary>When true, a projectile with a HeightComponent only hits targets whose height
+        /// band overlaps its own — so a low shot passes UNDER a flyer. Off = legacy flat behavior
+        /// (hits anything the Area2D touches). Turn on for 2.5D games that use HeightComponent.</summary>
+        [Export] public bool RespectHeight { get; set; } = false;
+
         [Signal] public delegate void HitEventHandler(Node? hitNode, Vector2 point);
         [Signal] public delegate void ExpiredEventHandler();
 
@@ -40,6 +53,11 @@ namespace Beep.ECS
         // When a ProjectileModifierComponent sibling owns movement (Homing/Bounce/Straight), THIS
         // component must not also translate the node, or the projectile travels at ~2× speed.
         private bool _movementDelegated;
+        // 2.5D arc state. _height is the logical Z (drives the sibling HeightComponent); _vVel is
+        // vertical velocity. Only used when UseArc is on.
+        private HeightComponent? _height;
+        private float _vVel;
+        private float _arcGravity;
 
         public override void _Ready()
         {
@@ -54,6 +72,25 @@ namespace Beep.ECS
             _movementDelegated = GetSiblingComponent<ProjectileModifierComponent>() != null;
             _area.BodyEntered += OnBodyEntered;
             _area.AreaEntered += OnAreaEntered;
+
+            if (UseArc && !Engine.IsEditorHint()) SetupArc();
+        }
+
+        /// <summary>Ensure a sibling HeightComponent exists and seed the arc's vertical velocity so the
+        /// projectile peaks at <see cref="ArcHeight"/> then falls back to the ground. The arc is pure
+        /// kinematics on the logical Z; ground-plane motion stays flat (Speed × direction).</summary>
+        private void SetupArc()
+        {
+            _height = GetSiblingComponent<HeightComponent>();
+            if (_height == null)
+            {
+                _height = new HeightComponent { Name = "Height" };
+                _area!.AddChild(_height);
+            }
+            // v0 = sqrt(2·g·h) to just reach ArcHeight; g chosen so the flight time roughly matches
+            // how long a flat shot would take to leave the screen, keeping the lob readable.
+            _arcGravity = GravityStrength > 0 ? GravityStrength : 980f;
+            _vVel = Mathf.Sqrt(2f * _arcGravity * Mathf.Max(ArcHeight, 1f));
         }
 
         private void OnBodyEntered(Node n)
@@ -81,6 +118,7 @@ namespace Beep.ECS
         private void OnCollision(Node n)
         {
             if (_area == null || IsOwnedByShooter(n)) return;
+            if (!HeightGatePasses(n)) return;
 
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)
@@ -108,16 +146,53 @@ namespace Beep.ECS
                 GetSiblingComponent<ProjectileModifierComponent>()?.SetLaunch(dir, Speed);
         }
 
+        /// <summary>2.5D hit gate. When <see cref="RespectHeight"/> is on AND this projectile has a
+        /// height (arcing), a target is hittable only if its height band overlaps the projectile's.
+        /// A target with no HeightComponent is grounded (band 0), so an arcing shot high overhead
+        /// passes over it; a grounded projectile still hits grounded targets. Legacy flat behavior
+        /// when RespectHeight is off.</summary>
+        private bool HeightGatePasses(Node n)
+        {
+            if (!RespectHeight) return true;
+            _height ??= GetSiblingComponent<HeightComponent>();
+            if (_height == null) return true;   // flat projectile — no band to gate on
+            var targetHeight = EntityComponent.FindComponent<HeightComponent>(n, false);
+            if (targetHeight == null) return _height.HeightOverlaps(0f, 16f);   // grounded target
+            return _height.HeightOverlaps(targetHeight);
+        }
+
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint()) return;
             if (_area == null || !IsActive) return;
+            float dt = (float)delta;
             if (!_movementDelegated)   // a ProjectileModifierComponent sibling, if present, owns motion
             {
-                if (UseGravity) _velocity.Y += GravityStrength * (float)delta;
-                _area.Position += _velocity * (float)delta;
+                if (UseGravity) _velocity.Y += GravityStrength * dt;
+                _area.Position += _velocity * dt;
             }
-            _lifetime -= (float)delta;
+
+            // Ballistic arc: integrate the logical Z. Ground-plane motion above stays flat, so the
+            // shot covers ground at Speed while rising/falling on its own axis. Landing (height 0)
+            // fires Hit at the impact point and frees — an arcing shot never "expires" mid-air.
+            if (UseArc && _height != null)
+            {
+                _vVel -= _arcGravity * dt;
+                float h = _height.Height + _vVel * dt;
+                if (h <= 0f && _vVel < 0f)
+                {
+                    _height.SetHeight(0f);
+                    // No specific node was hit — the projectile landed on the ground. Pass the area
+                    // itself (not null: a null Node marshals to a non-nullable Variant and fails to
+                    // compile); listeners tell a landing from a target hit by checking hit == this.
+                    EmitSignal(SignalName.Hit, _area, _area.GlobalPosition);
+                    _area.QueueFree();
+                    return;
+                }
+                _height.SetHeight(h);
+            }
+
+            _lifetime -= dt;
             if (_lifetime <= 0)
             {
                 EmitSignal(SignalName.Expired);

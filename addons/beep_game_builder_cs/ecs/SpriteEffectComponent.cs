@@ -37,11 +37,7 @@ namespace Beep.ECS
             base._Ready();
             if (Engine.IsEditorHint()) return;
 
-            _effectScene = EffectScene
-                ?? (ResourceLoader.Exists(DefaultEffectScenePath) ? ResourceLoader.Load<PackedScene>(DefaultEffectScenePath) : null);
-            if (_effectScene == null)
-                GD.PushWarning($"[{Name}] SpriteEffectComponent has no EffectScene and the shipped default could not load — nothing will play.");
-
+            ResolveEffectScene();
             if (PlayOnDeath)
             {
                 _health = GetSiblingComponent<HealthComponent>();
@@ -50,6 +46,14 @@ namespace Beep.ECS
             }
 
             if (PlayOnStart) Callable.From(Play).CallDeferred();
+        }
+
+        private void ResolveEffectScene()
+        {
+            _effectScene = EffectScene
+                ?? (ResourceLoader.Exists(DefaultEffectScenePath) ? ResourceLoader.Load<PackedScene>(DefaultEffectScenePath) : null);
+            if (_effectScene == null)
+                GD.PushWarning($"[{Name}] SpriteEffectComponent has no EffectScene and the shipped default could not load — nothing will play.");
         }
 
         /// <summary>Spawn the flipbook in world space at the parent's position, play once, free on finish.</summary>

@@ -49,18 +49,26 @@ namespace Beep.ECS.UI.Kit
 
         public override void _Ready()
         {
-            _genre = KitChrome.GenreOf(this);
+            RefreshGenre();
             MouseFilter = MouseFilterEnum.Stop;
             // Range has NO theme art of its own -- no stylebox, no icon -- so unlike Slider and
             // ProgressBar there is nothing to blank and nothing whose minimum size vanishes with
             // it. That is what makes it the right base here rather than a convenient one.
             MinValue = 0; Step = 1;
             if (MaxValue < 1) MaxValue = 3;
+            if (Value < MinValue) Value = MinValue;
+            if (Value > MaxValue) Value = MaxValue;
             ValueChanged += _ => QueueRedraw();
-            if (CustomMinimumSize == Vector2.Zero)
+            UpdateMinimumSize();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationThemeChanged)
             {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 1.9f * Total, fs * 2f);
+                RefreshGenre();
+                QueueRedraw();
             }
         }
 
@@ -90,8 +98,21 @@ namespace Beep.ECS.UI.Kit
         {
             int total = Total;
             if (total <= 0 || Size.X <= 1f) return -1;
-            int i = Mathf.FloorToInt(p.X / (Size.X / total));
+            float width = Mathf.Max(Size.X, 1f);
+            int i = Mathf.FloorToInt(p.X / (width / total));
             return i >= 0 && i < total && p.Y >= 0f && p.Y <= Size.Y ? i : -1;
+        }
+
+        private void UpdateMinimumSize()
+        {
+            if (CustomMinimumSize != Vector2.Zero) return;
+            int fs = UiSurface.FontSize(this);
+            CustomMinimumSize = new Vector2(fs * 1.9f * Total, fs * 2f);
+        }
+
+        private void RefreshGenre()
+        {
+            _genre = KitChrome.GenreOf(this);
         }
 
         public override void _Draw()

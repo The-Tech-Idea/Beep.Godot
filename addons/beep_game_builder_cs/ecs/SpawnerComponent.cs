@@ -55,9 +55,27 @@ namespace Beep.ECS
             _timer -= (float)delta;
             if (_timer <= 0)
             {
-                _timer = SpawnInterval;
+                // Adaptive difficulty shortens the interval when the player is doing well (more
+                // spawns) and lengthens it when they're struggling. Opt-in: no component = 1.0×.
+                _timer = SpawnInterval * DifficultyIntervalScale();
                 Spawn();
             }
+        }
+
+        // Resolved lazily so the spawner works with or without an AdaptiveDifficultyComponent and
+        // never hard-depends on one. Null-safe: returns 1.0 when absent.
+        private AdaptiveDifficultyComponent? _adaptive;
+        private bool _adaptiveSearched;
+        private float DifficultyIntervalScale()
+        {
+            if (!_adaptiveSearched)
+            {
+                _adaptiveSearched = true;
+                foreach (var n in GetTree().GetNodesInGroup("adaptive_difficulty"))
+                    if (n is AdaptiveDifficultyComponent a) { _adaptive = a; break; }
+            }
+            return _adaptive != null && GodotObject.IsInstanceValid(_adaptive)
+                ? _adaptive.GetSpawnIntervalScale() : 1f;
         }
 
         public Node? Spawn()

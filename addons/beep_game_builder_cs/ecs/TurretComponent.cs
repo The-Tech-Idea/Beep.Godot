@@ -52,7 +52,7 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsActive || _turret == null || Engine.IsEditorHint()) return;
+            if (!IsActive || _turret == null || !GodotObject.IsInstanceValid(_turret) || Engine.IsEditorHint()) return;
 
             AcquireTarget();
             if (_target == null || !GodotObject.IsInstanceValid(_target)) return;
@@ -87,8 +87,9 @@ namespace Beep.ECS
 
         private void AcquireTarget()
         {
+            if (_turret == null || !GodotObject.IsInstanceValid(_turret)) return;
             if (_target != null && GodotObject.IsInstanceValid(_target) &&
-                _turret!.GlobalPosition.DistanceTo(_target.GlobalPosition) <= Range) return;
+                _turret.GlobalPosition.DistanceTo(_target.GlobalPosition) <= Range) return;
 
             _target = null;
             foreach (var n in GetTree().GetNodesInGroup(TargetGroup))
@@ -107,7 +108,7 @@ namespace Beep.ECS
 
         private void Fire()
         {
-            if (ProjectileScene == null || _turret == null) return;
+            if (ProjectileScene == null || _turret == null || !GodotObject.IsInstanceValid(_turret)) return;
             Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _turret.GlobalPosition;
             Vector2 dir = Vector2.FromAngle(_turret.Rotation);
 
@@ -115,8 +116,10 @@ namespace Beep.ECS
             // Recursive lookup: the Projectiles pool is nested under the level (LevelContainer/
             // Level1/Projectiles), so a direct-child GetNodeOrNull never found it and bullets fell
             // back to the scene root and outlived their level. Matches ShooterController.
-            var host = GetTree().CurrentScene.FindChild("Projectiles", recursive: true, owned: false)
-                       ?? GetTree().CurrentScene;
+            var currentScene = GetTree().CurrentScene;
+            if (currentScene == null || !GodotObject.IsInstanceValid(currentScene)) return;
+            var host = currentScene.FindChild("Projectiles", recursive: true, owned: false)
+                       ?? currentScene;
             if (proj.GetParent() == null) host.AddChild(proj);
 
             if (proj is Node2D n2d)

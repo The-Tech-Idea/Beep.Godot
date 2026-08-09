@@ -39,16 +39,28 @@ namespace Beep.ECS.UI.Kit
 
         [Signal] public delegate void ActivatedEventHandler();
 
+        private void UpdateMinimumSize()
+        {
+            if (CustomMinimumSize != Vector2.Zero) return;
+            int fs = UiSurface.FontSize(this);
+            CustomMinimumSize = new Vector2(fs * 2.8f, fs * 2.8f);
+        }
+
         public override void _Ready()
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
             MouseEntered += () => { _hover = true; QueueRedraw(); };
             MouseExited += () => { _hover = false; QueueRedraw(); };
-            if (CustomMinimumSize == Vector2.Zero)
+            UpdateMinimumSize();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationThemeChanged)
             {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 2.8f, fs * 2.8f);
+                QueueRedraw();
             }
         }
 

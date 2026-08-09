@@ -37,7 +37,7 @@ namespace Beep.ECS
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            _turnBased = TurnManager.Instance != null;
+            _turnBased = TurnManager.Instance != null && GodotObject.IsInstanceValid(TurnManager.Instance);
             if (_turnBased)
                 TurnManager.Instance!.TurnEnded += OnTurnEnded;
             else if (Beep.GameBuilder.GameInfo.Instance?.TimeAxis == "turns")
@@ -57,7 +57,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_turnBased && TurnManager.Instance != null)
+            if (_turnBased && TurnManager.Instance != null && GodotObject.IsInstanceValid(TurnManager.Instance))
                 TurnManager.Instance.TurnEnded -= OnTurnEnded;
             base._ExitTree();
         }

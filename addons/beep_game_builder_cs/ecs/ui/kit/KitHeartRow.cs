@@ -30,12 +30,26 @@ namespace Beep.ECS.UI.Kit
         [Export] public bool DrawBackplate { get => _drawBackplate; set { _drawBackplate = value; QueueRedraw(); } }
         private bool _drawBackplate;
 
+        private void UpdateMinimumSize()
+        {
+            if (CustomMinimumSize != Vector2.Zero) return;
+            CustomMinimumSize = new Vector2(_max * _heartSize + (_max - 1) * _spacing, _heartSize);
+        }
+
         public override void _Ready()
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Ignore;
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = new Vector2(_max * _heartSize + (_max - 1) * _spacing, _heartSize);
+            UpdateMinimumSize();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationThemeChanged)
+            {
+                QueueRedraw();
+            }
         }
 
         public override void _Draw()

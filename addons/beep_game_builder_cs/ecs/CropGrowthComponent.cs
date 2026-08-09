@@ -144,6 +144,10 @@ namespace Beep.ECS
             if (timer != null)
                 timer.Timeout += () =>
                 {
+                    // The crop's parent can be freed during the 1s reset window (level unload,
+                    // destructible cleared). Without this guard the lambda resurrects state on a
+                    // disposed component — DropTableComponent.ScheduleDropCleanup guards the same way.
+                    if (!GodotObject.IsInstanceValid(this)) return;
                     _currentStage = GrowthStage.Sprout;
                     _growthProgress = 0f;
                     UpdateVisual();

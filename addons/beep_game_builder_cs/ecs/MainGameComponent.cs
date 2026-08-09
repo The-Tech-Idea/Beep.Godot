@@ -185,17 +185,26 @@ namespace Beep.ECS
 
         private void EnsureDefaultHud()
         {
-            if (!BuildDefaultHud || _hudRoot == null) return;
+            if (!BuildDefaultHud)
+            {
+                if (_hudRoot != null) GD.PushWarning("[MainGame] BuildDefaultHud disabled; skipping HUD construction.");
+                return;
+            }
+
+            if (_hudRoot == null)
+            {
+                GD.PushWarning("[MainGame] HudRoot missing. Add HudLayer/HudRoot or set HudRootPath. Skipping HUD construction.");
+                return;
+            }
+
             if (_hudRoot.FindChild("RuntimeHud", false, false) != null) return;
 
             var host = new Godot.Control
             {
                 Name = "RuntimeHud",
                 MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                AnchorsPreset = (int)Godot.Control.LayoutPreset.FullRect,
             };
-            host.AnchorRight = 1;
-            host.AnchorBottom = 1;
+            host.SetAnchorsPreset(Godot.Control.LayoutPreset.FullRect);
             _hudRoot.AddChild(host);
 
             string genre = GenreId().ToLowerInvariant();

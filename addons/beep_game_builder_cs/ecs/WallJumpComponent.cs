@@ -50,6 +50,11 @@ namespace Beep.ECS
         {
             base._Ready();
             _body = ResolveBody2D();
+            if (_body == null)
+            {
+                GD.PushWarning($"[{Name}] WallJumpComponent could not resolve a CharacterBody2D parent — wall detection will not run. Attach it to a CharacterBody2D or provide a valid body path.");
+                return;
+            }
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             SetupWallRays();
         }
@@ -101,7 +106,7 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
+            if (_body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
             if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no wall-slide/jump
             float dt = (float)delta;
 

@@ -16,6 +16,9 @@ namespace Beep.ECS
         [Export] public int MinDrops { get; set; } = 1;
         [Export] public int MaxDrops { get; set; } = 3;
         [Export] public float DropChance { get; set; } = 1f;
+        /// <summary>Scales how MANY items drop (1.0 = authored MinDrops..MaxDrops). Higher difficulty
+        /// drops more loot. Not applied to the weighted pick — a flat multiplier cancels out of every
+        /// entry's share, so it biases nothing.</summary>
         [Export] public float DifficultyWeightMultiplier { get; set; } = 1.0f;
         [Export] public float ScatterRadius { get; set; } = 30f;
         [Export] public float DropLifetimeSeconds { get; set; } = 300f;  // 5 minutes
@@ -40,10 +43,14 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            // Auto-discover seasonal and weather systems
-            var root = GetTree().Root;
-            _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
-            _weather = EntityComponent.FindComponent<WeatherSystemComponent>(root, true);
+            // Auto-discover seasonal and weather systems. Group-based (O(1)) over a recursive scan:
+            // both self-register ("seasonal" / "weather_system"), and a tree scan silently misses a
+            // second biome's system. Mirrors WindFieldComponent / ShelterZoneComponent discovery.
+            var tree = GetTree();
+            foreach (var n in tree.GetNodesInGroup("seasonal"))
+                if (n is SeasonalComponent s) { _seasonal = s; break; }
+            foreach (var n in tree.GetNodesInGroup("weather_system"))
+                if (n is WeatherSystemComponent w) { _weather = w; break; }
 
             // Loot-on-death: a sibling HealthComponent's Died rolls the table. This is the drop
             // half of the loop — DestructibleComponent breaks the body, this drops the loot, both
@@ -82,6 +89,13 @@ namespace Beep.ECS
             // the old (int)RandRange(Min, Max+1) assumed the exclusive double overload and dropped
             // one too many (a "max 3" table could drop 4).
             int count = GD.RandRange(MinDrops, MaxDrops);
+            // Difficulty scales HOW MANY drops, not the weighted pick (which can't be biased by a
+            // flat multiplier — it cancels out of every entry's share). 1.0 = authored count.
+            // The authored DifficultyWeightMultiplier combines with the scene's AdaptiveDifficulty
+            // (if any), which raises loot as the player does well. Opt-in and null-safe.
+            float multiplier = DifficultyWeightMultiplier * AdaptiveDropMultiplier();
+            if (!Mathf.IsEqualApprox(multiplier, 1f))
+                count = Mathf.Max(1, (int)Mathf.Round(count * multiplier));
             EmitSignal(SignalName.TableRolled, count);
 
             var parent = GetParent() as Node2D;
@@ -151,6 +165,24 @@ namespace Beep.ECS
             return center + Vector2.FromAngle(GD.Randf() * Mathf.Tau) * ScatterRadius;
         }
 
+        // Resolved lazily from the scene's AdaptiveDifficultyComponent (opt-in). Null-safe: 1.0
+        // when no adaptive component exists, so the table behaves exactly as authored without one.
+        private AdaptiveDifficultyComponent? _adaptive;
+        private bool _adaptiveSearched;
+        private float AdaptiveDropMultiplier()
+        {
+            if (!_adaptiveSearched)
+            {
+                _adaptiveSearched = true;
+                var tree = GetTree();
+                if (tree != null)
+                    foreach (var n in tree.GetNodesInGroup("adaptive_difficulty"))
+                        if (n is AdaptiveDifficultyComponent a) { _adaptive = a; break; }
+            }
+            return _adaptive != null && GodotObject.IsInstanceValid(_adaptive)
+                ? _adaptive.GetDropMultiplier() : 1f;
+        }
+
         private void ScheduleDropCleanup(Node2D drop)
         {
             // A SceneTreeTimer is owned by the tree, NOT by this component — so a drop's lifetime
@@ -178,16 +210,19 @@ namespace Beep.ECS
 
             if (validEntries.Count == 0) return null;
 
+            // NOTE: DifficultyWeightMultiplier is deliberately NOT applied here. Multiplying every
+            // weight by the same flat factor leaves each entry's SHARE of the total unchanged — it
+            // canceled out and did nothing. It scales drop COUNT in Roll() instead.
             float total = 0;
             foreach (var e in validEntries)
-                total += e.Weight * DifficultyWeightMultiplier;
+                total += e.Weight;
 
             float roll = (float)GD.RandRange(0, total);
             float cumulative = 0;
 
             foreach (var e in validEntries)
             {
-                cumulative += e.Weight * DifficultyWeightMultiplier;
+                cumulative += e.Weight;
                 if (roll <= cumulative) return e;
             }
 

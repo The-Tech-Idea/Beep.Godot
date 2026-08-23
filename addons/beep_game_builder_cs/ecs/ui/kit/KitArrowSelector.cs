@@ -42,6 +42,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Options.Count == 0) Options.AddRange(new[] { "Low", "Medium", "High" });
             if (CustomMinimumSize == Vector2.Zero)
             {
@@ -52,8 +53,22 @@ namespace Beep.ECS.UI.Kit
 
         private float ArrowW => Mathf.Max(14f, Size.Y * 0.8f);
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 9f, fs * 2.1f);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.X < 0 && CanStep(-1)) { Step(-1); AcceptEvent(); }
+                else if (dir.X > 0 && CanStep(1)) { Step(1); AcceptEvent(); }
+                return;
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int side = mm.Position.X < ArrowW ? -1 : mm.Position.X > Size.X - ArrowW ? 1 : 0;
@@ -70,6 +85,7 @@ namespace Beep.ECS.UI.Kit
             if (mb.Position.X < ArrowW) Step(-1);
             else if (mb.Position.X > Size.X - ArrowW) Step(1);
             else return;
+            GrabFocus();
             AcceptEvent();
         }
 
@@ -103,6 +119,7 @@ namespace Beep.ECS.UI.Kit
             float aw = ArrowW;
             DrawArrow(new Rect2(0f, 0f, aw, Size.Y), -1, ink, CanStep(-1), _hoverSide == -1);
             DrawArrow(new Rect2(Size.X - aw, 0f, aw, Size.Y), 1, ink, CanStep(1), _hoverSide == 1);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape);
 
             if (font == null || Options.Count == 0) return;
             string txt = Options[Mathf.Clamp(_current, 0, Options.Count - 1)];

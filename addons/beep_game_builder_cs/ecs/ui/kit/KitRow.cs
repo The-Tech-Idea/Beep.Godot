@@ -55,6 +55,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { _hover = true; QueueRedraw(); };
             MouseExited += () => { _hover = false; QueueRedraw(); };
             if (CustomMinimumSize == Vector2.Zero)
@@ -66,12 +67,26 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
             {
                 Selected = true;
                 EmitSignal(SignalName.Activated);
                 AcceptEvent();
+                return;
             }
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                Selected = true;
+                GrabFocus();
+                EmitSignal(SignalName.Activated);
+                AcceptEvent();
+            }
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 18f, fs * 3f);
         }
 
         public override void _Draw()
@@ -96,6 +111,7 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(plate.B, UiSurface.Semantic(this, UiSurface.Role.Info).B, 0.18f), 1f);
 
             DrawShape(r, ActiveShape, plate, ink, Mathf.Max(1f, g.Rim * 0.5f * (fs / 14f)));
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape, 0.75f);
             if (font == null) return;
 
             Color txt = _sel && UiSurface.Luminance(plate) > 0.5f

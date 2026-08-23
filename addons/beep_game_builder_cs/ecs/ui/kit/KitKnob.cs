@@ -34,6 +34,7 @@ namespace Beep.ECS.UI.Kit
             _genre = KitChrome.GenreOf(this);
             // Range gives Value/MinValue/MaxValue/ValueChanged; the DIAL's interaction is still
             // ours, because a knob is dragged VERTICALLY and Slider's own handling is horizontal.
+            FocusMode = FocusModeEnum.All;
             MinValue = 0.0; MaxValue = 1.0; Step = 0.001;
             foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
                 AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
@@ -48,6 +49,12 @@ namespace Beep.ECS.UI.Kit
                                             Mathf.Max(CustomMinimumSize.Y, fs * 3.6f));
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 3.6f, fs * 3.6f);
+        }
+
         public override void _Notification(int what)
         {
             base._Notification(what);
@@ -60,9 +67,16 @@ namespace Beep.ECS.UI.Kit
         {
             switch (@event)
             {
+                case InputEventKey key:
+                    Vector2I dir = KitChrome.DirectionFromKey(key);
+                    if (dir.X <= -9999) { Value = MinValue; AcceptEvent(); }
+                    else if (dir.X >= 9999) { Value = MaxValue; AcceptEvent(); }
+                    else if (dir.X < 0 || dir.Y > 0) { Value = Mathf.Max(MinValue, Value - Step * 12.0); AcceptEvent(); }
+                    else if (dir.X > 0 || dir.Y < 0) { Value = Mathf.Min(MaxValue, Value + Step * 12.0); AcceptEvent(); }
+                    break;
                 case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
                     _drag = mb.Pressed;
-                    if (mb.Pressed) { _dragStart = mb.Position.Y; _startValue = (float)Value; }
+                    if (mb.Pressed) { GrabFocus(); _dragStart = mb.Position.Y; _startValue = (float)Value; }
                     AcceptEvent();
                     break;
                 case InputEventMouseMotion mm when _drag:
@@ -125,6 +139,8 @@ namespace Beep.ECS.UI.Kit
                                    new Vector2(c.X - m.X * 0.5f, b.Position.Y + (b.Size.Y + m.Y * 0.58f) * 0.5f),
                                    value, vf, UiSurface.Text(this));
             }
+
+            KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size), KitShape.Ellipse, 0.8f);
         }
     }
 }

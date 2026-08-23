@@ -69,6 +69,14 @@ Custom kit controls:
 
 `KitArrowSelector`, `KitAvatarFrame`, `KitBookSpread`, `KitChip`, `KitCollapsiblePanel`, `KitColorOverlay`, `KitContextMenu`, `KitCurrencyBar`, `KitDialogBox`, `KitGemSlot`, `KitHeartRow`, `KitHudText`, `KitInputHint`, `KitInventorySlot`, `KitItemCard`, `KitLabelValue`, `KitLevelButton`, `KitLevelPath`, `KitModalShade`, `KitNodeCard`, `KitOrbMeter`, `KitOrnament`, `KitPager`, `KitPanelHanger`, `KitRadarChart`, `KitRadialMeter`, `KitRow`, `KitSegmentedIconGroup`, `KitSlotGrid`, `KitSpeechBubble`, `KitSpinner`, `KitSpinWheel`, `KitTableCell`, `KitToast`, `KitTooltip`, `KitTree`, `KitWeatherForecastCard`.
 
+Panel header behavior is shared by `KitPanel`, `KitPanelContainer`, and `KitCollapsiblePanel` through `KitChrome.DrawPanelHeader`. `KitPanelHeaderStyle.Banner` draws an overhanging title plaque; `KitPanelHeaderStyle.UtilityStrip` draws a compact in-panel title strip for HUD/status surfaces; `None` disables title chrome.
+
+Custom interactive controls use `KitChrome` focus/key helpers for a consistent keyboard baseline. Covered controls opt into focus, draw a visible skin-aware focus ring, and support Enter/Space activation or arrow navigation according to control type.
+
+Text-heavy controls use `KitChrome.DrawWrappedText` for bounded multi-line rendering. Dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions share paragraph wrapping, long-word splitting, and final-line ellipsis behavior.
+
+Revised custom controls implement `_GetMinimumSize()` so Godot containers can query theme-aware size requirements. `KitContextMenu` also supports popup focus, keyboard selection, Enter/Space activation, Escape dismissal, and viewport-clamped placement.
+
 ## Resources And Data Models
 
 Core resources and data models include:
@@ -86,5 +94,9 @@ Core resources and data models include:
 - `TweenComponent` now implements every exported preset and the headless runtime smoke validates finite endpoint behavior on both `Control` and `Node2D` targets.
 - `DataBinderHostComponent` and `BeepDataBinder` now normalize common Godot target property names and convert boxed reflection values into typed Variants before calling `Set()`.
 - `DataBinderHostComponent` now treats `OneWayToSource` as target-to-source during initial bind and refresh.
+- Game UI Kit panel headers now use one shared renderer for banners and utility strips across `KitPanel`, `KitPanelContainer`, and `KitCollapsiblePanel`.
+- Custom Game UI Kit controls now support keyboard focus, visible focus rings, and keyboard/controller-friendly activation/navigation across selection, slot, tab, knob, book, wheel, radar, tree, level-path, and segmented icon controls.
+- Text-heavy Game UI Kit controls now use shared wrapped text handling instead of one-off single-line shrink or space-only wrapping.
+- Reusable Game UI Kit controls now report dynamic minimum sizes, invalidate container layout when size-affecting exported properties change, and `KitContextMenu` has keyboard-friendly popup behavior.
 - Build verification now excludes generated directories from the root project and passes with 0 warnings and 0 errors.
 - Automated addon checks now cover source contracts, clean build, Godot headless runtime smoke, and Godot headless editor startup.

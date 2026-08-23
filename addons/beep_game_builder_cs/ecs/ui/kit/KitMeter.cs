@@ -86,12 +86,15 @@ namespace Beep.ECS.UI.Kit
                 AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
             ValueChanged += _ => QueueRedraw();
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                float h = Mathf.Clamp(fs * 1.25f, 14f, 22f);
-                CustomMinimumSize = new Vector2(fs * 10f, h);
-            }
+                CustomMinimumSize = _GetMinimumSize();
             Rebuild();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float h = Mathf.Clamp(fs * 1.25f, 14f, 22f);
+            return new Vector2(fs * 10f, h);
         }
 
         private void Rebuild()

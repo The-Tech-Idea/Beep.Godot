@@ -19,7 +19,19 @@ namespace Beep.ECS.UI.Kit
     {
         protected override KitWidgetClass WidgetClass => Layout == KitItemCardLayout.Tile ? KitWidgetClass.Slot : KitWidgetClass.Panel;
 
-        [Export] public KitItemCardLayout Layout { get => _layout; set { _layout = value; ApplyMinimumSize(); QueueRedraw(); } }
+        [Export]
+        public KitItemCardLayout Layout
+        {
+            get => _layout;
+            set
+            {
+                if (_layout == value) return;
+                _layout = value;
+                ApplyMinimumSize(force: true);
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private KitItemCardLayout _layout = KitItemCardLayout.Row;
 
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
@@ -55,26 +67,39 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { if (!_locked) { SetState(KitState.Hover); } };
             MouseExited += () => { if (!_locked) { SetState(KitState.Normal); } };
             ApplyMinimumSize();
         }
 
-        private void ApplyMinimumSize()
+        private void ApplyMinimumSize(bool force = false)
+        {
+            Vector2 wanted = _GetMinimumSize();
+            if (!force && CustomMinimumSize != Vector2.Zero && CustomMinimumSize.X >= wanted.X && CustomMinimumSize.Y >= wanted.Y) return;
+            CustomMinimumSize = wanted;
+        }
+
+        public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            Vector2 wanted = _layout == KitItemCardLayout.Tile
+            return _layout == KitItemCardLayout.Tile
                 ? new Vector2(Mathf.Clamp(fs * 5.4f, 76f, 108f), Mathf.Clamp(fs * 6.8f, 92f, 132f))
                 : new Vector2(Mathf.Clamp(fs * 17.0f, 224f, 340f), Mathf.Clamp(fs * 4.25f, 58f, 76f));
-            if (CustomMinimumSize != Vector2.Zero && CustomMinimumSize.X >= wanted.X && CustomMinimumSize.Y >= wanted.Y) return;
-            CustomMinimumSize = wanted;
         }
 
         public override void _GuiInput(InputEvent @event)
         {
             if (_locked) return;
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                EmitSignal(SignalName.Pressed);
+                AcceptEvent();
+                return;
+            }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                GrabFocus();
                 EmitSignal(SignalName.Pressed);
                 AcceptEvent();
             }
@@ -96,6 +121,7 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
 
             DrawShape(r, KitShape.Round, face, _selected ? UiSurface.Semantic(this, UiSurface.Role.Info) : RimColor(), _selected ? rim * 1.6f : rim);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, KitShape.Round, 0.8f);
 
             float pad = Mathf.Clamp(Size.Y * 0.11f, 6f, 10f);
             float iconSide = Mathf.Clamp(Size.Y - pad * 2f, 38f, 54f);
@@ -128,6 +154,7 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
 
             DrawShape(r, ActiveShape, face, _selected ? UiSurface.Semantic(this, UiSurface.Role.Info) : RimColor(), _selected ? rim * 1.5f : rim);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape, 0.8f);
 
             float pad = Mathf.Clamp(Mathf.Min(Size.X, Size.Y) * 0.11f, 7f, 12f);
 
@@ -198,7 +225,14 @@ namespace Beep.ECS.UI.Kit
             if (!string.IsNullOrEmpty(_title))
                 DrawFittedText(font, titleBox, _title, UiSurface.TextRole.Small, ink, HorizontalAlignment.Left, 8);
             if (!string.IsNullOrEmpty(_description))
-                DrawFittedText(font, descBox, _description, UiSurface.TextRole.Small, ink with { A = 0.78f }, HorizontalAlignment.Left, 7);
+            {
+                int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                           new Vector2(descBox.Size.X, descBox.Size.Y * 0.55f),
+                                           _description, font, min: 7);
+                KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, descBox,
+                                          _description, fs, ink with { A = 0.78f },
+                                          maxLines: 2);
+            }
         }
 
         private void DrawBadge(Rect2 r, string text, UiSurface.Role role)

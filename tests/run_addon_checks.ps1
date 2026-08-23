@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "[addon-checks] Godot headless editor startup smoke"
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\editor_startup_smoke.ps1" -GodotCommand $GodotCommand
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\editor_startup_smoke.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 40
 if ($LASTEXITCODE -ne 0) {
     throw "Godot headless editor startup smoke failed."
 }

@@ -65,7 +65,160 @@ if ($projectFile -match 'tests/\*\*/\*\.cs') { Fail "Beep.Godot.csproj includes 
 $runtimeSmoke = Read "tests/runtime_smoke.ps1"
 if ($runtimeSmoke -notmatch 'SCRIPT ERROR\|ERROR:\|Exception\|C# backtrace') { Fail "runtime_smoke.ps1 does not scan Godot output for script/runtime errors." }
 
+$cityBuilderGenre = Read "addons/beep_game_builder_cs/catalogs/skins/citybuilder/genre.json"
+$oilfieldTheme = Read "addons/beep_game_builder_cs/catalogs/skins/citybuilder/themes/oilfield_days/theme.json"
+if ($cityBuilderGenre -notmatch '"oilfield_days"') { Fail "City Builder skin catalog does not list the Oilfield Days theme." }
+foreach ($required in @(
+    '"id": "oilfield_days"',
+    '"hud_panel"',
+    '"hud_tab_selected"',
+    '"frame_mode": "structural"',
+    '"studs": 1',
+    '"rim_brightness"',
+    '"select_slot": "border\|glow"'
+)) {
+    if ($oilfieldTheme -notmatch $required) { Fail "Oilfield Days theme is missing required mockup-derived token: $required." }
+}
+
+$kitCore = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitCore.cs"
+$kitChrome = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitChrome.cs"
+$kitPanel = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs"
+$kitPanelContainer = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs"
+$kitCollapsible = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitCollapsiblePanel.cs"
+if ($kitCore -notmatch 'enum\s+KitPanelHeaderStyle') { Fail "KitPanelHeaderStyle enum is missing." }
+$kitStyleJson = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitStyleJson.cs"
+foreach ($required in @("frame_mode", "studs", "rim_brightness", "height_ratio", "pad_ratio", "well_shade")) {
+    if ($kitStyleJson -notmatch ('"' + [regex]::Escape($required) + '"')) { Fail "KitStyleJson does not accept kit.$required from theme.json." }
+}
+if ($kitChrome -notmatch 'DrawPanelHeader' -or $kitChrome -notmatch 'PanelHeaderRoom' -or $kitChrome -notmatch 'PanelHeaderOverhang') {
+    Fail "KitChrome does not expose the shared panel header helpers."
+}
+if ($kitChrome -notmatch 'DrawFocusRing' -or $kitChrome -notmatch 'IsConfirmKey' -or $kitChrome -notmatch 'DirectionFromKey') {
+    Fail "KitChrome does not expose shared keyboard/focus helpers for custom controls."
+}
+if ($kitChrome -notmatch 'WrapLines' -or $kitChrome -notmatch 'DrawWrappedText') {
+    Fail "KitChrome does not expose shared wrapped text helpers."
+}
+foreach ($panelSource in @($kitPanel, $kitPanelContainer, $kitCollapsible)) {
+    if ($panelSource -notmatch 'KitChrome\.DrawPanelHeader') { Fail "A panel control does not draw through KitChrome.DrawPanelHeader." }
+}
+if ($kitPanelContainer -match 'private void DrawUtilityHeader') { Fail "KitPanelContainer reintroduced a private utility header renderer." }
+if ($kitCollapsible -match 'body\.Position\.X \+ \(body\.Size\.X - m\.X\)') { Fail "KitCollapsiblePanel reintroduced direct centered title text drawing." }
+
+$focusControls = @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitArrowSelector.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitCollapsiblePanel.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitGemSlot.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelButton.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitNodeCard.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRadarChart.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRemovableChip.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRow.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSpinWheel.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs"
+)
+foreach ($relativePath in $focusControls) {
+    $source = Read $relativePath
+    if ($source -notmatch 'FocusMode\s*=\s*FocusModeEnum\.All') { Fail "$relativePath is interactive but does not opt into keyboard focus." }
+    if ($source -notmatch 'InputEventKey') { Fail "$relativePath is interactive but does not handle keyboard input." }
+    if ($source -notmatch 'DrawFocusRing') { Fail "$relativePath is interactive but does not draw a visible focus ring." }
+}
+
+foreach ($relativePath in @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSpeechBubble.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitToast.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTooltip.cs"
+)) {
+    $source = Read $relativePath
+    if ($source -notmatch 'KitChrome\.DrawWrappedText') { Fail "$relativePath does not use the shared wrapped text helper." }
+}
+
+foreach ($relativePath in @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitArrowSelector.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitCollapsiblePanel.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitContextMenu.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitGemSlot.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelButton.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitNodeCard.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRadarChart.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRow.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSpinWheel.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSpeechBubble.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitToast.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTooltip.cs"
+)) {
+    $source = Read $relativePath
+    if ($source -notmatch 'override\s+Vector2\s+_GetMinimumSize') { Fail "$relativePath does not report a dynamic minimum size." }
+}
+
+$contextMenu = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitContextMenu.cs"
+if ($contextMenu -notmatch 'GrabFocus\(\)' -or $contextMenu -notmatch 'IsCancelKey' -or $contextMenu -notmatch 'InputEventKey') {
+    Fail "KitContextMenu does not implement focus, Escape dismissal, and keyboard selection."
+}
+if ($contextMenu -notmatch 'ClampedPopupPosition' -or $contextMenu -notmatch 'GetVisibleRect' -or $contextMenu -match 'Position\s*=\s*globalPosition') {
+    Fail "KitContextMenu does not clamp popup placement to the visible viewport."
+}
+
+foreach ($entry in @(
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs"; Property = "ShowJump" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs"; Property = "Columns" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs"; Property = "Rows" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs"; Property = "Total" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs"; Property = "Columns" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs"; Property = "Tiers" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs"; Property = "PerRow" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitHeartRow.cs"; Property = "MaxHearts" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitHeartRow.cs"; Property = "HeartSize" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitHeartRow.cs"; Property = "Spacing" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitChip.cs"; Property = "Kind" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitSpinner.cs"; Property = "Kind" },
+    @{ Path = "addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs"; Property = "Style" }
+)) {
+    $source = Read $entry.Path
+    $pattern = 'public\s+[^{}]*\s+' + [regex]::Escape($entry.Property) + '\s*\{.*?UpdateMinimumSize\(\).*?\}'
+    if (-not [regex]::IsMatch($source, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        Fail "$($entry.Path) $($entry.Property) setter does not notify Godot containers of minimum-size changes."
+    }
+}
+
+$itemCard = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs"
+if ($itemCard -notmatch 'ApplyMinimumSize\(force:\s*true\)' -or $itemCard -notmatch 'UpdateMinimumSize\(\)') {
+    Fail "KitItemCard layout changes do not force a smaller/larger minimum-size refresh."
+}
+
+$kitFiles = Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File
+foreach ($file in $kitFiles) {
+    if ($file.Name -eq "KitArchetypes.cs") { continue }
+    $source = Get-Content -Path $file.FullName -Raw
+    if ($source -match 'CustomMinimumSize' -and $source -notmatch 'override\s+Vector2\s+_GetMinimumSize') {
+        Fail "$($file.FullName) sets CustomMinimumSize but does not expose _GetMinimumSize()."
+    }
+}
+
 $tmpIgnorePath = Join-Path $root "tmp/.gdignore"
 if (-not (Test-Path $tmpIgnorePath)) { Fail "tmp/.gdignore is missing; Godot will scan generated probe renders and may report duplicate UIDs." }
 
-Write-Host "[addon-contract] OK: tween presets, beep_ui preset registry, MCP lifecycle, editor dock API, data binders, token defaults, runtime harness, and generated-output ignores are consistent."
+Write-Host "[addon-contract] OK: tween presets, beep_ui preset registry, MCP lifecycle, editor dock API, data binders, token defaults, citybuilder Oilfield Days skin, panel headers, kit focus, wrapped text, minimum sizes, reusable size contracts, size invalidation, runtime harness, and generated-output ignores are consistent."

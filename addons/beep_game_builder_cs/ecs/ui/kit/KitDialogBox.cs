@@ -34,6 +34,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -47,9 +48,32 @@ namespace Beep.ECS.UI.Kit
             ChoicesVisible = choices.Length > 0;
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 42f, fs * 11f);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (!ChoicesVisible) return;
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.Y != 0)
+                {
+                    MoveChoice(dir.Y);
+                    AcceptEvent();
+                    return;
+                }
+                if (KitChrome.IsConfirmKey(key) && _hoverChoice >= 0)
+                {
+                    EmitSignal(SignalName.ChoiceSelected, _hoverChoice);
+                    AcceptEvent();
+                    return;
+                }
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int hit = HitChoice(mm.Position);
@@ -62,10 +86,19 @@ namespace Beep.ECS.UI.Kit
                 int hit = HitChoice(mb.Position);
                 if (hit >= 0)
                 {
+                    GrabFocus();
                     EmitSignal(SignalName.ChoiceSelected, hit);
                     AcceptEvent();
                 }
             }
+        }
+
+        private void MoveChoice(int delta)
+        {
+            if (!ChoicesVisible || Choices.Length == 0) return;
+            int next = _hoverChoice < 0 ? 0 : _hoverChoice + delta;
+            _hoverChoice = Mathf.Clamp(next, 0, Choices.Length - 1);
+            QueueRedraw();
         }
 
         public override void _Draw()
@@ -95,6 +128,8 @@ namespace Beep.ECS.UI.Kit
                 DrawText(font, new Vector2(Size.X - pad - m.X, Size.Y - pad * 0.55f), mark, mfs,
                          UiSurface.Semantic(this, UiSurface.Role.Accent));
             }
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), host, ActiveShape, 0.8f);
         }
 
         private void DrawBodyText(Font font, Rect2 box)
@@ -105,23 +140,8 @@ namespace Beep.ECS.UI.Kit
             if (string.IsNullOrEmpty(text)) return;
 
             int fs = UiSurface.FontSize(this, UiSurface.TextRole.Body);
-            string[] words = text.Replace("\r", "").Split(' ');
-            string line = "";
-            float y = box.Position.Y + fs;
-            foreach (string word in words)
-            {
-                string next = string.IsNullOrEmpty(line) ? word : $"{line} {word}";
-                if (font.GetStringSize(next, HorizontalAlignment.Left, -1, fs).X > box.Size.X && !string.IsNullOrEmpty(line))
-                {
-                    DrawText(font, new Vector2(box.Position.X, y), KitCase(line), fs, UiSurface.Text(this));
-                    y += fs * 1.22f;
-                    line = word;
-                    if (y > box.End.Y) return;
-                }
-                else line = next;
-            }
-            if (!string.IsNullOrEmpty(line) && y <= box.End.Y)
-                DrawText(font, new Vector2(box.Position.X, y), KitCase(line), fs, UiSurface.Text(this));
+            KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, box, text, fs,
+                                      UiSurface.Text(this));
         }
 
         private void DrawChoices(Font font, int fs, float pad)

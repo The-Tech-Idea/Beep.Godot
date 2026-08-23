@@ -78,9 +78,22 @@ namespace Beep.ECS.UI.Kit
             g.GrainAmount = F(k, "grain_amount", g.GrainAmount);
             g.GrainTiles = k.ContainsKey("grain_tiles") ? (int)k["grain_tiles"].AsDouble() : g.GrainTiles;
 
+            g.HeightRatio = F(k, "height_ratio", g.HeightRatio);
+            g.PadRatio = F(k, "pad_ratio", g.PadRatio);
+            g.Rim = F(k, "rim", g.Rim);
+            g.Bevel = F(k, "bevel", g.Bevel);
+            g.Gloss = F(k, "gloss", g.Gloss);
+            g.Sparkle = F(k, "sparkle", g.Sparkle);
+            g.WellShade = F(k, "well_shade", g.WellShade);
+            g.RimBrightness = F(k, "rim_brightness", g.RimBrightness);
+            g.HairlinePx = F(k, "hairline_px", g.HairlinePx);
+            g.Studs = k.ContainsKey("studs") ? (int)k["studs"].AsDouble() : g.Studs;
+
             g.PixelSize = F(k, "pixel_size", g.PixelSize);
             if (k.ContainsKey("register"))
                 g.Register = Enum<KitRegister>(k["register"].AsString(), genre, "register") ?? g.Register;
+            if (k.ContainsKey("frame_mode"))
+                g.FrameMode = Enum<KitFrameMode>(k["frame_mode"].AsString(), genre, "frame_mode") ?? g.FrameMode;
             if (k.ContainsKey("text_treatment"))
                 g.TextTreatment = Enum<KitTextTreat>(k["text_treatment"].AsString(), genre,
                                                      "text_treatment") ?? g.TextTreatment;
@@ -108,6 +121,8 @@ namespace Beep.ECS.UI.Kit
             "shear", "wobble", "tracking", "upper_case", "shadow", "font",
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
             "grain", "grain_amount", "grain_tiles", "register", "pixel_size", "gloss_style", "edge_run", "text_treatment",
+            "height_ratio", "pad_ratio", "rim", "bevel", "gloss", "sparkle", "well_shade",
+            "rim_brightness", "studs", "frame_mode", "hairline_px",
         };
 
         /// <summary>

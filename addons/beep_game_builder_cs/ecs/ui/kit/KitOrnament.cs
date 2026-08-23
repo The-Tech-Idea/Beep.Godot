@@ -33,10 +33,13 @@ namespace Beep.ECS.UI.Kit
             // Inert by construction, not by the scene remembering to set it.
             MouseFilter = MouseFilterEnum.Ignore;
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 2.1f, fs * 1.35f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 2.1f, fs * 1.35f);
         }
 
         public override void _Draw()

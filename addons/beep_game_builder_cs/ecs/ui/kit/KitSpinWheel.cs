@@ -37,6 +37,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Wedges.Count == 0)
                 Wedges.AddRange(new[] { "50", "10", "x2", "5", "100", "1", "x3", "25" });
             if (CustomMinimumSize == Vector2.Zero)
@@ -46,11 +47,25 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 9f, fs * 9f);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                if (!_spinning && Wedges.Count > 0) Spin(_target + 1);
+                AcceptEvent();
+                return;
+            }
+
             if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
                 return;
             if (_spinning || Wedges.Count == 0) return;
+            GrabFocus();
             Spin(_target + 1);
             AcceptEvent();
         }
@@ -150,6 +165,8 @@ namespace Beep.ECS.UI.Kit
                 new Vector2(c.X + ph * 0.5f, tip.Y - ph),
                 tip,
             }, ink);
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), KitShape.Ellipse, 0.8f);
         }
     }
 }

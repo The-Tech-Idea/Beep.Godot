@@ -21,7 +21,8 @@ namespace Beep.ECS.UI.Kit
     {
         public enum SpinnerKind { Ring, Dots, Bar }
 
-        [Export] public SpinnerKind Kind { get; set; } = SpinnerKind.Ring;
+        [Export] public SpinnerKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateMinimumSize(); QueueRedraw(); } }
+        private SpinnerKind _kind = SpinnerKind.Ring;
 
         [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
 
@@ -39,12 +40,15 @@ namespace Beep.ECS.UI.Kit
             ProcessMode = ProcessModeEnum.Always;   // must keep moving while the tree is paused
             MouseFilter = MouseFilterEnum.Ignore;
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = Kind == SpinnerKind.Bar
-                    ? new Vector2(fs * 10f, fs * 0.9f)
-                    : new Vector2(fs * 3f, fs * 3f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return Kind == SpinnerKind.Bar
+                ? new Vector2(fs * 10f, fs * 0.9f)
+                : new Vector2(fs * 3f, fs * 3f);
         }
 
         public override void _Process(double delta)

@@ -32,7 +32,19 @@ namespace Beep.ECS.UI.Kit
         private int _page;
 
         /// <summary>Show the outer jump-to-end pair as well as the step pair.</summary>
-        [Export] public bool ShowJump { get; set; } = true;
+        [Export]
+        public bool ShowJump
+        {
+            get => _showJump;
+            set
+            {
+                if (_showJump == value) return;
+                _showJump = value;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
+        private bool _showJump = true;
 
         /// <summary>Beyond this many pages, dots become a "n / total" readout.</summary>
         [Export(PropertyHint.Range, "3,20,1")] public int MaxDots { get; set; } = 8;
@@ -44,6 +56,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (CustomMinimumSize == Vector2.Zero)
             {
                 int fs = UiSurface.FontSize(this);
@@ -53,8 +66,24 @@ namespace Beep.ECS.UI.Kit
 
         private float BtnW => Mathf.Max(16f, Size.Y * 0.9f);
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * (ShowJump ? 12f : 9f), fs * 2.2f);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.X <= -9999 && _page > 0) { Page = 0; AcceptEvent(); }
+                else if (dir.X >= 9999 && _page < _count - 1) { Page = _count - 1; AcceptEvent(); }
+                else if (dir.X < 0 && _page > 0) { Page = _page - 1; AcceptEvent(); }
+                else if (dir.X > 0 && _page < _count - 1) { Page = _page + 1; AcceptEvent(); }
+                return;
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitButton(mm.Position.X);
@@ -74,6 +103,7 @@ namespace Beep.ECS.UI.Kit
             else if (hit == 2) Page = _count - 1;
             else if (hit == 1) Page = _page + 1;
             else return;
+            GrabFocus();
             AcceptEvent();
         }
 
@@ -129,6 +159,9 @@ namespace Beep.ECS.UI.Kit
                 DrawText(font, new Vector2(mid.Position.X + (mid.Size.X - m.X) * 0.5f, (Size.Y + m.Y * 0.6f) * 0.5f),
                            t, tf, UiSurface.Text(this));
             }
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                    KitMaterial.WidgetShapeForGenre(KitChrome.GenreOf(this), KitWidgetClass.Chip));
         }
 
         /// <summary>A jump arrow is a step arrow with a bar against it — the standard idiom, and

@@ -12,16 +12,16 @@ namespace Beep.ECS.UI.Kit
     {
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
 
-        [Export(PropertyHint.Range, "1,20,1")] public int MaxHearts { get => _max; set { _max = Mathf.Max(1, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "1,20,1")] public int MaxHearts { get => _max; set { int next = Mathf.Max(1, value); if (_max == next) return; _max = next; UpdateMinimumSize(); QueueRedraw(); } }
         private int _max = 5;
 
         [Export(PropertyHint.Range, "0,20,0.5")] public float Value { get => _value; set { _value = Mathf.Clamp(value, 0, _max); QueueRedraw(); } }
         private float _value = 5f;
 
-        [Export(PropertyHint.Range, "10,80,1")] public float HeartSize { get => _heartSize; set { _heartSize = Mathf.Max(8f, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "10,80,1")] public float HeartSize { get => _heartSize; set { float next = Mathf.Max(8f, value); if (Mathf.IsEqualApprox(_heartSize, next)) return; _heartSize = next; UpdateMinimumSize(); QueueRedraw(); } }
         private float _heartSize = 26f;
 
-        [Export(PropertyHint.Range, "0,24,1")] public float Spacing { get => _spacing; set { _spacing = Mathf.Max(0f, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "0,24,1")] public float Spacing { get => _spacing; set { float next = Mathf.Max(0f, value); if (Mathf.IsEqualApprox(_spacing, next)) return; _spacing = next; UpdateMinimumSize(); QueueRedraw(); } }
         private float _spacing = 5f;
 
         [Export] public UiSurface.Role FillRole { get => _fillRole; set { _fillRole = value; QueueRedraw(); } }
@@ -30,18 +30,21 @@ namespace Beep.ECS.UI.Kit
         [Export] public bool DrawBackplate { get => _drawBackplate; set { _drawBackplate = value; QueueRedraw(); } }
         private bool _drawBackplate;
 
-        private void UpdateMinimumSize()
+        private void ApplyInitialMinimumSize()
         {
             if (CustomMinimumSize != Vector2.Zero) return;
-            CustomMinimumSize = new Vector2(_max * _heartSize + (_max - 1) * _spacing, _heartSize);
+            CustomMinimumSize = _GetMinimumSize();
         }
 
         public override void _Ready()
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Ignore;
-            UpdateMinimumSize();
+            ApplyInitialMinimumSize();
         }
+
+        public override Vector2 _GetMinimumSize()
+            => new(_max * _heartSize + (_max - 1) * _spacing, _heartSize);
 
         public override void _Notification(int what)
         {

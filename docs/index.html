@@ -170,7 +170,7 @@
           <div class="card"><h3>Core</h3><p>Project generation, file helpers, screen generation, skin catalog, game metadata, save-state data, data binding, command history.</p></div>
           <div class="card"><h3>ECS</h3><p>Gameplay, controller, world, area trigger, inventory, combat, progression, genre, and state components.</p></div>
           <div class="card"><h3>UI</h3><p>HUDs, screens, widgets, theming, transitions, effects, settings, save/load menus, and data binders.</p></div>
-          <div class="card"><h3>Kit</h3><p>Drop-in and custom-drawn controls styled by skin catalog data.</p></div>
+          <div class="card"><h3>Kit</h3><p>Drop-in and custom-drawn controls styled by skin catalog data, with shared panel headers, keyboard focus, visible focus cues, bounded wrapped text, and reusable dynamic minimum sizing that updates when exported layout properties change.</p></div>
         </div>
       </section>
 
@@ -244,6 +244,10 @@
           <li><span class="ok">Token hygiene:</span> project settings no longer store a concrete MCP token.</li>
           <li><span class="ok">Editor startup:</span> headless editor smoke enables and disables all three addons without logged errors.</li>
           <li><span class="ok">Dock API:</span> Game Builder uses <code>EditorDock</code> and no longer suppresses obsolete dock API warnings.</li>
+          <li><span class="ok">UI kit headers:</span> <code>KitPanel</code>, <code>KitPanelContainer</code>, and <code>KitCollapsiblePanel</code> use one shared panel header renderer.</li>
+          <li><span class="ok">UI kit focus:</span> custom interactive controls support keyboard focus, visible focus rings, and keyboard activation/navigation across slots, tabs, knobs, books, wheels, radar charts, trees, level paths, and segmented controls.</li>
+          <li><span class="ok">UI kit text:</span> dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions use shared wrapped text handling.</li>
+          <li><span class="ok">UI kit sizing:</span> reusable kit controls report theme-aware minimum sizes, notify containers when exported layout dimensions change, and <code>KitContextMenu</code> supports keyboard popup behavior.</li>
           <li><span class="ok">Reference check:</span> template and skin resource references resolved.</li>
         </ul>
       </section>

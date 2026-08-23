@@ -83,6 +83,15 @@ namespace Beep.ECS.UI.Kit
         Dialog,
     }
 
+    /// <summary>How a panel titles itself. A banner straddles the outer frame; a utility strip
+    /// lives inside it, for dense HUD/status panels where overhang would waste space.</summary>
+    public enum KitPanelHeaderStyle
+    {
+        Banner,
+        UtilityStrip,
+        None,
+    }
+
     /// <summary>
     /// How the highlight across the upper face is CONSTRUCTED.
     ///

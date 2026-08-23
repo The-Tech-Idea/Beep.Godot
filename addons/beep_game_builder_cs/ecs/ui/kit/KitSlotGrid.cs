@@ -46,10 +46,34 @@ namespace Beep.ECS.UI.Kit
             public UiSurface.Role Tint = UiSurface.Role.Neutral;
         }
 
-        [Export(PropertyHint.Range, "1,12,1")] public int Columns { get => _cols; set { _cols = Mathf.Max(1, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "1,12,1")]
+        public int Columns
+        {
+            get => _cols;
+            set
+            {
+                int next = Mathf.Max(1, value);
+                if (_cols == next) return;
+                _cols = next;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private int _cols = 4;
 
-        [Export(PropertyHint.Range, "1,12,1")] public int Rows { get => _rows; set { _rows = Mathf.Max(1, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "1,12,1")]
+        public int Rows
+        {
+            get => _rows;
+            set
+            {
+                int next = Mathf.Max(1, value);
+                if (_rows == next) return;
+                _rows = next;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private int _rows = 3;
 
         /// <summary>Selected index, or -1. Drawn as an outline OUTSIDE the slot.</summary>
@@ -68,6 +92,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Slots.Count == 0)
                 SeedDemoSlots();
             if (CustomMinimumSize == Vector2.Zero)
@@ -88,6 +113,13 @@ namespace Beep.ECS.UI.Kit
             Slots.Add(new Slot { Kind = SlotKind.Filled, Count = 1, Tint = UiSurface.Role.Warning });
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float pitch = fs * 3.2f;
+            return new Vector2(pitch * _cols, pitch * _rows);
+        }
+
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _rows);
 
         private Rect2 SlotRect(int i)
@@ -101,6 +133,23 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir != Vector2I.Zero)
+                {
+                    MoveSelection(dir);
+                    AcceptEvent();
+                    return;
+                }
+                if (KitChrome.IsConfirmKey(key) && _sel >= 0)
+                {
+                    EmitSignal(SignalName.SlotActivated, _sel);
+                    AcceptEvent();
+                    return;
+                }
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitSlot(mm.Position);
@@ -118,9 +167,21 @@ namespace Beep.ECS.UI.Kit
             if (hit >= 0)
             {
                 Selected = hit;
+                GrabFocus();
                 EmitSignal(SignalName.SlotActivated, hit);
                 AcceptEvent();
             }
+        }
+
+        private void MoveSelection(Vector2I dir)
+        {
+            int total = _cols * _rows;
+            if (total <= 0) return;
+            int next = _sel < 0 ? 0 : _sel;
+            if (dir.X <= -9999) next = 0;
+            else if (dir.X >= 9999) next = total - 1;
+            else next += dir.X + dir.Y * _cols;
+            Selected = Mathf.Clamp(next, 0, total - 1);
         }
 
         private int HitSlot(Vector2 p)
@@ -220,6 +281,9 @@ namespace Beep.ECS.UI.Kit
                                UiSurface.Semantic(this, UiSurface.Role.Accent),
                                Mathf.Max(2f, 3f * (fs / 14f)));
             }
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                    ActiveShape, 0.8f);
 
             DrawAttachments();
         }

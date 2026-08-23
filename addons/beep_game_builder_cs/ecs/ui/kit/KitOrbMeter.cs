@@ -28,10 +28,13 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 5.2f, fs * 5.2f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 5.2f, fs * 5.2f);
         }
 
         public override void _Draw()

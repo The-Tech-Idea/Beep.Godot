@@ -20,6 +20,7 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             _genre = KitChrome.GenreOf(this);
+            FocusMode = FocusModeEnum.All;
             Suppress();
         }
 
@@ -44,9 +45,16 @@ namespace Beep.ECS.UI.Kit
         public override void _GuiInput(InputEvent @event)
         {
             base._GuiInput(@event);
+            if (Removable && @event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode is Key.Delete or Key.Backspace)
+            {
+                EmitSignal(SignalName.RemovePressed);
+                AcceptEvent();
+                return;
+            }
             if (!Removable || @event is not InputEventMouseButton mb || !mb.Pressed) return;
             if (mb.Position.X >= Size.X - Size.Y * 0.95f)
             {
+                GrabFocus();
                 EmitSignal(SignalName.RemovePressed);
                 AcceptEvent();
             }
@@ -71,12 +79,15 @@ namespace Beep.ECS.UI.Kit
             Color ink = UiSurface.Luminance(fill) > 0.5f ? new Color(0.1f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
             KitChrome.DrawText(this, _genre, font, new Vector2(textBox.Position.X, (Size.Y + m.Y * 0.62f) * 0.5f), text, fs, ink);
 
-            if (!Removable) return;
-            float c = Size.Y * 0.5f;
-            var center = new Vector2(Size.X - c, c);
-            float a = Size.Y * 0.16f;
-            DrawLine(center + new Vector2(-a, -a), center + new Vector2(a, a), ink, Mathf.Max(1.5f, Size.Y * 0.08f));
-            DrawLine(center + new Vector2(-a, a), center + new Vector2(a, -a), ink, Mathf.Max(1.5f, Size.Y * 0.08f));
+            if (Removable)
+            {
+                float c = Size.Y * 0.5f;
+                var center = new Vector2(Size.X - c, c);
+                float a = Size.Y * 0.16f;
+                DrawLine(center + new Vector2(-a, -a), center + new Vector2(a, a), ink, Mathf.Max(1.5f, Size.Y * 0.08f));
+                DrawLine(center + new Vector2(-a, a), center + new Vector2(a, -a), ink, Mathf.Max(1.5f, Size.Y * 0.08f));
+            }
+            KitChrome.DrawFocusRing(this, _genre, r, KitShape.Pill, 0.8f);
         }
     }
 }

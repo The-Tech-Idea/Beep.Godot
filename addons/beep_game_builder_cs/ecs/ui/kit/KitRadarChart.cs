@@ -40,16 +40,20 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Axes.Count == 0)
             {
                 Axes.AddRange(new[] { "SPD", "ACC", "GRIP", "BRK", "AIR" });
                 Values.AddRange(new[] { 0.82f, 0.55f, 0.7f, 0.45f, 0.62f });
             }
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 8f, fs * 8f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 8f, fs * 8f);
         }
 
         public void SetValue(int i, float v)
@@ -64,9 +68,31 @@ namespace Beep.ECS.UI.Kit
             if (!Editable) return;
             switch (@event)
             {
+                case InputEventKey key:
+                    Vector2I dir = KitChrome.DirectionFromKey(key);
+                    if (dir.X != 0)
+                    {
+                        int n = Count();
+                        if (n <= 0) return;
+                        if (_activeAxis < 0) _activeAxis = 0;
+                        if (dir.X <= -9999) _activeAxis = 0;
+                        else if (dir.X >= 9999) _activeAxis = n - 1;
+                        else _activeAxis = Mathf.PosMod(_activeAxis + dir.X, n);
+                        QueueRedraw();
+                        AcceptEvent();
+                    }
+                    else if (dir.Y != 0 && _activeAxis >= 0)
+                    {
+                        float delta = dir.Y < 0 ? 0.05f : -0.05f;
+                        SetValue(_activeAxis, Values[_activeAxis] + delta);
+                        EmitSignal(SignalName.ValueChanged, _activeAxis, Values[_activeAxis]);
+                        AcceptEvent();
+                    }
+                    break;
                 case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
                     if (mb.Pressed)
                     {
+                        GrabFocus();
                         _activeAxis = NearestAxis(mb.Position);
                         ApplyPointerValue(mb.Position);
                     }
@@ -170,6 +196,10 @@ namespace Beep.ECS.UI.Kit
             closed[n] = poly[0];
             DrawPolyline(closed, fill, Mathf.Max(2f, r * 0.035f));
             foreach (var p in poly) DrawCircle(p, Mathf.Max(2f, r * 0.045f), fill);
+
+            if (_activeAxis >= 0 && _activeAxis < n)
+                DrawCircle(poly[_activeAxis], Mathf.Max(3f, r * 0.07f), UiSurface.Semantic(this, UiSurface.Role.Info));
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
 
             if (!ShowLabels || font == null) return;
             for (int i = 0; i < n; i++)

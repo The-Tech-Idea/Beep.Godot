@@ -63,6 +63,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { _hover = true; QueueRedraw(); };
             MouseExited += () => { _hover = false; QueueRedraw(); };
             if (CustomMinimumSize == Vector2.Zero)
@@ -82,11 +83,25 @@ namespace Beep.ECS.UI.Kit
             _ => 0f,
         };
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(Mathf.Clamp(fs * 7.4f, 104f, 132f),
+                               Mathf.Clamp(fs * 10.4f, 146f, 188f));
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (_locked) return;
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                EmitSignal(SignalName.Pressed);
+                AcceptEvent();
+                return;
+            }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                GrabFocus();
                 EmitSignal(SignalName.Pressed);
                 AcceptEvent();
             }
@@ -116,6 +131,7 @@ namespace Beep.ECS.UI.Kit
             }
 
             DrawShape(body, ActiveShape, plate, _locked ? ink : RimColor(), rimPx);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, ActiveShape, 0.8f);
             if (_hover && !_locked)
                 KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
                                KitChrome.Poly(ActiveShape, body, Geo), body,

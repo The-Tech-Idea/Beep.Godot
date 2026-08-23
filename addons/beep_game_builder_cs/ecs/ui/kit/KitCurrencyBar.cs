@@ -63,11 +63,14 @@ namespace Beep.ECS.UI.Kit
                     new Entry { Value = "7", Glyph = "+", Accent = UiSurface.Role.Success },
                 });
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                float h = fs * 2.2f;
-                CustomMinimumSize = new Vector2(h * 4.2f * Entries.Count, h * 1.25f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float h = fs * 2.2f;
+            return new Vector2(h * 4.2f * Mathf.Max(1, Entries.Count), h * 1.25f);
         }
 
         /// <summary>Set one entry's value by index, the call a HUD binder makes each tick.</summary>

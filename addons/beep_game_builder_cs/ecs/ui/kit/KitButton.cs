@@ -60,11 +60,14 @@ namespace Beep.ECS.UI.Kit
             _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
             Suppress();
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                float h = Mathf.Clamp(fs * 2.15f, 28f, 40f);
-                CustomMinimumSize = new Vector2(Mathf.Max(78f, h * 3.15f), h);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float h = Mathf.Clamp(fs * 2.15f, 28f, 40f);
+            return new Vector2(Mathf.Max(78f, h * 3.15f), h);
         }
 
         public override void _Notification(int what)

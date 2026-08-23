@@ -38,6 +38,16 @@
 | Phase 10 | Fixed | Strengthen tween runtime smoke from load-only to endpoint behavior checks |
 | Phase 11 | Fixed | Stop Godot editor from scanning ignored `tmp/` probe renders |
 | Phase 12 | Fixed | Fix binder direction/property/Variant runtime failures and harden runtime smoke logging |
+| Phase 13 | Fixed | Consolidate Game UI Kit panel headers and revise collapsible panel title chrome |
+| Phase 14 | Fixed | Add keyboard focus, activation, and visible focus cues to custom UI-kit controls |
+| Phase 15 | Fixed | Add shared wrapped text handling for text-heavy UI-kit controls |
+| Phase 16 | Fixed | Report dynamic minimum sizes and improve custom context menu popup behavior |
+| Phase 17 | Fixed | Clamp custom context menu popup placement to the visible viewport |
+| Phase 18 | Fixed | Invalidate Godot container minimum sizes when exported layout properties change |
+| Phase 19 | Fixed | Add keyboard focus and activation to remaining interactive map/tree/segmented controls |
+| Phase 20 | Fixed | Add keyboard parity to remaining actionable UI-kit controls |
+| Phase 21 | Fixed | Replace remaining one-time UI-kit minimum sizes with reusable Godot sizing contracts |
+| Phase 22 | Fixed | Add mockup-derived Oilfield Days citybuilder UI theme and expose missing kit frame axes |
 
 ## Verification Gates
 
@@ -54,6 +64,14 @@
 | Generated output ignores | `tmp/.gdignore` exists while generated render files stay ignored by Git |
 | Binder runtime behavior | `tests/DataBinderHostSmoke.cs` validates one-way, two-way, and one-way-to-source bindings against a C# `GameInfo` source |
 | Runtime smoke error handling | `tests/runtime_smoke.ps1` fails on Godot `SCRIPT ERROR`, `ERROR:`, exceptions, or C# backtraces even when Godot returns exit code 0 |
+| UI kit panel headers | `KitPanel`, `KitPanelContainer`, and `KitCollapsiblePanel` draw through `KitChrome.DrawPanelHeader` |
+| UI kit keyboard/focus | Custom interactive controls opt into focus, handle keyboard activation/navigation, and draw `KitChrome.DrawFocusRing` |
+| UI kit wrapped text | Dialog, tooltip, toast, speech bubble, and item card descriptions use `KitChrome.DrawWrappedText` |
+| UI kit minimum sizes | Revised custom controls override `_GetMinimumSize()` so Godot containers can size them from current theme/font metrics |
+| UI kit popup placement | `KitContextMenu.PopupAt()` clamps global placement against `Viewport.GetVisibleRect()` |
+| UI kit size invalidation | Exported layout setters call `UpdateMinimumSize()` when they change reported minimum size |
+| UI kit reusable sizing | Any reusable kit control that sets `CustomMinimumSize` must also expose `_GetMinimumSize()` |
+| Oilfield Days UI theme | City Builder catalog lists `oilfield_days`; the theme declares dark HUD slots plus bolted structural kit axes |
 
 ## Findings Index
 
@@ -74,6 +92,21 @@
 - Fixed: warning cleanup pass made lifecycle-created fields/events nullable or explicitly initialized in utility controls and helper classes.
 - Fixed: clean `dotnet build .\Beep.Godot.csproj` now reports 0 warnings and 0 errors.
 - Fixed: `tests/headless_runtime_smoke.gd` verifies Godot can load the real addon scripts, dynamic `beep_ui` preset property list, MCP security defaults, and every `TweenComponent` preset on both `Control` and `Node2D` targets with endpoint assertions for non-looping presets.
+- Fixed: `addons/beep_game_builder_cs/ecs/ui/kit/KitChrome.cs` owns shared panel header drawing and layout metrics.
+- Fixed: `addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs`, `KitPanelContainer.cs`, and `KitCollapsiblePanel.cs` now use the shared panel header renderer.
+- Fixed: `addons/beep_game_builder_cs/ecs/ui/kit/KitChrome.cs` owns shared keyboard/focus helpers for custom controls.
+- Fixed: common custom UI-kit controls now support keyboard focus, Enter/Space activation, arrow navigation where appropriate, and visible focus rings.
+- Fixed: `KitTree`, `KitLevelPath`, and `KitSegmentedIconGroup` now support keyboard focus, activation, navigation, and visible focus cues.
+- Fixed: inventory slots, removable chips, tab strips, knobs, book spreads, and spin wheels now have keyboard-accessible activation/navigation and focus cues.
+- Fixed: `addons/beep_game_builder_cs/ecs/ui/kit/KitChrome.cs` owns shared wrapping and ellipsis helpers for multi-line kit text.
+- Fixed: dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions use the shared wrapped text path.
+- Fixed: revised custom controls now report dynamic minimum sizes through `_GetMinimumSize()`.
+- Fixed: `KitContextMenu` now grabs focus on popup, supports arrow-key selection, Enter/Space activation, and Escape dismissal.
+- Fixed: `KitContextMenu.PopupAt()` now clamps the menu to the visible viewport before showing it.
+- Fixed: size-affecting exported UI-kit properties now call `UpdateMinimumSize()` so Godot containers recalculate layout after inspector/runtime changes.
+- Fixed: remaining reusable UI-kit controls that set `CustomMinimumSize` now expose matching `_GetMinimumSize()` overrides.
+- Fixed: `addons/beep_game_builder_cs/catalogs/skins/citybuilder/themes/oilfield_days/theme.json` adds a selectable Oilfield Days skin derived from the oilfield mockups.
+- Fixed: `addons/beep_game_builder_cs/ecs/ui/kit/KitStyleJson.cs` now lets themes author frame mode, studs, rim brightness, and related material/proportion axes needed for the bolted industrial HUD look.
 
 ## Second Scan Fix Log
 
@@ -90,8 +123,18 @@
 | Godot editor scanned ignored `tmp/` probe renders and reported duplicate asset UIDs. | Added a tracked `tmp/.gdignore` and unignored only that marker in `.gitignore`. | Editor startup smoke no longer logs duplicate UID warnings; generated render files remain ignored. |
 | Binder helpers used C# property names and boxed reflection values with Godot `Set()`, and `OneWayToSource` refreshed in the wrong direction. | Normalized common target property names, converted boxed values to typed Variants, and made `OneWayToSource` pull target-to-source. | `tests/DataBinderHostSmoke.cs` passes inside Godot headless runtime smoke. |
 | Runtime smoke could miss logged GDScript/C# errors when Godot exited with code 0. | Added `tests/runtime_smoke.ps1` to capture stdout/stderr and fail on script/runtime error patterns. | Full `tests/run_addon_checks.ps1` passes through the new wrapper. |
+| Panel headers were implemented in separate draw paths and `KitCollapsiblePanel` used plain centered text instead of kit chrome. | Added `KitPanelHeaderStyle` plus shared `KitChrome` header metrics/rendering; routed `KitPanel`, `KitPanelContainer`, and `KitCollapsiblePanel` through it. | Contract scan rejects local header reintroduction; full `tests/run_addon_checks.ps1` passes. |
+| Custom controls were visually clickable but mouse-only, with no reliable keyboard/controller focus path. | Added `KitChrome` focus/key helpers and updated arrow selector, pager, slot grid, dialog choices, cards, rows, gem slots, collapsible panels, level buttons, node cards, and star ratings. | Contract scan rejects missing focus/key/focus-ring support for the covered controls; full `tests/run_addon_checks.ps1` passes. |
+| Text-heavy controls used one-off single-line fitting or manual space-only wrapping. | Added shared wrapped-text and ellipsis helpers in `KitChrome`; routed dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions through them. | Contract scan rejects missing shared wrapped-text call sites; full `tests/run_addon_checks.ps1` passes. |
+| Custom UI controls relied on one-time `CustomMinimumSize` assignments and the context menu behaved like a mouse-only drawn panel. | Added `_GetMinimumSize()` to revised custom controls and upgraded `KitContextMenu` with focus, keyboard navigation/activation, Escape close, and dynamic sizing. | Contract scan rejects missing dynamic minimum size and context-menu keyboard behavior; full `tests/run_addon_checks.ps1` passes. |
+| `KitContextMenu.PopupAt()` could place menus partly or fully off-screen near viewport edges. | Added `ClampedPopupPosition()` using `Viewport.GetVisibleRect()` and a small margin. | Contract scan rejects raw popup placement; full `tests/run_addon_checks.ps1` passes. |
+| UI-kit controls could report a dynamic minimum size but leave Godot containers stale after exported layout properties changed. | Added `UpdateMinimumSize()` to size-affecting setters for pager jump controls, slot-grid dimensions, star totals, tree dimensions, and level-path row width; forced item-card layout changes to shrink as well as grow. | Contract scan rejects missing size invalidation; full `tests/run_addon_checks.ps1` passes. |
+| `KitTree`, `KitLevelPath`, and `KitSegmentedIconGroup` were still mouse-only interactive controls. | Added focus opt-in, arrow/Home/End navigation through `KitChrome.DirectionFromKey()`, Enter/Space activation, mouse focus capture, shared activation helpers, and visible focus rings. | Contract scan includes these controls in the keyboard/focus gate; full `tests/run_addon_checks.ps1` passes. |
+| Several remaining actionable UI-kit widgets were still mouse-biased. | Added keyboard parity and focus cues to `KitInventorySlot`, `KitRemovableChip`, `KitTabStrip`, `KitKnob`, `KitBookSpread`, and `KitSpinWheel`; added missing `_GetMinimumSize()` overrides where the control owns its geometry. | Contract scan includes these controls in the keyboard/focus and minimum-size gates; full `tests/run_addon_checks.ps1` passes. |
+| Many smaller UI-kit controls still assigned `CustomMinimumSize` once in `_Ready()` without a reusable `_GetMinimumSize()` contract. | Added `_GetMinimumSize()` overrides to the remaining reusable controls, added size invalidation for heart rows, chips, spinners, and toggles, and moved editable `KitRadarChart` into the focus/keyboard gate. | Contract scan rejects reusable kit controls that set `CustomMinimumSize` without `_GetMinimumSize()`; full `tests/run_addon_checks.ps1` passes. |
+| Oilfield Days mockups use a distinct dark industrial HUD and bolted steel frame language that the catalog could not select or fully express. | Added the `citybuilder/oilfield_days` theme and exposed missing kit JSON axes for structural frame mode, studs, rim brightness, proportions, and material strength. | Contract scan rejects a missing theme entry or missing Oilfield-specific kit tokens; full `tests/run_addon_checks.ps1` passes. |
 
 ## Remaining Bugs / Risks From Second Scan
 
-- Automated coverage now includes source-level checks, clean build, Godot headless runtime smoke with binder direction and tween endpoint checks, and Godot headless editor addon startup smoke. Manual editor visual checks are still needed for dock layout persistence, MCP live bridge workflow, and tween animation feel.
+- Automated coverage now includes source-level checks, clean build, Godot headless runtime smoke with binder direction and tween endpoint checks, Godot headless editor addon startup smoke, source contracts for shared UI-kit panel headers, expanded actionable-control focus support, shared wrapped text, dynamic minimum sizes, reusable size contracts, size invalidation, context-menu keyboard behavior, viewport-clamped popup placement, and Oilfield Days theme registration. Manual editor visual checks are still needed for dock layout persistence, MCP live bridge workflow, tween animation feel, final panel-header art review across all genres, controller navigation across real menus, text wrapping in localized strings, and a future parchment/wood/metal asset pass for Oilfield setup screens.
 - Godot editor startup still logs `Scan thread aborted...` when the headless editor is intentionally quit by the smoke test. Duplicate UID warnings from `tmp/` probe renders are fixed.

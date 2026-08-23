@@ -28,7 +28,12 @@ $stdoutTask = $process.StandardOutput.ReadToEndAsync()
 $stderrTask = $process.StandardError.ReadToEndAsync()
 
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-    $process.Kill($true)
+    try {
+        $process.Kill($true)
+    }
+    catch [System.Management.Automation.MethodException] {
+        $process.Kill()
+    }
     throw "Godot editor startup smoke timed out after $TimeoutSeconds seconds."
 }
 

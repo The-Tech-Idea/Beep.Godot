@@ -53,6 +53,7 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             _genre = KitChrome.GenreOf(this);
+            FocusMode = FocusModeEnum.All;
             if (Tabs.Count == 0 && GetTabCount() == 0)
                 Tabs.AddRange(new[] { new Tab { Text = "One" }, new Tab { Text = "Two" },
                                       new Tab { Text = "Three" } });
@@ -67,8 +68,25 @@ namespace Beep.ECS.UI.Kit
             MouseExited += () => { _hoverTab = -1; QueueRedraw(); };
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            int count = Mathf.Max(1, GetTabCount() > 0 ? GetTabCount() : Tabs.Count);
+            return new Vector2(72f * count, Mathf.Clamp(fs * 1.75f, 26f, 34f));
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                int count = GetTabCount();
+                if (dir.X <= -9999 && count > 0) { CurrentTab = 0; AcceptEvent(); QueueRedraw(); return; }
+                if (dir.X >= 9999 && count > 0) { CurrentTab = count - 1; AcceptEvent(); QueueRedraw(); return; }
+                if (dir.X < 0 && count > 0) { CurrentTab = Mathf.Max(0, CurrentTab - 1); AcceptEvent(); QueueRedraw(); return; }
+                if (dir.X > 0 && count > 0) { CurrentTab = Mathf.Min(count - 1, CurrentTab + 1); AcceptEvent(); QueueRedraw(); return; }
+            }
+
             if (@event is InputEventMouseMotion motion)
             {
                 int hit = HitTab(motion.Position);
@@ -85,6 +103,7 @@ namespace Beep.ECS.UI.Kit
                 int hit = HitTab(mb.Position);
                 if (hit >= 0 && !IsTabDisabled(hit))
                 {
+                    GrabFocus();
                     CurrentTab = hit;
                     _hoverTab = hit;
                     AcceptEvent();
@@ -244,7 +263,7 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
-            
+            KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size), TabShape, 0.8f);
         }
     }
 }

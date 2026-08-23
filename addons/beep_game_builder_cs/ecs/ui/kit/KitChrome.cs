@@ -299,6 +299,39 @@ namespace Beep.ECS.UI.Kit
         public static KitShape Shape(string genre, KitWidgetClass widgetClass = KitWidgetClass.Button)
             => KitMaterial.WidgetShapeForGenre(genre, widgetClass);
 
+        public static bool IsConfirmKey(InputEventKey key)
+            => key.Pressed && !key.Echo && key.Keycode is Key.Enter or Key.KpEnter or Key.Space;
+
+        public static bool IsCancelKey(InputEventKey key)
+            => key.Pressed && !key.Echo && key.Keycode == Key.Escape;
+
+        public static Vector2I DirectionFromKey(InputEventKey key)
+        {
+            if (!key.Pressed || key.Echo) return Vector2I.Zero;
+            return key.Keycode switch
+            {
+                Key.Left or Key.A => new Vector2I(-1, 0),
+                Key.Right or Key.D => new Vector2I(1, 0),
+                Key.Up or Key.W => new Vector2I(0, -1),
+                Key.Down or Key.S => new Vector2I(0, 1),
+                Key.Home => new Vector2I(-9999, 0),
+                Key.End => new Vector2I(9999, 0),
+                _ => Vector2I.Zero,
+            };
+        }
+
+        public static void DrawFocusRing(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
+                                         float widthScale = 1f)
+        {
+            if (!ctl.HasFocus()) return;
+            Color accent = UiSurface.Semantic(ctl, UiSurface.Role.Info);
+            if (accent.A < 0.02f) accent = UiSurface.Semantic(ctl, UiSurface.Role.Accent);
+            if (accent.A < 0.02f) accent = UiSurface.Text(ctl);
+            float w = Mathf.Max(2f, Unit(ctl) * 0.16f * widthScale);
+            DrawShape(ctl, genre, r.Grow(w * 0.8f), shape, new Color(0, 0, 0, 0),
+                      accent with { A = 0.95f }, w);
+        }
+
         /// <summary>Fill a shape inside <paramref name="r"/>, unit-aware.</summary>
         public static void DrawShape(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
                                      Color fill, Color rim, float rimWidth)
@@ -326,6 +359,38 @@ namespace Beep.ECS.UI.Kit
         public static Font? Font(Godot.Control ctl, string genre)
             => KitFonts.Resolve(KitGeometry.ForGenre(genre).Font) ?? ctl.GetThemeDefaultFont();
 
+        public static float PanelHeaderRoom(Godot.Control ctl, string genre, string text,
+                                            KitPanelHeaderStyle style, float fontScale = 0.78f,
+                                            float hostHeight = 0f, float heightRatio = 0.14f)
+        {
+            if (string.IsNullOrEmpty(text) || style == KitPanelHeaderStyle.None) return 0f;
+
+            int fs = UiSurface.FontSize(ctl, fontScale, min: 8);
+            if (style == KitPanelHeaderStyle.UtilityStrip)
+                return Mathf.Max(fs * 1.35f, 14f);
+
+            float h = hostHeight > 0f ? hostHeight : ctl.Size.Y;
+            return Mathf.Max(fs * 1.32f, h * Mathf.Min(heightRatio, 0.095f)) * 0.5f;
+        }
+
+        public static float PanelHeaderOverhang(Godot.Control ctl, string genre, string text,
+                                                KitPanelHeaderStyle style, float fontScale = 0.78f,
+                                                float hostHeight = 0f, float heightRatio = 0.14f)
+            => style == KitPanelHeaderStyle.Banner
+                ? PanelHeaderRoom(ctl, genre, text, style, fontScale, hostHeight, heightRatio)
+                : 0f;
+
+        public static KitShape PanelHeaderShape(string genre, KitShape? overrideShape = null)
+        {
+            if (overrideShape.HasValue) return overrideShape.Value;
+            return KitGeometry.ForGenre(genre).Register switch
+            {
+                KitRegister.Carved => KitShape.Ribbon,
+                KitRegister.Casual => KitShape.Ellipse,
+                _ => KitShape.Rect,
+            };
+        }
+
         /// <summary>
         /// The header plaque that STRADDLES the host's top edge — the single most repeated
         /// construction in the reference folder (15 of 59 files).
@@ -337,23 +402,37 @@ namespace Beep.ECS.UI.Kit
         public static void DrawBanner(Godot.Control ctl, string genre, Rect2 host, string text,
                                       KitShape shape, float heightRatio = 0.14f,
                                       float widthRatio = 0.62f, float shade = 0.44f)
+            => DrawPanelHeader(ctl, genre, host, text, KitPanelHeaderStyle.Banner, shape, shade,
+                               0.78f, heightRatio, widthRatio);
+
+        public static void DrawPanelHeader(Godot.Control ctl, string genre, Rect2 host, string text,
+                                           KitPanelHeaderStyle style, KitShape shape,
+                                           float shade = 0.44f, float fontScale = 0.78f,
+                                           float heightRatio = 0.14f, float widthRatio = 0.62f)
         {
-            if (string.IsNullOrEmpty(text) || host.Size.X < 8f || host.Size.Y < 8f) return;
+            if (string.IsNullOrEmpty(text) || style == KitPanelHeaderStyle.None
+                || host.Size.X < 8f || host.Size.Y < 8f) return;
 
             var g = KitGeometry.ForGenre(genre);
             var font = Font(ctl, genre);
-            // Panel headers are labels, not screen titles. Keep them compact so the chrome
-            // frames the content instead of becoming the main object.
-            int fs = UiSurface.FontSize(ctl, 0.78f, min: 8);
+            if (font == null) return;
+            string label = Case(text, genre);
+            int fs = UiSurface.FontSize(ctl);
+            int titleFs = UiSurface.FontSize(ctl, fontScale, min: 8);
+
+            if (style == KitPanelHeaderStyle.UtilityStrip)
+            {
+                DrawUtilityPanelHeader(ctl, genre, host, label, font, fs, titleFs, shade);
+                return;
+            }
 
             // Floor the height at the type, or the banner clips its own text on a short host.
-            float h = Mathf.Max(fs * 1.32f, host.Size.Y * Mathf.Min(heightRatio, 0.095f));
+            float h = Mathf.Max(titleFs * 1.32f, host.Size.Y * Mathf.Min(heightRatio, 0.095f));
             float w = host.Size.X * widthRatio;
-            if (font != null)
-            {
-                float need = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X + fs * 1.35f;
-                w = Mathf.Max(host.Size.X * Mathf.Min(widthRatio, 0.54f), Mathf.Min(need, host.Size.X * 0.92f));
-            }
+            int fit = UiSurface.FitText(ctl, new Vector2(host.Size.X * 0.82f, h * 0.74f),
+                                        0.64f, label, font, min: 8, themeMax: fontScale);
+            float need = font.GetStringSize(label, HorizontalAlignment.Left, -1, fit).X + fit * 1.35f;
+            w = Mathf.Max(host.Size.X * Mathf.Min(widthRatio, 0.54f), Mathf.Min(need, host.Size.X * 0.92f));
 
             // Centred ON the edge, so half the plate sits outside the host. This is the move
             // containers cannot express and the reason it is drawn rather than parented.
@@ -361,18 +440,50 @@ namespace Beep.ECS.UI.Kit
                               host.Position.Y - h * 0.5f, w, h);
 
             Color face = UiSurface.Of(ctl);
-            Color plate = new(face.R * shade, face.G * shade, face.B * shade, 1f);
+            Color plate = Tint(face, shade);
             DrawShape(ctl, genre, r, shape, plate, UiSurface.Ink(face),
                       Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
 
-            if (font == null) return;
-            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+            Vector2 m = font.GetStringSize(label, HorizontalAlignment.Left, -1, fit);
             Color ink = UiSurface.Luminance(plate) > 0.5f
                 ? new Color(0.10f, 0.09f, 0.08f, 1f)
                 : new Color(0.98f, 0.96f, 0.92f, 1f);
-            ctl.DrawString(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
-                                             r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                           text, HorizontalAlignment.Left, -1, fs, ink);
+            DrawText(ctl, genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
+                                                   r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                     label, fit, ink);
+        }
+
+        private static void DrawUtilityPanelHeader(Godot.Control ctl, string genre, Rect2 host,
+                                                   string text, Font font, int fs, int titleFs,
+                                                   float shade)
+        {
+            var g = KitGeometry.ForGenre(genre);
+            float frame = Mathf.Max(1f, g.FramePx(host.Size.Y));
+            float h = Mathf.Max(titleFs * 1.18f, 13f);
+            float padX = Mathf.Max(6f, fs * 0.38f);
+            var r = new Rect2(host.Position.X + frame, host.Position.Y + frame,
+                              Mathf.Max(4f, host.Size.X - frame * 2f), h);
+            if (r.Size.X < 4f || r.Size.Y < 4f) return;
+
+            int fit = UiSurface.FitText(ctl, new Vector2(r.Size.X - padX * 2f, h * 0.76f),
+                                        0.60f, text, font, min: 8,
+                                        themeMax: Mathf.Max(0.45f, titleFs / Mathf.Max(1f, fs)));
+            Color face = UiSurface.Of(ctl);
+            Color plate = Tint(face, Mathf.Max(0.48f, shade));
+            DrawShape(ctl, genre, r, KitShape.Rect, plate with { A = Mathf.Min(0.92f, plate.A) },
+                      UiSurface.Ink(face) with { A = 0.36f },
+                      Mathf.Max(1f, g.Rim * 0.25f * (fs / 14f)));
+            ctl.DrawLine(new Vector2(r.Position.X, r.End.Y), new Vector2(r.End.X, r.End.Y),
+                         UiSurface.Ink(face) with { A = 0.52f },
+                         Mathf.Max(1f, g.Rim * 0.35f * (fs / 14f)));
+
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fit);
+            Color ink = UiSurface.Luminance(plate) > 0.5f
+                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
+            DrawText(ctl, genre, font,
+                new Vector2(r.Position.X + padX,
+                            r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                text, fit, ink);
         }
 
         /// <summary>
@@ -450,6 +561,101 @@ namespace Beep.ECS.UI.Kit
                                                  r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
                                a.Text, HorizontalAlignment.Left, -1, fs, UiSurface.Ink(fill));
             }
+        }
+
+        public static System.Collections.Generic.List<string> WrapLines(Font font, string text,
+                                                                        int fs, float width)
+        {
+            var lines = new System.Collections.Generic.List<string>();
+            if (font == null || string.IsNullOrWhiteSpace(text) || width <= 1f) return lines;
+
+            foreach (string paragraph in text.Replace("\r", "").Split('\n'))
+            {
+                if (string.IsNullOrWhiteSpace(paragraph))
+                {
+                    lines.Add("");
+                    continue;
+                }
+
+                string line = "";
+                foreach (string word in paragraph.Split(' ', System.StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string remaining = word;
+                    while (font.GetStringSize(remaining, HorizontalAlignment.Left, -1, fs).X > width
+                           && remaining.Length > 1)
+                    {
+                        int cut = remaining.Length;
+                        while (cut > 1
+                               && font.GetStringSize(remaining[..cut], HorizontalAlignment.Left, -1, fs).X > width)
+                            cut--;
+                        string chunk = remaining[..cut];
+                        if (!string.IsNullOrEmpty(line))
+                        {
+                            lines.Add(line);
+                            line = "";
+                        }
+                        lines.Add(chunk);
+                        remaining = remaining[cut..];
+                    }
+
+                    string trial = string.IsNullOrEmpty(line) ? remaining : line + " " + remaining;
+                    if (font.GetStringSize(trial, HorizontalAlignment.Left, -1, fs).X <= width || string.IsNullOrEmpty(line))
+                        line = trial;
+                    else
+                    {
+                        lines.Add(line);
+                        line = remaining;
+                    }
+                }
+                if (!string.IsNullOrEmpty(line)) lines.Add(line);
+            }
+
+            return lines;
+        }
+
+        public static void DrawWrappedText(Godot.Control ctl, string genre, Font font, Rect2 box,
+                                           string text, int fs, Color ink,
+                                           HorizontalAlignment align = HorizontalAlignment.Left,
+                                           int maxLines = 0, bool ellipsize = true)
+        {
+            if (font == null || string.IsNullOrWhiteSpace(text)
+                || box.Size.X <= 1f || box.Size.Y <= 1f) return;
+
+            var lines = WrapLines(font, Case(text, genre), fs, box.Size.X);
+            if (lines.Count == 0) return;
+
+            float lh = font.GetHeight(fs) * 1.08f;
+            int fitLines = Mathf.Max(1, Mathf.FloorToInt(box.Size.Y / lh));
+            int count = maxLines > 0 ? Mathf.Min(maxLines, fitLines) : fitLines;
+            count = Mathf.Min(count, lines.Count);
+
+            for (int i = 0; i < count; i++)
+            {
+                string line = lines[i];
+                if (ellipsize && i == count - 1 && count < lines.Count)
+                    line = Ellipsize(font, line, fs, box.Size.X);
+                Vector2 m = font.GetStringSize(line, HorizontalAlignment.Left, -1, fs);
+                float x = align switch
+                {
+                    HorizontalAlignment.Center => box.Position.X + (box.Size.X - m.X) * 0.5f,
+                    HorizontalAlignment.Right => box.End.X - m.X,
+                    _ => box.Position.X,
+                };
+                DrawText(ctl, genre, font,
+                         new Vector2(x, box.Position.Y + lh * i + font.GetAscent(fs)),
+                         line, fs, ink);
+            }
+        }
+
+        private static string Ellipsize(Font font, string text, int fs, float width)
+        {
+            const string mark = "...";
+            if (font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X <= width) return text;
+            string t = text;
+            while (t.Length > 0
+                   && font.GetStringSize(t + mark, HorizontalAlignment.Left, -1, fs).X > width)
+                t = t[..^1];
+            return string.IsNullOrEmpty(t) ? mark : t + mark;
         }
 
         /// <summary>Shade may exceed 1.0 — the measured outer rim is 2.05× the plate — so

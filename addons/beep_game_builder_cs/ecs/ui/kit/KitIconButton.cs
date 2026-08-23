@@ -75,11 +75,14 @@ namespace Beep.ECS.UI.Kit
             _genre = KitChrome.GenreOf(this);
             Suppress();
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                float s = Mathf.Clamp(fs * 2.65f, 38f, 52f);
-                CustomMinimumSize = new Vector2(s, s);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float s = Mathf.Clamp(fs * 2.65f, 38f, 52f);
+            return new Vector2(s, s);
         }
 
         public override void _Notification(int what)

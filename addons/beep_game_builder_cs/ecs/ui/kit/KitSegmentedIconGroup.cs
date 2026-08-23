@@ -47,6 +47,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Segments.Count == 0)
                 Segments.AddRange(new[]
                 {
@@ -59,6 +60,12 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 2.6f * Mathf.Max(1, Segments.Count), fs * 2.4f);
+        }
+
         private Rect2 SegRect(int i)
         {
             float w = Size.X / Mathf.Max(1, Segments.Count);
@@ -67,6 +74,21 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.X <= -9999) { Current = 0; AcceptEvent(); }
+                else if (dir.X >= 9999) { Current = Segments.Count - 1; AcceptEvent(); }
+                else if (dir.X < 0) { Current = Mathf.Max(0, _current - 1); AcceptEvent(); }
+                else if (dir.X > 0) { Current = Mathf.Min(Segments.Count - 1, _current + 1); AcceptEvent(); }
+                else if (KitChrome.IsConfirmKey(key))
+                {
+                    EmitSignal(SignalName.SegmentChanged, _current);
+                    AcceptEvent();
+                }
+                return;
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitSegment(mm.Position);
@@ -83,6 +105,7 @@ namespace Beep.ECS.UI.Kit
             int hit = HitSegment(mb.Position);
             if (hit >= 0)
             {
+                GrabFocus();
                 Current = hit;
                 AcceptEvent();
             }
@@ -163,6 +186,8 @@ namespace Beep.ECS.UI.Kit
                                Segments[i].Glyph, gf, on);
                 }
             }
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
         }
     }
 }

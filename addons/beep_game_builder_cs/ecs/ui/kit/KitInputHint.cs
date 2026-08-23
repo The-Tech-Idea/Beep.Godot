@@ -23,10 +23,10 @@ namespace Beep.ECS.UI.Kit
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
 
         /// <summary>Keys in the chord, joined by "+". One entry is the common case.</summary>
-        [Export] public string[] Keys { get => _keys; set { _keys = value ?? System.Array.Empty<string>(); QueueRedraw(); } }
+        [Export] public string[] Keys { get => _keys; set { _keys = value ?? System.Array.Empty<string>(); UpdateMinimumSize(); QueueRedraw(); } }
         private string[] _keys = { "E" };
 
-        [Export] public string Action { get => _action; set { _action = value ?? ""; QueueRedraw(); } }
+        [Export] public string Action { get => _action; set { _action = value ?? ""; UpdateMinimumSize(); QueueRedraw(); } }
         private string _action = "Gather Wood";
 
         public override void _Ready()
@@ -34,10 +34,13 @@ namespace Beep.ECS.UI.Kit
             base._Ready();
             MouseFilter = MouseFilterEnum.Ignore;
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 9f, fs * 1.75f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 9f, fs * 1.75f);
         }
 
         public override void _Draw()

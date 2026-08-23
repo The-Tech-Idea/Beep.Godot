@@ -59,6 +59,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             SetProcess(false);
             if (CustomMinimumSize == Vector2.Zero)
             {
@@ -67,8 +68,24 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 30f, fs * 17f);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.X <= -9999) { TurnTo(0); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+                if (dir.X >= 9999) { TurnTo(PageCount() - 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+                if (dir.X < 0) { TurnTo(_selectedTab - 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+                if (dir.X > 0) { TurnTo(_selectedTab + 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+                if (KitChrome.IsConfirmKey(key)) { EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+            }
+
             if (!ShowTabs || _tabs.Length == 0) return;
             if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
                 return;
@@ -78,6 +95,7 @@ namespace Beep.ECS.UI.Kit
             for (int i = 0; i < Mathf.Min(_tabs.Length, pages); i++)
             {
                 if (!TabRect(rp, i).HasPoint(mb.Position)) continue;
+                GrabFocus();
                 TurnTo(i);
                 EmitSignal(SignalName.TabSelected, i);
                 AcceptEvent();
@@ -86,6 +104,7 @@ namespace Beep.ECS.UI.Kit
 
             if (ShowPageCorners && PrevRect(lp).HasPoint(mb.Position))
             {
+                GrabFocus();
                 TurnTo(_selectedTab - 1);
                 AcceptEvent();
                 return;
@@ -93,6 +112,7 @@ namespace Beep.ECS.UI.Kit
 
             if (ShowPageCorners && NextRect(rp).HasPoint(mb.Position))
             {
+                GrabFocus();
                 TurnTo(_selectedTab + 1);
                 AcceptEvent();
                 return;
@@ -255,6 +275,7 @@ namespace Beep.ECS.UI.Kit
             int titlePage = VisiblePageIndex();
             Title(PageLeftTitle(titlePage), lp);
             Title(PageRightTitle(titlePage), rp);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), book, ActiveShape, 0.8f);
         }
 
         private void DrawCover(Rect2 book, Color face, Color ink, float rimPx)

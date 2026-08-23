@@ -32,13 +32,26 @@ namespace Beep.ECS.UI.Kit
         public readonly List<Level> Levels = new();
 
         /// <summary>Nodes per row before the path reverses — the serpentine.</summary>
-        [Export(PropertyHint.Range, "2,10,1")] public int PerRow { get => _per; set { _per = Mathf.Max(2, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "2,10,1")]
+        public int PerRow
+        {
+            get => _per;
+            set
+            {
+                int next = Mathf.Max(2, value);
+                if (_per == next) return;
+                _per = next;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private int _per = 4;
 
         /// <summary>Index of the player's current position. -1 for none.</summary>
         [Export] public int Current { get => _cur; set { _cur = value; QueueRedraw(); } }
         private int _cur = 2;
         private int _hover = -1;
+        private int _focusIndex = -1;
 
         [Signal] public delegate void LevelActivatedEventHandler(int index);
 
@@ -46,6 +59,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Levels.Count == 0)
                 for (int i = 0; i < 8; i++)
                     Levels.Add(new Level
@@ -60,6 +74,7 @@ namespace Beep.ECS.UI.Kit
                 int rows = Mathf.CeilToInt(Levels.Count / (float)_per);
                 CustomMinimumSize = new Vector2(fs * 3.6f * _per, fs * 4.2f * rows);
             }
+            _focusIndex = FirstPlayableIndex();
         }
 
         private Vector2 NodeAt(int i)
@@ -81,6 +96,23 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir != Vector2I.Zero)
+                {
+                    MoveFocus(dir);
+                    AcceptEvent();
+                    return;
+                }
+                if (KitChrome.IsConfirmKey(key) && _focusIndex >= 0)
+                {
+                    ActivateLevel(_focusIndex);
+                    AcceptEvent();
+                    return;
+                }
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitLevel(mm.Position);
@@ -97,10 +129,43 @@ namespace Beep.ECS.UI.Kit
             int hit = HitLevel(mb.Position);
             if (hit >= 0)
             {
-                if (Levels[hit].State == LevelState.Locked) return;
-                EmitSignal(SignalName.LevelActivated, hit);
+                GrabFocus();
+                ActivateLevel(hit);
                 AcceptEvent();
             }
+        }
+
+        private void ActivateLevel(int index)
+        {
+            if (index < 0 || index >= Levels.Count || Levels[index].State == LevelState.Locked) return;
+            _focusIndex = index;
+            EmitSignal(SignalName.LevelActivated, index);
+            QueueRedraw();
+        }
+
+        private int FirstPlayableIndex()
+        {
+            if (_cur >= 0 && _cur < Levels.Count && Levels[_cur].State != LevelState.Locked) return _cur;
+            for (int i = 0; i < Levels.Count; i++)
+                if (Levels[i].State != LevelState.Locked) return i;
+            return Levels.Count > 0 ? 0 : -1;
+        }
+
+        private void MoveFocus(Vector2I dir)
+        {
+            if (Levels.Count == 0) return;
+            if (_focusIndex < 0) _focusIndex = FirstPlayableIndex();
+            if (dir.X <= -9999) _focusIndex = 0;
+            else if (dir.X >= 9999) _focusIndex = Levels.Count - 1;
+            else _focusIndex = Mathf.Clamp(_focusIndex + dir.X + dir.Y * _per, 0, Levels.Count - 1);
+            QueueRedraw();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            int rows = Mathf.Max(1, Mathf.CeilToInt(Levels.Count / (float)_per));
+            return new Vector2(fs * 3.6f * _per, fs * 4.2f * rows);
         }
 
         private int HitLevel(Vector2 p)
@@ -173,6 +238,11 @@ namespace Beep.ECS.UI.Kit
                             UiSurface.Semantic(this, UiSurface.Role.Info),
                             Mathf.Max(1.5f, r * 0.09f));
 
+                if (HasFocus() && i == _focusIndex)
+                    DrawArc(p, r * 1.42f, 0f, Mathf.Tau, 36,
+                            UiSurface.Semantic(this, UiSurface.Role.Info),
+                            Mathf.Max(1.8f, r * 0.10f));
+
                 // A locked node shows NO number.
                 if (lv.State != LevelState.Locked && font != null && !string.IsNullOrEmpty(lv.Label))
                 {
@@ -196,6 +266,8 @@ namespace Beep.ECS.UI.Kit
                     DrawCircle(p + new Vector2((s - 1) * sr * 2.4f, r * 1.15f), sr,
                                s < lv.Stars ? star : dim);
             }
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
         }
     }
 }

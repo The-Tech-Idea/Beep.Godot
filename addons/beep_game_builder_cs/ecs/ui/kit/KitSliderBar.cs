@@ -65,6 +65,12 @@ namespace Beep.ECS.UI.Kit
             _suppressing = false;
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 8f, Mathf.Max(fs * 2.0f, 22f));
+        }
+
         public override void _Draw()
         {
             if (Size.X <= 4f || Size.Y <= 4f) return;

@@ -45,6 +45,12 @@ namespace Beep.ECS.UI.Kit
 
         private float TailSize => Mathf.Clamp(UiSurface.FontSize(this) * 0.42f, 5f, 9f);
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 9f, fs * 2.35f);
+        }
+
         public override void _Draw()
         {
             if (Size.X < 10f || Size.Y < 8f) return;
@@ -82,11 +88,11 @@ namespace Beep.ECS.UI.Kit
             // caption grow until it filled the plate edge to edge with no breathing room, which
             // is what made it read as shouting.
             int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                       new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.38f),
+                                       new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.44f),
                                        _text, font, min: 8);
-            Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, tf);
-            DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + (body.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _text, tf, txt);
+            Rect2 textBox = body.Grow(-Mathf.Max(5f, tf * 0.55f));
+            KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, textBox, _text, tf, txt,
+                                      HorizontalAlignment.Center, maxLines: 2);
         }
 
         private void DrawTail(Rect2 body, Color plate, float t)

@@ -42,14 +42,20 @@ namespace Beep.ECS.UI.Kit
         private void UpdateMinimumSize()
         {
             if (CustomMinimumSize != Vector2.Zero) return;
+            CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
             int fs = UiSurface.FontSize(this);
-            CustomMinimumSize = new Vector2(fs * 2.8f, fs * 2.8f);
+            return new Vector2(fs * 2.8f, fs * 2.8f);
         }
 
         public override void _Ready()
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { _hover = true; QueueRedraw(); };
             MouseExited += () => { _hover = false; QueueRedraw(); };
             UpdateMinimumSize();
@@ -67,8 +73,15 @@ namespace Beep.ECS.UI.Kit
         public override void _GuiInput(InputEvent @event)
         {
             if (_state == SocketState.Locked) return;
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                EmitSignal(SignalName.Activated);
+                AcceptEvent();
+                return;
+            }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                GrabFocus();
                 EmitSignal(SignalName.Activated);
                 AcceptEvent();
             }
@@ -92,6 +105,8 @@ namespace Beep.ECS.UI.Kit
             DrawArc(c, r, Mathf.Pi, Mathf.Tau, 24, new Color(0, 0, 0, 0.35f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Pi, 24, new Color(1, 1, 1, 0.22f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Tau, 32, ink, Mathf.Max(1.5f, d * 0.035f));
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(c - new Vector2(r, r), new Vector2(r * 2f, r * 2f)),
+                                    KitShape.Pill, 0.75f);
             if (_hover && _state != SocketState.Locked)
                 DrawArc(c, r * 1.10f, 0f, Mathf.Tau, 32, UiSurface.Semantic(this, UiSurface.Role.Info),
                         Mathf.Max(1.5f, d * 0.030f));

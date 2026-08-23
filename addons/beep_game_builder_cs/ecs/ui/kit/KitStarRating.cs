@@ -30,7 +30,15 @@ namespace Beep.ECS.UI.Kit
         public int Total
         {
             get => Mathf.Max(1, (int)MaxValue);
-            set { MaxValue = Mathf.Max(1, value); QueueRedraw(); }
+            set
+            {
+                int next = Mathf.Max(1, value);
+                if (Mathf.IsEqualApprox((float)MaxValue, next)) return;
+                MaxValue = next;
+                Value = Mathf.Clamp(Value, MinValue, MaxValue);
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
         }
 
         /// <summary>How many are filled. This is Range's Value.</summary>
@@ -51,6 +59,7 @@ namespace Beep.ECS.UI.Kit
         {
             RefreshGenre();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             // Range has NO theme art of its own -- no stylebox, no icon -- so unlike Slider and
             // ProgressBar there is nothing to blank and nothing whose minimum size vanishes with
             // it. That is what makes it the right base here rather than a convenient one.
@@ -59,7 +68,7 @@ namespace Beep.ECS.UI.Kit
             if (Value < MinValue) Value = MinValue;
             if (Value > MaxValue) Value = MaxValue;
             ValueChanged += _ => QueueRedraw();
-            UpdateMinimumSize();
+            ApplyInitialMinimumSize();
         }
 
         public override void _Notification(int what)
@@ -74,6 +83,16 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.X <= -9999) { Earned = 0; AcceptEvent(); }
+                else if (dir.X >= 9999) { Earned = Total; AcceptEvent(); }
+                else if (dir.X < 0) { Earned = Mathf.Max(0, Earned - 1); AcceptEvent(); }
+                else if (dir.X > 0) { Earned = Mathf.Min(Total, Earned + 1); AcceptEvent(); }
+                return;
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitStar(mm.Position);
@@ -89,6 +108,7 @@ namespace Beep.ECS.UI.Kit
             {
                 int hit = HitStar(mb.Position);
                 if (hit < 0) return;
+                GrabFocus();
                 Earned = hit + 1;
                 AcceptEvent();
             }
@@ -103,11 +123,16 @@ namespace Beep.ECS.UI.Kit
             return i >= 0 && i < total && p.Y >= 0f && p.Y <= Size.Y ? i : -1;
         }
 
-        private void UpdateMinimumSize()
+        private void ApplyInitialMinimumSize()
         {
             if (CustomMinimumSize != Vector2.Zero) return;
+            CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
             int fs = UiSurface.FontSize(this);
-            CustomMinimumSize = new Vector2(fs * 1.9f * Total, fs * 2f);
+            return new Vector2(fs * 1.9f * Total, fs * 2f);
         }
 
         private void RefreshGenre()
@@ -142,6 +167,9 @@ namespace Beep.ECS.UI.Kit
                     DrawArc(c, r * 1.08f, 0f, Mathf.Tau, 24,
                             UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.2f, r * 0.08f));
             }
+
+            KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size),
+                                    KitMaterial.WidgetShapeForGenre(_genre, Class), 0.8f);
         }
 
         private void DrawStar(Vector2 c, float r, Color fill, Color ink)

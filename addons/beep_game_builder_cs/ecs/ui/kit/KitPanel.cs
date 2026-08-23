@@ -258,10 +258,10 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>Half the banner's height — the amount it hangs above the frame.</summary>
         private float BannerOverhang()
-            => string.IsNullOrEmpty(_title)
-                || Intent == KitPanelIntent.Hud
+            => Intent == KitPanelIntent.Hud
                 ? 0f
-                : Mathf.Max(UiSurface.FontSize(this, 0.78f, min: 8) * 1.32f, Size.Y * 0.085f) * 0.5f;
+                : KitChrome.PanelHeaderOverhang(this, _genre, _title, KitPanelHeaderStyle.Banner,
+                                                0.78f, Size.Y);
 
         /// <summary>
         /// The frame, inset from the top by the banner's overhang.
@@ -333,7 +333,8 @@ namespace Beep.ECS.UI.Kit
             if (TornEdge) DrawTornEdge(body, face, ink);
 
             // Banner last so it draws OVER the frame it straddles.
-            KitChrome.DrawBanner(this, _genre, body, _title, ResolvedBannerShape(), shade: BannerShade);
+            KitChrome.DrawPanelHeader(this, _genre, body, _title, KitPanelHeaderStyle.Banner,
+                                      ResolvedBannerShape(), BannerShade);
 
             if (ShowClose) DrawClose(ink, rimPx);
 

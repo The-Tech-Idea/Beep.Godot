@@ -52,7 +52,7 @@ namespace Beep.ECS.UI.Kit
             Delta,
         }
 
-        [Export] public ChipKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
+        [Export] public ChipKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateMinimumSize(); QueueRedraw(); } }
         private ChipKind _kind = ChipKind.Rarity;
 
         [Export] public string Text { get => _text; set { _text = value ?? ""; QueueRedraw(); } }
@@ -75,17 +75,20 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             if (CustomMinimumSize == Vector2.Zero)
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return _kind switch
             {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = _kind switch
-                {
-                    ChipKind.Dot => new Vector2(fs * 0.7f, fs * 0.7f),
-                    ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
-                    ChipKind.Count => new Vector2(fs * 1.6f, fs * 1.25f),
-                    ChipKind.Delta => new Vector2(fs * 2.6f, fs * 1.3f),
-                    _ => new Vector2(fs * 3.6f, fs * 1.3f),
-                };
-            }
+                ChipKind.Dot => new Vector2(fs * 0.7f, fs * 0.7f),
+                ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
+                ChipKind.Count => new Vector2(fs * 1.6f, fs * 1.25f),
+                ChipKind.Delta => new Vector2(fs * 2.6f, fs * 1.3f),
+                _ => new Vector2(fs * 3.6f, fs * 1.3f),
+            };
         }
 
         private KitShape ShapeFor() => _kind switch

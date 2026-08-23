@@ -32,7 +32,8 @@ namespace Beep.ECS.UI.Kit
     {
         public enum ToggleStyle { Switch, Box }
 
-        [Export] public ToggleStyle Style { get; set; } = ToggleStyle.Switch;
+        [Export] public ToggleStyle Style { get => _style; set { if (_style == value) return; _style = value; UpdateMinimumSize(); QueueRedraw(); } }
+        private ToggleStyle _style = ToggleStyle.Switch;
 
         /// <summary>Palette role of the ON state.</summary>
         [Export] public UiSurface.Role OnRole { get; set; } = UiSurface.Role.Success;
@@ -49,12 +50,15 @@ namespace Beep.ECS.UI.Kit
             ToggleMode = true;
             Suppress();
             if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = Style == ToggleStyle.Box
-                    ? new Vector2(fs * 1.7f, fs * 1.7f)
-                    : new Vector2(fs * 3.4f, fs * 1.7f);
-            }
+                CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return Style == ToggleStyle.Box
+                ? new Vector2(fs * 1.7f, fs * 1.7f)
+                : new Vector2(fs * 3.4f, fs * 1.7f);
         }
 
         public override void _Notification(int what)

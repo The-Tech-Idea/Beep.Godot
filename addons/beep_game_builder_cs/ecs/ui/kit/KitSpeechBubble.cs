@@ -1,6 +1,4 @@
 using Godot;
-using System.Collections.Generic;
-
 namespace Beep.ECS.UI.Kit
 {
     public enum KitBubbleTail
@@ -45,6 +43,12 @@ namespace Beep.ECS.UI.Kit
                 CustomMinimumSize = new Vector2(UiSurface.FontSize(this) * 14f, UiSurface.FontSize(this) * 5f);
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 14f, fs * 5f);
+        }
+
         public override void _Draw()
         {
             if (Size.X <= 12 || Size.Y <= 12) return;
@@ -66,7 +70,13 @@ namespace Beep.ECS.UI.Kit
 
             DrawShape(body, KitShape.Round, face, RimColor(), rim);
             DrawTail(body, tail, face, RimColor(), rim);
-            DrawWrappedText(body.Grow(-_padding), fs, UiSurface.Luminance(face) > 0.55f ? new Color(0.10f, 0.08f, 0.06f) : UiSurface.Text(this));
+            Font? font = KitFont();
+            if (font != null)
+                KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, body.Grow(-_padding), _text,
+                                          fs,
+                                          UiSurface.Luminance(face) > 0.55f
+                                              ? new Color(0.10f, 0.08f, 0.06f) : UiSurface.Text(this),
+                                          ellipsize: true);
         }
 
         private void DrawTail(Rect2 body, float tail, Color face, Color rim, float rimWidth)
@@ -103,33 +113,5 @@ namespace Beep.ECS.UI.Kit
             DrawPolyline(new[] { p[0], p[2], p[1] }, rim, rimWidth);
         }
 
-        private void DrawWrappedText(Rect2 box, int fs, Color ink)
-        {
-            Font? font = KitFont();
-            if (font == null || string.IsNullOrWhiteSpace(_text) || box.Size.X <= 4 || box.Size.Y <= 4) return;
-
-            var lines = new List<string>();
-            foreach (string paragraph in _text.Replace("\r", "").Split('\n'))
-            {
-                string line = "";
-                foreach (string word in paragraph.Split(' ', System.StringSplitOptions.RemoveEmptyEntries))
-                {
-                    string trial = string.IsNullOrEmpty(line) ? word : line + " " + word;
-                    if (font.GetStringSize(trial, HorizontalAlignment.Left, -1, fs).X <= box.Size.X || string.IsNullOrEmpty(line))
-                        line = trial;
-                    else
-                    {
-                        lines.Add(line);
-                        line = word;
-                    }
-                }
-                if (!string.IsNullOrEmpty(line)) lines.Add(line);
-            }
-
-            float lh = font.GetHeight(fs) * 1.08f;
-            int max = Mathf.Max(1, Mathf.FloorToInt(box.Size.Y / lh));
-            for (int i = 0; i < Mathf.Min(max, lines.Count); i++)
-                DrawText(font, box.Position + new Vector2(0, lh * (i + 0.82f)), lines[i], fs, ink);
-        }
     }
 }

@@ -42,11 +42,9 @@ It was rebuilt from an exhaustive source/config/template scan on 2026-08-09. Exi
 4. Build C# once. Godot only registers C# `[GlobalClass]` scripts after a successful build.
 5. Use the Add Node dialog to add C# components or use Beep MCP commands when `godot_mcp` is enabled.
 
-## Current Build Caveat
+## Current Verification Status
 
-The current root build is red. `dotnet build .\Beep.Godot.csproj` compiles generated files under `tests/**/obj/**` and `.godot/mono/temp/obj/**`, causing duplicate assembly attribute errors. This is tracked in `plans/enhancement-review-6/phase-1-build-gate.md`.
-
-Until that phase is fixed, treat `[GlobalClass]` counts as source inventory, not proof that every class is currently available in the editor.
+`tests/run_addon_checks.ps1` passes the source contract scan, clean C# build, Godot headless runtime smoke, and Godot headless editor startup smoke. The root project excludes generated artifacts, so `dotnet build .\Beep.Godot.csproj` currently reports 0 warnings and 0 errors.
 
 ## beep_game_builder_cs
 
@@ -139,6 +137,14 @@ Two important categories:
 - Custom drawn controls that inherit `KitControl` or `Control`, such as `KitInventorySlot`, `KitItemCard`, `KitLevelPath`, `KitBookSpread`, `KitRadarChart`, `KitRadialMeter`, `KitSpeechBubble`, `KitToast`, and `KitWeatherForecastCard`.
 
 The kit style contract is loaded by `KitStyleJson` from skin JSON. Theme JSON may define `kit` blocks and `edge_run` data. Texture references in scanned skin JSON currently resolve.
+
+Panel headers are centralized in `KitChrome.DrawPanelHeader`. `KitPanel`, `KitPanelContainer`, and `KitCollapsiblePanel` now share the same banner/utility-strip renderer, case rules, text treatment, shade handling, and layout-room calculation. Use `KitPanelHeaderStyle.Banner` for a title plate that straddles the frame and `KitPanelHeaderStyle.UtilityStrip` for dense status panels where the title should stay inside the panel body.
+
+Custom interactive controls now share keyboard/focus conventions. `KitChrome` provides confirm-key detection, direction-key detection, and a skin-aware focus ring. Custom controls such as `KitArrowSelector`, `KitPager`, `KitSlotGrid`, `KitDialogBox`, `KitItemCard`, `KitNodeCard`, `KitLevelButton`, `KitRow`, `KitGemSlot`, `KitCollapsiblePanel`, `KitStarRating`, `KitTree`, `KitLevelPath`, `KitSegmentedIconGroup`, `KitInventorySlot`, `KitRemovableChip`, `KitTabStrip`, `KitKnob`, `KitBookSpread`, `KitSpinWheel`, and editable `KitRadarChart` opt into keyboard focus and support Enter/Space activation or arrow navigation where appropriate.
+
+Text-heavy kit controls use shared wrapping through `KitChrome.DrawWrappedText`. Dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions now handle explicit newlines, long words, bounded line counts, and ellipsis consistently.
+
+Revised custom controls report dynamic minimum sizes through `_GetMinimumSize()` so Godot containers can size them from the current theme/font metrics. Reusable kit controls that set `CustomMinimumSize` also expose `_GetMinimumSize()`; `KitArchetypes.cs` is the only exception because it sizes generated ornament children rather than a reusable control. Size-affecting exported properties such as pager jump buttons, slot-grid dimensions, star totals, tree dimensions, level-path row width, heart row geometry, chip kind, spinner kind, and toggle style now call `UpdateMinimumSize()` when changed. `KitContextMenu` now behaves closer to a popup: it grabs focus when opened, supports arrow-key selection, activates with Enter/Space, closes with Escape, sizes itself through the same minimum-size path, and clamps popup placement to the visible viewport.
 
 ### Skin Catalog
 

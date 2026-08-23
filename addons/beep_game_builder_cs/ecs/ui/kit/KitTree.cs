@@ -59,10 +59,34 @@ namespace Beep.ECS.UI.Kit
 
         public readonly List<Node> Nodes = new();
 
-        [Export(PropertyHint.Range, "1,10,1")] public int Columns { get => _cols; set { _cols = Mathf.Max(1, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "1,10,1")]
+        public int Columns
+        {
+            get => _cols;
+            set
+            {
+                int next = Mathf.Max(1, value);
+                if (_cols == next) return;
+                _cols = next;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private int _cols = 4;
 
-        [Export(PropertyHint.Range, "1,10,1")] public int Tiers { get => _tiers; set { _tiers = Mathf.Max(1, value); QueueRedraw(); } }
+        [Export(PropertyHint.Range, "1,10,1")]
+        public int Tiers
+        {
+            get => _tiers;
+            set
+            {
+                int next = Mathf.Max(1, value);
+                if (_tiers == next) return;
+                _tiers = next;
+                UpdateMinimumSize();
+                QueueRedraw();
+            }
+        }
         private int _tiers = 3;
 
         [Export] public int Selected { get => _sel; set { _sel = value; QueueRedraw(); } }
@@ -77,6 +101,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             if (Nodes.Count == 0)
                 SeedDemoNodes();
             if (CustomMinimumSize == Vector2.Zero)
@@ -88,6 +113,13 @@ namespace Beep.ECS.UI.Kit
         }
 
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _tiers);
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float pitch = fs * 3.6f;
+            return new Vector2(pitch * _cols, pitch * _tiers);
+        }
 
         private void SeedDemoNodes()
         {
@@ -135,6 +167,23 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir != Vector2I.Zero)
+                {
+                    MoveSelection(dir);
+                    AcceptEvent();
+                    return;
+                }
+                if (KitChrome.IsConfirmKey(key) && _sel >= 0)
+                {
+                    ActivateNode(_sel);
+                    AcceptEvent();
+                    return;
+                }
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int next = HitNode(mm.Position);
@@ -151,17 +200,45 @@ namespace Beep.ECS.UI.Kit
             int hit = HitNode(mb.Position);
             if (hit >= 0)
             {
-                Selected = hit;
-                if (CycleStateOnClick)
-                    Nodes[hit].State = Nodes[hit].State switch
-                    {
-                        NodeState.Locked => NodeState.Available,
-                        NodeState.Available => NodeState.Owned,
-                        _ => NodeState.Locked,
-                    };
-                EmitSignal(SignalName.NodeActivated, hit);
+                GrabFocus();
+                ActivateNode(hit);
                 AcceptEvent();
-                QueueRedraw();
+            }
+        }
+
+        private void ActivateNode(int index)
+        {
+            if (index < 0 || index >= Nodes.Count) return;
+            Selected = index;
+            if (CycleStateOnClick)
+                Nodes[index].State = Nodes[index].State switch
+                {
+                    NodeState.Locked => NodeState.Available,
+                    NodeState.Available => NodeState.Owned,
+                    _ => NodeState.Locked,
+                };
+            EmitSignal(SignalName.NodeActivated, index);
+            QueueRedraw();
+        }
+
+        private void MoveSelection(Vector2I dir)
+        {
+            if (Nodes.Count == 0) return;
+            if (dir.X <= -9999) { Selected = 0; return; }
+            if (dir.X >= 9999) { Selected = Nodes.Count - 1; return; }
+
+            int current = Mathf.Clamp(_sel < 0 ? 0 : _sel, 0, Nodes.Count - 1);
+            Node origin = Nodes[current];
+            int targetColumn = origin.Column + dir.X;
+            int targetTier = origin.Tier + dir.Y;
+            for (int i = 0; i < Nodes.Count; i++)
+            {
+                Node candidate = Nodes[i];
+                if (candidate.Column == targetColumn && candidate.Tier == targetTier)
+                {
+                    Selected = i;
+                    return;
+                }
             }
         }
 
@@ -295,6 +372,7 @@ namespace Beep.ECS.UI.Kit
                                    Mathf.Max(2f, 3f * (fs / 14f)));
             }
 
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
             DrawAttachments();
         }
 

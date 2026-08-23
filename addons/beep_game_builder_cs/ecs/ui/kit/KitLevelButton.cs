@@ -30,6 +30,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { if (!_locked) SetState(KitState.Hover); };
             MouseExited += () => { if (!_locked) SetState(KitState.Normal); };
             if (CustomMinimumSize == Vector2.Zero)
@@ -42,11 +43,24 @@ namespace Beep.ECS.UI.Kit
         public override void _GuiInput(InputEvent @event)
         {
             if (_locked) return;
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
             {
                 EmitSignal(SignalName.Pressed);
                 AcceptEvent();
+                return;
             }
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                GrabFocus();
+                EmitSignal(SignalName.Pressed);
+                AcceptEvent();
+            }
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            float s = Mathf.Clamp(UiSurface.FontSize(this) * 3.65f, 46f, 68f);
+            return new Vector2(s, s);
         }
 
         public override void _Draw()
@@ -60,6 +74,7 @@ namespace Beep.ECS.UI.Kit
             Color accent = _locked ? Desaturate(UiSurface.Semantic(this, _accent), 0.90f) : UiSurface.Semantic(this, _accent);
 
             DrawShape(body, ActiveShape, face, RimColor(), rim);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, ActiveShape, 0.8f);
             Rect2 inner = body.Grow(-Mathf.Clamp(Size.X * 0.12f, 5f, 10f));
             DrawShape(inner, ActiveShape, accent, InkColor(), Mathf.Max(1f, rim * 0.45f));
 

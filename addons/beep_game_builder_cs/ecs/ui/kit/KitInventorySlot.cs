@@ -130,6 +130,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             MouseEntered += () => { _hover = true; QueueRedraw(); };
             MouseExited += () => { _hover = false; QueueRedraw(); };
             // A slot is square by default and big enough for its own badge to be legible.
@@ -139,11 +140,25 @@ namespace Beep.ECS.UI.Kit
                 CustomMinimumSize = new Vector2(side, side);
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float side = Mathf.Clamp(fs * 2.65f, 40f, 52f);
+            return new Vector2(side, side);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (Locked) return;
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                EmitSignal(SignalName.SlotPressed);
+                AcceptEvent();
+                return;
+            }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
             {
+                GrabFocus();
                 EmitSignal(SignalName.SlotPressed);
                 AcceptEvent();
             }
@@ -232,6 +247,8 @@ namespace Beep.ECS.UI.Kit
             else if (_hover && !Locked)
                 KitSelect.Draw(this, g.SelectFor(WidgetClass), KitChrome.Poly(SlotShape, body, g),
                                body, UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.5f, rimPx));
+
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, SlotShape, 0.8f);
         }
 
         private void DrawInset(Rect2 r, Color well)

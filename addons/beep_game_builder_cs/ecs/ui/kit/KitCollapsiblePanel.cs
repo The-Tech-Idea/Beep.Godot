@@ -48,6 +48,14 @@ namespace Beep.ECS.UI.Kit
 
         [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
         private string _title = "";
+        [Export] public KitPanelHeaderStyle HeaderStyle { get => _headerStyle; set { _headerStyle = value; QueueRedraw(); } }
+        private KitPanelHeaderStyle _headerStyle = KitPanelHeaderStyle.UtilityStrip;
+        [Export(PropertyHint.Range, "0.45,1.4,0.01")]
+        public float TitleFontScale { get => _titleFontScale; set { _titleFontScale = value; QueueRedraw(); } }
+        private float _titleFontScale = 0.72f;
+        [Export(PropertyHint.Range, "0.1,1.6,0.01")]
+        public float BannerShade { get => _bannerShade; set { _bannerShade = value; QueueRedraw(); } }
+        private float _bannerShade = 0.44f;
         private bool _hoverHandle;
 
         [Signal] public delegate void ToggledEventHandler(bool collapsed);
@@ -60,6 +68,7 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             UpdateMinimumSize();
         }
 
@@ -75,8 +84,13 @@ namespace Beep.ECS.UI.Kit
         private void UpdateMinimumSize()
         {
             if (CustomMinimumSize != Vector2.Zero) return;
+            CustomMinimumSize = _GetMinimumSize();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
             int fs = UiSurface.FontSize(this);
-            CustomMinimumSize = new Vector2(fs * 14f, fs * 8f);
+            return new Vector2(fs * 14f, fs * 8f);
         }
 
         /// <summary>The handle's rect in local space. It deliberately falls OUTSIDE the panel
@@ -109,6 +123,13 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                Collapsed = !Collapsed;
+                AcceptEvent();
+                return;
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 bool next = HandleRect().HasPoint(mm.Position);
@@ -123,6 +144,7 @@ namespace Beep.ECS.UI.Kit
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb
                 && HandleRect().HasPoint(mb.Position))
             {
+                GrabFocus();
                 Collapsed = !Collapsed;
                 AcceptEvent();
             }
@@ -133,7 +155,6 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 6 || Size.Y <= 6) return;
 
             Color ink = InkColor();
-            var font = KitFont();
             int fs = UiSurface.FontSize(this);
 
             if (!_collapsed)
@@ -145,15 +166,10 @@ namespace Beep.ECS.UI.Kit
                 // shade rather than the raised one.
                 DrawMaterial(body, ActiveShape);
 
-                if (font != null && !string.IsNullOrEmpty(_title))
-                {
-                    int tf = UiSurface.FitText(this,
-                                               new Vector2(body.Size.X * 0.82f, Mathf.Max(12f, body.Size.Y * 0.11f)),
-                                               0.62f, _title, font, min: 8, themeMax: 0.78f);
-                    Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-                    DrawText(font, new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, body.Position.Y + tf * 1.25f),
-                               _title, tf, UiSurface.Text(this));
-                }
+                string genre = KitChrome.GenreOf(this);
+                KitChrome.DrawPanelHeader(this, genre, body, _title, HeaderStyle,
+                                          KitChrome.PanelHeaderShape(genre), BannerShade,
+                                          TitleFontScale);
             }
 
             // ── the handle, drawn LAST so it sits over the panel edge it straddles ──
@@ -171,6 +187,7 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(plate.B, info.B, 0.32f), 1f);
             }
             DrawShape(h, KitShape.Round, plate, ink, Mathf.Max(1f, Geo.Rim * 0.6f * (fs / 14f)));
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), h, KitShape.Round, 0.8f);
 
             DrawChevron(h);
         }

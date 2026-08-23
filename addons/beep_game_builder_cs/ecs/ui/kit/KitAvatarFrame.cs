@@ -40,6 +40,12 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            return new Vector2(fs * 4f, fs * 4f);
+        }
+
         public override void _Draw()
         {
             float d = Mathf.Min(Size.X, Size.Y);

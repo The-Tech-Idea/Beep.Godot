@@ -68,6 +68,13 @@ namespace Beep.ECS.UI.Kit
             _suppressing = false;
         }
 
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this);
+            float h = TrackHeight(fs);
+            return new Vector2(h * 2.05f + fs * 4f, h * 1.5f);
+        }
+
         /// <summary>Track height, floored so the switch stays a readable control. Was
         /// min(Size.Y*0.72, fs*1.35), which on a tight settings row produced a ~20px sliver.</summary>
         private static float TrackHeight(int fs) => Mathf.Max(22f, fs * 1.5f);

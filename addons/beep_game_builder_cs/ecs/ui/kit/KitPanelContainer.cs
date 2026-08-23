@@ -122,16 +122,19 @@ namespace Beep.ECS.UI.Kit
         }
 
         private float HeaderRoom()
-            => string.IsNullOrEmpty(_title)
-                ? 0f
-                : TitleStyle == HeaderStyle.None
-                    ? 0f
-                : TitleStyle == HeaderStyle.UtilityStrip
-                    ? Mathf.Max(UiSurface.FontSize(this, TitleFontScale, min: 8) * 1.35f, 14f)
-                    : Mathf.Max(UiSurface.FontSize(this, TitleFontScale, min: 8) * 1.28f, Size.Y * 0.085f) * 0.5f;
+            => KitChrome.PanelHeaderRoom(this, _genre, _title, SharedHeaderStyle(),
+                                         TitleFontScale, Size.Y);
 
         private float BodyOverhang()
-            => TitleStyle == HeaderStyle.Banner ? HeaderRoom() : 0f;
+            => KitChrome.PanelHeaderOverhang(this, _genre, _title, SharedHeaderStyle(),
+                                             TitleFontScale, Size.Y);
+
+        private KitPanelHeaderStyle SharedHeaderStyle() => TitleStyle switch
+        {
+            HeaderStyle.UtilityStrip => KitPanelHeaderStyle.UtilityStrip,
+            HeaderStyle.None => KitPanelHeaderStyle.None,
+            _ => KitPanelHeaderStyle.Banner,
+        };
 
         private float FramePx(float height)
         {
@@ -212,8 +215,8 @@ namespace Beep.ECS.UI.Kit
 
             if (!string.IsNullOrEmpty(_title) && TitleStyle != HeaderStyle.None)
             {
-                var font = GetThemeDefaultFont();
-                if (font != null) DrawUtilityHeader(body, fs, face, ink, font);
+                KitChrome.DrawPanelHeader(this, _genre, body, _title, KitPanelHeaderStyle.UtilityStrip,
+                                          KitShape.Rect, BannerShade, TitleFontScale);
             }
         }
 
@@ -273,63 +276,10 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawBanner(Rect2 host, int fs, Color face, Color ink)
         {
-            if (string.IsNullOrEmpty(_title)) return;
-            var font = GetThemeDefaultFont();
-            if (font == null) return;
             if (TitleStyle == HeaderStyle.None) return;
-            if (TitleStyle == HeaderStyle.UtilityStrip)
-            {
-                DrawUtilityHeader(host, fs, face, ink, font);
-                return;
-            }
-
-            float titleFs = UiSurface.FontSize(this, TitleFontScale, min: 8);
-            float h = Mathf.Max(titleFs * 1.28f, host.Size.Y * 0.085f);
-            int tf = UiSurface.FitText(this, new Vector2(host.Size.X * 0.82f, h * 0.74f),
-                                       0.64f, _title, font, min: 8, themeMax: TitleFontScale);
-            float need = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf).X + tf * 1.35f;
-            float w = Mathf.Max(host.Size.X * 0.48f, Mathf.Min(need, host.Size.X * 0.92f));
-            var r = new Rect2(host.Position.X + (host.Size.X - w) * 0.5f,
-                              host.Position.Y - h * 0.5f, w, h);
-
-            KitShape shape = Geo.Register switch
-            {
-                KitRegister.Carved => KitShape.Ribbon,
-                KitRegister.Casual => KitShape.Ellipse,
-                _ => KitShape.Rect,
-            };
-            Color plate = Tint(face, BannerShade);
-            Cut(r, shape, plate, ink, Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f)));
-
-            Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-            Color txt = UiSurface.Luminance(plate) > 0.5f
-                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
-            KitChrome.DrawText(this, _genre, font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                       _title, tf, txt);
-        }
-
-        private void DrawUtilityHeader(Rect2 host, int fs, Color face, Color ink, Font font)
-        {
-            float titleFs = UiSurface.FontSize(this, TitleFontScale, min: 8);
-            float frame = FramePx(host.Size.Y);
-            float h = Mathf.Max(titleFs * 1.18f, 13f);
-            float padX = Mathf.Max(6f, fs * 0.38f);
-            var r = new Rect2(host.Position.X + frame, host.Position.Y + frame,
-                              Mathf.Max(4f, host.Size.X - frame * 2f), h);
-            int tf = UiSurface.FitText(this, new Vector2(r.Size.X - padX * 2f, h * 0.76f),
-                                       0.60f, _title, font, min: 8, themeMax: TitleFontScale);
-            Color plate = Tint(face, Mathf.Max(0.48f, BannerShade));
-            DrawRect(r, plate with { A = Mathf.Min(0.92f, plate.A) });
-            DrawLine(new Vector2(r.Position.X, r.End.Y), new Vector2(r.End.X, r.End.Y),
-                     ink with { A = 0.52f }, Mathf.Max(1f, Geo.Rim * 0.35f * (fs / 14f)));
-
-            Vector2 m = font.GetStringSize(_title, HorizontalAlignment.Left, -1, tf);
-            Color txt = UiSurface.Luminance(plate) > 0.5f
-                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
-            KitChrome.DrawText(this, _genre, font,
-                new Vector2(r.Position.X + padX,
-                            r.Position.Y + (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                _title, tf, txt);
+            KitChrome.DrawPanelHeader(this, _genre, host, _title, SharedHeaderStyle(),
+                                      KitChrome.PanelHeaderShape(_genre), BannerShade,
+                                      TitleFontScale);
         }
     }
 }

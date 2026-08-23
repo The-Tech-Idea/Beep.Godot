@@ -19,15 +19,29 @@ namespace Beep.ECS.UI.Kit
             TopLevel = true;
             Visible = false;
             MouseFilter = MouseFilterEnum.Stop;
+            FocusMode = FocusModeEnum.All;
             ResizeToItems();
         }
 
         public void PopupAt(Vector2 globalPosition)
         {
-            Position = globalPosition;
             Visible = true;
+            _hover = _items.Length > 0 ? 0 : -1;
             ResizeToItems();
+            GlobalPosition = ClampedPopupPosition(globalPosition);
+            GrabFocus();
             QueueRedraw();
+        }
+
+        private Vector2 ClampedPopupPosition(Vector2 requestedGlobal)
+        {
+            Rect2 visible = GetViewport()?.GetVisibleRect() ?? new Rect2(Vector2.Zero, Size);
+            Vector2 min = visible.Position + new Vector2(6f, 6f);
+            Vector2 max = visible.End - Size - new Vector2(6f, 6f);
+            if (max.X < min.X) max.X = min.X;
+            if (max.Y < min.Y) max.Y = min.Y;
+            return new Vector2(Mathf.Clamp(requestedGlobal.X, min.X, max.X),
+                               Mathf.Clamp(requestedGlobal.Y, min.Y, max.Y));
         }
 
         public void SetItems(string[] items)
@@ -37,6 +51,30 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (@event is InputEventKey key)
+            {
+                if (KitChrome.IsCancelKey(key))
+                {
+                    Visible = false;
+                    _hover = -1;
+                    AcceptEvent();
+                    return;
+                }
+                Vector2I dir = KitChrome.DirectionFromKey(key);
+                if (dir.Y != 0)
+                {
+                    MoveHover(dir.Y);
+                    AcceptEvent();
+                    return;
+                }
+                if (KitChrome.IsConfirmKey(key) && _hover >= 0 && _hover < _items.Length)
+                {
+                    Select(_hover);
+                    AcceptEvent();
+                    return;
+                }
+            }
+
             if (@event is InputEventMouseMotion mm)
             {
                 int hit = Hit(mm.Position);
@@ -48,12 +86,25 @@ namespace Beep.ECS.UI.Kit
             {
                 int hit = Hit(mb.Position);
                 if (hit >= 0 && hit < _items.Length)
-                {
-                    EmitSignal(SignalName.ItemSelected, hit, _items[hit]);
-                    Visible = false;
-                }
+                    Select(hit);
                 AcceptEvent();
             }
+        }
+
+        private void Select(int index)
+        {
+            if (index < 0 || index >= _items.Length) return;
+            EmitSignal(SignalName.ItemSelected, index, _items[index]);
+            Visible = false;
+            _hover = -1;
+        }
+
+        private void MoveHover(int delta)
+        {
+            if (_items.Length == 0) return;
+            int next = _hover < 0 ? 0 : _hover + delta;
+            _hover = Mathf.Clamp(next, 0, _items.Length - 1);
+            QueueRedraw();
         }
 
         public override void _Input(InputEvent @event)
@@ -70,6 +121,8 @@ namespace Beep.ECS.UI.Kit
         {
             if (Size.X < 8f || Size.Y < 8f) return;
             DrawMaterial(new Rect2(Vector2.Zero, Size), ActiveShape);
+            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                    ActiveShape, 0.75f);
 
             var font = KitFont();
             if (font == null) return;
@@ -102,7 +155,7 @@ namespace Beep.ECS.UI.Kit
 
         private float RowHeight() => Mathf.Max(24f, UiSurface.FontSize(this) * 1.9f);
 
-        private void ResizeToItems()
+        public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             float width = fs * 11f;
@@ -110,7 +163,12 @@ namespace Beep.ECS.UI.Kit
             if (font != null)
                 foreach (string item in _items)
                     width = Mathf.Max(width, font.GetStringSize(item, HorizontalAlignment.Left, -1, fs).X + fs * 3f);
-            Size = CustomMinimumSize = new Vector2(width, Mathf.Max(RowHeight() + fs, RowHeight() * Mathf.Max(1, _items.Length) + fs));
+            return new Vector2(width, Mathf.Max(RowHeight() + fs, RowHeight() * Mathf.Max(1, _items.Length) + fs));
+        }
+
+        private void ResizeToItems()
+        {
+            Size = CustomMinimumSize = _GetMinimumSize();
         }
     }
 }

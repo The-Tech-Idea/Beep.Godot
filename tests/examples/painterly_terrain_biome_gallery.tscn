@@ -1,0 +1,211 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+
+[node name="PainterlyTerrainBiomeGallery" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -200
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.12549, 0.137255, 0.109804, 1)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(640, 360)
+enabled = true
+
+[node name="DesertLabel" type="Label" parent="."]
+offset_left = 40.0
+offset_top = 28.0
+offset_right = 360.0
+offset_bottom = 54.0
+text = "Desert: sand texture + subtle terrain detail"
+
+[node name="Desert" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 1
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 1081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.18
+SandMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
+UseRepeatedBiomeOverlays = true
+SandOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
+BiomeOverlayStrength = 0.14
+PostSharpenStrength = 0.18
+RenderZIndex = -10
+RenderOffset = Vector2(40, 64)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.78
+BiomeDetailDensity = 1.25
+DuneLayerStrength = 0.70
+PebbleLayerStrength = 0.42
+
+[node name="GrassLabel" type="Label" parent="."]
+offset_left = 480.0
+offset_top = 28.0
+offset_right = 800.0
+offset_bottom = 54.0
+text = "Grass: green base + repeated meadow texture"
+
+[node name="Grass" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 0
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 2081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.14
+GrassMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
+UseRepeatedGrassOverlay = true
+GrassOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
+GrassOverlayStrength = 0.18
+PostSharpenStrength = 0.18
+RenderZIndex = -10
+RenderOffset = Vector2(480, 64)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.68
+BiomeDetailDensity = 1.20
+VegetationLayerStrength = 0.56
+FlowerLayerStrength = 0.16
+
+[node name="RockLabel" type="Label" parent="."]
+offset_left = 920.0
+offset_top = 28.0
+offset_right = 1240.0
+offset_bottom = 54.0
+text = "Rock: gravel texture + terrain detail"
+
+[node name="Rock" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 5
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 3081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.18
+RockMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Neutral Gravel Ground Texture.png"
+UseRepeatedBiomeOverlays = true
+RockOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Neutral Gravel Ground Texture.png"
+BiomeOverlayStrength = 0.13
+PostSharpenStrength = 0.20
+RenderZIndex = -10
+RenderOffset = Vector2(920, 64)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.70
+BiomeDetailDensity = 1.10
+PebbleLayerStrength = 0.50
+
+[node name="SwampLabel" type="Label" parent="."]
+offset_left = 40.0
+offset_top = 348.0
+offset_right = 360.0
+offset_bottom = 374.0
+text = "Swamp: wet-earth texture + damp terrain"
+
+[node name="Swamp" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 7
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 4081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.14
+MudMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Wet Muddy Earth Texture.png"
+UseRepeatedBiomeOverlays = true
+EarthOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Wet Muddy Earth Texture.png"
+BiomeOverlayStrength = 0.12
+PostSharpenStrength = 0.18
+RenderZIndex = -10
+RenderOffset = Vector2(40, 384)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.72
+BiomeDetailDensity = 1.25
+VegetationLayerStrength = 0.36
+
+[node name="SnowLabel" type="Label" parent="."]
+offset_left = 480.0
+offset_top = 348.0
+offset_right = 800.0
+offset_bottom = 374.0
+text = "Snow/Ice: frost texture + cold terrain"
+
+[node name="Snow" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 8
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 5081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.16
+SnowIceMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
+UseRepeatedBiomeOverlays = true
+SnowIceOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
+BiomeOverlayStrength = 0.12
+PostSharpenStrength = 0.18
+RenderZIndex = -10
+RenderOffset = Vector2(480, 384)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.66
+BiomeDetailDensity = 1.05
+
+[node name="SeaLabel" type="Label" parent="."]
+offset_left = 920.0
+offset_top = 348.0
+offset_right = 1240.0
+offset_bottom = 374.0
+text = "Sea: deep-water texture + animated ripple"
+
+[node name="Sea" type="Node2D" parent="."]
+script = ExtResource("terrain")
+Mode = 0
+Preset = 4
+WidthTiles = 10
+HeightTiles = 6
+TileSize = 32
+PixelsPerTile = 32
+Seed = 6081
+GenerateOnReady = true
+GrainStrength = 0.0
+UseBundledMaterialTextures = true
+MaterialTextureStrength = 0.14
+ShallowWaterMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
+DeepWaterMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
+UseRepeatedWaterOverlay = true
+WaterOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
+WaterOverlayStrength = 0.16
+PostSharpenStrength = 0.14
+RenderZIndex = -10
+RenderOffset = Vector2(920, 384)
+EnableBiomeDetailLayers = true
+BiomeDetailStrength = 0.44
+WaterAlpha = 0.78
+ShallowWaterAlpha = 0.62
+WaterFoamStrength = 0.20
+WaterRippleStrength = 0.12

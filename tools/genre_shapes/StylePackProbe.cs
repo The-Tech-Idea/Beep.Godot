@@ -44,35 +44,6 @@ public partial class StylePackProbe : Node
                + $"{(reverted ? "built-in restored" : "<-- LEAKED from previous theme")}");
         if (!reverted) bad++;
 
-        // MATERIAL. The last axis to stay C#-only, and the loudest difference between two
-        // themes of one genre in the references -- stone versus drafting paper.
-        SkinCatalog.SetActiveSkin("citybuilder", "urban", "", "");
-        var ga = KitGrain.For("citybuilder");
-        SkinCatalog.SetActiveSkin("citybuilder", "blueprint", "", "");
-        var gb = KitGrain.For("citybuilder");
-        GD.Print($"grain:  urban      {ga?.Pattern} x{ga?.Tiles} @{ga?.Amount:0.000} ({ga?.Material})");
-        GD.Print($"grain:  blueprint  {gb?.Pattern} x{gb?.Tiles} @{gb?.Amount:0.000}");
-        if (ga is not { } va || gb is not { } vb || va.Pattern == vb.Pattern)
-        { bad++; GD.Print("grain:  <-- SAME MATERIAL, the grain keys are inert"); }
-
-        // And an untouched genre must keep its generated assignment.
-        SkinCatalog.SetActiveSkin("rpg", "", "", "");
-        var gr = KitGrain.For("rpg");
-        bool kept = gr is { } vr && vr.Pattern == "pattern_50" && vr.Tiles == 3;
-        GD.Print($"grain:  rpg (no override) -> {gr?.Pattern} x{gr?.Tiles} "
-               + $"{(kept ? "table intact" : "<-- OVERRIDE LEAKED ACROSS GENRES")}");
-        if (!kept) bad++;
-
-        // A genre with no table entry has NO grain. KitGrainDef is a struct, so a failed
-        // TryGetValue leaves a DEFAULT rather than null -- returning that would hand an unknown
-        // genre a grain with an empty pattern, which resolves to "grain_.png", warns once, and
-        // renders flat. Asserted rather than reasoned about, because that is exactly the bug the
-        // struct semantics produced the first time.
-        SkinCatalog.SetActiveSkin("nosuchgenre", "", "", "");
-        var gu = KitGrain.For("nosuchgenre");
-        GD.Print($"grain:  unknown genre -> {(gu is null ? "null (correct)" : $"{gu.Value.Pattern} <-- PHANTOM GRAIN")}");
-        if (gu is not null) bad++;
-
         GD.Print($"pack:   {(bad == 0 ? "PASS" : $"FAIL ({bad})")}");
         GetTree().Quit(bad == 0 ? 0 : 1);
     }

@@ -25,7 +25,7 @@ namespace Beep.ECS
 
         /// <summary>Emitted whenever the computed <see cref="Value"/> may have changed (a modifier
         /// added, removed, or expired). Carries the new value.</summary>
-        [Signal] public delegate void ChangedEventHandler(float value);
+        [Signal] public delegate void ValueChangedEventHandler(float value);
 
         private readonly List<StatModifier> _modifiers = new();
         private float _cached;
@@ -43,6 +43,9 @@ namespace Beep.ECS
         public void AddModifier(StatModifier mod)
         {
             if (mod == null) return;
+            if (!float.IsFinite(mod.Amount))
+                return;
+            if (!float.IsFinite(mod.Duration)) mod.Duration = 0f;
             _modifiers.Add(mod);
             Invalidate();
         }
@@ -68,10 +71,12 @@ namespace Beep.ECS
         /// place — <see cref="StatsComponent"/> — off the genre's clock.</summary>
         public void TickDurations(float amount)
         {
+            if (!float.IsFinite(amount) || amount <= 0f) return;
             bool changed = false;
             for (int i = _modifiers.Count - 1; i >= 0; i--)
             {
                 var m = _modifiers[i];
+                if (!float.IsFinite(m.Duration)) { _modifiers.RemoveAt(i); changed = true; continue; }
                 if (m.Duration < 0f) continue;      // permanent
                 m.Duration -= amount;
                 if (m.Duration <= 0f) { _modifiers.RemoveAt(i); changed = true; }
@@ -82,18 +87,21 @@ namespace Beep.ECS
         private void Invalidate()
         {
             _dirty = true;
-            EmitSignal(SignalName.Changed, Value);  // Value forces the recompute exactly once
+            EmitSignal(SignalName.ValueChanged, Value);  // Value forces the recompute exactly once
         }
 
         private void Recompute()
         {
             float add = 0f, mul = 1f;
+            float baseValue = float.IsFinite(BaseValue) ? BaseValue : 0f;
             foreach (var m in _modifiers)
             {
+                if (!float.IsFinite(m.Amount)) continue;
                 if (m.Op == StatOp.Add) add += m.Amount;
                 else mul *= m.Amount;
             }
-            _cached = (BaseValue + add) * mul;
+            _cached = (baseValue + add) * mul;
+            if (!float.IsFinite(_cached)) _cached = 0f;
             _dirty = false;
         }
     }

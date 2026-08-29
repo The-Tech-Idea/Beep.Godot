@@ -38,6 +38,15 @@ namespace Beep.ECS
         [Signal] public delegate void JumpedEventHandler(int jumpsRemaining);
         [Signal] public delegate void DoubleJumpedEventHandler();
 
+        public float EffectiveJumpForce => float.IsFinite(JumpForce) ? -Mathf.Abs(JumpForce) : -450f;
+        public int EffectiveMaxJumps => Mathf.Max(0, MaxJumps);
+        public float EffectiveVariableJumpMultiplier => float.IsFinite(VariableJumpMultiplier) ? Mathf.Clamp(VariableJumpMultiplier, 0f, 1f) : 1f;
+        public float EffectiveVariableJumpCutDuration => float.IsFinite(VariableJumpCutDuration) ? Mathf.Max(0.001f, VariableJumpCutDuration) : 0.001f;
+        public float EffectiveCoyoteTime => NonNegative(CoyoteTime);
+        public float EffectiveJumpBufferTime => NonNegative(JumpBufferTime);
+        public float EffectiveApexHangMultiplier => float.IsFinite(ApexHangMultiplier) ? Mathf.Clamp(ApexHangMultiplier, 0f, 1f) : 1f;
+        public float EffectiveApexThreshold => float.IsFinite(ApexThreshold) ? Mathf.Max(0.001f, ApexThreshold) : 0.001f;
+
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
         private int _jumpsRemaining;
@@ -51,22 +60,23 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
-            _jumpsRemaining = MaxJumps;
+            _jumpsRemaining = EffectiveMaxJumps;
         }
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
             // Gate the "jump" reads so an absent action doesn't spam a per-frame error before the
             // input map is generated (matches the controllers). No jump is possible without it anyway.
             if (!InputActionsAvailable("jump")) return;
-            float dt = (float)delta;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
             bool onFloor = _body.IsOnFloor();
 
             if (onFloor)
             {
-                _jumpsRemaining = MaxJumps;
-                _coyoteTimer = CoyoteTime;
+                _jumpsRemaining = EffectiveMaxJumps;
+                _coyoteTimer = EffectiveCoyoteTime;
             }
             else
             {
@@ -74,16 +84,17 @@ namespace Beep.ECS
             }
 
             if (Input.IsActionJustPressed("jump"))
-                _bufferTimer = JumpBufferTime;
+                _bufferTimer = EffectiveJumpBufferTime;
             else
                 _bufferTimer -= dt;
 
             _jumpHeld = Input.IsActionPressed("jump");
 
             // Apex hang — reduce gravity only when moving upward near threshold.
-            if (!onFloor && _body.Velocity.Y < 0 && _body.Velocity.Y > -ApexThreshold)
+            float apexThreshold = EffectiveApexThreshold;
+            if (!onFloor && _body.Velocity.Y < 0 && _body.Velocity.Y > -apexThreshold)
             {
-                float slowFactor = 1f - (1f - ApexHangMultiplier) * (1f - (-_body.Velocity.Y / ApexThreshold));
+                float slowFactor = 1f - (1f - EffectiveApexHangMultiplier) * (1f - (-_body.Velocity.Y / apexThreshold));
                 _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * slowFactor);
             }
 
@@ -91,10 +102,11 @@ namespace Beep.ECS
             if (!_jumpHeld && _body.Velocity.Y < 0)
             {
                 _jumpCutTimer += dt;
-                if (_jumpCutTimer < VariableJumpCutDuration)
+                float cutDuration = EffectiveVariableJumpCutDuration;
+                if (_jumpCutTimer < cutDuration)
                 {
-                    float cutProgress = _jumpCutTimer / VariableJumpCutDuration;
-                    _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * Mathf.Lerp(1f, VariableJumpMultiplier, cutProgress));
+                    float cutProgress = _jumpCutTimer / cutDuration;
+                    _body.Velocity = new Vector2(_body.Velocity.X, _body.Velocity.Y * Mathf.Lerp(1f, EffectiveVariableJumpMultiplier, cutProgress));
                 }
             }
             else
@@ -104,16 +116,18 @@ namespace Beep.ECS
 
             // Check for stun/freeze status effects.
             bool isStunned = StunBlocksJump && _statusEffects != null && _statusEffects.HasEffect("stun");
+            if (isStunned)
+                _bufferTimer = 0f;
 
             // Execute buffered jump.
-            if (_bufferTimer > 0 && _jumpsRemaining > 0 && !isStunned && (onFloor || _coyoteTimer > 0 || _jumpsRemaining < MaxJumps))
+            if (_bufferTimer > 0 && _jumpsRemaining > 0 && !isStunned && (onFloor || _coyoteTimer > 0 || _jumpsRemaining < EffectiveMaxJumps))
             {
-                _body.Velocity = new Vector2(_body.Velocity.X, JumpForce);
+                _body.Velocity = new Vector2(_body.Velocity.X, EffectiveJumpForce);
                 _jumpsRemaining--;
                 _bufferTimer = 0;
                 _coyoteTimer = 0;
                 _jumpCutTimer = 0;
-                if (_jumpsRemaining == MaxJumps - 1)
+                if (_jumpsRemaining == EffectiveMaxJumps - 1)
                     EmitSignal(SignalName.Jumped, _jumpsRemaining);
                 else
                     EmitSignal(SignalName.DoubleJumped);
@@ -125,7 +139,13 @@ namespace Beep.ECS
         {
             if (!IsActive) return;
             if (_body == null) return;
-            _body.Velocity = new Vector2(_body.Velocity.X, force);
+            float jumpForce = float.IsFinite(force) ? -Mathf.Abs(force) : EffectiveJumpForce;
+            float x = float.IsFinite(_body.Velocity.X) ? _body.Velocity.X : 0f;
+            _body.Velocity = new Vector2(x, jumpForce);
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

@@ -68,18 +68,28 @@ namespace Beep.ECS
         [Signal] public delegate void BouncedEventHandler(Vector2 groundVelocity, float height);
         [Signal] public delegate void SettledEventHandler();
 
-        /// <summary>Current owner, or null while loose. Read to drive AI ("chase the loose ball").</summary>
-        public Node2D? Owner { get; private set; }
-        public bool IsOwned => Owner != null;
+        /// <summary>Current possessor, or null while loose. Read to drive AI ("chase the loose ball").</summary>
+        public Node2D? Possessor { get; private set; }
+        public bool IsOwned => Possessor != null;
         public bool IsAirborne => _height != null && _height.IsAirborne;
 
         private CharacterBody2D? _body;
         private HeightComponent? _height;
+        private HeightComponent? _landedSignalSource;
         private Area2D? _claimArea;
         private Vector2 _groundVelocity;
         private float _verticalVelocity;
         private float _reclaimTimer;
         private bool _settledEmitted;
+
+        public float EffectiveRollFriction => NonNegative(RollFriction);
+        public float EffectiveRestitution => Mathf.Clamp(FiniteOr(Restitution, 0.6f), 0f, 1f);
+        public float EffectiveBounceGroundRetention => Mathf.Clamp(FiniteOr(BounceGroundRetention, 0.8f), 0f, 1f);
+        public float EffectiveSettleThreshold => NonNegative(SettleThreshold);
+        public float EffectiveGravity => NonNegative(Gravity);
+        public float EffectiveClaimRadius => NonNegative(ClaimRadius);
+        public float EffectiveDribbleOffset => NonNegative(DribbleOffset);
+        public float EffectiveReclaimDelay => NonNegative(ReclaimDelay);
 
         public override void _Ready()
         {
@@ -91,12 +101,36 @@ namespace Beep.ECS
             _height = GetSiblingComponent<HeightComponent>();
             if (_height == null && _body != null && !Engine.IsEditorHint())
             {
+                CallDeferred(nameof(EnsureHeightComponent));
+            }
+            else if (_height != null)
+            {
+                ConnectHeightSignals();
+            }
+
+            if (AutoPossess && !Engine.IsEditorHint()) SetupClaimArea();
+        }
+
+        public void EnsureHeightComponent()
+        {
+            if (_body == null || Engine.IsEditorHint()) return;
+            _height = GetSiblingComponent<HeightComponent>();
+            if (_height == null)
+            {
                 _height = new HeightComponent { Name = "Height" };
                 _body.AddChild(_height);
             }
-            if (_height != null) _height.Landed += OnLanded;
+            ConnectHeightSignals();
+        }
 
-            if (AutoPossess && !Engine.IsEditorHint()) SetupClaimArea();
+        private void ConnectHeightSignals()
+        {
+            if (_height == null || !GodotObject.IsInstanceValid(_height)) return;
+            if (_landedSignalSource == _height && GodotObject.IsInstanceValid(_landedSignalSource)) return;
+            if (_landedSignalSource != null && GodotObject.IsInstanceValid(_landedSignalSource))
+                _landedSignalSource.Landed -= OnLanded;
+            _height.Landed += OnLanded;
+            _landedSignalSource = _height;
         }
 
         /// <summary>Resolve (or create) the claim-radius Area2D and wire contact claiming. A sibling
@@ -110,7 +144,7 @@ namespace Beep.ECS
             if (_claimArea == null)
             {
                 _claimArea = new Area2D { Name = "ClaimRadius" };
-                var shape = new CollisionShape2D { Shape = new CircleShape2D { Radius = ClaimRadius } };
+                var shape = new CollisionShape2D { Shape = new CircleShape2D { Radius = EffectiveClaimRadius } };
                 _claimArea.AddChild(shape);
                 _body.AddChild(_claimArea);
             }
@@ -131,18 +165,19 @@ namespace Beep.ECS
         public void Kick(Vector2 direction, float power, float lob = 0f, Node2D? kicker = null)
         {
             if (_body == null) return;
-            var dir = direction.LengthSquared() > 0.0001f ? direction.Normalized() : Vector2.Right;
-            _groundVelocity = dir * power;
-            if (lob > 0f && _height != null)
+            var dir = IsFinite(direction) && direction.LengthSquared() > 0.0001f ? direction.Normalized() : Vector2.Right;
+            _groundVelocity = dir * NonNegative(power);
+            float effectiveLob = NonNegative(lob);
+            if (effectiveLob > 0f && _height != null)
             {
                 // v0 = sqrt(2·g·h) reaches the lob height before falling back.
-                _verticalVelocity = Mathf.Sqrt(2f * Gravity * lob);
+                _verticalVelocity = Mathf.Sqrt(2f * EffectiveGravity * effectiveLob);
                 _height.SetHeight(Mathf.Max(_height.Height, 0.001f));  // become airborne
             }
             _settledEmitted = false;
             SetOwner(null);
-            _reclaimTimer = ReclaimDelay;
-            EmitSignal(SignalName.Kicked, kicker ?? _body, _groundVelocity, lob);
+            _reclaimTimer = EffectiveReclaimDelay;
+            EmitSignal(SignalName.Kicked, kicker ?? _body, _groundVelocity, effectiveLob);
         }
 
         /// <summary>Claim the ball for a body. No-op if already owned by it or the reclaim delay
@@ -152,7 +187,7 @@ namespace Beep.ECS
             if (_body == null || claimant == null) return false;
             if (!claimant.IsInGroup(PlayerGroup)) return false;
             if (_reclaimTimer > 0f) return false;
-            if (Owner == claimant) return true;
+            if (Possessor == claimant) return true;
             SetOwner(claimant);
             return true;
         }
@@ -161,14 +196,16 @@ namespace Beep.ECS
         public void Release()
         {
             SetOwner(null);
-            _reclaimTimer = ReclaimDelay;
+            _reclaimTimer = EffectiveReclaimDelay;
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive || _body == null) return;
-            float dt = (float)delta;
-            _reclaimTimer = Mathf.Max(0f, _reclaimTimer - dt);
+            float dt = DeltaSeconds(delta);
+            _reclaimTimer = Mathf.Max(0f, FiniteOr(_reclaimTimer, 0f) - dt);
+            if (!IsFinite(_groundVelocity)) _groundVelocity = Vector2.Zero;
+            _verticalVelocity = FiniteOr(_verticalVelocity, 0f);
 
             if (IsOwned)
             {
@@ -178,7 +215,7 @@ namespace Beep.ECS
 
             // Loose ball: roll on the ground plane with friction, and integrate the bounce Z.
             IntegrateBounce(dt);
-            _groundVelocity = _groundVelocity.MoveToward(Vector2.Zero, RollFriction * dt);
+            _groundVelocity = _groundVelocity.MoveToward(Vector2.Zero, EffectiveRollFriction * dt);
             _body.Velocity = _groundVelocity;
             _body.MoveAndSlide();
             _groundVelocity = _body.Velocity;   // collisions may have stopped it; keep the truth
@@ -196,15 +233,17 @@ namespace Beep.ECS
         /// dribbling player can't be shoved off the ball by a wall.</summary>
         private void FollowOwner(double delta)
         {
-            if (Owner == null || !GodotObject.IsInstanceValid(Owner)) { SetOwner(null); return; }
+            if (Possessor == null || !GodotObject.IsInstanceValid(Possessor)) { SetOwner(null); return; }
             // Facing = the owner's current velocity direction, or right when idle.
             Vector2 facing = Vector2.Right;
-            if (Owner is CharacterBody2D cb && cb.Velocity.LengthSquared() > 1f)
+            if (Possessor is CharacterBody2D cb && cb.Velocity.LengthSquared() > 1f)
                 facing = cb.Velocity.Normalized();
-            else if (Owner is Node2D n)
+            else if (Possessor is Node2D n)
                 facing = Vector2.FromAngle(n.Rotation);
 
-            _body!.GlobalPosition = Owner.GlobalPosition + facing * DribbleOffset;
+            if (!IsFinite(facing) || facing.LengthSquared() <= 0.0001f) facing = Vector2.Right;
+            Vector2 ownerPosition = IsFinite(Possessor.GlobalPosition) ? Possessor.GlobalPosition : Vector2.Zero;
+            _body!.GlobalPosition = ownerPosition + facing * EffectiveDribbleOffset;
             _groundVelocity = Vector2.Zero;
             // A dribbled ball is on the ground.
             _height?.SetHeight(0f);
@@ -217,8 +256,9 @@ namespace Beep.ECS
             if (_height == null) return;
             if (!IsAirborne && _verticalVelocity <= 0f) return;
 
-            _verticalVelocity -= Gravity * (float)dt;
-            float h = _height.Height + _verticalVelocity * (float)dt;
+            float effectiveDelta = double.IsFinite(dt) ? Mathf.Max(0f, (float)dt) : 0f;
+            _verticalVelocity = FiniteOr(_verticalVelocity, 0f) - EffectiveGravity * effectiveDelta;
+            float h = Mathf.Max(0f, FiniteOr(_height.Height, 0f)) + _verticalVelocity * effectiveDelta;
             if (h <= 0f && _verticalVelocity < 0f)
             {
                 // Landing: HeightComponent.Landed fires OnLanded, which applies the bounce impulse.
@@ -236,33 +276,45 @@ namespace Beep.ECS
         {
             if (IsOwned) return;   // a possessed ball doesn't bounce; it's dribbled
             float impact = -_verticalVelocity;   // downward speed at contact
-            if (impact < SettleThreshold)
+            if (impact < EffectiveSettleThreshold)
             {
                 _verticalVelocity = 0f;
                 return;   // settle into a roll
             }
-            _verticalVelocity = impact * Restitution;
-            _groundVelocity *= BounceGroundRetention;
+            _verticalVelocity = impact * EffectiveRestitution;
+            _groundVelocity *= EffectiveBounceGroundRetention;
             _height?.SetHeight(0.001f);   // become airborne for the next bounce arc
             EmitSignal(SignalName.Bounced, _groundVelocity, _verticalVelocity);
         }
 
         private void SetOwner(Node2D? owner)
         {
-            if (Owner == owner) return;
-            var previous = Owner;
-            Owner = owner;
+            if (Possessor == owner) return;
+            var previous = Possessor;
+            Possessor = owner;
             if (owner != null) EmitSignal(SignalName.Possessed, owner);
             else if (previous != null) EmitSignal(SignalName.PossessionLost);
         }
 
         public override void _ExitTree()
         {
-            if (_height != null && GodotObject.IsInstanceValid(_height))
-                _height.Landed -= OnLanded;
+            if (_landedSignalSource != null && GodotObject.IsInstanceValid(_landedSignalSource))
+                _landedSignalSource.Landed -= OnLanded;
             if (_claimArea != null && GodotObject.IsInstanceValid(_claimArea))
                 _claimArea.BodyEntered -= OnClaimAreaBodyEntered;
             base._ExitTree();
         }
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

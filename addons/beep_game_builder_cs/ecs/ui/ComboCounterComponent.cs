@@ -19,6 +19,9 @@ namespace Beep.ECS.UI
         private int BaseFontSize => UiSurface.FontSize(this, BaseFontScale);
         [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float MaxFontScale { get; set; } = 3.2f;
         private int MaxFontSize => UiSurface.FontSize(this, MaxFontScale);
+        [Export] public NodePath ComboLabelPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         // Palette-derived, not a literal. A colour baked into a component is a palette
         // pinned where no skin can reach it; these follow theme -> palette like every
         // other control. Computed, so a skin change is picked up with no invalidation.
@@ -27,6 +30,7 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ComboResetEventHandler();
 
         private KitHudText? _label;
+        private bool _createdLabel;
         private int _count;
         private float _resetTimer;
         private Tween? _punchTween;
@@ -34,35 +38,94 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(SetupLabel));
+            SetProcess(false);
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(SetupLabel));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindComboLabel() == null)
+                return new[] { "Set ComboLabelPath, add a scene-authored KitHudText named ComboLabel, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void SetupLabel()
         {
-            if (Engine.IsEditorHint()) return;
+            if (BindExistingLabel())
+            {
+                StyleLabel();
+                if (Engine.IsEditorHint())
+                {
+                    _label!.Text = "3x";
+                    _label.Visible = true;
+                }
+                return;
+            }
+
+            if (!GenerateControlsWhenPathsEmpty)
+                return;
+
+            if (GetParent() is not Node parent)
+                return;
+
+            _createdLabel = true;
             _label = new KitHudText
             {
                 Name = "ComboLabel",
-                Text = "",
-                Visible = false,
+                Text = Engine.IsEditorHint() ? "3x" : "",
+                Visible = Engine.IsEditorHint(),
                 Role = UiSurface.TextRole.Title,
                 Accent = UiSurface.Role.Warning,
                 MouseFilter = Godot.Control.MouseFilterEnum.Ignore
             };
+            StyleLabel();
+            parent.AddChild(_label);
+            SetEditedOwner(_label);
+        }
+
+        private bool BindExistingLabel()
+        {
+            _createdLabel = false;
+            _label = FindComboLabel();
+            return _label != null;
+        }
+
+        public bool UsesSceneControls()
+            => !ComboLabelPath.IsEmpty || FindComboLabel() != null;
+
+        private KitHudText? FindComboLabel()
+        {
+            if (!ComboLabelPath.IsEmpty && GetNodeOrNull<KitHudText>(ComboLabelPath) is { } pathLabel)
+                return pathLabel;
+
+            if (FindChild("ComboLabel", recursive: true, owned: false) is KitHudText childLabel)
+                return childLabel;
+
+            return GetParent()?.FindChild("ComboLabel", recursive: true, owned: false) as KitHudText;
+        }
+
+        private void StyleLabel()
+        {
+            if (_label == null) return;
+            _label.Role = UiSurface.TextRole.Title;
+            _label.Accent = UiSurface.Role.Warning;
+            _label.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
             // Punch on the offset_transform layer so a container parent can't overwrite the
             // scale (matches the other migrated effects).
             _label.OffsetTransformEnabled = true;
-            if (GetParent() is Node parent)
-            {
-                parent.AddChild(_label);
-                if (parent.IsInsideTree())
-                    _label.Owner = parent.Owner;
-            }
+            if (!Engine.IsEditorHint())
+                _label.Visible = false;
         }
 
         public override void _Process(double delta)
         {
-            if (_count == 0 || !IsActive) return;
+            if (_count == 0 || !IsActive)
+            {
+                UpdateProcessing();
+                return;
+            }
             _resetTimer -= (float)delta;
             if (_resetTimer <= 0) ResetCombo();
         }
@@ -72,8 +135,8 @@ namespace Beep.ECS.UI
             base._ExitTree();
             _punchTween?.Kill();   // consistency with the repo's tween-owning components
             _punchTween = null;
-            // _label was AddChild'd to the parent — free it or a stray "ComboLabel" is orphaned.
-            if (_label != null && GodotObject.IsInstanceValid(_label)) _label.QueueFree();
+            // Free only fallback labels this component created; authored labels belong to the scene.
+            if (_createdLabel && _label != null && GodotObject.IsInstanceValid(_label)) _label.QueueFree();
             _label = null;
         }
 
@@ -96,6 +159,15 @@ namespace Beep.ECS.UI
             _punchTween = CreateTween();
             _punchTween.TweenProperty(_label, "offset_transform_scale", Vector2.One, 0.15f).SetEase(Tween.EaseType.Out);
             EmitSignal(SignalName.ComboChanged, _count);
+            UpdateProcessing();
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
 
         /// <summary>Reset combo to 0 and hide the label.</summary>
@@ -104,6 +176,10 @@ namespace Beep.ECS.UI
             _count = 0;
             if (_label != null) _label.Visible = false;
             EmitSignal(SignalName.ComboReset);
+            UpdateProcessing();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && _count > 0);
     }
 }

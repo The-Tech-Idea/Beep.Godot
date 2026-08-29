@@ -143,12 +143,13 @@ namespace Beep.ECS
                     break;
                 case Preset.BtnHoverWobble:
                     _tween.SetParallel(true);
-                    _tween.TweenProperty(node, $"{sProp}:x", 1.2f, 0.1f);
-                    _tween.TweenProperty(node, $"{sProp}:y", 0.75f, 0.13f);
+                    float hoverDuration = Mathf.Clamp(Duration, 0.001f, 0.13f);
+                    _tween.TweenProperty(node, $"{sProp}:x", 1.2f, hoverDuration);
+                    _tween.TweenProperty(node, $"{sProp}:y", 0.75f, hoverDuration);
                     // Rotation only on Node2D — offset_transform_rotation is radians with different
                     // anchoring; a hover wobble doesn't need it on Controls.
                     if (!ctrl)
-                        _tween.TweenProperty(node, "rotation_degrees", GD.Randf() > 0.5f ? 5f : -5f, 0.1f);
+                        _tween.TweenProperty(node, "rotation_degrees", GD.Randf() > 0.5f ? 5f : -5f, hoverDuration);
                     break;
                 case Preset.CardHoverPop:
                     _tween.SetParallel(true);

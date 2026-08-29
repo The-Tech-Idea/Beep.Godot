@@ -8,7 +8,7 @@ namespace Beep.ECS.UI
 	[GlobalClass]
 	public partial class ThemePresetComponent : UIComponent
 	{
-		/// <summary>Theme preset name (e.g. "cartoon", "modern"). Resolved from the
+		/// <summary>Theme preset name (e.g. "oilfield_days", "modern"). Resolved from the
 		/// file-based skin catalog at runtime. Free-form string — any theme.json in
 		/// the skins/ tree works. Set alongside GenreName so the catalog knows where
 		/// to look. Falls back to the genre's default_theme if not found.</summary>
@@ -20,28 +20,41 @@ namespace Beep.ECS.UI
 			// PaletteName dropdown re-cascades.
 			// Bail when unchanged: GameInfoBinder pushes four of these in a row, and each
 			// setter rebuilds the entire theme.
-			set { if (_presetName == value) return; _presetName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
+			set { if (_presetName == value) return; _presetName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (!_suspendAutoApply && IsInsideTree()) ApplyTheme(); }
 		}
-		private string _presetName = "modern";
+		private string _presetName = "oilfield_days";
 
-		/// <summary>Genre this component belongs to (e.g. "platformer"). Determines
-		/// which genre's theme tree to load from. Falls back to "platformer".</summary>
+		/// <summary>Genre this component belongs to (e.g. "citybuilder"). Determines
+		/// which genre's theme tree to load from. Falls back to "citybuilder".</summary>
 		[Export]
 		public string GenreName
 		{
 			get => _genreName;
 			// Theme/palette/geometry options all hang off the genre — refresh the list
 			// so those dropdowns re-cascade.
-			set { if (_genreName == value) return; _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (IsInsideTree()) ApplyTheme(); }
+			set { if (_genreName == value) return; _genreName = value; if (Engine.IsEditorHint()) NotifyPropertyListChanged(); if (!_suspendAutoApply && IsInsideTree()) ApplyTheme(); }
 		}
 		/// <summary>Genre a component starts on. A scene still holding this is treated as
 		/// "not chosen", so GameInfoBinder may replace it with the project's genre; anything
 		/// else is the scene's deliberate choice and is left alone.</summary>
-		public const string DefaultGenre = "platformer";
+		public const string DefaultGenre = "citybuilder";
 		private string _genreName = DefaultGenre;
 
-		[Export] public bool EnableAnimations { get; set; } = true;
-		[Export] public bool EnableRippleOnClick { get; set; } = true;
+		[Export]
+		public bool EnableAnimations
+		{
+			get => _enableAnimations;
+			set { if (_enableAnimations == value) return; _enableAnimations = value; RequestThemeReapply(); }
+		}
+		private bool _enableAnimations = true;
+
+		[Export]
+		public bool EnableRippleOnClick
+		{
+			get => _enableRippleOnClick;
+			set { if (_enableRippleOnClick == value) return; _enableRippleOnClick = value; RequestThemeReapply(); }
+		}
+		private bool _enableRippleOnClick = true;
 
 		/// <summary>Paint the screen's page canvas from the theme's <c>bg_canvas</c>.
 		///
@@ -55,23 +68,69 @@ namespace Beep.ECS.UI
 		/// ColorRect is a dim over live gameplay — game_over/level_summary name theirs
 		/// "Dim", topdown/pause_subscreen names its 0.92-alpha dim "Background" — and
 		/// repainting those would turn an overlay into a wall.</summary>
-		[Export] public bool ThemePageBackground { get; set; } = true;
+		[Export]
+		public bool ThemePageBackground
+		{
+			get => _themePageBackground;
+			set { if (_themePageBackground == value) return; _themePageBackground = value; RequestThemeReapply(); }
+		}
+		private bool _themePageBackground = true;
 
 		/// <summary>Give Labels a type hierarchy (title / subtitle / value / caption)
 		/// derived from the theme's own font size. Without it every Label, Button and
 		/// input renders at the single <c>Fs</c>, so a screen title is exactly as big as
 		/// a body label — the reason every screen read as one flat wall of text.
 		/// See <see cref="ApplyTypography"/> for how a Label's role is decided.</summary>
-		[Export] public bool AutoTypography { get; set; } = true;
+		[Export]
+		public bool AutoTypography
+		{
+			get => _autoTypography;
+			set { if (_autoTypography == value) return; _autoTypography = value; RequestThemeReapply(); }
+		}
+		private bool _autoTypography = true;
 
 		[ExportGroup("Button Sounds")]
 		/// <summary>Play a hover/press sound on every themed button. Falls back to the addon's
 		/// shipped UI clicks if the streams below are left unset (so a menu gets sound with no
 		/// per-scene wiring); assign HoverSound/PressSound to override, or turn this off.</summary>
-		[Export] public bool EnableButtonSounds { get; set; } = true;
-		[Export] public AudioStream? HoverSound { get; set; }
-		[Export] public AudioStream? PressSound { get; set; }
-		[Export(PropertyHint.Range, "-40,6,0.5")] public float ButtonSoundVolumeDb { get; set; } = -6f;
+		[Export]
+		public bool EnableButtonSounds
+		{
+			get => _enableButtonSounds;
+			set { if (_enableButtonSounds == value) return; _enableButtonSounds = value; RequestThemeReapply(); }
+		}
+		private bool _enableButtonSounds = true;
+
+		[Export]
+		public AudioStream? HoverSound
+		{
+			get => _hoverSound;
+			set { if (_hoverSound == value) return; _hoverSound = value; RequestThemeReapply(); }
+		}
+		private AudioStream? _hoverSound;
+
+		[Export]
+		public AudioStream? PressSound
+		{
+			get => _pressSound;
+			set { if (_pressSound == value) return; _pressSound = value; RequestThemeReapply(); }
+		}
+		private AudioStream? _pressSound;
+
+		[Export(PropertyHint.Range, "-40,6,0.5")]
+		public float ButtonSoundVolumeDb
+		{
+			get => _buttonSoundVolumeDb;
+			set
+			{
+				if (Mathf.Abs(_buttonSoundVolumeDb - value) < 0.001f) return;
+				_buttonSoundVolumeDb = value;
+				if (_uiAudio != null && GodotObject.IsInstanceValid(_uiAudio))
+					_uiAudio.VolumeDb = value;
+				RequestThemeReapply();
+			}
+		}
+		private float _buttonSoundVolumeDb = -6f;
 
 		/// <summary>OPTIONAL color-palette variant. Resolved from the file-based skin
 		/// catalog (palettes live in skins/&lt;genre&gt;/themes/&lt;theme&gt;/&lt;palette&gt;.json).
@@ -80,7 +139,7 @@ namespace Beep.ECS.UI
 		public string PaletteName
 		{
 			get => _paletteName;
-			set { if (_paletteName == value) return; _paletteName = value; if (IsInsideTree()) ApplyTheme(); }
+			set { if (_paletteName == value) return; _paletteName = value; if (!_suspendAutoApply && IsInsideTree()) ApplyTheme(); }
 		}
 		private string _paletteName = "Default";
 
@@ -92,7 +151,7 @@ namespace Beep.ECS.UI
 		public string GeometryProfileName
 		{
 			get => _geometryProfileName;
-			set { if (_geometryProfileName == value) return; _geometryProfileName = value; if (IsInsideTree()) ApplyTheme(); }
+			set { if (_geometryProfileName == value) return; _geometryProfileName = value; if (!_suspendAutoApply && IsInsideTree()) ApplyTheme(); }
 		}
 		private string _geometryProfileName = "As-Authored";
 
@@ -106,65 +165,21 @@ namespace Beep.ECS.UI
 		/// <see cref="_emptyShapes"/> (legacy defaults) when no geometry loaded.</summary>
 		private ShapeOverrides ActiveShapes => _geometry?.Shapes ?? _emptyShapes;
 
-		// ── Background image (from geometry.json's "background_image" + "background_mode"). ──
-		// Spawned as the first child of the themed subtree root, behind everything
-		// else, full-rect anchored. Reused across re-themes so we don't leak nodes.
-		private TextureRect? _backgroundRect;
-
-		/// <summary>Background paths already reported missing. ApplyTheme runs several
-		/// times per scene load, so this keeps one broken path to one warning.</summary>
-		private static readonly HashSet<string> _reportedMissingBackgrounds = new();
-
-		/// <summary>OPTIONAL texture skin. When set (via GameApp or directly), the theme
-		/// engine builds StyleBoxTexture (9-patch) for nodes with a matching texture
-		/// slot, instead of procedural StyleBoxFlat. Pushed by GameInfoBinder from GameApp.Skin.</summary>
-		[Export]
-		public UISkin? Skin
-		{
-			get => _skin;
-			set { if (_skin == value) return; _skin = value; if (IsInsideTree()) ApplyTheme(); }
-		}
-		private UISkin? _skin;
-
-		/// <summary>MASTER on/off for texture skinning on THIS component. Set false to
-		/// force all nodes in this subtree to use the procedural theme (colors + geometry),
-		/// ignoring the UISkin entirely. Per-scene kill switch — e.g. turn off textures
-		/// in the pause menu but keep them in the main menu.</summary>
-		[Export]
-		public bool UseTextures
-		{
-			get => _useTextures;
-			set { _useTextures = value; if (IsInsideTree()) ApplyTheme(); }
-		}
-		private bool _useTextures = true;
-
-		/// <summary>Per-node-type texture toggles — these are PER-SCENE (on this component),
-		/// independent of the global UISkin. Turn off e.g. UsePanelTextures here to make
-		/// THIS scene's panels use procedural boxes while buttons stay textured.
-		/// Only effective when UseTextures = true AND a Skin is set.</summary>
-		[ExportGroup("Per-Node Texture Toggles")]
-		[Export] public bool UseButtonTextures { get; set; } = true;
-		[Export] public bool UsePanelTextures { get; set; } = true;
-		[Export] public bool UseInputTextures { get; set; } = true;
-		[Export] public bool UseProgressBarTextures { get; set; } = true;
-		[Export] public bool UseDialogTextures { get; set; } = true;
-		[Export] public bool UseSliderTextures { get; set; } = true;
-		[Export] public bool UseScrollBarTextures { get; set; } = true;
-		[Export] public bool UseSeparatorTextures { get; set; } = true;
+		private const string RetiredBackgroundNodeName = "ThemeBackground";
 
 		/// <summary>Generate HUD chrome instead of menu chrome for this subtree.
 		///
 		/// A menu skin is opaque, bevelled and raised because it owns the whole screen. A HUD
 		/// sits ON the gameplay: it has to let the world through, stay flat so it never competes
 		/// with the game, and signal state with accent colour rather than a pressed 3D plate.
-		/// Without this the in-game HUD is generated in the settings-dialog skin — the same
-		/// textured 9-patch buttons and the same opaque page background — which is exactly why
-		/// it reads as an application toolbar rather than a game interface.
+		/// Without this the in-game HUD is generated in the settings-dialog skin — opaque,
+		/// bevelled menu buttons and the same solid page background — which is exactly why it
+		/// reads as an application toolbar rather than a game interface.
 		///
 		/// Same palette, same typography, different furniture. Set this on the
 		/// ThemePresetComponent that lives under a HUD CanvasLayer.</summary>
 		// The game-art register is PROJECT-WIDE and lives in ProjectSettings — see
-		// SkinCatalog.SettingChrome/Outline/Shadow/HudArt/HudOpacity. It used to be four
+		// SkinCatalog.SettingChrome/Outline/Shadow/HudOpacity. It used to be four
 		// [Export]s here, which made one art direction a per-scene decision: every scene
 		// carried its own copy, they drifted, and "turn the chrome off" meant editing 40 files.
 		// Read-only mirrors so the rest of this class reads the same names as before.
@@ -177,7 +192,13 @@ namespace Beep.ECS.UI
 		/// preference but a structural fact about the scene — a HUD CanvasLayer over the world
 		/// versus a menu — and it differs between scenes of the same game by definition.</summary>
 		[ExportGroup("HUD")]
-		[Export] public bool HudMode { get; set; } = false;
+		[Export]
+		public bool HudMode
+		{
+			get => _hudMode;
+			set { if (_hudMode == value) return; _hudMode = value; RequestThemeReapply(); }
+		}
+		private bool _hudMode;
 
 		[Signal] public delegate void ThemeAppliedEventHandler();
 
@@ -193,10 +214,42 @@ namespace Beep.ECS.UI
 		// removed while the themed buttons persist, a later hover/press would fire them on a
 		// freed component. Run on _ExitTree to disconnect.
 		private readonly System.Collections.Generic.List<System.Action> _buttonDisconnectors = new();
+		private bool _suspendAutoApply;
+		private bool _applyingTheme;
+		private string _lastThemeBuildKey = "";
+		private Font? _themeFont;
+
+		private void RequestThemeReapply()
+		{
+			if (!_suspendAutoApply && IsInsideTree())
+				ApplyTheme();
+		}
+
+		public void SetThemeSelection(string genreName, string presetName, string paletteName = "Default",
+			string geometryProfileName = "As-Authored")
+		{
+			_suspendAutoApply = true;
+			try
+			{
+				_genreName = genreName ?? "";
+				_presetName = presetName ?? "";
+				_paletteName = paletteName ?? "Default";
+				_geometryProfileName = geometryProfileName ?? "As-Authored";
+				if (Engine.IsEditorHint()) NotifyPropertyListChanged();
+			}
+			finally
+			{
+				_suspendAutoApply = false;
+			}
+
+			SkinCatalog.SetActiveSkin(_genreName, _presetName, _paletteName, _geometryProfileName);
+			if (IsInsideTree()) ApplyTheme();
+		}
 
 		public override void _Ready()
 		{
 			base._Ready();
+			PublishOwnSkinWhenStandalone();
 			// Fall back to the addon's shipped UI clicks when no sounds are assigned, so themed
 			// buttons make sound with zero per-scene wiring. Missing files just leave these null.
 			if (EnableButtonSounds && !Engine.IsEditorHint())
@@ -216,22 +269,33 @@ namespace Beep.ECS.UI
 				GD.PushWarning($"[{Name}] ThemePresetComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a Control — nothing will be themed. Reparent it under the Control whose subtree should be themed.");
 		}
 
+		private void PublishOwnSkinWhenStandalone()
+		{
+			if (SkinCatalog.HasActiveSkin)
+				return;
+
+			string theme = string.IsNullOrWhiteSpace(_presetName)
+				? SkinCatalog.GetGenre(_genreName)?.DefaultTheme ?? ""
+				: _presetName;
+			SkinCatalog.SetActiveSkin(_genreName, theme, _paletteName, _geometryProfileName);
+		}
+
 		public override void _ExitTree()
 		{
 			foreach (var kvp in _activeTweens) kvp.Value?.Kill();
 			_activeTweens.Clear();
 			foreach (var disconnect in _buttonDisconnectors) disconnect();
 			_buttonDisconnectors.Clear();
-			if (_backgroundRect != null && GodotObject.IsInstanceValid(_backgroundRect))
-				_backgroundRect.QueueFree();
-			_backgroundRect = null;
 			base._ExitTree();
 		}
 
 		public void ApplyTheme()
 		{
 			if (_targetControl == null || !IsActive) return;
-
+			if (_applyingTheme) return;
+			_applyingTheme = true;
+			try
+			{
 			// Load the theme from the file-based skin catalog. This replaces the old
 			// enum → CreatePresetInstance switch. Falls back to the genre's default
 			// theme if PresetName isn't found.
@@ -243,6 +307,7 @@ namespace Beep.ECS.UI
 				? SkinCatalog.ActivePalette : _paletteName;
 			string gGeometry = SkinCatalog.HasActiveSkin && !string.IsNullOrEmpty(SkinCatalog.ActiveGeometry)
 				? SkinCatalog.ActiveGeometry : _geometryProfileName;
+			_targetControl.SetMeta(Kit.KitChrome.GenreMeta, gGenre);
 
 			var themeDef = SkinCatalog.GetTheme(gGenre, gTheme);
 			if (themeDef == null)
@@ -251,14 +316,22 @@ namespace Beep.ECS.UI
 				themeDef = genre != null && genre.Themes.TryGetValue(genre.DefaultTheme, out var dt) ? dt : null;
 			}
 			if (themeDef == null) return;
+			string buildKey = BuildThemeKey(gGenre, themeDef.Id, gPalette, gGeometry);
+			if (buildKey == _lastThemeBuildKey
+				&& _generatedTheme != null
+				&& _targetControl.Theme == _generatedTheme)
+			{
+				return;
+			}
 			_presetInstance = new FileThemePreset(themeDef);
 			_loadedThemeGeometry = themeDef.Geometry;
+			_themeFont = Kit.KitFonts.Fallback(_targetControl, Kit.KitGeometry.ForGenre(gGenre).Font);
 
 			// Apply the optional color palette. Looked up from this theme's palette
 			// files in the skins tree (loaded by SkinCatalog). If not found there,
 			// ColorPalette.ByName searches all genres/themes as a cross-fallback.
 			if (!string.IsNullOrEmpty(gPalette)
-				&& !_paletteName.Equals("Default", StringComparison.OrdinalIgnoreCase))
+				&& !gPalette.Equals("Default", StringComparison.OrdinalIgnoreCase))
 			{
 				ColorPalette? palette = null;
 				if (themeDef.Palettes.TryGetValue(gPalette.ToLowerInvariant(), out var filePal))
@@ -273,13 +346,13 @@ namespace Beep.ECS.UI
 			// (loaded by SkinCatalog). GeometryProfile.ByName searches all genres.
 			_geometry = null;
 			if (!string.IsNullOrEmpty(gGeometry)
-				&& !_geometryProfileName.Equals("As-Authored", StringComparison.OrdinalIgnoreCase))
+				&& !gGeometry.Equals("As-Authored", StringComparison.OrdinalIgnoreCase))
 			{
 				GeometryProfile? geo = null;
-				var genre = SkinCatalog.GetGenre(_genreName);
-				if (genre?.Geometry != null && genre.Geometry.DisplayName.Equals(_geometryProfileName, StringComparison.OrdinalIgnoreCase))
+				var genre = SkinCatalog.GetGenre(gGenre);
+				if (genre?.Geometry != null && genre.Geometry.DisplayName.Equals(gGeometry, StringComparison.OrdinalIgnoreCase))
 					geo = genre.Geometry.ToProfile();
-				else if (GeometryProfile.ByName(_geometryProfileName) is { } catalogGeo)
+				else if (GeometryProfile.ByName(gGeometry) is { } catalogGeo)
 					geo = catalogGeo;
 				if (geo != null && geo.HasOverrides)
 					_geometry = geo;
@@ -287,7 +360,37 @@ namespace Beep.ECS.UI
 			_isSingleButton = _targetControl is Button;
 			if (_isSingleButton) ApplyToSingleButton((Button)_targetControl);
 			else ApplyToSubtree(_targetControl);
+			_lastThemeBuildKey = buildKey;
 			EmitSignal(SignalName.ThemeApplied);
+			}
+			finally
+			{
+				_applyingTheme = false;
+			}
+		}
+
+		private string BuildThemeKey(string genre, string theme, string palette, string geometry)
+		{
+			return string.Join("|", new[]
+			{
+				genre ?? "",
+				theme ?? "",
+				palette ?? "",
+				geometry ?? "",
+				HudMode.ToString(),
+				ThemePageBackground.ToString(),
+				AutoTypography.ToString(),
+				EnableAnimations.ToString(),
+				EnableRippleOnClick.ToString(),
+				EnableButtonSounds.ToString(),
+				ButtonSoundVolumeDb.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+				HoverSound?.GetInstanceId().ToString() ?? "",
+				PressSound?.GetInstanceId().ToString() ?? "",
+				SkinCatalog.GameArtChrome.ToString(),
+				SkinCatalog.GameArtOutline.ToString(),
+				SkinCatalog.GameArtShadow.ToString(),
+				SkinCatalog.HudPlateOpacity.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+			});
 		}
 
 		// ═══════════════════════════════════════════════
@@ -297,9 +400,10 @@ namespace Beep.ECS.UI
 		private void ApplyToSubtree(Godot.Control root)
 		{
 			var preset = _presetInstance!;
+			ResetInjectedButtons(root);
 			_generatedTheme = new Theme();
 			ExtractGeometry(preset.GetButtonNormal());
-			ApplyBackground();
+			RemoveRetiredBackgroundNode(root);
 
 			// Each UI node type themed by its OWN dedicated method — all colors,
 			// all StyleBox backgrounds, and geometry for that type in one place.
@@ -329,6 +433,7 @@ namespace Beep.ECS.UI
 			ThemeSeparator();
 			ThemeWindow();
 			ThemeSemantics();
+			RegisterFonts();
 			RegisterTypography();
 
 			// A HUD is not a menu. Replace the generated menu chrome with HUD chrome before it
@@ -341,10 +446,10 @@ namespace Beep.ECS.UI
 			if (EnableAnimations || EnableRippleOnClick)
 				InjectIntoButtons(root);
       		// Per-node overrides for immediate editor visibility.
-			// Both are skipped in HUD mode: ApplyButtonOverrides stamps the textured 9-patch
-			// MENU boxes onto every button, and ApplyPageBackground paints an opaque rect over
-			// the whole Control — together they would repaint the dialog skin straight back
-			// over the HUD chrome and hide the game behind it.
+			// Both are skipped in HUD mode: ApplyButtonOverrides stamps menu boxes onto every
+			// button, and ApplyPageBackground paints an opaque rect over the whole Control —
+			// together they would repaint the dialog skin straight back over the HUD chrome and
+			// hide the game behind it.
 			if (!HudMode) ApplyButtonOverrides(root, preset);
 			if (ThemePageBackground && !HudMode) ApplyPageBackground(root, preset.Colors);
 			if (AutoTypography) ApplyTypography(root, typography);
@@ -388,8 +493,7 @@ namespace Beep.ECS.UI
 				var b = new StyleBoxFlat { BgColor = bg, DrawCenter = true, BorderColor = border };
 				b.SetBorderWidthAll(width);
 				b.SetCornerRadiusAll(radius);
-				// Explicit, because an unset content margin falls back to the texture margins
-				// and silently produced 64px-tall buttons across 49 themes once already.
+				// Explicit so theme controls do not inherit arbitrary fallback margins.
 				b.ContentMarginLeft = padX; b.ContentMarginRight = padX;
 				b.ContentMarginTop = padY; b.ContentMarginBottom = padY;
 				return b;
@@ -397,26 +501,12 @@ namespace Beep.ECS.UI
 			void Set(string name, string type, StyleBox box) => _generatedTheme!.SetStylebox(name, type, box);
 			void Col(string name, string type, Color v) => _generatedTheme!.SetColor(name, type, v);
 
-			// Real HUD art when the theme declares it and the texture source allows it, the
-			// procedural box otherwise — resolved PER SLOT, so a partial art set still works
-			// and every slot it does not cover falls back rather than going blank.
-			var hudArt = _presetInstance as IHudTexturePreset;
-			bool useArt = SkinCatalog.HudTextures && hudArt is { UsesHudTextures: true };
+			// HUD chrome stays procedural for the same reason menu chrome does: the skin's
+			// colours and geometry should define the kit, not mismatched baked image plates.
 			StyleBox Art(string slot, StyleBoxFlat fallback)
 			{
-				var art = useArt ? hudArt!.GetHudTexture(slot) : null;
-				if (art == null) return fallback;
-				// Tint the art to the colour its PROCEDURAL TWIN would have been: the fallback is
-				// that twin, so this cannot drift. Without it the HUD art shipped as the pale
-				// Kenney set and stayed pale in every skin, so a HUD in art mode looked nothing
-				// like the same HUD in procedural mode — the build tiles and category tabs read
-				// as light menu buttons sitting on a dark dock.
-				//
-				// Skipped for outline-only states (focus), whose twin has a transparent centre;
-				// tinting by a zero alpha would erase the art entirely.
-				if (art is StyleBoxTexture st && fallback.BgColor.A > 0.05f)
-					TextureRegister(st, fallback.BgColor);
-				return art;
+				_ = slot;
+				return fallback;
 			}
 
 			// ── Plates ────────────────────────────────────────────────────────────────────
@@ -510,6 +600,9 @@ namespace Beep.ECS.UI
 		/// A Label with no role is left entirely alone.</summary>
 		private void ApplyTypography(Node node, ColorSchema c)
 		{
+			if (node is Kit.KitLabel)
+				return;
+
 			if (node is Label label && RoleFor(label) is { } role)
 			{
 				// An override we did not put there is the scene author's — don't stomp it.
@@ -519,8 +612,8 @@ namespace Beep.ECS.UI
 				if (!authored)
 				{
 					label.SetMeta(TypographyMeta, true);
-					label.AddThemeFontSizeOverride("font_size", SizeFor(role));
-					label.AddThemeColorOverride("font_color", ColorFor(role, c));
+					Kit.KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", SizeFor(role));
+					Kit.KitChrome.SetColorOverrideIfChanged(label, "font_color", ColorFor(role, c));
 				}
 			}
 			foreach (var child in node.GetChildren())
@@ -583,6 +676,34 @@ namespace Beep.ECS.UI
 			_ => c.TextPrimary,
 		};
 
+		private void RegisterFonts()
+		{
+			if (_themeFont == null) return;
+
+			foreach (string type in new[]
+			{
+				"Label",
+				"Button",
+				"OptionButton",
+				"MenuButton",
+				"CheckButton",
+				"CheckBox",
+				"LineEdit",
+				"TextEdit",
+				"SpinBox",
+				"Tree",
+				"ItemList",
+				"PopupMenu",
+				"TabBar",
+				"TooltipLabel",
+			})
+			{
+				_generatedTheme!.SetFont("font", type, _themeFont);
+			}
+
+			_generatedTheme!.SetFont("normal_font", "RichTextLabel", _themeFont);
+		}
+
 		/// <summary>Register the four steps as Theme type variations of Label, so a scene can
 		/// opt in explicitly with <c>theme_type_variation = &amp;"BeepTitle"</c> and see the
 		/// result in the editor's inspector dropdown.</summary>
@@ -593,6 +714,8 @@ namespace Beep.ECS.UI
 			{
 				_generatedTheme!.AddType(role);
 				_generatedTheme.SetTypeVariation(role, "Label");
+				if (_themeFont != null)
+					_generatedTheme.SetFont("font", role, _themeFont);
 				_generatedTheme.SetFontSize("font_size", role, SizeFor(role));
 				_generatedTheme.SetColor("font_color", role, ColorFor(role, c));
 				_generatedTheme.SetColor("font_outline_color", role, c.ShadowColor);
@@ -601,19 +724,17 @@ namespace Beep.ECS.UI
 
 		private static readonly string[] ButtonStates = { "normal", "hover", "pressed", "disabled", "focus" };
 
-      	private void ApplyButtonOverrides(Node node, IThemePreset preset)
+		private void ApplyButtonOverrides(Node node, IThemePreset preset)
 		{
 			if (node is Button btn)
 			{
-				// Take the boxes ThemeButton() just resolved for "Button" rather than rebuilding
-				// them from the preset. The preset's GetButton*() always return a procedural
-				// StyleBoxFlat — and a per-node override outranks the Theme — so sourcing them
-				// here meant a theme.json/UISkin texture was resolved into the theme and then
-				// immediately painted over on every button. No button texture has ever rendered.
+				// Take the generated procedural boxes for the concrete button type, then copy
+				// them as per-node overrides so custom nodes and normal Godot buttons match.
+				string typeName = node is OptionButton ? "OptionButton" : "Button";
 				foreach (string state in ButtonStates)
-					if (_generatedTheme != null && _generatedTheme.HasStylebox(state, "Button"))
-						btn.AddThemeStyleboxOverride(state, Duplicate(_generatedTheme.GetStylebox(state, "Button")));
-				btn.AddThemeColorOverride("font_color", preset.Colors.TextPrimary);
+					if (_generatedTheme != null && _generatedTheme.HasStylebox(state, typeName))
+						Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, state, Duplicate(_generatedTheme.GetStylebox(state, typeName)));
+				Kit.KitChrome.SetColorOverrideIfChanged(btn, "font_color", preset.Colors.TextPrimary);
 			}
 			foreach (var child in node.GetChildren())
 				ApplyButtonOverrides(child, preset);
@@ -648,9 +769,8 @@ namespace Beep.ECS.UI
 		/// profile onto the box (ALL ui nodes — panels, inputs, sliders, scrollbars,
 		/// selected states, separators — not just buttons) then sets it on the theme.
 		///
-		/// The slot name and control type are passed down so the register can treat a TEXTURED
-		/// box the same way as a flat one; without them a textured Button could not be tinted
-		/// with the palette colour its procedural twin is filled with.</summary>
+		/// The slot name and control type are passed down so the register can tune specific
+		/// procedural roles without scattering node-type checks through every builder.</summary>
 		private void Sb(string name, string type, StyleBox box)
 			=> _generatedTheme!.SetStylebox(name, type, StampGeometry(box, name, type));
 
@@ -897,101 +1017,33 @@ namespace Beep.ECS.UI
 		private void ApplyToSingleButton(Button btn)
 		{
 			var preset = _presetInstance!;
-			btn.AddThemeStyleboxOverride("normal", StampGeometry(Duplicate(preset.GetButtonNormal())));
-			btn.AddThemeStyleboxOverride("hover", StampGeometry(Duplicate(preset.GetButtonHover())));
-			btn.AddThemeStyleboxOverride("pressed", StampGeometry(Duplicate(preset.GetButtonPressed())));
-			btn.AddThemeStyleboxOverride("disabled", StampGeometry(Duplicate(preset.GetButtonDisabled())));
-			btn.AddThemeStyleboxOverride("focus", StampGeometry(Duplicate(preset.GetButtonFocus())));
-			btn.AddThemeColorOverride("font_color", preset.Colors.TextPrimary);
+			ResetInjectedButtons(btn);
+			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "normal", StampGeometry(Duplicate(preset.GetButtonNormal())));
+			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "hover", StampGeometry(Duplicate(preset.GetButtonHover())));
+			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "pressed", StampGeometry(Duplicate(preset.GetButtonPressed())));
+			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "disabled", StampGeometry(Duplicate(preset.GetButtonDisabled())));
+			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "focus", StampGeometry(Duplicate(preset.GetButtonFocus())));
+			Kit.KitChrome.SetColorOverrideIfChanged(btn, "font_color", preset.Colors.TextPrimary);
 			// > 0, not >= 0 — see the note on Fs in ThemePresetComponent.NodeTheming.cs. A 0 here
 			// is not a size, and it reaches the text server as one.
 			int fontSize = _geometry != null && _geometry.FontSize > 0
 				? _geometry.FontSize
 				: (_loadedThemeGeometry.FontSize > 0 ? _loadedThemeGeometry.FontSize : 14);
-			btn.AddThemeFontSizeOverride("font_size", fontSize);
+			Kit.KitChrome.SetFontSizeOverrideIfChanged(btn, "font_size", fontSize);
 			if (EnableAnimations) SetupButtonAnimations(btn);
 			if (EnableRippleOnClick) SetupRipple(btn);
 		}
 
 		// ═══════════════════════════════════════════════
-		// Background image
+		// Retired generated background
 		// ═══════════════════════════════════════════════
 
-		/// <summary>Spawn (or refresh) a full-rect TextureRect behind the themed
-		/// subtree root, when the active genre's geometry.json sets
-		/// <c>background_image</c>. Honors <c>background_mode</c>:
-		///   <c>stretch</c> (default) — scale to fill the canvas,
-		///   <c>tile</c> — repeat at native size,
-		///   <c>center</c> — keep native size, centered.
-		/// No-op when the geometry has no background image or the resource is missing.</summary>
-		private void ApplyBackground()
+		/// <summary>Remove generated background nodes left by older skin passes.</summary>
+		private static void RemoveRetiredBackgroundNode(Godot.Control root)
 		{
-			if (_targetControl == null) return;
-			var geo = _geometry;
-			string? img = geo?.BackgroundImage;
-			if (string.IsNullOrEmpty(img))
-			{
-				// Clear any background a PREVIOUS profile left behind. This used to just
-				// return, so switching to a geometry profile that declares no background
-				// (or to "As-Authored", where _geometry is null) kept painting the old
-				// profile's tile forever — a city-builder grid stayed on screen over a
-				// cyberpunk theme, because nothing ever removed the TextureRect.
-				if (_backgroundRect != null && GodotObject.IsInstanceValid(_backgroundRect))
-					_backgroundRect.QueueFree();
-				_backgroundRect = null;
-				return;
-			}
-			if (!ResourceLoader.Exists(img))
-			{
-				// A geometry profile that names a background but ships no file is a defect,
-				// not a setting — all 8 shipped background_image paths pointed into an empty
-				// textures/backgrounds/ folder and this returned in silence.
-				if (_reportedMissingBackgrounds.Add(img))
-					GD.PushWarning($"[{Name}] geometry '{_geometryProfileName}' sets background_image '{img}', which does not exist — the screen keeps its flat canvas. Supply the file or clear background_image in that geometry.json.");
-				return;
-			}
-
-			if (_backgroundRect == null || !GodotObject.IsInstanceValid(_backgroundRect))
-			{
-				_backgroundRect = new TextureRect
-				{
-					Name = "ThemeBackground",
-					MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-				};
-					_targetControl.AddChild(_backgroundRect);
-					// Sit directly ON TOP of the page canvas, and under everything else.
-					//
-					// This used to move to index 0, i.e. behind the "Background" ColorRect — which
-					// ThemePageBackground now paints OPAQUE from bg_canvas, so the pattern would be
-					// covered completely and the background_image feature would draw nothing at all.
-					// One slot later gives canvas colour first, pattern over it, content on top, so
-					// a translucent tile tints with the genre's own canvas colour.
-					int canvasIndex = -1;
-					for (int i = 0; i < _targetControl.GetChildCount(); i++)
-						if (_targetControl.GetChild(i) is ColorRect cr && cr.Name == "Background") { canvasIndex = i; break; }
-					_targetControl.MoveChild(_backgroundRect, canvasIndex + 1);
-					_backgroundRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-			}
-			var background = _backgroundRect;
-			if (background == null || geo == null) return;
-			background.Texture = ResourceLoader.Load<Texture2D>(img);
-
-			switch ((geo.BackgroundMode ?? "stretch").ToLowerInvariant())
-			{
-				case "tile":
-					background.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-					background.StretchMode = TextureRect.StretchModeEnum.Tile;
-					break;
-				case "center":
-					background.ExpandMode = TextureRect.ExpandModeEnum.KeepSize;
-					background.StretchMode = TextureRect.StretchModeEnum.KeepCentered;
-					break;
-				case "stretch":
-				default:
-					background.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-					background.StretchMode = TextureRect.StretchModeEnum.Scale;
-					break;
-			}
+			Node? background = root.GetNodeOrNull<Node>(RetiredBackgroundNodeName);
+			if (background != null && GodotObject.IsInstanceValid(background))
+				background.QueueFree();
 		}
 
 		// ═══════════════════════════════════════════════
@@ -1004,6 +1056,31 @@ namespace Beep.ECS.UI
 
 		/// <summary>Marks a button that already owns a RippleComponent child.</summary>
 		private const string RippledMeta = "_beep_theme_rippled";
+		private const string RippleOwnedMeta = "_beep_theme_owned_ripple";
+		private const string RippleNodeName = "BeepThemeRipple";
+
+		private void ResetInjectedButtons(Godot.Control root)
+		{
+			foreach (var kvp in _activeTweens) kvp.Value?.Kill();
+			_activeTweens.Clear();
+			foreach (var disconnect in _buttonDisconnectors) disconnect();
+			_buttonDisconnectors.Clear();
+
+			foreach (var btn in FindAllButtons(root))
+			{
+				if (btn.HasMeta(AnimatedMeta)) btn.RemoveMeta(AnimatedMeta);
+				if (!btn.HasMeta(RippledMeta)) continue;
+				btn.RemoveMeta(RippledMeta);
+				foreach (var child in btn.GetChildren())
+				{
+					if (child is RippleComponent ripple
+						&& (ripple.Name == RippleNodeName || ripple.HasMeta(RippleOwnedMeta)))
+					{
+						ripple.QueueFree();
+					}
+				}
+			}
+		}
 
 		/// <summary>Attach per-button chrome. MUST be idempotent: ApplyTheme is public and
 		/// every one of this component's setters calls it, so a single scene load runs it
@@ -1134,11 +1211,14 @@ namespace Beep.ECS.UI
 
 			// Ripple uses the theme's primary accent so it matches the chosen theme/palette.
 			var c = _presetInstance!.Colors;
-			btn.AddChild(new RippleComponent
+			var ripple = new RippleComponent
 			{
+				Name = RippleNodeName,
 				RippleColor = new Color(c.AccentPrimary.R, c.AccentPrimary.G, c.AccentPrimary.B, 0.35f),
 				Duration = 0.5f, MaxRadius = 120f, IsActive = true
-			});
+			};
+			ripple.SetMeta(RippleOwnedMeta, true);
+			btn.AddChild(ripple);
 		}
 
 		// ═══════════════════════════════════════════════
@@ -1185,32 +1265,6 @@ namespace Beep.ECS.UI
 				dup.ExpandMarginRight = flat.ExpandMarginRight;
 				dup.ExpandMarginTop = flat.ExpandMarginTop;
 				dup.ExpandMarginBottom = flat.ExpandMarginBottom;
-				return dup;
-			}
-			if (original is StyleBoxTexture tex)
-			{
-				var dup = new StyleBoxTexture();
-				dup.Texture = tex.Texture;
-				dup.TextureMarginLeft = tex.TextureMarginLeft;
-				dup.TextureMarginRight = tex.TextureMarginRight;
-				dup.TextureMarginTop = tex.TextureMarginTop;
-				dup.TextureMarginBottom = tex.TextureMarginBottom;
-				dup.ModulateColor = tex.ModulateColor;
-				dup.ContentMarginLeft = tex.ContentMarginLeft;
-				dup.ContentMarginRight = tex.ContentMarginRight;
-				dup.ContentMarginTop = tex.ContentMarginTop;
-				dup.ContentMarginBottom = tex.ContentMarginBottom;
-				// The 9-patch settings are part of the box, not decoration — dropping them
-				// reset every duplicated texture box to Godot's defaults, so a theme.json
-				// slot's axis_stretch_*/draw_center survived into the Theme and was then lost
-				// the moment the box was duplicated onto a node.
-				dup.AxisStretchHorizontal = tex.AxisStretchHorizontal;
-				dup.AxisStretchVertical = tex.AxisStretchVertical;
-				dup.DrawCenter = tex.DrawCenter;
-				dup.ExpandMarginLeft = tex.ExpandMarginLeft;
-				dup.ExpandMarginRight = tex.ExpandMarginRight;
-				dup.ExpandMarginTop = tex.ExpandMarginTop;
-				dup.ExpandMarginBottom = tex.ExpandMarginBottom;
 				return dup;
 			}
 			return original;

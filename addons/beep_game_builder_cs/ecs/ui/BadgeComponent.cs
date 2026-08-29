@@ -18,41 +18,65 @@ namespace Beep.ECS.UI
         public Color BadgeColor => UiSurface.Semantic(this, UiSurface.Role.Danger);
         [Export] public Vector2 Position { get; set; } = new(0, -8);
         [Export] public int MaxDisplay { get; set; } = 99;
+        [Export] public NodePath BadgePath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [Signal] public delegate void CountChangedEventHandler(int count);
 
         private Godot.Control? _control;
         private KitChip? _badgePanel;
+        private bool _createdBadge;
         private Tween? _tween;
 
         public override void _Ready()
         {
             base._Ready();
             _control = GetParent() as Godot.Control;
-            if (_control == null)
+            if (_control == null && GenerateControlsWhenPathsEmpty)
                 GD.PushWarning($"[{Name}] BadgeComponent needs a Control parent to anchor the badge to; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Control being badged.");
-            CallDeferred(nameof(BuildBadge));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(SetupBadge));
             UpdateBadge(emit: false);   // seed visuals without a spurious startup CountChanged
+            UpdateConfigurationWarnings();
         }
 
-        private void BuildBadge()
+        public override string[] _GetConfigurationWarnings()
         {
-            if (Engine.IsEditorHint()) return;
+            if (!GenerateControlsWhenPathsEmpty && FindBadge() == null)
+                return new[] { "Add an authored KitChip named Badge, set BadgePath, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
+        }
+
+        private void SetupBadge()
+        {
+            if (BindExistingBadge())
+            {
+                StyleBadge();
+                UpdateBadge(emit: false);
+                return;
+            }
+
+            if (!GenerateControlsWhenPathsEmpty)
+                return;
+
+            BuildGeneratedBadge();
+        }
+
+        private void BuildGeneratedBadge()
+        {
             if (_control == null) return;
 
+            _createdBadge = true;
             _badgePanel = new KitChip
             {
+                Name = "Badge",
                 Kind = KitChip.ChipKind.Count,
                 Role = UiSurface.Role.Danger
             };
-            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
-            float d = Mathf.Max(fs * 2.0f, 18f);
-            _badgePanel.CustomMinimumSize = new Vector2(d, d);
-            _badgePanel.Size = new Vector2(d, d);
-            _badgePanel.Position = Position;
-            _badgePanel.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
-
+            StyleBadge();
             _control.AddChild(_badgePanel);
+            SetEditedOwner(_badgePanel);
 
             // Same trap as the dialog: the pop animation tweens the badge's transform, and a
             // sorting parent re-fits its children every layout pass. Loud beats silent — a badge
@@ -62,11 +86,43 @@ namespace Beep.ECS.UI
                              + $"{_control.GetType().Name}, which lays out its own children — the "
                              + "badge's pop animation may be overwritten. Host it on a plain "
                              + "Control, or animate with offset_transform_scale.");
-            _badgePanel.ZIndex = 10;
 
-            // Render the scene-authored Count now. _Ready's UpdateBadge ran before this deferred
-            // build, so the panel existed to draw into only from here — an initial Count showed blank.
             UpdateBadge(emit: false);
+        }
+
+        private bool BindExistingBadge()
+        {
+            _createdBadge = false;
+            _badgePanel = FindBadge();
+            return _badgePanel != null;
+        }
+
+        public bool UsesSceneControls()
+            => FindBadge() != null;
+
+        private KitChip? FindBadge()
+        {
+            if (!BadgePath.IsEmpty && GetNodeOrNull<KitChip>(BadgePath) is { } pathBadge)
+                return pathBadge;
+
+            if (FindChild("Badge", recursive: true, owned: false) is KitChip childBadge)
+                return childBadge;
+
+            return GetParent()?.FindChild("Badge", recursive: true, owned: false) as KitChip;
+        }
+
+        private void StyleBadge()
+        {
+            if (_badgePanel == null) return;
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
+            float d = Mathf.Max(fs * 2.0f, 18f);
+            _badgePanel.Kind = KitChip.ChipKind.Count;
+            _badgePanel.Role = UiSurface.Role.Danger;
+            _badgePanel.CustomMinimumSize = new Vector2(d, d);
+            _badgePanel.Size = new Vector2(d, d);
+            _badgePanel.Position = Position;
+            _badgePanel.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+            _badgePanel.ZIndex = 10;
         }
 
         public void SetCount(int count)
@@ -101,10 +157,16 @@ namespace Beep.ECS.UI
         {
             base._ExitTree();
             _tween?.Kill();
-            // _badgePanel was AddChild'd to the parent Control, so freeing this component doesn't
-            // take it along — free it, or it's orphaned onscreen.
-            if (_badgePanel != null && GodotObject.IsInstanceValid(_badgePanel)) _badgePanel.QueueFree();
+            if (_createdBadge && _badgePanel != null && GodotObject.IsInstanceValid(_badgePanel)) _badgePanel.QueueFree();
             _badgePanel = null;
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

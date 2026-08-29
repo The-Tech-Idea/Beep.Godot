@@ -97,29 +97,6 @@ public partial class KitProofProbe : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
 
-        // Phase-E check: if sliced art exists, prove a widget renders FROM it rather than
-        // procedurally. Absent art, this is a no-op and every widget draws as before.
-        if (DirAccess.DirExistsAbsolute("res://tmp/kit_art"))
-        {
-            KitArt.Root = "res://tmp/kit_art";
-            SkinCatalog.SetActiveSkin("rpg", "", "", "");
-            var host2 = new Control { Name = "ArtProof" };
-            host2.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            host2.Theme = SheetTheme();
-            root.AddChild(host2);
-            var textured = new KitButton { Text = "PLAY" };
-            host2.AddChild(textured);
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            textured.Size = new Vector2(300, 86);
-            textured.Position = new Vector2(80, 80);
-            for (int i = 0; i < 3; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            await Shoot($"{OutDir}/artproof.png");
-            GD.Print("kitproof: artproof written");
-            KitArt.Root = "";
-            host2.QueueFree();
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        }
-
         await ShootWidgets(root);
 
         GD.Print("kitproof: done");

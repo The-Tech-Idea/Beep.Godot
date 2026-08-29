@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -47,6 +48,10 @@ namespace Beep.ECS
         [Export] public float SecondsPerMonth { get; set; } = 6f;
         /// <summary>Tax collected per resident per month.</summary>
         [Export] public float TaxPerResident { get; set; } = 9f;
+
+        public int EffectiveStartingTreasury => Mathf.Max(0, StartingTreasury);
+        public float EffectiveSecondsPerMonth => Mathf.Max(0.01f, FiniteOr(SecondsPerMonth, 6f));
+        public float EffectiveTaxPerResident => NonNegative(TaxPerResident);
 
         // ── Live state ─────────────────────────────────────────────────
         public int Treasury { get; private set; }
@@ -128,16 +133,18 @@ namespace Beep.ECS
             base._Ready();
             if (Engine.IsEditorHint()) return;
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
-            if (Treasury == 0) Treasury = StartingTreasury;
+            if (Treasury == 0) Treasury = EffectiveStartingTreasury;
+            Treasury = Mathf.Max(0, Treasury);
             Recalculate();
         }
 
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive || Speed <= 0) return;
-            _tickClock += (float)delta * Speed;
-            if (_tickClock < SecondsPerMonth) return;
-            _tickClock -= SecondsPerMonth;
+            _tickClock = Mathf.Max(0f, FiniteOr(_tickClock, 0f));
+            _tickClock += DeltaSeconds(delta) * Speed;
+            if (_tickClock < EffectiveSecondsPerMonth) return;
+            _tickClock -= EffectiveSecondsPerMonth;
             AdvanceMonth();
         }
 
@@ -222,7 +229,7 @@ namespace Beep.ECS
             int shortfall = (pUse > pCap ? 12 : 0) + (wUse > wCap ? 8 : 0);
             Happiness = Mathf.Clamp(70 + amenity - shortfall, 0, 100);
 
-            int income = Mathf.RoundToInt(Population * TaxPerResident);
+            int income = Mathf.RoundToInt(Population * EffectiveTaxPerResident);
             MonthlyDelta = income - upkeep;
 
             // RCI: residents want jobs, businesses want customers, industry wants demand.
@@ -247,37 +254,73 @@ namespace Beep.ECS
 
         public void Save(GameBuilder.GameStateData state)
         {
-            state.GameData[KTreasury] = Treasury;
-            state.GameData[KPopulation] = Population;
-            state.GameData[KHappiness] = Happiness;
-            state.GameData[KDay] = Month;
+            state.GameData[KTreasury] = Mathf.Max(0, Treasury);
+            state.GameData[KPopulation] = Mathf.Max(0, Population);
+            state.GameData[KHappiness] = Mathf.Clamp(Happiness, 0, 100);
+            state.GameData[KDay] = Mathf.Max(0, Month);
             state.GameData[KSpeed] = Speed;
 
             // Building counts as one nested dictionary, so adding a building type later does not
             // add a key to the top-level save and cannot collide with another genre's namespace.
             var owned = new Godot.Collections.Dictionary();
-            foreach (var (id, n) in _owned) owned[id] = n;
+            foreach (var (id, n) in _owned)
+                if (Find(id) != null && n > 0)
+                    owned[id] = n;
             state.GameData[KBuildings] = owned;
         }
 
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KTreasury, out var t)) Treasury = t.AsInt32();
-            if (d.TryGetValue(KPopulation, out var p)) Population = p.AsInt32();
-            if (d.TryGetValue(KHappiness, out var h)) Happiness = h.AsInt32();
-            if (d.TryGetValue(KDay, out var m)) Month = m.AsInt32();
-            if (d.TryGetValue(KSpeed, out var s)) Speed = s.AsInt32();
+            if (d.TryGetValue(KTreasury, out var t)) Treasury = Mathf.Max(0, ReadInt(t, 0));
+            if (d.TryGetValue(KPopulation, out var p)) Population = Mathf.Max(0, ReadInt(p, 0));
+            if (d.TryGetValue(KHappiness, out var h)) Happiness = Mathf.Clamp(ReadInt(h, 70), 0, 100);
+            if (d.TryGetValue(KDay, out var m)) Month = Mathf.Max(0, ReadInt(m, 0));
+            if (d.TryGetValue(KSpeed, out var s)) Speed = ReadInt(s, Speed);
 
             _owned.Clear();
-            if (d.TryGetValue(KBuildings, out var b))
+            if (d.TryGetValue(KBuildings, out var b) && b.VariantType == Variant.Type.Dictionary)
                 foreach (var kv in b.AsGodotDictionary())
-                    _owned[kv.Key.AsString()] = kv.Value.AsInt32();
+                {
+                    string id = kv.Key.AsString();
+                    int count = Mathf.Max(0, ReadInt(kv.Value, 0));
+                    if (Find(id) != null && count > 0)
+                        _owned[id] = count;
+                }
 
             // Derived values are never saved — they are recomputed, so a save can never carry a
             // treasury that disagrees with the buildings that produced it.
             Recalculate();
             EmitSignal(SignalName.BuildingsChanged);
+        }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static int ReadInt(Variant value, int fallback)
+        {
+            if (value.VariantType == Variant.Type.Int)
+                return value.AsInt32();
+
+            if (value.VariantType == Variant.Type.Float)
+            {
+                double raw = value.AsDouble();
+                return double.IsFinite(raw) ? Mathf.RoundToInt((float)raw) : fallback;
+            }
+
+            if (value.VariantType == Variant.Type.String
+                && int.TryParse(value.AsString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+            {
+                return parsed;
+            }
+
+            return fallback;
         }
     }
 }

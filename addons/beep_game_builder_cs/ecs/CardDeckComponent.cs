@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -30,6 +31,10 @@ namespace Beep.ECS
         [Export] public int StartingGold { get; set; } = 99;
         [Export] public int EnergyPerTurn { get; set; } = 3;
         [Export] public int HandSize { get; set; } = 5;
+        public int EffectiveMaxHealth => Mathf.Max(1, MaxHealth);
+        public int EffectiveStartingGold => Mathf.Max(0, StartingGold);
+        public int EffectiveEnergyPerTurn => Mathf.Max(0, EnergyPerTurn);
+        public int EffectiveHandSize => Mathf.Clamp(HandSize, 0, 100);
 
         /// <summary>Card ids the run starts with. Duplicates are the point — a starting deck is
         /// mostly copies of two or three cards.</summary>
@@ -59,9 +64,9 @@ namespace Beep.ECS
         public int TotalCards => _deck.Count + _hand.Count + _discard.Count;
 
         public bool IsDead => Health <= 0;
-        public float HealthFraction => MaxHealth <= 0 ? 0f : (float)Health / MaxHealth;
-        public float EnergyFraction => EnergyPerTurn <= 0 ? 0f
-            : Mathf.Clamp((float)Energy / EnergyPerTurn, 0f, 1f);
+        public float HealthFraction => Mathf.Clamp((float)Health / EffectiveMaxHealth, 0f, 1f);
+        public float EnergyFraction => EffectiveEnergyPerTurn <= 0 ? 0f
+            : Mathf.Clamp((float)Energy / EffectiveEnergyPerTurn, 0f, 1f);
 
         [Signal] public delegate void DeckChangedEventHandler();
         [Signal] public delegate void HandDrawnEventHandler(int count);
@@ -75,8 +80,8 @@ namespace Beep.ECS
         {
             base._Ready();
             _rng.Randomize();
-            Health = MaxHealth;
-            Gold = StartingGold;
+            Health = EffectiveMaxHealth;
+            Gold = EffectiveStartingGold;
             StartRun();
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
@@ -85,10 +90,15 @@ namespace Beep.ECS
         public void StartRun()
         {
             _deck.Clear(); _hand.Clear(); _discard.Clear();
-            if (StartingDeck != null) _deck.AddRange(StartingDeck);
+            if (StartingDeck != null)
+                foreach (string card in StartingDeck)
+                    if (!string.IsNullOrWhiteSpace(card))
+                        _deck.Add(card);
             Shuffle(_deck);
             Turn = 1;
-            Energy = EnergyPerTurn;
+            Health = Mathf.Clamp(Health <= 0 ? EffectiveMaxHealth : Health, 0, EffectiveMaxHealth);
+            Gold = Mathf.Max(0, Gold);
+            Energy = EffectiveEnergyPerTurn;
             DrawHand();
             EmitSignal(SignalName.TurnStarted, Turn);
             EmitSignal(SignalName.DeckChanged);
@@ -129,8 +139,9 @@ namespace Beep.ECS
         /// cards entirely, which is a real state rather than an error.</summary>
         public int DrawHand()
         {
+            int handSize = EffectiveHandSize;
             int drawn = 0;
-            while (_hand.Count < HandSize && DrawOne() != null) drawn++;
+            while (_hand.Count < handSize && DrawOne() != null) drawn++;
             EmitSignal(SignalName.HandDrawn, drawn);
             EmitSignal(SignalName.DeckChanged);
             return drawn;
@@ -142,7 +153,7 @@ namespace Beep.ECS
         /// not held or the energy is not there, so a caller cannot half-play a card.</summary>
         public bool PlayCard(string cardId, int energyCost)
         {
-            if (IsDead || energyCost > Energy) return false;
+            if (IsDead || string.IsNullOrEmpty(cardId) || energyCost <= 0 || energyCost > Energy) return false;
             int at = _hand.IndexOf(cardId);
             if (at < 0) return false;
 
@@ -161,7 +172,7 @@ namespace Beep.ECS
             _discard.AddRange(_hand);
             _hand.Clear();
             Turn++;
-            Energy = EnergyPerTurn;
+            Energy = EffectiveEnergyPerTurn;
             DrawHand();
             EmitSignal(SignalName.TurnStarted, Turn);
             EmitSignal(SignalName.DeckChanged);
@@ -180,7 +191,7 @@ namespace Beep.ECS
         public void Heal(int amount)
         {
             if (amount <= 0 || IsDead) return;
-            Health = Mathf.Min(MaxHealth, Health + amount);
+            Health = Mathf.Min(EffectiveMaxHealth, Health + amount);
             EmitSignal(SignalName.DeckChanged);
         }
 
@@ -241,7 +252,15 @@ namespace Beep.ECS
         private static void Unpack(Variant v, List<string> into)
         {
             into.Clear();
-            foreach (var e in v.AsGodotArray()) into.Add(e.AsString());
+            if (v.VariantType != Variant.Type.Array)
+                return;
+
+            foreach (Variant e in v.AsGodotArray())
+            {
+                string card = e.AsString();
+                if (!string.IsNullOrWhiteSpace(card))
+                    into.Add(card);
+            }
         }
 
         public void Save(GameBuilder.GameStateData state)
@@ -260,15 +279,35 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp(h.AsInt32(), 0, MaxHealth);
-            if (d.TryGetValue(KGold, out var g)) Gold = Mathf.Max(0, g.AsInt32());
-            if (d.TryGetValue(KEnergy, out var e)) Energy = Mathf.Max(0, e.AsInt32());
-            if (d.TryGetValue(KTurn, out var t)) Turn = Mathf.Max(1, t.AsInt32());
+            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp(ReadInt(h, EffectiveMaxHealth), 0, EffectiveMaxHealth);
+            if (d.TryGetValue(KGold, out var g)) Gold = Mathf.Max(0, ReadInt(g, 0));
+            if (d.TryGetValue(KEnergy, out var e)) Energy = Mathf.Clamp(ReadInt(e, EffectiveEnergyPerTurn), 0, EffectiveEnergyPerTurn);
+            if (d.TryGetValue(KTurn, out var t)) Turn = Mathf.Max(1, ReadInt(t, 1));
             if (d.TryGetValue(KDeck, out var dk)) Unpack(dk, _deck);
             if (d.TryGetValue(KHand, out var hd)) Unpack(hd, _hand);
             if (d.TryGetValue(KDiscard, out var ds)) Unpack(ds, _discard);
             EmitSignal(SignalName.TurnStarted, Turn);
             EmitSignal(SignalName.DeckChanged);
+        }
+
+        private static int ReadInt(Variant value, int fallback)
+        {
+            if (value.VariantType == Variant.Type.Int)
+                return value.AsInt32();
+
+            if (value.VariantType == Variant.Type.Float)
+            {
+                double raw = value.AsDouble();
+                return double.IsFinite(raw) ? Mathf.RoundToInt((float)raw) : fallback;
+            }
+
+            if (value.VariantType == Variant.Type.String
+                && int.TryParse(value.AsString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+            {
+                return parsed;
+            }
+
+            return fallback;
         }
     }
 }

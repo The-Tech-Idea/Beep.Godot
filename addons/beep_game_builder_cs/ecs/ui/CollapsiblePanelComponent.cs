@@ -27,6 +27,8 @@ namespace Beep.ECS.UI
 
         /// <summary>Persist the folded state into the save file.</summary>
         [Export] public bool ParticipatesInSave { get; set; } = true;
+        [Export] public NodePath ToggleButtonPath { get; set; } = new("");
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         /// <summary>Key under which the state is saved. Empty derives one from the node path,
         /// which is stable as long as the scene structure is.</summary>
@@ -40,6 +42,7 @@ namespace Beep.ECS.UI
 
         private Godot.Control? _panel;      // the parent being folded
         private Button? _header;            // the floating toggle
+        private bool _createdHeader;
         private bool _collapsed;
         private Rect2 _anchor;              // last known panel rect, so the toggle survives the fold
         private Tween? _tween;
@@ -62,6 +65,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            UpdateConfigurationWarnings();
             if (Engine.IsEditorHint()) return;
             // Saves are built from this group, not from a tree walk — without joining it the
             // component implements ISaveable and is never asked to save anything.
@@ -70,6 +74,13 @@ namespace Beep.ECS.UI
             // parent still inside its own _Ready fails with "parent node is busy setting up
             // children" and silently yields an empty widget.
             CallDeferred(nameof(Setup));
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindToggleButton() == null)
+                return new[] { "Add an authored Button/KitIconButton named <PanelName>Toggle, set ToggleButtonPath, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void Setup()
@@ -92,7 +103,14 @@ namespace Beep.ECS.UI
             _expandedPosition = _panel.Position;
             _expandedMouseFilter = _panel.MouseFilter;
             ResolveLinkedFrames();
-            BuildHeader();
+            if (!BindExistingHeader())
+            {
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildHeader();
+            }
+            StyleHeader();
             SetCollapsed(StartCollapsed, animate: false);
         }
 
@@ -116,24 +134,73 @@ namespace Beep.ECS.UI
             Node? parent = _panel.GetParent();
             if (parent == null) return;
 
+            _createdHeader = true;
             _header = new KitIconButton
             {
                 Name = $"{_panel.Name}Toggle",
-                Glyph = HeaderText(false),
                 ToggleMode = false,
-                FocusMode = Godot.Control.FocusModeEnum.None,
-                MouseFilter = Godot.Control.MouseFilterEnum.Stop,
-                CustomMinimumSize = new Vector2(ButtonSize, ButtonSize),
-                Size = new Vector2(ButtonSize, ButtonSize),
-                Alignment = HorizontalAlignment.Center,
                 TooltipText = string.IsNullOrEmpty(Title) ? "Collapse this panel" : $"Collapse {Title}",
             };
-            _header.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(ButtonSize * 0.58f));
-            _header.Pressed += () => SetCollapsed(!_collapsed, animate: true);
 
             var layer = TopLevelControl(parent);
             (layer ?? parent).AddChild(_header);
             _header.TopLevel = layer == null && parent is not CanvasLayer;
+            _header.ZIndex = Mathf.Max(_panel.ZIndex + 200, 200);
+            SetEditedOwner(_header);
+        }
+
+        private bool BindExistingHeader()
+        {
+            _createdHeader = false;
+            _header = FindToggleButton();
+            return _header != null;
+        }
+
+        public bool UsesSceneControls()
+            => FindToggleButton() != null;
+
+        private Button? FindToggleButton()
+        {
+            if (!ToggleButtonPath.IsEmpty && GetNodeOrNull<Button>(ToggleButtonPath) is { } pathButton)
+                return pathButton;
+
+            string? panelName = _panel?.Name.ToString();
+            if (!string.IsNullOrWhiteSpace(panelName))
+            {
+                string name = $"{panelName}Toggle";
+                if (FindChild(name, recursive: true, owned: false) is Button childButton)
+                    return childButton;
+
+                if (_panel?.GetParent()?.FindChild(name, recursive: true, owned: false) is Button siblingButton)
+                    return siblingButton;
+
+                if (GetParent()?.FindChild(name, recursive: true, owned: false) is Button parentButton)
+                    return parentButton;
+            }
+
+            if (FindChild("CollapseToggle", recursive: true, owned: false) is Button genericChild)
+                return genericChild;
+
+            return GetParent()?.FindChild("CollapseToggle", recursive: true, owned: false) as Button;
+        }
+
+        private void StyleHeader()
+        {
+            if (_header == null || _panel == null) return;
+            if (_header is KitIconButton icon)
+                icon.Glyph = HeaderText(false);
+            else
+                _header.Text = HeaderText(false);
+            _header.ToggleMode = false;
+            _header.FocusMode = Godot.Control.FocusModeEnum.All;
+            _header.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
+            _header.CustomMinimumSize = new Vector2(ButtonSize, ButtonSize);
+            _header.Size = new Vector2(ButtonSize, ButtonSize);
+            _header.Alignment = HorizontalAlignment.Center;
+            _header.TooltipText = string.IsNullOrEmpty(Title) ? "Collapse this panel" : $"Collapse {Title}";
+            KitChrome.SetFontSizeOverrideIfChanged(_header, "font_size", Mathf.RoundToInt(ButtonSize * 0.58f));
+            if (!_header.IsConnected(Button.SignalName.Pressed, Callable.From(OnHeaderPressed)))
+                _header.Pressed += OnHeaderPressed;
             _header.ZIndex = Mathf.Max(_panel.ZIndex + 200, 200);
             CallDeferred(nameof(CompactToggleStyle));
         }
@@ -154,7 +221,7 @@ namespace Beep.ECS.UI
                 if (_header.GetThemeStylebox(state, "Button").Duplicate() is not StyleBox box) continue;
                 box.ContentMarginLeft = box.ContentMarginRight = 1;
                 box.ContentMarginTop = box.ContentMarginBottom = 1;
-                _header.AddThemeStyleboxOverride(state, box);
+                KitChrome.SetStyleboxOverrideIfChanged(_header, state, box);
             }
         }
 
@@ -331,6 +398,7 @@ namespace Beep.ECS.UI
         }
 
         public void Toggle() => SetCollapsed(!_collapsed, animate: true);
+        private void OnHeaderPressed() => SetCollapsed(!_collapsed, animate: true);
 
         // ── ISaveable ────────────────────────────────────────────────────────────────
         // Keyed on the PANEL, not on this component: one collapsible per panel, and the panel's
@@ -357,6 +425,21 @@ namespace Beep.ECS.UI
             base._ExitTree();
             _tween?.Kill();
             _tween = null;
+            if (_header != null && GodotObject.IsInstanceValid(_header))
+            {
+                _header.Pressed -= OnHeaderPressed;
+                if (_createdHeader)
+                    _header.QueueFree();
+            }
+            _header = null;
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

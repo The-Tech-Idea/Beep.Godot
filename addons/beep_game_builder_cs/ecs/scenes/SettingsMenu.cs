@@ -15,7 +15,7 @@ namespace Beep.ECS.Scenes
             this.ConnectButton("ResetButton", OnResetPressed);
             WireSettingsWidgets();
             PopulateControls();
-            NormalizeLayout();
+            RepairMissingLayoutDefaults();
 
             // Focus something, or a keyboard/gamepad player opens this screen and every
             // press goes nowhere — there is no mouse to fall back on. Deferred so the tab
@@ -29,8 +29,7 @@ namespace Beep.ECS.Scenes
             else this.Find<Button>("CloseButton")?.GrabFocus();
         }
 
-        /// <summary>Put every settings row on the same three-column grid, and share the
-        /// dialog shell numbers with the save/load menus via <see cref="UI.BeepDialogLayout"/>.
+        /// <summary>Backfill the three-column settings grid for older generated scenes.
         ///
         /// The label column MUST be fixed-width and non-expanding, or the control beside it
         /// lands at a different x on every tab. The scene had it both ways — Fullscreen,
@@ -39,31 +38,31 @@ namespace Beep.ECS.Scenes
         /// switched tabs. Rows also had no minimum height, so a slider row, a checkbox row and
         /// an option-button row were three different heights down the same list.
         ///
-        /// Runs on every open, so a project still carrying an older settings_menu.tscn is
-        /// corrected without regenerating the scene.</summary>
-        private void NormalizeLayout()
+        /// The current template authors these values directly. This code only fills values that
+        /// are still unset, so opening the scene no longer overwrites deliberate inspector edits.</summary>
+        private void RepairMissingLayoutDefaults()
         {
-            UI.BeepDialogLayout.ApplyShell(this);
+            UI.BeepDialogLayout.ApplyShellDefaults(this);
 
-            // ApplyShell's panel sizing looks for a node named "PanelContainer" (the save/load
+            // ApplyShellDefaults' panel sizing looks for a node named "PanelContainer" (the save/load
             // spine) and this screen's is named "Panel", so it never reached settings — and it
             // must not: those two want a 620px floor for their slot list, this one wants its
             // height to come from the form. Width only, height explicitly zero.
             if (this.Find<PanelContainer>("Panel") is { } panel)
-                panel.CustomMinimumSize = new Vector2(UI.BeepDialogLayout.SettingsPanelWidth, 0);
+                ApplyMinimumIfUnset(panel, UI.BeepDialogLayout.SettingsPanelWidth, null);
 
             if (this.Find<VBoxContainer>("ContentVBox") is { } content)
-                content.AddThemeConstantOverride("separation", UI.BeepDialogLayout.SectionGap);
+                SetConstantIfUnset(content, "separation", UI.BeepDialogLayout.SectionGap);
             if (this.Find<TabContainer>("Tabs") is { } tabs)
-                tabs.CustomMinimumSize = new Vector2(0, UI.BeepDialogLayout.SettingsTabHeight);
+                ApplyMinimumIfUnset(tabs, null, UI.BeepDialogLayout.SettingsTabHeight);
             if (this.Find<HBoxContainer>("Footer") is { } footer)
-                footer.AddThemeConstantOverride("separation", UI.BeepDialogLayout.ButtonGap);
+                SetConstantIfUnset(footer, "separation", UI.BeepDialogLayout.ButtonGap);
             foreach (string b in new[] { "ResetButton", "CloseButton" })
                 if (this.Find<Button>(b) is { } btn)
-                    btn.CustomMinimumSize = new Vector2(0, UI.BeepDialogLayout.ActionButtonHeight);
+                    ApplyMinimumIfUnset(btn, null, UI.BeepDialogLayout.ActionButtonHeight);
             foreach (string list in new[] { "AudioList", "DisplayList", "GameList", "ControlsList" })
                 if (this.Find<VBoxContainer>(list) is { } l)
-                    l.AddThemeConstantOverride("separation", UI.BeepDialogLayout.RowGap);
+                    SetConstantIfUnset(l, "separation", UI.BeepDialogLayout.RowGap);
 
             NormalizeRows(this);
         }
@@ -73,20 +72,24 @@ namespace Beep.ECS.Scenes
         {
             if (node is HBoxContainer row && row.Name.ToString().EndsWith("Row"))
             {
-                row.AddThemeConstantOverride("separation", UI.BeepDialogLayout.RowInnerGap);
-                row.CustomMinimumSize = new Vector2(0, UI.BeepDialogLayout.SettingsRowHeight);
+                SetConstantIfUnset(row, "separation", UI.BeepDialogLayout.RowInnerGap);
+                ApplyMinimumIfUnset(row, null, UI.BeepDialogLayout.SettingsRowHeight);
                 bool first = true;
                 foreach (var child in row.GetChildren())
                 {
                     if (child is not Godot.Control c) continue;
                     string n = c.Name.ToString();
-                    // Our own right-hand gutter: skip it, or the "everything else" branch below
-                    // would hand it ExpandFill on the next pass and it would eat the row.
-                    if (n == "ScrollGutter") continue;
+                    // Authored right-hand gutter: keep it fixed so the scrollbar never covers
+                    // the value column, but do not let it consume the row's expandable space.
+                    if (n == "ScrollGutter")
+                    {
+                        NormalizeScrollGutter(c);
+                        continue;
+                    }
                     if (first && c is Label lbl)
                     {
                         // Column 1: the label. Fixed width, never expands, vertically centred.
-                        lbl.CustomMinimumSize = new Vector2(UI.BeepDialogLayout.SettingsLabelColumn, 0);
+                        ApplyMinimumIfUnset(lbl, UI.BeepDialogLayout.SettingsLabelColumn, null);
                         lbl.SizeFlagsHorizontal = Godot.Control.SizeFlags.Fill;
                         lbl.SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter;
                         lbl.VerticalAlignment = VerticalAlignment.Center;
@@ -97,7 +100,7 @@ namespace Beep.ECS.Scenes
                     {
                         // Column 3: the read-out. Fixed width, right-aligned, so the digits
                         // form a straight edge instead of drifting with the slider.
-                        value.CustomMinimumSize = new Vector2(UI.BeepDialogLayout.SettingsValueColumn, 0);
+                        ApplyMinimumIfUnset(value, UI.BeepDialogLayout.SettingsValueColumn, null);
                         value.SizeFlagsHorizontal = Godot.Control.SizeFlags.Fill;
                         value.HorizontalAlignment = HorizontalAlignment.Right;
                         value.VerticalAlignment = VerticalAlignment.Center;
@@ -110,12 +113,11 @@ namespace Beep.ECS.Scenes
                         ? Godot.Control.SizeFlags.ShrinkEnd
                         : Godot.Control.SizeFlags.ExpandFill;
                 }
-                AddScrollGutter(row);
             }
             foreach (var child in node.GetChildren()) NormalizeRows(child);
         }
 
-        /// <summary>Reserve a strip at the right of every settings row so the tab's vertical
+        /// <summary>Normalize the authored strip at the right of every settings row so the tab's vertical
         /// scrollbar cannot sit on top of the read-out column.
         ///
         /// A ScrollContainer's scrollbar OVERLAYS its content rather than displacing it, so as
@@ -126,21 +128,31 @@ namespace Beep.ECS.Scenes
         ///
         /// Applied to EVERY row, not only the tabs that currently overflow: if just the
         /// scrolling tab were inset, its value column would sit 14px left of the others and the
-        /// numbers would visibly jump when you changed tabs. Name-guarded so the repeated
-        /// NormalizeLayout calls cannot stack spacers.</summary>
-        private static void AddScrollGutter(HBoxContainer row)
+        /// numbers would visibly jump when you changed tabs. The spacer is authored in the
+        /// scene so startup never creates UI controls just to repair layout.</summary>
+        private static void NormalizeScrollGutter(Godot.Control spacer)
         {
-            const string spacerName = "ScrollGutter";
-            if (row.FindChild(spacerName, recursive: false, owned: false) != null) return;
-
-            var spacer = new Godot.Control
-            {
-                Name = spacerName,
-                CustomMinimumSize = new Vector2(UI.BeepDialogLayout.ScrollGutter, 0),
-                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-            };
+            ApplyMinimumIfUnset(spacer, UI.BeepDialogLayout.ScrollGutter, null);
+            spacer.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
             spacer.SizeFlagsHorizontal = Godot.Control.SizeFlags.Fill;
-            row.AddChild(spacer);
+            spacer.SizeFlagsVertical = Godot.Control.SizeFlags.Fill;
+        }
+
+        private static void SetConstantIfUnset(Godot.Control control, string name, int value)
+        {
+            if (!control.HasThemeConstantOverride(name))
+                KitChrome.SetConstantOverrideIfChanged(control, name, value);
+        }
+
+        private static void ApplyMinimumIfUnset(Godot.Control control, int? x, int? y)
+        {
+            Vector2 current = control.CustomMinimumSize;
+            float nextX = x.HasValue && current.X <= 0f ? x.Value : current.X;
+            float nextY = y.HasValue && current.Y <= 0f ? y.Value : current.Y;
+            if (Mathf.IsEqualApprox(current.X, nextX) && Mathf.IsEqualApprox(current.Y, nextY))
+                return;
+
+            control.CustomMinimumSize = new Vector2(nextX, nextY);
         }
 
         // As a modal overlay (which it always is now — opened via SettingsOverlay.Open), close on the
@@ -240,11 +252,12 @@ namespace Beep.ECS.Scenes
             if (this.Find<Label>("ResolutionLabel") is { } label) label.Modulate = new Color(1, 1, 1, fullscreen ? 0.5f : 1f);
         }
 
-        /// <summary>Fill the Controls tab from the project's actual InputMap.
+        /// <summary>Fill the authored ControlsBindings label from the project's actual InputMap.
         ///
-        /// It used to be a single label telling the PLAYER to "edit in Project Settings →
-        /// Input Map" — a developer-only instruction shown to someone running a built game,
-        /// where Project Settings does not exist. Listing the real bindings is at least true.
+        /// This screen used to create one KitLabel row per action in _Ready. That made the
+        /// settings scene depend on runtime UI construction, multiplied KitLabel theme work on
+        /// open, and violated the design-time scene contract. Keep the controls UI authored and
+        /// only update its text.
         ///
         /// Read-only by design: a rebinding UI has to own conflict resolution, per-device
         /// handling and persistence, which is the game's decision, not the framework's.
@@ -252,8 +265,9 @@ namespace Beep.ECS.Scenes
         /// InputMap.ActionEraseEvents / ActionAddEvent.</summary>
         private void PopulateControls()
         {
-            if (this.Find<VBoxContainer>("ControlsList") is not { } list) return;
+            if (this.Find<Label>("ControlsBindings") is not { } bindings) return;
 
+            var text = new System.Text.StringBuilder();
             foreach (var action in InputMap.GetActions())
             {
                 string name = action.ToString();
@@ -264,31 +278,11 @@ namespace Beep.ECS.Scenes
                     ? "unbound"
                     : string.Join(", ", System.Linq.Enumerable.Select(events, e => Describe(e)));
 
-                var row = new HBoxContainer();
-                row.AddThemeConstantOverride("separation", 12);
-
-                var label = new KitLabel { Text = Humanize(name), CustomMinimumSize = new Vector2(160, 0), AutoRole = false, Role = UI.UiSurface.TextRole.Caption };
-                label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-                row.AddChild(label);
-
-                var value = new KitLabel { Text = bound, HorizontalAlignment = HorizontalAlignment.Right, AutoRole = false, Role = UI.UiSurface.TextRole.Value };
-                value.ThemeTypeVariation = "BeepValue";
-                row.AddChild(value);
-
-                // These rows are built here, not in the scene, so their names are Godot's
-                // auto-generated ones and NormalizeRows — which matches on "*Row" — never sees
-                // them. The scroll gutter therefore has to be added at the source: this is the
-                // one tab long enough to grow a scrollbar, and without the strip the bar came
-                // down over the binding column and sliced "W, Up" and "Pad 0" in half.
-                row.AddChild(new Godot.Control
-                {
-                    Name = "ScrollGutter",
-                    CustomMinimumSize = new Vector2(UI.BeepDialogLayout.ScrollGutter, 0),
-                    MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                });
-
-                list.AddChild(row);
+                if (text.Length > 0) text.Append('\n');
+                text.Append(Humanize(name)).Append("  -  ").Append(bound);
             }
+
+            bindings.Text = text.Length == 0 ? "No custom actions are registered." : text.ToString();
         }
 
         /// <summary>"move_left" -> "Move Left".</summary>

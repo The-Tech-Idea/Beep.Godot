@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -125,21 +126,21 @@ namespace Beep.ECS.UI
         /// zone beneath them. Sizing to content is what removes the emptiness.</summary>
         public const int SettingsPanelWidth = 680;
 
-        /// <summary>Apply the shell numbers (panel min size, outer padding, section gap) to a
+        /// <summary>Backfill shell defaults (panel min size and outer padding) into a
         /// menu that already has the conventional PanelContainer > Margin > VBox spine.
-        /// Every lookup is name-based and null-tolerant: a stale scene that is missing a node
-        /// simply keeps whatever it had rather than throwing.</summary>
+        /// Existing authored values are left alone; every lookup is name-based and null-tolerant.</summary>
         public static void ApplyShell(Node root)
+            => ApplyShellDefaults(root);
+
+        public static void ApplyShellDefaults(Node root)
         {
             if (root.FindChild("PanelContainer", recursive: true, owned: false) is PanelContainer panel)
-                panel.CustomMinimumSize = new Vector2(
-                    Mathf.Max(panel.CustomMinimumSize.X, PanelWidth),
-                    Mathf.Max(panel.CustomMinimumSize.Y, PanelHeight));
+                ApplyMinimumIfUnset(panel, PanelWidth, PanelHeight);
 
             if (root.FindChild("Margin", recursive: true, owned: false) is MarginContainer margin)
             {
                 foreach (string side in new[] { "margin_left", "margin_right", "margin_bottom" })
-                    margin.AddThemeConstantOverride(side, OuterMargin);
+                    SetConstantIfUnset(margin, side, OuterMargin);
 
                 // The TOP is not a free choice when the panel carries a title banner. The banner
                 // is drawn from the frame's y=0 downward and OVERLAPS the panel's top border by
@@ -151,8 +152,25 @@ namespace Beep.ECS.UI
                     foreach (var sib in framedHost.GetChildren())
                         if (sib is PanelFrameComponent pf && pf.BannerRoom > 0)
                             top = Mathf.Max(top, pf.BannerRoom + 6);
-                margin.AddThemeConstantOverride("margin_top", top);
+                SetConstantIfUnset(margin, "margin_top", top);
             }
+        }
+
+        private static void SetConstantIfUnset(Godot.Control control, string name, int value)
+        {
+            if (!control.HasThemeConstantOverride(name))
+                KitChrome.SetConstantOverrideIfChanged(control, name, value);
+        }
+
+        private static void ApplyMinimumIfUnset(Godot.Control control, int x, int y)
+        {
+            Vector2 current = control.CustomMinimumSize;
+            float nextX = current.X <= 0f ? x : current.X;
+            float nextY = current.Y <= 0f ? y : current.Y;
+            if (Mathf.IsEqualApprox(current.X, nextX) && Mathf.IsEqualApprox(current.Y, nextY))
+                return;
+
+            control.CustomMinimumSize = new Vector2(nextX, nextY);
         }
     }
 }

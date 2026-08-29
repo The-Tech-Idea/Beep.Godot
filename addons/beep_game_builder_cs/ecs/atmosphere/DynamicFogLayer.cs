@@ -23,12 +23,19 @@ namespace Beep.ECS
         [Export] public int CanvasLayerIndex { get; set; } = 101;
         [Export] public NodePath? WeatherSystemPath { get; set; }
         [Export] public bool EnableWeatherIntegration { get; set; } = true;
+        [Export] public bool WarnMissingWeatherSystem { get; set; } = false;
 
         private CanvasLayer? _layer;
         private ColorRect? _fogRect;
         private ShaderMaterial? _fogMat;
         private WeatherSystemComponent? _weather;
         private float _currentDensity = 0f;
+        private bool _initialized;
+
+        public float EffectiveMaxDensity => Mathf.Clamp(float.IsFinite(MaxDensity) ? MaxDensity : 0f, 0f, 1f);
+        public Vector2 EffectiveAnimationSpeed => new(
+            float.IsFinite(AnimationSpeed.X) ? AnimationSpeed.X : 0f,
+            float.IsFinite(AnimationSpeed.Y) ? AnimationSpeed.Y : 0f);
 
         // Fog shader with animated noise
         private const string FogShaderCode = @"
@@ -67,19 +74,25 @@ void fragment() {
 
         private void DeferredInit()
         {
+            if (!IsActive) return;
             EnsureFogLayer();
+            _initialized = true;
 
             // Wire to weather system
             if (EnableWeatherIntegration)
             {
-                if (WeatherSystemPath != null)
+                if (WeatherSystemPath != null && !WeatherSystemPath.IsEmpty)
                     _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
                 if (_weather == null)
                 {
-                    foreach (var n in GetTree().GetNodesInGroup("weather_system"))
-                        if (n is WeatherSystemComponent w) { _weather = w; break; }
+                    var tree = GetTree();
+                    if (tree != null)
+                    {
+                        foreach (var n in tree.GetNodesInGroup("weather_system"))
+                            if (n is WeatherSystemComponent w) { _weather = w; break; }
+                    }
                 }
-                if (_weather == null)
+                if (_weather == null && WarnMissingWeatherSystem)
                     GD.PushWarning($"[{Name}] EnableWeatherIntegration is on but no WeatherSystemComponent was found (no 'weather_system' group member, no WeatherSystemPath) — the fog reads no intensity and stays invisible. Add a WeatherSystemComponent or turn off EnableWeatherIntegration.");
             }
         }
@@ -127,12 +140,26 @@ void fragment() {
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint() || !IsActive) return;
+            if (!_initialized)
+                DeferredInit();
             if (!IsActive || _fogMat == null) return;
 
             // Drive density from the weather system. This is now the ONE fog: the weather
             // system used to also draw its own fog overlay, so fog rendered twice. Weather's
             // internal overlay was removed; this reads WeatherIntensity and only fogs for
             // fog-like weather. (Was a stub that hardcoded 0.2 regardless of weather.)
+            if (_weather != null && !GodotObject.IsInstanceValid(_weather))
+                _weather = null;
+            if (_weather == null && EnableWeatherIntegration)
+            {
+                var tree = GetTree();
+                if (tree != null)
+                {
+                    foreach (var n in tree.GetNodesInGroup("weather_system"))
+                        if (n is WeatherSystemComponent w) { _weather = w; break; }
+                }
+            }
             if (_weather != null && EnableWeatherIntegration)
                 SetFogDensity(FogWeightFor(_weather.CurrentWeather) * _weather.WeatherIntensity);
         }
@@ -153,13 +180,13 @@ void fragment() {
         public void SetFogDensity(float intensity)
         {
             intensity = Mathf.Clamp(intensity, 0f, 1f);
-            _currentDensity = intensity * MaxDensity;
+            _currentDensity = intensity * EffectiveMaxDensity;
 
             if (_fogMat != null)
             {
                 _fogMat.SetShaderParameter("density", _currentDensity);
                 _fogMat.SetShaderParameter("fog_color", FogColor);
-                _fogMat.SetShaderParameter("animation_speed", AnimationSpeed * (1f + intensity * 0.5f));
+                _fogMat.SetShaderParameter("animation_speed", EffectiveAnimationSpeed * (1f + intensity * 0.5f));
             }
         }
 
@@ -195,7 +222,7 @@ void fragment() {
             if (_fogMat == null) return;
             _fogMat.SetShaderParameter("fog_color", FogColor);
             _fogMat.SetShaderParameter("density", _currentDensity);
-            _fogMat.SetShaderParameter("animation_speed", AnimationSpeed);
+            _fogMat.SetShaderParameter("animation_speed", EffectiveAnimationSpeed);
 
             // Always bind something: an authored texture when given, otherwise the procedural
             // default. Skipping the assignment is what made the failure silent.

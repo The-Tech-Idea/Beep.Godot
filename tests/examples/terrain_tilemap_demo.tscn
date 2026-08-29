@@ -1,0 +1,111 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://tests/examples/TerrainTileMapDemoController.cs" id="controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBiomeTileMapRendererComponent.cs" id="tile_renderer"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
+
+[node name="TerrainTileMapDemo" type="Node2D"]
+script = ExtResource("controller")
+GeneratorPath = NodePath("World/TerrainGenerator")
+RendererPath = NodePath("World/TileRenderer")
+WorldPath = NodePath("World")
+CameraPath = NodePath("Camera")
+CameraControllerPath = NodePath("Camera/CameraController")
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -300
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.05, 0.09, 0.12, 1)
+mouse_filter = 2
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Cells" type="Node" parent="World"]
+script = ExtResource("cells")
+DefaultTerrainKind = "deep_water"
+
+[node name="TerrainGenerator" type="Node" parent="World"]
+script = ExtResource("generator")
+CellDataPath = NodePath("../Cells")
+DefaultTerrainKind = "deep_water"
+UsePainterSettings = false
+GenerateOnReady = false
+ClearExistingCells = true
+BoundsSize = Vector2i(96, 60)
+Mode = 1
+Preset = 0
+Seed = 31415
+UseClimateBiomeMaps = true
+Landform = 1
+LandmassScale = 0.4
+ArchipelagoIslandCount = 4
+TopologySamplesPerCell = 8
+Frequency = 0.072
+Octaves = 5
+Lacunarity = 2.05
+Gain = 0.5
+SeaCoverage = 0.12
+LakeCoverage = 0.05
+LakeFrequencyMultiplier = 0.1
+RiverDensity = 1.0
+StartPositionCount = 6
+
+[node name="TileRenderer" type="Node2D" parent="World"]
+script = ExtResource("tile_renderer")
+CellDataPath = NodePath("../Cells")
+BoundsSize = Vector2i(96, 60)
+AtlasTileSize = Vector2i(64, 64)
+AtlasColumns = 4
+AtlasTileRows = 4
+RefreshOnReady = false
+BaseAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterplain.png"
+GrassAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassplain.png"
+GrassDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassflecks.png"
+DryGrassAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassplain.png"
+SandAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/14e29c2f-395a-407b-9d87-f0e53f237829.png"
+DesertAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecedesertplain.png"
+DesertDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecedesertflecks.png"
+JungleAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecerichGrass.png"
+SwampAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceswamp.png"
+TundraAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecemudplain.png"
+RockAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/Grey-rock 15-piece atlas 1.png"
+GravelAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/Grey-rock 15-piece atlas 2.png"
+SnowAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/snow 15-piece atlas.png"
+IceAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/ice 15-piece atlas.png"
+WaterAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterplain.png"
+WaterDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterflicks.png"
+
+[node name="Camera" type="Camera2D" parent="."]
+
+[node name="CameraController" type="Node" parent="Camera"]
+script = ExtResource("camera_controller")
+UseMouseDrag = true
+DragButton = 2
+UseWheelZoom = true
+ZoomTowardMouse = true
+UseKeyboardPan = true
+MinZoom = Vector2(0.08, 0.08)
+MaxZoom = Vector2(4, 4)
+ZoomStep = 0.12
+PanSpeed = 1400.0
+UseBounds = true
+KeepViewportInsideBounds = false
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 690.0
+offset_right = 1264.0
+offset_bottom = 714.0
+text = "generating..."
+
+[node name="Help" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 900.0
+offset_bottom = 36.0
+text = "Mouse wheel: zoom  |  Middle-drag: pan  |  WASD / arrows: pan  |  R: reset view"

@@ -64,10 +64,10 @@ export function registerAuthoringTools(
     {
       title: "Create a Resource (.tres)",
       description:
-        "Build a Resource of any class, set properties, and save it. This is how you author a UISkin, a ColorPalette, a GeometryProfile or a GameInfo without the dock. " +
-        "Property names are case-sensitive and a C# [Export] is PascalCase — PatchMargin, not patch_margin; the snake_case form is refused rather than silently dropped.",
+        "Build a Resource of any class, set properties, and save it. This is how you author a ColorPalette, a GeometryProfile or a GameInfo without the dock. " +
+        "Property names are case-sensitive and a C# [Export] is PascalCase — GameName, not game_name; the snake_case form is refused rather than silently dropped.",
       inputSchema: {
-        type: z.string().describe("Resource class, e.g. 'UISkin'."),
+        type: z.string().describe("Resource class, e.g. 'GameInfo'."),
         path: z.string().describe("res:// path ending .tres"),
         properties: z.record(z.unknown()).optional(),
       },

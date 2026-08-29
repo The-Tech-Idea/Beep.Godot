@@ -45,6 +45,8 @@ namespace Beep.ECS
         /// <summary>Durability cap — meaningful only when <see cref="IsDestructible"/>. This is
         /// the CAP on the definition; the CURRENT durability is per-instance (on the slot/node).</summary>
         [Export] public float MaxDurability { get; set; } = 100f;
+        public int EffectiveMaxStack => Mathf.Max(1, MaxStack);
+        public float EffectiveMaxDurability => float.IsFinite(MaxDurability) ? Mathf.Max(0f, MaxDurability) : 0f;
 
         /// <summary>How this item exists as a node when it is in the world (lying on the ground,
         /// placed). Null = it has no world form. The instance carries the components; the

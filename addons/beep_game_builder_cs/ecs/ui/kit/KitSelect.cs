@@ -54,8 +54,7 @@ namespace Beep.ECS.UI.Kit
                 {
                     float t = i / 5f;
                     var p = Expand(poly, centre, unit * 1.6f * t);
-                    if (Geometry2D.TriangulatePolygon(p).Length > 0)
-                        ci.DrawColoredPolygon(p, accent with { A = 0.34f * (1f - t) * (1f - t) + 0.05f });
+                    ci.DrawColoredPolygon(p, accent with { A = 0.34f * (1f - t) * (1f - t) + 0.05f });
                 }
 
             if (cues.HasFlag(KitSelectCue.Border))

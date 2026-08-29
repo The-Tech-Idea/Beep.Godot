@@ -23,14 +23,163 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Values 0..1, parallel to <see cref="Axes"/>.</summary>
         public readonly List<float> Values = new();
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
+        [Export]
+        public string[] AxisLabels
+        {
+            get => Axes.ToArray();
+            set => SetAxisLabels(value);
+        }
+
+        [Export]
+        public float[] AxisValues
+        {
+            get => Values.ToArray();
+            set => SetAxisValues(value);
+        }
+
+        public void SetData(IEnumerable<string>? axes, IEnumerable<float>? values)
+        {
+            List<string> nextAxes = NormalizeAxes(axes);
+            List<float> nextValues = NormalizeValues(values);
+            NormalizeParallelData(nextAxes, nextValues);
+            if (SameStrings(Axes, nextAxes) && SameFloats(Values, nextValues))
+                return;
+            Axes.Clear();
+            Values.Clear();
+            Axes.AddRange(nextAxes);
+            Values.AddRange(nextValues);
+            RefreshData();
+        }
+
+        public void SetAxisLabels(string[]? labels)
+        {
+            int count = labels?.Length ?? 0;
+            bool changed = Axes.Count != count || Values.Count != count;
+            while (Axes.Count > count)
+                Axes.RemoveAt(Axes.Count - 1);
+            while (Values.Count > count)
+                Values.RemoveAt(Values.Count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                if (i >= Axes.Count)
+                    Axes.Add("");
+                if (i >= Values.Count)
+                    Values.Add(0f);
+                string next = labels![i] ?? "";
+                if (Axes[i] == next) continue;
+                Axes[i] = next;
+                changed = true;
+            }
+            if (!changed) return;
+            RefreshData();
+        }
+
+        public void SetAxisValues(float[]? values)
+        {
+            int count = values?.Length ?? 0;
+            bool changed = Values.Count != count || Axes.Count < count;
+            while (Values.Count > count)
+                Values.RemoveAt(Values.Count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                if (i >= Values.Count)
+                    Values.Add(0f);
+                if (i >= Axes.Count)
+                    Axes.Add("");
+                float next = Mathf.Clamp(values![i], 0f, 1f);
+                if (Mathf.IsEqualApprox(Values[i], next)) continue;
+                Values[i] = next;
+                changed = true;
+            }
+            if (!changed) return;
+            RefreshData();
+        }
+
+        public void AddAxis(string axis, float value)
+        {
+            Axes.Add(axis ?? "");
+            Values.Add(Mathf.Clamp(value, 0f, 1f));
+            RefreshData();
+        }
+
+        public bool RemoveAxis(int index)
+        {
+            int count = Mathf.Max(Axes.Count, Values.Count);
+            if (index < 0 || index >= count)
+                return false;
+
+            if (index < Axes.Count)
+                Axes.RemoveAt(index);
+            if (index < Values.Count)
+                Values.RemoveAt(index);
+            RefreshData();
+            return true;
+        }
+
+        public void ClearAxes()
+        {
+            if (Axes.Count == 0 && Values.Count == 0)
+                return;
+
+            Axes.Clear();
+            Values.Clear();
+            RefreshData();
+        }
+
+        public void RefreshData()
+        {
+            int count = Count();
+            if (count <= 0)
+                _activeAxis = -1;
+            else if (_activeAxis >= count)
+                _activeAxis = count - 1;
+            RefreshVisualAndRedraw();
+        }
+
+        [Export]
+        public UiSurface.Role Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _role = UiSurface.Role.Accent;
 
         /// <summary>Concentric guide rings. 0 draws none.</summary>
-        [Export(PropertyHint.Range, "0,6,1")] public int Rings { get; set; } = 3;
+        [Export(PropertyHint.Range, "0,6,1")]
+        public int Rings
+        {
+            get => _rings;
+            set
+            {
+                int next = Mathf.Clamp(value, 0, 6);
+                if (_rings == next) return;
+                _rings = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private int _rings = 3;
 
-        [Export] public bool ShowLabels { get; set; } = true;
+        [Export]
+        public bool ShowLabels
+        {
+            get => _showLabels;
+            set { if (_showLabels == value) return; _showLabels = value; RefreshVisualAndRedraw(); }
+        }
+        private bool _showLabels = true;
 
-        [Export] public bool Editable { get; set; } = true;
+        [Export]
+        public bool Editable
+        {
+            get => _editable;
+            set
+            {
+                if (_editable == value) return;
+                _editable = value;
+                if (!_editable) _activeAxis = -1;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private bool _editable = true;
 
         [Signal] public delegate void ValueChangedEventHandler(int axis, float value);
 
@@ -39,15 +188,8 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            if (Axes.Count == 0)
-            {
-                Axes.AddRange(new[] { "SPD", "ACC", "GRIP", "BRK", "AIR" });
-                Values.AddRange(new[] { 0.82f, 0.55f, 0.7f, 0.45f, 0.62f });
-            }
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
@@ -59,13 +201,71 @@ namespace Beep.ECS.UI.Kit
         public void SetValue(int i, float v)
         {
             if (i < 0 || i >= Values.Count) return;
-            Values[i] = Mathf.Clamp(v, 0f, 1f);
+            float next = Mathf.Clamp(v, 0f, 1f);
+            if (Mathf.IsEqualApprox(Values[i], next)) return;
+            Values[i] = next;
+            RefreshVisualAndRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
             QueueRedraw();
+        }
+
+        private static List<string> NormalizeAxes(IEnumerable<string>? axes)
+        {
+            var next = new List<string>();
+            if (axes == null)
+                return next;
+
+            foreach (string? axis in axes)
+                next.Add(axis ?? "");
+            return next;
+        }
+
+        private static List<float> NormalizeValues(IEnumerable<float>? values)
+        {
+            var next = new List<float>();
+            if (values == null)
+                return next;
+
+            foreach (float value in values)
+                next.Add(Mathf.Clamp(value, 0f, 1f));
+            return next;
+        }
+
+        private static void NormalizeParallelData(List<string> axes, List<float> values)
+        {
+            int count = Mathf.Max(axes.Count, values.Count);
+            while (axes.Count < count)
+                axes.Add("");
+            while (values.Count < count)
+                values.Add(0f);
+        }
+
+        private static bool SameStrings(IReadOnlyList<string> left, IReadOnlyList<string> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+                if ((left[i] ?? "") != right[i]) return false;
+            return true;
+        }
+
+        private static bool SameFloats(IReadOnlyList<float> left, IReadOnlyList<float> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+                if (!Mathf.IsEqualApprox(Mathf.Clamp(left[i], 0f, 1f), right[i])) return false;
+            return true;
         }
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (!Editable) return;
+            if (!Editable)
+            {
+                _activeAxis = -1;
+                return;
+            }
             switch (@event)
             {
                 case InputEventKey key:
@@ -158,15 +358,21 @@ namespace Beep.ECS.UI.Kit
         public override void _Draw()
         {
             int n = Count();
-            if (n < 3) return;
             float d = Mathf.Min(Size.X, Size.Y);
             if (d < 24f) return;
+            if (n < 3)
+            {
+                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Axes");
+                return;
+            }
 
             var c = Centre();
             // Leave room for labels outside the web rather than clipping them.
             float r = Radius();
-            Color fill = UiSurface.Semantic(this, Role);
-            Color ink = InkColor();
+            KitState state = Editable ? KitState.Normal : KitState.Disabled;
+            Color fill = KitChrome.StateFace(UiSurface.Semantic(this, Role), state);
+            Color ink = KitChrome.StateFace(InkColor(), state);
             Color face = FaceColor();
             var font = KitFont();
             int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small, min: 8);
@@ -197,17 +403,21 @@ namespace Beep.ECS.UI.Kit
             DrawPolyline(closed, fill, Mathf.Max(2f, r * 0.035f));
             foreach (var p in poly) DrawCircle(p, Mathf.Max(2f, r * 0.045f), fill);
 
-            if (_activeAxis >= 0 && _activeAxis < n)
+            if (Editable && _activeAxis >= 0 && _activeAxis < n)
                 DrawCircle(poly[_activeAxis], Mathf.Max(3f, r * 0.07f), UiSurface.Semantic(this, UiSurface.Role.Info));
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
+            if (Editable)
+                KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
 
             if (!ShowLabels || font == null) return;
             for (int i = 0; i < n; i++)
             {
-                string t = Axes[i] ?? "";
+                string t = KitCase(Axes[i] ?? "");
                 if (t.Length == 0) continue;
+                float labelWidth = d * 0.18f;
                 int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                           new Vector2(d * 0.18f, d * 0.08f), t, font, min: 7);
+                                           new Vector2(labelWidth, d * 0.08f), t, font, min: 7);
+                t = KitChrome.EllipsizeText(font, t, tf, labelWidth);
+                if (string.IsNullOrEmpty(t)) continue;
                 Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, tf);
                 var at = At(i, 1.28f);
                 var badge = new Rect2(at.X - m.X * 0.5f - tf * 0.35f, at.Y - tf * 0.55f,

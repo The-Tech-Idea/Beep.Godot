@@ -15,6 +15,8 @@ namespace Beep.ECS
     {
         [Export] public float FreezeDuration { get; set; } = 0.05f;
         [Export] public float MinDamageThreshold { get; set; } = 10f;
+        public float EffectiveFreezeDuration => NonNegativeFinite(FreezeDuration);
+        public float EffectiveMinDamageThreshold => NonNegativeFinite(MinDamageThreshold);
 
         [Signal] public delegate void HitStopTriggeredEventHandler();
 
@@ -43,13 +45,14 @@ namespace Beep.ECS
 
         private void OnDamaged(float amount, float newHealth)
         {
-            if (!IsActive || amount < MinDamageThreshold) return;
+            float duration = EffectiveFreezeDuration;
+            if (!IsActive || !float.IsFinite(amount) || amount < EffectiveMinDamageThreshold || duration <= 0f) return;
             if (_frozen) return;
             _frozen = true;
             // Wall-clock deadline (Time.GetTicksMsec is unscaled), so the freeze lasts the same real
             // duration at any framerate — the old fixed -0.016f/frame decrement made it ~2× longer at
             // 30 fps and half as long at 120 fps, and delta itself is 0 while TimeScale is 0.
-            _freezeEndMsec = Time.GetTicksMsec() + (ulong)(FreezeDuration * 1000f);
+            _freezeEndMsec = Time.GetTicksMsec() + (ulong)Mathf.CeilToInt(duration * 1000f);
             _priorTimeScale = Engine.TimeScale;   // capture what was running (slow-mo, etc.)
             Engine.TimeScale = 0f;
             EmitSignal(SignalName.HitStopTriggered);
@@ -75,5 +78,8 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

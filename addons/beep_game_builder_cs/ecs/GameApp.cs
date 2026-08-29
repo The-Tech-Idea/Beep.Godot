@@ -33,11 +33,6 @@ namespace Beep.ECS
         /// on _Ready if not set, or created with defaults when the resource is missing.</summary>
         [Export] public GameBuilder.GameInfo? Info { get; set; }
 
-        /// <summary>OPTIONAL texture-based UI skin. When set, the theme engine builds
-        /// StyleBoxTexture (9-patch) for all UI nodes that have a matching texture,
-        /// instead of procedural StyleBoxFlat. Set in the inspector or via game_info.tres.</summary>
-        [Export] public UI.UISkin? Skin { get; set; }
-
         // ── Runtime / session state (changes during play) ──
         [ExportGroup("Session")]
         /// <summary>True if a game is currently running (started or loaded).
@@ -151,10 +146,8 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
-            EnsureInfo();
-            // Load the UI skin from GameInfo if not already set in the inspector.
-            if (Skin == null)
-                Skin = Info?.Skin;
+            var info = EnsureInfo();
+            UI.SkinCatalog.SetActiveSkin(info);
 
             // Persist progression — but only the autoload. Instance resolves /root/GameApp
             // specifically, and [GlobalClass] means a second GameApp can be dropped into a
@@ -173,8 +166,11 @@ namespace Beep.ECS
         public string MainMenuPath => EnsureInfo().ResolveMainMenuPath();
         public string SettingsScenePath => EnsureInfo().ResolveSettingsScenePath();
         public string GameOverScenePath => EnsureInfo().ResolveGameOverScenePath();
-        public double CurrentSessionElapsed => ((long)Time.GetTicksMsec() - SessionStartTicks) / 1000.0;
-        public float WinRate => GamesPlayedTotal > 0 ? (float)GamesWonTotal / GamesPlayedTotal * 100f : 0f;
+        public double CurrentSessionElapsed => SessionStartTicks > 0
+            ? System.Math.Max(0.0, ((long)Time.GetTicksMsec() - SessionStartTicks) / 1000.0)
+            : 0.0;
+        public float WinRate => GamesPlayedTotal > 0 ? Mathf.Clamp((float)Mathf.Max(0, GamesWonTotal) / Mathf.Max(1, GamesPlayedTotal) * 100f, 0f, 100f) : 0f;
+        public float EffectiveDifficultyMultiplier => Mathf.Max(0f, float.IsFinite(DifficultyMultiplier) ? DifficultyMultiplier : 1f);
 
         private GameBuilder.GameInfo EnsureInfo()
         {
@@ -210,15 +206,15 @@ namespace Beep.ECS
             // Track session playtime when game is running
             if (IsGameRunning && !IsPaused)
             {
-                SessionPlaytimeSeconds += delta;
+                SessionPlaytimeSeconds = System.Math.Max(0.0, (double.IsFinite(SessionPlaytimeSeconds) ? SessionPlaytimeSeconds : 0.0) + DeltaSeconds(delta));
             }
         }
 
         // ── Runtime mutators (emit signals so UI can react) ──
         public void AddSessionScore(int amount)
         {
-            int scaledAmount = (int)(amount * DifficultyMultiplier);
-            SessionScore += scaledAmount;
+            int scaledAmount = Mathf.RoundToInt(Mathf.Max(0, amount) * EffectiveDifficultyMultiplier);
+            SessionScore = Mathf.Max(0, SessionScore + scaledAmount);
             EmitSignal(SignalName.SessionScoreChanged, SessionScore);
         }
 
@@ -271,6 +267,9 @@ namespace Beep.ECS
 
             EmitSignal(SignalName.GameRunningChanged, running);
         }
+
+        private static double DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? System.Math.Max(0.0, delta) : 0.0;
 
         public void SetPaused(bool paused)
         {

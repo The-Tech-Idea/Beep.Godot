@@ -28,6 +28,10 @@ namespace Beep.ECS
         [Export] public float PitchVariation { get; set; } = 0.12f;
 
         [Export] public string Bus { get; set; } = "Master";
+        public float EffectiveMinDamage => NonNegativeFinite(MinDamage);
+        public float EffectiveVolumeDb => float.IsFinite(VolumeDb) ? Mathf.Clamp(VolumeDb, -80f, 24f) : -4f;
+        public float EffectivePitchVariation => float.IsFinite(PitchVariation) ? Mathf.Clamp(Mathf.Abs(PitchVariation), 0f, 0.99f) : 0f;
+        public string EffectiveBus => string.IsNullOrWhiteSpace(Bus) ? "Master" : Bus;
 
         // The five bundled impact clips. Loaded once if the exported array is left empty.
         private static readonly string[] _defaultPaths =
@@ -55,7 +59,7 @@ namespace Beep.ECS
 
         private void Setup()
         {
-            _player = new AudioStreamPlayer { Name = "HitSoundPlayer", VolumeDb = VolumeDb, Bus = Bus };
+            _player = new AudioStreamPlayer { Name = "HitSoundPlayer", VolumeDb = EffectiveVolumeDb, Bus = EffectiveBus };
             AddChild(_player);
 
             _health = GetSiblingComponent<HealthComponent>();
@@ -69,12 +73,24 @@ namespace Beep.ECS
 
         private void OnDamaged(float amount, float newHealth)
         {
-            if (!IsActive || amount < MinDamage) return;
+            if (!IsActive || !float.IsFinite(amount) || amount < EffectiveMinDamage) return;
             if (_player == null || Sounds.Length == 0) return;
 
-            _player.Stream = Sounds[GD.RandRange(0, Sounds.Length - 1)];
-            _player.PitchScale = 1f + (float)GD.RandRange(-PitchVariation, PitchVariation);
+            var sound = PickSound();
+            if (sound == null) return;
+
+            float variation = EffectivePitchVariation;
+            _player.VolumeDb = EffectiveVolumeDb;
+            _player.Bus = EffectiveBus;
+            _player.Stream = sound;
+            _player.PitchScale = Mathf.Max(0.01f, 1f + (float)GD.RandRange(-variation, variation));
             _player.Play();
+        }
+
+        private AudioStream? PickSound()
+        {
+            var valid = System.Array.FindAll(Sounds, s => s != null);
+            return valid.Length == 0 ? null : valid[GD.RandRange(0, valid.Length - 1)];
         }
 
         private static AudioStream[] LoadDefaults()
@@ -92,5 +108,8 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

@@ -45,6 +45,10 @@ namespace Beep.ECS.UI
         [Export] public bool ShowValue { get; set; } = true;
         /// <summary>Animate the fill while critical. The themed-meter cue.</summary>
         [Export] public bool Pulse { get; set; } = true;
+        [Export] public NodePath LabelPath { get; set; } = new("");
+        [Export] public NodePath MeterPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         // Palette-derived, not a literal. A colour baked into a component is a palette
         // pinned where no skin can reach it; these follow theme -> palette like every
         // other control. Computed, so a skin change is picked up with no invalidation.
@@ -55,7 +59,8 @@ namespace Beep.ECS.UI
         [Signal] public delegate void ThresholdCrossedEventHandler(string level);
 
         private KitMeter? _bar;
-        private KitHudText? _name;
+        private Godot.Control? _name;
+        private Control? _generatedRoot;
         private string _level = "normal";
         private float _pulse;
 
@@ -64,18 +69,36 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            if (Engine.IsEditorHint()) return;
+            SetProcess(false);
             // Deferred: a node cannot AddChild to a parent that is still inside its own
             // _Ready ("Parent node is busy setting up children"), which silently produced an
             // EMPTY widget — the code ran, the error went to the log, and the UI was blank.
             // GenreHudComponent already defers its Setup for the same reason.
-            CallDeferred(nameof(Setup));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindMeter() == null)
+                return new[] { "Add an authored KitMeter named MeterFill, set MeterPath, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void Setup()
         {
-            Build();
+            if (!BindExistingControls())
+            {
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedMeter();
+            }
+
+            StyleControls();
             Refresh();
+            UpdateProcessing();
         }
 
         /// <summary>Set both halves at once — the common case, and avoids the intermediate
@@ -87,15 +110,21 @@ namespace Beep.ECS.UI
             Refresh();
         }
 
-        private void Build()
+        private void BuildGeneratedMeter()
         {
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+            _generatedRoot = null;
+
             if (GetParent() is not Godot.Control parent) return;
             int fs = UiSurface.FontSize(this);
             float rowH = Mathf.Max(fs * 1.55f, 22f);
 
             var row = new HBoxContainer { Name = "MeterRow", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
-            row.AddThemeConstantOverride("separation", 8);
+            KitChrome.SetConstantOverrideIfChanged(row, "separation", 8);
             parent.AddChild(row);
+            _generatedRoot = row;
+            SetEditedOwner(row);
 
             if (!string.IsNullOrEmpty(Label))
             {
@@ -109,6 +138,7 @@ namespace Beep.ECS.UI
                     MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
                 };
                 row.AddChild(_name);
+                SetEditedOwner(_name);
             }
 
             _bar = new KitMeter
@@ -121,11 +151,94 @@ namespace Beep.ECS.UI
                 MouseFilter = Godot.Control.MouseFilterEnum.Ignore
             };
             row.AddChild(_bar);
+            SetEditedOwner(_bar);
+        }
+
+        private bool BindExistingControls()
+        {
+            KitMeter? meter = FindMeter();
+            if (meter == null)
+                return false;
+
+            Godot.Control? label = FindLabel();
+
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+
+            _generatedRoot = null;
+            _bar = meter;
+            _name = label;
+            return true;
+        }
+
+        public bool UsesSceneControls()
+            => FindLabel() != null || FindMeter() != null;
+
+        private KitMeter? FindMeter()
+        {
+            if (!MeterPath.IsEmpty && GetNodeOrNull<KitMeter>(MeterPath) is { } pathMeter)
+                return pathMeter;
+
+            if (FindChild("MeterFill", recursive: true, owned: false) is KitMeter childMeter)
+                return childMeter;
+
+            return GetParent()?.FindChild("MeterFill", recursive: true, owned: false) as KitMeter;
+        }
+
+        private Godot.Control? FindLabel()
+        {
+            if (!LabelPath.IsEmpty && GetNodeOrNull<Godot.Control>(LabelPath) is { } pathLabel)
+                return pathLabel;
+
+            if (FindChild("MeterLabel", recursive: true, owned: false) is Godot.Control childLabel)
+                return childLabel;
+
+            return GetParent()?.FindChild("MeterLabel", recursive: true, owned: false) as Godot.Control;
+        }
+
+        private void StyleControls()
+        {
+            int fs = UiSurface.FontSize(this);
+            float rowH = Mathf.Max(fs * 1.55f, 22f);
+
+            if (_name != null)
+            {
+                _name.CustomMinimumSize = new Vector2(fs * 5.6f, rowH);
+                _name.SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter;
+                _name.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+                if (_name is KitHudText hud)
+                {
+                    hud.Text = Label;
+                    hud.Role = UiSurface.TextRole.Caption;
+                    hud.Align = HorizontalAlignment.Left;
+                }
+                else if (_name is Label label)
+                {
+                    label.Text = Label;
+                    label.HorizontalAlignment = HorizontalAlignment.Left;
+                    label.VerticalAlignment = VerticalAlignment.Center;
+                    label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                    label.ClipText = true;
+                }
+            }
+
+            if (_bar == null)
+                return;
+
+            _bar.CustomMinimumSize = new Vector2(fs * 8.5f, rowH);
+            _bar.SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill;
+            _bar.SizeFlagsVertical = Godot.Control.SizeFlags.ShrinkCenter;
+            _bar.CapIcon = Icon;
+            _bar.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
         }
 
         private void Refresh()
         {
-            if (_bar == null) return;
+            if (_bar == null)
+            {
+                UpdateProcessing();
+                return;
+            }
             float f = Fraction;
             _bar.Value = f;
 
@@ -149,13 +262,30 @@ namespace Beep.ECS.UI
                 _level = level;
                 EmitSignal(SignalName.ThresholdCrossed, level);
             }
+            UpdateProcessing();
         }
 
         public override void _Process(double delta)
         {
-            if (!Pulse || _bar == null || _level != "critical") { if (_bar != null) _bar.Modulate = Colors.White; return; }
+            if (!Pulse || _bar == null || _level != "critical")
+            {
+                if (_bar != null) _bar.Modulate = Colors.White;
+                UpdateProcessing();
+                return;
+            }
             _pulse += (float)delta * 4f;
             _bar.Modulate = new Color(1, 1, 1, 0.65f + 0.35f * Mathf.Sin(_pulse));
+        }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && Pulse && _bar != null && _level == "critical");
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

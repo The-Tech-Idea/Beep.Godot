@@ -14,6 +14,9 @@ namespace Beep.ECS
         [Export] public float FlashDuration { get; set; } = 0.1f;
         [Export] public int FlashCount { get; set; } = 2;
         [Export] public bool FlashOnDamage { get; set; } = true;
+        public Color EffectiveFlashColor => IsFinite(FlashColor) ? FlashColor : Colors.White;
+        public float EffectiveFlashDuration => PositiveFinite(FlashDuration, 0.1f);
+        public int EffectiveFlashCount => Mathf.Clamp(FlashCount, 0, 64);
 
         [Signal] public delegate void FlashedEventHandler();
 
@@ -58,14 +61,19 @@ namespace Beep.ECS
         public void Flash()
         {
             if (_canvas == null || !GodotObject.IsInstanceValid(_canvas) || !IsActive) return;
+            int flashCount = EffectiveFlashCount;
+            if (flashCount <= 0) return;
+
             _resting = _canvas.Modulate;
             _tween?.Kill();
 
             _tween = _canvas.CreateTween();
-            for (int i = 0; i < FlashCount; i++)
+            float halfDuration = EffectiveFlashDuration * 0.5f;
+            Color flashColor = EffectiveFlashColor;
+            for (int i = 0; i < flashCount; i++)
             {
-                _tween.TweenProperty(_canvas, "modulate", FlashColor, FlashDuration * 0.5f);
-                _tween.TweenProperty(_canvas, "modulate", _resting, FlashDuration * 0.5f);
+                _tween.TweenProperty(_canvas, "modulate", flashColor, halfDuration);
+                _tween.TweenProperty(_canvas, "modulate", _resting, halfDuration);
             }
             _tween.Finished += OnTweenFinished;
         }
@@ -82,5 +90,12 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health) && _damagedHandler != null)
                 _health.Damaged -= _damagedHandler;
         }
+
+        private static float PositiveFinite(float value, float fallback)
+            => float.IsFinite(value) && value > 0f ? value : fallback;
+
+        private static bool IsFinite(Color value)
+            => float.IsFinite(value.R) && float.IsFinite(value.G) &&
+               float.IsFinite(value.B) && float.IsFinite(value.A);
     }
 }

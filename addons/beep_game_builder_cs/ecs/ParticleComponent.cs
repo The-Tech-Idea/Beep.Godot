@@ -32,6 +32,7 @@ namespace Beep.ECS
 
         private GpuParticles2D? _particles;
         private HealthComponent? _health;
+        public Vector2 EffectiveOffset => IsFinite(Offset) ? Offset : Vector2.Zero;
 
         public override void _Ready()
         {
@@ -79,7 +80,7 @@ namespace Beep.ECS
             _particles = inst;
             _particles.OneShot = OneShot;
             _particles.Emitting = PlayOnStart;
-            _particles.Position = Offset;
+            _particles.Position = EffectiveOffset;
             _particles.Finished += OnParticlesFinished;
             AddChild(_particles);
 
@@ -94,9 +95,13 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint()) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
             if (FollowParent && _particles != null && GodotObject.IsInstanceValid(_particles) && GetParent() is Node2D parent)
-                _particles.GlobalPosition = parent.GlobalPosition + Offset;
+            {
+                if (!IsFinite(parent.GlobalPosition))
+                    return;
+                _particles.GlobalPosition = parent.GlobalPosition + EffectiveOffset;
+            }
         }
 
         public void Burst()
@@ -121,5 +126,8 @@ namespace Beep.ECS
             if (_particles != null && GodotObject.IsInstanceValid(_particles))
                 _particles.QueueFree();
         }
+
+        private static bool IsFinite(Vector2 value)
+            => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

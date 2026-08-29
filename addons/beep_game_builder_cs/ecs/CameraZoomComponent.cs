@@ -22,12 +22,16 @@ namespace Beep.ECS
         private Vector2 _targetZoom;
         private Vector2 _lastEmittedZoom;
 
+        public float EffectiveSmoothSpeed => NonNegative(SmoothSpeed);
+        public float EffectiveDefaultZoom => Mathf.Max(0.001f, FiniteOr(DefaultZoom, 1f));
+
         public override void _Ready()
         {
             base._Ready();
-            _cam = GetParent() as Camera2D;
+            ResolveCamera();
             if (_cam != null)
             {
+                _cam.Zoom = ClampZoom(_cam.Zoom);
                 _targetZoom = _cam.Zoom;
                 _lastEmittedZoom = _cam.Zoom;
             }
@@ -37,7 +41,8 @@ namespace Beep.ECS
 
         public override void _Input(InputEvent @event)
         {
-            if (_cam == null || !IsActive || !(@event is InputEventMouseButton mb)) return;
+            ResolveCamera();
+            if (Engine.IsEditorHint() || _cam == null || !IsActive || !(@event is InputEventMouseButton mb)) return;
             if (mb.Pressed && mb.ButtonIndex == MouseButton.WheelUp)
             {
                 ZoomIn();
@@ -52,27 +57,38 @@ namespace Beep.ECS
 
         public void ZoomIn()
         {
+            ResolveCamera();
             if (_cam == null || !IsActive) return;
-            _targetZoom = (_cam.Zoom - ZoomStep).Clamp(MinZoom, MaxZoom);
+            _targetZoom = ClampZoom(_cam.Zoom - EffectiveZoomStep());
         }
 
         public void ZoomOut()
         {
+            ResolveCamera();
             if (_cam == null || !IsActive) return;
-            _targetZoom = (_cam.Zoom + ZoomStep).Clamp(MinZoom, MaxZoom);
+            _targetZoom = ClampZoom(_cam.Zoom + EffectiveZoomStep());
         }
 
         public void SetZoom(float level)
         {
-            _targetZoom = new Vector2(level, level).Clamp(MinZoom, MaxZoom);
+            if (!IsActive) return;
+            _targetZoom = ClampZoom(new Vector2(level, level));
         }
 
-        public void ResetZoom() => _targetZoom = new Vector2(DefaultZoom, DefaultZoom);
+        public void ResetZoom()
+        {
+            if (!IsActive) return;
+            _targetZoom = ClampZoom(new Vector2(DefaultZoom, DefaultZoom));
+        }
 
         public override void _Process(double delta)
         {
-            if (_cam == null || !IsActive) return;
-            _cam.Zoom = _cam.Zoom.Lerp(_targetZoom, SmoothSpeed * (float)delta);
+            ResolveCamera();
+            if (Engine.IsEditorHint() || _cam == null || !IsActive) return;
+            _cam.Zoom = SanitizeZoom(_cam.Zoom);
+            _targetZoom = ClampZoom(_targetZoom);
+            float t = Mathf.Clamp(EffectiveSmoothSpeed * DeltaSeconds(delta), 0f, 1f);
+            _cam.Zoom = t >= 1f ? _targetZoom : _cam.Zoom.Lerp(_targetZoom, t);
 
             // Only emit if zoom changed significantly
             if (_cam.Zoom.DistanceTo(_lastEmittedZoom) > 0.01f)
@@ -81,5 +97,39 @@ namespace Beep.ECS
                 _lastEmittedZoom = _cam.Zoom;
             }
         }
+
+        private void ResolveCamera()
+        {
+            if (_cam == null || !GodotObject.IsInstanceValid(_cam))
+                _cam = GetParent() as Camera2D;
+        }
+
+        private Vector2 EffectiveZoomStep()
+            => new(NonNegativeAbs(ZoomStep.X), NonNegativeAbs(ZoomStep.Y));
+
+        private Vector2 ClampZoom(Vector2 value)
+        {
+            Vector2 minZoom = SanitizeZoom(MinZoom);
+            Vector2 maxZoom = SanitizeZoom(MaxZoom);
+            Vector2 min = new(Mathf.Min(minZoom.X, maxZoom.X), Mathf.Min(minZoom.Y, maxZoom.Y));
+            Vector2 max = new(Mathf.Max(minZoom.X, maxZoom.X), Mathf.Max(minZoom.Y, maxZoom.Y));
+            return SanitizeZoom(value, EffectiveDefaultZoom).Clamp(min, max);
+        }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float NonNegativeAbs(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, Mathf.Abs(value)) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static Vector2 SanitizeZoom(Vector2 zoom, float fallback = 1f) => new(
+            Mathf.Max(0.001f, FiniteOr(zoom.X, fallback)),
+            Mathf.Max(0.001f, FiniteOr(zoom.Y, fallback)));
     }
 }

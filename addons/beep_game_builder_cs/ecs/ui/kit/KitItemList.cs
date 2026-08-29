@@ -10,13 +10,24 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitItemList : ItemList
     {
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Accent;
+        [Export] public UiSurface.Role Accent
+        {
+            get => _accent;
+            set
+            {
+                if (_accent == value) return;
+                _accent = value;
+                RequestApply();
+            }
+        }
+        private UiSurface.Role _accent = UiSurface.Role.Accent;
 
         private string _genre = "";
         private bool _applying;
 
         public override void _Ready()
         {
+            base._Ready();
             _genre = KitChrome.GenreOf(this);
             Apply();
         }
@@ -31,29 +42,45 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        private void RequestApply()
+        {
+            if (!IsInsideTree()) return;
+            _genre = KitChrome.GenreOf(this);
+            Apply();
+        }
+
         private void Apply()
         {
-            if (_applying) return;
+            if (_applying || !IsInsideTree()) return;
             _applying = true;
+            try
+            {
+                int fs = Mathf.Max(1, UiSurface.FontSize(this, UiSurface.TextRole.Caption));
+                Color surface = UiSurface.Of(this);
+                Color accent = UiSurface.SemanticOrDerived(this, Accent);
+                if (accent.A < 0.02f) accent = surface;
+                Color ink = UiSurface.Ink(surface);
 
-            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
-            Color surface = UiSurface.Of(this);
-            Color accent = UiSurface.Semantic(this, Accent);
-            if (accent.A < 0.02f) accent = surface;
-            Color ink = UiSurface.Ink(surface);
-
-            AddThemeFontOverride("font", KitFonts.Resolve(KitGeometry.ForGenre(_genre).Font) ?? GetThemeDefaultFont());
-            AddThemeFontSizeOverride("font_size", fs);
-            AddThemeColorOverride("font_color", UiSurface.Text(this));
-            AddThemeColorOverride("font_selected_color", UiSurface.Ink(accent));
-            AddThemeColorOverride("guide_color", new Color(ink.R, ink.G, ink.B, 0.18f));
-            AddThemeStyleboxOverride("panel", Box(surface, ink, fs, 1f));
-            AddThemeStyleboxOverride("selected", Box(accent, ink, fs, 0.75f));
-            AddThemeStyleboxOverride("selected_focus", Box(KitChrome.StateFace(accent, KitState.Hover), ink, fs, 0.95f));
-            AddThemeConstantOverride("h_separation", Mathf.Max(4, fs / 2));
-            AddThemeConstantOverride("v_separation", Mathf.Max(3, fs / 3));
-
-            _applying = false;
+                Font? font = KitFonts.Fallback(this, KitGeometry.ForGenre(_genre).Font);
+                bool changed = false;
+                if (font != null) changed |= KitChrome.SetFontOverrideIfChanged(this, "font", font);
+                changed |= KitChrome.SetFontSizeOverrideIfChanged(this, "font_size", fs);
+                changed |= KitChrome.SetColorOverrideIfChanged(this, "font_color", UiSurface.Text(this));
+                changed |= KitChrome.SetColorOverrideIfChanged(this, "font_selected_color", UiSurface.Ink(accent));
+                changed |= KitChrome.SetColorOverrideIfChanged(this, "guide_color", new Color(ink.R, ink.G, ink.B, 0.18f));
+                changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "panel", Box(surface, ink, fs, 1f));
+                changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "selected", Box(accent, ink, fs, 0.75f));
+                changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "selected_focus", Box(KitChrome.StateFace(accent, KitState.Hover), ink, fs, 0.95f));
+                changed |= KitChrome.SetConstantOverrideIfChanged(this, "h_separation", Mathf.Max(4, fs / 2));
+                changed |= KitChrome.SetConstantOverrideIfChanged(this, "v_separation", Mathf.Max(3, fs / 3));
+                if (!changed) return;
+            }
+            finally
+            {
+                _applying = false;
+            }
+            UpdateMinimumSize();
+            QueueRedraw();
         }
 
         private StyleBoxFlat Box(Color fill, Color ink, int fs, float rimScale)

@@ -37,7 +37,8 @@ namespace Beep.ECS
         [Signal] public delegate void HealthChangedEventHandler(float current, float max);
 
         public bool IsDead => CurrentHealth <= 0f;
-        public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
+        public float EffectiveMaxHealth => float.IsFinite(MaxHealth) ? Mathf.Max(1f, MaxHealth) : 1f;
+        public float HealthPercent => float.IsFinite(CurrentHealth) ? Mathf.Clamp(CurrentHealth / EffectiveMaxHealth, 0f, 1f) : 0f;
 
         private TemperatureComponent? _temperature;
         private HungerStaminaComponent? _hunger;
@@ -49,6 +50,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            NormalizeHealth();
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _temperature = GetSiblingComponent<TemperatureComponent>();
             _hunger = GetSiblingComponent<HungerStaminaComponent>();
@@ -60,9 +62,9 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive || IsDead) return;
+            if (Engine.IsEditorHint() || !IsActive || IsDead) return;
 
-            float dt = (float)delta;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             float passiveDamage = 0f;
 
             if (TemperatureAffectsHealth && _temperature != null)
@@ -93,6 +95,8 @@ namespace Beep.ECS
         public void TakeDamage(GameDamage damage)
         {
             if (!IsActive || IsDead) return;
+            NormalizeHealth();
+            if (!float.IsFinite(damage.Amount) || damage.Amount <= 0f) return;
 
             // Invincibility (i-frames) blocks all incoming damage, including True — this is the
             // canonical "invincible" channel that DashComponent's i-frames and game code apply
@@ -116,7 +120,9 @@ namespace Beep.ECS
                 // it), otherwise this component's Armor export. The old status "damage_reduction" lookup
                 // is gone — reduction is a modifier on the armor stat now, one channel not two.
                 float armorValue = _stats?.GetValue("armor", Armor) ?? Armor;
-                float armorReduction = Mathf.Clamp(armorValue, 0f, MaxArmor) * 0.01f;
+                if (!float.IsFinite(armorValue)) armorValue = 0f;
+                float maxArmor = float.IsFinite(MaxArmor) ? Mathf.Max(0f, MaxArmor) : 100f;
+                float armorReduction = Mathf.Clamp(armorValue, 0f, maxArmor) * 0.01f;
                 actual = Mathf.Max(0.1f, amount * (1f - armorReduction));
             }
 
@@ -132,7 +138,7 @@ namespace Beep.ECS
             {
                 // Award the killer XP before announcing death. The fatal hit's Source is the killer;
                 // grant its LevelingComponent (if it has one) this entity's XpReward.
-                if (XpReward > 0f && damage.Source != null)
+                if (float.IsFinite(XpReward) && XpReward > 0f && damage.Source != null)
                     EntityComponent.FindComponent<LevelingComponent>(damage.Source, false)?.AddXp(XpReward);
                 EmitSignal(SignalName.Died);
             }
@@ -141,8 +147,12 @@ namespace Beep.ECS
         public void Heal(float amount)
         {
             if (!IsActive || IsDead) return;
-            CurrentHealth = Mathf.Min(MaxHealth, CurrentHealth + amount);
-            EmitSignal(SignalName.Healed, amount, CurrentHealth);
+            NormalizeHealth();
+            float before = CurrentHealth;
+            CurrentHealth = Mathf.Min(EffectiveMaxHealth, CurrentHealth + (float.IsFinite(amount) ? Mathf.Max(0f, amount) : 0f));
+            float applied = CurrentHealth - before;
+            if (applied <= 0f) return;
+            EmitSignal(SignalName.Healed, applied, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
         }
 
@@ -155,7 +165,8 @@ namespace Beep.ECS
             if (!IsActive) return;
             // Only a NEGATIVE value is the "full" sentinel — an explicit 0 (or any >= 0) is honored,
             // clamped up to a minimum of 1 so the entity is guaranteed alive (not instantly re-dead).
-            float target = toHealth >= 0f ? Mathf.Min(toHealth, MaxHealth) : MaxHealth;
+            NormalizeHealth();
+            float target = float.IsFinite(toHealth) && toHealth >= 0f ? Mathf.Min(toHealth, EffectiveMaxHealth) : EffectiveMaxHealth;
             CurrentHealth = Mathf.Max(1f, target);
             EmitSignal(SignalName.Revived, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
@@ -164,15 +175,22 @@ namespace Beep.ECS
         // ── ISaveable Implementation (auto-called by GameStateManagerComponent) ──
         public void Save(GameBuilder.GameStateData state)
         {
+            NormalizeHealth();
             state.Combat.Health = CurrentHealth;
-            state.Combat.MaxHealth = MaxHealth;
+            state.Combat.MaxHealth = EffectiveMaxHealth;
         }
 
         public void Load(GameBuilder.GameStateData state)
         {
-            CurrentHealth = state.Combat.Health;
-            MaxHealth = state.Combat.MaxHealth;
+            MaxHealth = float.IsFinite(state.Combat.MaxHealth) ? Mathf.Max(1f, state.Combat.MaxHealth) : 1f;
+            CurrentHealth = float.IsFinite(state.Combat.Health) ? Mathf.Clamp(state.Combat.Health, 0f, EffectiveMaxHealth) : EffectiveMaxHealth;
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
+        }
+
+        private void NormalizeHealth()
+        {
+            MaxHealth = EffectiveMaxHealth;
+            CurrentHealth = float.IsFinite(CurrentHealth) ? Mathf.Clamp(CurrentHealth, 0f, MaxHealth) : MaxHealth;
         }
     }
 }

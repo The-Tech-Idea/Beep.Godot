@@ -17,9 +17,8 @@ namespace Beep.ECS.UI.Kit
     /// plain Control and lays out nothing, so swapping one for the other collapses every child to
     /// its minimum size at the origin — invisible in the scene file, obvious on screen, across
     /// 121 panels. Inheriting the container is what makes replacement safe. The cost is that this
-    /// cannot also inherit KitControl (C# has single inheritance), so it shares the kit's geometry
-    /// through <see cref="KitControl.Outline"/>, <see cref="KitStacks"/> and
-    /// <see cref="KitGeometry"/> rather than by subclassing.
+    /// cannot also inherit KitControl (C# has single inheritance), so it shares the kit's chrome
+    /// through <see cref="KitChrome"/> rather than by subclassing.
     ///
     /// CONTENT MARGINS ARE THE SUBTLE PART
     /// -----------------------------------
@@ -41,44 +40,43 @@ namespace Beep.ECS.UI.Kit
             None,
         }
 
-        [Export] public string Title { get => _title; set { _title = value ?? ""; Refresh(); } }
+        [Export] public string Title { get => _title; set { string next = value ?? ""; if (_title == next) return; _title = next; Refresh(); } }
         private string _title = "";
 
         /// <summary>Banner lightness as a multiple of the frame. 0.44 (gameui2) reads recessed;
         /// above 1 gives gameui4's white plate.</summary>
         [Export(PropertyHint.Range, "0.1,1.6,0.01")]
-        public float BannerShade { get => _bannerShade; set { _bannerShade = value; Refresh(); } }
+        public float BannerShade { get => _bannerShade; set { if (Mathf.Abs(_bannerShade - value) < 0.001f) return; _bannerShade = value; Refresh(); } }
         private float _bannerShade = 0.44f;
         /// <summary>Title scale relative to the current UI font. City-builder/status panels use
         /// compact utility headers; RPG/dialog panels can leave the larger default.</summary>
         [Export(PropertyHint.Range, "0.45,1.4,0.01")]
-        public float TitleFontScale { get => _titleFontScale; set { _titleFontScale = value; Refresh(); } }
-        private float _titleFontScale = 0.72f;
-        [Export] public HeaderStyle TitleStyle { get => _titleStyle; set { _titleStyle = value; Refresh(); } }
-        private HeaderStyle _titleStyle = HeaderStyle.Banner;
-        [Export] public KitPanelIntent Intent { get => _intent; set { _intent = value; Refresh(); } }
+        public float TitleFontScale { get => _titleFontScale; set { if (Mathf.Abs(_titleFontScale - value) < 0.001f) return; _titleFontScale = value; Refresh(); } }
+        private float _titleFontScale = 0.90f;
+        [Export] public HeaderStyle TitleStyle { get => _titleStyle; set { if (_titleStyle == value) return; _titleStyle = value; Refresh(); } }
+        private HeaderStyle _titleStyle = HeaderStyle.UtilityStrip;
+        [Export] public KitPanelIntent Intent { get => _intent; set { if (_intent == value) return; _intent = value; Refresh(); } }
         private KitPanelIntent _intent = KitPanelIntent.Sheet;
 
-        [Export] public bool ShowWell { get => _showWell; set { _showWell = value; Refresh(); } }
+        [Export] public bool ShowWell { get => _showWell; set { if (_showWell == value) return; _showWell = value; Refresh(); } }
         private bool _showWell = true;
 
         /// <summary>Extra inset for children, on top of the frame. Use when content needs to sit
         /// further inside the well than the frame alone requires.</summary>
-        [Export] public Vector2 ExtraPadding { get => _extraPadding; set { _extraPadding = value; Refresh(); } }
+        [Export] public Vector2 ExtraPadding { get => _extraPadding; set { if (_extraPadding == value) return; _extraPadding = value; Refresh(); } }
         // Was (6,6) ON TOP of the frame thickness, which on a small container doubled the inset
         // and left the content squeezed into the middle. The frame already provides the visual
         // breathing room; this is only the gap between frame and content.
         private Vector2 _extraPadding = new(2, 2);
 
         private string _genre = "";
-        private StyleBoxEmpty? _spacer;
-
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private KitShape ActiveShape => KitMaterial.PanelShapeForGenre(_genre, Intent);
 
         public override void _Ready()
         {
-            _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+            base._Ready();
+            _genre = KitChrome.GenreOf(this);
             Refresh();
         }
 
@@ -87,7 +85,7 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what == NotificationThemeChanged)
             {
-                _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+                _genre = KitChrome.GenreOf(this);
                 Refresh();
             }
             else if (what == NotificationResized) Refresh();
@@ -99,10 +97,6 @@ namespace Beep.ECS.UI.Kit
 
         private void Refresh()
         {
-            // Re-entry guard. AddThemeStyleboxOverride below emits NotificationThemeChanged, which
-            // calls straight back into Refresh -- unbounded recursion that crashed the scene on
-            // load with a stack overflow inside InvokeGodotClassMethod. Anything that writes a
-            // theme override from a theme-changed handler needs this.
             if (_refreshing) return;
             _refreshing = true;
 
@@ -110,14 +104,17 @@ namespace Beep.ECS.UI.Kit
             float frame = FramePx(h);
             float banner = HeaderRoom();
 
-            _spacer ??= new StyleBoxEmpty();
-            _spacer.ContentMarginLeft = frame + ExtraPadding.X;
-            _spacer.ContentMarginRight = frame + ExtraPadding.X;
-            _spacer.ContentMarginTop = frame + ExtraPadding.Y + banner;
-            _spacer.ContentMarginBottom = frame + ExtraPadding.Y;
-            AddThemeStyleboxOverride("panel", _spacer);
+            bool marginsChanged = KitChrome.SetEmptyStyleboxOverride(
+                this,
+                "panel",
+                frame + ExtraPadding.X,
+                frame + ExtraPadding.X,
+                frame + ExtraPadding.Y + banner,
+                frame + ExtraPadding.Y);
 
             _refreshing = false;
+            if (marginsChanged)
+                UpdateMinimumSize();
             QueueRedraw();
         }
 
@@ -163,35 +160,17 @@ namespace Beep.ECS.UI.Kit
             float over = BodyOverhang();
             var body = new Rect2(0f, over, Size.X, Mathf.Max(4f, Size.Y - over));
 
-            // Walk the register's stack, exactly as KitControl does, so a panel and a button in
-            // the same genre are built from the same bands.
-            float frame = FramePx(body.Size.Y);
-            Rect2 cur = body;
-            foreach (var layer in KitStacks.For(g.Register))
-            {
-                if (layer.Kind != KitLayerKind.Plate && layer.Kind != KitLayerKind.Keyline) continue;
-                float inset = layer.Inset >= 0f ? body.Size.Y * layer.Inset : frame;
-                Rect2 box = (layer.Kind == KitLayerKind.Plate && layer.Inset == 0f)
-                    ? body : Inset(cur, inset);
-                if (box.Size.X < 2f || box.Size.Y < 2f) continue;
-
-                Color c = Tint(face, layer.Shade);
-                if (layer.Kind == KitLayerKind.Keyline)
-                    Cut(box, ActiveShape, new Color(0, 0, 0, 0), c with { A = layer.Amount },
-                        Mathf.Max(1f, rimPx * 0.5f));
-                else
-                {
-                    Cut(box, ActiveShape, c, ink, layer.Rim > 0f ? Mathf.Max(1f, rimPx * layer.Rim) : 0f);
-                    cur = box;
-                }
-            }
+            KitChrome.DrawPlate(this, _genre, body, face, KitState.Normal, fs / 14f,
+                                KitWidgetClass.Panel);
 
             if (ShowWell)
             {
-                float ft = Mathf.Max(frame, Mathf.Min(body.Size.X, body.Size.Y) * 0.10f);
-                var well = Inset(cur, ft * 0.35f);
+                float ft = Mathf.Max(g.FramePx(body.Size.Y) * 0.55f,
+                                     Mathf.Min(body.Size.X, body.Size.Y) * 0.05f);
+                var well = Inset(body, ft);
                 if (well.Size.X > 4 && well.Size.Y > 4)
-                    Cut(well, ActiveShape, Tint(face, g.WellShade), ink, Mathf.Max(1f, rimPx * 0.5f));
+                    KitChrome.DrawShape(this, _genre, well, ActiveShape, Tint(face, g.WellShade),
+                                        ink, Mathf.Max(1f, rimPx * 0.5f));
             }
 
             DrawBanner(body, fs, face, ink);
@@ -202,15 +181,17 @@ namespace Beep.ECS.UI.Kit
             var body = new Rect2(Vector2.Zero, Size);
             float rimPx = Mathf.Clamp(Geo.Rim * 0.42f * (fs / 14f), 1f, 2.5f);
             Color panel = Tint(face, 0.82f) with { A = Mathf.Min(0.92f, face.A) };
-            Cut(body, ActiveShape, panel, ink with { A = 0.54f }, rimPx);
+            KitChrome.DrawShape(this, _genre, body, ActiveShape, panel, ink with { A = 0.54f },
+                                rimPx);
 
             if (ShowWell)
             {
                 float inset = Mathf.Max(2f, Mathf.Min(Size.X, Size.Y) * 0.045f);
                 var well = Inset(body, inset);
                 if (well.Size.X > 4f && well.Size.Y > 4f)
-                    Cut(well, ActiveShape, Tint(face, Geo.WellShade) with { A = panel.A * 0.75f },
-                        ink with { A = 0.24f }, 1f);
+                    KitChrome.DrawShape(this, _genre, well, ActiveShape,
+                                        Tint(face, Geo.WellShade) with { A = panel.A * 0.75f },
+                                        ink with { A = 0.24f }, 1f);
             }
 
             if (!string.IsNullOrEmpty(_title) && TitleStyle != HeaderStyle.None)
@@ -233,45 +214,6 @@ namespace Beep.ECS.UI.Kit
             float t = Mathf.Clamp((want - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 1f);
             return new Color(Mathf.Lerp(face.R, 1f, t), Mathf.Lerp(face.G, 1f, t),
                              Mathf.Lerp(face.B, 1f, t), face.A);
-        }
-
-        /// <summary>Fill + rim cut to a kit silhouette, sharing KitControl's outline table.</summary>
-        private void Cut(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
-        {
-            if (r.Size.X < 1f || r.Size.Y < 1f) return;
-            float cut = Mathf.Min(r.Size.X, r.Size.Y) * Geo.Corner;
-            var poly = KitControl.Outline(shape, r, cut);
-            if (poly != null)
-            {
-                if (fill.A > 0f) DrawColoredPolygon(poly, fill);
-                if (rimWidth > 0f)
-                {
-                    var closed = new Vector2[poly.Length + 1];
-                    poly.CopyTo(closed, 0);
-                    closed[^1] = poly[0];
-                    DrawPolyline(closed, rim, rimWidth);
-                }
-                return;
-            }
-            float radius = shape switch
-            {
-                KitShape.Rect => 0f,
-                KitShape.Pill or KitShape.Ellipse => Mathf.Min(r.Size.X, r.Size.Y) * 0.5f,
-                _ => cut,
-            };
-            if (fill.A > 0f)
-            {
-                var sb = new StyleBoxFlat { BgColor = fill };
-                sb.SetCornerRadiusAll(Mathf.RoundToInt(radius));
-                DrawStyleBox(sb, r);
-            }
-            if (rimWidth > 0f)
-            {
-                var sb = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0), BorderColor = rim, DrawCenter = false };
-                sb.SetCornerRadiusAll(Mathf.RoundToInt(radius));
-                sb.SetBorderWidthAll(Mathf.Max(1, Mathf.RoundToInt(rimWidth)));
-                DrawStyleBox(sb, r);
-            }
         }
 
         private void DrawBanner(Rect2 host, int fs, Color face, Color ink)

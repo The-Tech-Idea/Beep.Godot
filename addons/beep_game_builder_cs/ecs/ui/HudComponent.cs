@@ -22,6 +22,7 @@ namespace Beep.ECS.UI
         [Export] public NodePath LevelLabelPath { get; set; } = "LevelLabel";
         [Export] public NodePath GameFlowPath { get; set; } = new("../GameFlow");
         [Export] public NodePath PlayerPath { get; set; } = new("../Player");
+        [Export] public bool WarnMissingSources { get; set; } = false;
 
         /// <summary>Text shown by the level readout. {0} is the 1-based level number (GameApp is 0-based).</summary>
         [Export] public string LevelFormat { get; set; } = "Level {0}";
@@ -121,7 +122,7 @@ namespace Beep.ECS.UI
                 }
                 else
                 {
-                    GD.PushWarning($"[{Name}] HudComponent has a LevelLabel but found no GameApp autoload; the level readout will not update. Enable the GameApp autoload.");
+                    WarnMissing($"HudComponent has a LevelLabel but found no GameApp autoload; the level readout will not update. Enable the GameApp autoload.");
                 }
             }
 
@@ -135,7 +136,7 @@ namespace Beep.ECS.UI
             }
             else
             {
-                GD.PushWarning($"[{Name}] HudComponent found no GameFlowComponent at '{GameFlowPath}' (relative to '{parent.Name}'); score/lives will not update. Point GameFlowPath at the scene's GameFlowComponent.");
+                WarnMissing($"HudComponent found no GameFlowComponent at '{GameFlowPath}' (relative to '{parent.Name}'); score/lives will not update. Point GameFlowPath at the scene's GameFlowComponent.");
             }
 
             // Health lives on the player, not the HUD parent. Find it by TYPE, not by a
@@ -154,13 +155,19 @@ namespace Beep.ECS.UI
                 }
                 else
                 {
-                    GD.PushWarning($"[{Name}] HudComponent found the player node '{player.Name}' but no HealthComponent child on it; the health readout will not update.");
+                    WarnMissing($"HudComponent found the player node '{player.Name}' but no HealthComponent child on it; the health readout will not update.");
                 }
             }
             else
             {
-                GD.PushWarning($"[{Name}] HudComponent found no player node at '{PlayerPath}' (relative to '{parent.Name}'); the health readout will not update. Point PlayerPath at the player, or clear it if this HUD shows no health.");
+                WarnMissing($"HudComponent found no player node at '{PlayerPath}' (relative to '{parent.Name}'); the health readout will not update. Point PlayerPath at the player, or clear it if this HUD shows no health.");
             }
+        }
+
+        private void WarnMissing(string message)
+        {
+            if (WarnMissingSources)
+                GD.PushWarning($"[{Name}] {message}");
         }
 
         public override void _ExitTree()

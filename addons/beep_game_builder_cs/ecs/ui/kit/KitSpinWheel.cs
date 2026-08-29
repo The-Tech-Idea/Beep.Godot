@@ -21,10 +21,68 @@ namespace Beep.ECS.UI.Kit
     {
         public readonly List<string> Wedges = new();
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
+        [Export]
+        public string[] WedgeLabels
+        {
+            get => Wedges.ToArray();
+            set => SetWedges(value);
+        }
+
+        public void SetWedges(IEnumerable<string>? wedges)
+        {
+            List<string> next = NormalizeStrings(wedges);
+            if (SameStrings(Wedges, next)) return;
+            Wedges.Clear();
+            Wedges.AddRange(next);
+            RefreshWedges();
+        }
+
+        public void AddWedge(string text)
+        {
+            Wedges.Add(text ?? "");
+            RefreshWedges();
+        }
+
+        public bool RemoveWedge(int index)
+        {
+            if (index < 0 || index >= Wedges.Count)
+                return false;
+
+            Wedges.RemoveAt(index);
+            RefreshWedges();
+            return true;
+        }
+
+        public void ClearWedges()
+        {
+            if (Wedges.Count == 0)
+                return;
+
+            Wedges.Clear();
+            RefreshWedges();
+        }
+
+        public void RefreshWedges()
+        {
+            if (Wedges.Count == 0)
+            {
+                _target = 0;
+                _spinning = false;
+                UpdateProcessing();
+            }
+            else
+            {
+                _target = Mathf.PosMod(_target, Wedges.Count);
+                UpdateProcessing();
+            }
+            RefreshVisualAndRedraw();
+        }
+
+        [Export] public UiSurface.Role Role { get => _role; set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); } }
+        private UiSurface.Role _role = UiSurface.Role.Warning;
 
         /// <summary>Current rotation in radians. Set directly, or driven by <see cref="Spin"/>.</summary>
-        [Export] public float Rotation_ { get => _rot; set { _rot = value; QueueRedraw(); } }
+        [Export] public float Rotation_ { get => _rot; set { if (Mathf.IsEqualApprox(_rot, value)) return; _rot = value; RefreshVisualAndRedraw(); } }
         private float _rot;
 
         [Signal] public delegate void SpinFinishedEventHandler(int index);
@@ -36,21 +94,53 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            if (Wedges.Count == 0)
-                Wedges.AddRange(new[] { "50", "10", "x2", "5", "100", "1", "x3", "25" });
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 9f, fs * 9f);
-            }
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+            UpdateProcessing();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationVisibilityChanged)
+                UpdateProcessing();
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             return new Vector2(fs * 9f, fs * 9f);
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private bool ShouldAnimate() => _spinning && Wedges.Count > 0;
+
+        private void UpdateProcessing()
+        {
+            SetProcess(IsVisibleInTree() && ShouldAnimate());
+        }
+
+        private static List<string> NormalizeStrings(IEnumerable<string>? values)
+        {
+            var next = new List<string>();
+            if (values == null)
+                return next;
+
+            foreach (string? value in values)
+                next.Add(value ?? "");
+            return next;
+        }
+
+        private static bool SameStrings(IReadOnlyList<string> left, IReadOnlyList<string> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+                if ((left[i] ?? "") != right[i]) return false;
+            return true;
         }
 
         public override void _GuiInput(InputEvent @event)
@@ -83,12 +173,16 @@ namespace Beep.ECS.UI.Kit
             _dur = Mathf.Max(0.2f, seconds);
             _t = 0f;
             _spinning = true;
-            SetProcess(true);
+            UpdateProcessing();
         }
 
         public override void _Process(double delta)
         {
-            if (!_spinning) return;
+            if (!ShouldAnimate())
+            {
+                UpdateProcessing();
+                return;
+            }
             _t += (float)delta;
             float k = Mathf.Clamp(_t / _dur, 0f, 1f);
             // Ease out cubic: fast away, long settle, which is what sells the deceleration.
@@ -97,7 +191,7 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
             if (k < 1f) return;
             _spinning = false;
-            SetProcess(false);
+            UpdateProcessing();
             EmitSignal(SignalName.SpinFinished, _target);
         }
 
@@ -105,7 +199,13 @@ namespace Beep.ECS.UI.Kit
         {
             int n = Wedges.Count;
             float d = Mathf.Min(Size.X, Size.Y);
-            if (n < 2 || d < 30f) return;
+            if (d < 30f) return;
+            if (n < 2)
+            {
+                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                           KitShape.Ellipse, "Wedges");
+                return;
+            }
 
             var c = Size * 0.5f;
             float r = d * 0.5f * 0.86f;
@@ -135,12 +235,16 @@ namespace Beep.ECS.UI.Kit
                 DrawColoredPolygon(pts.ToArray(), w);
 
                 if (font == null || string.IsNullOrEmpty(Wedges[i])) continue;
+                string wedge = KitCase(Wedges[i]);
                 float mid = a0 + per * 0.5f;
                 var at = c + new Vector2(Mathf.Cos(mid), Mathf.Sin(mid)) * r * 0.66f;
+                float labelWidth = r * 0.34f;
                 int wf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                           new Vector2(r * 0.34f, r * 0.16f),
-                                           Wedges[i], font, min: 7);
-                Vector2 m = font.GetStringSize(Wedges[i], HorizontalAlignment.Left, -1, wf);
+                                           new Vector2(labelWidth, r * 0.16f),
+                                           wedge, font, min: 7);
+                wedge = KitChrome.EllipsizeText(font, wedge, wf, labelWidth);
+                if (string.IsNullOrEmpty(wedge)) continue;
+                Vector2 m = font.GetStringSize(wedge, HorizontalAlignment.Left, -1, wf);
                 Color badge = UiSurface.Luminance(w) > 0.5f
                     ? new Color(1f, 1f, 1f, 0.22f)
                     : new Color(0f, 0f, 0f, 0.20f);
@@ -148,7 +252,7 @@ namespace Beep.ECS.UI.Kit
                                     m.X + wf * 0.60f, wf * 1.20f),
                           KitShape.Pill, badge, new Color(0, 0, 0, 0), 0f);
                 DrawText(font, new Vector2(at.X - m.X * 0.5f, at.Y + m.Y * 0.32f),
-                           Wedges[i], wf, UiSurface.Luminance(w) > 0.5f
+                           wedge, wf, UiSurface.Luminance(w) > 0.5f
                                ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
             }
 

@@ -8,7 +8,7 @@ using GodotMcp;
 namespace Beep.GameBuilder;
 
 /// <summary>
-/// PARTIAL: scene management, texture baking and screenshots.
+/// PARTIAL: scene management and screenshots.
 ///
 /// Before this, the whole MCP surface was catalog + game state + one write
 /// (`beep.add_component`). An agent could describe the project but could not open a scene,
@@ -20,8 +20,7 @@ namespace Beep.GameBuilder;
 /// `allow_editor_writes` gate, exactly like `beep.add_component`.
 ///
 ///   read   — list_scenes, open_scene, inspect_scene, get_node_property, screenshot
-///   write  — set_node_property, add_node, remove_node, save_scene,
-///            bake_textures, new_screen
+///   write  — set_node_property, add_node, remove_node, save_scene, new_screen
 /// </summary>
 public static partial class BeepMcpCommands
 {
@@ -42,8 +41,7 @@ public static partial class BeepMcpCommands
         // ── Visual feedback ──
         McpCommandRegistry.RegisterCommand("beep.screenshot", args => Screenshot(Int(args, "max_width", 1280)));
 
-        // ── Skin + scaffold generation ──
-        McpCommandRegistry.RegisterCommand("beep.bake_textures", args => BakeTextures(Str(args, "genre"), Str(args, "theme")));
+        // ── Scaffold generation ──
         McpCommandRegistry.RegisterCommand("beep.new_screen", args =>
             NewScreen(Str(args, "genre"), Str(args, "name"), Str(args, "title"), Has(args, "overwrite") && ParseBool(Str(args, "overwrite"))));
     }
@@ -275,22 +273,8 @@ public static partial class BeepMcpCommands
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Skin + scaffold generation
+    // Scaffold generation
     // ════════════════════════════════════════════════════════════════
-
-    private static JsonNode BakeTextures(string genre, string theme)
-    {
-#if TOOLS
-        RequireEditorWrites("beep.bake_textures");
-        List<string> log =
-            !string.IsNullOrEmpty(genre) && !string.IsNullOrEmpty(theme) ? BeepTextureBaker.BakeTheme(genre, theme)
-            : !string.IsNullOrEmpty(genre) ? BeepTextureBaker.BakeGenre(genre)
-            : BeepTextureBaker.BakeAll();
-        return new JsonObject { ["log"] = new JsonArray(log.Select(l => (JsonNode)l!).ToArray()) };
-#else
-        throw new InvalidOperationException("beep.bake_textures is editor-only (res:// is read-only in an exported game).");
-#endif
-    }
 
     private static JsonNode NewScreen(string genre, string name, string title, bool overwrite)
     {

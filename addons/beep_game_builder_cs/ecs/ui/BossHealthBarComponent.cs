@@ -21,27 +21,82 @@ namespace Beep.ECS.UI
         [Export] public string BossName
         {
             get => _bossName;
-            set { _bossName = value; if (_nameLabel != null) _nameLabel.Text = value; }
+            set { _bossName = value; SetNameText(value); }
         }
         private string _bossName = "BOSS";
+        [Export] public NodePath NameLabelPath { get; set; } = new("");
+        [Export] public NodePath BarPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [Signal] public delegate void PhaseChangedEventHandler(int phase);
 
         private KitMeter? _bar;
-        private KitHudText? _nameLabel;
+        private Godot.Control? _nameLabel;
         private int _currentPhase;
-        private VBoxContainer? _vbox;
+        private Control? _generatedRoot;
         private HealthComponent? _health;
 
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(Setup));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindBar() == null)
+                return new[] { "Set BarPath, add a scene-authored KitMeter named BossBar, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void Setup()
         {
-            if (Engine.IsEditorHint()) return;
+            if (!BindExistingControls())
+            {
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedControls();
+            }
+
+            StyleControls();
+            if (Engine.IsEditorHint())
+            {
+                SetNameText(_bossName);
+                if (_bar != null)
+                {
+                    _bar.Value = 1f;
+                    _bar.Readout = "100 / 100";
+                    _bar.Visible = true;
+                }
+                return;
+            }
+
+            _health = GetSiblingComponent<HealthComponent>();
+            if (_health != null && _bar != null)
+            {
+                _health.HealthChanged += OnHealthChanged;
+                _bar.Value = _health.MaxHealth <= 0f ? 0f : _health.CurrentHealth / _health.MaxHealth;
+                _bar.Readout = $"{Mathf.RoundToInt(_health.CurrentHealth)} / {Mathf.RoundToInt(_health.MaxHealth)}";
+                _bar.Visible = true;
+            }
+            else if (_bar != null)
+            {
+                _bar.Visible = false;
+                GD.PushWarning($"[{Name}] BossHealthBarComponent found no sibling HealthComponent; bind a HealthComponent beside it or keep the authored bar hidden.");
+            }
+        }
+
+        private void BuildGeneratedControls()
+        {
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+            _generatedRoot = null;
+
+            if (GetParent() is not Node parent) return;
             int fs = UiSurface.FontSize(this);
             _bar = new KitMeter
             {
@@ -61,33 +116,103 @@ namespace Beep.ECS.UI
                 MouseFilter = Godot.Control.MouseFilterEnum.Ignore
             };
 
-            _vbox = new VBoxContainer { MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
-            _vbox.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);
-            _vbox.AddThemeConstantOverride("separation", 4);
-            _vbox.OffsetLeft = fs * 4f;
-            _vbox.OffsetRight = -fs * 4f;
-            _vbox.AddChild(_nameLabel);
-            _vbox.AddChild(_bar);
+            var root = new VBoxContainer { Name = "BossHealthBar", MouseFilter = Godot.Control.MouseFilterEnum.Ignore };
+            root.SetAnchorsPreset(Godot.Control.LayoutPreset.TopWide);
+            KitChrome.SetConstantOverrideIfChanged(root, "separation", 4);
+            root.OffsetLeft = fs * 4f;
+            root.OffsetRight = -fs * 4f;
+            root.AddChild(_nameLabel);
+            root.AddChild(_bar);
 
-            if (GetParent() is Node parent)
+            parent.AddChild(root);
+            _generatedRoot = root;
+            SetEditedOwner(root);
+            SetEditedOwner(_nameLabel);
+            SetEditedOwner(_bar);
+        }
+
+        private bool BindExistingControls()
+        {
+            if (!UsesSceneControls())
+                return false;
+
+            KitMeter? bar = FindBar();
+            if (bar == null)
+                return false;
+
+            Godot.Control? label = FindNameLabel();
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
             {
-                parent.AddChild(_vbox);
-                if (parent.IsInsideTree())
-                    _vbox.Owner = parent.Owner;
+                _generatedRoot.QueueFree();
+                _generatedRoot = null;
             }
 
-            _health = GetSiblingComponent<HealthComponent>();
-            if (_health != null)
+            _bar = bar;
+            _nameLabel = label;
+            return true;
+        }
+
+        public bool UsesSceneControls()
+            => !NameLabelPath.IsEmpty || !BarPath.IsEmpty || FindNameLabel() != null || FindBar() != null;
+
+        private Godot.Control? FindNameLabel()
+        {
+            if (!NameLabelPath.IsEmpty && GetNodeOrNull<Godot.Control>(NameLabelPath) is { } pathLabel)
+                return pathLabel;
+
+            if (FindChild("BossName", recursive: true, owned: false) is Godot.Control childLabel)
+                return childLabel;
+
+            return GetParent()?.FindChild("BossName", recursive: true, owned: false) as Godot.Control;
+        }
+
+        private KitMeter? FindBar()
+        {
+            if (!BarPath.IsEmpty && GetNodeOrNull<KitMeter>(BarPath) is { } pathBar)
+                return pathBar;
+
+            if (FindChild("BossBar", recursive: true, owned: false) is KitMeter childBar)
+                return childBar;
+
+            return GetParent()?.FindChild("BossBar", recursive: true, owned: false) as KitMeter;
+        }
+
+        private void StyleControls()
+        {
+            int fs = UiSurface.FontSize(this);
+            if (_nameLabel != null)
             {
-                _health.HealthChanged += OnHealthChanged;
-                _bar.Value = _health.MaxHealth <= 0f ? 0f : _health.CurrentHealth / _health.MaxHealth;
-                _bar.Readout = $"{Mathf.RoundToInt(_health.CurrentHealth)} / {Mathf.RoundToInt(_health.MaxHealth)}";
-                _bar.Visible = true;
+                _nameLabel.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+                if (_nameLabel is KitHudText hud)
+                {
+                    hud.Text = _bossName;
+                    hud.Role = UiSurface.TextRole.Subtitle;
+                }
+                else if (_nameLabel is Label label)
+                {
+                    label.Text = _bossName;
+                    label.HorizontalAlignment = HorizontalAlignment.Center;
+                    label.VerticalAlignment = VerticalAlignment.Center;
+                    label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                    label.ClipText = true;
+                    KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", fs);
+                }
             }
-            else
-            {
-                GD.PushWarning($"[{Name}] BossHealthBarComponent found no sibling HealthComponent — the bar will stay hidden/empty. Add a HealthComponent alongside it (as BuffBarComponent does).");
-            }
+
+            if (_bar == null)
+                return;
+
+            _bar.CustomMinimumSize = new Vector2(fs * 28f, fs * 1.7f);
+            _bar.SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill;
+            _bar.Fill = UiSurface.Role.Danger;
+            _bar.EndCaps = true;
+            _bar.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+        }
+
+        private void SetNameText(string text)
+        {
+            if (_nameLabel is KitHudText hud) hud.Text = text;
+            else if (_nameLabel is Label label) label.Text = text;
         }
 
         private void OnHealthChanged(float current, float max)
@@ -117,8 +242,16 @@ namespace Beep.ECS.UI
             base._ExitTree();
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.HealthChanged -= OnHealthChanged;
-            if (_vbox != null && GodotObject.IsInstanceValid(_vbox))
-                _vbox.QueueFree();
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

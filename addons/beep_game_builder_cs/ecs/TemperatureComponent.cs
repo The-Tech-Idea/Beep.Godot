@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace Beep.ECS
@@ -88,6 +89,24 @@ namespace Beep.ECS
         private bool _speedWarned;
         private CanvasLayer? _vignetteLayer;
         private ColorRect? _vignetteRect;
+        private bool _vignetteSetupRequested;
+
+        private float SanitizedMinTemp => float.IsFinite(MinTemp) ? MinTemp : -40f;
+        private float SanitizedMaxTemp => float.IsFinite(MaxTemp) ? MaxTemp : 55f;
+        public float EffectiveMinTemp => Mathf.Min(SanitizedMinTemp, SanitizedMaxTemp);
+        public float EffectiveMaxTemp => Mathf.Max(SanitizedMinTemp, SanitizedMaxTemp);
+        public float EffectiveFrozenThreshold => OrderedThresholds().Frozen;
+        public float EffectiveColdThreshold => OrderedThresholds().Cold;
+        public float EffectiveOverheatThreshold => OrderedThresholds().Overheat;
+        public float EffectiveHeatStrokeThreshold => OrderedThresholds().HeatStroke;
+        public float EffectiveFrozenDamagePerSec => NonNegative(FrozenDamagePerSec);
+        public float EffectiveColdDamagePerSec => NonNegative(ColdDamagePerSec);
+        public float EffectiveHeatStrokeDamagePerSec => NonNegative(HeatStrokeDamagePerSec);
+        public float EffectiveFrozenSpeedPenalty => UnitOr(FrozenSpeedPenalty, 0.5f);
+        public float EffectiveColdSpeedPenalty => UnitOr(ColdSpeedPenalty, 0.8f);
+        public float EffectiveOverheatSpeedPenalty => UnitOr(OverheatSpeedPenalty, 0.9f);
+        public float EffectiveHeatStrokeSpeedPenalty => UnitOr(HeatStrokeSpeedPenalty, 0.5f);
+        public float EffectiveTemperatureRecoveryRate => NonNegative(TemperatureRecoveryRate);
 
         public override void _Ready()
         {
@@ -104,7 +123,8 @@ namespace Beep.ECS
             }
 
             base._Ready();
-            CurrentTemp = Mathf.Clamp(CurrentTemp, MinTemp, MaxTemp);
+            NormalizeTemperature();
+            _currentState = GetTemperatureState();
             // Runtime only: SetupVignette adds a CanvasLayer to the scene root.
             if (Engine.IsEditorHint()) return;
             // GetNodeOrNull, not GetNode: the throwing variant meant the "../Health" absent
@@ -113,7 +133,7 @@ namespace Beep.ECS
             if (_health == null)
                 GD.PushWarning($"[{Name}] TemperatureComponent found no HealthComponent (at ../Health or as a sibling) — frozen/heatstroke damage will never apply. Attach it to a character that has a HealthComponent.");
             _stats = GetSiblingComponent<StatsComponent>();
-            Callable.From(SetupVignette).CallDeferred();
+            RequestVignetteSetup();
         }
 
         /// <summary>Resolve the scene's atmosphere so weather/season/night can drive ambient
@@ -135,12 +155,22 @@ namespace Beep.ECS
 
         private void SetupVignette()
         {
+            if (!IsActive)
+            {
+                _vignetteSetupRequested = false;
+                return;
+            }
             ResolveAtmosphere();   // deferred, so the atmosphere is in the tree by now
             // One shared vignette layer, adopted if the scene already has it — several
             // temperature entities (player + companions) would otherwise each stack their
             // own full-screen ColorRect at the same layer index and fight. Named so the
             // adopt-or-create works; index is exported.
-            var root = GetTree().Root;
+            var root = GetTree()?.Root;
+            if (root == null)
+            {
+                _vignetteSetupRequested = false;
+                return;
+            }
             _vignetteLayer = root.GetNodeOrNull<CanvasLayer>("TemperatureVignette");
             if (_vignetteLayer != null)
             {
@@ -169,18 +199,23 @@ namespace Beep.ECS
             // menus). _ExitTree frees it when the last temperature entity is gone.
             int refs = (int)_vignetteLayer.GetMeta(VignetteRefMeta, 0);
             _vignetteLayer.SetMeta(VignetteRefMeta, refs + 1);
+            _vignetteSetupRequested = false;
         }
 
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive) return;
+            float dt = DeltaSeconds(delta);
+            if (_vignetteLayer == null || !GodotObject.IsInstanceValid(_vignetteLayer))
+                RequestVignetteSetup();
+            NormalizeTemperature();
 
             // Update temperature toward the (possibly atmosphere-modulated) ambient
             if (EnableAmbientTempInfluence)
             {
                 float ambient = EffectiveAmbient();
-                float delta_temp = (ambient - CurrentTemp) * (float)delta * TemperatureRecoveryRate;
-                CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, MinTemp, MaxTemp);
+                float delta_temp = (ambient - CurrentTemp) * dt * EffectiveTemperatureRecoveryRate;
+                CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, EffectiveMinTemp, EffectiveMaxTemp);
             }
 
             // Check state and apply debuffs
@@ -193,7 +228,7 @@ namespace Beep.ECS
             }
 
             // Apply damage over time
-            _damageAccumulator += delta;
+            _damageAccumulator += dt;
             if (_damageAccumulator >= 1.0)
             {
                 ApplyTemperatureDamage();
@@ -210,39 +245,41 @@ namespace Beep.ECS
         /// atmosphere isn't present or influence is off.</summary>
         private float EffectiveAmbient()
         {
-            float ambient = AmbientTemp;
+            float ambient = float.IsFinite(AmbientTemp) ? AmbientTemp : 20f;
             if (!EnableAtmosphereInfluence) return ambient;
 
             if (_seasonal != null)
                 ambient += _seasonal.CurrentSeason switch
                 {
-                    SeasonalComponent.Season.Winter => WinterTempOffset,
-                    SeasonalComponent.Season.Summer => SummerTempOffset,
+                    SeasonalComponent.Season.Winter => FiniteOr(WinterTempOffset, -18f),
+                    SeasonalComponent.Season.Summer => FiniteOr(SummerTempOffset, 8f),
                     _ => 0f
                 };
             if (_weather != null)
                 ambient += _weather.CurrentWeather switch
                 {
-                    WeatherSystemComponent.WeatherType.Snow or WeatherSystemComponent.WeatherType.Hail => SnowTempOffset,
-                    WeatherSystemComponent.WeatherType.Storm => StormTempOffset,
-                    WeatherSystemComponent.WeatherType.Rain => RainTempOffset,
-                    WeatherSystemComponent.WeatherType.Sandstorm => SandstormTempOffset,
+                    WeatherSystemComponent.WeatherType.Snow or WeatherSystemComponent.WeatherType.Hail => FiniteOr(SnowTempOffset, -12f),
+                    WeatherSystemComponent.WeatherType.Storm => FiniteOr(StormTempOffset, -6f),
+                    WeatherSystemComponent.WeatherType.Rain => FiniteOr(RainTempOffset, -3f),
+                    WeatherSystemComponent.WeatherType.Sandstorm => FiniteOr(SandstormTempOffset, 12f),
                     _ => 0f
                 };
             if (_dayNight != null)
             {
-                float t = _dayNight.TimeOfDay;       // 0..24; roughly night before 6am / after 8pm
-                if (t < 6f || t >= 20f) ambient += NightTempOffset;
+                float t = float.IsFinite(_dayNight.TimeOfDay) ? _dayNight.TimeOfDay : 12f;       // 0..24; roughly night before 6am / after 8pm
+                if (t < 6f || t >= 20f) ambient += FiniteOr(NightTempOffset, -6f);
             }
-            return ambient;
+            return Mathf.Clamp(FiniteOr(ambient, 20f), EffectiveMinTemp, EffectiveMaxTemp);
         }
 
         public TemperatureState GetTemperatureState()
         {
-            if (CurrentTemp < FrozenThreshold) return TemperatureState.Frozen;
-            if (CurrentTemp < ColdThreshold) return TemperatureState.Cold;
-            if (CurrentTemp > HeatStrokeThreshold) return TemperatureState.HeatStroke;
-            if (CurrentTemp > OverheatThreshold) return TemperatureState.Overheating;
+            NormalizeTemperature();
+            var thresholds = OrderedThresholds();
+            if (CurrentTemp < thresholds.Frozen) return TemperatureState.Frozen;
+            if (CurrentTemp < thresholds.Cold) return TemperatureState.Cold;
+            if (CurrentTemp > thresholds.HeatStroke) return TemperatureState.HeatStroke;
+            if (CurrentTemp > thresholds.Overheat) return TemperatureState.Overheating;
             return TemperatureState.Normal;
         }
 
@@ -253,10 +290,10 @@ namespace Beep.ECS
         {
             return _currentState switch
             {
-                TemperatureState.Frozen => FrozenSpeedPenalty,
-                TemperatureState.Cold => ColdSpeedPenalty,
-                TemperatureState.Overheating => OverheatSpeedPenalty,
-                TemperatureState.HeatStroke => HeatStrokeSpeedPenalty,
+                TemperatureState.Frozen => EffectiveFrozenSpeedPenalty,
+                TemperatureState.Cold => EffectiveColdSpeedPenalty,
+                TemperatureState.Overheating => EffectiveOverheatSpeedPenalty,
+                TemperatureState.HeatStroke => EffectiveHeatStrokeSpeedPenalty,
                 _ => 1.0f
             };
         }
@@ -286,9 +323,9 @@ namespace Beep.ECS
         {
             float damage = _currentState switch
             {
-                TemperatureState.Frozen => FrozenDamagePerSec,
-                TemperatureState.Cold => ColdDamagePerSec,
-                TemperatureState.HeatStroke => HeatStrokeDamagePerSec,
+                TemperatureState.Frozen => EffectiveFrozenDamagePerSec,
+                TemperatureState.Cold => EffectiveColdDamagePerSec,
+                TemperatureState.HeatStroke => EffectiveHeatStrokeDamagePerSec,
                 _ => 0f
             };
 
@@ -301,7 +338,7 @@ namespace Beep.ECS
 
         private void UpdateTemperatureVignette()
         {
-            if (_vignetteRect == null) return;
+            if (_vignetteRect == null || !GodotObject.IsInstanceValid(_vignetteRect)) return;
 
             Color vignetteColor = _currentState switch
             {
@@ -320,8 +357,54 @@ namespace Beep.ECS
         /// </summary>
         public void ApplyTemperatureChange(float delta_temp)
         {
-            CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, MinTemp, MaxTemp);
+            if (!float.IsFinite(delta_temp)) return;
+            NormalizeTemperature();
+            CurrentTemp = Mathf.Clamp(CurrentTemp + delta_temp, EffectiveMinTemp, EffectiveMaxTemp);
         }
+
+        private void RequestVignetteSetup()
+        {
+            if (_vignetteSetupRequested || !IsActive) return;
+            _vignetteSetupRequested = true;
+            Callable.From(SetupVignette).CallDeferred();
+        }
+
+        private (float Frozen, float Cold, float Overheat, float HeatStroke) OrderedThresholds()
+        {
+            float[] thresholds =
+            {
+                SanitizedThreshold(FrozenThreshold, 0f),
+                SanitizedThreshold(ColdThreshold, 10f),
+                SanitizedThreshold(OverheatThreshold, 35f),
+                SanitizedThreshold(HeatStrokeThreshold, 45f)
+            };
+            Array.Sort(thresholds);
+            return (thresholds[0], thresholds[1], thresholds[2], thresholds[3]);
+        }
+
+        private static float SanitizedThreshold(float value, float fallback)
+        {
+            return float.IsFinite(value) ? value : fallback;
+        }
+
+        private void NormalizeTemperature()
+        {
+            CurrentTemp = float.IsFinite(CurrentTemp) ? CurrentTemp : AmbientTemp;
+            if (!float.IsFinite(CurrentTemp)) CurrentTemp = 20f;
+            CurrentTemp = Mathf.Clamp(CurrentTemp, EffectiveMinTemp, EffectiveMaxTemp);
+        }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static float UnitOr(float value, float fallback) =>
+            Mathf.Clamp(FiniteOr(value, fallback), 0f, 1f);
 
         public override void _ExitTree()
         {

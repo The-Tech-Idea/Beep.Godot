@@ -23,19 +23,24 @@ namespace Beep.ECS
 
         private AudioStreamPlayer? _player;
 
+        public float EffectivePitchScale => Mathf.Max(0.01f, PitchScale);
+        public string EffectiveBus => string.IsNullOrWhiteSpace(Bus) ? "Master" : Bus;
+
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             Callable.From(SetupAudioPlayer).CallDeferred();
         }
 
         private void SetupAudioPlayer()
         {
+            if (_player != null && GodotObject.IsInstanceValid(_player)) return;
             _player = new AudioStreamPlayer();
             _player.Stream = Stream;
             _player.VolumeDb = VolumeDb;
-            _player.PitchScale = PitchScale;
-            _player.Bus = Bus;
+            _player.PitchScale = EffectivePitchScale;
+            _player.Bus = EffectiveBus;
             _player.Finished += OnPlayerFinished;
             AddChild(_player);
 
@@ -58,6 +63,11 @@ namespace Beep.ECS
         public void Play()
         {
             if (_player == null || !IsActive) return;
+            _player.Stream = Stream;
+            _player.VolumeDb = VolumeDb;
+            _player.PitchScale = EffectivePitchScale;
+            _player.Bus = EffectiveBus;
+            if (_player.Stream == null) return;
             _player.Play();
             EmitSignal(SignalName.Played);
         }
@@ -68,15 +78,15 @@ namespace Beep.ECS
             EmitSignal(SignalName.Stopped);
         }
 
-        public void PlayOneShot(AudioStream stream, float volume = 0f, float pitch = 1f)
+        public void PlayOneShot(AudioStream? stream, float volume = 0f, float pitch = 1f)
         {
-            if (!IsActive || GetParent() == null) return;
+            if (Engine.IsEditorHint() || !IsActive || stream == null || GetParent() == null) return;
             var p = new AudioStreamPlayer
             {
                 Stream = stream,
                 VolumeDb = volume,
-                PitchScale = pitch,
-                Bus = Bus
+                PitchScale = Mathf.Max(0.01f, pitch),
+                Bus = EffectiveBus
             };
             GetParent().AddChild(p);
             p.Finished += p.QueueFree;

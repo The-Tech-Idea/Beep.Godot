@@ -59,7 +59,11 @@ namespace Beep.ECS
         private bool _warnedNoSprite;
 
         /// <summary>True while off the ground.</summary>
-        public bool IsAirborne => Height > 0.001f;
+        public bool IsAirborne => EffectiveHeight > 0.001f;
+        public float EffectiveHeight => NonNegative(Height);
+        public float EffectiveHalfThickness => NonNegative(HalfThickness);
+        public float EffectiveZIndexPerPixel => float.IsFinite(ZIndexPerPixel) ? ZIndexPerPixel : 0f;
+        public float EffectiveShadowFadeHeight => Mathf.Max(0.0001f, float.IsFinite(ShadowFadeHeight) ? ShadowFadeHeight : 200f);
 
         public override void _Ready()
         {
@@ -77,7 +81,7 @@ namespace Beep.ECS
                 _warnedNoSprite = true;
                 GD.PushWarning($"[{Name}] no sprite child found to lift — height will gate collision and ZIndex but nothing will LOOK airborne. Assign SpritePath or add a Sprite2D child.");
             }
-            if (EnableShadow && !Engine.IsEditorHint()) EnsureShadow();
+            if (EnableShadow && !Engine.IsEditorHint()) CallDeferred(nameof(EnsureShadow));
             ApplyVisuals();
         }
 
@@ -85,8 +89,8 @@ namespace Beep.ECS
         /// Clamped ≥ 0 — there is no below-ground in this model.</summary>
         public void SetHeight(float height)
         {
-            float clamped = Mathf.Max(0f, height);
-            bool landed = clamped <= 0.001f && Height > 0.001f;
+            float clamped = NonNegative(height);
+            bool landed = clamped <= 0.001f && EffectiveHeight > 0.001f;
             if (Mathf.IsEqualApprox(clamped, Height)) return;
             Height = clamped;
             ApplyVisuals();
@@ -100,8 +104,8 @@ namespace Beep.ECS
         public bool HeightOverlaps(HeightComponent other)
         {
             if (other == null) return true;   // a target with no height is grounded — always overlappable
-            float lo = Mathf.Max(Height - HalfThickness, other.Height - other.HalfThickness);
-            float hi = Mathf.Min(Height + HalfThickness, other.Height + other.HalfThickness);
+            float lo = Mathf.Max(EffectiveHeight - EffectiveHalfThickness, other.EffectiveHeight - other.EffectiveHalfThickness);
+            float hi = Mathf.Min(EffectiveHeight + EffectiveHalfThickness, other.EffectiveHeight + other.EffectiveHalfThickness);
             return lo <= hi;
         }
 
@@ -109,8 +113,10 @@ namespace Beep.ECS
         /// half-thickness <paramref name="halfThickness"/>) overlap this entity's band?</summary>
         public bool HeightOverlaps(float height, float halfThickness)
         {
-            float lo = Mathf.Max(Height - HalfThickness, height - halfThickness);
-            float hi = Mathf.Min(Height + HalfThickness, height + halfThickness);
+            float effectiveOtherHeight = NonNegative(height);
+            float effectiveOtherHalfThickness = NonNegative(halfThickness);
+            float lo = Mathf.Max(EffectiveHeight - EffectiveHalfThickness, effectiveOtherHeight - effectiveOtherHalfThickness);
+            float hi = Mathf.Min(EffectiveHeight + EffectiveHalfThickness, effectiveOtherHeight + effectiveOtherHalfThickness);
             return lo <= hi;
         }
 
@@ -125,9 +131,9 @@ namespace Beep.ECS
             return null;
         }
 
-        private void EnsureShadow()
+        public void EnsureShadow()
         {
-            if (_body == null) return;
+            if (_body == null || !GodotObject.IsInstanceValid(_body) || Engine.IsEditorHint()) return;
             _shadow = _body.GetNodeOrNull<Sprite2D>("HeightShadow");
             if (_shadow != null) return;
             // A 1×1 white texture scaled to an ellipse; tinted by ShadowColor. Cheap and art-free —
@@ -138,7 +144,7 @@ namespace Beep.ECS
             {
                 Name = "HeightShadow",
                 Texture = ImageTexture.CreateFromImage(img),
-                Modulate = ShadowColor,
+                Modulate = SanitizedColor(ShadowColor, new Color(0f, 0f, 0f, 0.35f)),
                 Scale = new Vector2(4f, 2f),   // wide, flat ellipse reads as a ground shadow
                 ZIndex = _baseZIndex - 1,       // under the body
             };
@@ -148,21 +154,32 @@ namespace Beep.ECS
         private void ApplyVisuals()
         {
             if (_body == null) return;
+            float height = EffectiveHeight;
             // Lift the sprite UP (negative Y) by Height; the body stays grounded for collision.
             if (_sprite != null && GodotObject.IsInstanceValid(_sprite))
-                _sprite.Position = new Vector2(_sprite.Position.X, -Height);
+                _sprite.Position = new Vector2(float.IsFinite(_sprite.Position.X) ? _sprite.Position.X : 0f, -height);
 
             if (EnableShadow && _shadow != null && GodotObject.IsInstanceValid(_shadow))
             {
-                float t = Mathf.Clamp(Height / Mathf.Max(ShadowFadeHeight, 0.0001f), 0f, 1f);
+                float t = Mathf.Clamp(height / EffectiveShadowFadeHeight, 0f, 1f);
                 // Higher = smaller, fainter shadow (light source is effectively overhead).
-                _shadow.Modulate = new Color(ShadowColor, ShadowColor.A * (1f - t));
+                Color shadowColor = SanitizedColor(ShadowColor, new Color(0f, 0f, 0f, 0.35f));
+                _shadow.Modulate = new Color(shadowColor, shadowColor.A * (1f - t));
                 float squash = Mathf.Lerp(1f, 0.4f, t);
                 _shadow.Scale = new Vector2(4f * squash, 2f * squash);
             }
 
-            if (!Mathf.IsZeroApprox(ZIndexPerPixel))
-                _body.ZIndex = _baseZIndex + (int)(Height * ZIndexPerPixel);
+            if (!Mathf.IsZeroApprox(EffectiveZIndexPerPixel))
+                _body.ZIndex = _baseZIndex + (int)(height * EffectiveZIndexPerPixel);
         }
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static Color SanitizedColor(Color value, Color fallback) => new(
+            float.IsFinite(value.R) ? value.R : fallback.R,
+            float.IsFinite(value.G) ? value.G : fallback.G,
+            float.IsFinite(value.B) ? value.B : fallback.B,
+            float.IsFinite(value.A) ? Mathf.Clamp(value.A, 0f, 1f) : fallback.A);
     }
 }

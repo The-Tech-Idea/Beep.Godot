@@ -32,10 +32,12 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             _canvas = GetParent() as Godot.Control;
             if (_canvas == null)
                 GD.PushWarning($"[{Name}] CrosshairComponent needs a Control parent to draw on; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a full-rect Control/CanvasLayer child.");
             ConnectDrawer();
+            _canvas?.QueueRedraw();
         }
 
         private void ConnectDrawer()
@@ -57,14 +59,32 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (!IsActive)
+            {
+                UpdateProcessing();
+                return;
+            }
             // Recover spread toward minimum.
             CurrentSpread = Mathf.MoveToward(CurrentSpread, MinSpread, SpreadRecoverSpeed * (float)delta);
             _canvas?.QueueRedraw();
+            UpdateProcessing();
         }
 
         /// <summary>Kick the spread (call on fire or fast movement).</summary>
-        public void AddSpread(float amount) { if (IsActive) CurrentSpread = Mathf.Min(MaxSpread, CurrentSpread + amount); }
+        public void AddSpread(float amount)
+        {
+            if (!IsActive) return;
+            CurrentSpread = Mathf.Min(MaxSpread, CurrentSpread + amount);
+            _canvas?.QueueRedraw();
+            UpdateProcessing();
+        }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint()
+                          && IsActive
+                          && _canvas != null
+                          && GodotObject.IsInstanceValid(_canvas)
+                          && CurrentSpread > MinSpread);
 
         private void DrawCrosshair()
         {

@@ -26,14 +26,25 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitTabPanel : TabContainer
     {
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Accent;
+        [Export] public UiSurface.Role Accent
+        {
+            get => _accent;
+            set
+            {
+                if (_accent == value) return;
+                _accent = value;
+                RequestApply();
+            }
+        }
+        private UiSurface.Role _accent = UiSurface.Role.Accent;
 
         private string _genre = "";
         private bool _applying;
 
         public override void _Ready()
         {
-            _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+            base._Ready();
+            _genre = KitChrome.GenreOf(this);
             Apply();
         }
 
@@ -42,22 +53,29 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what == NotificationThemeChanged)
             {
-                _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+                _genre = KitChrome.GenreOf(this);
                 Apply();
             }
         }
 
+        private void RequestApply()
+        {
+            if (!IsInsideTree()) return;
+            _genre = KitChrome.GenreOf(this);
+            Apply();
+        }
+
         private void Apply()
         {
-            // AddThemeStyleboxOverride emits NotificationThemeChanged, which lands straight back
-            // here — the same re-entry KitPanelContainer needs a guard for.
-            if (_applying) return;
+            if (_applying || !IsInsideTree()) return;
             _applying = true;
+            try
+            {
 
             var g = KitGeometry.ForGenre(_genre);
             int fs = UiSurface.FontSize(this);
             Color surface = UiSurface.Of(this);
-            Color accent = UiSurface.Semantic(this, Accent);
+            Color accent = UiSurface.SemanticOrDerived(this, Accent);
             if (accent.A < 0.02f) accent = surface;
             Color ink = UiSurface.Ink(surface);
 
@@ -68,13 +86,14 @@ namespace Beep.ECS.UI.Kit
             // SELECTED takes the accent and a full frame; UNSELECTED recedes and carries a
             // thinner one. The contrast is in LIGHTNESS as well as hue, so the distinction
             // survives greyscale — the test the rest of the kit is held to.
-            AddThemeStyleboxOverride("tab_selected", Tab(accent, ink, corner, pad, fs, frame));
-            AddThemeStyleboxOverride("tab_hovered",
+            bool changed = false;
+            changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "tab_selected", Tab(accent, ink, corner, pad, fs, frame));
+            changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "tab_hovered",
                 Tab(KitChrome.StateFace(accent, KitState.Hover), ink, corner, pad, fs, frame));
 
             Color dim = new(surface.R * 0.70f, surface.G * 0.68f, surface.B * 0.74f, 1f);
-            AddThemeStyleboxOverride("tab_unselected", Tab(dim, ink, corner, pad, fs, frame * 0.5f));
-            AddThemeStyleboxOverride("tab_disabled", Tab(dim, ink, corner, pad, fs, frame * 0.5f));
+            changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "tab_unselected", Tab(dim, ink, corner, pad, fs, frame * 0.5f));
+            changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "tab_disabled", Tab(dim, ink, corner, pad, fs, frame * 0.5f));
 
             var panel = new StyleBoxFlat
             {
@@ -85,15 +104,23 @@ namespace Beep.ECS.UI.Kit
             };
             panel.SetCornerRadiusAll(corner);
             panel.SetBorderWidthAll(Mathf.Max(1, Mathf.RoundToInt(frame)));
-            AddThemeStyleboxOverride("panel", panel);
+            changed |= KitChrome.SetStyleboxOverrideIfChanged(this, "panel", panel);
 
-            AddThemeColorOverride("font_selected_color", UiSurface.Text(this));
-            AddThemeColorOverride("font_unselected_color", UiSurface.Text(this) with { A = 0.72f });
-            AddThemeColorOverride("font_hovered_color", UiSurface.Text(this));
-            AddThemeFontSizeOverride("font_size", Mathf.Max(10, UiSurface.FitRole(this, UiSurface.TextRole.Body,
-                new Vector2(fs * 7.0f, fs * 1.5f), "Options", GetThemeDefaultFont())));
-
-            _applying = false;
+            changed |= KitChrome.SetColorOverrideIfChanged(this, "font_selected_color", UiSurface.Text(this));
+            changed |= KitChrome.SetColorOverrideIfChanged(this, "font_unselected_color", UiSurface.Text(this) with { A = 0.72f });
+            changed |= KitChrome.SetColorOverrideIfChanged(this, "font_hovered_color", UiSurface.Text(this));
+            Font? font = KitFonts.Fallback(this, g.Font);
+            if (font != null) changed |= KitChrome.SetFontOverrideIfChanged(this, "font", font);
+            changed |= KitChrome.SetFontSizeOverrideIfChanged(this, "font_size", Mathf.Max(10, UiSurface.FitRole(this, UiSurface.TextRole.Body,
+                new Vector2(fs * 7.0f, fs * 1.5f), "Options", font)));
+            if (!changed) return;
+            }
+            finally
+            {
+                _applying = false;
+            }
+            UpdateMinimumSize();
+            QueueRedraw();
         }
 
         private static StyleBoxFlat Tab(Color face, Color ink, int corner, float pad, int fs,

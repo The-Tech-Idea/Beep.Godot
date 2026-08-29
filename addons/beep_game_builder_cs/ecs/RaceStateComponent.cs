@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -40,7 +41,7 @@ namespace Beep.ECS
             get => _speed;
             set
             {
-                float v = Mathf.Clamp(value, 0f, MaxSpeed);
+                float v = Mathf.Clamp(FiniteOr(value, 0f), 0f, EffectiveMaxSpeed);
                 if (Mathf.IsEqualApprox(v, _speed)) return;
                 _speed = v;
                 EmitSignal(SignalName.RaceChanged);
@@ -57,17 +58,20 @@ namespace Beep.ECS
         public bool Finished { get; private set; }
 
         /// <summary>True on the last lap — the cue every racing HUD flashes.</summary>
-        public bool IsFinalLap => !Finished && Lap >= TotalLaps;
+        public bool IsFinalLap => !Finished && Lap >= EffectiveTotalLaps;
 
-        public float SpeedFraction => MaxSpeed <= 0f ? 0f : Mathf.Clamp(_speed / MaxSpeed, 0f, 1f);
-        public float RaceFraction => TotalLaps <= 0 ? 0f
-            : Mathf.Clamp((Lap - 1 + LapProgress) / TotalLaps, 0f, 1f);
+        public int EffectiveTotalLaps => Mathf.Max(1, TotalLaps);
+        public int EffectiveRivalCount => Mathf.Clamp(RivalCount, 0, 64);
+        public float EffectiveMaxSpeed => Mathf.Max(0f, FiniteOr(MaxSpeed, 0f));
+
+        public float SpeedFraction => EffectiveMaxSpeed <= 0f ? 0f : Mathf.Clamp(_speed / EffectiveMaxSpeed, 0f, 1f);
+        public float RaceFraction => Mathf.Clamp((Lap - 1 + LapProgress) / EffectiveTotalLaps, 0f, 1f);
 
         /// <summary>0..1 through the current lap. Driven by the track; used for position.</summary>
         public float LapProgress
         {
             get => _lapProgress;
-            set { _lapProgress = Mathf.Clamp(value, 0f, 1f); RecomputePosition(); }
+            set { _lapProgress = Mathf.Clamp(FiniteOr(value, 0f), 0f, 1f); RecomputePosition(); }
         }
         private float _lapProgress;
 
@@ -84,7 +88,7 @@ namespace Beep.ECS
         /// unreadable at a glance while driving.</summary>
         public static string Format(float seconds)
         {
-            if (seconds < 0f) return "--:--.---";
+            if (!float.IsFinite(seconds) || seconds < 0f) return "--:--.---";
             int total = Mathf.FloorToInt(seconds);
             int ms = Mathf.FloorToInt((seconds - total) * 1000f);
             return $"{total / 60}:{total % 60:00}.{ms:000}";
@@ -107,7 +111,7 @@ namespace Beep.ECS
         private void ResetRivals()
         {
             _rivals.Clear();
-            for (int i = 0; i < Mathf.Max(0, RivalCount); i++) _rivals.Add(0f);
+            for (int i = 0; i < EffectiveRivalCount; i++) _rivals.Add(0f);
         }
 
         public override void _Process(double delta)
@@ -115,7 +119,7 @@ namespace Beep.ECS
             if (Engine.IsEditorHint() || Finished) return;
             // The clock RUNS. A lap time that only updates when something else happens is not a
             // clock, and this is the readout a player watches most.
-            float dt = (float)delta;
+            float dt = DeltaSeconds(delta);
             LapTime += dt;
             TotalTime += dt;
             EmitSignal(SignalName.RaceChanged);
@@ -125,7 +129,7 @@ namespace Beep.ECS
         public void SetRivalProgress(int index, float lapsCompleted)
         {
             if (index < 0 || index >= _rivals.Count) return;
-            _rivals[index] = Mathf.Max(0f, lapsCompleted);
+            _rivals[index] = Mathf.Max(0f, FiniteOr(lapsCompleted, 0f));
             RecomputePosition();
         }
 
@@ -155,7 +159,7 @@ namespace Beep.ECS
                 EmitSignal(SignalName.NewBestLap, split);
             }
 
-            if (Lap >= TotalLaps)
+            if (Lap >= EffectiveTotalLaps)
             {
                 Finished = true;
                 _speed = 0f;
@@ -187,9 +191,9 @@ namespace Beep.ECS
 
         public void Save(GameBuilder.GameStateData state)
         {
-            state.GameData[KLap] = Lap;
-            state.GameData[KTotal] = TotalTime;
-            state.GameData[KBest] = BestLap;
+            state.GameData[KLap] = Mathf.Clamp(Lap, 1, EffectiveTotalLaps);
+            state.GameData[KTotal] = Mathf.Max(0f, FiniteOr(TotalTime, 0f));
+            state.GameData[KBest] = BestLap < 0f ? -1f : Mathf.Max(0f, FiniteOr(BestLap, -1f));
             state.GameData[KFinished] = Finished;
             // Speed, LapTime and rival positions are live race state, not progress. Restoring a
             // mid-lap clock would resume a lap the player is not driving.
@@ -198,14 +202,14 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KLap, out var l)) Lap = Mathf.Clamp(l.AsInt32(), 1, Mathf.Max(1, TotalLaps));
-            if (d.TryGetValue(KTotal, out var t)) TotalTime = Mathf.Max(0f, (float)t.AsDouble());
+            if (d.TryGetValue(KLap, out var l)) Lap = Mathf.Clamp(ReadInt(l, Lap), 1, EffectiveTotalLaps);
+            if (d.TryGetValue(KTotal, out var t)) TotalTime = Mathf.Max(0f, VariantFloat(t, 0f));
             if (d.TryGetValue(KBest, out var b))
             {
-                float v = (float)b.AsDouble();
+                float v = VariantFloat(b, -1f);
                 BestLap = v < 0f ? -1f : v;
             }
-            if (d.TryGetValue(KFinished, out var f)) Finished = f.AsBool();
+            if (d.TryGetValue(KFinished, out var f)) Finished = ReadBool(f, Finished);
 
             _speed = 0f;
             LapTime = 0f;
@@ -213,6 +217,67 @@ namespace Beep.ECS
             ResetRivals();
             RecomputePosition();
             EmitSignal(SignalName.RaceChanged);
+        }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static float VariantFloat(Variant value, float fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Int:
+                case Variant.Type.Float:
+                {
+                    double d = value.AsDouble();
+                    return double.IsFinite(d) ? (float)d : fallback;
+                }
+                case Variant.Type.String:
+                    return float.TryParse(value.AsString(), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+                        && float.IsFinite(parsed)
+                            ? parsed
+                            : fallback;
+                default:
+                    return fallback;
+            }
+        }
+
+        private static int ReadInt(Variant value, int fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Int:
+                    return value.AsInt32();
+                case Variant.Type.Float:
+                {
+                    double raw = value.AsDouble();
+                    return double.IsFinite(raw) ? Mathf.RoundToInt((float)raw) : fallback;
+                }
+                case Variant.Type.String:
+                    return int.TryParse(value.AsString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+                        ? parsed
+                        : fallback;
+                default:
+                    return fallback;
+            }
+        }
+
+        private static bool ReadBool(Variant value, bool fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Bool:
+                    return value.AsBool();
+                case Variant.Type.Int:
+                    return value.AsInt32() != 0;
+                case Variant.Type.String:
+                    return bool.TryParse(value.AsString(), out bool parsed) ? parsed : fallback;
+                default:
+                    return fallback;
+            }
         }
     }
 }

@@ -15,8 +15,7 @@ public static class BeepEncryptionHelper
     public static string Encrypt(string plainText, string password)
     {
         using var aes = Aes.Create();
-        using var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
-        aes.Key = key.GetBytes(32); aes.IV = key.GetBytes(16);
+        ApplyPasswordKey(aes, password);
         using var ms = new MemoryStream();
         using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
         { var data = Encoding.UTF8.GetBytes(plainText); cs.Write(data, 0, data.Length); }
@@ -28,14 +27,25 @@ public static class BeepEncryptionHelper
         try
         {
             using var aes = Aes.Create();
-            using var key = new Rfc2898DeriveBytes(password, Salt, 1000, HashAlgorithmName.SHA256);
-            aes.Key = key.GetBytes(32); aes.IV = key.GetBytes(16);
+            ApplyPasswordKey(aes, password);
             using var ms = new MemoryStream(Convert.FromBase64String(cipherText));
             using var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read);
             using var sr = new StreamReader(cs);
             return sr.ReadToEnd();
         }
         catch { return null; }
+    }
+
+    private static void ApplyPasswordKey(Aes aes, string password)
+    {
+        byte[] material = Rfc2898DeriveBytes.Pbkdf2(
+            Encoding.UTF8.GetBytes(password),
+            Salt,
+            iterations: 1000,
+            HashAlgorithmName.SHA256,
+            outputLength: 48);
+        aes.Key = material[..32];
+        aes.IV = material[32..48];
     }
 
     public static bool SaveEncrypted<T>(string path, T data, string password)

@@ -35,12 +35,17 @@ namespace Beep.ECS.UI
         // literal renders a genre's larger type out of a control built for 14.
         [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.0f;
         private int FontSize => UiSurface.FontSize(this, FontScale);
+        [Export] public NodePath HeaderRowPath { get; set; } = new("");
+        [Export] public NodePath RowsContainerPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [Signal] public delegate void ColumnClickedEventHandler(int columnIndex, string columnName);
         [Signal] public delegate void RowClickedEventHandler(int rowIndex, string[] values);
 
         private VBoxContainer? _container;
         private HBoxContainer? _headerRow;
+        private bool _createdHeaderRow;
         private readonly List<KitPanelContainer> _rows = new();
         private readonly List<string[]> _data = new();
         private readonly List<Button> _headerButtons = new();
@@ -51,42 +56,138 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            _container = GetParent() as VBoxContainer;
-            if (_container == null)
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindHeaderRow() == null)
+                return new[] { "Set HeaderRowPath to an authored HBoxContainer, add a sibling HeaderRow HBoxContainer, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
+        }
+
+        private void Setup()
+        {
+            if (!BindExistingControls())
             {
-                GD.PushWarning($"[{Name}] TableComponent needs a VBoxContainer parent to build header + rows; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a VBoxContainer.");
-                return;
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedHeaderRow();
             }
+
+            if (_container == null || _headerRow == null)
+                return;
+
             BuildHeader();
         }
 
         private void BuildHeader()
         {
-            if (Engine.IsEditorHint()) return;
-            if (_container == null) return;
-            _headerRow = new HBoxContainer { CustomMinimumSize = new Vector2(0, RowHeight) };
-            _headerRow.AddThemeConstantOverride("separation", 0);
+            if (_headerRow == null) return;
+            foreach (var kv in _headerHandlers)
+                if (GodotObject.IsInstanceValid(kv.Key))
+                    kv.Key.Pressed -= kv.Value;
+            _headerHandlers.Clear();
+            _headerButtons.Clear();
 
+            KitChrome.SetConstantOverrideIfChanged(_headerRow, "separation", 0);
+
+            var existingButtons = _headerRow.GetChildren().OfType<Button>().ToList();
             for (int i = 0; i < ColumnHeaders.Length; i++)
             {
-                var btn = new KitPushButton
+                Button btn;
+                if (i < existingButtons.Count)
                 {
-                    Text = ColumnHeaders[i],
-                    Flat = true,
-                    Alignment = HorizontalAlignment.Left,
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight),
-                    SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                    Accent = UiSurface.Role.Neutral,
-                };
+                    btn = existingButtons[i];
+                }
+                else
+                {
+                    if (!GenerateControlsWhenPathsEmpty)
+                        break;
+
+                    btn = new KitPushButton();
+                    _headerRow.AddChild(btn);
+                    SetEditedOwner(btn);
+                }
+
+                btn.Text = ColumnHeaders[i];
+                btn.Flat = true;
+                btn.Alignment = HorizontalAlignment.Left;
+                btn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                btn.CustomMinimumSize = new Vector2(i < ColumnWidths.Length ? ColumnWidths[i] : 100, RowHeight);
+                btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                if (btn is KitPushButton kitButton)
+                    kitButton.Accent = UiSurface.Role.Neutral;
+
                 Action handler = () => OnHeaderButtonPressed(btn);
                 _headerHandlers[btn] = handler;
                 btn.Pressed += handler;
                 _headerButtons.Add(btn);
                 StyleHeaderButton(btn);
-                _headerRow.AddChild(btn);
             }
+        }
+
+        private bool BindExistingControls()
+        {
+            _createdHeaderRow = false;
+            _container = FindRowsContainer();
+            _headerRow = FindHeaderRow();
+
+            return _container != null && _headerRow != null;
+        }
+
+        private void BuildGeneratedHeaderRow()
+        {
+            _container = FindRowsContainer();
+            if (_container == null)
+            {
+                GD.PushWarning($"[{Name}] TableComponent needs a VBoxContainer parent or RowsContainerPath to place table rows; got '{GetParent()?.GetType().Name ?? "null"}'.");
+                return;
+            }
+
+            _createdHeaderRow = true;
+            _headerRow = new HBoxContainer
+            {
+                Name = "HeaderRow",
+                CustomMinimumSize = new Vector2(0, RowHeight)
+            };
             _container.AddChild(_headerRow);
+            _container.MoveChild(_headerRow, 0);
+            SetEditedOwner(_headerRow);
+        }
+
+        public bool UsesSceneControls()
+            => FindHeaderRow() != null || FindRowsContainer() != null;
+
+        private VBoxContainer? FindRowsContainer()
+        {
+            if (!RowsContainerPath.IsEmpty && GetNodeOrNull<VBoxContainer>(RowsContainerPath) is { } pathRows)
+                return pathRows;
+
+            if (FindChild("Rows", recursive: true, owned: false) is VBoxContainer childRows)
+                return childRows;
+
+            if (GetParent()?.FindChild("Rows", recursive: true, owned: false) is VBoxContainer parentRows)
+                return parentRows;
+
+            return GetParent() as VBoxContainer;
+        }
+
+        private HBoxContainer? FindHeaderRow()
+        {
+            if (!HeaderRowPath.IsEmpty && GetNodeOrNull<HBoxContainer>(HeaderRowPath) is { } pathHeader)
+                return pathHeader;
+
+            if (FindChild("HeaderRow", recursive: true, owned: false) is HBoxContainer childHeader)
+                return childHeader;
+
+            if (GetParent()?.FindChild("HeaderRow", recursive: true, owned: false) is HBoxContainer parentHeader)
+                return parentHeader;
+
+            return null;
         }
 
         private void OnHeaderButtonPressed(Button btn)
@@ -101,10 +202,10 @@ namespace Beep.ECS.UI
             sb.SetCornerRadiusAll(0);
             sb.BorderWidthBottom = 2;
             sb.BorderColor = BorderAccent;
-            btn.AddThemeStyleboxOverride("normal", sb);
-            btn.AddThemeStyleboxOverride("hover", sb);
-            btn.AddThemeColorOverride("font_color", TextAccent);
-            btn.AddThemeFontSizeOverride("font_size", FontSize);
+            KitChrome.SetStyleboxOverrideIfChanged(btn, "normal", sb);
+            KitChrome.SetStyleboxOverrideIfChanged(btn, "hover", sb);
+            KitChrome.SetColorOverrideIfChanged(btn, "font_color", TextAccent);
+            KitChrome.SetFontSizeOverrideIfChanged(btn, "font_size", FontSize);
         }
 
         public void Clear()
@@ -139,13 +240,14 @@ namespace Beep.ECS.UI
             {
                 CustomMinimumSize = new Vector2(0, RowHeight),
                 ShowWell = false,
-                ExtraPadding = Vector2.Zero
+                ExtraPadding = Vector2.Zero,
+                FocusMode = Control.FocusModeEnum.All
             };
             rowPanel.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
             ApplyRowBg(rowPanel, bg);
 
             var row = new HBoxContainer();
-            row.AddThemeConstantOverride("separation", 0);
+            KitChrome.SetConstantOverrideIfChanged(row, "separation", 0);
             row.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;  // let the panel receive hover/click
             rowPanel.AddChild(row);
 
@@ -162,25 +264,43 @@ namespace Beep.ECS.UI
             }
 
             int rowIdx = index;
-            rowPanel.GuiInput += e => OnRowGuiInput(e, rowIdx, values);
-            rowPanel.MouseEntered += () => ApplyRowBg(rowPanel, HoverColor);
-            rowPanel.MouseExited += () => ApplyRowBg(rowPanel, bg);
+            bool hovered = false;
+            void RefreshInteractiveBg()
+                => ApplyRowBg(rowPanel, hovered || rowPanel.HasFocus() ? HoverColor : bg);
+
+            rowPanel.GuiInput += e => OnRowGuiInput(rowPanel, e, rowIdx, values);
+            rowPanel.MouseEntered += () => { hovered = true; RefreshInteractiveBg(); };
+            rowPanel.MouseExited += () => { hovered = false; RefreshInteractiveBg(); };
+            rowPanel.FocusEntered += RefreshInteractiveBg;
+            rowPanel.FocusExited += RefreshInteractiveBg;
 
             _rows.Add(rowPanel);
             _container.AddChild(rowPanel);
+            SetEditedOwner(rowPanel);
         }
 
-        private void OnRowGuiInput(InputEvent e, int rowIdx, string[] values)
+        private void OnRowGuiInput(Control row, InputEvent e, int rowIdx, string[] values)
         {
-            if (e is InputEventMouseButton mb && mb.Pressed)
+            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                row.GrabFocus();
                 EmitSignal(SignalName.RowClicked, rowIdx, values);
+                row.AcceptEvent();
+                return;
+            }
+
+            if (e is InputEventKey key && KitChrome.IsConfirmKey(key))
+            {
+                EmitSignal(SignalName.RowClicked, rowIdx, values);
+                row.AcceptEvent();
+            }
         }
 
         private static void ApplyRowBg(PanelContainer row, Color color)
         {
             var sb = new StyleBoxFlat { BgColor = color };
             sb.SetCornerRadiusAll(0);
-            row.AddThemeStyleboxOverride("panel", sb);
+            KitChrome.SetStyleboxOverrideIfChanged(row, "panel", sb);
         }
 
         public void SortByColumn(int column)
@@ -212,6 +332,17 @@ namespace Beep.ECS.UI
                     kv.Key.Pressed -= kv.Value;
             _headerHandlers.Clear();
             _headerButtons.Clear();
+            if (_createdHeaderRow && _headerRow != null && GodotObject.IsInstanceValid(_headerRow))
+                _headerRow.QueueFree();
+            _headerRow = null;
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

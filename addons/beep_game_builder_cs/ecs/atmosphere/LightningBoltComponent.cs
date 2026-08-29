@@ -38,6 +38,11 @@ namespace Beep.ECS
         private float _age;
         private bool _struck;
 
+        public int EffectiveSegments => Mathf.Clamp(Segments, 1, 200);
+        public float EffectiveDisplacement => Mathf.Max(0f, float.IsFinite(Displacement) ? Displacement : 0f);
+        public float EffectiveBranchChance => Mathf.Clamp(float.IsFinite(BranchChance) ? BranchChance : 0f, 0f, 1f);
+        public float EffectiveLifetime => Mathf.Max(0.01f, float.IsFinite(Lifetime) ? Lifetime : 0.25f);
+
         public override void _Ready()
         {
             Width = 5f;
@@ -55,7 +60,7 @@ namespace Beep.ECS
         public void Strike(Vector2 start, Vector2 end)
         {
             ClearPoints();
-            BuildPath(start, end, Segments, Displacement);
+            BuildPath(start, end, EffectiveSegments, EffectiveDisplacement);
             _struck = true;
             _age = 0;
         }
@@ -63,11 +68,11 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (!_struck) return;
-            _age += (float)delta;
-            float t = Mathf.Clamp(_age / Lifetime, 0f, 1f);
+            _age += double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            float t = Mathf.Clamp(_age / EffectiveLifetime, 0f, 1f);
             // Exponential fade-out — bright flash that dies quickly.
             Modulate = new Color(1, 1, 1, 1f - t);
-            if (_age >= Lifetime)
+            if (_age >= EffectiveLifetime)
             {
                 _struck = false;
                 QueueFree();
@@ -103,7 +108,7 @@ namespace Beep.ECS
                 AddPoint(pt);
 
                 // Maybe fork a sub-branch off this point.
-                if (GD.Randf() < BranchChance && i < segs - 3)
+                if (GD.Randf() < EffectiveBranchChance && i < segs - 3)
                     SpawnBranch(pt, dirNorm, segs - i, disp * 0.6f);
             }
             AddPoint(end);

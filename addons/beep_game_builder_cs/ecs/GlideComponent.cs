@@ -23,6 +23,10 @@ namespace Beep.ECS
         [Signal] public delegate void GlideStartedEventHandler();
         [Signal] public delegate void GlideEndedEventHandler();
 
+        public float EffectiveGlideFallSpeed => NonNegative(GlideFallSpeed);
+        public float EffectiveGlideAirSpeed => NonNegative(GlideAirSpeed);
+        public float EffectiveGlideAccel => NonNegative(GlideAccel);
+
         private CharacterBody2D? _body;
         private bool _isGliding;
 
@@ -39,11 +43,20 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no glide
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            {
+                if (_isGliding)
+                {
+                    _isGliding = false;
+                    EmitSignal(SignalName.GlideEnded);
+                }
+                return;
+            }
             // Gate input reads so absent actions don't spam per-frame errors pre-generation.
             if (!InputActionsAvailable(GlideAction, "move_left", "move_right")) return;
-            float dt = (float)delta;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             bool onFloor = _body.IsOnFloor();
             bool falling = _body.Velocity.Y > 0;
@@ -62,12 +75,12 @@ namespace Beep.ECS
 
                 // Horizontal air control during glide.
                 float inputX = Input.GetAxis("move_left", "move_right");
-                float targetX = inputX * GlideAirSpeed;
-                float newX = Mathf.MoveToward(_body.Velocity.X, targetX, GlideAccel * dt);
+                float targetX = inputX * EffectiveGlideAirSpeed;
+                float newX = Mathf.MoveToward(_body.Velocity.X, targetX, EffectiveGlideAccel * dt);
 
                 // CAP the descent at GlideFallSpeed. +Y is down, so this must be Min: Max let any
                 // faster fall through, so gliding never actually slowed the fall.
-                _body.Velocity = new Vector2(newX, Mathf.Min(GlideFallSpeed, _body.Velocity.Y));
+                _body.Velocity = new Vector2(newX, Mathf.Min(EffectiveGlideFallSpeed, _body.Velocity.Y));
             }
             else if (_isGliding)
             {
@@ -75,5 +88,9 @@ namespace Beep.ECS
                 EmitSignal(SignalName.GlideEnded);
             }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

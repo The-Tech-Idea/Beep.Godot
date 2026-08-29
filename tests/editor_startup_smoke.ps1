@@ -29,7 +29,7 @@ $stderrTask = $process.StandardError.ReadToEndAsync()
 
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     try {
-        $process.Kill($true)
+        try { $process.Kill($true) } catch { $process.Kill() }
     }
     catch [System.Management.Automation.MethodException] {
         $process.Kill()

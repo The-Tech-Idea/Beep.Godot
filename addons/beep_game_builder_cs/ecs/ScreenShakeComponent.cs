@@ -23,6 +23,9 @@ namespace Beep.ECS
         private float _trauma;
         private float _traumaDuration = 1f;
         private float _decayPerSec = 1f;
+        public float EffectiveDefaultIntensity => NonNegativeFinite(DefaultIntensity);
+        public float EffectiveDefaultDuration => PositiveFinite(DefaultDuration, 0.01f);
+        public float EffectiveMaxTrauma => PositiveFinite(MaxTrauma, 100f);
 
         public override void _Ready()
         {
@@ -39,12 +42,13 @@ namespace Beep.ECS
         public void Shake(float intensity = -1, float duration = -1)
         {
             if (_cam == null || !IsActive) return;
-            float amount = intensity > 0 ? intensity : DefaultIntensity;
-            _trauma = Mathf.Clamp(_trauma + amount, 0f, MaxTrauma);
-            _traumaDuration = duration > 0 ? duration : DefaultDuration;
+            float maxTrauma = EffectiveMaxTrauma;
+            float amount = float.IsFinite(intensity) && intensity > 0f ? intensity : EffectiveDefaultIntensity;
+            _trauma = Mathf.Clamp((float.IsFinite(_trauma) ? _trauma : 0f) + amount, 0f, maxTrauma);
+            _traumaDuration = float.IsFinite(duration) && duration > 0f ? duration : EffectiveDefaultDuration;
             // Decay so the shake lasts _traumaDuration REGARDLESS of magnitude. The old fixed
             // delta/duration made time-to-zero = trauma * duration, so Shake(100, 0.3) ran ~30s.
-            _decayPerSec = _traumaDuration > 0 ? _trauma / _traumaDuration : _trauma;
+            _decayPerSec = _traumaDuration > 0f ? _trauma / _traumaDuration : _trauma;
             EmitSignal(SignalName.ShakeStarted, _trauma, _traumaDuration);
         }
 
@@ -59,8 +63,8 @@ namespace Beep.ECS
             }
             if (_trauma <= 0) return;
 
-            _trauma = Mathf.Max(0, _trauma - _decayPerSec * (float)delta);
-            float trauma01 = _trauma / MaxTrauma;
+            _trauma = Mathf.Max(0, _trauma - _decayPerSec * DeltaSeconds(delta));
+            float trauma01 = Mathf.Clamp(_trauma / EffectiveMaxTrauma, 0f, 1f);
             float shake = trauma01 * trauma01;
             // GD.Randf() already returns float — no cast (per CLAUDE.md's API note).
             _cam.Offset = new Vector2(
@@ -73,5 +77,14 @@ namespace Beep.ECS
                 EmitSignal(SignalName.ShakeFinished);
             }
         }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+
+        private static float PositiveFinite(float value, float fallback)
+            => float.IsFinite(value) && value > 0f ? value : fallback;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) && value > 0f ? value : 0f;
     }
 }

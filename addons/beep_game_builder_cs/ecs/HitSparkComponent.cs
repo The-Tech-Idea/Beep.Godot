@@ -16,6 +16,8 @@ namespace Beep.ECS
         [Export] public PackedScene? SparkScene { get; set; }
         [Export] public Color SparkColor { get; set; } = new(1f, 0.8f, 0.2f, 1f);
         [Export] public float MinDamage { get; set; } = 5f;
+        public Color EffectiveSparkColor => IsFinite(SparkColor) ? SparkColor : new Color(1f, 0.8f, 0.2f, 1f);
+        public float EffectiveMinDamage => NonNegativeFinite(MinDamage);
 
         [Signal] public delegate void SparkSpawnedEventHandler(Vector2 position);
 
@@ -48,7 +50,7 @@ namespace Beep.ECS
 
         private void OnDamaged(float amount, float newHealth)
         {
-            if (!IsActive || amount < MinDamage) return;
+            if (!IsActive || !float.IsFinite(amount) || amount < EffectiveMinDamage) return;
             if (_sparkScene == null) return;
             if (GetParent() is not Node2D parent2D) return;
 
@@ -60,6 +62,8 @@ namespace Beep.ECS
             }
             parent2D.GetParent()?.AddChild(spark);
             spark.GlobalPosition = parent2D.GlobalPosition;
+            if (spark is CanvasItem canvas)
+                canvas.Modulate = EffectiveSparkColor;
             EmitSignal(SignalName.SparkSpawned, parent2D.GlobalPosition);
 
             // Auto-free after a delay (particles are one-shot).
@@ -79,5 +83,12 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Damaged -= OnDamaged;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Color value)
+            => float.IsFinite(value.R) && float.IsFinite(value.G) &&
+               float.IsFinite(value.B) && float.IsFinite(value.A);
     }
 }

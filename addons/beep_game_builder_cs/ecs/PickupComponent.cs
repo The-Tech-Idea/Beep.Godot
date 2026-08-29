@@ -46,10 +46,17 @@ namespace Beep.ECS
 
         private Area2D? _area;
 
+        public int EffectiveQuantity => Mathf.Max(1, Quantity);
+        public float EffectiveFloatAmplitude => NonNegative(FloatAmplitude);
+        public float EffectiveFloatSpeed => NonNegative(FloatSpeed);
+        public float EffectiveRespawnSeconds => NonNegative(RespawnSeconds);
+        public int EffectiveScoreValue => Mathf.Max(0, ScoreValue);
+
         public override void _Ready()
         {
             base._Ready();
-            if (GetParent() is Node2D parent) _startPos = parent.Position;
+            if (GetParent() is Node2D parent) _startPos = IsFinite(parent.Position) ? parent.Position : Vector2.Zero;
+            if (Engine.IsEditorHint()) return;
             _area = GetParent() as Area2D;
             if (_area != null) _area.BodyEntered += OnBodyEntered;
             else if (!Engine.IsEditorHint())
@@ -60,21 +67,24 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint()) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
+            float dt = DeltaSeconds(delta);
             if (_collected)
             {
-                if (RespawnSeconds > 0)
+                if (EffectiveRespawnSeconds > 0f)
                 {
-                    _respawnTimer -= (float)delta;
+                    _respawnTimer = Mathf.Max(0f, FiniteOr(_respawnTimer, 0f) - dt);
                     if (_respawnTimer <= 0) Respawn();
                 }
                 return;
             }
-            _time += (float)delta;
+            _time = FiniteOr(_time, 0f) + dt;
             if (GetParent() is Node2D p)
             {
-                p.Position = _startPos + new Vector2(0, Mathf.Sin(_time * FloatSpeed) * FloatAmplitude);
-                if (AutoRotate) p.Rotation += (float)delta * 2f;
+                Vector2 start = IsFinite(_startPos) ? _startPos : Vector2.Zero;
+                p.Position = start + new Vector2(0, Mathf.Sin(_time * EffectiveFloatSpeed) * EffectiveFloatAmplitude);
+                if (AutoRotate)
+                    p.Rotation = FiniteOr(p.Rotation, 0f) + dt * 2f;
             }
         }
 
@@ -101,7 +111,7 @@ namespace Beep.ECS
         {
             if (_collected || !IsActive) return;
             _collected = true;
-            EmitSignal(SignalName.Collected, Item?.Id ?? "", Quantity);
+            EmitSignal(SignalName.Collected, Item?.Id ?? "", EffectiveQuantity);
 
             // Put the item in the collector's inventory. This is the edge that gave the item
             // economy a source — Collect() used to emit Collected and touch no inventory, so
@@ -111,28 +121,28 @@ namespace Beep.ECS
             if (collector != null && Item != null)
             {
                 var inventory = EntityComponent.FindComponent<InventoryComponent>(collector, true);
-                if (inventory != null) inventory.AddItem(Item, Quantity);
+                if (inventory != null) inventory.AddItem(Item, EffectiveQuantity);
                 else GD.PushWarning($"[{Name}] Item '{Item.DisplayName}' is set but the collector '{collector.Name}' has no InventoryComponent — collected, but not stored.");
             }
 
-            if (ScoreValue > 0)
+            if (EffectiveScoreValue > 0)
             {
                 var flow = ResolveGameFlow();
-                if (flow != null) flow.AddScore(ScoreValue);
-                else GD.PushWarning($"[{Name}] ScoreValue is {ScoreValue} but no GameFlowComponent was found — the points go nowhere. Add one to the scene, or set GameFlowPath.");
+                if (flow != null) flow.AddScore(EffectiveScoreValue);
+                else GD.PushWarning($"[{Name}] ScoreValue is {EffectiveScoreValue} but no GameFlowComponent was found — the points go nowhere. Add one to the scene, or set GameFlowPath.");
 
                 // Pop the floating "+100" if the template ships one. Its ShowText() had no
                 // callers, so the label was instantiated and never displayed anything.
-                GetSiblingComponent<FloatingTextComponent>()?.ShowText($"+{ScoreValue}");
+                GetSiblingComponent<FloatingTextComponent>()?.ShowText($"+{EffectiveScoreValue}");
             }
 
-            if (RespawnSeconds > 0)
+            if (EffectiveRespawnSeconds > 0f)
             {
                 // Only hide the visual — do NOT disable the parent's processing. ProcessMode is
                 // inherited, so disabling the parent stops THIS component's _Process too, and the
                 // respawn timer would never tick. Hiding leaves _Process running to count down.
                 if (GetParent() is Node2D p) p.Visible = false;
-                _respawnTimer = RespawnSeconds;
+                _respawnTimer = EffectiveRespawnSeconds;
             }
             else if (GetParent() is Node parent) parent.QueueFree();
         }
@@ -140,7 +150,7 @@ namespace Beep.ECS
         private void Respawn()
         {
             _collected = false;
-            _time = 0;
+            _time = 0f;
             if (GetParent() is Node2D p) { p.Visible = true; p.Position = _startPos; }
             EmitSignal(SignalName.Respawned);
         }
@@ -151,5 +161,17 @@ namespace Beep.ECS
             if (_area != null)
                 _area.BodyEntered -= OnBodyEntered;
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

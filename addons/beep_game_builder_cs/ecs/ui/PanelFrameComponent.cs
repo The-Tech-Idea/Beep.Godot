@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -37,22 +38,38 @@ namespace Beep.ECS.UI
             None,
         }
 
-        [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
+        [Export] public string Title { get => _title; set { string next = value ?? ""; if (_title == next) return; _title = next; RefreshFrameChrome(); } }
         private string _title = "";
 
-        [Export] public BannerShape Banner { get => _shape; set { _shape = value; QueueRedraw(); } }
+        [Export] public BannerShape Banner { get => _shape; set { if (_shape == value) return; _shape = value; RefreshFrameChrome(); } }
         private BannerShape _shape = BannerShape.Plaque;
 
-        [Export] public Texture2D? TitleIcon { get; set; }
+        [Export] public Texture2D? TitleIcon { get => _titleIcon; set { if (_titleIcon == value) return; _titleIcon = value; RefreshFrameChrome(); } }
+        private Texture2D? _titleIcon;
 
         /// <summary>Outline thickness. The kits are consistently heavy — a hairline reads as a
         /// document, this reads as an object.</summary>
-        [Export] public int OutlineWidth { get; set; } = 3;
-        [Export] public int CornerRadius { get; set; } = 10;
+        [Export] public int OutlineWidth { get => _outlineWidth; set { int next = Mathf.Max(0, value); if (_outlineWidth == next) return; _outlineWidth = next; RefreshFrameChrome(); } }
+        private int _outlineWidth = 3;
+
+        [Export] public int CornerRadius { get => _cornerRadius; set { int next = Mathf.Max(0, value); if (_cornerRadius == next) return; _cornerRadius = next; RefreshFrameChrome(); } }
+        private int _cornerRadius = 10;
         /// <summary>Title size as a multiple of the theme's body font, and a banner tall enough
         /// to hold it. Both were fixed (34px around 17pt) — on a 24pt theme the title overflowed
         /// its own banner.</summary>
-        [Export(PropertyHint.Range, "0.5,3.0,0.05")] public float TitleFontScale { get; set; } = 1.2f;
+        [Export(PropertyHint.Range, "0.5,3.0,0.05")]
+        public float TitleFontScale
+        {
+            get => _titleFontScale;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.5f, 3.0f);
+                if (Mathf.IsEqualApprox(_titleFontScale, next)) return;
+                _titleFontScale = next;
+                RefreshFrameChrome();
+            }
+        }
+        private float _titleFontScale = 1.2f;
 
         private int TitleFontSize => UiSurface.FontSize(this, TitleFontScale);
         private int BannerHeight => Mathf.RoundToInt(TitleFontSize * 2.0f);
@@ -66,7 +83,8 @@ namespace Beep.ECS.UI
         public int BannerRoom =>
             _shape != BannerShape.None && !string.IsNullOrEmpty(_title) ? BannerHeight : 0;
         /// <summary>Gap between the frame's inner edge and the well.</summary>
-        [Export] public int FramePadding { get; set; } = 8;
+        [Export] public int FramePadding { get => _framePadding; set { int next = Mathf.Max(0, value); if (_framePadding == next) return; _framePadding = next; RefreshFrameChrome(); } }
+        private int _framePadding = 8;
 
         /// <summary>Draw the recessed inner well.
         ///
@@ -77,7 +95,7 @@ namespace Beep.ECS.UI
         /// only reads as a recess when something actually fills it.
         ///
         /// WellRect is still computed either way, so content placement is unchanged.</summary>
-        [Export] public bool DrawWell { get => _drawWell; set { _drawWell = value; QueueRedraw(); } }
+        [Export] public bool DrawWell { get => _drawWell; set { if (_drawWell == value) return; _drawWell = value; RefreshFrameChrome(); } }
         private bool _drawWell = true;
 
         /// <summary>The recessed content area, in local coordinates. Lay content out inside it.</summary>
@@ -110,7 +128,21 @@ namespace Beep.ECS.UI
         /// stat label, a longer quest name) and a hardcoded frame height simply lets the extra
         /// row spill out below the well. The frame has to be a consequence of what it contains.
         /// </summary>
-        [Export] public NodePath TargetPath { get; set; } = new("");
+        [Export]
+        public NodePath TargetPath
+        {
+            get => _targetPath;
+            set
+            {
+                if (_targetPath == value) return;
+                _targetPath = value ?? new NodePath("");
+                _target = null;
+                UpdateProcessing();
+                if (!Engine.IsEditorHint() && IsInsideTree() && !_targetPath.IsEmpty)
+                    CallDeferred(nameof(ResolveTarget));
+            }
+        }
+        private NodePath _targetPath = new("");
 
         /// <summary>A MarginContainer holding this panel's content, when it is a SIBLING rather
         /// than a child of the frame.
@@ -121,20 +153,25 @@ namespace Beep.ECS.UI
         /// sized from the theme font, so on a larger-type genre it grew past that fixed margin
         /// and printed over the tab row. Driving the margin from the ACTUAL banner height is the
         /// only version of this that survives a font change.</summary>
-        [Export] public NodePath ContentMarginPath { get; set; } = new("");
+        [Export] public NodePath ContentMarginPath { get => _contentMarginPath; set { if (_contentMarginPath == value) return; _contentMarginPath = value ?? new NodePath(""); RefreshFrameChrome(); } }
+        private NodePath _contentMarginPath = new("");
 
         /// <summary>Slack around the target: how far the frame extends past the content on each
         /// side. Top is separate because the banner needs the room.</summary>
-        [Export] public Vector2 TargetPadding { get; set; } = new(14, 12);
+        [Export] public Vector2 TargetPadding { get => _targetPadding; set { if (_targetPadding == value) return; _targetPadding = value; RefreshFrameChrome(); } }
+        private Vector2 _targetPadding = new(14, 12);
 
         private Godot.Control? _target;
 
         public override void _Ready()
         {
             MouseFilter = MouseFilterEnum.Ignore;   // background art, never a click target
+            UpdateProcessing();
             if (!Engine.IsEditorHint() && !TargetPath.IsEmpty)
                 CallDeferred(nameof(ResolveTarget));
         }
+
+        private void UpdateProcessing() => SetProcess(!TargetPath.IsEmpty);
 
         private void ResolveTarget() => _target = GetNodeOrNull<Godot.Control>(TargetPath);
 
@@ -193,7 +230,15 @@ namespace Beep.ECS.UI
 
         public override void _Notification(int what)
         {
-            if (what == NotificationThemeChanged || what == NotificationResized) QueueRedraw();
+            if (what == NotificationThemeChanged || what == NotificationResized) RefreshFrameChrome();
+        }
+
+        private void RefreshFrameChrome()
+        {
+            if (IsInsideTree())
+                DriveSiblingMargin();
+            UpdateMinimumSize();
+            QueueRedraw();
         }
 
         private StyleBoxFlat Box(Color bg, int radius, bool shadow, int border = -1)
@@ -296,10 +341,10 @@ namespace Beep.ECS.UI
             int top = FramePadding + OutlineWidth + (hasBanner ? BannerHeight : 0);
             int side = FramePadding + OutlineWidth + 8;
             if (mc.GetThemeConstant("margin_top") == top) return;   // no churn per frame
-            mc.AddThemeConstantOverride("margin_top", top);
-            mc.AddThemeConstantOverride("margin_left", side);
-            mc.AddThemeConstantOverride("margin_right", side);
-            mc.AddThemeConstantOverride("margin_bottom", side);
+            KitChrome.SetConstantOverrideIfChanged(mc, "margin_top", top);
+            KitChrome.SetConstantOverrideIfChanged(mc, "margin_left", side);
+            KitChrome.SetConstantOverrideIfChanged(mc, "margin_right", side);
+            KitChrome.SetConstantOverrideIfChanged(mc, "margin_bottom", side);
         }
 
         /// <summary>Push the well's geometry into a child MarginContainer so content lands inside
@@ -309,11 +354,11 @@ namespace Beep.ECS.UI
             foreach (var child in GetChildren())
             {
                 if (child is not MarginContainer mc) continue;
-                mc.AddThemeConstantOverride("margin_left", Mathf.RoundToInt(WellRect.Position.X) + 4);
-                mc.AddThemeConstantOverride("margin_top", Mathf.RoundToInt(WellRect.Position.Y) + 4);
-                mc.AddThemeConstantOverride("margin_right",
+                KitChrome.SetConstantOverrideIfChanged(mc, "margin_left", Mathf.RoundToInt(WellRect.Position.X) + 4);
+                KitChrome.SetConstantOverrideIfChanged(mc, "margin_top", Mathf.RoundToInt(WellRect.Position.Y) + 4);
+                KitChrome.SetConstantOverrideIfChanged(mc, "margin_right",
                     Mathf.RoundToInt(Size.X - (WellRect.Position.X + WellRect.Size.X)) + 4);
-                mc.AddThemeConstantOverride("margin_bottom",
+                KitChrome.SetConstantOverrideIfChanged(mc, "margin_bottom",
                     Mathf.RoundToInt(Size.Y - (WellRect.Position.Y + WellRect.Size.Y)) + 4);
                 break;
             }

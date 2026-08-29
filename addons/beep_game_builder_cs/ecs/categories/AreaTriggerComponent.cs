@@ -39,6 +39,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             TriggerArea = ResolveArea2D();
             if (TriggerArea == null) return;
             TriggerArea.BodyEntered += OnBodyEntered;

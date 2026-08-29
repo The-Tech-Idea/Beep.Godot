@@ -24,6 +24,14 @@ namespace Beep.ECS
         [Export] public float DropLifetimeSeconds { get; set; } = 300f;  // 5 minutes
         [Export] public int MaxPlacementAttempts { get; set; } = 3;
         [Export] public float MinimumSpacing { get; set; } = 20f;
+        public int EffectiveMinDrops => Mathf.Max(0, MinDrops);
+        public int EffectiveMaxDrops => Mathf.Max(EffectiveMinDrops, MaxDrops);
+        public float EffectiveDropChance => Clamp01Finite(DropChance);
+        public float EffectiveDifficultyWeightMultiplier => float.IsFinite(DifficultyWeightMultiplier) ? Mathf.Max(0f, DifficultyWeightMultiplier) : 1f;
+        public float EffectiveScatterRadius => NonNegativeFinite(ScatterRadius);
+        public float EffectiveDropLifetimeSeconds => NonNegativeFinite(DropLifetimeSeconds);
+        public int EffectiveMaxPlacementAttempts => Mathf.Max(1, MaxPlacementAttempts);
+        public float EffectiveMinimumSpacing => NonNegativeFinite(MinimumSpacing);
 
         /// <summary>
         /// The weighted loot entries, authored in the inspector as an array of
@@ -43,6 +51,8 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
+
             // Auto-discover seasonal and weather systems. Group-based (O(1)) over a recursive scan:
             // both self-register ("seasonal" / "weather_system"), and a tree scan silently misses a
             // second biome's system. Mirrors WindFieldComponent / ShelterZoneComponent discovery.
@@ -83,19 +93,21 @@ namespace Beep.ECS
                     "the component from this entity.");
                 return;
             }
-            if (GD.Randf() > DropChance) return;
+            if (GD.Randf() > EffectiveDropChance) return;
 
             // GD.RandRange(int, int) is INCLUSIVE on both ends, so MinDrops..MaxDrops is right —
             // the old (int)RandRange(Min, Max+1) assumed the exclusive double overload and dropped
             // one too many (a "max 3" table could drop 4).
-            int count = GD.RandRange(MinDrops, MaxDrops);
+            int minDrops = EffectiveMinDrops;
+            int maxDrops = EffectiveMaxDrops;
+            int count = maxDrops > minDrops ? GD.RandRange(minDrops, maxDrops) : minDrops;
             // Difficulty scales HOW MANY drops, not the weighted pick (which can't be biased by a
             // flat multiplier — it cancels out of every entry's share). 1.0 = authored count.
             // The authored DifficultyWeightMultiplier combines with the scene's AdaptiveDifficulty
             // (if any), which raises loot as the player does well. Opt-in and null-safe.
-            float multiplier = DifficultyWeightMultiplier * AdaptiveDropMultiplier();
+            float multiplier = EffectiveDifficultyWeightMultiplier * AdaptiveDropMultiplier();
             if (!Mathf.IsEqualApprox(multiplier, 1f))
-                count = Mathf.Max(1, (int)Mathf.Round(count * multiplier));
+                count = Mathf.Max(0, (int)Mathf.Round(count * multiplier));
             EmitSignal(SignalName.TableRolled, count);
 
             var parent = GetParent() as Node2D;
@@ -140,10 +152,12 @@ namespace Beep.ECS
         /// <summary>Find a spawn point with scatter radius, avoiding existing drops.</summary>
         private Vector2 FindGoodSpawnPoint(Vector2 center)
         {
-            for (int attempt = 0; attempt < MaxPlacementAttempts; attempt++)
+            float scatterRadius = EffectiveScatterRadius;
+            float minimumSpacing = EffectiveMinimumSpacing;
+            for (int attempt = 0; attempt < EffectiveMaxPlacementAttempts; attempt++)
             {
                 Vector2 direction = Vector2.FromAngle(GD.Randf() * Mathf.Tau);
-                float distance = GD.Randf() * ScatterRadius;
+                float distance = GD.Randf() * scatterRadius;
                 Vector2 candidate = center + direction * distance;
 
                 // Drop already-freed entries (their lifetime timer fired) before spacing against them.
@@ -151,7 +165,7 @@ namespace Beep.ECS
                 bool tooClose = false;
                 foreach (var drop in _spawnedDrops)
                 {
-                    if (candidate.DistanceTo(drop.GlobalPosition) < MinimumSpacing)
+                    if (candidate.DistanceTo(drop.GlobalPosition) < minimumSpacing)
                     {
                         tooClose = true;
                         break;
@@ -162,7 +176,7 @@ namespace Beep.ECS
             }
 
             // Fallback: random placement if all attempts fail
-            return center + Vector2.FromAngle(GD.Randf() * Mathf.Tau) * ScatterRadius;
+            return center + Vector2.FromAngle(GD.Randf() * Mathf.Tau) * scatterRadius;
         }
 
         // Resolved lazily from the scene's AdaptiveDifficultyComponent (opt-in). Null-safe: 1.0
@@ -190,7 +204,18 @@ namespace Beep.ECS
             // child of this component died with it, orphaning the drop forever. The stale entry in
             // _spawnedDrops is pruned lazily in FindGoodSpawnPoint (touching it here can hit a
             // disposed component after the spawner is gone).
-            var timer = GetTree().CreateTimer(DropLifetimeSeconds);
+            float lifetime = EffectiveDropLifetimeSeconds;
+            if (lifetime <= 0f)
+            {
+                if (GodotObject.IsInstanceValid(drop) && !drop.IsQueuedForDeletion())
+                    drop.QueueFree();
+                return;
+            }
+
+            var tree = GetTree();
+            if (tree == null) return;
+
+            var timer = tree.CreateTimer(lifetime);
             timer.Timeout += () =>
             {
                 if (GodotObject.IsInstanceValid(drop) && !drop.IsQueuedForDeletion())
@@ -204,6 +229,7 @@ namespace Beep.ECS
             // AnyWeather) always passes; a restricted one passes only when it matches the live
             // system, or when no such system exists to contradict it.
             var validEntries = Entries.Where(e => e != null &&
+                float.IsFinite(e.Weight) && e.Weight > 0f &&
                 (e.AnySeason || _seasonal == null || e.Season == _seasonal.CurrentSeason) &&
                 (e.AnyWeather || _weather == null || e.Weather == _weather.CurrentWeather))
                 .ToList();
@@ -228,5 +254,11 @@ namespace Beep.ECS
 
             return validEntries[^1];
         }
+
+        private static float Clamp01Finite(float value)
+            => float.IsFinite(value) ? Mathf.Clamp(value, 0f, 1f) : 0f;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

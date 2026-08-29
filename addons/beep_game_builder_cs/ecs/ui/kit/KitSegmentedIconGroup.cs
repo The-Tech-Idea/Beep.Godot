@@ -27,6 +27,215 @@ namespace Beep.ECS.UI.Kit
 
         public readonly List<Segment> Segments = new();
 
+        [Export]
+        public string[] SegmentGlyphs
+        {
+            get
+            {
+                var glyphs = new string[Segments.Count];
+                for (int i = 0; i < Segments.Count; i++)
+                    glyphs[i] = Segments[i].Glyph;
+                return glyphs;
+            }
+            set => SetSegmentGlyphs(value);
+        }
+
+        [Export]
+        public string[] SegmentTips
+        {
+            get
+            {
+                var tips = new string[Segments.Count];
+                for (int i = 0; i < Segments.Count; i++)
+                    tips[i] = Segments[i].Tip;
+                return tips;
+            }
+            set => SetSegmentTips(value);
+        }
+
+        [Export]
+        public Texture2D[] SegmentIcons
+        {
+            get
+            {
+                var icons = new Texture2D[Segments.Count];
+                for (int i = 0; i < Segments.Count; i++)
+                    icons[i] = Segments[i].Icon!;
+                return icons;
+            }
+            set => SetSegmentIcons(value);
+        }
+
+        public void SetSegments(IEnumerable<Segment>? segments)
+        {
+            List<Segment> next = NormalizeSegments(segments);
+            if (SameSegments(Segments, next)) return;
+            Segments.Clear();
+            Segments.AddRange(next);
+            RefreshSegments();
+        }
+
+        public void SetSegmentGlyphs(string[]? glyphs)
+        {
+            int count = glyphs?.Length ?? 0;
+            bool changed = Segments.Count != count;
+            while (Segments.Count > count)
+                Segments.RemoveAt(Segments.Count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                EnsureSegment(i);
+                string next = glyphs![i] ?? "";
+                if (Segments[i].Glyph == next) continue;
+                Segments[i].Glyph = next;
+                changed = true;
+            }
+            if (!changed) return;
+            RefreshSegments();
+        }
+
+        public void SetSegmentTips(string[]? tips)
+        {
+            if (tips == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Segments.Count; i++)
+                {
+                    if (Segments[i].Tip == "") continue;
+                    Segments[i].Tip = "";
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshSegments();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < tips.Length; i++)
+            {
+                EnsureSegment(i);
+                string next = tips[i] ?? "";
+                if (Segments[i].Tip == next) continue;
+                Segments[i].Tip = next;
+                updated = true;
+            }
+            for (int i = tips.Length; i < Segments.Count; i++)
+            {
+                if (Segments[i].Tip == "") continue;
+                Segments[i].Tip = "";
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshSegments();
+        }
+
+        public void SetSegmentIcons(Texture2D[]? icons)
+        {
+            if (icons == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Segments.Count; i++)
+                {
+                    if (Segments[i].Icon == null) continue;
+                    Segments[i].Icon = null;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshSegments();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < icons.Length; i++)
+            {
+                EnsureSegment(i);
+                if (Segments[i].Icon == icons[i]) continue;
+                Segments[i].Icon = icons[i];
+                updated = true;
+            }
+            for (int i = icons.Length; i < Segments.Count; i++)
+            {
+                if (Segments[i].Icon == null) continue;
+                Segments[i].Icon = null;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshSegments();
+        }
+
+        public void AddSegment(string glyph, Texture2D? icon = null, string tip = "")
+        {
+            Segments.Add(new Segment { Glyph = glyph ?? "", Icon = icon, Tip = tip ?? "" });
+            RefreshSegments();
+        }
+
+        public bool RemoveSegment(int index)
+        {
+            if (index < 0 || index >= Segments.Count)
+                return false;
+
+            Segments.RemoveAt(index);
+            if (index <= _current)
+                _current = Mathf.Max(0, _current - 1);
+            RefreshSegments();
+            return true;
+        }
+
+        public void ClearSegments()
+        {
+            if (Segments.Count == 0 && _current == 0)
+                return;
+
+            Segments.Clear();
+            _current = 0;
+            RefreshSegments();
+        }
+
+        public void RefreshSegments()
+        {
+            if (Segments.Count == 0)
+                _current = 0;
+            else
+                _current = Mathf.Clamp(_current, 0, Segments.Count - 1);
+            _hover = -1;
+            RefreshMinimumAndRedraw();
+        }
+
+        private void EnsureSegment(int index)
+        {
+            while (Segments.Count <= index)
+                Segments.Add(new Segment());
+        }
+
+        private static List<Segment> NormalizeSegments(IEnumerable<Segment>? segments)
+        {
+            var next = new List<Segment>();
+            if (segments == null)
+                return next;
+
+            foreach (Segment? segment in segments)
+            {
+                next.Add(new Segment
+                {
+                    Glyph = segment?.Glyph ?? "",
+                    Icon = segment?.Icon,
+                    Tip = segment?.Tip ?? "",
+                });
+            }
+            return next;
+        }
+
+        private static bool SameSegments(IReadOnlyList<Segment> left, IReadOnlyList<Segment> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+            {
+                if ((left[i].Glyph ?? "") != (right[i].Glyph ?? "")) return false;
+                if (!ReferenceEquals(left[i].Icon, right[i].Icon)) return false;
+                if ((left[i].Tip ?? "") != (right[i].Tip ?? "")) return false;
+            }
+            return true;
+        }
+
         [Export] public int Current
         {
             get => _current;
@@ -35,35 +244,56 @@ namespace Beep.ECS.UI.Kit
                 if (Segments.Count == 0) { _current = 0; return; }
                 int v = Mathf.Clamp(value, 0, Segments.Count - 1);
                 if (v == _current) return;
-                _current = v; QueueRedraw(); EmitSignal(SignalName.SegmentChanged, v);
+                _current = v;
+                RefreshVisualAndRedraw();
+                if (IsInsideTree())
+                    EmitSignal(SignalName.SegmentChanged, v);
             }
         }
         private int _current;
         private int _hover = -1;
+        private bool _eventsHooked;
 
         [Signal] public delegate void SegmentChangedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            if (Segments.Count == 0)
-                Segments.AddRange(new[]
-                {
-                    new Segment { Glyph = "1" }, new Segment { Glyph = "2" }, new Segment { Glyph = "3" },
-                });
-            if (CustomMinimumSize == Vector2.Zero)
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
             {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 2.6f * Segments.Count, fs * 2.4f);
+                MouseExited += ClearHover;
+                _eventsHooked = true;
             }
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             return new Vector2(fs * 2.6f * Mathf.Max(1, Segments.Count), fs * 2.4f);
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            if (IsInsideTree())
+            {
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+                UpdateMinimumSize();
+            }
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         private Rect2 SegRect(int i)
@@ -83,8 +313,11 @@ namespace Beep.ECS.UI.Kit
                 else if (dir.X > 0) { Current = Mathf.Min(Segments.Count - 1, _current + 1); AcceptEvent(); }
                 else if (KitChrome.IsConfirmKey(key))
                 {
-                    EmitSignal(SignalName.SegmentChanged, _current);
-                    AcceptEvent();
+                    if (Segments.Count > 0 && _current >= 0 && _current < Segments.Count)
+                    {
+                        EmitSignal(SignalName.SegmentChanged, _current);
+                        AcceptEvent();
+                    }
                 }
                 return;
             }
@@ -118,9 +351,22 @@ namespace Beep.ECS.UI.Kit
             return -1;
         }
 
+        private void ClearHover()
+        {
+            if (_hover < 0) return;
+            _hover = -1;
+            QueueRedraw();
+        }
+
         public override void _Draw()
         {
-            if (Size.X < 16f || Size.Y < 8f || Segments.Count == 0) return;
+            if (Size.X < 16f || Size.Y < 8f) return;
+            if (Segments.Count == 0)
+            {
+                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Segments");
+                return;
+            }
 
             var g = Geo;
             Color face = FaceColor();
@@ -178,12 +424,16 @@ namespace Beep.ECS.UI.Kit
                 }
                 else if (font != null && !string.IsNullOrEmpty(Segments[i].Glyph))
                 {
+                    string glyph = KitCase(Segments[i].Glyph);
+                    float textWidth = r.Size.X * 0.64f;
                     int gf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                               new Vector2(r.Size.X * 0.64f, r.Size.Y * 0.58f),
-                                               Segments[i].Glyph, font, min: 8);
-                    Vector2 m = font.GetStringSize(Segments[i].Glyph, HorizontalAlignment.Left, -1, gf);
+                                               new Vector2(textWidth, r.Size.Y * 0.58f),
+                                               glyph, font, min: 8);
+                    glyph = KitChrome.EllipsizeText(font, glyph, gf, textWidth);
+                    if (string.IsNullOrEmpty(glyph)) continue;
+                    Vector2 m = font.GetStringSize(glyph, HorizontalAlignment.Left, -1, gf);
                     DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                               Segments[i].Glyph, gf, on);
+                               glyph, gf, on);
                 }
             }
 

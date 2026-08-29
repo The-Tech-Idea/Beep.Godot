@@ -7,17 +7,31 @@ License: CC0 1.0 Universal (public domain dedication)
 Free for personal, educational and commercial use. Written permission is not
 required; crediting Kenney is voluntary and appreciated.
 
+Additional bundled faces from the provided all-in-one font folder:
+
+    Audex-Regular.ttf             SIL Open Font License 1.1
+                                  Copyright 2024 GGBotNet, Reserved Font Name "Audex"
+    NotoSans-Variable.ttf         SIL Open Font License 1.1
+                                  Copyright 2022 The Noto Project Authors
+                                  Full license: NotoSans-OFL.txt
+    Vectroid.otf                  CC0 1.0 Universal, Raymond Larabie
+    Gridtile.ttf                  CC0 1.0 Universal
+    OperationNapalm-Regular.ttf   CC0 1.0 Universal
+
 WHAT IS AND IS NOT HERE
 -----------------------
 The art pass (plans/game-ui-kit/ART_PASS_PER_FILE.md) found NINE type families across
-the 59 reference images. These six CC0 faces cover five of the roles:
+the 59 reference images. These bundled faces cover six of the roles:
 
-    Pixel        Kenney_Pixel.ttf              (files 40, 42, 50, 53)
-    Condensed    Kenney_Future_Narrow.ttf      (files 06, 08, 10, 38)
-    Sans         Kenney_Future.ttf             (the default)
+    Pixel        Kenney_Pixel.ttf              (only when a pixel theme explicitly asks)
+    Condensed    Audex-Regular.ttf             (clean compact UI face for citybuilder/industrial skins)
+    Sans         NotoSans-Variable.ttf         (readable UI text for non-pixel themes)
     Rounded      Kenney_Blocks.ttf             (files 12, 13, 17, 26, 44)
     Heavy        Kenney_Thick.ttf              (display / banner use)
-    Mono         Kenney_Mini_Square_Mono.ttf   (nearest to file 45's typewriter)
+    Mono         Kenney_Mini_Square_Mono.ttf   (grid/terminal readouts)
+
+The additional raw faces above are available for project-specific use after
+Godot imports them, but they are not the default startup font map.
 
 NOT AVAILABLE under CC0 from this source, and therefore NOT shipped:
 

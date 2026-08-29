@@ -25,11 +25,19 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitIconButton : Button
     {
-        [Export] public Texture2D? ButtonIcon { get => _icon; set { _icon = value; QueueRedraw(); } }
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
+        [Export] public Texture2D? ButtonIcon { get => _icon; set { if (_icon == value) return; _icon = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _icon;
 
         /// <summary>Fallback glyph when no texture is supplied, so the button is never blank.</summary>
-        [Export] public string Glyph { get => _glyph; set { _glyph = value ?? ""; QueueRedraw(); } }
+        [Export] public string Glyph { get => _glyph; set { SetText(ref _glyph, value); } }
         private string _glyph = "";
 
 
@@ -38,21 +46,44 @@ namespace Beep.ECS.UI.Kit
         [Export] public bool Locked
         {
             get => _locked;
-            set { _locked = value; Disabled = value || Disabled; QueueRedraw(); }
+            set
+            {
+                if (_locked == value) return;
+                if (value)
+                {
+                    _lockedAppliedDisabled = !Disabled;
+                    Disabled = true;
+                }
+                else if (_lockedAppliedDisabled)
+                {
+                    Disabled = false;
+                    _lockedAppliedDisabled = false;
+                }
+                _locked = value;
+                RefreshContentAndRedraw();
+            }
         }
         private bool _locked;
+        private bool _lockedAppliedDisabled;
 
         /// <summary>Shown under a locked button. The 5x settled rule is that locked states say
         /// WHY in words, not with a padlock alone.</summary>
-        [Export] public string Requirement { get => _req; set { _req = value ?? ""; QueueRedraw(); } }
+        [Export] public string Requirement { get => _req; set { SetText(ref _req, value); } }
         private string _req = "";
 
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
+        [Export]
+        public UiSurface.Role Accent
+        {
+            get => _accent;
+            set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _accent = UiSurface.Role.Neutral;
 
         private readonly System.Collections.Generic.List<KitAttach> _attach = new();
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private bool _suppressing;
+        private bool _eventsHooked;
 
         /// <summary>State from BaseButton's own machine rather than a KitControl field.</summary>
         private KitState State => Locked ? KitState.Locked
@@ -73,9 +104,30 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             _genre = KitChrome.GenreOf(this);
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
             Suppress();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.HookButtonChromeRedraw(this, RefreshVisualAndRedraw, ref _eventsHooked);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -93,7 +145,9 @@ namespace Beep.ECS.UI.Kit
             if (what != NotificationThemeChanged) return;
             _genre = KitChrome.GenreOf(this);
             Suppress();
-            QueueRedraw();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            RefreshVisualAndRedraw();
         }
 
         private void Suppress()
@@ -125,7 +179,7 @@ namespace Beep.ECS.UI.Kit
             {
                 // Accent goes on ONE element (5x rule) — here a keyline inside the plate, so the
                 // icon itself stays neutral and readable.
-                Color a = UiSurface.Semantic(this, Accent);
+                Color a = UiSurface.SemanticOrDerived(this, Accent);
                 KitChrome.DrawShape(this, _genre, plate.Grow(-Mathf.Max(2f, s * 0.07f)), KitChrome.Shape(_genre),
                           new Color(0, 0, 0, 0), a, Mathf.Max(1.5f, s * 0.035f));
             }
@@ -148,14 +202,16 @@ namespace Beep.ECS.UI.Kit
                 var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
+                    string glyph = KitChrome.Case(_glyph, _genre);
                     int size = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                                 new Vector2(gs, gs), _glyph, font, min: 8);
-                    Vector2 m = font.GetStringSize(_glyph, HorizontalAlignment.Left, -1, size);
+                                                 new Vector2(gs, gs), glyph, font, min: 8);
+                    glyph = KitChrome.EllipsizeText(font, glyph, size, gs);
+                    Vector2 m = font.GetStringSize(glyph, HorizontalAlignment.Left, -1, size);
                     Color col = UiSurface.Text(this);
                     if (State == KitState.Locked) col = new Color(0.12f, 0.12f, 0.14f, 1f);
                     else if (State == KitState.Disabled) col = col with { A = 0.55f };
                     KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.Position.Y + (s + m.Y * 0.6f) * 0.5f),
-                               _glyph, size, col);
+                               glyph, size, col);
                 }
             }
 
@@ -165,16 +221,20 @@ namespace Beep.ECS.UI.Kit
                 var font = KitChrome.Font(this, _genre);
                 if (font != null)
                 {
+                    string req = KitChrome.Case(_req, _genre);
+                    float reqWidth = s * 0.86f;
                     int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                                  new Vector2(s * 0.86f, s * 0.22f),
-                                                  _req, font, min: 7);
-                    Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, small);
+                                                  new Vector2(reqWidth, s * 0.22f),
+                                                  req, font, min: 7);
+                    req = KitChrome.EllipsizeText(font, req, small, reqWidth);
+                    Vector2 m = font.GetStringSize(req, HorizontalAlignment.Left, -1, small);
                     KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.End.Y - small * 0.25f),
-                               _req, small, UiSurface.Text(this));
+                               req, small, UiSurface.Text(this));
                 }
             }
 
             KitChrome.DrawAttachments(this, _genre, _attach);
+            KitChrome.DrawFocusRing(this, _genre, plate, KitChrome.Shape(_genre), 0.8f);
         }
     }
 }

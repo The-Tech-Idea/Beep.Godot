@@ -26,6 +26,14 @@ namespace Beep.ECS
         [Signal] public delegate void LandedEventHandler();
         [Signal] public delegate void MovedEventHandler(Vector2 direction);
 
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveGravity => NonNegative(Gravity);
+        public float EffectiveJumpVelocity => float.IsFinite(JumpVelocity) ? -Mathf.Abs(JumpVelocity) : -450f;
+        public float EffectiveAcceleration => NonNegative(Acceleration);
+        public float EffectiveFriction => NonNegative(Friction);
+        public float EffectiveCoyoteTime => NonNegative(CoyoteTime);
+        public float EffectiveJumpBufferTime => NonNegative(JumpBufferTime);
+
         private CharacterBody2D? _body;
         private JumpComponent? _jumpComponent;
         private StatusEffectComponent? _statusEffects;
@@ -60,39 +68,47 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
-            if (!InputActionsAvailable("move_left", "move_right", "jump")) return;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
+            if (!InputActionsAvailable("move_left", "move_right", "jump"))
+            {
+                _body.Velocity = new Vector2(
+                    Mathf.MoveToward(_body.Velocity.X, 0f, EffectiveFriction * dt),
+                    _body.Velocity.Y);
+                _body.MoveAndSlide();
+                return;
+            }
 
-            float dt = (float)delta;
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             var input = isStunned ? 0f : Input.GetAxis("move_left", "move_right");
             bool onFloor = _body.IsOnFloor();
 
             // Gravity
-            if (!onFloor) _body.Velocity += new Vector2(0, Gravity * dt);
+            if (!onFloor) _body.Velocity += new Vector2(0, EffectiveGravity * dt);
 
             // Coyote time
-            if (onFloor) _coyoteTimer = CoyoteTime;
+            if (onFloor) _coyoteTimer = EffectiveCoyoteTime;
             else _coyoteTimer -= dt;
 
             // Jump buffer
-            if (Input.IsActionJustPressed("jump")) _jumpBufferTimer = JumpBufferTime;
+            if (!isStunned && Input.IsActionJustPressed("jump")) _jumpBufferTimer = EffectiveJumpBufferTime;
             else _jumpBufferTimer -= dt;
 
             // Jump (skip if JumpComponent is handling it)
             if (_jumpComponent == null && _jumpBufferTimer > 0 && _coyoteTimer > 0)
             {
-                _body.Velocity = new Vector2(_body.Velocity.X, JumpVelocity);
+                _body.Velocity = new Vector2(_body.Velocity.X, EffectiveJumpVelocity);
                 _jumpBufferTimer = 0; _coyoteTimer = 0;
                 EmitSignal(SignalName.Jumped);
             }
 
             // Horizontal movement (apply status effect modifiers)
-            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
+            float finalSpeed = NonNegative(_stats?.GetValue("move_speed", EffectiveSpeed) ?? EffectiveSpeed);
             float targetX = input * finalSpeed;
             _body.Velocity = new Vector2(
                 Mathf.MoveToward(_body.Velocity.X, targetX,
-                    (input != 0 ? Acceleration : Friction) * dt),
+                    (input != 0 ? EffectiveAcceleration : EffectiveFriction) * dt),
                 _body.Velocity.Y);
             _body.MoveAndSlide();
 
@@ -102,5 +118,9 @@ namespace Beep.ECS
             if (onFloor && _wasInAir) EmitSignal(SignalName.Landed);
             _wasInAir = !onFloor;
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

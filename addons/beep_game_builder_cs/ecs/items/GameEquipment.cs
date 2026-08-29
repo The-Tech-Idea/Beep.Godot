@@ -27,6 +27,7 @@ namespace Beep.ECS
         /// <summary>How many sockets this piece has. The COUNT is on the definition; the gems
         /// actually socketed are per-instance (on the inventory slot) — Phase 7 (composition).</summary>
         [Export] public int SocketCount { get; set; } = 0;
+        public int EffectiveSocketCount => Mathf.Clamp(SocketCount, 0, 16);
 
         /// <summary>Extra, freely-authored stat modifiers this piece contributes while equipped —
         /// a ring's <c>{move_speed, Multiply, 1.1}</c>, an enchantment's <c>{crit_chance, Add, 5}</c>.

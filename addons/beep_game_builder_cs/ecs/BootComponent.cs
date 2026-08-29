@@ -27,6 +27,7 @@ namespace Beep.ECS
         [Signal] public delegate void BootCompletedEventHandler();
 
         private double _elapsed;
+        public double EffectiveMinBootTime => double.IsFinite(MinBootTime) && MinBootTime > 0.0 ? MinBootTime : 0.0;
 
         public override void _Ready()
         {
@@ -55,8 +56,8 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (!IsActive || Engine.IsEditorHint()) return;
-            _elapsed += delta;
-            if (_elapsed >= MinBootTime)
+            _elapsed += DeltaSeconds(delta);
+            if (_elapsed >= EffectiveMinBootTime)
             {
                 SetProcess(false);
                 EmitSignal(SignalName.BootCompleted);
@@ -80,5 +81,8 @@ namespace Beep.ECS
             if (GoToMenuAfterBoot) nav.Dispatch("main_menu");
             else nav.Dispatch("play");
         }
+
+        private static double DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? delta : 0.0;
     }
 }

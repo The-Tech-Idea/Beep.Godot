@@ -31,8 +31,8 @@ namespace Beep.ECS.Scenes
             // than rendering every widget in the neutral register with no explanation.
             if (!SkinCatalog.HasActiveSkin)
             {
-                SkinCatalog.SetActiveSkin("rpg", "", "", "");
-                GD.Print("[KitGallery] No active skin; defaulting to 'rpg' so the kit has a "
+                SkinCatalog.SetActiveSkin("citybuilder", "oilfield_days", "Default", "");
+                GD.Print("[KitGallery] No active skin; defaulting to 'citybuilder/oilfield_days' so the kit has a "
                          + "register to draw. Set one via GameInfo/BeepGenreScene to see another.");
             }
 
@@ -43,8 +43,7 @@ namespace Beep.ECS.Scenes
         private void PopulateBag()
         {
             if (this.FindChild("Bag", true, false) is not KitSlotGrid bag) return;
-            bag.Slots.Clear();
-            bag.Slots.AddRange(new[]
+            bag.SetSlots(new[]
             {
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Filled, Count = 12, Tint = UiSurface.Role.Info },
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Filled, Count = 3 },
@@ -52,26 +51,19 @@ namespace Beep.ECS.Scenes
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Blank },
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Locked, Requirement = "Lv 12" },
             });
-            bag.QueueRedraw();
         }
 
         private void PopulateSkills()
         {
             if (this.FindChild("Skills", true, false) is not KitTree tree) return;
-            tree.Nodes.Clear();
-            tree.Nodes.AddRange(new[]
+            tree.SetNodes(new[]
             {
                 new KitTree.Node { Column = 1, Tier = 0, Branch = 0, State = KitTree.NodeState.Owned, Cost = 1 },
-                new KitTree.Node { Column = 0, Tier = 1, Branch = 0, State = KitTree.NodeState.Available, Cost = 2 },
-                new KitTree.Node { Column = 2, Tier = 1, Branch = 1, State = KitTree.NodeState.Available, Cost = 2 },
-                new KitTree.Node { Column = 1, Tier = 2, Branch = 2, State = KitTree.NodeState.Locked },
-                new KitTree.Node { Column = 3, Tier = 2, Branch = 3, State = KitTree.NodeState.Locked },
+                new KitTree.Node { Column = 0, Tier = 1, Branch = 0, State = KitTree.NodeState.Available, Cost = 2, Parents = { 0 } },
+                new KitTree.Node { Column = 2, Tier = 1, Branch = 1, State = KitTree.NodeState.Available, Cost = 2, Parents = { 0 } },
+                new KitTree.Node { Column = 1, Tier = 2, Branch = 2, State = KitTree.NodeState.Locked, Parents = { 1 } },
+                new KitTree.Node { Column = 3, Tier = 2, Branch = 3, State = KitTree.NodeState.Locked, Parents = { 2 } },
             });
-            tree.Nodes[1].Parents.Add(0);
-            tree.Nodes[2].Parents.Add(0);
-            tree.Nodes[3].Parents.Add(1);
-            tree.Nodes[4].Parents.Add(2);
-            tree.QueueRedraw();
         }
     }
 }

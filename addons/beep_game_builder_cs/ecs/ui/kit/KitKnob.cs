@@ -18,35 +18,83 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitKnob : HSlider
     {
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
-        [Export(PropertyHint.Range, "0,24,1")] public int Ticks { get; set; } = 11;
+        [Export]
+        public UiSurface.Role Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _role = UiSurface.Role.Accent;
+
+        [Export(PropertyHint.Range, "0,24,1")]
+        public int Ticks
+        {
+            get => _ticks;
+            set
+            {
+                int next = Mathf.Clamp(value, 0, 24);
+                if (_ticks == next) return;
+                _ticks = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private int _ticks = 11;
+
         /// <summary>Sweep of the dial, degrees. 270 leaves a gap at the bottom.</summary>
-        [Export(PropertyHint.Range, "90,360,1")] public float SweepDegrees { get; set; } = 270f;
+        [Export(PropertyHint.Range, "90,360,1")]
+        public float SweepDegrees
+        {
+            get => _sweepDegrees;
+            set
+            {
+                float next = Mathf.Clamp(value, 90f, 360f);
+                if (Mathf.IsEqualApprox(_sweepDegrees, next)) return;
+                _sweepDegrees = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _sweepDegrees = 270f;
 
 
         private bool _drag;
         private float _dragStart, _startValue;
         private string _genre = "";
+        private bool _suppressing;
+        private bool _eventsHooked;
+
+        public KitKnob()
+        {
+            MinValue = 0.0;
+            MaxValue = 1.0;
+            Step = 0.001;
+        }
 
         public override void _Ready()
         {
+            base._Ready();
             _genre = KitChrome.GenreOf(this);
             // Range gives Value/MinValue/MaxValue/ValueChanged; the DIAL's interaction is still
             // ours, because a knob is dragged VERTICALLY and Slider's own handling is horizontal.
-            FocusMode = FocusModeEnum.All;
-            MinValue = 0.0; MaxValue = 1.0; Step = 0.001;
-            foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
-                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
-            foreach (string ic in new[] { "grabber", "grabber_highlight", "grabber_disabled", "tick" })
-                AddThemeIconOverride(ic, KitChrome.Blank);
-            ValueChanged += _ => QueueRedraw();
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
+            SuppressNativeChrome();
+            if (!_eventsHooked)
+            {
+                ValueChanged += _ => QueueRedraw();
+                _eventsHooked = true;
+            }
 
             int fs = UiSurface.FontSize(this);
             // Blanking the theme art removes the size it was providing -- restate it, or the
             // control collapses and _Draw's own size guard makes it vanish silently.
-            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 3.6f),
-                                            Mathf.Max(CustomMinimumSize.Y, fs * 3.6f));
+            KitChrome.SetAutoMinimumSize(this, new Vector2(fs * 3.6f, fs * 3.6f));
         }
 
         public override Vector2 _GetMinimumSize()
@@ -60,11 +108,36 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what != NotificationThemeChanged) return;
             _genre = KitChrome.GenreOf(this);
+            SuppressNativeChrome();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            RefreshVisualAndRedraw();
+        }
+
+        private void SuppressNativeChrome()
+        {
+            if (_suppressing) return;
+            _suppressing = true;
+            foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
+                KitChrome.SetEmptyStyleboxOverride(this, sb);
+            foreach (string ic in new[] { "grabber", "grabber_highlight", "grabber_disabled", "tick" })
+                KitChrome.SetBlankIconOverride(this, ic);
+            _suppressing = false;
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
             QueueRedraw();
         }
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (!Editable)
+            {
+                _drag = false;
+                return;
+            }
+
             switch (@event)
             {
                 case InputEventKey key:
@@ -81,10 +154,18 @@ namespace Beep.ECS.UI.Kit
                     break;
                 case InputEventMouseMotion mm when _drag:
                     // Match pointer movement: dragging down increases the dial in screen-space.
-                    Value = _startValue + (mm.Position.Y - _dragStart) / Mathf.Max(24f, Size.Y);
+                    Value = _startValue + (mm.Position.Y - _dragStart) / Mathf.Max(24f, Size.Y)
+                                            * (float)Mathf.Max(0.0001, MaxValue - MinValue);
                     AcceptEvent();
                     break;
             }
+        }
+
+        private float NormalizedValue()
+        {
+            double span = MaxValue - MinValue;
+            if (span <= 0.000001) return 0f;
+            return Mathf.Clamp((float)((Value - MinValue) / span), 0f, 1f);
         }
 
         public override void _Draw()
@@ -96,7 +177,10 @@ namespace Beep.ECS.UI.Kit
             float r = d * 0.5f * 0.74f;
             Color face = UiSurface.Of(this);
             Color ink = UiSurface.Ink(UiSurface.Of(this));
-            Color acc = UiSurface.Semantic(this, Role);
+            Color acc = UiSurface.SemanticOrDerived(this, Role);
+            KitState state = Editable ? KitState.Normal : KitState.Disabled;
+            face = KitChrome.StateFace(face, state);
+            acc = KitChrome.StateFace(acc, state);
             var font = KitChrome.Font(this, _genre);
 
             float sweep = Mathf.DegToRad(Mathf.Clamp(SweepDegrees, 90f, 360f));
@@ -109,9 +193,9 @@ namespace Beep.ECS.UI.Kit
                 float t = Ticks <= 1 ? 0f : i / (float)(Ticks - 1);
                 float a = start + sweep * t;
                 var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                bool past = t <= (float)Value + 0.0001f;
+                bool past = t <= NormalizedValue() + 0.0001f;
                 DrawLine(c + dir * (tr * 0.86f), c + dir * tr,
-                         past ? acc : new Color(ink.R, ink.G, ink.B, 0.55f),
+                         past ? acc : new Color(ink.R, ink.G, ink.B, Editable ? 0.55f : 0.28f),
                          Mathf.Max(1.5f, d * 0.035f));
             }
 
@@ -119,14 +203,14 @@ namespace Beep.ECS.UI.Kit
             DrawArc(c, r, 0f, Mathf.Tau, 48, ink, Mathf.Max(2f, d * 0.045f));
 
             // Pointer: a spoke from centre to rim, the only accented part of the body.
-            float ang = start + sweep * (float)Value;
+            float ang = start + sweep * NormalizedValue();
             var pd = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
             DrawLine(c + pd * (r * 0.25f), c + pd * (r * 0.86f), acc, Mathf.Max(2.5f, d * 0.06f));
             DrawCircle(c, r * 0.16f, acc);
 
             if (font != null && d > 42f)
             {
-                string value = Mathf.RoundToInt((float)Value * 100f).ToString();
+                string value = Mathf.RoundToInt(NormalizedValue() * 100f).ToString();
                 int vf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
                                            new Vector2(r * 0.74f, r * 0.34f), value, font, min: 7);
                 Vector2 m = font.GetStringSize(value, HorizontalAlignment.Left, -1, vf);

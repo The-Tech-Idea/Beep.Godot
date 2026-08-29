@@ -23,6 +23,8 @@ namespace Beep.ECS
 
         public Dictionary<Node2D, float> ThreatTable { get; private set; } = new();
         public Node2D? CurrentTarget { get; private set; }
+        public float EffectiveDeaggroRange => NonNegative(DeaggroRange);
+        public float EffectiveThreatDecayRate => NonNegative(ThreatDecayRate);
 
         private Node2D? _body;
 
@@ -37,6 +39,7 @@ namespace Beep.ECS
         public void AddThreat(Node2D source, float amount)
         {
             if (!IsActive) return;
+            if (source == null || !GodotObject.IsInstanceValid(source) || !float.IsFinite(amount) || amount <= 0f) return;
             ThreatTable.TryGetValue(source, out float current);
             ThreatTable[source] = current + amount;
             EmitSignal(SignalName.ThreatChanged, source, ThreatTable[source]);
@@ -62,19 +65,24 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             var toRemove = new List<Node2D>();
-            foreach (var kv in ThreatTable)
+            foreach (var kv in new List<KeyValuePair<Node2D, float>>(ThreatTable))
             {
                 // Drop a freed target, a decayed one, or one that fled beyond DeaggroRange.
                 bool fled = _body != null && GodotObject.IsInstanceValid(kv.Key)
-                            && _body.GlobalPosition.DistanceTo(kv.Key.GlobalPosition) > DeaggroRange;
-                ThreatTable[kv.Key] -= ThreatDecayRate * (float)delta;
-                if (!GodotObject.IsInstanceValid(kv.Key) || ThreatTable[kv.Key] <= 0 || fled)
+                            && _body.GlobalPosition.DistanceTo(kv.Key.GlobalPosition) > EffectiveDeaggroRange;
+                float currentThreat = float.IsFinite(kv.Value) ? kv.Value : 0f;
+                float nextThreat = currentThreat - EffectiveThreatDecayRate * dt;
+                ThreatTable[kv.Key] = nextThreat;
+                if (!GodotObject.IsInstanceValid(kv.Key) || nextThreat <= 0 || fled)
                     toRemove.Add(kv.Key);
             }
             foreach (var k in toRemove) ThreatTable.Remove(k);
             if (toRemove.Count > 0) UpdateTarget();
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

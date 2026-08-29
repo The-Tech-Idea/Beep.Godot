@@ -19,6 +19,7 @@ $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardOutput = $true
 $startInfo.RedirectStandardError = $true
 $startInfo.CreateNoWindow = $true
+$startInfo.Environment["GODOT_MCP_BRIDGE_AUTO_CONNECT_RUNTIME"] = "false"
 
 $process = [System.Diagnostics.Process]::new()
 $process.StartInfo = $startInfo
@@ -27,7 +28,7 @@ $stdoutTask = $process.StandardOutput.ReadToEndAsync()
 $stderrTask = $process.StandardError.ReadToEndAsync()
 
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-    $process.Kill($true)
+    try { $process.Kill($true) } catch { $process.Kill() }
     throw "Godot runtime smoke timed out after $TimeoutSeconds seconds."
 }
 

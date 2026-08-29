@@ -1,0 +1,295 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://tests/examples/GridWorldPainterlyDemoController.cs" id="demo_controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="terrain_generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs" id="terrain_bridge"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainTransitionLayerComponent.cs" id="terrain_transition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cell_data"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridRoadComponent.cs" id="roads"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridNavigationComponent.cs" id="navigation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPlacementComponent.cs" id="placement"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs" id="world_state"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs" id="grid_object"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridJobQueueComponent.cs" id="jobs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn" id="worker_unit"]
+[ext_resource type="Script" path="res://tests/examples/KenneyMapDetailSprite.gd" id="kenney_detail_sprite"]
+
+[node name="GridWorldPainterlyDemo" type="Node2D"]
+script = ExtResource("demo_controller")
+TerrainBridgePath = NodePath("TerrainBridge")
+CellsPath = NodePath("Cells")
+RoadsPath = NodePath("Roads")
+StatePath = NodePath("State")
+DepotObjectPath = NodePath("Objects/BaseDepot/GridObject")
+SpawnerPath = NodePath("Objects/BaseDepot/WorkerSpawner")
+StatusLabelPath = NodePath("HUD/StatusPanel/Status")
+
+[node name="Terrain" type="Node" parent="."]
+script = ExtResource("terrain")
+WidthTiles = 32
+HeightTiles = 20
+TileSize = 64
+PixelsPerTile = 64
+GenerateOnReady = false
+Seed = 20260828
+Frequency = 0.055
+Octaves = 4
+Lacunarity = 2.1
+Gain = 0.5
+WaterLevel = 0.33
+BeachWidth = 0.025
+RockLevel = 0.74
+Dryness = 0.32
+GrainStrength = 0.0
+UseBundledMaterialTextures = false
+MaterialTextureStrength = 0.0
+MaterialTextureTilesPerRepeat = 6.0
+MaxGeneratedPixels = 8388608
+PostSharpenStrength = 0.18
+EnableBiomeDetailLayers = true
+GroundDetailRegionMode = 1
+BiomeDetailCoverage = 0.12
+BiomeDetailPatchScale = 0.18
+BiomeDetailStrength = 0.28
+BiomeDetailDensity = 0.45
+DuneLayerStrength = 0.42
+PebbleLayerStrength = 0.30
+VegetationLayerStrength = 0.24
+FlowerLayerStrength = 0.04
+WaterAlpha = 0.76
+ShallowWaterAlpha = 0.58
+WaterFoamStrength = 0.26
+WaterRippleStrength = 0.10
+
+[node name="TerrainGenerator" type="Node" parent="."]
+script = ExtResource("terrain_generator")
+CellDataPath = NodePath("../Cells")
+PainterlyTerrainPath = NodePath("../Terrain")
+UsePainterSettings = true
+GenerateOnReady = false
+ClearExistingCells = true
+
+[node name="TerrainBridge" type="Node" parent="."]
+script = ExtResource("terrain_bridge")
+PainterlyTerrainPath = NodePath("../Terrain")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+UsePainterDimensions = true
+AutoRebuildOnReady = true
+AutoRebuildOnChanges = true
+GenerateBeforeFirstRebuild = true
+PaintRoads = true
+RoadBlendStrength = 0.62
+PaintGroundDetails = false
+UseContinuousBiomeRendering = true
+
+[node name="WaterEdges" type="TileMapLayer" parent="."]
+z_index = -87
+texture_filter = 1
+visible = false
+
+[node name="WaterTransitions" type="Node" parent="."]
+script = ExtResource("terrain_transition")
+CellDataPath = NodePath("../Cells")
+DisplayLayerPath = NodePath("../WaterEdges")
+BoundsOrigin = Vector2i(0, 0)
+BoundsSize = Vector2i(32, 20)
+TransitionTerrainKind = "water"
+AtlasOrigin = Vector2i(0, 1)
+AtlasColumns = 4
+AtlasTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/Dual Grid/grasstileset_64pixel_noelevation.png"
+BuildTileSetFromAtlasPath = true
+AtlasTileSize = Vector2i(64, 64)
+AtlasTileRows = 4
+RefreshOnReady = false
+
+[node name="Grid" type="Node2D" parent="."]
+script = ExtResource("grid")
+TileSize = Vector2(64, 64)
+DrawGrid = false
+
+[node name="Cells" type="Node" parent="."]
+script = ExtResource("cell_data")
+DefaultTerrainKind = "grass"
+
+[node name="Roads" type="Node2D" parent="."]
+script = ExtResource("roads")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+DefaultRoadKind = "dirt_path"
+DefaultRoadCostMultiplier = 0.55
+DrawRoads = true
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+PlacementPath = NodePath("../Placement")
+RoadPath = NodePath("../Roads")
+CellDataPath = NodePath("../Cells")
+BoundsOrigin = Vector2i(0, 0)
+BoundsSize = Vector2i(32, 20)
+TreatPlacementOccupiedAsBlocked = true
+
+[node name="Placement" type="Node2D" parent="."]
+script = ExtResource("placement")
+GridPath = NodePath("../Grid")
+PlacementRootPath = NodePath("../Objects")
+CellDataPath = NodePath("../Cells")
+NavigationPath = NodePath("../Navigation")
+Footprint = Vector2i(1, 1)
+MarkPlacedCellsOccupied = true
+MarkPlacedCellsBlockedInNavigation = true
+
+[node name="Jobs" type="Node" parent="."]
+script = ExtResource("jobs")
+DefaultWorkSeconds = 1.25
+
+[node name="State" type="Node" parent="."]
+script = ExtResource("world_state")
+PlacementPath = NodePath("../Placement")
+NavigationPath = NodePath("../Navigation")
+JobQueuePath = NodePath("../Jobs")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+ObjectsRootPath = NodePath("../Objects")
+
+[node name="MapPackDetails" type="Node2D" parent="."]
+z_index = -20
+
+[node name="PineA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(170, 160)
+scale = Vector2(1.25, 1.25)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_040.png"
+
+[node name="PineB" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(688, 138)
+scale = Vector2(1.15, 1.15)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_040.png"
+
+[node name="TreeA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(958, 184)
+scale = Vector2(1.2, 1.2)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_055.png"
+
+[node name="TreeB" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(376, 470)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_055.png"
+
+[node name="RockA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(812, 304)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_039.png"
+
+[node name="RockB" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(870, 424)
+scale = Vector2(0.85, 0.85)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_039.png"
+
+[node name="StumpA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(514, 386)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_049.png"
+
+[node name="MushroomA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(437, 516)
+scale = Vector2(0.9, 0.9)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_104.png"
+
+[node name="ReedsA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(1082, 308)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_119.png"
+
+[node name="BranchA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(1000, 492)
+rotation = 0.25
+scale = Vector2(0.9, 0.9)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_120.png"
+
+[node name="CactusA" type="Sprite2D" parent="MapPackDetails"]
+position = Vector2(234, 410)
+script = ExtResource("kenney_detail_sprite")
+source_path = "res://addons/beep_game_builder_cs/textures/kenney/map_pack/mapTile_035.png"
+
+[node name="Objects" type="Node2D" parent="."]
+
+[node name="BaseDepot" type="Node2D" parent="Objects"]
+position = Vector2(256, 256)
+
+[node name="Shadow" type="Polygon2D" parent="Objects/BaseDepot"]
+polygon = PackedVector2Array(-70, 25, 12, 64, 82, 28, 0, -16)
+color = Color(0.05, 0.04, 0.03, 0.28)
+
+[node name="Yard" type="Polygon2D" parent="Objects/BaseDepot"]
+polygon = PackedVector2Array(-64, 8, 0, 40, 58, 11, -5, -22)
+color = Color(0.52, 0.44, 0.30, 1)
+
+[node name="Building" type="Polygon2D" parent="Objects/BaseDepot"]
+position = Vector2(0, -32)
+polygon = PackedVector2Array(-42, -18, 12, -44, 58, -18, 3, 12)
+color = Color(0.34, 0.42, 0.43, 1)
+
+[node name="Door" type="Polygon2D" parent="Objects/BaseDepot"]
+position = Vector2(0, -18)
+polygon = PackedVector2Array(-10, -7, 12, 2, 12, 26, -10, 14)
+color = Color(0.13, 0.10, 0.07, 1)
+
+[node name="GridObject" type="Node" parent="Objects/BaseDepot"]
+script = ExtResource("grid_object")
+DisplayName = "Base Depot"
+ObjectKind = "base"
+Selectable = true
+Cell = Vector2i(4, 4)
+Footprint = Vector2i(2, 2)
+BlocksNavigation = true
+PlacementPath = NodePath("../../../Placement")
+NavigationPath = NodePath("../../../Navigation")
+ReserveFootprintOnReady = false
+Description = "Starting depot for worker spawning and terrain jobs."
+
+[node name="WorkerSpawner" type="Node" parent="Objects/BaseDepot"]
+script = ExtResource("worker_spawner")
+UnitScene = ExtResource("worker_unit")
+UnitsRootPath = NodePath("../../../Units")
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+JobQueuePath = NodePath("../../../Jobs")
+CellDataPath = NodePath("../../../Cells")
+PlacementPath = NodePath("../../../Placement")
+SpawnCell = Vector2i(6, 6)
+WorkerIdPrefix = "demo_truck"
+InitialWorkers = 1
+MaxWorkers = 4
+
+[node name="Units" type="Node2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(760, 430)
+zoom = Vector2(0.9, 0.9)
+enabled = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="StatusPanel" type="PanelContainer" parent="HUD"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 620.0
+offset_bottom = 74.0
+
+[node name="Status" type="Label" parent="HUD/StatusPanel"]
+offset_left = 10.0
+offset_top = 8.0
+offset_right = 592.0
+offset_bottom = 44.0
+text = "Generating painterly grid demo..."

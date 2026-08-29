@@ -34,6 +34,8 @@ namespace Beep.ECS
         private readonly Dictionary<string, Color> _contributions = new();
         private Color _target = new(1, 1, 1, 1);
 
+        public float EffectiveEaseSpeed => Mathf.Max(0f, float.IsFinite(EaseSpeed) ? EaseSpeed : 0f);
+
         public override void _Ready()
         {
             base._Ready();
@@ -87,18 +89,19 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint() || _modulate == null) return;
 
-            if (EaseSpeed <= 0f)
+            if (EffectiveEaseSpeed <= 0f)
             {
                 _modulate.Color = _target;
                 return;
             }
-            float t = Mathf.Clamp((float)delta * EaseSpeed, 0f, 1f);
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            float t = Mathf.Clamp(dt * EffectiveEaseSpeed, 0f, 1f);
             _modulate.Color = _modulate.Color.Lerp(_target, t);
         }
 
         /// <summary>Find the AmbientController driving <paramref name="node"/>'s tree, so
-        /// contributors don't need a hard reference. Null (with a one-line warning) if the
-        /// scene has none — the caller's other effects still work, it just won't tint.</summary>
+        /// contributors don't need a hard reference. Null is valid for standalone scenes; pass
+        /// <paramref name="warnMissing"/> when a scene requires tint composition.</summary>
         /// <summary>
         /// The COMPOSED ambient tint — day/night multiplied by weather, exactly what the
         /// CanvasModulate is applying to the world.
@@ -110,10 +113,10 @@ namespace Beep.ECS
         /// </summary>
         public Color CurrentTint => _target;
 
-        public static AmbientController? ForTree(Node node)
+        public static AmbientController? ForTree(Node node, bool warnMissing = false)
         {
             var found = EntityComponent.FindComponent<AmbientController>(node.GetTree()?.Root, true);
-            if (found == null)
+            if (found == null && warnMissing)
                 GD.PushWarning($"[{node.Name}] No AmbientController in the scene — ambient tint disabled. " +
                                "Add one to the world root.");
             return found;

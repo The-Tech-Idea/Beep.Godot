@@ -19,7 +19,8 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class DataBinderHostComponent : UIComponent, ISaveable
     {
-        [Export] public bool AutoRefresh { get; set; } = true;
+        [Export] public bool AutoRefresh { get => _autoRefresh; set { if (_autoRefresh == value) return; _autoRefresh = value; UpdateProcessing(); } }
+        private bool _autoRefresh = true;
         [Export] public double PollInterval { get; set; } = 0.1;
 
         /// <summary>Include this binder's state in saves. Off by default: GameStateData holds
@@ -136,13 +137,19 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
             _pollTimer = 0;
+            UpdateProcessing();
         }
 
         public override void _Process(double delta)
         {
-            if (!IsActive || !AutoRefresh || Engine.IsEditorHint()) return;
+            if (!IsActive || !AutoRefresh || Engine.IsEditorHint() || _bindings.Count == 0)
+            {
+                UpdateProcessing();
+                return;
+            }
 
             _pollTimer += delta;
             if (_pollTimer < PollInterval) return;
@@ -157,6 +164,7 @@ namespace Beep.ECS.UI
         public override void _ExitTree()
         {
             _bindings.Clear();
+            SetProcess(false);
             base._ExitTree();
         }
 
@@ -186,6 +194,7 @@ namespace Beep.ECS.UI
             else
                 binding.Refresh();
             EmitSignal(SignalName.BindingCreated, sourceProp);
+            UpdateProcessing();
         }
 
         /// <summary>Convenience: bind a property to a Label's text.</summary>
@@ -281,6 +290,7 @@ namespace Beep.ECS.UI
                     EmitSignal(SignalName.BindingRemoved, prop);
                 }
             }
+            UpdateProcessing();
         }
 
         /// <summary>Remove a specific binding.</summary>
@@ -288,6 +298,7 @@ namespace Beep.ECS.UI
         {
             int removed = _bindings.RemoveAll(b => b.Source == source && b.SourceProp == sourceProp);
             if (removed > 0) EmitSignal(SignalName.BindingRemoved, sourceProp);
+            UpdateProcessing();
         }
 
         /// <summary>Get the number of active bindings.</summary>
@@ -298,7 +309,11 @@ namespace Beep.ECS.UI
         {
             foreach (var b in _bindings) EmitSignal(SignalName.BindingRemoved, b.SourceProp);
             _bindings.Clear();
+            UpdateProcessing();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && AutoRefresh && _bindings.Count > 0);
 
         // ── ISaveable Implementation ──
         // Note: Bindings themselves are not persisted (they're UI infrastructure).

@@ -15,29 +15,63 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitAvatarFrame : KitControl
     {
-        [Export] public Texture2D? Portrait { get => _art; set { _art = value; QueueRedraw(); } }
+        [Export] public Texture2D? Portrait { get => _art; set { if (_art == value) return; _art = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _art;
 
         /// <summary>Shown in the badge. Empty hides it.</summary>
-        [Export] public string BadgeText { get => _badge; set { _badge = value ?? ""; QueueRedraw(); } }
+        [Export] public string BadgeText { get => _badge; set { SetText(ref _badge, value); } }
         private string _badge = "12";
 
-        [Export] public UiSurface.Role BadgeRole { get; set; } = UiSurface.Role.Warning;
+        [Export]
+        public UiSurface.Role BadgeRole
+        {
+            get => _badgeRole;
+            set { if (_badgeRole == value) return; _badgeRole = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _badgeRole = UiSurface.Role.Warning;
 
         /// <summary>Round is the portrait convention; a square frame suits roster grids.</summary>
-        [Export] public bool Round { get; set; } = true;
+        [Export]
+        public bool Round
+        {
+            get => _round;
+            set { if (_round == value) return; _round = value; RefreshVisualAndRedraw(); }
+        }
+        private bool _round = true;
 
         /// <summary>Ring in a palette role — rarity, team, online state.</summary>
-        [Export] public UiSurface.Role RimRole { get; set; } = UiSurface.Role.Accent;
+        [Export]
+        public UiSurface.Role RimRole
+        {
+            get => _rimRole;
+            set { if (_rimRole == value) return; _rimRole = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _rimRole = UiSurface.Role.Accent;
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 4f, fs * 4f);
-            }
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -78,10 +112,13 @@ namespace Beep.ECS.UI.Kit
             // Bottom-right, straddling the rim. Badge is always a circle so every avatar uses
             // the same visual language whether the text is "3" or "12".
             float dia = Mathf.Clamp(d * 0.32f, 18f, 30f);
+            string badge = KitCase(_badge);
+            float badgeWidth = dia * 0.68f;
             int bs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                       new Vector2(dia * 0.68f, dia * 0.58f),
-                                       _badge, font, min: 8);
-            Vector2 m = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, bs);
+                                       new Vector2(badgeWidth, dia * 0.58f),
+                                       badge, font, min: 8);
+            badge = KitChrome.EllipsizeText(font, badge, bs, badgeWidth);
+            Vector2 m = font.GetStringSize(badge, HorizontalAlignment.Left, -1, bs);
             var b = new Rect2(frame.End.X - dia * 0.60f, frame.End.Y - dia * 0.66f, dia, dia);
             b.Position = new Vector2(Mathf.Clamp(b.Position.X, 0f, Mathf.Max(0f, Size.X - dia)),
                                      Mathf.Clamp(b.Position.Y, 0f, Mathf.Max(0f, Size.Y - dia)));
@@ -91,7 +128,7 @@ namespace Beep.ECS.UI.Kit
             DrawArc(centre, dia * 0.5f, 0f, Mathf.Tau, 32, ink, Mathf.Max(1.5f, rw * 0.45f));
             float baseline = b.Position.Y + (b.Size.Y - font.GetHeight(bs)) * 0.5f + font.GetAscent(bs);
             DrawText(font, new Vector2(b.Position.X + (b.Size.X - m.X) * 0.5f, baseline),
-                       _badge, bs, UiSurface.Luminance(bc) > 0.5f
+                       badge, bs, UiSurface.Luminance(bc) > 0.5f
                            ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
         }
 

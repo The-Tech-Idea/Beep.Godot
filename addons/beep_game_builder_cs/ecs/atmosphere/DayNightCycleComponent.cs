@@ -31,6 +31,7 @@ namespace Beep.ECS
 
         /// <summary>The tint layer key this component owns in the AmbientController.</summary>
         private const string ContributionKey = "day_night";
+        private const float MinimumDayLengthSeconds = 0.001f;
 
         [ExportGroup("Time")]
         /// <summary>Current time of day in hours [0..24). 8.0 = 8am. Settable from save data.</summary>
@@ -64,6 +65,8 @@ namespace Beep.ECS
         private Phase _currentPhase = Phase.Day;
         private Color _originalClearColor;
         private bool _clearColorCaptured;
+
+        public float EffectiveDayLengthSeconds => Mathf.Max(MinimumDayLengthSeconds, float.IsFinite(DayLengthSeconds) ? DayLengthSeconds : 120f);
 
         public override void _Ready()
         {
@@ -108,8 +111,9 @@ namespace Beep.ECS
             // is still correct, but for the general reason above rather than for a fact about the
             // current catalog. A comment that argues from a configuration snapshot goes stale
             // silently, and this repo has been misled by exactly that before.
-            float prev = TimeOfDay;
-            TimeOfDay = (TimeOfDay + (float)delta * (24f / DayLengthSeconds)) % 24f;
+            float prev = NormalizeHour(TimeOfDay);
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            TimeOfDay = NormalizeHour(prev + dt * (24f / EffectiveDayLengthSeconds));
 
             // Wrapped past midnight (new value fell below the old) → a whole in-game day passed.
             if (TimeOfDay < prev) DaysElapsed++;
@@ -127,14 +131,14 @@ namespace Beep.ECS
         public void SetTimeOfDay(float hours)
         {
             float prev = TimeOfDay;
-            TimeOfDay = ((hours % 24f) + 24f) % 24f;
+            TimeOfDay = NormalizeHour(hours);
             if (TimeOfDay < prev) DaysElapsed++;   // wrapped forward past midnight
             EmitSignal(SignalName.TimeOfDayChanged, TimeOfDay);
             if (IsActive) Apply();
         }
 
         /// <summary>Time of day normalised to 0..1, for HUDs and forecast bars.</summary>
-        public float TimeOfDayNormalized => TimeOfDay / 24f;
+        public float TimeOfDayNormalized => NormalizeHour(TimeOfDay) / 24f;
 
         private void Apply()
         {
@@ -181,6 +185,12 @@ namespace Beep.ECS
         {
             t = Mathf.Clamp(t, 0f, 1f);
             return new Color(Mathf.Lerp(a.R, b.R, t), Mathf.Lerp(a.G, b.G, t), Mathf.Lerp(a.B, b.B, t), 1f);
+        }
+
+        private static float NormalizeHour(float hours)
+        {
+            if (float.IsNaN(hours) || float.IsInfinity(hours)) return 0f;
+            return ((hours % 24f) + 24f) % 24f;
         }
 
         public override void _ExitTree()

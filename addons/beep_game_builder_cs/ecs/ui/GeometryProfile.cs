@@ -33,13 +33,6 @@ namespace Beep.ECS.UI
         /// "shapes" block. Null = no per-node overrides (use legacy defaults).</summary>
         public ShapeOverrides? Shapes;
 
-        /// <summary>Optional background image path (res://...) drawn behind the
-        /// themed subtree root. Null = no background.</summary>
-        public string? BackgroundImage;
-
-        /// <summary>How to render the background: "stretch" (default), "tile", or "center".</summary>
-        public string BackgroundMode = "stretch";
-
         /// <summary>Apply this profile's overrides to a StyleBoxFlat in place.</summary>
         public void ApplyTo(StyleBoxFlat sb)
         {

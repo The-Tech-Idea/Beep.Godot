@@ -26,61 +26,11 @@ namespace Beep.ECS.UI
             ? _geometry.FontSize
             : (_loadedThemeGeometry.FontSize > 0 ? _loadedThemeGeometry.FontSize : 14);
 
-        /// <summary>Try to build a texture-based StyleBox for a node-type slot. Resolution
-        /// order (Phase C — JSON wins per slot):
-        ///   1. JSON-driven texture from theme.json's textures{} block (jsonTex)
-        ///   2. Inspector UISkin's matching slot (skinPath)
-        ///   3. Procedural StyleBoxFlat (procedural)
-        /// Returns the procedural box (with geometry stamped) if every texture
-        /// source is unavailable. Skips texture resolution entirely when
-        /// <paramref name="nodeTypeEnabled"/> is false (per-node toggle) or the
-        /// master <see cref="UseTextures"/> is off.</summary>
-        private StyleBox SkinOr(bool nodeTypeEnabled, StyleBox? jsonTex, Texture2D? skinTex, StyleBoxFlat procedural)
-        {
-            if (UseTextures && nodeTypeEnabled)
-            {
-                // 1. JSON-driven texture wins when set (per-slot override).
-                if (jsonTex != null) return WithThemePadding(jsonTex);
-                // 2. Inspector UISkin texture (drag-and-drop Texture2D).
-                if (skinTex != null && _skin != null && _skin.HasTextures)
-                {
-                    var sb = _skin.BuildStyleBox(skinTex);
-                    if (sb != null) return WithThemePadding(sb);
-                }
-            }
-            // No StampGeometry here: Sb() stamps EVERY box it is handed, textured or flat.
-            // Stamping only this branch is what made textured and procedural controls two
-            // different visual registers.
-            return procedural;
-        }
-
-        /// <summary>Give a texture box the theme's own content padding when it declares none.
-        ///
-        /// A <see cref="StyleBoxTexture"/> with unset (-1) content margins falls back to its
-        /// 9-PATCH margins. Those exist to stop corner artwork stretching and are routinely
-        /// 18-28px, so a control took 36-56px of padding purely because of how its art was
-        /// sliced: 64px buttons and 52px inputs. 49 of the 50 shipped themes leave content
-        /// margins unset, and this went unnoticed only because textured buttons never rendered
-        /// at all until ApplyButtonOverrides was fixed — the fat controls arrived with the fix.
-        ///
-        /// Artwork geometry and type padding are unrelated concerns; padding belongs to the
-        /// geometry profile. An explicit content_margin_* in theme.json still wins.</summary>
-        private StyleBox WithThemePadding(StyleBox sb)
-        {
-            if (sb is not StyleBoxTexture tex) return sb;
-            if (tex.ContentMarginLeft < 0) tex.ContentMarginLeft = _padL;
-            if (tex.ContentMarginRight < 0) tex.ContentMarginRight = _padR;
-            if (tex.ContentMarginTop < 0) tex.ContentMarginTop = _padT;
-            if (tex.ContentMarginBottom < 0) tex.ContentMarginBottom = _padB;
-            return sb;
-        }
-
         private StyleBox StampGeometry(StyleBox sb) => StampGeometry(sb, "", "");
 
         /// <summary>Put a box into the shared register. <paramref name="slot"/> is the theme
         /// item name ("normal", "hover", "panel", "fill"…) and <paramref name="type"/> the
-        /// control type, so a TEXTURED box can be tinted with the exact palette colour its
-        /// procedural twin would have been filled with.</summary>
+        /// control type.</summary>
         private StyleBox StampGeometry(StyleBox sb, string slot, string type)
         {
             if (_geometry != null && sb is StyleBoxFlat flat) _geometry.ApplyTo(flat);
@@ -109,7 +59,6 @@ namespace Beep.ECS.UI
             switch (sb)
             {
                 case StyleBoxFlat flat: FlatRegister(flat, c); break;
-                case StyleBoxTexture tex: TextureRegister(tex, SurfaceForSlot(slot, type, c)); break;
             }
         }
 
@@ -137,58 +86,6 @@ namespace Beep.ECS.UI
             }
         }
 
-        /// <summary>Shared with the components that DRAW rather than hand Godot a StyleBox, so
-        /// the tint applied here and the colour they read back out cannot drift apart.</summary>
-        private const float ArtNominalLuminance = UiSurface.ArtNominalLuminance;
-
-        /// <summary>Tint a textured box with the SAME palette colour its procedural twin uses.
-        ///
-        /// Every theme inside a genre ships a BYTE-IDENTICAL button/panel texture — all five
-        /// citybuilder skins hash to e692a3da, all five rpg skins to 43d6427f. So until now the
-        /// theme and palette reached only the flat controls; every Button, PanelContainer,
-        /// LineEdit, ProgressBar, Slider and ScrollBar stayed the same pale grey-blue in all 50
-        /// skins. That is why switching skin appeared to do nothing to a menu.
-        ///
-        /// modulate MULTIPLIES, so the art's baked outline, bevel and inner shadow survive — only
-        /// the flat mid-tone is recoloured, which is exactly how a greyscale UI kit is meant to be
-        /// re-skinned. The colour is scaled up by the art's own mid-tone so the result LANDS on
-        /// the palette colour instead of 0.8x of it, and the scale is applied uniformly across
-        /// RGB and capped at the peak channel, so hue is preserved and no channel ever clips.</summary>
-        private static void TextureRegister(StyleBoxTexture tex, Color surface)
-        {
-            float peak = Mathf.Max(surface.R, Mathf.Max(surface.G, surface.B));
-            float k = 1f / ArtNominalLuminance;
-            if (peak > 0.001f && peak * k > 1f) k = 1f / peak;
-            // Alpha carried through, not forced to 1: menu surfaces are opaque so nothing
-            // changes there, but a HUD plate is deliberately translucent so the world reads
-            // through it, and clamping it opaque would black out the game behind the HUD.
-            tex.ModulateColor = new Color(surface.R * k, surface.G * k, surface.B * k, surface.A);
-        }
-
-        /// <summary>The palette colour a given theme slot is filled with. Mirrors the fills the
-        /// procedural boxes above use, so a textured control and a flat one on the same screen
-        /// are the same colour in the same state — one register, not two.</summary>
-        private static Color SurfaceForSlot(string slot, string type, ColorSchema c)
-        {
-            // Inputs are a recessed well, not a raised face — InputBox() fills them with
-            // SurfacePressed, so their art has to be tinted to match or a textured LineEdit
-            // reads as a button.
-            if (type is "LineEdit" or "TextEdit" or "SpinBox")
-                return slot == "read_only" ? Fade(c.SurfaceDisabled, 0.6f) : c.SurfacePressed;
-
-            return slot switch
-            {
-                "hover" or "tab_hovered" or "grabber_highlight" or "custom_button_hover" => c.SurfaceHover,
-                "pressed" or "grabber_pressed" or "custom_button_pressed" => c.SurfacePressed,
-                "disabled" or "tab_disabled" => c.SurfaceDisabled,
-                "panel" or "tab_selected" or "embedded_border" or "embedded_unfocused_border" => c.BgPanel,
-                "background" or "slider" or "scroll" or "read_only" => c.SurfaceDisabled,
-                "fill" => c.AccentPrimary,
-                "separator" => c.BorderNormal,
-                _ => c.SurfacePrimary,
-            };
-        }
-
         // ═══════════════════════════════════════════════════════════════
         // BUTTON — 5 StyleBox states + 6 color properties
         // ═══════════════════════════════════════════════════════════════
@@ -196,12 +93,11 @@ namespace Beep.ECS.UI
         {
             var c = _presetInstance!.Colors;
             string t = "Button";
-            var p = _presetInstance!;
-            Sb("normal", t, SkinOr(UseButtonTextures, p.GetButtonNormalTexture(),   _skin?.ButtonNormal,   Box(c.SurfacePrimary,  c.BorderNormal,         c.ShadowColor, _shadowSize)));
-            Sb("hover", t, SkinOr(UseButtonTextures, p.GetButtonHoverTexture(),    _skin?.ButtonHover,    Box(c.SurfaceHover,    c.BorderHover,          c.ShadowColor, _shadowSize + 4)));
-            Sb("pressed", t, SkinOr(UseButtonTextures, p.GetButtonPressedTexture(),  _skin?.ButtonPressed,  Box(c.SurfacePressed,  c.BorderNormal,         c.ShadowColor, Mathf.Max(0, _shadowSize - 6))));
-            Sb("disabled", t, SkinOr(UseButtonTextures, p.GetButtonDisabledTexture(), _skin?.ButtonDisabled, Box(c.SurfaceDisabled, Fade(c.BorderNormal, 0.4f), Clear, 0)));
-            Sb("focus", t, SkinOr(UseButtonTextures, p.GetButtonFocusTexture(),    _skin?.ButtonFocus,    Box(c.SurfacePrimary,  c.BorderFocus,          c.ShadowColor, _shadowSize)));
+            Sb("normal", t, Box(c.SurfacePrimary, c.BorderNormal, c.ShadowColor, _shadowSize));
+            Sb("hover", t, Box(c.SurfaceHover, c.BorderHover, c.ShadowColor, _shadowSize + 4));
+            Sb("pressed", t, Box(c.SurfacePressed, c.BorderNormal, c.ShadowColor, Mathf.Max(0, _shadowSize - 6)));
+            Sb("disabled", t, Box(c.SurfaceDisabled, Fade(c.BorderNormal, 0.4f), Clear, 0));
+            Sb("focus", t, Box(c.SurfacePrimary, c.BorderFocus, c.ShadowColor, _shadowSize));
             ButtonFontColors(t, c, c.BorderBevelDark);
             FontSz(t);
         }
@@ -304,10 +200,9 @@ namespace Beep.ECS.UI
         private void ThemeLineEdit()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             string t = "LineEdit";
-            Sb("normal", t, SkinOr(UseInputTextures, p.GetInputNormalTexture(), _skin?.InputNormal, InputBox(c.SurfacePressed, c.BorderNormal)));
-            Sb("focus", t, SkinOr(UseInputTextures, p.GetInputFocusTexture(),  _skin?.InputFocus,  InputBox(c.SurfacePressed, c.BorderFocus, focus: true)));
+            Sb("normal", t, InputBox(c.SurfacePressed, c.BorderNormal));
+            Sb("focus", t, InputBox(c.SurfacePressed, c.BorderFocus, focus: true));
             Sb("read_only", t, InputBox(Fade(c.SurfaceDisabled, 0.6f), Fade(c.BorderNormal, 0.4f)));
             Col(t, "font_color", c.TextPrimary); Col(t, "font_selected_color", c.TextOnDark);
             Col(t, "selection_color", c.AccentPrimary); Col(t, "caret_color", c.AccentSecondary);
@@ -347,11 +242,10 @@ namespace Beep.ECS.UI
         private void ThemeProgressBar()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             string t = "ProgressBar";
             int inset = ActiveShapes.Progress.CornerInset;
-            Sb("background", t, SkinOr(UseProgressBarTextures, p.GetProgressBgTexture(),   _skin?.ProgressBarBackground, RoundBox(c.SurfaceDisabled, inset)));
-            Sb("fill", t, SkinOr(UseProgressBarTextures, p.GetProgressFillTexture(), _skin?.ProgressBarFill,        RoundBox(c.AccentPrimary,    inset)));
+            Sb("background", t, RoundBox(c.SurfaceDisabled, inset));
+            Sb("fill", t, RoundBox(c.AccentPrimary, inset));
             Col(t, "font_color", c.TextOnDark); Col(t, "font_outline_color", c.ShadowColor);
             FontSz(t);
         }
@@ -362,9 +256,8 @@ namespace Beep.ECS.UI
         private void ThemeSlider(string typeName)
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             int r = (_gTL + _gTR) / 2;
-            Sb("grabber_area", typeName, SkinOr(UseSliderTextures, p.GetSliderGrabberTexture(), _skin?.SliderGrabber, CircleBox(c.AccentPrimary, r)));
+            Sb("grabber_area", typeName, CircleBox(c.AccentPrimary, r));
             // Highlight is a BRIGHTER primary, not the secondary accent. Using AccentSecondary
             // changed the filled portion's HUE on hover/focus — on urban the focused Master
             // slider went green while the two beside it stayed blue, which reads as three
@@ -380,18 +273,16 @@ namespace Beep.ECS.UI
         /// <summary>Scrollbar thickness in px. A scrollbar is chrome, not content, so it must
         /// NOT inherit the theme's content padding — but it did: <see cref="StampGeometry"/>
         /// stamps the geometry profile's ContentPadding onto every StyleBoxFlat, so a 14px
-        /// padding produced a 28px-wide bar, and the 9-patch grabber texture forced 22px more
-        /// on top. Every scrollable list had a fat grey column down its side. A scrollbar is a
+        /// padding produced a 28px-wide bar. Every scrollable list had a fat grey column down
+        /// its side. A scrollbar is a
         /// pill of fixed thickness; it does not scale with type padding.</summary>
         private const int ScrollBarThickness = 10;
 
         private void ThemeScrollBar(string typeName)
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             int r = ScrollBarThickness / 2;
-            var grabber = SkinOr(UseScrollBarTextures, p.GetScrollGrabberTexture(), _skin?.ScrollGrabber,
-                                 CircleBox(Fade(c.TextDisabled, 0.55f), r, shadowSize: 0));
+            var grabber = CircleBox(Fade(c.TextDisabled, 0.55f), r, shadowSize: 0);
             var hover = CircleBox(Fade(c.TextDisabled, 0.85f), r, shadowSize: 0);
             var pressed = CircleBox(Fade(c.AccentPrimary, 0.85f), r, shadowSize: 0);
             // The track was BgCanvas at 0.7 alpha — a near-solid gutter on a light theme. A
@@ -409,10 +300,7 @@ namespace Beep.ECS.UI
                 SetPadding(box, r, r);
         }
 
-        /// <summary>Set a StyleBox's content padding. Works for flat AND texture boxes — a
-        /// StyleBoxTexture with unset (-1) content margins falls back to its 9-patch texture
-        /// margins, which exist to protect corner artwork and have nothing to do with the
-        /// padding a control needs around its text.</summary>
+        /// <summary>Set a StyleBox's content padding.</summary>
         private static void SetPadding(StyleBox sb, float x, float y)
         {
             sb.ContentMarginLeft = x; sb.ContentMarginRight = x;
@@ -510,27 +398,11 @@ namespace Beep.ECS.UI
         /// outright into its own surface.</summary>
         private const float MinDisabledContrast = 1.6f;
 
-        /// <summary>Every font colour for one button-like type, each checked against the surface
-        /// of the state it belongs to. Was six duplicated three-line blocks that all shared the
-        /// same defect.</summary>
-        /// <summary>The colour a textured control ACTUALLY renders, given the art register.
-        ///
-        /// TextureRegister sets modulate = surface / 0.8, but caps the boost at 1/peak so no
-        /// channel clips. On a surface with a channel at 255 the cap binds, the boost becomes
-        /// 1.0, and the control renders art(0.8) x surface — up to 20% DARKER than the schema
-        /// colour. puzzle/candy is the clean example: modulate #ff69b5, rendered #cc5491.
-        ///
-        /// Font colours were being contrast-checked against the schema colour, so every check
-        /// on a bright theme was optimistic by that margin. This returns what the player sees.</summary>
+        /// <summary>The surface colour used for contrast checks. Kept as a single chokepoint so
+        /// button text stays tied to what the procedural box actually paints.</summary>
         private Color EffectiveSurface(Color surface)
         {
-            // A procedural box paints the schema colour exactly; only the textured path shifts.
-            if (!UseTextures) return surface;
-            float peak = Mathf.Max(surface.R, Mathf.Max(surface.G, surface.B));
-            float k = 1f / ArtNominalLuminance;
-            if (peak > 0.001f && peak * k > 1f) k = 1f / peak;
-            float f = ArtNominalLuminance * k;      // 1.0 when unclamped, < 1 when the cap binds
-            return new Color(surface.R * f, surface.G * f, surface.B * f, surface.A);
+            return surface;
         }
 
         private void ButtonFontColors(string t, ColorSchema c, Color outline)
@@ -722,15 +594,13 @@ namespace Beep.ECS.UI
         private void ThemePanel()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
-            Sb("panel", "Panel", SkinOr(UsePanelTextures, p.GetPanelTexture(), _skin?.Panel, PanelBox(c)));
+            Sb("panel", "Panel", PanelBox(c));
         }
 
         private void ThemePanelContainer()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
-            Sb("panel", "PanelContainer", SkinOr(UsePanelTextures, p.GetPanelTexture(), _skin?.Panel, PanelBox(c)));
+            Sb("panel", "PanelContainer", PanelBox(c));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -739,9 +609,8 @@ namespace Beep.ECS.UI
         private void ThemeSeparator()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             int sep = ActiveShapes.Separator.Separation;
-            var sb = SkinOr(UseSeparatorTextures, p.GetSeparatorTexture(), _skin?.Separator, SeparatorBox(c));
+            var sb = SeparatorBox(c);
             // Through Sb like every other type, rather than straight to SetStylebox: the direct
             // call skipped the register, so separators were the one control the theme never
             // reached. Duplicated BEFORE stamping so each copy is stamped exactly once.
@@ -757,10 +626,9 @@ namespace Beep.ECS.UI
         private void ThemeWindow()
         {
             var c = _presetInstance!.Colors;
-            var p = _presetInstance!;
             string t = "Window";
-            Sb("embedded_border", t, SkinOr(UseDialogTextures, p.GetDialogTexture(), _skin?.Dialog, PanelBox(c)));
-            Sb("embedded_unfocused_border", t, SkinOr(UseDialogTextures, p.GetDialogTexture(), _skin?.Dialog, PanelBox(c)));
+            Sb("embedded_border", t, PanelBox(c));
+            Sb("embedded_unfocused_border", t, PanelBox(c));
             Col(t, "title_color", c.TextPrimary); Col(t, "title_outline_color", c.ShadowColor);
             Col(t, "close_color", c.TextPrimary); Col(t, "close_hover_color", c.SemanticDanger);
             Col(t, "close_pressed_color", c.SemanticDanger);
@@ -799,7 +667,12 @@ namespace Beep.ECS.UI
         private static readonly Color Clear = new(0, 0, 0, 0);
 
         private void Col(string type, string prop, Color val) => _generatedTheme!.SetColor(prop, type, val);
-        private void FontSz(string type) => _generatedTheme!.SetFontSize("font_size", type, Fs);
+        private void FontSz(string type)
+        {
+            _generatedTheme!.SetFontSize("font_size", type, Fs);
+            if (_themeFont != null)
+                _generatedTheme.SetFont("font", type, _themeFont);
+        }
 
         private StyleBoxFlat Box(Color bg, Color border, Color shadow, int shadowSize)
         {

@@ -20,6 +20,10 @@ namespace Beep.ECS
         [Signal] public delegate void MovedEventHandler(Vector2 direction);
         [Signal] public delegate void StoppedEventHandler();
 
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveAcceleration => NonNegative(Acceleration);
+        public float EffectiveFriction => NonNegative(Friction);
+
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
         private StatsComponent? _stats;
@@ -39,23 +43,30 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
-            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down")) return;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
+            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down"))
+            {
+                _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
+                _body.MoveAndSlide();
+                return;
+            }
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             var input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
-            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
+            float finalSpeed = NonNegative(_stats?.GetValue("move_speed", EffectiveSpeed) ?? EffectiveSpeed);
 
             if (input.Length() > 0)
             {
-                _body.Velocity = _body.Velocity.MoveToward(input * finalSpeed, Acceleration * (float)delta);
+                _body.Velocity = _body.Velocity.MoveToward(input * finalSpeed, EffectiveAcceleration * dt);
                 EmitSignal(SignalName.Moved, input);
                 _wasMoving = true;
             }
             else
             {
-                _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, Friction * (float)delta);
+                _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
                 // Emit Stopped once, on the moving→stopped edge — not every frame at rest, which
                 // would retrigger an idle animation / footstep-loop-stop ~60×/sec.
                 if (_body.Velocity.Length() < 1f && _wasMoving)
@@ -66,5 +77,9 @@ namespace Beep.ECS
             }
             _body.MoveAndSlide();
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

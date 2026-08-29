@@ -53,7 +53,7 @@ public partial class GodotMcpBridgeController
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Resources — GameInfo, UISkin, ColorPalette, GeometryProfile are all Resources
+    // Resources — GameInfo, ColorPalette, GeometryProfile are all Resources
     // ════════════════════════════════════════════════════════════════
 
     /// <summary>Build a Resource of any class, apply properties, save as .tres.</summary>
@@ -127,7 +127,7 @@ public partial class GodotMcpBridgeController
     }
 
     /// <summary>Apply a property dict, refusing anything the object would silently drop.
-    /// A C# [Export] must be PascalCase — UISkin.PatchMargin, never patch_margin.</summary>
+    /// A C# [Export] must be PascalCase — GameInfo.GameName, never game_name.</summary>
     private static JsonArray ApplyProperties(GodotObject target, JsonObject? properties, string typeName)
     {
         var applied = new JsonArray();

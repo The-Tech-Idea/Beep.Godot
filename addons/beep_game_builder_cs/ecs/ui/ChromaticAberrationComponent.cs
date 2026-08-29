@@ -16,9 +16,11 @@ namespace Beep.ECS.UI
             get => _strength;
             // Push to the live material so changing Strength at runtime actually updates the effect
             // (previously only the editor _Process path wrote it, so runtime tweaks were ignored).
-            set { _strength = value; _mat?.SetShaderParameter("strength", value); }
+            set { _strength = value; _mat?.SetShaderParameter("strength", EffectiveStrength); }
         }
         private float _strength = 0.004f;
+
+        public float EffectiveStrength => Mathf.Clamp(float.IsFinite(Strength) ? Strength : 0f, 0f, 0.05f);
 
         // Post-process overlay: split the SCREEN behind this Control, not the
         // Control's own blank TEXTURE. Sample via hint_screen_texture / SCREEN_UV
@@ -46,13 +48,14 @@ void fragment() {
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(Engine.IsEditorHint());
             Apply();
         }
 
         public override void _Process(double delta)
         {
             if (_mat != null && Engine.IsEditorHint())
-                _mat.SetShaderParameter("strength", Strength);
+                _mat.SetShaderParameter("strength", EffectiveStrength);
         }
 
         public void Apply()
@@ -65,7 +68,7 @@ void fragment() {
             _ci = ci;
             if (!_replaced) { _priorMaterial = ci.Material; _replaced = true; }   // remember once
             _mat ??= new ShaderMaterial { Shader = new Shader { Code = ShaderCode } };   // reuse, don't rebuild each call
-            _mat.SetShaderParameter("strength", Strength);
+            _mat.SetShaderParameter("strength", EffectiveStrength);
             ci.Material = _mat;
         }
 
@@ -76,6 +79,7 @@ void fragment() {
             // on the parent CanvasItem after this overlay is removed (mirrors Vignette/SkeletonLoader).
             if (_replaced && _ci != null && GodotObject.IsInstanceValid(_ci))
                 _ci.Material = _priorMaterial;
+            SetProcess(false);
         }
     }
 }

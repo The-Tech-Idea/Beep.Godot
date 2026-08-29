@@ -27,26 +27,43 @@ namespace Beep.ECS.UI.Kit
 
         public enum HangerKind { Chain, Rope, Nail, Tape, ScrollRoll, Vine }
 
-        [Export] public HangerKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
+        [Export] public HangerKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; RefreshVisualAndRedraw(); } }
         private HangerKind _kind = HangerKind.Nail;
 
         /// <summary>Horizontal inset of the two fixings, as a fraction of width. Chains and ropes
         /// hang from two points; a nail or a scroll roll uses the full span.</summary>
-        [Export(PropertyHint.Range, "0.0,0.45,0.01")] public float Inset { get; set; } = 0.18f;
+        [Export(PropertyHint.Range, "0.0,0.45,0.01")]
+        public float Inset
+        {
+            get => _inset;
+            set
+            {
+                float next = Mathf.Clamp(value, 0f, 0.45f);
+                if (Mathf.IsEqualApprox(_inset, next)) return;
+                _inset = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _inset = 0.18f;
 
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
+        [Export] public UiSurface.Role Accent { get => _accent; set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); } }
+        private UiSurface.Role _accent = UiSurface.Role.Neutral;
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             return new Vector2(fs * 7f, fs * 1.6f);
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override void _Draw()

@@ -27,6 +27,11 @@ namespace Beep.ECS
         [Signal] public delegate void SlideStartedEventHandler();
         [Signal] public delegate void SlideEndedEventHandler();
 
+        public float EffectiveSlideSpeed => NonNegative(SlideSpeed);
+        public float EffectiveSlideDuration => NonNegative(SlideDuration);
+        public float EffectiveSlideDeceleration => NonNegative(SlideDeceleration);
+        public float EffectiveHeightMultiplier => float.IsFinite(HeightMultiplier) ? Mathf.Clamp(HeightMultiplier, 0.1f, 1f) : 1f;
+
         private CharacterBody2D? _body;
         private CollisionShape2D? _collision;
         private float _slideTimer;
@@ -62,15 +67,21 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no slide
-            float dt = (float)delta;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            {
+                if (_slideTimer > 0)
+                    EndSlide();
+                return;
+            }
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             if (_slideTimer > 0)
             {
                 _slideTimer -= dt;
                 // Decelerate during slide.
-                float currentSpeed = Mathf.MoveToward(Mathf.Abs(_body.Velocity.X), 0, SlideDeceleration * dt);
+                float currentSpeed = Mathf.MoveToward(Mathf.Abs(_body.Velocity.X), 0, EffectiveSlideDeceleration * dt);
                 _body.Velocity = new Vector2(_slideDirection * currentSpeed, _body.Velocity.Y);
                 // Only SET velocity — the sibling controller owns MoveAndSlide. Calling it here too
                 // integrated the body twice per frame (~2× slide distance), like Jump/Glide/WallJump
@@ -103,13 +114,16 @@ namespace Beep.ECS
 
         private void StartSlide()
         {
-            _slideTimer = SlideDuration;
+            if (EffectiveSlideDuration <= 0f || EffectiveSlideSpeed <= 0f)
+                return;
+
+            _slideTimer = EffectiveSlideDuration;
             _slideDirection = _body!.Velocity.X >= 0 ? 1f : -1f;
-            float slideVelocity = Mathf.Min(Mathf.Abs(_body.Velocity.X), SlideSpeed);
+            float slideVelocity = Mathf.Min(Mathf.Abs(_body.Velocity.X), EffectiveSlideSpeed);
             _body.Velocity = new Vector2(_slideDirection * slideVelocity, _body.Velocity.Y);
 
             if (ShrinkCollision && _collision?.Shape is RectangleShape2D rect)
-                rect.Size = new Vector2(_originalShapeSize.X, _originalShapeSize.Y * HeightMultiplier);
+                rect.Size = new Vector2(_originalShapeSize.X, _originalShapeSize.Y * EffectiveHeightMultiplier);
 
             EmitSignal(SignalName.SlideStarted);
         }
@@ -121,5 +135,9 @@ namespace Beep.ECS
                 rect.Size = _originalShapeSize;
             EmitSignal(SignalName.SlideEnded);
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

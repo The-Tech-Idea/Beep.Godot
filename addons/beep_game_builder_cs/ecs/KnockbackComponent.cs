@@ -16,6 +16,10 @@ namespace Beep.ECS
         [Export] public float MaxKnockbackMagnitude { get; set; } = 500f;
 
         [Signal] public delegate void KnockedBackEventHandler(Vector2 direction, float strength);
+        public float EffectiveStrength => NonNegative(Strength);
+        public float EffectiveFriction => NonNegative(Friction);
+        public float EffectiveDuration => NonNegative(Duration);
+        public float EffectiveMaxKnockbackMagnitude => NonNegative(MaxKnockbackMagnitude);
 
         private CharacterBody2D? _body;
         private Vector2 _knockbackVelocity;
@@ -50,13 +54,16 @@ namespace Beep.ECS
         public void ApplyKnockback(Vector2 fromPosition)
         {
             if (_body == null || !IsActive) return;
+            if (!IsFinite(fromPosition) || !IsFinite(_body.GlobalPosition)) return;
             Vector2 dir = (_body.GlobalPosition - fromPosition).Normalized();
-            Vector2 newKnockback = dir * Strength;
+            float strength = EffectiveStrength;
+            if (strength <= 0f) return;
+            Vector2 newKnockback = dir * strength;
 
             _knockbackVelocity += newKnockback;
-            _knockbackVelocity = _knockbackVelocity.LimitLength(MaxKnockbackMagnitude);
-            _remaining = Duration;
-            EmitSignal(SignalName.KnockedBack, dir, Strength);
+            _knockbackVelocity = _knockbackVelocity.LimitLength(EffectiveMaxKnockbackMagnitude);
+            _remaining = EffectiveDuration;
+            EmitSignal(SignalName.KnockedBack, dir, strength);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -64,9 +71,11 @@ namespace Beep.ECS
             // !IsActive included so a knockback in flight stops when the component is deactivated,
             // rather than continuing to drive the body. (Instant-set controllers like ShooterController
             // that write Velocity = input*speed each frame overwrite the impulse — a known limitation.)
-            if (_body == null || _remaining <= 0 || !IsActive) return;
-            _remaining -= (float)delta;
-            _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, Friction * (float)delta);
+            if (Engine.IsEditorHint() || _body == null || _remaining <= 0 || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            _remaining -= dt;
+            if (!IsFinite(_knockbackVelocity)) _knockbackVelocity = Vector2.Zero;
+            _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
 
             if (_ownsIntegration)
             {
@@ -82,5 +91,9 @@ namespace Beep.ECS
                 _body.Velocity += _knockbackVelocity;
             }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

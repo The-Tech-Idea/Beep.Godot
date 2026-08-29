@@ -39,7 +39,7 @@ namespace Beep.ECS.UI
 
         /// <summary>Populate <see cref="Targets"/>: the parent alone, or the parent
         /// plus all descendant Controls (Buttons only if ButtonsOnly).</summary>
-        protected void ResolveTargets()
+        protected virtual void ResolveTargets()
         {
             Targets.Clear();
             if (GetParent() is not Godot.Control parent)

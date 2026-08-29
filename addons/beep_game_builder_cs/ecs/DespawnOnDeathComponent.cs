@@ -20,6 +20,7 @@ namespace Beep.ECS
     {
         /// <summary>Seconds to wait after death before freeing the body (0 = next idle frame).</summary>
         [Export] public float DespawnDelay { get; set; } = 0f;
+        public float EffectiveDespawnDelay => NonNegativeFinite(DespawnDelay);
 
         [Signal] public delegate void DespawnedEventHandler();
 
@@ -45,7 +46,8 @@ namespace Beep.ECS
             if (body == null || !GodotObject.IsInstanceValid(body)) return;
 
             EmitSignal(SignalName.Despawned);
-            if (DespawnDelay <= 0f)
+            float delay = EffectiveDespawnDelay;
+            if (delay <= 0f)
             {
                 body.QueueFree();
                 return;
@@ -53,7 +55,7 @@ namespace Beep.ECS
             // Delay via a SceneTreeTimer so the wait survives this component being freed with the body.
             var tree = GetTree();
             if (tree == null) { body.QueueFree(); return; }
-            var timer = tree.CreateTimer(DespawnDelay);
+            var timer = tree.CreateTimer(delay);
             timer.Timeout += () => { if (GodotObject.IsInstanceValid(body)) body.QueueFree(); };
         }
 
@@ -63,5 +65,8 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Died -= OnDied;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

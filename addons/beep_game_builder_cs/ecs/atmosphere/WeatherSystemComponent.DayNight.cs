@@ -116,7 +116,7 @@ namespace Beep.ECS
             WeatherType.Fog => 30.0,
             WeatherType.Sandstorm => 25.0,
             WeatherType.Clear => 40.0,
-            _ => CycleInterval * 0.5
+            _ => EffectiveCycleInterval * 0.5
         };
 
         /// <summary>Max duration (seconds) for a weather type under AutoCycle.</summary>
@@ -126,7 +126,7 @@ namespace Beep.ECS
             WeatherType.Fog => 120.0,
             WeatherType.Sandstorm => 80.0,
             WeatherType.Clear => 180.0,
-            _ => CycleInterval * 1.5
+            _ => EffectiveCycleInterval * 1.5
         };
     }
 }

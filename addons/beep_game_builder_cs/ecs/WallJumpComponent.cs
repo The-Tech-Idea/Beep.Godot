@@ -30,6 +30,13 @@ namespace Beep.ECS
         [Signal] public delegate void WallSlideStartedEventHandler(int wallDirection);
         [Signal] public delegate void WallJumpedEventHandler(int wallDirection);
 
+        public float EffectiveRayDistance => NonNegative(RayDistance);
+        public float EffectiveWallSlideSpeed => NonNegative(WallSlideSpeed);
+        public float EffectiveWallStickTime => NonNegative(WallStickTime);
+        public float EffectiveWallJumpForceX => NonNegative(WallJumpForceX);
+        public float EffectiveWallJumpForceY => float.IsFinite(WallJumpForceY) ? -Mathf.Abs(WallJumpForceY) : -400f;
+        public float EffectiveWallJumpLockTime => NonNegative(WallJumpLockTime);
+
         private CharacterBody2D? _body;
         private RayCast2D? _leftRay;
         private RayCast2D? _rightRay;
@@ -71,7 +78,7 @@ namespace Beep.ECS
                 _leftRay = new RayCast2D
                 {
                     Name = "WallRayLeft",
-                    TargetPosition = new Vector2(-RayDistance, 0),
+                    TargetPosition = new Vector2(-EffectiveRayDistance, 0),
                     CollisionMask = CollisionMask
                 };
                 _body.AddChild(_leftRay);
@@ -83,7 +90,7 @@ namespace Beep.ECS
                 _rightRay = new RayCast2D
                 {
                     Name = "WallRayRight",
-                    TargetPosition = new Vector2(RayDistance, 0),
+                    TargetPosition = new Vector2(EffectiveRayDistance, 0),
                     CollisionMask = CollisionMask
                 };
                 _body.AddChild(_rightRay);
@@ -106,9 +113,15 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun")) return;   // stunned: no wall-slide/jump
-            float dt = (float)delta;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            {
+                _isWallSliding = false;
+                _stickTimer = 0f;
+                return;
+            }
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             _lockTimer = Mathf.Max(0, _lockTimer - dt);
 
@@ -129,8 +142,8 @@ namespace Beep.ECS
                     EmitSignal(SignalName.WallSlideStarted, _wallDirection);
                 }
                 // Clamp fall speed.
-                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Min(_body.Velocity.Y, WallSlideSpeed));
-                _stickTimer = WallStickTime;
+                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Min(_body.Velocity.Y, EffectiveWallSlideSpeed));
+                _stickTimer = EffectiveWallStickTime;
             }
             else if (_isWallSliding)
             {
@@ -143,11 +156,15 @@ namespace Beep.ECS
             // per-frame error before the input map is generated.
             if (_isWallSliding && InputActionsAvailable("jump") && Input.IsActionJustPressed("jump"))
             {
-                _body.Velocity = new Vector2(-_wallDirection * WallJumpForceX, WallJumpForceY);
+                _body.Velocity = new Vector2(-_wallDirection * EffectiveWallJumpForceX, EffectiveWallJumpForceY);
                 _isWallSliding = false;
-                _lockTimer = WallJumpLockTime; // prevent immediate re-stick
+                _lockTimer = EffectiveWallJumpLockTime; // prevent immediate re-stick
                 EmitSignal(SignalName.WallJumped, _wallDirection);
             }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

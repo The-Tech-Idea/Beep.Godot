@@ -245,7 +245,7 @@ void fragment(){
             mat.SetShaderParameter("use_cloud_tex", use);
             if (!use) return;
 
-            mat.SetShaderParameter("tex_scale", CloudTextureScale);
+            mat.SetShaderParameter("tex_scale", EffectiveCloudTextureScale);
             if (textureChanged && CloudTexture != null)
                 mat.SetShaderParameter("cloud_tex", CloudTexture);
         }
@@ -450,13 +450,15 @@ void fragment(){
             if (WindForce != Vector2.Zero)
                 _windDirectionRad = Mathf.Atan2(WindForce.Y, Mathf.Abs(WindForce.X) + 0.0001f);
 
-            _cloudScroll += (float)delta;
-            float targetCoverage = CloudCoverageAutoDriven ? GetCloudCoverageFor(CurrentWeather) : CloudCoverage;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            _cloudScroll += dt;
+            float targetCoverage = CloudCoverageAutoDriven ? GetCloudCoverageFor(CurrentWeather) : EffectiveCloudCoverage;
 
             // Ease the visible coverage toward the target so clouds form/dissolve
             // smoothly rather than popping in when weather changes.
-            _cloudAlphaCurrent = Mathf.Lerp(_cloudAlphaCurrent, targetCoverage, (float)delta * 0.6f);
-            _cloudShadowAlphaCurrent = Mathf.Lerp(_cloudShadowAlphaCurrent, targetCoverage, (float)delta * 0.6f);
+            float ease = Mathf.Clamp(dt * 0.6f, 0f, 1f);
+            _cloudAlphaCurrent = Mathf.Lerp(_cloudAlphaCurrent, targetCoverage, ease);
+            _cloudShadowAlphaCurrent = Mathf.Lerp(_cloudShadowAlphaCurrent, targetCoverage, ease);
 
             // Skip the fullscreen 5-octave FBM cloud fragment shader entirely when nothing shows
             // (Clear weather) — a visible ColorRect with a material runs its fragment every frame
@@ -483,7 +485,7 @@ void fragment(){
                         ? new Vector2(WindForce.X, IsTopDownLike(view) ? WindForce.Y : 0f)
                         : PrevailingWind;
                     _spriteClouds.DriftSpeed = Mathf.Lerp(10f, 46f,
-                        Mathf.Clamp(WindForce.Length() / Mathf.Max(0.01f, MaxWindMagnitude), 0f, 1f));
+                        Mathf.Clamp(WindForce.Length() / Mathf.Max(0.01f, EffectiveMaxWindMagnitude), 0f, 1f));
                 }
             }
             if (_cloudShadowOverlay != null)
@@ -502,9 +504,9 @@ void fragment(){
                 _cloudMat.SetShaderParameter("wind_dir", _windDirectionRad);
                 BindNoise(_cloudMat);
                 _cloudMat.SetShaderParameter("coverage", _cloudAlphaCurrent);
-                _cloudMat.SetShaderParameter("speed", CloudDriftSpeed);
+                _cloudMat.SetShaderParameter("speed", EffectiveCloudDriftSpeed);
                 _cloudMat.SetShaderParameter("cloud_col", CloudColor);
-                _cloudMat.SetShaderParameter("world_offset", cameraOffset * CloudParallax);
+                _cloudMat.SetShaderParameter("world_offset", cameraOffset * EffectiveCloudParallax);
                 ApplyCloudTexture(_cloudMat, useCloudTex, cloudTexChanged);
             }
             if (_cloudShadowMat != null)
@@ -513,9 +515,9 @@ void fragment(){
                 _cloudShadowMat.SetShaderParameter("wind_dir", _windDirectionRad);
                 BindNoise(_cloudShadowMat);
                 _cloudShadowMat.SetShaderParameter("coverage", _cloudShadowAlphaCurrent);
-                _cloudShadowMat.SetShaderParameter("speed", CloudDriftSpeed);
+                _cloudShadowMat.SetShaderParameter("speed", EffectiveCloudDriftSpeed);
                 _cloudShadowMat.SetShaderParameter("shadow_col", CloudShadowColor);
-                _cloudShadowMat.SetShaderParameter("world_offset", cameraOffset * CloudShadowParallax);
+                _cloudShadowMat.SetShaderParameter("world_offset", cameraOffset * EffectiveCloudShadowParallax);
                 ApplyCloudTexture(_cloudShadowMat, useCloudTex, cloudTexChanged);
             }
 
@@ -546,7 +548,7 @@ void fragment(){
                     _ => 1.35f,
                 };
                 _cloudShadowOverlay.Modulate = new Color(
-                    1, 1, 1, _cloudShadowAlphaCurrent * CloudShadowStrength * shadowMul);
+                    1, 1, 1, _cloudShadowAlphaCurrent * EffectiveCloudShadowStrength * shadowMul);
             }
         }
 

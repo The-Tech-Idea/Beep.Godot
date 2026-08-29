@@ -31,6 +31,12 @@ namespace Beep.ECS
         private double _cooldown;
         private ObjectPoolComponent? _pool;
 
+        public float EffectiveFireRate => Mathf.Max(0.01f, float.IsFinite(FireRate) ? FireRate : 1f);
+        public float EffectiveProjectileDamage => NonNegative(ProjectileDamage);
+        public float EffectiveProjectileSpeed => NonNegative(ProjectileSpeed);
+        public float EffectiveRange => NonNegative(Range);
+        public float EffectiveRotationSpeed => NonNegative(RotationSpeed);
+
         public override void _Ready()
         {
             base._Ready();
@@ -57,12 +63,20 @@ namespace Beep.ECS
             AcquireTarget();
             if (_target == null || !GodotObject.IsInstanceValid(_target)) return;
 
-            float dist = _turret.GlobalPosition.DistanceTo(_target.GlobalPosition);
-            if (dist > Range) return;
+            Vector2 turretPosition = IsFinite(_turret.GlobalPosition) ? _turret.GlobalPosition : Vector2.Zero;
+            Vector2 targetPosition = IsFinite(_target.GlobalPosition) ? _target.GlobalPosition : turretPosition;
+            float dist = turretPosition.DistanceTo(targetPosition);
+            if (!float.IsFinite(dist) || dist > EffectiveRange) return;
 
             // Aim.
-            float targetAngle = (_target.GlobalPosition - _turret.GlobalPosition).Angle();
-            _turret.Rotation = Mathf.LerpAngle(_turret.Rotation, targetAngle, RotationSpeed * (float)delta);
+            float dt = DeltaSeconds(delta);
+            Vector2 aim = targetPosition - turretPosition;
+            if (aim.LengthSquared() > 0.0001f)
+            {
+                float targetAngle = aim.Angle();
+                float rotation = float.IsFinite(_turret.Rotation) ? _turret.Rotation : targetAngle;
+                _turret.Rotation = Mathf.LerpAngle(rotation, targetAngle, Mathf.Clamp(EffectiveRotationSpeed * dt, 0f, 1f));
+            }
 
             // LOS check.
             if (RequireLineOfSight)
@@ -71,16 +85,16 @@ namespace Beep.ECS
                 var exclude = new Godot.Collections.Array<Rid>();
                 if (_turret is CollisionObject2D co) exclude.Add(co.GetRid());
                 var query = PhysicsRayQueryParameters2D.Create(
-                    _turret.GlobalPosition, _target.GlobalPosition, CollisionMask, exclude);
+                    turretPosition, targetPosition, CollisionMask, exclude);
                 var hit = space.IntersectRay(query);
                 if (hit.Count > 0 && hit["collider"].AsGodotObject() != _target) return;
             }
 
             // Fire.
-            _cooldown -= delta;
+            _cooldown = System.Math.Max(0.0, (double.IsFinite(_cooldown) ? _cooldown : 0.0) - dt);
             if (_cooldown <= 0)
             {
-                _cooldown = 1.0 / FireRate;
+                _cooldown = 1.0 / EffectiveFireRate;
                 Fire();
             }
         }
@@ -89,15 +103,19 @@ namespace Beep.ECS
         {
             if (_turret == null || !GodotObject.IsInstanceValid(_turret)) return;
             if (_target != null && GodotObject.IsInstanceValid(_target) &&
-                _turret.GlobalPosition.DistanceTo(_target.GlobalPosition) <= Range) return;
+                IsFinite(_turret.GlobalPosition) &&
+                IsFinite(_target.GlobalPosition) &&
+                _turret.GlobalPosition.DistanceTo(_target.GlobalPosition) <= EffectiveRange) return;
 
             _target = null;
+            Vector2 turretPosition = IsFinite(_turret.GlobalPosition) ? _turret.GlobalPosition : Vector2.Zero;
             foreach (var n in GetTree().GetNodesInGroup(TargetGroup))
             {
                 if (n is Node2D candidate && GodotObject.IsInstanceValid(candidate))
                 {
-                    float d = _turret!.GlobalPosition.DistanceTo(candidate.GlobalPosition);
-                    if (d <= Range)
+                    Vector2 candidatePosition = IsFinite(candidate.GlobalPosition) ? candidate.GlobalPosition : turretPosition;
+                    float d = turretPosition.DistanceTo(candidatePosition);
+                    if (float.IsFinite(d) && d <= EffectiveRange)
                     {
                         _target = candidate;
                         return; // first in range
@@ -109,7 +127,9 @@ namespace Beep.ECS
         private void Fire()
         {
             if (ProjectileScene == null || _turret == null || !GodotObject.IsInstanceValid(_turret)) return;
-            Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _turret.GlobalPosition;
+            Vector2 muzzlePos = _muzzle != null && IsFinite(_muzzle.GlobalPosition)
+                ? _muzzle.GlobalPosition
+                : IsFinite(_turret.GlobalPosition) ? _turret.GlobalPosition : Vector2.Zero;
             Vector2 dir = Vector2.FromAngle(_turret.Rotation);
 
             Node proj = _pool?.Get() ?? ProjectileScene.Instantiate();
@@ -130,11 +150,20 @@ namespace Beep.ECS
                 var projComp = EntityComponent.FindComponent<ProjectileComponent>(n2d, false);
                 if (projComp != null)
                 {
-                    projComp.Damage = ProjectileDamage;
-                    projComp.Speed = ProjectileSpeed;
+                    projComp.Damage = EffectiveProjectileDamage;
+                    projComp.Speed = EffectiveProjectileSpeed;
                     projComp.Launch(dir);
                 }
             }
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

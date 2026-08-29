@@ -52,13 +52,19 @@ namespace Beep.ECS.UI.Kit
             Delta,
         }
 
-        [Export] public ChipKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateMinimumSize(); QueueRedraw(); } }
+        [Export] public ChipKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; RefreshMinimumAndRedraw(); } }
         private ChipKind _kind = ChipKind.Rarity;
 
-        [Export] public string Text { get => _text; set { _text = value ?? ""; QueueRedraw(); } }
+        [Export] public string Text { get => _text; set { string next = value ?? ""; if (_text == next) return; _text = next; RefreshMinimumAndRedraw(); } }
         private string _text = "NEW";
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Danger;
+        [Export]
+        public UiSurface.Role Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _role = UiSurface.Role.Danger;
 
         /// <summary>True for a tick, false for a cross. Only used by <see cref="ChipKind.Status"/>.</summary>
         /// <summary>
@@ -66,29 +72,75 @@ namespace Beep.ECS.UI.Kit
         /// Its SIGN drives the colour, not <see cref="Role"/> -- "+3 armour" is good and "-3" is
         /// not, whatever palette role the caller had in mind.
         /// </summary>
-        [Export] public float Delta { get => _delta; set { _delta = value; QueueRedraw(); } }
+        [Export] public float Delta { get => _delta; set { if (Mathf.IsEqualApprox(_delta, value)) return; _delta = value; RefreshMinimumAndRedraw(); } }
         private float _delta = 3f;
 
-        [Export] public bool Positive { get; set; } = true;
+        [Export]
+        public bool Positive
+        {
+            get => _positive;
+            set { if (_positive == value) return; _positive = value; RefreshVisualAndRedraw(); }
+        }
+        private bool _positive = true;
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
+            float h = fs * 1.3f;
             return _kind switch
             {
                 ChipKind.Dot => new Vector2(fs * 0.7f, fs * 0.7f),
                 ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
-                ChipKind.Count => new Vector2(fs * 1.6f, fs * 1.25f),
-                ChipKind.Delta => new Vector2(fs * 2.6f, fs * 1.3f),
-                _ => new Vector2(fs * 3.6f, fs * 1.3f),
+                ChipKind.Count => CountNaturalSize(fs),
+                ChipKind.Delta => new Vector2(Mathf.Max(fs * 2.6f, TextWidth(DeltaText(), UiSurface.TextRole.Small) + fs * 2.1f), h),
+                _ => new Vector2(Mathf.Max(fs * 3.6f, TextWidth(_text, UiSurface.TextRole.Small) + fs * 1.5f), h),
             };
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private float TextWidth(string text, UiSurface.TextRole role)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            Font? font = KitFont();
+            int fs = UiSurface.FontSize(this, role);
+            string draw = KitCase(text);
+            return font?.GetStringSize(draw, HorizontalAlignment.Left, -1, fs).X ?? draw.Length * fs * 0.56f;
+        }
+
+        private string DeltaText() => (_delta >= 0f ? "+" : "") + _delta.ToString("0.##");
+
+        private Vector2 CountNaturalSize(int fs)
+        {
+            float h = Mathf.Max(fs * 1.62f, 22f);
+            return new Vector2(Mathf.Max(h, TextWidth(_text, UiSurface.TextRole.Small) + fs * 0.95f), h);
+        }
+
+        private Rect2 CountBubbleRect(Rect2 bounds, Font? font, int fs)
+        {
+            float h = Mathf.Min(bounds.Size.Y, Mathf.Max(fs * 1.62f, 22f));
+            string text = KitCase(_text);
+            float textWidth = font?.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X
+                           ?? text.Length * fs * 0.56f;
+            float w = Mathf.Min(bounds.Size.X, Mathf.Max(h, textWidth + fs * 0.95f));
+            return new Rect2(bounds.Position + (bounds.Size - new Vector2(w, h)) * 0.5f,
+                             new Vector2(w, h));
         }
 
         private KitShape ShapeFor() => _kind switch
@@ -113,6 +165,8 @@ namespace Beep.ECS.UI.Kit
             var font = KitFont();
             int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
             float rimPx = Mathf.Max(1.5f, Geo.Rim * 0.7f * (fs / 14f));
+            if (_kind == ChipKind.Count)
+                r = CountBubbleRect(r, font, fs);
 
             DrawShape(r, ShapeFor(), fill, ink, rimPx);
 
@@ -134,9 +188,12 @@ namespace Beep.ECS.UI.Kit
                 // carrying a glyph for it -- the pixel and blackletter faces do not.
                 DrawArrow(r, on, _delta >= 0f);
                 if (font == null) return;
-                string txt = (_delta >= 0f ? "+" : "") + _delta.ToString("0.##");
-                int dfs = UiSurface.FitText(this, new Vector2(r.Size.X * 0.58f, r.Size.Y * 0.86f),
+                string txt = DeltaText();
+                float deltaTextWidth = Mathf.Max(1f, r.Size.X * 0.58f);
+                int dfs = UiSurface.FitText(this, new Vector2(deltaTextWidth, r.Size.Y * 0.86f),
                                             0.66f, txt, font, min: 7, themeMax: 0.82f);
+                txt = KitChrome.EllipsizeText(font, txt, dfs, deltaTextWidth);
+                if (string.IsNullOrEmpty(txt)) return;
                 Vector2 dm = font.GetStringSize(txt, HorizontalAlignment.Left, -1, dfs);
                 DrawText(font, new Vector2(r.Position.X + r.Size.X * 0.60f - dm.X * 0.5f,
                                            r.Position.Y + (r.Size.Y + dm.Y * 0.6f) * 0.5f),
@@ -145,10 +202,14 @@ namespace Beep.ECS.UI.Kit
             }
 
             if (font == null || string.IsNullOrEmpty(_text)) return;
-            int size = UiSurface.FitText(this, r.Size * 0.82f, 0.66f, _text, font, min: 7, themeMax: 0.85f);
-            Vector2 m = font.GetStringSize(_text, HorizontalAlignment.Left, -1, size);
+            float textWidth = Mathf.Max(1f, r.Size.X * 0.82f);
+            string text = KitCase(_text);
+            int size = UiSurface.FitText(this, new Vector2(textWidth, r.Size.Y * 0.82f), 0.66f, text, font, min: 7, themeMax: 0.85f);
+            text = KitChrome.EllipsizeText(font, text, size, textWidth);
+            if (string.IsNullOrEmpty(text)) return;
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
             DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
-                       _text, size, on);
+                       text, size, on);
         }
 
         /// <summary>The delta's arrow, on the chip's left third.</summary>

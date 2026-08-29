@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -43,6 +44,15 @@ namespace Beep.ECS
         /// <summary>Units lost per turn when food runs out. Starvation has to bite, or a food
         /// shortage is just a number that stops going up.</summary>
         [Export] public int StarvationLossPerTurn { get; set; } = 1;
+        public int EffectiveStartingGold => Mathf.Max(0, StartingGold);
+        public int EffectiveStartingFood => Mathf.Max(0, StartingFood);
+        public int EffectiveStartingWood => Mathf.Max(0, StartingWood);
+        public int EffectiveGoldPerTurn => Mathf.Max(0, GoldPerTurn);
+        public int EffectiveFoodPerTurn => Mathf.Max(0, FoodPerTurn);
+        public int EffectiveWoodPerTurn => Mathf.Max(0, WoodPerTurn);
+        public int EffectiveGoldUpkeepPerUnit => Mathf.Max(0, GoldUpkeepPerUnit);
+        public int EffectiveFoodPerUnit => Mathf.Max(0, FoodPerUnit);
+        public int EffectiveStarvationLossPerTurn => Mathf.Max(0, StarvationLossPerTurn);
 
         // ── State ─────────────────────────────────────────────────────────────────────────
         public int Turn { get; private set; } = 1;
@@ -53,15 +63,15 @@ namespace Beep.ECS
 
         /// <summary>Net per-turn change, derived from the roster. Shown as the delta beside each
         /// resource — a stockpile alone does not tell a player whether it is sustainable.</summary>
-        public int GoldDelta => GoldPerTurn - Units * GoldUpkeepPerUnit;
-        public int FoodDelta => FoodPerTurn - Units * FoodPerUnit;
-        public int WoodDelta => WoodPerTurn;
+        public int GoldDelta => EffectiveGoldPerTurn - Units * EffectiveGoldUpkeepPerUnit;
+        public int FoodDelta => EffectiveFoodPerTurn - Units * EffectiveFoodPerUnit;
+        public int WoodDelta => EffectiveWoodPerTurn;
 
         public bool IsStarving => FoodDelta < 0 && Food <= 0;
         public bool IsBankrupt => GoldDelta < 0 && Gold <= 0;
 
         /// <summary>Units the current food yield can sustain indefinitely.</summary>
-        public int SustainableUnits => FoodPerUnit <= 0 ? int.MaxValue : FoodPerTurn / FoodPerUnit;
+        public int SustainableUnits => EffectiveFoodPerUnit <= 0 ? int.MaxValue : EffectiveFoodPerTurn / EffectiveFoodPerUnit;
 
         [Signal] public delegate void EmpireChangedEventHandler();
         [Signal] public delegate void TurnAdvancedEventHandler(int turn);
@@ -70,9 +80,9 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            Gold = StartingGold;
-            Food = StartingFood;
-            Wood = StartingWood;
+            Gold = EffectiveStartingGold;
+            Food = EffectiveStartingFood;
+            Wood = EffectiveStartingWood;
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
 
@@ -92,8 +102,9 @@ namespace Beep.ECS
                 // Starve rather than bank a negative. Units are lost until the deficit is
                 // covered, so the shortage resolves itself the way a player would expect.
                 Food = 0;
-                int lost = Mathf.Max(StarvationLossPerTurn,
-                                     FoodPerUnit <= 0 ? 0 : Mathf.CeilToInt(-food / (float)FoodPerUnit));
+                int foodPerUnit = EffectiveFoodPerUnit;
+                int lost = Mathf.Max(EffectiveStarvationLossPerTurn,
+                                     foodPerUnit <= 0 ? 0 : Mathf.CeilToInt(-food / (float)foodPerUnit));
                 lost = Mathf.Min(lost, Units);
                 if (lost > 0)
                 {
@@ -120,23 +131,26 @@ namespace Beep.ECS
 
         /// <summary>Can the empire pay this cost right now?</summary>
         public bool CanAfford(int gold, int food = 0, int wood = 0)
-            => Gold >= gold && Food >= food && Wood >= wood;
+            => Gold >= Cost(gold) && Food >= Cost(food) && Wood >= Cost(wood);
 
         /// <summary>Spend resources. Returns false and changes NOTHING when short, so a caller
         /// cannot half-pay for a unit it does not get.</summary>
         public bool Spend(int gold, int food = 0, int wood = 0)
         {
-            if (!CanAfford(gold, food, wood)) return false;
-            Gold -= gold; Food -= food; Wood -= wood;
+            int goldCost = Cost(gold);
+            int foodCost = Cost(food);
+            int woodCost = Cost(wood);
+            if (!CanAfford(goldCost, foodCost, woodCost)) return false;
+            Gold -= goldCost; Food -= foodCost; Wood -= woodCost;
             EmitSignal(SignalName.EmpireChanged);
             return true;
         }
 
         public void Grant(int gold, int food = 0, int wood = 0)
         {
-            Gold = Mathf.Max(0, Gold + gold);
-            Food = Mathf.Max(0, Food + food);
-            Wood = Mathf.Max(0, Wood + wood);
+            Gold = Mathf.Max(0, Gold + Cost(gold));
+            Food = Mathf.Max(0, Food + Cost(food));
+            Wood = Mathf.Max(0, Wood + Cost(wood));
             EmitSignal(SignalName.EmpireChanged);
         }
 
@@ -144,11 +158,12 @@ namespace Beep.ECS
         /// yield can sustain — the moment growth becomes a liability.</summary>
         public bool Recruit(int count, int goldCost, int foodCost = 0, int woodCost = 0)
         {
-            if (count <= 0 || !Spend(goldCost, foodCost, woodCost)) return false;
-            Units += count;
+            int recruitCount = Mathf.Max(0, count);
+            if (recruitCount <= 0 || !Spend(goldCost, foodCost, woodCost)) return false;
+            Units += recruitCount;
             if (Units > SustainableUnits)
                 EmitSignal(SignalName.EmpireAlert, "warning",
-                           $"{Units} units exceed what {FoodPerTurn} food/turn sustains");
+                           $"{Units} units exceed what {EffectiveFoodPerTurn} food/turn sustains");
             EmitSignal(SignalName.EmpireChanged);
             return true;
         }
@@ -164,7 +179,7 @@ namespace Beep.ECS
         public void RestartEmpire()
         {
             Turn = 1; Units = 0;
-            Gold = StartingGold; Food = StartingFood; Wood = StartingWood;
+            Gold = EffectiveStartingGold; Food = EffectiveStartingFood; Wood = EffectiveStartingWood;
             EmitSignal(SignalName.TurnAdvanced, Turn);
             EmitSignal(SignalName.EmpireChanged);
         }
@@ -190,13 +205,35 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KTurn, out var t)) Turn = Mathf.Max(1, t.AsInt32());
-            if (d.TryGetValue(KGold, out var g)) Gold = Mathf.Max(0, g.AsInt32());
-            if (d.TryGetValue(KFood, out var f)) Food = Mathf.Max(0, f.AsInt32());
-            if (d.TryGetValue(KWood, out var w)) Wood = Mathf.Max(0, w.AsInt32());
-            if (d.TryGetValue(KUnits, out var u)) Units = Mathf.Max(0, u.AsInt32());
+            if (d.TryGetValue(KTurn, out var t)) Turn = Mathf.Max(1, ReadInt(t, Turn));
+            if (d.TryGetValue(KGold, out var g)) Gold = Mathf.Max(0, ReadInt(g, Gold));
+            if (d.TryGetValue(KFood, out var f)) Food = Mathf.Max(0, ReadInt(f, Food));
+            if (d.TryGetValue(KWood, out var w)) Wood = Mathf.Max(0, ReadInt(w, Wood));
+            if (d.TryGetValue(KUnits, out var u)) Units = Mathf.Max(0, ReadInt(u, Units));
             EmitSignal(SignalName.TurnAdvanced, Turn);
             EmitSignal(SignalName.EmpireChanged);
+        }
+
+        private static int Cost(int value) => Mathf.Max(0, value);
+
+        private static int ReadInt(Variant value, int fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Int:
+                    return value.AsInt32();
+                case Variant.Type.Float:
+                {
+                    double raw = value.AsDouble();
+                    return double.IsFinite(raw) ? Mathf.RoundToInt((float)raw) : fallback;
+                }
+                case Variant.Type.String:
+                    return int.TryParse(value.AsString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+                        ? parsed
+                        : fallback;
+                default:
+                    return fallback;
+            }
         }
     }
 }

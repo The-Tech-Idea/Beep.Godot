@@ -13,6 +13,7 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class HudCollapseComponent : UIComponent
     {
+        [Export] public bool AutoAttachPanels { get; set; } = false;
         [Export] public bool IncludeNestedPanels { get; set; } = false;
         [Export] public bool IncludeSelfDrawingWidgets { get; set; } = true;
         [Export] public Godot.Collections.Array<string> ExcludedNames { get; set; } = new()
@@ -31,6 +32,7 @@ namespace Beep.ECS.UI
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
+            if (!AutoAttachPanels) return;
             CallDeferred(nameof(Setup));
         }
 
@@ -90,6 +92,7 @@ namespace Beep.ECS.UI
                 Title = Pretty(control.Name.ToString()),
                 ParticipatesInSave = true,
                 SaveKey = control.GetPath().ToString().Replace("/", "."),
+                GenerateControlsWhenPathsEmpty = true,
             };
             control.AddChild(collapse);
         }

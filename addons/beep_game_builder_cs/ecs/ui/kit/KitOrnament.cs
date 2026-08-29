@@ -20,26 +20,43 @@ namespace Beep.ECS.UI.Kit
     {
         public enum OrnamentKind { Crown, Wings, Laurel, Trophy, Starburst, RibbonTail }
 
-        [Export] public OrnamentKind Kind { get => _kind; set { _kind = value; QueueRedraw(); } }
+        [Export] public OrnamentKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; RefreshVisualAndRedraw(); } }
         private OrnamentKind _kind = OrnamentKind.Crown;
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
+        [Export] public UiSurface.Role Role { get => _role; set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); } }
+        private UiSurface.Role _role = UiSurface.Role.Warning;
 
-        [Export(PropertyHint.Range, "0.35,1.0,0.05")] public float OrnamentScale { get; set; } = 0.62f;
+        [Export(PropertyHint.Range, "0.35,1.0,0.05")]
+        public float OrnamentScale
+        {
+            get => _ornamentScale;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.35f, 1f);
+                if (Mathf.IsEqualApprox(_ornamentScale, next)) return;
+                _ornamentScale = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _ornamentScale = 0.62f;
 
         public override void _Ready()
         {
             base._Ready();
             // Inert by construction, not by the scene remembering to set it.
-            MouseFilter = MouseFilterEnum.Ignore;
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            ApplyInputDefaults(MouseFilterEnum.Ignore);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             return new Vector2(fs * 2.1f, fs * 1.35f);
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override void _Draw()

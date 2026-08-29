@@ -46,6 +46,10 @@ namespace Beep.ECS
 
         private readonly List<Node2D> _inside = new();
         private float _tickTimer;
+        public float EffectiveDamage => NonNegative(Damage);
+        public float EffectiveTickInterval => float.IsFinite(TickInterval) ? Mathf.Max(0.01f, TickInterval) : 0.01f;
+        public float EffectiveHazardHeight => float.IsFinite(HazardHeight) ? HazardHeight : 0f;
+        public float EffectiveHazardHalfThickness => NonNegative(HazardHalfThickness);
 
         protected override void OnBodyEntered(Node2D body)
         {
@@ -58,8 +62,9 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive || DamageOnce || _inside.Count == 0) return;
-            _tickTimer += (float)delta;
-            if (_tickTimer < TickInterval) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            _tickTimer += dt;
+            if (_tickTimer < EffectiveTickInterval) return;
             _tickTimer = 0f;
             // Iterate a copy backwards: a hit can free the body (Died → QueueFree), and OnBodyExited
             // removes it — mutating the list mid-iteration.
@@ -74,11 +79,13 @@ namespace Beep.ECS
         private void Hit(Node2D body)
         {
             if (!IsActive) return;
+            float amount = EffectiveDamage;
+            if (amount <= 0f) return;
             if (!HeightGatePasses(body)) return;
             var health = EntityComponent.FindComponent<HealthComponent>(body, false);
             if (health == null) return;   // a body with no health simply isn't hurt by the hazard
-            health.TakeDamage(new GameDamage(Damage, DamageType, TriggerArea));
-            EmitSignal(SignalName.HazardHit, body, Damage);
+            health.TakeDamage(new GameDamage(amount, DamageType, TriggerArea));
+            EmitSignal(SignalName.HazardHit, body, amount);
         }
 
         /// <summary>2.5D hit gate. With <see cref="RespectHeight"/> on, a body is hit only when its
@@ -90,13 +97,15 @@ namespace Beep.ECS
             if (!RespectHeight) return true;
             // IsGroundHazard picks the default band: ground hazards sit at 0, airborne ones default
             // to a high band when HazardHeight wasn't set above 0. An explicit HazardHeight overrides.
-            float band = HazardHeight;
+            float band = EffectiveHazardHeight;
             if (!IsGroundHazard && band <= 0f) band = 128f;   // a default "in the air" altitude
             var height = EntityComponent.FindComponent<HeightComponent>(body, false);
             if (height == null)
                 // Grounded body: its band is [0 ± 16]. Overlap with the hazard's band decides.
-                return Mathf.Abs(band - 0f) <= HazardHalfThickness + 16f;
-            return height.HeightOverlaps(band, HazardHalfThickness);
+                return Mathf.Abs(band - 0f) <= EffectiveHazardHalfThickness + 16f;
+            return height.HeightOverlaps(band, EffectiveHazardHalfThickness);
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

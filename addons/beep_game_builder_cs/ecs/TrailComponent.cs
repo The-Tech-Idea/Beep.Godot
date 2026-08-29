@@ -15,6 +15,9 @@ namespace Beep.ECS
         [Export] public float Width { get; set; } = 4f;
 
         private Line2D? _line;
+        public int EffectiveMaxPoints => Mathf.Clamp(MaxPoints, 1, 2048);
+        public float EffectiveWidth => float.IsFinite(Width) && Width > 0f ? Width : 1f;
+        public Color EffectiveTrailColor => IsFinite(TrailColor) ? TrailColor : new Color(1, 1, 1, 0.5f);
 
         public override void _Ready()
         {
@@ -36,8 +39,8 @@ namespace Beep.ECS
             _line = new Line2D
             {
                 Name = "TrailLine",
-                Width = Width,
-                DefaultColor = TrailColor,
+                Width = EffectiveWidth,
+                DefaultColor = EffectiveTrailColor,
                 JointMode = Line2D.LineJointMode.Round,
                 BeginCapMode = Line2D.LineCapMode.Round,
                 EndCapMode = Line2D.LineCapMode.Round,
@@ -63,12 +66,13 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (_line == null || GetParent() is not Node2D parent2D || !IsActive) return;
+            if (Engine.IsEditorHint() || _line == null || GetParent() is not Node2D parent2D || !IsActive) return;
+            if (!IsFinite(parent2D.GlobalPosition)) return;
 
             // Record the parent's GLOBAL position (the line is TopLevel/world-space now); Position
             // was the parent's local coord in a different space and moved the whole trail with it.
             var points = new System.Collections.Generic.List<Vector2>(_line.Points) { parent2D.GlobalPosition };
-            if (points.Count > MaxPoints) points.RemoveAt(0);
+            while (points.Count > EffectiveMaxPoints) points.RemoveAt(0);
             _line.Points = points.ToArray();
         }
 
@@ -78,5 +82,11 @@ namespace Beep.ECS
             if (_line != null && GodotObject.IsInstanceValid(_line))
                 _line.QueueFree();
         }
+
+        private static bool IsFinite(Vector2 value)
+            => float.IsFinite(value.X) && float.IsFinite(value.Y);
+
+        private static bool IsFinite(Color value)
+            => float.IsFinite(value.R) && float.IsFinite(value.G) && float.IsFinite(value.B) && float.IsFinite(value.A);
     }
 }

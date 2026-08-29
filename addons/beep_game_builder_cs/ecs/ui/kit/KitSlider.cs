@@ -17,7 +17,21 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitSlider : HSlider
     {
-        [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Accent;
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
+        [Export]
+        public UiSurface.Role Fill
+        {
+            get => _fill;
+            set { if (_fill == value) return; _fill = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _fill = UiSurface.Role.Accent;
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
@@ -26,27 +40,52 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Grab state for the pressed sculpt. Slider emits DragStarted/DragEnded; there
         /// is no public 'is being dragged' getter, so it is tracked here rather than guessed at.</summary>
         private bool _dragging;
+        private bool _eventsHooked;
 
-        public override void _Ready()
+        public KitSlider()
         {
-            _genre = KitChrome.GenreOf(this);
-            // Kept 0..1 so every existing `Value = 0.62f` still means "62%". Range gives real
-            // MinValue/MaxValue/Step to anyone who wants a different domain.
             MinValue = 0.0;
             MaxValue = 1.0;
             Step = 0.001;
+        }
+
+        public override void _Ready()
+        {
+            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
             Suppress();
-            DragStarted += () => { _dragging = true; QueueRedraw(); };
-            DragEnded += _ => { _dragging = false; QueueRedraw(); };
-            ValueChanged += _ => QueueRedraw();
+            if (!_eventsHooked)
+            {
+                DragStarted += () => { _dragging = true; QueueRedraw(); };
+                DragEnded += _ => { _dragging = false; QueueRedraw(); };
+                ValueChanged += _ => QueueRedraw();
+                _eventsHooked = true;
+            }
         }
 
         public override void _Notification(int what)
         {
             base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearDragState();
             if (what != NotificationThemeChanged) return;
             _genre = KitChrome.GenreOf(this);
             Suppress();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            RefreshVisualAndRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private void ClearDragState()
+        {
+            if (!_dragging) return;
+            _dragging = false;
             QueueRedraw();
         }
 
@@ -60,12 +99,11 @@ namespace Beep.ECS.UI.Kit
             if (_suppressing) return;
             _suppressing = true;
             foreach (string sb in new[] { "slider", "grabber_area", "grabber_area_highlight" })
-                AddThemeStyleboxOverride(sb, new StyleBoxEmpty());
+                KitChrome.SetEmptyStyleboxOverride(this, sb);
             foreach (string ic in new[] { "grabber", "grabber_highlight", "grabber_disabled", "tick" })
-                AddThemeIconOverride(ic, KitChrome.Blank);
+                KitChrome.SetBlankIconOverride(this, ic);
             int fs = UiSurface.FontSize(this);
-            CustomMinimumSize = new Vector2(Mathf.Max(CustomMinimumSize.X, fs * 10f),
-                                            Mathf.Max(fs * 1.9f, 22f));
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
             _suppressing = false;
         }
 
@@ -77,13 +115,22 @@ namespace Beep.ECS.UI.Kit
 
         private float KnobW => Mathf.Max(6f, Size.Y * 0.38f);
 
+        private float NormalizedValue()
+        {
+            double span = MaxValue - MinValue;
+            if (span <= 0.000001) return 0f;
+            return Mathf.Clamp((float)((Value - MinValue) / span), 0f, 1f);
+        }
+
         public override void _Draw()
         {
             if (Size.X <= 6 || Size.Y <= 4) return;
 
             var g = Geo;
-            Color fill = UiSurface.Semantic(this, Fill);
-            Color ink = UiSurface.Ink(UiSurface.Of(this));
+            KitState state = Editable ? KitState.Normal : KitState.Disabled;
+            bool dragging = Editable && _dragging;
+            Color fill = KitChrome.StateFace(UiSurface.SemanticOrDerived(this, Fill), state);
+            Color ink = KitChrome.StateFace(UiSurface.Ink(UiSurface.Of(this)), state);
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f * (fs / 14f));
 
@@ -96,7 +143,7 @@ namespace Beep.ECS.UI.Kit
 
             float half = KnobW * 0.5f;
             float span = Mathf.Max(1f, Size.X - KnobW);
-            float kx = half + span * (float)Value;
+            float kx = half + span * NormalizedValue();
 
             for (int i = 1; i < 5; i++)
             {
@@ -117,7 +164,7 @@ namespace Beep.ECS.UI.Kit
             var knob = new Rect2(kx - half, 0f, KnobW, Size.Y);
             // Slider tracks its own grab state, so the pressed sculpt comes from Godot rather
             // than from a KitControl field this class no longer has.
-            Color kc = _dragging
+            Color kc = dragging
                 ? new Color(Mathf.Lerp(fill.R, 1f, 0.28f), Mathf.Lerp(fill.G, 1f, 0.28f),
                             Mathf.Lerp(fill.B, 1f, 0.28f), 1f)   // lightened, SAME hue
                 : fill;
@@ -126,6 +173,7 @@ namespace Beep.ECS.UI.Kit
             DrawLine(new Vector2(knob.Position.X + knob.Size.X * 0.5f, knob.Position.Y + Size.Y * 0.22f),
                      new Vector2(knob.Position.X + knob.Size.X * 0.5f, knob.End.Y - Size.Y * 0.22f),
                      new Color(1, 1, 1, 0.24f), Mathf.Max(1f, rimPx * 0.55f));
+            KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size), KitChrome.Shape(_genre), 0.8f);
         }
     }
 }

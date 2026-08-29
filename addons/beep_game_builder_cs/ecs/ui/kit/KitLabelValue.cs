@@ -36,32 +36,75 @@ namespace Beep.ECS.UI.Kit
         /// references vary independently of the button corner.</summary>
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Chip;
 
-        [Export] public string Label { get => _label; set { _label = value ?? ""; QueueRedraw(); } }
+        [Export] public string Label { get => _label; set { string next = value ?? ""; if (_label == next) return; _label = next; RefreshMinimumAndRedraw(); } }
         private string _label = "ATTACK";
 
-        [Export] public string Value { get => _value; set { _value = value ?? ""; QueueRedraw(); } }
+        [Export] public string Value { get => _value; set { string next = value ?? ""; if (_value == next) return; _value = next; RefreshMinimumAndRedraw(); } }
         private string _value = "7";
 
         /// <summary>Label : value width. 2.0 is the measured proportion; a longer value (a
         /// timestamp, a large number) is the only reason to lower it.</summary>
-        [Export(PropertyHint.Range, "0.5,6.0,0.1")] public float LabelValueRatio { get; set; } = 2f;
+        [Export(PropertyHint.Range, "0.5,6.0,0.1")]
+        public float LabelValueRatio
+        {
+            get => _labelValueRatio;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.5f, 6f);
+                if (Mathf.IsEqualApprox(_labelValueRatio, next)) return;
+                _labelValueRatio = next;
+                RefreshMinimumAndRedraw();
+            }
+        }
+        private float _labelValueRatio = 2f;
 
         /// <summary>Which element carries the palette. The settled rule from five independent
         /// references is that the palette goes on ONE element and the other stays neutral, so
         /// this is a choice of which — not an invitation to colour both.</summary>
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Neutral;
+        [Export]
+        public UiSurface.Role Accent
+        {
+            get => _accent;
+            set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _accent = UiSurface.Role.Neutral;
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            return new Vector2(fs * 9.5f, fs * Mathf.Max(1.7f, Geo.HeightRatio * 0.68f));
+            float h = fs * Mathf.Max(1.7f, Geo.HeightRatio * 0.68f);
+            string label = KitCase(_label);
+            string value = KitCase(_value);
+            float labelW = TextWidth(label, UiSurface.TextRole.Caption) + fs * 1.4f;
+            float valueW = TextWidth(value, UiSurface.TextRole.Value) + fs * 1.2f;
+            float weld = Mathf.Max(1f, 2f * (fs / 14f));
+            return new Vector2(Mathf.Max(fs * 9.5f, labelW + valueW + weld), h);
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private float TextWidth(string text, UiSurface.TextRole role)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            Font? font = KitFont();
+            int fs = UiSurface.FontSize(this, role);
+            return font?.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X ?? text.Length * fs * 0.56f;
         }
 
         public override void _Draw()
@@ -72,7 +115,9 @@ namespace Beep.ECS.UI.Kit
             Color face = FaceColor();
             Color ink = InkColor();
             var font = KitFont();
-            int fs = UiSurface.FitText(this, Size, 0.58f, _label.Length > _value.Length ? _label : _value,
+            string label = KitCase(_label);
+            string value = KitCase(_value);
+            int fs = UiSurface.FitText(this, Size, 0.58f, label.Length > value.Length ? label : value,
                                        font, min: 8, themeMax: 1.0f);
 
             // 2px weld at 14pt, scaled with the type so the joint stays a hairline rather than
@@ -81,42 +126,40 @@ namespace Beep.ECS.UI.Kit
             float valueW = (Size.X - weld) / (LabelValueRatio + 1f);
             float labelW = Size.X - weld - valueW;
 
+            var body = new Rect2(Vector2.Zero, Size);
             var labelRect = new Rect2(0, 0, labelW, Size.Y);
             var valueRect = new Rect2(labelW + weld, 0, valueW, Size.Y);
 
-            // Opposite polarity. The label plate is the dark one (L=0.19 measured) and the value
-            // plate is driven to maximum lightness (L=1.00 measured) — the brightest thing in
-            // the widget, which is what makes the number readable at a glance.
-            Color labelPlate = new Color(face.R * 0.34f, face.G * 0.34f, face.B * 0.36f, face.A);
-            Color valuePlate = Accent == UiSurface.Role.Neutral
-                ? new Color(Mathf.Lerp(face.R, 1f, 0.88f),
-                            Mathf.Lerp(face.G, 1f, 0.88f),
-                            Mathf.Lerp(face.B, 1f, 0.90f), face.A)
+            Color plate = new Color(face.R * 0.34f, face.G * 0.34f, face.B * 0.36f, face.A);
+            Color valueInk = Accent == UiSurface.Role.Neutral
+                ? TextOn(plate)
                 : UiSurface.Semantic(this, Accent);
 
             if (State is KitState.Disabled or KitState.Locked)
             {
                 // Settled rule, seven independent references: unavailable DRAINS SATURATION
                 // rather than dimming. Lightness may even rise.
-                labelPlate = Desaturate(labelPlate);
-                valuePlate = Desaturate(valuePlate);
+                plate = Desaturate(plate);
+                valueInk = Desaturate(valueInk) with { A = 0.72f };
             }
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.5f * (fs / 14f));
-            DrawShape(labelRect, ActiveShape, labelPlate, ink, rimPx);
-            DrawShape(valueRect, ActiveShape, valuePlate, ink, rimPx);
+            DrawShape(body, ActiveShape, plate, ink, rimPx);
+            DrawLine(new Vector2(labelRect.End.X + weld * 0.5f, Size.Y * 0.18f),
+                     new Vector2(labelRect.End.X + weld * 0.5f, Size.Y * 0.82f),
+                     ink with { A = 0.46f },
+                     Mathf.Max(1f, rimPx * 0.55f));
 
             if (font == null) return;
 
-            // Label text reads light on its dark plate; value text reads dark on its light one.
             int labelFs = UiSurface.FitText(this, labelRect.Size - new Vector2(fs * 0.8f, 0f),
-                                            0.58f, _label, font, min: 8, themeMax: 1.0f);
+                                            0.58f, label, font, min: 8, themeMax: 1.0f);
             int valueFs = UiSurface.FitText(this, valueRect.Size * 0.9f,
-                                            0.66f, _value, font, min: 8, themeMax: 1.12f);
+                                            0.66f, value, font, min: 8, themeMax: 1.12f);
 
-            DrawTextIn(font, labelRect, _label, TextOn(labelPlate), labelFs, HorizontalAlignment.Left,
+            DrawTextIn(font, labelRect, label, TextOn(plate), labelFs, HorizontalAlignment.Left,
                        fs * 0.6f);
-            DrawTextIn(font, valueRect, _value, TextOn(valuePlate), valueFs, HorizontalAlignment.Center, 0f);
+            DrawTextIn(font, valueRect, value, valueInk, valueFs, HorizontalAlignment.Center, 0f);
 
             DrawAttachments();
         }
@@ -139,6 +182,11 @@ namespace Beep.ECS.UI.Kit
         private void DrawTextIn(Font font, Rect2 r, string text, Color col, int fs,
                                 HorizontalAlignment align, float padLeft)
         {
+            if (string.IsNullOrEmpty(text)) return;
+            float maxWidth = align == HorizontalAlignment.Center
+                ? r.Size.X * 0.90f
+                : Mathf.Max(1f, r.Size.X - padLeft - fs * 0.30f);
+            text = KitChrome.EllipsizeText(font, text, fs, maxWidth);
             if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             float x = align == HorizontalAlignment.Center

@@ -36,16 +36,19 @@ namespace Beep.ECS
 
         private WeatherSystemComponent? _weather;
 
-        // Refcount of sheltered bodies, not a bool — two bodies inside one roof must keep the
-        // weather sheltered until the LAST leaves, and OnBodyExited does not always fire before a
-        // body is QueueFree'd, so entries are pruned for validity before counting.
+        // Occupants of this one zone. The actual weather bool is aggregated across every
+        // ShelterZoneComponent targeting the same WeatherSystemComponent, so overlapping roofs
+        // do not fight by writing InsideShelter false when only one zone is exited.
         private readonly List<Node2D> _inside = new();
+        private static readonly List<ShelterZoneComponent> LiveZones = new();
 
         public override void _Ready()
         {
             base._Ready();   // wires TriggerArea + body signals; warns if parent is not an Area2D
+            if (Engine.IsEditorHint()) return;
+            if (!LiveZones.Contains(this)) LiveZones.Add(this);
             _weather = ResolveWeatherSystem();
-            if (_weather == null && !Engine.IsEditorHint())
+            if (_weather == null)
                 GD.PushWarning(
                     $"[{Name}] No WeatherSystemComponent found (no 'weather_system' group member, no " +
                     "WeatherSystemPath) — this zone tracks shelter but has nothing to drive. Add a " +
@@ -56,24 +59,44 @@ namespace Beep.ECS
         {
             if (!IsActive || !Watches(body) || _inside.Contains(body)) return;
             _inside.Add(body);
-            ApplyShelter();
+            UpdateWeatherShelter(_weather);
         }
 
         protected override void OnBodyExited(Node2D body)
         {
             if (!_inside.Remove(body)) return;
-            ApplyShelter();
+            UpdateWeatherShelter(_weather);
         }
 
-        /// <summary>Push the current occupancy into the weather system. Pruning freed bodies first
-        /// keeps a QueueFree'd occupant (an enemy that died under the roof) from wedging the
-        /// weather sheltered forever — BodyExited is not guaranteed to run before free.</summary>
-        private void ApplyShelter()
+        /// <summary>Prune freed bodies before counting. BodyExited is not guaranteed to run before
+        /// QueueFree, so stale occupants must not wedge shelter on forever.</summary>
+        private bool HasLiveOccupants()
         {
-            if (_weather == null || !GodotObject.IsInstanceValid(_weather)) return;
             for (int i = _inside.Count - 1; i >= 0; i--)
                 if (!GodotObject.IsInstanceValid(_inside[i])) _inside.RemoveAt(i);
-            _weather.InsideShelter = _inside.Count > 0;
+            return _inside.Count > 0;
+        }
+
+        private static void UpdateWeatherShelter(WeatherSystemComponent? weather)
+        {
+            if (weather == null || !GodotObject.IsInstanceValid(weather)) return;
+
+            bool sheltered = false;
+            ulong weatherId = weather.GetInstanceId();
+            for (int i = LiveZones.Count - 1; i >= 0; i--)
+            {
+                ShelterZoneComponent zone = LiveZones[i];
+                if (!GodotObject.IsInstanceValid(zone) || !zone.IsInsideTree())
+                {
+                    LiveZones.RemoveAt(i);
+                    continue;
+                }
+                if (zone._weather != null && GodotObject.IsInstanceValid(zone._weather)
+                    && zone._weather.GetInstanceId() == weatherId && zone.HasLiveOccupants())
+                    sheltered = true;
+            }
+
+            weather.InsideShelter = sheltered;
         }
 
         private bool Watches(Node2D body) =>
@@ -94,12 +117,10 @@ namespace Beep.ECS
         {
             // Leaving the tree (scene teardown, level unload) must release the shelter, or the
             // weather system is left reporting InsideShelter=true for a roof that no longer exists.
-            if (_inside.Count > 0)
-            {
-                _inside.Clear();
-                if (_weather != null && GodotObject.IsInstanceValid(_weather))
-                    _weather.InsideShelter = false;
-            }
+            WeatherSystemComponent? weather = _weather;
+            _inside.Clear();
+            LiveZones.Remove(this);
+            UpdateWeatherShelter(weather);
             base._ExitTree();
         }
     }

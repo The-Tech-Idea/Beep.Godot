@@ -24,6 +24,7 @@ namespace Beep.ECS
     {
         /// <summary>Seconds between death and respawn (a beat for a death animation/sound).</summary>
         [Export(PropertyHint.Range, "0,10,0.1")] public float RespawnDelay { get; set; } = 0.8f;
+        public float EffectiveRespawnDelay => NonNegativeFinite(RespawnDelay);
 
         /// <summary>Health to revive at (default full).</summary>
         [Export] public float ReviveHealth { get; set; } = -1f;
@@ -72,7 +73,7 @@ namespace Beep.ECS
             // LoseLife() synchronously first, so the lives check below sees the post-death count.
             var tree = GetTree();
             if (tree == null) { Respawn(); return; }
-            var timer = tree.CreateTimer(Mathf.Max(0f, RespawnDelay));
+            var timer = tree.CreateTimer(EffectiveRespawnDelay);
             timer.Timeout += () => { if (GodotObject.IsInstanceValid(this)) Respawn(); };
         }
 
@@ -123,5 +124,8 @@ namespace Beep.ECS
             if (_health != null && GodotObject.IsInstanceValid(_health))
                 _health.Died -= OnDied;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

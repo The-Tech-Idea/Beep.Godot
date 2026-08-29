@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beep 2D And Isometric Toolkit</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f6f7f5; --fg:#1d2428; --muted:#5a666d; --panel:#fff; --line:#d9dfdf; --accent:#0a6f78; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#101416; --fg:#edf1ef; --muted:#a9b4b8; --panel:#1a2023; --line:#31393d; --accent:#61cbd3; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--fg); }
+    header { background:var(--panel); border-bottom:1px solid var(--line); }
+    .wrap { max-width:1160px; margin:0 auto; padding:24px 20px; }
+    main.wrap { display:grid; grid-template-columns:240px 1fr; gap:24px; align-items:start; }
+    nav { position:sticky; top:16px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+    nav a { display:block; padding:7px 8px; border-radius:6px; color:var(--accent); text-decoration:none; }
+    nav a:hover { background:color-mix(in srgb,var(--accent) 12%,transparent); }
+    section { border-bottom:1px solid var(--line); margin-bottom:26px; padding-bottom:26px; }
+    h1,h2,h3 { line-height:1.2; margin:0 0 12px; }
+    h1 { font-size:34px; }
+    h2 { font-size:24px; }
+    h3 { font-size:18px; margin-top:18px; }
+    p,li { color:var(--muted); }
+    code,pre { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    pre { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; }
+    table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); margin:12px 0 18px; }
+    th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--fg); }
+    ul { margin:0 0 16px 20px; padding:0; }
+    @media (max-width:850px) { main.wrap { grid-template-columns:1fr; } nav { position:static; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Beep 2D And Isometric Toolkit</h1>
+      <p>Focused help for the grid, terrain, worker, job, placement, objective, and authored HUD systems. <a href="index.html">Help home</a> | <a href="2D_ISO_TOOLKIT.md">Markdown</a></p>
+    </div>
+  </header>
+  <main class="wrap">
+    <nav aria-label="Toolkit sections">
+      <a href="#rules">Design Rules</a>
+      <a href="#layout">Scene Layout</a>
+      <a href="#terrain">Terrain</a>
+      <a href="#interaction">Interaction</a>
+      <a href="#resources">Resources</a>
+      <a href="#workers">Workers</a>
+      <a href="#hud">HUD</a>
+      <a href="#components">Component Index</a>
+    </nav>
+    <div>
+      <section id="rules">
+        <h2>Design Rules</h2>
+        <ul>
+          <li>Author visible Godot nodes at design time and attach behavior components to them.</li>
+          <li>Use exported <code>NodePath</code> fields to bind labels, buttons, panels, roots, and layers.</li>
+          <li>Use runtime generated controls only as an explicit fallback for prototypes or tests.</li>
+          <li>Use <code>PainterlyTerrainComponent</code> as the broad terrain base, connect it with <code>GridPainterlyTerrainBridgeComponent</code>, and keep TileMap layers only where cell detail or collision is needed.</li>
+        </ul>
+      </section>
+      <section id="layout">
+        <h2>Scene Layout</h2>
+<pre><code>GridWorld2DIso : Node2D
+  Terrain : Node
+  TerrainBridge : Node
+  TerrainGenerator : Node
+  Grid : Node2D
+  Cells : Node
+  Roads : Node2D
+  Selection : Node2D
+  Placement : Node2D
+  Navigation : Node
+  Jobs : Node
+  Units : Node2D
+  Base : Node2D
+  HUD : CanvasLayer</code></pre>
+        <p>The template <code>addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn</code> follows this pattern.</p>
+      </section>
+      <section id="terrain">
+        <h2>Terrain And Projection</h2>
+        <p><code>PainterlyTerrainComponent</code> renders <code>PainterlyTerrainSprite</code> as a saturated plain biome base and renders <code>PainterlyTerrainDetailSprite</code> above it for overlays. Biome detail is off by default; when enabled, <code>BiomeDetailCoverage</code>, <code>BiomeDetailPatchScale</code>, and <code>BiomeDetailPatchSoftness</code> restrict it to seeded local patches instead of painting the whole scene. Desert/sand patches add dune ridges, dust, and pebbles; grass/forest patches add clumps and sparse flower flecks; earth/swamp adds damp patches; rock adds cracks and stone marks; snow/ice adds scratches and soft drifts. Bundled material textures are opt-in through <code>UseBundledMaterialTextures</code>; leave them off when the base should stay clean instead of noisy or pale.</p>
+        <p><code>RenderOffset</code> positions the generated child <code>Sprite2D</code> when the painter component itself is authored as a plain <code>Node</code>. The default painter resolution now matches a 64px tile before the safety cap is applied, avoiding low-resolution upscale blur on normal maps. Use <code>LastGenerationWasCapped</code>, <code>LastGeneratedPixelsPerTile</code>, and <code>LastAppliedTerrainScale</code> to see when a large map was reduced by <code>MaxGeneratedPixels</code>.</p>
+        <p><code>GridTerrainGeneratorComponent</code> writes seeded terrain kinds into <code>GridCellDataComponent</code> and reuses its noise samplers across the generation pass. <code>GridPainterlyTerrainBridgeComponent</code> then samples <code>GridCellDataComponent</code> and <code>GridRoadComponent</code> into the painterly base, passing terrain kind through so desert, grass, rock, snow, and swamp cells receive matching detail layers while flags, water effects, pathing, saves, and roads stay driven by the same grid state.</p>
+        <p>For one-owner startup, set <code>TerrainGeneratorPath</code> and <code>GenerateBeforeFirstRebuild</code> on the bridge, then leave the painter and generator <code>GenerateOnReady</code> flags disabled. The bridge generates cell data once, suppresses the duplicate change-triggered rebuild, and paints the shared state.</p>
+        <p><code>GridProjectionComponent</code> is the shared world/cell conversion layer for both top-down and isometric scenes.</p>
+        <p><code>GridTileMapLayerBridgeComponent</code> mirrors cell and road state into a Godot <code>TileMapLayer</code> when the scene needs tile collision or detail.</p>
+      </section>
+      <section id="interaction">
+        <h2>Selection, Tools, And Placement</h2>
+        <p><code>GridSelectionComponent</code> handles hover, click, and rectangle selection. <code>GridInteractionModeComponent</code> routes clicks across select, inspect, tool, build, and disabled modes.</p>
+        <p><code>GridInteractionModeBarComponent</code>, <code>GridInteractionStatusComponent</code>, and <code>GridInteractionCursorComponent</code> expose mode, feedback, and valid/invalid cell outlines.</p>
+        <p><code>GridToolActionComponent</code> can use <code>CellDataPath</code> and <code>NavigationPath</code> to reject direct clear, hoe, plant, or queue-job actions on water, lava, disallowed terrain, or out-of-bounds cells before mutating the grid.</p>
+        <p><code>GridPlacementComponent</code>, <code>GridBuildDefinition</code>, <code>GridBuildCatalogComponent</code>, <code>GridBuildToolbarComponent</code>, and <code>GridBuildSiteComponent</code> cover build preview, resource cost, footprint reservation, terrain placement rules from <code>GridCellDataComponent</code>, navigation blocking through <code>GridNavigationComponent</code>, and build-site jobs.</p>
+      </section>
+      <section id="resources">
+        <h2>Resources, Jobs, Crops, And Production</h2>
+        <p><code>GridResourceWalletComponent</code> stores primitive dictionary balances through <code>StartingResourceAmounts</code>. <code>GridResourceAmount</code> is used for build and recipe costs.</p>
+        <p><code>GridResourceBarComponent</code>, <code>GridResourceNodeComponent</code>, and <code>GridResourceScatterComponent</code> expose HUD balances, gatherable objects, and seeded map resources. Resource nodes can reserve placement cells until depleted. Scatter can read <code>GridCellDataComponent</code> to avoid water, lava, blocked terrain, or non-allowed terrain kinds, and can reserve generated resource cells through placement occupancy.</p>
+        <p><code>GridJobQueueComponent</code>, <code>GridJobBoardComponent</code>, <code>GridJobEffectComponent</code>, and <code>GridSelectionJobCommandComponent</code> turn selected cells into worker jobs. Selection job commands can read <code>GridCellDataComponent</code> and <code>GridNavigationComponent</code> to skip water, lava, and out-of-bounds cells before workers claim impossible jobs. Clear-land jobs can gather/deplete a resource node on the target cell and release its placement reservation.</p>
+        <p><code>GridCellDataComponent</code>, <code>GridCropDefinition</code>, <code>GridCropCatalogComponent</code>, <code>GridCalendarComponent</code>, and <code>GridCalendarHudComponent</code> cover Stardew-style crops and dates.</p>
+        <p><code>GridProductionRecipe</code>, <code>GridProductionComponent</code>, and <code>GridProductionPanelComponent</code> cover machine inputs, outputs, progress, pause, resume, and cancel.</p>
+      </section>
+      <section id="workers">
+        <h2>Workers And State</h2>
+        <p><code>GridNavigationComponent</code>, <code>GridRoadComponent</code>, and <code>GridPathFollowerComponent</code> move workers through the cell world. Set <code>CellDataPath</code> on navigation and roads so they read blocked cell flags, impassable terrain kinds, and terrain movement costs from the same cell model that renders the map.</p>
+        <p><code>GridWorkerComponent</code>, <code>GridWorkerSpawnerComponent</code>, <code>GridWorkerSpawnerPanelComponent</code>, and <code>GridWorkerStatusPanelComponent</code> provide the base-to-worker loop. Wire <code>CellDataPath</code> and <code>PlacementPath</code> on the spawner so base/depot spawns reject out-of-bounds cells, blocked cell flags, impassable terrain kinds, and occupied placement cells before creating a unit.</p>
+        <p><code>GridObjectComponent</code> and <code>GridObjectInspectorComponent</code> make buildings, props, units, and resources selectable, including object kind/category and description text. Authored grid objects can reserve their placement and navigation footprint by wiring <code>PlacementPath</code>, <code>NavigationPath</code>, and <code>ReserveFootprintOnReady</code>. <code>GridWorldStateComponent</code> captures cells, roads, jobs, placement, navigation blocks, selection, and authored object state for saves, then reapplies object footprint reservations on restore.</p>
+      </section>
+      <section id="hud">
+        <h2>HUD And UI Kit Practice</h2>
+        <p>Use authored <code>Control</code>, <code>Button</code>, and <code>Label</code> nodes with <code>KitPanelContainer</code>, <code>KitPushButton</code>, <code>KitLabel</code>, <code>KitLabelValue</code>, <code>KitToast</code>, <code>KitTooltip</code>, and <code>KitSpeechBubble</code>. Bind component paths to those nodes instead of letting systems create hidden runtime panels.</p>
+      </section>
+      <section id="components">
+        <h2>Component Index</h2>
+        <table>
+          <thead><tr><th>Area</th><th>Components</th></tr></thead>
+          <tbody>
+            <tr><td>Terrain</td><td><code>PainterlyTerrainComponent</code>, <code>GridTerrainGeneratorComponent</code>, <code>GridPainterlyTerrainBridgeComponent</code>, <code>GridProjectionComponent</code>, <code>GridTileMapLayerBridgeComponent</code>, <code>GridCellOverlayComponent</code></td></tr>
+            <tr><td>Cells</td><td><code>GridCellDataComponent</code>, <code>GridCropDefinition</code>, <code>GridCropCatalogComponent</code>, <code>GridCalendarComponent</code>, <code>GridCalendarHudComponent</code></td></tr>
+            <tr><td>Interaction</td><td><code>GridSelectionComponent</code>, <code>GridInteractionModeComponent</code>, <code>GridInteractionModeBarComponent</code>, <code>GridInteractionStatusComponent</code>, <code>GridInteractionCursorComponent</code>, <code>GridToolActionComponent</code>, <code>GridToolPaletteComponent</code></td></tr>
+            <tr><td>Builds</td><td><code>GridPlacementComponent</code>, <code>GridBuildDefinition</code>, <code>GridBuildCatalogComponent</code>, <code>GridBuildToolbarComponent</code>, <code>GridBuildSiteComponent</code>, <code>GridObjectComponent</code>, <code>GridObjectInspectorComponent</code></td></tr>
+            <tr><td>Resources</td><td><code>GridResourceAmount</code>, <code>GridResourceWalletComponent</code>, <code>GridResourceBarComponent</code>, <code>GridResourceNodeComponent</code>, <code>GridResourceScatterComponent</code></td></tr>
+            <tr><td>Jobs</td><td><code>GridJobQueueComponent</code>, <code>GridJobBoardComponent</code>, <code>GridJobEffectComponent</code>, <code>GridSelectionJobCommandComponent</code></td></tr>
+            <tr><td>Workers</td><td><code>GridNavigationComponent</code>, <code>GridRoadComponent</code>, <code>GridPathFollowerComponent</code>, <code>GridWorkerComponent</code>, <code>GridWorkerSpawnerComponent</code>, <code>GridWorkerSpawnerPanelComponent</code>, <code>GridWorkerStatusPanelComponent</code></td></tr>
+            <tr><td>Production</td><td><code>GridProductionRecipe</code>, <code>GridProductionComponent</code>, <code>GridProductionPanelComponent</code></td></tr>
+            <tr><td>Objectives</td><td><code>GridObjectiveDefinition</code>, <code>GridObjectiveTrackerComponent</code>, <code>GridObjectivePanelComponent</code>, <code>GridObjectiveEventBinderComponent</code>, <code>GridWorldStateComponent</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

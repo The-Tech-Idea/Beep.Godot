@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn" id="atmos_scene"]
@@ -26,6 +26,7 @@
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_happiness.png" id="bi_happiness"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_calendar.png" id="bi_calendar"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitIconButton.cs" id="k_iconbutton"]
 
 [node name="CityBuilderMain" type="Node2D"]
 
@@ -159,9 +160,36 @@ offset_right = -16.0
 offset_bottom = 50.0
 grow_horizontal = 0
 mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Pause" type="Button" parent="HUD/Root/SpeedBar"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "II"
+Accent = 4
+
+[node name="Normal" type="Button" parent="HUD/Root/SpeedBar"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "1x"
+Accent = 6
+
+[node name="Fast" type="Button" parent="HUD/Root/SpeedBar"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "2x"
+Accent = 6
+
+[node name="Fastest" type="Button" parent="HUD/Root/SpeedBar"]
+layout_mode = 2
+script = ExtResource("k_iconbutton")
+Glyph = "3x"
+Accent = 6
 
 [node name="Speed" type="Node" parent="HUD/Root/SpeedBar"]
 script = ExtResource("cb_speed")
+BoundButtonPaths = Array[NodePath]([NodePath("../Pause"), NodePath("../Normal"), NodePath("../Fast"), NodePath("../Fastest")])
+GenerateControlsWhenPathsEmpty = false
 TogglePauseAction = ""
 
 [node name="RightGadget" type="PanelContainer" parent="HUD/Root"]
@@ -227,8 +255,31 @@ theme_override_constants/margin_right = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_bottom = 10
 
+[node name="ToolbarSurface" type="VBoxContainer" parent="HUD/Root/BottomDock/BuildMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Categories" type="HBoxContainer" parent="HUD/Root/BottomDock/BuildMargin/ToolbarSurface"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PaletteScroll" type="ScrollContainer" parent="HUD/Root/BottomDock/BuildMargin/ToolbarSurface"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 0
+
+[node name="Palette" type="HBoxContainer" parent="HUD/Root/BottomDock/BuildMargin/ToolbarSurface/PaletteScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
 [node name="Toolbar" type="Node" parent="HUD/Root/BottomDock/BuildMargin"]
 script = ExtResource("cb_build")
+CategoryRowPath = NodePath("../ToolbarSurface/Categories")
+PaletteContainerPath = NodePath("../ToolbarSurface/PaletteScroll/Palette")
+GenerateControlsWhenPathsEmpty = false
 ItemSize = Vector2(104, 82)
 TabSize = Vector2(104, 34)
 PaletteHeight = 88.0

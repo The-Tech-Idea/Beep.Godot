@@ -6,21 +6,46 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitContextMenu : KitControl
     {
-        public string[] Items { get => _items; set { _items = value ?? System.Array.Empty<string>(); ResizeToItems(); QueueRedraw(); } }
+        [Export]
+        public string[] Items
+        {
+            get => _items;
+            set
+            {
+                string[] next = NormalizeStrings(value);
+                if (SameStrings(_items, next)) return;
+                _items = next;
+                NormalizeHover();
+                ResizeToItems();
+                QueueRedraw();
+            }
+        }
         private string[] _items = System.Array.Empty<string>();
 
         [Signal] public delegate void ItemSelectedEventHandler(int index, string label);
 
         private int _hover = -1;
+        private bool _eventsHooked;
 
         public override void _Ready()
         {
             base._Ready();
             TopLevel = true;
             Visible = false;
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
+            {
+                MouseExited += ClearHover;
+                _eventsHooked = true;
+            }
             ResizeToItems();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
         }
 
         public void PopupAt(Vector2 globalPosition)
@@ -35,7 +60,7 @@ namespace Beep.ECS.UI.Kit
 
         private Vector2 ClampedPopupPosition(Vector2 requestedGlobal)
         {
-            Rect2 visible = GetViewport()?.GetVisibleRect() ?? new Rect2(Vector2.Zero, Size);
+            Rect2 visible = PopupVisibleRect();
             Vector2 min = visible.Position + new Vector2(6f, 6f);
             Vector2 max = visible.End - Size - new Vector2(6f, 6f);
             if (max.X < min.X) max.X = min.X;
@@ -44,9 +69,22 @@ namespace Beep.ECS.UI.Kit
                                Mathf.Clamp(requestedGlobal.Y, min.Y, max.Y));
         }
 
-        public void SetItems(string[] items)
+        public void SetItems(string[]? items)
         {
-            Items = items;
+            Items = NormalizeStrings(items);
+        }
+
+        public void AddItem(string item)
+        {
+            string[] next = new string[_items.Length + 1];
+            _items.CopyTo(next, 0);
+            next[^1] = item ?? "";
+            Items = next;
+        }
+
+        public void ClearItems()
+        {
+            Items = System.Array.Empty<string>();
         }
 
         public override void _GuiInput(InputEvent @event)
@@ -107,6 +145,18 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
+        private void NormalizeHover()
+        {
+            _hover = _items.Length == 0 ? -1 : Mathf.Clamp(_hover, 0, _items.Length - 1);
+        }
+
+        private void ClearHover()
+        {
+            if (_hover < 0) return;
+            _hover = -1;
+            QueueRedraw();
+        }
+
         public override void _Input(InputEvent @event)
         {
             if (!Visible) return;
@@ -114,6 +164,8 @@ namespace Beep.ECS.UI.Kit
             {
                 Visible = false;
                 _hover = -1;
+                GetViewport()?.SetInputAsHandled();
+                QueueRedraw();
             }
         }
 
@@ -140,6 +192,7 @@ namespace Beep.ECS.UI.Kit
 
                 string text = KitCase(_items[i]);
                 int fit = UiSurface.FitRole(this, UiSurface.TextRole.Caption, row.Size - new Vector2(pad, 0), text, font, min: 8);
+                text = KitChrome.EllipsizeText(font, text, fit, row.Size.X - pad * 0.9f);
                 Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fit);
                 DrawText(font, new Vector2(row.Position.X + pad * 0.45f, row.Position.Y + (row.Size.Y + m.Y * 0.60f) * 0.5f),
                          text, fit, ink);
@@ -156,19 +209,73 @@ namespace Beep.ECS.UI.Kit
         private float RowHeight() => Mathf.Max(24f, UiSurface.FontSize(this) * 1.9f);
 
         public override Vector2 _GetMinimumSize()
+            => PopupSizeForViewport(NaturalMinimumSize());
+
+        private Vector2 NaturalMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
             float width = fs * 11f;
             var font = KitFont();
             if (font != null)
                 foreach (string item in _items)
-                    width = Mathf.Max(width, font.GetStringSize(item, HorizontalAlignment.Left, -1, fs).X + fs * 3f);
+                    width = Mathf.Max(width, font.GetStringSize(KitCase(item), HorizontalAlignment.Left, -1, fs).X + fs * 3f);
             return new Vector2(width, Mathf.Max(RowHeight() + fs, RowHeight() * Mathf.Max(1, _items.Length) + fs));
         }
 
         private void ResizeToItems()
         {
-            Size = CustomMinimumSize = _GetMinimumSize();
+            Vector2 wanted = _GetMinimumSize();
+            Size = CustomMinimumSize = wanted;
+            UpdateMinimumSize();
+        }
+
+        private Vector2 PopupSizeForViewport(Vector2 natural)
+        {
+            if (!IsInsideTree())
+                return natural;
+
+            Rect2 visible = PopupVisibleRect();
+            if (visible.Size.X <= 0f || visible.Size.Y <= 0f)
+                return natural;
+
+            const float margin = 6f;
+            float maxWidth = Mathf.Max(96f, visible.Size.X - margin * 2f);
+            return new Vector2(Mathf.Min(natural.X, maxWidth), natural.Y);
+        }
+
+        private Rect2 PopupVisibleRect()
+        {
+            Rect2 visible = GetViewport()?.GetVisibleRect() ?? new Rect2(Vector2.Zero, Size);
+            if (TopLevel)
+                return visible;
+
+            Transform2D viewportToCanvas = GetCanvasTransform().AffineInverse();
+            Vector2 a = viewportToCanvas * visible.Position;
+            Vector2 b = viewportToCanvas * visible.End;
+            Vector2 pos = new(Mathf.Min(a.X, b.X), Mathf.Min(a.Y, b.Y));
+            Vector2 size = new(Mathf.Abs(b.X - a.X), Mathf.Abs(b.Y - a.Y));
+            return new Rect2(pos, size);
+        }
+
+        private static string[] NormalizeStrings(string[]? values)
+        {
+            if (values == null || values.Length == 0)
+                return System.Array.Empty<string>();
+
+            var next = new string[values.Length];
+            for (int i = 0; i < values.Length; i++)
+                next[i] = values[i] ?? "";
+            return next;
+        }
+
+        private static bool SameStrings(string[] a, string[] b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if ((a[i] ?? "") != (b[i] ?? ""))
+                    return false;
+            return true;
         }
     }
 }

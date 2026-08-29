@@ -1,4 +1,5 @@
 using Godot;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -35,6 +36,11 @@ namespace Beep.ECS
 
         /// <summary>At or below this many moves the HUD warns.</summary>
         [Export] public int LowMovesThreshold { get; set; } = 5;
+        public int EffectiveTargetScore => Mathf.Max(1, TargetScore);
+        public int EffectiveMoveBudget => Mathf.Max(0, MoveBudget);
+        public float EffectiveTwoStarMultiple => Mathf.Max(1f, FiniteOr(TwoStarMultiple, 1.5f));
+        public float EffectiveThreeStarMultiple => Mathf.Max(EffectiveTwoStarMultiple, FiniteOr(ThreeStarMultiple, 2.0f));
+        public int EffectiveLowMovesThreshold => Mathf.Max(0, LowMovesThreshold);
 
         // ── State ─────────────────────────────────────────────────────────────────────────
         public int Score { get; private set; }
@@ -43,20 +49,20 @@ namespace Beep.ECS
         public bool Lost { get; private set; }
         public bool IsOver => Won || Lost;
 
-        public bool IsLowOnMoves => !IsOver && MovesLeft <= LowMovesThreshold;
-        public float TargetFraction => TargetScore <= 0 ? 1f
-            : Mathf.Clamp((float)Score / TargetScore, 0f, 1f);
-        public float MovesFraction => MoveBudget <= 0 ? 0f
-            : Mathf.Clamp((float)MovesLeft / MoveBudget, 0f, 1f);
+        public bool IsLowOnMoves => !IsOver && MovesLeft <= EffectiveLowMovesThreshold;
+        public float TargetFraction => Mathf.Clamp((float)Score / EffectiveTargetScore, 0f, 1f);
+        public float MovesFraction => EffectiveMoveBudget <= 0 ? 0f
+            : Mathf.Clamp((float)MovesLeft / EffectiveMoveBudget, 0f, 1f);
 
         /// <summary>0..3. Zero until the target is met, so a losing board never shows a star.</summary>
         public int Stars
         {
             get
             {
-                if (TargetScore <= 0 || Score < TargetScore) return 0;
-                if (Score >= TargetScore * ThreeStarMultiple) return 3;
-                if (Score >= TargetScore * TwoStarMultiple) return 2;
+                int target = EffectiveTargetScore;
+                if (Score < target) return 0;
+                if (Score >= target * EffectiveThreeStarMultiple) return 3;
+                if (Score >= target * EffectiveTwoStarMultiple) return 2;
                 return 1;
             }
         }
@@ -68,7 +74,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            MovesLeft = MoveBudget;
+            MovesLeft = EffectiveMoveBudget;
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
 
@@ -107,7 +113,7 @@ namespace Beep.ECS
         /// <summary>Resolve a win once. Returns whether the level is now won.</summary>
         private bool CheckWin()
         {
-            if (IsOver || TargetScore <= 0 || Score < TargetScore) return Won;
+            if (IsOver || Score < EffectiveTargetScore) return Won;
             Won = true;
             EmitSignal(SignalName.LevelWon, Stars);
             EmitSignal(SignalName.LevelChanged);
@@ -126,7 +132,7 @@ namespace Beep.ECS
         public void RestartLevel()
         {
             Score = 0;
-            MovesLeft = MoveBudget;
+            MovesLeft = EffectiveMoveBudget;
             Won = Lost = false;
             EmitSignal(SignalName.LevelChanged);
         }
@@ -135,7 +141,7 @@ namespace Beep.ECS
         public void BeginLevel(int targetScore, int moveBudget)
         {
             TargetScore = Mathf.Max(1, targetScore);
-            MoveBudget = Mathf.Max(1, moveBudget);
+            MoveBudget = Mathf.Max(0, moveBudget);
             RestartLevel();
         }
 
@@ -162,15 +168,53 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KTarget, out var t)) TargetScore = Mathf.Max(1, t.AsInt32());
-            if (d.TryGetValue(KBudget, out var b)) MoveBudget = Mathf.Max(1, b.AsInt32());
-            if (d.TryGetValue(KScore, out var s)) Score = Mathf.Max(0, s.AsInt32());
+            if (d.TryGetValue(KTarget, out var t)) TargetScore = Mathf.Max(1, ReadInt(t, EffectiveTargetScore));
+            if (d.TryGetValue(KBudget, out var b)) MoveBudget = Mathf.Max(0, ReadInt(b, EffectiveMoveBudget));
+            if (d.TryGetValue(KScore, out var s)) Score = Mathf.Max(0, ReadInt(s, 0));
             // Clamped AFTER the budget is restored, or a 40-move save would be capped by the
             // default 25.
-            if (d.TryGetValue(KMoves, out var m)) MovesLeft = Mathf.Clamp(m.AsInt32(), 0, MoveBudget);
-            if (d.TryGetValue(KWon, out var w)) Won = w.AsBool();
-            if (d.TryGetValue(KLost, out var l)) Lost = l.AsBool();
+            if (d.TryGetValue(KMoves, out var m)) MovesLeft = Mathf.Clamp(ReadInt(m, EffectiveMoveBudget), 0, EffectiveMoveBudget);
+            if (d.TryGetValue(KWon, out var w)) Won = ReadBool(w, Won);
+            if (d.TryGetValue(KLost, out var l)) Lost = ReadBool(l, Lost);
             EmitSignal(SignalName.LevelChanged);
+        }
+
+        private static float FiniteOr(float value, float fallback)
+            => float.IsFinite(value) ? value : fallback;
+
+        private static int ReadInt(Variant value, int fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Int:
+                    return value.AsInt32();
+                case Variant.Type.Float:
+                {
+                    double raw = value.AsDouble();
+                    return double.IsFinite(raw) ? Mathf.RoundToInt((float)raw) : fallback;
+                }
+                case Variant.Type.String:
+                    return int.TryParse(value.AsString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+                        ? parsed
+                        : fallback;
+                default:
+                    return fallback;
+            }
+        }
+
+        private static bool ReadBool(Variant value, bool fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Bool:
+                    return value.AsBool();
+                case Variant.Type.Int:
+                    return value.AsInt32() != 0;
+                case Variant.Type.String:
+                    return bool.TryParse(value.AsString(), out bool parsed) ? parsed : fallback;
+                default:
+                    return fallback;
+            }
         }
     }
 }

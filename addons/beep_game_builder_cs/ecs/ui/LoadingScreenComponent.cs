@@ -29,6 +29,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             CallDeferred(nameof(Init));
         }
 
@@ -75,11 +76,17 @@ namespace Beep.ECS.UI
             if (_bar != null) _bar.Value = 0;
             if (_label != null) _label.Text = LoadingText;
             Show();
+            SetProcess(true);
         }
 
         public override void _Process(double delta)
         {
-            if (!IsActive || _pendingPath == null) return;
+            if (!IsActive || _pendingPath == null)
+            {
+                if (_pendingPath == null)
+                    SetProcess(false);
+                return;
+            }
             _minTimer -= delta;
 
             // Poll the threaded loader status.
@@ -95,6 +102,7 @@ namespace Beep.ECS.UI
                 GD.PushError($"[{Name}] Threaded load of '{_pendingPath}' failed ({status}).");
                 _pendingPath = null;
                 Hide();
+                SetProcess(false);
                 return;
             }
 
@@ -106,10 +114,12 @@ namespace Beep.ECS.UI
                     GD.PushError($"[{Name}] '{_pendingPath}' loaded but is not a PackedScene.");
                     _pendingPath = null;
                     Hide();
+                    SetProcess(false);
                     return;
                 }
                 EmitSignal(SignalName.LoadComplete);
                 _pendingPath = null;
+                SetProcess(false);
                 GetTree().ChangeSceneToPacked(packed);
             }
         }

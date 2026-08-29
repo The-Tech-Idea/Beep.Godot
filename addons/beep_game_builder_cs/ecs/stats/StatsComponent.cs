@@ -103,7 +103,7 @@ namespace Beep.ECS
         {
             // Real-time only; a turn-based genre ticks from TurnEnded, once per turn.
             if (Engine.IsEditorHint() || _turnBased) return;
-            TickDurations((float)delta);
+            TickDurations(double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f);
         }
 
         private void OnTurnEnded(int turn) => TickDurations(1f);

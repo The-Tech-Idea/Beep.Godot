@@ -26,21 +26,40 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitPushButton : Button
     {
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
         /// <summary>Which palette role this button's plate takes. Accent is the default because
         /// that is what every reference sheet does; set Success/Danger for a confirm or a
         /// destructive action, or Neutral to fall back to the panel surface for a quiet button.</summary>
-        [Export] public UiSurface.Role Accent { get; set; } = UiSurface.Role.Accent;
+        [Export]
+        public UiSurface.Role Accent
+        {
+            get => _accent;
+            set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _accent = UiSurface.Role.Accent;
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private KitShape ActiveShape => KitMaterial.ShapeForGenre(_genre);
 
         private bool _suppressing;
+        private bool _eventsHooked;
 
         public override void _Ready()
         {
-            _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+            base._Ready();
+            _genre = KitChrome.GenreOf(this);
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
             SuppressBaseChrome();
+            KitChrome.HookButtonChromeRedraw(this, RefreshVisualAndRedraw, ref _eventsHooked);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override void _Notification(int what)
@@ -48,39 +67,77 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what == NotificationThemeChanged)
             {
-                _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+                _genre = KitChrome.GenreOf(this);
                 SuppressBaseChrome();
-                QueueRedraw();
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+                UpdateMinimumSize();
+                RefreshVisualAndRedraw();
             }
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int themeFs = UiSurface.FontSize(this);
+            float pad = Mathf.Max(6f, themeFs * 0.7f);
+            float frame = Geo.FramePx(Mathf.Max(Size.Y, themeFs * 2.4f));
+            float horizontal = (frame + pad) * 2f;
+            float vertical = (frame * 0.5f + pad * 0.4f) * 2f;
+            float width = horizontal + themeFs * 4.4f;
+            float height = Mathf.Max(themeFs * 2.35f, 30f);
+
+            Font? font = KitChrome.Font(this, _genre);
+            if (font != null && !string.IsNullOrEmpty(Text))
+            {
+                string[] lines = KitChrome.Case(Text, _genre).Split('\n');
+                int textFs = UiSurface.FontSize(this, UiSurface.TextRole.Body);
+                float longest = 0f;
+                foreach (string line in lines)
+                    longest = Mathf.Max(longest, font.GetStringSize(line, HorizontalAlignment.Left, -1, textFs).X);
+
+                width = Mathf.Max(width, horizontal + longest);
+                height = Mathf.Max(height, vertical + Mathf.Max(1, lines.Length) * textFs * 1.15f);
+            }
+
+            Vector2 native = base._GetMinimumSize();
+            return new Vector2(Mathf.Max(width, native.X), Mathf.Max(height, native.Y));
         }
 
         /// <summary>
         /// Blank every state's StyleBox so the base class paints nothing and _Draw owns the look.
         ///
         /// The content margins are kept, because Button sizes its own text from them — zeroing
-        /// them collapses the button onto its label. The re-entry guard is required for the same
-        /// reason KitPanelContainer needs one: AddThemeStyleboxOverride emits
-        /// NotificationThemeChanged, which lands straight back here.
+        /// them collapses the button onto its label. Suppression goes through KitChrome so
+        /// unchanged theme overrides are not recreated during Godot's theme-change notifications.
         /// </summary>
         private void SuppressBaseChrome()
         {
             if (_suppressing) return;
             _suppressing = true;
 
-            int fs = UiSurface.FontSize(this);
-            float pad = Mathf.Max(6f, fs * 0.7f);
-            float frame = Geo.FramePx(Mathf.Max(Size.Y, fs * 2.4f));
-            foreach (string state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
+            try
             {
-                var sb = new StyleBoxEmpty();
-                sb.ContentMarginLeft = frame + pad;
-                sb.ContentMarginRight = frame + pad;
-                sb.ContentMarginTop = frame * 0.5f + pad * 0.4f;
-                sb.ContentMarginBottom = frame * 0.5f + pad * 0.4f;
-                AddThemeStyleboxOverride(state, sb);
+                int fs = UiSurface.FontSize(this);
+                float pad = Mathf.Max(6f, fs * 0.7f);
+                float frame = Geo.FramePx(Mathf.Max(Size.Y, fs * 2.4f));
+                foreach (string state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
+                    KitChrome.SetEmptyStyleboxOverride(
+                        this,
+                        state,
+                        frame + pad,
+                        frame + pad,
+                        frame * 0.5f + pad * 0.4f,
+                        frame * 0.5f + pad * 0.4f);
             }
-
-            _suppressing = false;
+            finally
+            {
+                _suppressing = false;
+            }
+            UpdateMinimumSize();
         }
 
         private KitState CurrentState()
@@ -109,10 +166,9 @@ namespace Beep.ECS.UI.Kit
             //
             // The art pass's own settled rule says it: "the palette goes on ONE element, the
             // other stays neutral" (5 references). The panel is the neutral one; this is the one.
-            Color plate = UiSurface.Semantic(this, Accent);
+            Color plate = UiSurface.SemanticOrDerived(this, Accent);
             if (plate.A < 0.02f) plate = UiSurface.Of(this);   // no semantic palette: stay usable
             Color face = StateFace(plate, state);
-            Color ink = UiSurface.Ink(face);
             int fs = UiSurface.FontSize(this);
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
             var body = new Rect2(Vector2.Zero, Size);
@@ -121,24 +177,25 @@ namespace Beep.ECS.UI.Kit
             // the kit's definition of what a plate IS; two implementations of it drift.
             KitChrome.DrawPlate(this, _genre, body, face, state, fs / 14f);
 
-            if (g.Studs > 0 && state != KitState.Disabled) Studs(body, g, ink);
+            if (g.Studs > 0 && state != KitState.Disabled) Studs(body, g, UiSurface.Ink(face));
 
             // The label LAST, and drawn by us. A script's _Draw runs AFTER the base class's, so
             // the plate above paints straight over the text Button already drew — every swept
             // button rendered as a blank plate until this was added. Re-drawing it here is the
             // price of owning the chrome on a Button subclass.
-            DrawLabel(state);
+            DrawLabel(state, face);
+            KitChrome.DrawFocusRing(this, _genre, body, ActiveShape, 0.8f);
         }
 
         /// <summary>Multi-line aware: several template buttons carry two lines ("Hammer\nx2",
         /// "5\n★★"), and drawing only the first would silently lose half of every one of them.</summary>
-        private void DrawLabel(KitState state)
+        private void DrawLabel(KitState state, Color face)
         {
             if (string.IsNullOrEmpty(Text)) return;
-            var font = KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
+            var font = KitChrome.Font(this, _genre);
             if (font == null) return;
 
-            string[] lines = Text.Split('\n');
+            string[] lines = KitChrome.Case(Text, _genre).Split('\n');
             string longest = "";
             foreach (string line in lines)
                 if (line.Length > longest.Length) longest = line;
@@ -148,18 +205,21 @@ namespace Beep.ECS.UI.Kit
                                                           UiSurface.FontSize(this) * 0.35f),
                                        lines.Length > 1 ? 0.38f : 0.50f,
                                        longest, font, min: 8, themeMax: 1.08f);
-            Color col = UiSurface.Text(this);
+            Color col = UiSurface.Ink(face);
             if (state == KitState.Disabled) col = col with { A = 0.45f };
             // Pressed text shifts with the plate, so the label looks pushed in with it.
             float dy = state == KitState.Pressed ? 1f : 0f;
 
             float lh = fs * 1.15f;
             float top = (Size.Y - lh * lines.Length) * 0.5f + fs * 0.82f + dy;
+            float textWidth = Mathf.Max(1f, Size.X - UiSurface.FontSize(this) * 1.4f);
             for (int i = 0; i < lines.Length; i++)
             {
-                Vector2 m = font.GetStringSize(lines[i], HorizontalAlignment.Left, -1, fs);
+                string line = KitChrome.EllipsizeText(font, lines[i], fs, textWidth);
+                if (string.IsNullOrEmpty(line)) continue;
+                Vector2 m = font.GetStringSize(line, HorizontalAlignment.Left, -1, fs);
                 KitChrome.DrawText(this, _genre, font, new Vector2((Size.X - m.X) * 0.5f, top + lh * i),
-                           lines[i], fs, col);
+                           line, fs, col);
             }
         }
 

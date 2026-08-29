@@ -38,6 +38,7 @@ namespace Beep.ECS
         [Export] public float AmbientMaxVolume { get; set; } = -15f;
         [Export] public float CrossFadeDuration { get; set; } = 0.5f;
         [Export] public NodePath? WeatherSystemPath { get; set; }
+        [Export] public bool WarnMissingTracks { get; set; } = false;
 
         private AudioStreamPlayer? _rainPlayer;
         private AudioStreamPlayer? _rainHeavyPlayer;
@@ -55,9 +56,17 @@ namespace Beep.ECS
         private bool _windWanted = true;
         private bool _ambientWanted = true;
         private bool _wasActive = true;   // watch IsActive transitions so reactivation re-seeds the mix
+        private bool _setupComplete;
         // One tween PER player: a single shared field killed sibling fades — SetWeatherIntensity's
         // three back-to-back Fades (rain, wind, ambient) all cancelled but the last.
         private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
+
+        public string EffectiveBusName => string.IsNullOrWhiteSpace(BusName) ? "Weather" : BusName;
+        public float EffectiveCrossFadeDuration => Mathf.Max(0f, float.IsFinite(CrossFadeDuration) ? CrossFadeDuration : 0f);
+        public double EffectiveThunderDelayMin => System.Math.Min(SanitizedThunderDelayMin, SanitizedThunderDelayMax);
+        public double EffectiveThunderDelayMax => System.Math.Max(SanitizedThunderDelayMin, SanitizedThunderDelayMax);
+        private double SanitizedThunderDelayMin => double.IsFinite(ThunderDelayMin) ? System.Math.Max(0.0, ThunderDelayMin) : 0.35;
+        private double SanitizedThunderDelayMax => double.IsFinite(ThunderDelayMax) ? System.Math.Max(0.0, ThunderDelayMax) : 2.2;
 
         public override void _Ready()
         {
@@ -72,13 +81,15 @@ namespace Beep.ECS
             // developer dropping this into a weather-off scene gets a silent, inactive controller
             // rather than a live bus and players mixing nothing.
             if (Beep.GameBuilder.GameInfo.Instance is { } info) IsActive = info.EnableWeather;
+            _wasActive = IsActive;
 
             // The tracks are deliberately yours to supply — the addon ships no audio assets,
             // and there is no sensible default for "rain". But shipping silently meant this
             // built an audio bus and four players to mix silence in every weather-enabled
             // genre, looking for all the world like working weather audio. Say it once, up
             // front, rather than leaving it to be discovered by listening.
-            if (RainLoop == null && WindLoop == null && AmbientLoop == null
+            if (WarnMissingTracks
+                && RainLoop == null && WindLoop == null && AmbientLoop == null
                 && (ThunderVariants == null || ThunderVariants.Length == 0))
             {
                 GD.PushWarning($"[{Name}] No weather audio tracks assigned (RainLoop / WindLoop / ThunderVariants / AmbientLoop are all empty) — weather will be silent. These are yours to supply; the addon ships no audio.");
@@ -89,19 +100,21 @@ namespace Beep.ECS
 
         private void Setup()
         {
+            if (_setupComplete) return;
             // Honor the enable flag: a weather-off scene shouldn't build the "Weather" bus + players
             // (which would Play() their loops at -80 dB and keep decoding). This matches the _Ready
             // comment's promise of "a silent, inactive controller".
             if (!IsActive) return;
+            _setupComplete = true;
             // Create audio bus if it doesn't exist
-            _weatherBusIndex = AudioServer.GetBusIndex(BusName);
+            _weatherBusIndex = AudioServer.GetBusIndex(EffectiveBusName);
             if (_weatherBusIndex == -1)
             {
                 // Bus doesn't exist; create it as a child of Master
                 var masterBus = AudioServer.GetBusIndex("Master");
                 _weatherBusIndex = AudioServer.BusCount;
                 AudioServer.AddBus(_weatherBusIndex);
-                AudioServer.SetBusName(_weatherBusIndex, BusName);
+                AudioServer.SetBusName(_weatherBusIndex, EffectiveBusName);
                 if (masterBus >= 0)
                     AudioServer.SetBusSend(_weatherBusIndex, "Master");
                 _createdBus = true;   // only a bus WE added is removed on exit
@@ -118,18 +131,22 @@ namespace Beep.ECS
             _thunderPlayer = new AudioStreamPlayer
             {
                 Name = "ThunderPlayer",
-                Bus = BusName,
+                Bus = EffectiveBusName,
                 VolumeDb = -80f
             };
             AddChild(_thunderPlayer);
 
             // Wire to WeatherSystemComponent for intensity-based mixing
-            if (WeatherSystemPath != null)
+            if (WeatherSystemPath != null && !WeatherSystemPath.IsEmpty)
                 _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
             if (_weather == null)
             {
-                foreach (var n in GetTree().GetNodesInGroup("weather_system"))
-                    if (n is WeatherSystemComponent w) { _weather = w; break; }
+                var tree = GetTree();
+                if (tree != null)
+                {
+                    foreach (var n in tree.GetNodesInGroup("weather_system"))
+                        if (n is WeatherSystemComponent w) { _weather = w; break; }
+                }
             }
             if (_weather != null)
             {
@@ -151,13 +168,18 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint()) return;
+            if (IsActive && !_setupComplete)
+                Setup();
             // Re-apply the mix when IsActive flips. The deactivate path in SetWeatherIntensity fades
             // to silence, but IntensityChanged only fires while the weather is easing — so without
             // this, toggling IsActive off then on at a stable intensity left every loop stuck at -80.
             if (IsActive != _wasActive)
             {
                 _wasActive = IsActive;
-                SetWeatherIntensity(_weather?.WeatherIntensity ?? 0f);
+                if (IsActive && _weather != null)
+                    OnWeatherChanged((int)_weather.CurrentWeather);
+                else
+                    SetWeatherIntensity(_weather?.WeatherIntensity ?? 0f);
             }
         }
 
@@ -237,13 +259,15 @@ namespace Beep.ECS
             // independently of the flash amplitude — which is what this did — produced blinding
             // strikes that took two seconds to arrive, and faint ones that cracked instantly.
             float strength = _weather?.LastBoltStrength ?? 1f;
-            float delay = Mathf.Lerp((float)ThunderDelayMax, (float)ThunderDelayMin, strength);
+            float delay = Mathf.Lerp((float)EffectiveThunderDelayMax, (float)EffectiveThunderDelayMin, Mathf.Clamp(strength, 0f, 1f));
             if (delay <= 0f) { PlayThunder(); return; }
 
             // The timer outlives the node if the scene changes mid-storm, so re-check before
             // calling back into ourselves — otherwise a strike during a level transition is a
             // use-after-free rather than a missed sound.
-            GetTree().CreateTimer(delay).Timeout += () =>
+            var tree = GetTree();
+            if (tree == null) return;
+            tree.CreateTimer(delay).Timeout += () =>
             {
                 if (GodotObject.IsInstanceValid(this)
                     && _weather != null
@@ -262,6 +286,7 @@ namespace Beep.ECS
                 return;
 
             var variant = ThunderVariants[GD.Randi() % ThunderVariants.Length];
+            if (variant == null) return;
             _thunderPlayer.Stream = variant;
             _thunderPlayer.VolumeDb = ThunderVolume;
             _thunderPlayer.Play();
@@ -272,7 +297,7 @@ namespace Beep.ECS
             var player = new AudioStreamPlayer
             {
                 Name = name,
-                Bus = BusName,
+                Bus = EffectiveBusName,
                 VolumeDb = -80f,
                 Stream = stream
             };
@@ -285,8 +310,13 @@ namespace Beep.ECS
         {
             if (player == null) return;
             if (_fades.TryGetValue(player, out var old) && GodotObject.IsInstanceValid(old)) old.Kill();
+            if (!IsInsideTree() || EffectiveCrossFadeDuration <= 0f)
+            {
+                player.VolumeDb = targetDb;
+                return;
+            }
             var tw = CreateTween();
-            tw.TweenProperty(player, "volume_db", targetDb, CrossFadeDuration);
+            tw.TweenProperty(player, "volume_db", targetDb, EffectiveCrossFadeDuration);
             _fades[player] = tw;
         }
 
@@ -330,7 +360,7 @@ namespace Beep.ECS
             // by name (indices shift) and never touch Master (index 0). Only if we created it.
             if (_createdBus)
             {
-                int idx = AudioServer.GetBusIndex(BusName);
+                int idx = AudioServer.GetBusIndex(EffectiveBusName);
                 if (idx > 0) AudioServer.RemoveBus(idx);
                 _createdBus = false;
             }

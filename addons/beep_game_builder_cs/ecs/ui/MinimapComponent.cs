@@ -16,6 +16,7 @@ namespace Beep.ECS.UI
     {
         [Export] public float WorldRadius { get; set; } = 800f;
         [Export] public float BlipSize { get; set; } = 3f;
+        [Export(PropertyHint.Range, "0.02,1.0,0.01")] public double RefreshInterval { get; set; } = 0.10;
 
         // No exported Colors. The four that used to live here — a 50%-black disc, a white rim,
         // a green player dot and a red blip — were literals, so the minimap was the same black
@@ -45,14 +46,18 @@ namespace Beep.ECS.UI
 
         private Node2D? _center;
         private bool _trackingCamera;
+        private double _refreshElapsed;
 
         public override void _Ready()
         {
+            SetProcess(false);
             // Only a floor, never an override — assigning unconditionally silently discarded
             // the size set in the scene (a 180px minimap came out 120px).
             if (CustomMinimumSize == Vector2.Zero) CustomMinimumSize = new Vector2(120, 120);
             if (!Engine.IsEditorHint())
                 CallDeferred(nameof(ResolveCenter));
+            UpdateProcessing();
+            QueueRedraw();
         }
 
         private bool _centerWarned;
@@ -80,6 +85,16 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint() || !IsVisibleInTree())
+            {
+                UpdateProcessing();
+                return;
+            }
+
+            _refreshElapsed += delta;
+            if (_refreshElapsed < RefreshInterval)
+                return;
+            _refreshElapsed = 0;
             QueueRedraw();
         }
 
@@ -89,7 +104,11 @@ namespace Beep.ECS.UI
         public override void _Notification(int what)
         {
             if (what == NotificationThemeChanged) QueueRedraw();
+            if (what == NotificationVisibilityChanged) UpdateProcessing();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsVisibleInTree());
 
         public override void _Draw()
         {

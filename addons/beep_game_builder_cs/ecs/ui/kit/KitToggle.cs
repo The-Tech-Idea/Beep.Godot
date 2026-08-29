@@ -32,25 +32,46 @@ namespace Beep.ECS.UI.Kit
     {
         public enum ToggleStyle { Switch, Box }
 
-        [Export] public ToggleStyle Style { get => _style; set { if (_style == value) return; _style = value; UpdateMinimumSize(); QueueRedraw(); } }
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
+        [Export] public ToggleStyle Style { get => _style; set { if (_style == value) return; _style = value; RefreshMinimumAndRedraw(); } }
         private ToggleStyle _style = ToggleStyle.Switch;
 
         /// <summary>Palette role of the ON state.</summary>
-        [Export] public UiSurface.Role OnRole { get; set; } = UiSurface.Role.Success;
+        [Export]
+        public UiSurface.Role OnRole
+        {
+            get => _onRole;
+            set { if (_onRole == value) return; _onRole = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _onRole = UiSurface.Role.Success;
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private bool _suppressing;
+        private bool _eventsHooked;
 
         public override void _Ready()
         {
+            base._Ready();
             _genre = KitChrome.GenreOf(this);
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
             // BaseButton runs the state machine; without ToggleMode a CheckButton fires and
             // springs back instead of latching.
             ToggleMode = true;
             Suppress();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+            if (!_eventsHooked)
+            {
+                KitChrome.HookButtonChromeRedraw(this, RefreshVisualAndRedraw, ref _eventsHooked);
+                Toggled += _ => RefreshVisualAndRedraw();
+            }
         }
 
         public override Vector2 _GetMinimumSize()
@@ -58,7 +79,7 @@ namespace Beep.ECS.UI.Kit
             int fs = UiSurface.FontSize(this);
             return Style == ToggleStyle.Box
                 ? new Vector2(fs * 1.7f, fs * 1.7f)
-                : new Vector2(fs * 3.4f, fs * 1.7f);
+                : new Vector2(fs * 3.7f, fs * 1.8f);
         }
 
         public override void _Notification(int what)
@@ -67,6 +88,20 @@ namespace Beep.ECS.UI.Kit
             if (what != NotificationThemeChanged) return;
             _genre = KitChrome.GenreOf(this);
             Suppress();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            RefreshVisualAndRedraw();
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
             QueueRedraw();
         }
 
@@ -81,7 +116,7 @@ namespace Beep.ECS.UI.Kit
                                0f, 0f, 0f);
             foreach (string icon in new[]
                      { "checked", "unchecked", "checked_disabled", "unchecked_disabled" })
-                AddThemeIconOverride(icon, KitChrome.Blank);
+                KitChrome.SetBlankIconOverride(this, icon);
             _suppressing = false;
         }
 
@@ -92,7 +127,7 @@ namespace Beep.ECS.UI.Kit
             bool _on = ButtonPressed;
             Color face = UiSurface.Of(this);
             Color ink = UiSurface.Ink(face);
-            Color on = UiSurface.Semantic(this, OnRole);
+            Color on = UiSurface.SemanticOrDerived(this, OnRole);
             if (on.A < 0.02f) on = face;
             if (Disabled)
             {
@@ -110,34 +145,47 @@ namespace Beep.ECS.UI.Kit
                 if (_on) DrawTick(r, UiSurface.Luminance(on) > 0.5f
                                         ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
                 else DrawOffMark(r, UiSurface.Text(this) with { A = 0.42f });
+                KitChrome.DrawFocusRing(this, _genre, r, KitChrome.Shape(_genre), 0.8f);
                 return;
             }
 
-            // Track keeps its hue whether on or off — off is a position, not a disabled state.
+            float outerPad = Mathf.Max(1f, Size.Y * 0.06f);
+            var trackRect = r.Grow(-outerPad);
             Color track = _on
-                ? new Color(on.R * 0.55f, on.G * 0.55f, on.B * 0.58f, 1f)
-                : new Color(face.R * 0.42f, face.G * 0.42f, face.B * 0.46f, 1f);
-            KitChrome.DrawShape(this, _genre, r, KitShape.Pill, track, ink, rimPx);
+                ? new Color(on.R * 0.54f + face.R * 0.20f,
+                            on.G * 0.54f + face.G * 0.20f,
+                            on.B * 0.54f + face.B * 0.20f,
+                            Disabled ? 0.55f : 1f)
+                : KitChrome.WellFace(face);
+            KitShape trackShape = KitChrome.Shape(_genre, KitWidgetClass.Bar);
+            KitChrome.DrawShape(this, _genre, trackRect, trackShape, track, ink, rimPx,
+                                KitWidgetClass.Bar);
 
-            float kw = Size.X * 0.46f;
-            var knob = new Rect2(_on ? Size.X - kw : 0f, 0f, kw, Size.Y);
-            KitChrome.DrawShape(this, _genre, knob, KitShape.Pill, _on ? on : new Color(face.R * 0.85f, face.G * 0.85f, face.B * 0.9f, 1f),
-                      ink, rimPx);
-            if (GetThemeDefaultFont() is { } font)
-            {
-                string mark = _on ? "ON" : "OFF";
-                int mf = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                           new Vector2(knob.Size.X * 0.76f, knob.Size.Y * 0.44f),
-                                           mark, font, min: 7);
-                Vector2 m = font.GetStringSize(mark, HorizontalAlignment.Left, -1, mf);
-                Color text = UiSurface.Luminance(_on ? on : face) > 0.5f
-                    ? new Color(0.10f, 0.09f, 0.08f)
-                    : new Color(0.98f, 0.96f, 0.92f);
-                KitChrome.DrawText(this, _genre, font,
-                                   new Vector2(knob.Position.X + (knob.Size.X - m.X) * 0.5f,
-                                               knob.Position.Y + (knob.Size.Y + m.Y * 0.6f) * 0.5f),
-                                   mark, mf, text);
-            }
+            float inset = Mathf.Max(2f, trackRect.Size.Y * 0.14f);
+            float kh = Mathf.Max(8f, trackRect.Size.Y - inset * 2f);
+            float kw = Mathf.Max(kh * 1.16f, Size.X * 0.34f);
+            float x0 = trackRect.Position.X + inset;
+            float x1 = trackRect.End.X - inset - kw;
+            var knob = new Rect2(new Vector2(_on ? x1 : x0, trackRect.Position.Y + inset),
+                                 new Vector2(kw, kh));
+            Color knobFace = _on
+                ? new Color(Mathf.Lerp(on.R, 1f, 0.12f),
+                            Mathf.Lerp(on.G, 1f, 0.12f),
+                            Mathf.Lerp(on.B, 1f, 0.12f),
+                            Disabled ? 0.70f : 1f)
+                : new Color(face.R * 0.92f, face.G * 0.92f, face.B * 0.95f, 1f);
+            KitChrome.DrawShape(this, _genre, knob, KitShape.Pill,
+                                KitChrome.StateFace(knobFace, Disabled ? KitState.Disabled : KitState.Normal),
+                                UiSurface.Ink(knobFace) with { A = Disabled ? 0.24f : 0.34f },
+                                Mathf.Max(1f, rimPx * 0.45f), KitWidgetClass.Bar);
+
+            Color mark = UiSurface.Ink(knobFace) with { A = Disabled ? 0.40f : 0.58f };
+            float markW = Mathf.Max(1f, kh * 0.10f);
+            float mx = knob.Position.X + knob.Size.X * 0.5f;
+            DrawLine(new Vector2(mx, knob.Position.Y + kh * 0.28f),
+                     new Vector2(mx, knob.End.Y - kh * 0.28f), mark, markW);
+
+            KitChrome.DrawFocusRing(this, _genre, trackRect, trackShape, 0.8f);
         }
 
         private void DrawTick(Rect2 r, Color col)

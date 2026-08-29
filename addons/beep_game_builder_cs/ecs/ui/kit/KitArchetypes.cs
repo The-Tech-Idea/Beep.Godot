@@ -102,48 +102,138 @@ namespace Beep.ECS.UI.Kit
         };
 
         /// <summary>
-        /// Build (or rebuild) an archetype's ornaments as child nodes of <paramref name="host"/>.
+        /// Apply an archetype's ornament specs to authored children of <paramref name="host"/>.
         ///
-        /// IDEMPOTENT — it removes what it made last time before making it again. Every setter
-        /// that touches the archetype calls this, and the editor calls setters freely; an
-        /// append-only version would stack a new crown on the old one every redraw, which is
-        /// exactly the defect the kit's public-API rule exists to prevent.
+        /// Scene-authored ornaments are the normal path. A child named Ornament{Kind}{Anchor}
+        /// is matched first, then any unclaimed KitOrnament child. Legacy generation and cleanup
+        /// exist only when explicitly requested by the owning control.
         /// </summary>
-        public static void Apply(Godot.Control host, KitArchetype archetype)
+        public static void Apply(Godot.Control host, KitArchetype archetype, bool generateWhenMissing = false)
         {
-            foreach (var child in host.GetChildren())
-                if (child is KitOrnament o && o.HasMeta(MadeByUs))
-                    o.QueueFree();
-
             var specs = For(archetype);
-            if (specs.Length == 0) return;
+            if (specs.Length == 0)
+            {
+                if (generateWhenMissing)
+                    RemoveGeneratedOrnaments(host);
+                return;
+            }
 
             float shortEdge = Mathf.Max(48f, Mathf.Min(host.Size.X, host.Size.Y));
+            var claimed = new System.Collections.Generic.HashSet<KitOrnament>();
             foreach (var spec in specs)
             {
-                float d = shortEdge * spec.SizeRatio;
-                var orn = new KitOrnament
+                var ornament = FindAuthoredOrnament(host, spec, claimed);
+                if (ornament == null)
                 {
-                    Name = $"Ornament{spec.Kind}{spec.Anchor}",
-                    Kind = spec.Kind,
-                    Role = spec.Role,
-                    CustomMinimumSize = new Vector2(d, d),
-                    Size = new Vector2(d, d),
-                    // Background art: an ornament that eats clicks would block the button under it.
-                    MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
-                };
-                orn.SetMeta(MadeByUs, true);
-                // Positioned from the same KitAttach resolve everything else overhangs by, so an
-                // ornament and a badge cross the edge by the same rule.
-                orn.Position = new KitAttach
-                {
-                    Anchor = spec.Anchor,
-                    Size = new Vector2(d, d),
-                    Overhang = 0.5f,
-                }.Resolve(host.Size).Position;
-                host.AddChild(orn);
+                    if (!generateWhenMissing)
+                        continue;
+
+                    ornament = FindGeneratedOrnament(host, spec, claimed)
+                        ?? BuildGeneratedOrnament(host, spec);
+                }
+
+                claimed.Add(ornament);
+                StyleOrnament(host, ornament, spec, shortEdge);
             }
+
+            if (generateWhenMissing)
+                RemoveUnclaimedGeneratedOrnaments(host, claimed);
         }
+
+        private static KitOrnament? FindAuthoredOrnament(
+            Godot.Control host,
+            KitOrnamentSpec spec,
+            System.Collections.Generic.HashSet<KitOrnament> claimed)
+        {
+            string preferredName = OrnamentName(spec);
+            foreach (var child in host.GetChildren())
+            {
+                if (child is KitOrnament ornament
+                    && !ornament.HasMeta(MadeByUs)
+                    && !claimed.Contains(ornament)
+                    && ornament.Name.ToString() == preferredName)
+                    return ornament;
+            }
+
+            foreach (var child in host.GetChildren())
+            {
+                if (child is KitOrnament ornament
+                    && !ornament.HasMeta(MadeByUs)
+                    && !claimed.Contains(ornament))
+                    return ornament;
+            }
+
+            return null;
+        }
+
+        private static KitOrnament? FindGeneratedOrnament(
+            Godot.Control host,
+            KitOrnamentSpec spec,
+            System.Collections.Generic.HashSet<KitOrnament> claimed)
+        {
+            string preferredName = OrnamentName(spec);
+            foreach (var child in host.GetChildren())
+            {
+                if (child is KitOrnament ornament
+                    && ornament.HasMeta(MadeByUs)
+                    && !claimed.Contains(ornament)
+                    && ornament.Name.ToString() == preferredName)
+                    return ornament;
+            }
+
+            return null;
+        }
+
+        private static KitOrnament BuildGeneratedOrnament(Godot.Control host, KitOrnamentSpec spec)
+        {
+            var ornament = new KitOrnament
+            {
+                Name = OrnamentName(spec),
+                MouseFilter = Godot.Control.MouseFilterEnum.Ignore,
+            };
+            ornament.SetMeta(MadeByUs, true);
+            host.AddChild(ornament);
+            if (Engine.IsEditorHint())
+                ornament.Owner = host.GetTree()?.EditedSceneRoot;
+            return ornament;
+        }
+
+        private static void StyleOrnament(Godot.Control host, KitOrnament ornament, KitOrnamentSpec spec, float shortEdge)
+        {
+            float d = shortEdge * spec.SizeRatio;
+            ornament.Kind = spec.Kind;
+            ornament.Role = spec.Role;
+            ornament.Size = new Vector2(d, d);
+            KitChrome.RefreshAutoMinimumSize(ornament, new Vector2(d, d), force: true);
+            ornament.MouseFilter = Godot.Control.MouseFilterEnum.Ignore;
+            ornament.Position = new KitAttach
+            {
+                Anchor = spec.Anchor,
+                Size = new Vector2(d, d),
+                Overhang = 0.5f,
+            }.Resolve(host.Size).Position;
+        }
+
+        private static void RemoveGeneratedOrnaments(Godot.Control host)
+        {
+            foreach (var child in host.GetChildren())
+                if (child is KitOrnament ornament && ornament.HasMeta(MadeByUs))
+                    ornament.QueueFree();
+        }
+
+        private static void RemoveUnclaimedGeneratedOrnaments(
+            Godot.Control host,
+            System.Collections.Generic.HashSet<KitOrnament> claimed)
+        {
+            foreach (var child in host.GetChildren())
+                if (child is KitOrnament ornament
+                    && ornament.HasMeta(MadeByUs)
+                    && !claimed.Contains(ornament))
+                    ornament.QueueFree();
+        }
+
+        private static string OrnamentName(KitOrnamentSpec spec)
+            => $"Ornament{spec.Kind}{spec.Anchor}";
 
         private static readonly StringName MadeByUs = "kit_archetype_ornament";
     }

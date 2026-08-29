@@ -18,6 +18,10 @@ namespace Beep.ECS.UI
         [Export] public float InitialDelay { get; set; } = 0f;
         [Export] public bool AnimateOnReady { get; set; } = true;
 
+        public float EffectiveDuration => Mathf.Max(0.001f, float.IsFinite(Duration) ? Duration : 0.001f);
+        public float EffectiveStaggerDelay => Mathf.Max(0f, float.IsFinite(StaggerDelay) ? StaggerDelay : 0f);
+        public float EffectiveInitialDelay => Mathf.Max(0f, float.IsFinite(InitialDelay) ? InitialDelay : 0f);
+
         [Signal] public delegate void MenuShownEventHandler();
         [Signal] public delegate void MenuHiddenEventHandler();
 
@@ -90,18 +94,19 @@ namespace Beep.ECS.UI
 
                 var tween = ctrl.CreateTween();
                 _activeTweens.Add(tween);
-                float delay = InitialDelay + i * StaggerDelay;
+                float duration = EffectiveDuration;
+                float delay = EffectiveInitialDelay + i * EffectiveStaggerDelay;
                 tween.TweenInterval(delay);
                 tween.SetParallel(true);
 
                 if (EntryDirection != Direction.FadeOnly && EntryDirection != Direction.FromCenter)
-                    tween.TweenProperty(ctrl, "offset_transform_position", Vector2.Zero, Duration)
+                    tween.TweenProperty(ctrl, "offset_transform_position", Vector2.Zero, duration)
                         .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
                 if (EntryDirection == Direction.FromCenter)
-                    tween.TweenProperty(ctrl, "offset_transform_scale", Vector2.One, Duration)
+                    tween.TweenProperty(ctrl, "offset_transform_scale", Vector2.One, duration)
                         .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
 
-                tween.TweenProperty(ctrl, "modulate:a", 1f, Duration * 0.6f);
+                tween.TweenProperty(ctrl, "modulate:a", 1f, duration * 0.6f);
 
                 if (i == children.Count - 1)
                     tween.Finished += OnShowFinished;
@@ -128,9 +133,9 @@ namespace Beep.ECS.UI
                 var ctrl = children[i];
                 var tween = ctrl.CreateTween();
                 _activeTweens.Add(tween);
-                tween.TweenInterval(i * StaggerDelay * 0.5f);
+                tween.TweenInterval(i * EffectiveStaggerDelay * 0.5f);
                 tween.SetParallel(true);
-                tween.TweenProperty(ctrl, "modulate:a", 0f, Duration * 0.5f);
+                tween.TweenProperty(ctrl, "modulate:a", 0f, EffectiveDuration * 0.5f);
                 if (i == children.Count - 1)
                     tween.Finished += OnHideFinished;
             }

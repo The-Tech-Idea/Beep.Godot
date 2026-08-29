@@ -1,0 +1,607 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://tests/examples/TerrainGeneratorLabController.cs" id="controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs" id="bridge"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs" id="scatter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainMapOverlayComponent.cs" id="map_overlay"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBiomeTileMapRendererComponent.cs" id="tile_renderer"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="kit_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="kit_option"]
+
+[node name="TerrainGeneratorLab" type="Node2D"]
+script = ExtResource("controller")
+TerrainPath = NodePath("Preview/Terrain")
+GeneratorPath = NodePath("Preview/TerrainGenerator")
+BridgePath = NodePath("Preview/TerrainBridge")
+ScatterPath = NodePath("Preview/TerrainPropScatter")
+MapOverlayPath = NodePath("Preview/MapOverlay")
+TileRendererPath = NodePath("Preview/TileRenderer")
+TileRenderTogglePath = NodePath("HUD/Settings/Scroll/Controls/TileRender")
+ClimateBiomesPath = NodePath("HUD/Settings/Scroll/Controls/ClimateBiomes")
+ReliefPath = NodePath("HUD/Settings/Scroll/Controls/Relief")
+HillshadePath = NodePath("HUD/Settings/Scroll/Controls/Hillshade")
+RiversPath = NodePath("HUD/Settings/Scroll/Controls/Rivers")
+ResourcesPath = NodePath("HUD/Settings/Scroll/Controls/Resources")
+StartMarkersPath = NodePath("HUD/Settings/Scroll/Controls/StartMarkers")
+PreviewPath = NodePath("Preview")
+PresetPath = NodePath("HUD/Settings/Scroll/Controls/PresetRow/Preset")
+LandformPath = NodePath("HUD/Settings/Scroll/Controls/LandformRow/Landform")
+LandmassScalePath = NodePath("HUD/Settings/Scroll/Controls/LandSizeRow/LandmassScale")
+IslandCountPath = NodePath("HUD/Settings/Scroll/Controls/IslandCountRow/IslandCount")
+SeedPath = NodePath("HUD/Settings/Scroll/Controls/SeedRow/Seed")
+WidthPath = NodePath("HUD/Settings/Scroll/Controls/SizeRow/Width")
+HeightPath = NodePath("HUD/Settings/Scroll/Controls/SizeRow/Height")
+FrequencyPath = NodePath("HUD/Settings/Scroll/Controls/FrequencyRow/Frequency")
+OctavesPath = NodePath("HUD/Settings/Scroll/Controls/OctavesRow/Octaves")
+SeaCoveragePath = NodePath("HUD/Settings/Scroll/Controls/SeaRow/SeaCoverage")
+BeachWidthPath = NodePath("HUD/Settings/Scroll/Controls/BeachRow/BeachWidth")
+LakeCoveragePath = NodePath("HUD/Settings/Scroll/Controls/LakeRow/LakeCoverage")
+LakeSizePath = NodePath("HUD/Settings/Scroll/Controls/LakeSizeRow/LakeSize")
+DetailCoveragePath = NodePath("HUD/Settings/Scroll/Controls/DetailRow/DetailCoverage")
+SwampCoveragePath = NodePath("HUD/Settings/Scroll/Controls/SwampRow/SwampCoverage")
+SnowCoveragePath = NodePath("HUD/Settings/Scroll/Controls/SnowRow/SnowCoverage")
+IceCoveragePath = NodePath("HUD/Settings/Scroll/Controls/IceRow/IceCoverage")
+GrassPropCoveragePath = NodePath("HUD/Settings/Scroll/Controls/GrassPropRow/GrassPropCoverage")
+DesertPropCoveragePath = NodePath("HUD/Settings/Scroll/Controls/DesertPropRow/DesertPropCoverage")
+RockPropCoveragePath = NodePath("HUD/Settings/Scroll/Controls/RockPropRow/RockPropCoverage")
+PropSpacingPath = NodePath("HUD/Settings/Scroll/Controls/PropSpacingRow/PropSpacing")
+FoamPath = NodePath("HUD/Settings/Scroll/Controls/Foam")
+PlantsPath = NodePath("HUD/Settings/Scroll/Controls/Plants")
+GenerateButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Generate")
+RandomSeedButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Randomize")
+ResetViewButtonPath = NodePath("HUD/Settings/Scroll/Controls/ResetView")
+StatusPath = NodePath("HUD/Status")
+InitialLandform = 1
+
+[node name="PreviewBackdrop" type="ColorRect" parent="."]
+visible = false
+z_index = -200
+offset_left = 326.0
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.06, 0.10, 0.08, 1)
+mouse_filter = 2
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -300
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.06, 0.10, 0.08, 1)
+mouse_filter = 2
+
+[node name="Preview" type="Node2D" parent="."]
+position = Vector2(390, 48)
+
+[node name="Terrain" type="Node2D" parent="Preview"]
+script = ExtResource("terrain")
+Mode = 1
+Preset = 0
+WidthTiles = 96
+HeightTiles = 60
+TileSize = 64
+PixelsPerTile = 32
+Seed = 31415
+Frequency = 0.072
+Octaves = 5
+Lacunarity = 2.05
+Gain = 0.5
+WaterLevel = 0.08
+BeachWidth = 0.028
+RockLevel = 0.92
+Dryness = 0.0
+GenerateOnReady = false
+GrainStrength = 0.0
+HeightTintStrength = 0.0
+UseBundledMaterialTextures = false
+MaterialTextureStrength = 0.0
+MaxGeneratedPixels = 2097152
+PostSharpenStrength = 0.08
+EnableBiomeDetailLayers = true
+GroundDetailRegionMode = 2
+BiomeDetailCoverage = 0.16
+BiomeDetailPatchScale = 0.23
+BiomeDetailStrength = 0.32
+BiomeDetailDensity = 0.48
+VegetationLayerStrength = 0.20
+FlowerLayerStrength = 0.0
+WaterAlpha = 0.78
+ShallowWaterAlpha = 0.58
+WaterFoamStrength = 0.18
+WaterRippleStrength = 0.08
+UseAnimatedFoamEdges = true
+FoamTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/ForestTileSet/Water Foam.png"
+FoamOpacity = 0.58
+FoamEdgeWidthPixels = 2
+FoamFramesPerSecond = 8.0
+FoamFrameCount = 16
+FoamTilesPerRepeat = 6.0
+RenderZIndex = -90
+Centered = false
+UseRepeatedGrassOverlay = true
+GrassOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
+GrassOverlayStrength = 0.22
+GrassOverlayTextureSize = 1254.0
+UseRepeatedBiomeOverlays = true
+DryGrassOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Dry Grassland Texture.png"
+SandOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
+EarthOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Warm Brown Dirt Texture.png"
+RockOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Neutral Gravel Ground Texture.png"
+SnowIceOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
+BiomeOverlayStrength = 0.16
+BiomeOverlayTextureSize = 1024.0
+UseRepeatedWaterOverlay = true
+WaterOverlayTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
+WaterOverlayStrength = 0.18
+WaterOverlayTextureSize = 1024.0
+GrassMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
+DryGrassMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Dry Grassland Texture.png"
+SandMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
+MudMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Wet Muddy Earth Texture.png"
+RockMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Gravelly Earth Texture.png"
+ShallowWaterMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
+DeepWaterMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
+SnowIceMaterialTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
+
+[node name="PainterlyTerrainSprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainGrassOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainDryGrassOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainSandOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainEarthOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainRockOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainSnowIceOverlaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainDetailSprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainWaterSprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainFoamSprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="PainterlyTerrainGameplaySprite" type="Sprite2D" parent="Preview/Terrain"]
+centered = false
+
+[node name="Cells" type="Node" parent="Preview"]
+script = ExtResource("cells")
+DefaultTerrainKind = "deep_water"
+
+[node name="TerrainGenerator" type="Node" parent="Preview"]
+script = ExtResource("generator")
+CellDataPath = NodePath("../Cells")
+PainterlyTerrainPath = NodePath("../Terrain")
+UsePainterSettings = true
+GenerateOnReady = false
+ClearExistingCells = true
+SeaCoverage = 0.12
+LandmassScale = 0.70
+ArchipelagoIslandCount = 4
+TopologySamplesPerCell = 8
+LakeCoverage = 0.05
+LakeFrequencyMultiplier = 0.10
+LakeShoreWidth = 0.04
+
+[node name="TerrainBridge" type="Node" parent="Preview"]
+script = ExtResource("bridge")
+PainterlyTerrainPath = NodePath("../Terrain")
+CellDataPath = NodePath("../Cells")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+UsePainterDimensions = true
+AutoRebuildOnReady = false
+AutoRebuildOnChanges = false
+GenerateBeforeFirstRebuild = false
+UseContinuousBiomeRendering = true
+PaintRoads = false
+PaintGroundDetails = true
+GroundDetailMask = 1.0
+
+[node name="TileRenderer" type="Node2D" parent="Preview"]
+visible = false
+script = ExtResource("tile_renderer")
+CellDataPath = NodePath("../Cells")
+BoundsSize = Vector2i(96, 60)
+AtlasTileSize = Vector2i(64, 64)
+AtlasColumns = 4
+AtlasTileRows = 4
+RefreshOnReady = false
+BaseAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterplain.png"
+GrassAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassplain.png"
+GrassDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassflecks.png"
+DryGrassAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceGrassplain.png"
+SandAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/14e29c2f-395a-407b-9d87-f0e53f237829.png"
+DesertAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecedesertplain.png"
+DesertDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecedesertflecks.png"
+JungleAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecerichGrass.png"
+SwampAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15pieceswamp.png"
+TundraAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecemudplain.png"
+RockAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/Grey-rock 15-piece atlas 1.png"
+GravelAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/Grey-rock 15-piece atlas 2.png"
+SnowAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/snow 15-piece atlas.png"
+IceAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/ice 15-piece atlas.png"
+WaterAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterplain.png"
+WaterDetailAtlasPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/TileSets/15piecewaterflicks.png"
+
+[node name="MapOverlay" type="Node2D" parent="Preview"]
+z_index = 60
+script = ExtResource("map_overlay")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+BoundsSize = Vector2i(96, 60)
+TileSize = 64
+ShowResources = true
+ShowStartPositions = true
+
+[node name="TerrainPropScatter" type="Node2D" parent="Preview"]
+script = ExtResource("scatter")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+CellDataPath = NodePath("../Cells")
+SizeInTiles = Vector2i(96, 60)
+TileSize = 64
+Seed = 31415
+GenerateOnReady = false
+MaxProps = 18
+GrassCoverage = 0.04
+DesertCoverage = 0.06
+RockCoverage = 0.07
+MinimumDistanceTiles = 1.05
+ScatterJitter = 0.58
+MinScale = 0.34
+MaxScale = 0.48
+RenderZIndex = -84
+GrassPrimaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/grasses01.png"
+GrassSecondaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/weed01.png"
+GrassAccentPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/bush01.png"
+DesertPrimaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/cactus01.png"
+DesertSecondaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/cactus02.png"
+DesertAccentPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/Objects_separately/Rock1_1.png"
+MudPrimaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/bamboo01.png"
+MudSecondaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/shrub1-01.png"
+MudAccentPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Decorations/Rocks/Rock1.png"
+RockPrimaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/Objects_separately/Rock1_1.png"
+RockSecondaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/Objects_separately/Rock2_1.png"
+SnowAccentPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/Objects_separately/Rokc3_snow_shadow1.png"
+AllowShallowWaterProps = false
+WaterEdgePrimaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/Objects_separately/Rock7_water_shadow1.png"
+WaterEdgeSecondaryPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Decorations/Rocks/Rock2.png"
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Settings" type="PanelContainer" parent="HUD"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 316.0
+offset_bottom = 708.0
+script = ExtResource("kit_panel")
+Title = "Terrain Lab"
+ShowWell = true
+
+[node name="Scroll" type="ScrollContainer" parent="HUD/Settings"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Controls" type="VBoxContainer" parent="HUD/Settings/Scroll"]
+theme_override_constants/separation = 6
+
+[node name="PresetRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/PresetRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Base"
+[node name="Preset" type="OptionButton" parent="HUD/Settings/Scroll/Controls/PresetRow"]
+custom_minimum_size = Vector2(180, 32)
+size_flags_horizontal = 3
+script = ExtResource("kit_option")
+
+[node name="LandformRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/LandformRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "World"
+[node name="Landform" type="OptionButton" parent="HUD/Settings/Scroll/Controls/LandformRow"]
+custom_minimum_size = Vector2(180, 32)
+size_flags_horizontal = 3
+script = ExtResource("kit_option")
+
+[node name="LandSizeRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/LandSizeRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Land cover"
+[node name="LandmassScale" type="SpinBox" parent="HUD/Settings/Scroll/Controls/LandSizeRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 10.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 40.0
+
+[node name="IslandCountRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/IslandCountRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Islands"
+[node name="IslandCount" type="SpinBox" parent="HUD/Settings/Scroll/Controls/IslandCountRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 2.0
+max_value = 12.0
+step = 1.0
+value = 4.0
+
+[node name="SeedRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/SeedRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Seed"
+[node name="Seed" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SeedRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+max_value = 2147483647.0
+value = 31415.0
+
+[node name="SizeRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/SizeRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Map size"
+[node name="Width" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SizeRow"]
+custom_minimum_size = Vector2(82, 30)
+min_value = 8.0
+max_value = 200.0
+step = 1.0
+value = 96.0
+[node name="Height" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SizeRow"]
+custom_minimum_size = Vector2(82, 30)
+min_value = 6.0
+max_value = 200.0
+step = 1.0
+value = 60.0
+
+[node name="FrequencyRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/FrequencyRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Frequency"
+[node name="Frequency" type="SpinBox" parent="HUD/Settings/Scroll/Controls/FrequencyRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.002
+max_value = 0.2
+step = 0.002
+value = 0.020
+
+[node name="OctavesRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/OctavesRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Octaves"
+[node name="Octaves" type="SpinBox" parent="HUD/Settings/Scroll/Controls/OctavesRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 10.0
+step = 1.0
+value = 5.0
+
+[node name="SeaRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/SeaRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Mainland sea"
+[node name="SeaCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SeaRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 12.0
+
+[node name="BeachRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/BeachRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Shore"
+[node name="BeachWidth" type="SpinBox" parent="HUD/Settings/Scroll/Controls/BeachRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 0.2
+step = 0.002
+value = 0.028
+
+[node name="LakeRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/LakeRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Lake cover"
+[node name="LakeCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/LakeRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 5.0
+
+[node name="LakeSizeRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/LakeSizeRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Lake size"
+[node name="LakeSize" type="SpinBox" parent="HUD/Settings/Scroll/Controls/LakeSizeRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.02
+max_value = 1.0
+step = 0.01
+value = 0.10
+
+[node name="DetailRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/DetailRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Detail"
+[node name="DetailCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/DetailRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.16
+
+[node name="SwampRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/SwampRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Swamp %"
+[node name="SwampCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SwampRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 0.0
+
+[node name="SnowRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/SnowRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Snow %"
+[node name="SnowCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/SnowRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 0.0
+
+[node name="IceRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/IceRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Ice %"
+[node name="IceCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/IceRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 0.0
+
+[node name="GrassPropRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/GrassPropRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Grass props"
+[node name="GrassPropCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/GrassPropRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 4.0
+
+[node name="DesertPropRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/DesertPropRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Desert props"
+[node name="DesertPropCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/DesertPropRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 6.0
+
+[node name="RockPropRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/RockPropRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Rock props"
+[node name="RockPropCoverage" type="SpinBox" parent="HUD/Settings/Scroll/Controls/RockPropRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+suffix = "%"
+value = 7.0
+
+[node name="PropSpacingRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/PropSpacingRow"]
+custom_minimum_size = Vector2(82, 0)
+text = "Prop space"
+[node name="PropSpacing" type="SpinBox" parent="HUD/Settings/Scroll/Controls/PropSpacingRow"]
+custom_minimum_size = Vector2(180, 30)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 3.0
+step = 0.05
+value = 1.05
+
+[node name="Foam" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Animated foam edges"
+button_pressed = true
+
+[node name="ClimateBiomes" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Climate biomes"
+button_pressed = true
+
+[node name="Relief" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Hills and mountains"
+button_pressed = true
+
+[node name="Hillshade" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Relief shading"
+button_pressed = true
+
+[node name="Rivers" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Rivers"
+button_pressed = true
+
+[node name="Resources" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Resources"
+button_pressed = true
+
+[node name="StartMarkers" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Start positions"
+button_pressed = true
+
+[node name="TileRender" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Render as game tiles"
+
+[node name="Plants" type="CheckButton" parent="HUD/Settings/Scroll/Controls"]
+text = "Plant props"
+button_pressed = true
+
+[node name="Actions" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+theme_override_constants/separation = 8
+[node name="Generate" type="Button" parent="HUD/Settings/Scroll/Controls/Actions"]
+custom_minimum_size = Vector2(126, 36)
+size_flags_horizontal = 3
+text = "Generate"
+script = ExtResource("kit_button")
+[node name="Randomize" type="Button" parent="HUD/Settings/Scroll/Controls/Actions"]
+custom_minimum_size = Vector2(126, 36)
+size_flags_horizontal = 3
+text = "Random seed"
+script = ExtResource("kit_button")
+
+[node name="ResetView" type="Button" parent="HUD/Settings/Scroll/Controls"]
+custom_minimum_size = Vector2(0, 32)
+text = "Reset view"
+script = ExtResource("kit_button")
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 22.0
+offset_top = 710.0
+offset_right = 1240.0
+offset_bottom = 718.0
+text = "Generating..."
+theme_override_colors/font_color = Color(0.80, 0.88, 0.77, 1)

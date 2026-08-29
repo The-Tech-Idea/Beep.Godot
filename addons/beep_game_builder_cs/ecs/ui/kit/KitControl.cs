@@ -21,13 +21,44 @@ namespace Beep.ECS.UI.Kit
     {
         /// <summary>Override the genre's silhouette. Leave as null to inherit — which is the
         /// normal case, and the reason a widget does not restate its own shape.</summary>
-        [Export] public bool OverrideShape { get; set; }
-        [Export] public KitShape Shape { get; set; } = KitShape.Round;
+        [Export]
+        public bool OverrideShape
+        {
+            get => _overrideShape;
+            set { if (_overrideShape == value) return; _overrideShape = value; RefreshVisualAndRedraw(); }
+        }
+        private bool _overrideShape;
 
-        [Export] public KitElevation Elevation { get; set; } = KitElevation.Raised;
+        [Export]
+        public KitShape Shape
+        {
+            get => _shape;
+            set { if (_shape == value) return; _shape = value; RefreshVisualAndRedraw(); }
+        }
+        private KitShape _shape = KitShape.Round;
+
+        [Export]
+        public KitElevation Elevation
+        {
+            get => _elevation;
+            set { if (_elevation == value) return; _elevation = value; RefreshVisualAndRedraw(); }
+        }
+        private KitElevation _elevation = KitElevation.Raised;
 
         /// <summary>Corner fraction. Negative inherits the GENRE's value; set only to deviate.</summary>
-        [Export(PropertyHint.Range, "-1.0,0.5,0.01")] public float CornerOverride { get; set; } = -1f;
+        [Export(PropertyHint.Range, "-1.0,0.5,0.01")]
+        public float CornerOverride
+        {
+            get => _cornerOverride;
+            set
+            {
+                float next = Mathf.Clamp(value, -1f, 0.5f);
+                if (Mathf.IsEqualApprox(_cornerOverride, next)) return;
+                _cornerOverride = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _cornerOverride = -1f;
 
         /// <summary>The genre's proportions. PLAN.md rule 7: no metric constants on this class.</summary>
         protected KitGeometry Geo => KitGeometry.ForGenre(_genre);
@@ -42,15 +73,20 @@ namespace Beep.ECS.UI.Kit
         protected KitState State = KitState.Normal;
         protected readonly List<KitAttach> Attachments = new();
 
-        private string _genre = "";
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
 
-        /// <summary>TEMPORARY diagnostic switch. Reading the code failed twice on the outline
-        /// inversion; this prints the value actually used.</summary>
-        public static bool DebugOutline;
+        private string _genre = "";
 
         public override void _Ready()
         {
-            _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
+            base._Ready();
+            _genre = KitChrome.GenreOf(this);
 
             // MouseFilter is deliberately NOT set here. Control already defaults to Stop, so the
             // interactive widgets get what they need for _GuiInput without help — while forcing
@@ -62,11 +98,24 @@ namespace Beep.ECS.UI.Kit
 
         public override void _Notification(int what)
         {
+            base._Notification(what);
             if (what == NotificationThemeChanged)
             {
-                _genre = SkinCatalog.HasActiveSkin ? SkinCatalog.ActiveGenre : "";
-                QueueRedraw();
+                _genre = KitChrome.GenreOf(this);
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+                UpdateMinimumSize();
+                RefreshVisualAndRedraw();
             }
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        protected void ApplyInputDefaults(MouseFilterEnum? mouseFilter = null, FocusModeEnum? focusMode = null)
+        {
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, mouseFilter, focusMode);
         }
 
         /// <summary>
@@ -79,7 +128,7 @@ namespace Beep.ECS.UI.Kit
         /// with identical type and <c>KitFonts</c> never even warned. One resolver, swept over
         /// every call site, so a new widget cannot miss it.
         /// </summary>
-        protected Font? KitFont() => KitFonts.Resolve(Geo.Font) ?? GetThemeDefaultFont();
+        protected Font? KitFont() => KitFonts.Fallback(this, Geo.Font);
 
         /// <summary>Draw a string with the theme's TEXT TREATMENT applied. Every kit label goes
         /// through this or <see cref="KitChrome.DrawText"/>, so a theme that declares
@@ -98,7 +147,7 @@ namespace Beep.ECS.UI.Kit
         /// resolves here — no literals, per PLAN.md §4 rule 1.</summary>
         protected Color FaceColor()
         {
-            Color s = UiSurface.Of(this);
+            Color s = UiSurface.ControlFace(UiSurface.Of(this));
             float k = Elevation switch
             {
                 KitElevation.Recessed => 0.72f,
@@ -168,10 +217,8 @@ namespace Beep.ECS.UI.Kit
         /// draw a StyleBox.
         ///
         /// Needed by any layer that must be CLIPPED to the widget's shape rather than to its
-        /// bounding box. The grain is the first: filling a pill's bounding rect with wood would
-        /// paint the material past both round ends and square off the silhouette the outline
-        /// work exists to create. Shared with <see cref="KitPushButton"/> so the two renderers
-        /// clip to the same shape instead of drifting.</summary>
+        /// bounding box. Shared with <see cref="KitPushButton"/> so the renderers clip to the
+        /// same shape instead of drifting.</summary>
         /// <summary>
         /// Apply the theme's SHEAR and WOBBLE to a finished silhouette.
         ///
@@ -264,7 +311,7 @@ namespace Beep.ECS.UI.Kit
                     r.Position + r.Size, r.Position + new Vector2(0, r.Size.Y),
                 }, r, shear, wobble);
             // ADAPTIVE resolution. This was a flat 6 segments per corner, which was invisible
-            // while the polygon only fed grain clipping and the shadow -- the visible plate went
+            // while the polygon only fed the shadow -- the visible plate went
             // through DrawStyleBox, which draws a true arc. Now that every layer IS this polygon,
             // 6 segments on a 130px radius is a 34px facet and a stadium renders as a coarse
             // octagon. About one segment every 3px, clamped so a tiny chip stays cheap and a
@@ -608,67 +655,6 @@ namespace Beep.ECS.UI.Kit
             return Snap(Mathf.Min(cut, shorter * capFrac));
         }
 
-        /// <summary>Layers that still apply over sliced art. Studs and sparkle are GEOMETRY the
-        /// art may not carry; bevel and gloss are not re-applied, because painted art already has
-        /// them and doubling them is what makes textured chrome look plastic.</summary>
-        private void DrawAfterArt(Rect2 plate, KitGeometry g)
-        {
-            if (g.Sparkle > 0f && State != KitState.Disabled)
-            {
-                float sp = Mathf.Max(2f, plate.Size.Y * 0.07f);
-                DrawCircle(plate.Position + new Vector2(plate.Size.X * 0.16f, plate.Size.Y * 0.22f),
-                           sp, new Color(1, 1, 1, 0.5f * g.Sparkle));
-            }
-        }
-
-        /// <summary>Art slot name for this widget — the file stem under the kit art root, e.g.
-        /// "button" resolves &lt;root&gt;/&lt;genre&gt;/button_base.png. Defaults to the class
-        /// name minus "Kit", so a widget opts in simply by existing.</summary>
-        protected virtual string ArtName => GetType().Name.StartsWith("Kit")
-            ? GetType().Name[3..].ToLowerInvariant()
-            : GetType().Name.ToLowerInvariant();
-
-        /// <summary>
-        /// Draw a layer from sliced 9-patch art, if any exists for this genre and slot.
-        ///
-        /// Returns false when there is no art, which is the normal case and not a failure — the
-        /// caller then draws the layer procedurally. That fallback is why the kit works with no
-        /// art at all: PLAN.md's casual/mobile register is procedurally reachable, and only the
-        /// painted register needs slices.
-        ///
-        /// A StyleBoxTexture is used rather than DrawTextureRect because only it does real
-        /// 9-patch margins; stretching a bordered texture across a button is exactly how corner
-        /// artwork gets smeared.
-        /// </summary>
-        protected bool TryDrawArt(Rect2 r, string slot)
-        {
-            if (r.Size.X < 1f || r.Size.Y < 1f) return false;
-            var tex = KitArt.Resolve(_genre, ArtName, slot);
-            if (tex == null) return false;
-
-            string key = $"{_genre}/{ArtName}_{slot}";
-            Vector4 m = KitArt.Margins(tex, key);
-            var sb = new StyleBoxTexture { Texture = tex };
-            sb.SetTextureMargin(Side.Left, m.X);
-            sb.SetTextureMargin(Side.Top, m.Y);
-            sb.SetTextureMargin(Side.Right, m.Z);
-            sb.SetTextureMargin(Side.Bottom, m.W);
-            // The palette still drives the tint, so sliced art reskins with the theme instead of
-            // pinning one game's colours into every project that uses it.
-            sb.ModulateColor = ArtModulate();
-            DrawStyleBox(sb, r);
-            return true;
-        }
-
-        /// <summary>Tint applied to sliced art. Neutral by default; state still reads through.</summary>
-        protected virtual Color ArtModulate() => State switch
-        {
-            KitState.Hover => new Color(1.10f, 1.10f, 1.10f, 1f),
-            KitState.Pressed => new Color(0.86f, 0.86f, 0.88f, 1f),
-            KitState.Disabled or KitState.Locked => new Color(0.72f, 0.72f, 0.74f, 1f),
-            _ => Colors.White,
-        };
-
         /// <summary>Fill + rim, cut to the shape. The single primitive every layer is built on.</summary>
         /// <summary>
         /// Quantise a length to the art-pixel grid, for <see cref="KitRegister.Pixel"/> only.
@@ -771,9 +757,9 @@ namespace Beep.ECS.UI.Kit
         // derived from (KitButton: `fs * HeightRatio`). Every decorative metric is a multiple of
         // it.
         //
-        // WHY. Corner, rim, shadow and material used to be re-derived from the WIDGET's pixel
-        // size -- `min(w,h) * CornerFraction`, `min(w,h) * 0.055`, "N grain tiles across the short
-        // edge". So inside ONE theme a 40px chip and a 400px panel got corner radii, outline
+        // WHY. Corner, rim and shadow used to be re-derived from the WIDGET's pixel
+        // size -- `min(w,h) * CornerFraction`, `min(w,h) * 0.055`. So inside ONE theme
+        // a 40px chip and a 400px panel got corner radii, outline
         // weights, shadow offsets and material feature sizes that differed by TEN TIMES. The
         // reference kits do the opposite: a theme has one radius and one outline weight, and a
         // big panel and a small chip share them. Size and typography were two disconnected
@@ -832,29 +818,15 @@ namespace Beep.ECS.UI.Kit
         protected static Vector2[] OffsetPoly(Vector2[] poly, float delta)
         {
             if (poly.Length < 3 || Mathf.Abs(delta) < 0.01f) return poly;
-            var pieces = Geometry2D.OffsetPolygon(poly, delta, Geometry2D.PolyJoinType.Miter);
-            if (pieces.Count == 0) return poly;
-            // Offsetting a non-convex silhouette (Spiked, Torn) can split it. Keep the largest
-            // piece -- the body -- rather than the first, which may be a sliver off one spike.
-            Vector2[] best = pieces[0];
-            float bestArea = 0f;
-            foreach (var q in pieces)
-            {
-                float a = Mathf.Abs(Area(q));
-                if (a > bestArea) { bestArea = a; best = q; }
-            }
-            return bestArea > 1f ? best : poly;
-        }
-
-        private static float Area(Vector2[] p)
-        {
-            float a = 0f;
-            for (int i = 0; i < p.Length; i++)
-            {
-                Vector2 u = p[i], v = p[(i + 1) % p.Length];
-                a += u.X * v.Y - v.X * u.Y;
-            }
-            return a * 0.5f;
+            Rect2 bounds = PolyRect(poly);
+            if (bounds.Size.X < 1f || bounds.Size.Y < 1f) return poly;
+            Vector2 centre = bounds.Position + bounds.Size * 0.5f;
+            float sx = Mathf.Max(0.05f, (bounds.Size.X + delta * 2f) / bounds.Size.X);
+            float sy = Mathf.Max(0.05f, (bounds.Size.Y + delta * 2f) / bounds.Size.Y);
+            var result = new Vector2[poly.Length];
+            for (int i = 0; i < poly.Length; i++)
+                result[i] = centre + new Vector2((poly[i].X - centre.X) * sx, (poly[i].Y - centre.Y) * sy);
+            return result;
         }
 
         /// <summary>Fill a silhouette, optionally stroking its own outline.</summary>
@@ -862,7 +834,6 @@ namespace Beep.ECS.UI.Kit
         {
             if (poly.Length < 3) return;
             rimWidth = KitRim.Width(rimWidth);
-            if (Geometry2D.TriangulatePolygon(poly).Length == 0) return;
             if (fill.A > 0.003f) DrawColoredPolygon(poly, fill);
             if (rimWidth > 0f && rim.A > 0.003f)
             {
@@ -885,10 +856,8 @@ namespace Beep.ECS.UI.Kit
         {
             if (c.A < 0.003f || host.Length < 3 || band.Length < 3) return;
             foreach (var piece in Geometry2D.IntersectPolygons(host, band))
-            {
-                if (piece.Length < 3 || Geometry2D.TriangulatePolygon(piece).Length == 0) continue;
-                DrawColoredPolygon(piece, c);
-            }
+                if (piece.Length >= 3 && Geometry2D.TriangulatePolygon(piece).Length > 0)
+                    DrawColoredPolygon(piece, c);
         }
 
         /// <summary>A horizontal band across a rect, as a polygon, generously overhanging on
@@ -921,17 +890,6 @@ namespace Beep.ECS.UI.Kit
             float fs = UiSurface.FontSize(this);
             float rimPx = g.Rim * (fs / 14f);
 
-            // Sliced art, where a project has mounted any, still short-circuits the whole stack:
-            // painted art already contains its own frame, bevel and rim.
-            if (m.Base && TryDrawArt(r, "base"))
-            {
-                float ftArt = g.FramePx(r.Size.Y);
-                var pl = Inset(r, ftArt);
-                if (pl.Size.X <= 4 || pl.Size.Y <= 4) pl = r;
-                TryDrawArt(pl, "plate");
-                if (g.Sparkle > 0f && State != KitState.Disabled) DrawSparkle(pl, g);
-                return;
-            }
             if (!m.Base) return;
 
             float frame = g.FramePx(r.Size.Y);
@@ -1011,12 +969,6 @@ namespace Beep.ECS.UI.Kit
                         FillPoly(poly, new Color(0, 0, 0, 0), c, Mathf.Max(1f, rimPx * 0.5f));
                         break;
                     }
-                    case KitLayerKind.Grain:
-                        // The genre's MATERIAL, clipped to the face's own silhouette and drawn
-                        // UNDER the lighting layers below, so gloss reads as sheen on the
-                        // material rather than the material reading as dirt on the gloss.
-                        KitGrain.Draw(this, _genre, poly, PolyRect(poly), face, layer.Amount);
-                        break;
                     case KitLayerKind.Shade: DrawFaceShade(poly, layer.Amount); break;
                     case KitLayerKind.Bevel: DrawBevel(poly, g, layer.Amount); break;
                     case KitLayerKind.Gloss: DrawGloss(poly, g, layer.Amount); break;
@@ -1253,16 +1205,18 @@ namespace Beep.ECS.UI.Kit
                 else if (!string.IsNullOrEmpty(a.Text))
                 {
                     var font = KitFont();
+                    string text = KitCase(a.Text);
                     int fs = UiSurface.FitRole(this, UiSurface.TextRole.Caption,
                                                new Vector2(r.Size.X * 0.72f, r.Size.Y * 0.64f),
-                                               a.Text, font);
+                                               text, font);
                     if (font != null)
                     {
-                        Vector2 m = font.GetStringSize(a.Text, HorizontalAlignment.Left, -1, fs);
-                        DrawString(font, r.Position + new Vector2((r.Size.X - m.X) * 0.5f,
-                                                                  (r.Size.Y + m.Y * 0.62f) * 0.5f),
-                                   a.Text, HorizontalAlignment.Left, -1, fs,
-                                   UiSurface.Text(this));
+                        text = KitChrome.EllipsizeText(font, text, fs, r.Size.X * 0.72f);
+                        if (string.IsNullOrEmpty(text)) continue;
+                        Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
+                        DrawText(font, r.Position + new Vector2((r.Size.X - m.X) * 0.5f,
+                                                                (r.Size.Y + m.Y * 0.62f) * 0.5f),
+                                 text, fs, UiSurface.Text(this));
                     }
                 }
             }

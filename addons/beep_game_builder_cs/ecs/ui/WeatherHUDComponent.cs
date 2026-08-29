@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -26,7 +27,7 @@ namespace Beep.ECS.UI
     public partial class WeatherHUDComponent : UIComponent
     {
         /// <summary>WeatherSystemComponent to read. Leave null to auto-find in the scene.</summary>
-        [Export] public NodePath? WeatherSystemPath { get; set; }
+        [Export] public NodePath WeatherSystemPath { get; set; } = new("");
 
         [ExportGroup("Optional Label Paths (relative to parent)")]
         [Export] public NodePath WeatherLabelPath { get; set; } = "WeatherLabel";
@@ -42,7 +43,12 @@ namespace Beep.ECS.UI
         /// Textures indexed by WeatherType enum value (Clear=0, Cloudy=1, ...).
         /// Assign in order; the HUD shows the one matching the current weather.
         /// </summary>
-        [Export] public Texture2D?[] WeatherIcons { get; set; } = new Texture2D?[10];
+        [Export] public Texture2D[] WeatherIcons { get; set; } = new Texture2D[10];
+        [Export(PropertyHint.Range, "0.05,2.0,0.05")] public double PollInterval { get; set; } = 0.25;
+        [Export] public bool WarnMissingWeatherSystem { get; set; } = false;
+        public double EffectivePollInterval => double.IsFinite(PollInterval)
+            ? System.Math.Clamp(PollInterval, 0.05, 10.0)
+            : 0.25;
 
         // ── Display strings per weather type ──
         private static readonly string[] WeatherDisplayNames =
@@ -68,10 +74,12 @@ namespace Beep.ECS.UI
         // the HUD reads each from its owner.
         private global::Beep.ECS.DayNightCycleComponent? _dayNight;
         private global::Beep.ECS.SeasonalComponent? _seasonalComp;
+        private double _pollElapsed;
 
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             // Don't bind at edit time — Bind() scans for a weather system, and standalone in the
             // editor there is none, so it only emitted spurious "No WeatherSystemComponent" Output
             // noise (the sibling atmosphere [Tool] components all guard this).
@@ -103,13 +111,15 @@ namespace Beep.ECS.UI
             }
 
             // Discover the weather system.
-            if (WeatherSystemPath != null)
+            if (!WeatherSystemPath.IsEmpty)
                 _ws = parent.GetNodeOrNull<global::Beep.ECS.WeatherSystemComponent>(WeatherSystemPath);
             _ws ??= FindWeatherSystem();
 
             if (_ws == null)
             {
-                GD.PushWarning("[WeatherHUD] No WeatherSystemComponent found in scene.");
+                if (WarnMissingWeatherSystem)
+                    GD.PushWarning("[WeatherHUD] No WeatherSystemComponent found in scene.");
+                UpdateProcessing();
                 return;
             }
 
@@ -130,6 +140,7 @@ namespace Beep.ECS.UI
             }
             OnWeatherChanged((int)_ws.CurrentWeather);
             RefreshAll();
+            UpdateProcessing();
         }
 
         public override void _ExitTree()
@@ -146,9 +157,27 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (_ws == null || !IsActive) return;
+            if (_ws == null || !IsActive)
+            {
+                UpdateProcessing();
+                return;
+            }
+            if (!double.IsFinite(delta) || delta <= 0.0)
+                return;
+
+            _pollElapsed += delta;
+            if (_pollElapsed < EffectivePollInterval)
+                return;
+            _pollElapsed = 0;
             RefreshAll();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint()
+                          && IsActive
+                          && _ws != null
+                          && GodotObject.IsInstanceValid(_ws)
+                          && (_intensity != null || _forecast != null || _time != null || _wind != null));
 
         private void RefreshAll()
         {
@@ -156,12 +185,12 @@ namespace Beep.ECS.UI
 
             // Intensity percentage.
             if (_intensity != null)
-                _intensity.Text = $"{(int)(_ws.WeatherIntensity * 100f)}%";
+                _intensity.Text = $"{Mathf.RoundToInt(Mathf.Clamp(FiniteOr(_ws.WeatherIntensity, 0f), 0f, 1f) * 100f)}%";
 
             // Forecast countdown (only meaningful under AutoCycle).
             if (_forecast != null)
             {
-                double remain = _ws.TimeToNextWeather;
+                double remain = double.IsFinite(_ws.TimeToNextWeather) ? System.Math.Max(0.0, _ws.TimeToNextWeather) : 0.0;
                 _forecast.Text = remain > 0
                     ? $"{(int)remain / 60}:{(int)remain % 60:00}"
                     : "—";
@@ -170,14 +199,15 @@ namespace Beep.ECS.UI
             // Time of day in HH:MM, from the day-night cycle if one is present.
             if (_time != null && _dayNight != null)
             {
-                float t = _dayNight.TimeOfDay;
+                float t = NormalizeHour(_dayNight.TimeOfDay);
                 _time.Text = $"{(int)t:00}:{(int)((t - (int)t) * 60f):00}";
             }
 
             // Wind summary.
             if (_wind != null)
             {
-                float strength = _ws.WindForce.Length();
+                Vector2 windForce = IsFinite(_ws.WindForce) ? _ws.WindForce : Vector2.Zero;
+                float strength = windForce.Length();
                 _wind.Text = strength < 0.1f ? "Calm"
                     : strength < 0.5f ? "Light"
                     : strength < 1.5f ? "Breezy"
@@ -192,7 +222,13 @@ namespace Beep.ECS.UI
             if (_icon != null && WeatherIcons != null
                 && type >= 0 && type < WeatherIcons.Length
                 && WeatherIcons[type] != null)
+            {
                 _icon.Texture = WeatherIcons[type];
+            }
+            else if (_icon != null)
+            {
+                _icon.Texture = null;
+            }
         }
 
         private void OnSeasonChanged(int season)
@@ -211,7 +247,20 @@ namespace Beep.ECS.UI
             label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             label.AutowrapMode = TextServer.AutowrapMode.Off;
             label.ClipText = true;
-            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(label, role));
+            KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", UiSurface.FontSize(label, role));
+        }
+
+        private static float FiniteOr(float value, float fallback)
+            => float.IsFinite(value) ? value : fallback;
+
+        private static bool IsFinite(Vector2 value)
+            => float.IsFinite(value.X) && float.IsFinite(value.Y);
+
+        private static float NormalizeHour(float hours)
+        {
+            if (float.IsNaN(hours) || float.IsInfinity(hours)) return 0f;
+            hours %= 24f;
+            return hours < 0f ? hours + 24f : hours;
         }
 
         private global::Beep.ECS.WeatherSystemComponent? FindWeatherSystem()

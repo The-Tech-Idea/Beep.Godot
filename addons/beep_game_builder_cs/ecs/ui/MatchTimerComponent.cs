@@ -18,6 +18,9 @@ namespace Beep.ECS.UI
         [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.18f;
         private int FontSize => UiSurface.FontSize(this, FontScale);
         [Export] public bool AutoStart { get; set; } = false;
+        [Export] public NodePath TimerLabelPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [Signal] public delegate void TimeUpEventHandler();
         [Signal] public delegate void TickEventHandler(double remaining);
@@ -30,17 +33,33 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             _remaining = DurationSeconds;
-            // Runtime only: EnsureLabel injects a Label into the parent. (The existing
-            // guard below only covered AutoStart, not the label injection.)
-            if (Engine.IsEditorHint()) return;
-            CallDeferred(nameof(EnsureLabel));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(EnsureLabel));
             UpdateText();
-            if (AutoStart) Start();
+            if (!Engine.IsEditorHint() && AutoStart) Start();
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindTimerLabel() == null && GetParent() is not Label)
+                return new[] { "Add an authored Label/KitHudText named TimerLabel, set TimerLabelPath, parent the component under a Label, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void EnsureLabel()
         {
+            if (BindExistingLabel())
+            {
+                UpdateText();
+                return;
+            }
+
+            if (!GenerateControlsWhenPathsEmpty)
+                return;
+
             var parent = GetParent();
             if (parent is Label existing) { _label = existing; StyleLabel(); UpdateText(); return; }
             if (parent == null)
@@ -64,6 +83,40 @@ namespace Beep.ECS.UI
             UpdateText();
         }
 
+        private bool BindExistingLabel()
+        {
+            _createdLabel = false;
+            if (FindTimerLabel() is { } direct)
+            {
+                _label = direct;
+                StyleLabel();
+                return true;
+            }
+
+            if (GetParent() is Label existing)
+            {
+                _label = existing;
+                StyleLabel();
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool UsesSceneControls()
+            => FindTimerLabel() != null || GetParent() is Label;
+
+        private Godot.Control? FindTimerLabel()
+        {
+            if (!TimerLabelPath.IsEmpty && GetNodeOrNull<Godot.Control>(TimerLabelPath) is { } pathLabel)
+                return pathLabel;
+
+            if (FindChild("TimerLabel", recursive: true, owned: false) is Godot.Control childLabel)
+                return childLabel;
+
+            return GetParent()?.FindChild("TimerLabel", recursive: true, owned: false) as Godot.Control;
+        }
+
         private void StyleLabel()
         {
             if (_label == null) return;
@@ -74,10 +127,10 @@ namespace Beep.ECS.UI
                 label.VerticalAlignment = VerticalAlignment.Center;
                 label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
                 label.ClipText = true;
-                label.AddThemeFontSizeOverride("font_size", FontSize);
-                label.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.78f));
-                label.AddThemeConstantOverride("shadow_offset_x", 1);
-                label.AddThemeConstantOverride("shadow_offset_y", 2);
+                KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", FontSize);
+                KitChrome.SetColorOverrideIfChanged(label, "font_shadow_color", new Color(0, 0, 0, 0.78f));
+                KitChrome.SetConstantOverrideIfChanged(label, "shadow_offset_x", 1);
+                KitChrome.SetConstantOverrideIfChanged(label, "shadow_offset_y", 2);
             }
         }
 
@@ -85,14 +138,19 @@ namespace Beep.ECS.UI
         {
             _remaining = DurationSeconds;
             _running = true;
+            UpdateProcessing();
         }
 
-        public void Stop() => _running = false;
-        public void Reset() { _remaining = DurationSeconds; _running = false; UpdateText(); }
+        public void Stop() { _running = false; UpdateProcessing(); }
+        public void Reset() { _remaining = DurationSeconds; _running = false; UpdateText(); UpdateProcessing(); }
 
         public override void _Process(double delta)
         {
-            if (!_running || !IsActive) return;
+            if (!_running || !IsActive)
+            {
+                UpdateProcessing();
+                return;
+            }
             _remaining -= delta;
             if (_remaining <= 0)
             {
@@ -100,6 +158,7 @@ namespace Beep.ECS.UI
                 _running = false;
                 UpdateText();
                 EmitSignal(SignalName.TimeUp);
+                UpdateProcessing();
                 return;
             }
             EmitSignal(SignalName.Tick, _remaining);
@@ -116,6 +175,9 @@ namespace Beep.ECS.UI
             if (_label is KitHudText hud) hud.Text = text;
             else if (_label is Label label) label.Text = text;
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && _running);
 
         public override void _ExitTree()
         {

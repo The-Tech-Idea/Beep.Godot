@@ -11,7 +11,7 @@ namespace Beep.ECS.UI
     ///
     /// This single class replaces all 22 hardcoded ThemePreset*.cs classes.
     /// </summary>
-    internal sealed class FileThemePreset : IThemePreset, IHudTexturePreset
+    internal sealed class FileThemePreset : IThemePreset
     {
         private readonly ThemeDef _def;
 
@@ -21,30 +21,6 @@ namespace Beep.ECS.UI
         public string PresetType => _def.Id; // file-based id (e.g. "cartoon")
         public ColorSchema Colors => _def.Colors;
         public AnimationConfig Animation => _def.Animation;
-
-        // ── Texture slots (Phase C) ── driven from theme.json's "textures" block.
-        public bool UsesTextures => _def.Textures?.AnyTexture ?? false;
-        public string? TexturePathNormal => _def.Textures?.ButtonNormal?.Path;
-        public string? TexturePathHover  => _def.Textures?.ButtonHover?.Path;
-        public string? TexturePathPressed => _def.Textures?.ButtonPressed?.Path;
-
-        // Per-slot StyleBoxTexture accessors — return null when the slot is unset,
-        // letting ThemePresetComponent's SkinOr() route to the inspector UISkin or
-        // the procedural StyleBoxFlat as fallback.
-        public StyleBox? GetButtonNormalTexture()   => _def.Textures?.ButtonNormal?.BuildStyleBox();
-        public StyleBox? GetButtonHoverTexture()    => _def.Textures?.ButtonHover?.BuildStyleBox();
-        public StyleBox? GetButtonPressedTexture()  => _def.Textures?.ButtonPressed?.BuildStyleBox();
-        public StyleBox? GetButtonDisabledTexture() => _def.Textures?.ButtonDisabled?.BuildStyleBox();
-        public StyleBox? GetButtonFocusTexture()    => _def.Textures?.ButtonFocus?.BuildStyleBox();
-        public StyleBox? GetPanelTexture()          => _def.Textures?.Panel?.BuildStyleBox();
-        public StyleBox? GetDialogTexture()         => _def.Textures?.Dialog?.BuildStyleBox();
-        public StyleBox? GetInputNormalTexture()    => _def.Textures?.InputNormal?.BuildStyleBox();
-        public StyleBox? GetInputFocusTexture()     => _def.Textures?.InputFocus?.BuildStyleBox();
-        public StyleBox? GetProgressBgTexture()     => _def.Textures?.ProgressBg?.BuildStyleBox();
-        public StyleBox? GetProgressFillTexture()   => _def.Textures?.ProgressFill?.BuildStyleBox();
-        public StyleBox? GetSliderGrabberTexture()  => _def.Textures?.SliderGrabber?.BuildStyleBox();
-        public StyleBox? GetScrollGrabberTexture()  => _def.Textures?.ScrollGrabber?.BuildStyleBox();
-        public StyleBox? GetSeparatorTexture()      => _def.Textures?.Separator?.BuildStyleBox();
 
         /// <summary>
         /// Build the button-normal StyleBox from the geometry block in theme.json.
@@ -92,30 +68,5 @@ namespace Beep.ECS.UI
             sb.BgColor = bg;
             return sb;
         }
-    
-        // ── HUD slots ────────────────────────────────────────────────────────────────
-        // Separate from the menu slots above: a HUD plate is translucent and flat where a
-        // menu plate is opaque and raised, and each HUD component carries its own shape,
-        // border and 9-patch margins. See docs/HUD_TEXTURE_SYSTEM.md.
-        public bool UsesHudTextures => _def.Textures?.AnyHudTexture ?? false;
-
-        public StyleBox? GetHudTexture(string slot) => slot switch
-        {
-            "panel"            => _def.Textures?.HudPanel?.BuildStyleBox(),
-            "button_normal"    => _def.Textures?.HudButtonNormal?.BuildStyleBox(),
-            "button_hover"     => _def.Textures?.HudButtonHover?.BuildStyleBox(),
-            "button_pressed"   => _def.Textures?.HudButtonPressed?.BuildStyleBox(),
-            "button_disabled"  => _def.Textures?.HudButtonDisabled?.BuildStyleBox(),
-            "button_focus"     => _def.Textures?.HudButtonFocus?.BuildStyleBox(),
-            "tab_normal"       => _def.Textures?.HudTabNormal?.BuildStyleBox(),
-            "tab_selected"     => _def.Textures?.HudTabSelected?.BuildStyleBox(),
-            "slot_empty"       => _def.Textures?.HudSlotEmpty?.BuildStyleBox(),
-            "slot_filled"      => _def.Textures?.HudSlotFilled?.BuildStyleBox(),
-            "bar_bg"           => _def.Textures?.HudBarBg?.BuildStyleBox(),
-            "bar_fill"         => _def.Textures?.HudBarFill?.BuildStyleBox(),
-            "frame"            => _def.Textures?.HudFrame?.BuildStyleBox(),
-            "tooltip"          => _def.Textures?.HudTooltip?.BuildStyleBox(),
-            _                  => null,
-        };
 }
 }

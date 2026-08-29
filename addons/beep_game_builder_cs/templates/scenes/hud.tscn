@@ -40,7 +40,8 @@ theme_override_constants/margin_bottom = 0
 
 [node name="Theme" type="Node" parent="TopLeft"]
 script = ExtResource("hud_theme")
-GenreName = "platformer"
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
 HudMode = true
 
 [node name="StatsVBox" type="VBoxContainer" parent="TopLeft"]

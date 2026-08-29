@@ -31,6 +31,10 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
+            if (Engine.IsEditorHint())
+                return;
+
             _control = GetParent() as Godot.Control;
             if (_control == null)
                 GD.PushWarning($"[{Name}] TooltipComponent needs a Control parent to show a tooltip for; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the hovered Control.");
@@ -43,14 +47,30 @@ namespace Beep.ECS.UI
 
         private void OnMouseEntered()
         {
-            if (IsActive) { _hovering = true; _hoverTime = 0; }
+            if (!IsActive || string.IsNullOrEmpty(TooltipText))
+                return;
+
+            _hovering = true;
+            _hoverTime = 0;
+            SetProcess(true);
         }
 
         public override void _Process(double delta)
         {
+            if (_showing)
+            {
+                if (!IsActive || _control == null || !GodotObject.IsInstanceValid(_control) || !_control.IsVisibleInTree())
+                    HideTooltip();
+                return;
+            }
+
             // Gate on _hovering: without it, _hoverTime climbs from load with the mouse nowhere
             // near the control, and the tooltip pops on its own after ShowDelay seconds.
-            if (!IsActive || !_hovering || _showing || string.IsNullOrEmpty(TooltipText)) return;
+            if (!IsActive || !_hovering || _control == null || !GodotObject.IsInstanceValid(_control) || !_control.IsVisibleInTree() || string.IsNullOrEmpty(TooltipText))
+            {
+                SetProcess(false);
+                return;
+            }
             if (_hoverTime < ShowDelay) { _hoverTime += (float)delta; return; }
 
             ShowTooltip();
@@ -60,6 +80,7 @@ namespace Beep.ECS.UI
         {
             if (_control == null) return;
             _showing = true;
+            SetProcess(true);
 
             // TopLevel so an absolutely-positioned popup isn't re-laid-out (and mispositioned) when
             // the control's parent is a Container.
@@ -83,12 +104,15 @@ namespace Beep.ECS.UI
 
         private void HideTooltip()
         {
+            bool hadTooltipState = _hovering || _showing;
             _hovering = false;
             _hoverTime = 0;
             _showing = false;
+            SetProcess(false);
             _tooltipPanel?.QueueFree();
             _tooltipPanel = null;
-            EmitSignal(SignalName.TooltipHidden);
+            if (hadTooltipState)
+                EmitSignal(SignalName.TooltipHidden);
         }
 
         public override void _ExitTree()

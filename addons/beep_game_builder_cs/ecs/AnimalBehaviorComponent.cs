@@ -53,6 +53,15 @@ namespace Beep.ECS
         private float _wanderAngle = 0f;
         private float _wanderTimer = 0f;
 
+        public float EffectiveFleeSpeed => NonNegative(FleeSpeed);
+        public float EffectiveForagingSpeed => NonNegative(ForagingSpeed);
+        public float EffectiveMigrationSpeed => NonNegative(MigrationSpeed);
+        public float EffectiveWanderDirectionMinSeconds => NonNegative(WanderDirectionMinSeconds);
+        public float EffectiveWanderDirectionMaxSeconds => Mathf.Max(
+            EffectiveWanderDirectionMinSeconds,
+            NonNegative(WanderDirectionMaxSeconds));
+        public Vector2 EffectiveMigrationDirection => FiniteDirectionOr(MigrationDirection, Vector2.Right);
+
         public override void _Ready()
         {
             base._Ready();
@@ -100,8 +109,8 @@ namespace Beep.ECS
             {
                 BehaviorState.Foraging => GetWanderVelocity(delta),
                 BehaviorState.Hibernating => Vector2.Zero,
-                BehaviorState.Migrating => MigrationDirection.Normalized() * MigrationSpeed,
-                BehaviorState.Fleeing => GetFleeDirection() * FleeSpeed,
+                BehaviorState.Migrating => EffectiveMigrationDirection * EffectiveMigrationSpeed,
+                BehaviorState.Fleeing => GetFleeDirection() * EffectiveFleeSpeed,
                 BehaviorState.Nesting => Vector2.Zero,
                 _ => Vector2.Zero
             };
@@ -113,12 +122,13 @@ namespace Beep.ECS
         /// place). Eases toward the held heading so turns read as movement, not teleports.</summary>
         private Vector2 GetWanderVelocity(double delta)
         {
-            _wanderTimer -= (float)delta;
+            float dt = DeltaSeconds(delta);
+            _wanderTimer -= dt;
             Vector2 desired = SteeringBehavior.Wander(
-                _targetVelocity, ref _wanderAngle, ForagingSpeed,
+                _targetVelocity, ref _wanderAngle, EffectiveForagingSpeed,
                 ringDistance: 30f, ringRadius: 20f, jitter: _wanderTimer <= 0f ? 0.9f : 0.1f);
             if (_wanderTimer <= 0f)
-                _wanderTimer = (float)GD.RandRange(WanderDirectionMinSeconds, WanderDirectionMaxSeconds);
+                _wanderTimer = (float)GD.RandRange(EffectiveWanderDirectionMinSeconds, EffectiveWanderDirectionMaxSeconds);
             return _targetVelocity.Lerp(desired, 0.1f);
         }
 
@@ -159,6 +169,19 @@ namespace Beep.ECS
         {
             // Flee in a random direction (away from current position)
             return Vector2.FromAngle(GD.Randf() * Mathf.Tau);
+        }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static Vector2 FiniteDirectionOr(Vector2 value, Vector2 fallback)
+        {
+            if (!float.IsFinite(value.X) || !float.IsFinite(value.Y) || value.LengthSquared() <= 0.0001f)
+                return fallback;
+            return value.Normalized();
         }
 
         /// <summary>Hunt this animal. Only succeeds during huntable season.</summary>

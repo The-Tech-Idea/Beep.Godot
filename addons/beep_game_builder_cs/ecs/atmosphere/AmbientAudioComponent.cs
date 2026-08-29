@@ -27,6 +27,8 @@ namespace Beep.ECS
         /// and never read, so unchecking it did nothing).</summary>
         [Export] public bool Loop { get; set; } = true;
         [Export] public NodePath? WeatherSystemPath { get; set; }
+        [Export] public bool WarnMissingTracks { get; set; } = false;
+        [Export] public bool WarnInvalidParent { get; set; } = true;
 
         private AudioStreamPlayer? _ambientPlayer;
         private AudioStreamPlayer? _combatPlayer;
@@ -35,10 +37,19 @@ namespace Beep.ECS
         private int _occupants;          // bodies currently inside the zone; ambient plays only while > 0
         private Area2D? _area;
         private WeatherSystemComponent? _weather;
+        private bool _setupComplete;
+        private bool _wasActive = true;
         // One tween PER player: a single shared field killed the previous fade on every call, so
         // EnterCombat's two Crossfades (duck ambient, raise combat) cancelled each other — only the
         // last player ever faded.
         private readonly System.Collections.Generic.Dictionary<AudioStreamPlayer, Tween> _fades = new();
+
+        public string EffectiveBus => string.IsNullOrWhiteSpace(Bus) ? "Master" : Bus;
+        public float EffectiveCrossfadeDuration => Mathf.Max(0f, float.IsFinite(CrossfadeDuration) ? CrossfadeDuration : 0f);
+        public double EffectiveThunderDelayMin => System.Math.Min(SanitizedThunderDelayMin, SanitizedThunderDelayMax);
+        public double EffectiveThunderDelayMax => System.Math.Max(SanitizedThunderDelayMin, SanitizedThunderDelayMax);
+        private double SanitizedThunderDelayMin => double.IsFinite(ThunderDelayMin) ? System.Math.Max(0.0, ThunderDelayMin) : 0.35;
+        private double SanitizedThunderDelayMax => double.IsFinite(ThunderDelayMax) ? System.Math.Max(0.0, ThunderDelayMax) : 2.2;
 
         public override void _Ready()
         {
@@ -47,14 +58,17 @@ namespace Beep.ECS
             // otherwise litter any scene it's dropped into with runtime-only children and start
             // audio in the editor (every sibling atmosphere component guards this the same way).
             if (Engine.IsEditorHint()) return;
+            _wasActive = IsActive;
             Callable.From(Setup).CallDeferred();
         }
 
         private void Setup()
         {
-            _ambientPlayer = new AudioStreamPlayer { Name = "AmbientPlayer", Bus = Bus, VolumeDb = -80f };
-            _combatPlayer = new AudioStreamPlayer { Name = "CombatPlayer", Bus = Bus, VolumeDb = -80f };
-            _thunderPlayer = new AudioStreamPlayer { Name = "ThunderPlayer", Bus = Bus, VolumeDb = 0f };
+            if (_setupComplete || !IsActive) return;
+            _setupComplete = true;
+            _ambientPlayer = new AudioStreamPlayer { Name = "AmbientPlayer", Bus = EffectiveBus, VolumeDb = -80f };
+            _combatPlayer = new AudioStreamPlayer { Name = "CombatPlayer", Bus = EffectiveBus, VolumeDb = -80f };
+            _thunderPlayer = new AudioStreamPlayer { Name = "ThunderPlayer", Bus = EffectiveBus, VolumeDb = 0f };
             AddChild(_ambientPlayer);
             AddChild(_combatPlayer);
             AddChild(_thunderPlayer);
@@ -71,24 +85,42 @@ namespace Beep.ECS
                 _area.BodyEntered += OnBodyEntered;
                 _area.BodyExited += OnBodyExited;
             }
-            else
+            else if (WarnInvalidParent)
                 // Zone detection is how ambient ever starts — a non-Area2D parent means the players
                 // are built but nothing ever triggers them, silently. Parent under an Area2D.
                 GD.PushWarning($"[{Name}] AmbientAudioComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not an Area2D — the zone can't fire, so ambient will never play. Parent it under an Area2D.");
 
             // Wire to WeatherSystemComponent for thunder on lightning strikes.
-            if (WeatherSystemPath != null) _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
+            if (WeatherSystemPath != null && !WeatherSystemPath.IsEmpty) _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
             if (_weather == null)
             {
-                foreach (var n in GetTree().GetNodesInGroup("weather_system"))
-                    if (n is WeatherSystemComponent w) { _weather = w; break; }
+                var tree = GetTree();
+                if (tree != null)
+                {
+                    foreach (var n in tree.GetNodesInGroup("weather_system"))
+                        if (n is WeatherSystemComponent w) { _weather = w; break; }
+                }
             }
             if (_weather != null) _weather.LightningStruck += OnLightningStruck;
 
-            if (AmbientTrack == null && CombatTrack == null && ThunderTrack == null)
+            if (WarnMissingTracks && AmbientTrack == null && CombatTrack == null && ThunderTrack == null)
                 // Shipped silent (the addon ships no audio). Say so once rather than build three
                 // players to mix silence, mirroring WeatherAudioController's warning.
                 GD.PushWarning($"[{Name}] AmbientAudioComponent has no AmbientTrack/CombatTrack/ThunderTrack assigned — it will be silent. These are yours to supply.");
+        }
+
+        public override void _Process(double delta)
+        {
+            if (Engine.IsEditorHint()) return;
+            if (IsActive && !_setupComplete)
+                Setup();
+            if (IsActive == _wasActive) return;
+            _wasActive = IsActive;
+            if (!IsActive)
+            {
+                Crossfade(_ambientPlayer, -80f);
+                Crossfade(_combatPlayer, -80f);
+            }
         }
 
         private void OnBodyEntered(Node body)
@@ -119,9 +151,12 @@ namespace Beep.ECS
         public void EnterCombat()
         {
             if (_inCombat || CombatTrack == null) return;
+            if (!_setupComplete)
+                Setup();
+            if (_combatPlayer == null) return;
             _inCombat = true;
-            _combatPlayer!.Stream = CombatTrack;
-            _combatPlayer!.Play();
+            _combatPlayer.Stream = CombatTrack;
+            _combatPlayer.Play();
             // Duck ambient only if it's actually playing (a body is in the zone); otherwise keep it silent.
             Crossfade(_ambientPlayer, _occupants > 0 ? -20f : -80f);
             Crossfade(_combatPlayer, 0f);
@@ -141,8 +176,13 @@ namespace Beep.ECS
         {
             if (player == null) return;
             if (_fades.TryGetValue(player, out var old) && GodotObject.IsInstanceValid(old)) old.Kill();
+            if (!IsInsideTree() || EffectiveCrossfadeDuration <= 0f)
+            {
+                player.VolumeDb = targetDb;
+                return;
+            }
             var tw = CreateTween();
-            tw.TweenProperty(player, "volume_db", targetDb, CrossfadeDuration);
+            tw.TweenProperty(player, "volume_db", targetDb, EffectiveCrossfadeDuration);
             _fades[player] = tw;
         }
 
@@ -156,10 +196,12 @@ namespace Beep.ECS
             // Distance from the bolt's own strength -- see WeatherAudioController for why this
             // is not an independent roll.
             float strength = _weather?.LastBoltStrength ?? 1f;
-            float delay = Mathf.Lerp((float)ThunderDelayMax, (float)ThunderDelayMin, strength);
+            float delay = Mathf.Lerp((float)EffectiveThunderDelayMax, (float)EffectiveThunderDelayMin, Mathf.Clamp(strength, 0f, 1f));
             if (delay <= 0f) { PlayThunderNow(); return; }
             // Guard the callback: the timer survives a scene change that frees this node.
-            GetTree().CreateTimer(delay).Timeout += () =>
+            var tree = GetTree();
+            if (tree == null) return;
+            tree.CreateTimer(delay).Timeout += () =>
             {
                 if (GodotObject.IsInstanceValid(this)) PlayThunderNow();
             };

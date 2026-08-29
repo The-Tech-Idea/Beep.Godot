@@ -41,6 +41,13 @@ namespace Beep.ECS
         private ColorRect? _visual;
         private bool _warnedNoSeasonal;
 
+        public float EffectiveDaysToMaturity => Mathf.Max(0.01f, FiniteOr(DaysToMaturity, 10f));
+        public float EffectiveSpringGrowthRate => NonNegative(SpringGrowthRate);
+        public float EffectiveSummerGrowthRate => NonNegative(SummerGrowthRate);
+        public float EffectiveFallGrowthRate => NonNegative(FallGrowthRate);
+        public float EffectiveWinterGrowthRate => NonNegative(WinterGrowthRate);
+        public float EffectiveDayLengthSeconds => Mathf.Max(1f, FiniteOr(_dayNight?.DayLengthSeconds ?? 120f, 120f));
+
         public override void _Ready()
         {
             base._Ready();
@@ -52,14 +59,19 @@ namespace Beep.ECS
             // Auto-discover the atmosphere systems that modulate growth: season (rate), the
             // day/night clock (its DayLengthSeconds is the real day length — was hardcoded 120),
             // and weather (rain/storm accelerate, snow slows).
-            var root = GetTree().Root;
+            var root = GetTree()?.Root;
+            if (root == null) return;
             _seasonal = EntityComponent.FindComponent<SeasonalComponent>(root, true);
             _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(root, true);
             _weather = EntityComponent.FindComponent<WeatherSystemComponent>(root, true);
             _dropTable = GetSiblingComponent<DropTableComponent>();
 
-            // Create visual representation if not present
-            if (GetParent() is not Node2D parent) return;
+            CallDeferred(nameof(EnsureVisual));
+        }
+
+        public void EnsureVisual()
+        {
+            if (Engine.IsEditorHint() || GetParent() is not Node2D parent) return;
             _visual = parent.GetNodeOrNull<ColorRect>("CropVisual");
             if (_visual == null)
             {
@@ -79,7 +91,7 @@ namespace Beep.ECS
         {
             // Stop once ready (Harvestable) or picked (Harvested): a ripe crop must not keep
             // accumulating, or it re-crosses 1.0 each cycle and re-fires CropReadyForHarvest forever.
-            if (!IsActive ||
+            if (Engine.IsEditorHint() || !IsActive ||
                 _currentStage == GrowthStage.Harvestable || _currentStage == GrowthStage.Harvested) return;
 
             if (_seasonal == null && !_warnedNoSeasonal)
@@ -91,13 +103,14 @@ namespace Beep.ECS
             // Season sets the base rate (winter = 0); weather scales it (rain/storm accelerate,
             // snow slows). Off-season with no rain means no growth.
             float growthRate = GetSeasonalGrowthRate() * WeatherGrowthMultiplier();
+            if (!float.IsFinite(growthRate)) growthRate = 0f;
             if (growthRate <= 0) return;
 
             // One unit of growth == DaysToMaturity in-game days, timed off the ACTUAL day length
             // (DayNightCycleComponent.DayLengthSeconds) rather than a hardcoded 120.
-            float dayLength = _dayNight?.DayLengthSeconds ?? 120f;
-            float dailyProgress = growthRate / (DaysToMaturity * dayLength);
-            _growthProgress += (float)delta * dailyProgress;
+            float dailyProgress = growthRate / (EffectiveDaysToMaturity * EffectiveDayLengthSeconds);
+            _growthProgress = Mathf.Clamp(FiniteOr(_growthProgress, 0f), 0f, 1f);
+            _growthProgress += DeltaSeconds(delta) * dailyProgress;
 
             // Check for stage advancement
             CheckAndAdvanceStage();
@@ -155,7 +168,7 @@ namespace Beep.ECS
         }
 
         public GrowthStage GetCurrentStage() => _currentStage;
-        public float GetGrowthProgress() => _growthProgress;
+        public float GetGrowthProgress() => Mathf.Clamp(FiniteOr(_growthProgress, 0f), 0f, 1f);
 
         /// <summary>Weather scales growth: rain waters the crop (faster), snow/hail freezes it,
         /// sandstorm parches it. Clear/cloudy/fog are neutral. 1.0 when no weather system.</summary>
@@ -178,17 +191,17 @@ namespace Beep.ECS
 
             return _seasonal.CurrentSeason switch
             {
-                SeasonalComponent.Season.Spring => SpringGrowthRate,
-                SeasonalComponent.Season.Summer => SummerGrowthRate,
-                SeasonalComponent.Season.Fall => FallGrowthRate,
-                SeasonalComponent.Season.Winter => WinterGrowthRate,
+                SeasonalComponent.Season.Spring => EffectiveSpringGrowthRate,
+                SeasonalComponent.Season.Summer => EffectiveSummerGrowthRate,
+                SeasonalComponent.Season.Fall => EffectiveFallGrowthRate,
+                SeasonalComponent.Season.Winter => EffectiveWinterGrowthRate,
                 _ => 1.0f
             };
         }
 
         private void UpdateVisual()
         {
-            if (_visual == null) return;
+            if (_visual == null || !GodotObject.IsInstanceValid(_visual)) return;
 
             Color targetColor = _currentStage switch
             {
@@ -202,8 +215,17 @@ namespace Beep.ECS
             _visual.Color = targetColor;
 
             // Scale visual based on growth
-            float scale = 0.5f + (_growthProgress * 0.5f);  // Grow from 50% to 100% size
+            float scale = 0.5f + (GetGrowthProgress() * 0.5f);  // Grow from 50% to 100% size
             _visual.Scale = new Vector2(scale, scale);
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
     }
 }

@@ -34,6 +34,8 @@ namespace Beep.ECS
 
         /// <summary>Whether the platform is currently moving (vs stopped via Stop()/AutoStart=false).</summary>
         public bool IsRunning => _running;
+        public float EffectiveSpeed => Mathf.Max(0f, float.IsFinite(Speed) ? Speed : 0f);
+        public double EffectivePauseDuration => double.IsFinite(PauseDuration) ? System.Math.Max(0.0, PauseDuration) : 0.0;
 
         public override void _Ready()
         {
@@ -46,7 +48,7 @@ namespace Beep.ECS
             // until Start() is called (a switch, a trigger); it used to move regardless.
             _running = AutoStart;
             _paused = false;
-            _pauseTimer = 0;
+            _pauseTimer = 0.0;
         }
 
         /// <summary>Begin (or resume) moving along the waypoints. For a Once platform that already
@@ -59,7 +61,7 @@ namespace Beep.ECS
                 _target = 1;
                 _forward = true;
                 _paused = false;
-                _pauseTimer = 0;
+                _pauseTimer = 0.0;
             }
             _running = true;
         }
@@ -70,10 +72,10 @@ namespace Beep.ECS
         private void CollectWaypoints()
         {
             var list = new System.Collections.Generic.List<Vector2>();
-            if (_body != null) list.Add(_body.GlobalPosition); // start = current pos
+            if (_body != null && IsFinite(_body.GlobalPosition)) list.Add(_body.GlobalPosition); // start = current pos
             foreach (var child in GetChildren())
             {
-                if (child is Marker2D m)
+                if (child is Marker2D m && IsFinite(m.GlobalPosition))
                     list.Add(m.GlobalPosition);
             }
             _points = list.ToArray();
@@ -83,32 +85,53 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (!IsActive || !_running || _body == null || Engine.IsEditorHint() || _points.Length < 2) return;
+            float dt = DeltaSeconds(delta);
 
             if (_paused)
             {
-                _pauseTimer -= delta;
+                _pauseTimer = System.Math.Max(0.0, (double.IsFinite(_pauseTimer) ? _pauseTimer : 0.0) - dt);
                 if (_pauseTimer <= 0) _paused = false;
                 return;
             }
 
-            Vector2 dest = _points[_target];
-            Vector2 pos = _body.GlobalPosition;
-            Vector2 dir = (dest - pos).Normalized();
-            float step = Speed * (float)delta;
-
-            if (pos.DistanceTo(dest) <= step)
+            _target = Mathf.Clamp(_target, 0, _points.Length - 1);
+            Vector2 dest = IsFinite(_points[_target]) ? _points[_target] : _body.GlobalPosition;
+            Vector2 pos = IsFinite(_body.GlobalPosition) ? _body.GlobalPosition : dest;
+            Vector2 toDest = dest - pos;
+            float distance = toDest.Length();
+            if (distance <= 0.0001f)
             {
                 _body.GlobalPosition = dest;
                 EmitSignal(SignalName.WaypointReached, _target);
                 AdvanceTarget();
-                _paused = true;
-                _pauseTimer = PauseDuration;
+                _paused = EffectivePauseDuration > 0.0;
+                _pauseTimer = EffectivePauseDuration;
+                return;
+            }
+            if (EffectiveSpeed <= 0f) return;
+
+            Vector2 dir = toDest / distance;
+            float step = EffectiveSpeed * dt;
+
+            if (distance <= step)
+            {
+                _body.GlobalPosition = dest;
+                EmitSignal(SignalName.WaypointReached, _target);
+                AdvanceTarget();
+                _paused = EffectivePauseDuration > 0.0;
+                _pauseTimer = EffectivePauseDuration;
             }
             else
             {
                 _body.GlobalPosition = pos + dir * step;
             }
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
 
         private void AdvanceTarget()
         {

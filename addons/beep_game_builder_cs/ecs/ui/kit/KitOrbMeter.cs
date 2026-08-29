@@ -13,22 +13,42 @@ namespace Beep.ECS.UI.Kit
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
 
         [Export(PropertyHint.Range, "0.0,1.0,0.001")]
-        public float Value { get => _value; set { _value = Mathf.Clamp(value, 0f, 1f); QueueRedraw(); } }
+        public float Value { get => _value; set { float next = Mathf.Clamp(value, 0f, 1f); if (Mathf.IsEqualApprox(_value, next)) return; _value = next; RefreshContentAndRedraw(); } }
         private float _value = 1f;
 
-        [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Success;
+        [Export]
+        public UiSurface.Role Fill
+        {
+            get => _fill;
+            set { if (_fill == value) return; _fill = value; RefreshContentAndRedraw(); }
+        }
+        private UiSurface.Role _fill = UiSurface.Role.Success;
 
-        [Export] public string CentreText { get => _centre; set { _centre = value ?? ""; QueueRedraw(); } }
+        [Export] public string CentreText { get => _centre; set { SetText(ref _centre, value); } }
         private string _centre = "";
 
-        [Export] public string Symbol { get => _symbol; set { _symbol = value ?? ""; QueueRedraw(); } }
+        [Export] public string Symbol { get => _symbol; set { SetText(ref _symbol, value); } }
         private string _symbol = "";
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -103,11 +123,14 @@ namespace Beep.ECS.UI.Kit
             var font = KitFont();
             if (font == null) return;
 
-            string text = string.IsNullOrWhiteSpace(_centre) ? _symbol : _centre;
+            string text = KitCase(string.IsNullOrWhiteSpace(_centre) ? _symbol : _centre);
             if (string.IsNullOrWhiteSpace(text)) return;
 
+            float textWidth = r * 1.35f;
             int fs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                       new Vector2(r * 1.35f, r * 0.58f), text, font, min: 8);
+                                       new Vector2(textWidth, r * 0.58f), text, font, min: 8);
+            text = KitChrome.EllipsizeText(font, text, fs, textWidth);
+            if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             Vector2 p = new(c.X - m.X * 0.5f, c.Y + m.Y * 0.34f);
             // Routed through KitControl.DrawText so the theme's text_treatment reaches the orb's

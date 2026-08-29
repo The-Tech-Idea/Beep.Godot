@@ -25,6 +25,9 @@ namespace Beep.ECS
         private KitMeter? _bar;
         private float _hideTimer;
 
+        public Vector2 EffectiveSize => new(PositiveFinite(Size.X, 40f), PositiveFinite(Size.Y, 6f));
+        public float EffectiveHideDelay => NonNegativeFinite(HideDelay);
+
         public override void _Ready()
         {
             base._Ready();
@@ -37,6 +40,7 @@ namespace Beep.ECS
 
         private void SetupBar()
         {
+            if (_bar != null && GodotObject.IsInstanceValid(_bar)) return;
             _health = GetSiblingComponent<HealthComponent>();
             if (_health == null)
             {
@@ -45,11 +49,13 @@ namespace Beep.ECS
             }
 
             _bar = new KitMeter();
-            _bar.CustomMinimumSize = Size;
-            _bar.MaxValue = _health.MaxHealth;
-            _bar.Value = _health.CurrentHealth;
+            Vector2 size = EffectiveSize;
+            float max = Mathf.Max(1f, _health.MaxHealth);
+            _bar.CustomMinimumSize = size;
+            _bar.MaxValue = max;
+            _bar.Value = Mathf.Clamp(_health.CurrentHealth, 0f, max);
             _bar.ShowPercentage = false;
-            _bar.Position = BarOffset - Size / 2f;
+            _bar.Position = BarOffset - size / 2f;
             _bar.Segments = 6;
             _bar.Fill = UiSurface.Role.Success;
 
@@ -68,19 +74,20 @@ namespace Beep.ECS
 
         private void OnHealthChanged(float cur, float max)
         {
-            if (_bar == null) return;
-            _bar.MaxValue = max;
-            _bar.Value = cur;
-            float pct = cur / (float)max;
+            if (_bar == null || !GodotObject.IsInstanceValid(_bar)) return;
+            float safeMax = Mathf.Max(1f, max);
+            _bar.MaxValue = safeMax;
+            _bar.Value = Mathf.Clamp(cur, 0f, safeMax);
+            float pct = Mathf.Clamp(cur / safeMax, 0f, 1f);
             _bar.Fill = pct > 0.5f ? UiSurface.Role.Success : pct > 0.25f ? UiSurface.Role.Warning : UiSurface.Role.Danger;
             _bar.Visible = true;
-            _hideTimer = HideDelay;
+            _hideTimer = EffectiveHideDelay;
         }
 
         public override void _Process(double delta)
         {
-            if (_bar == null || !ShowOnlyWhenDamaged || !_bar.Visible) return;
-            _hideTimer -= (float)delta;
+            if (Engine.IsEditorHint() || !IsActive || _bar == null || !ShowOnlyWhenDamaged || !_bar.Visible) return;
+            _hideTimer -= DeltaSeconds(delta);
             if (_hideTimer <= 0) _bar.Visible = false;
         }
 
@@ -92,5 +99,14 @@ namespace Beep.ECS
             if (_bar != null && GodotObject.IsInstanceValid(_bar))
                 _bar.QueueFree();
         }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+
+        private static float PositiveFinite(float value, float fallback)
+            => float.IsFinite(value) && value > 0f ? value : fallback;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) && value > 0f ? value : 0f;
     }
 }

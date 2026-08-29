@@ -28,6 +28,10 @@ namespace Beep.ECS
     {
         /// <summary>The cloud sprites to drift. Empty = this layer draws nothing and says so.</summary>
         [Export] public Texture2D[] Sprites { get; set; } = System.Array.Empty<Texture2D>();
+        /// <summary>Warn at runtime when no sprites are assigned. Off by default because a sprite
+        /// cloud layer can be an optional authoring placeholder while procedural/no-cloud modes are
+        /// being used.</summary>
+        [Export] public bool WarnMissingSprites { get; set; } = false;
 
         [Export(PropertyHint.Range, "0,60,1")] public int Count { get; set; } = 14;
 
@@ -65,6 +69,19 @@ namespace Beep.ECS
         private readonly List<Vector2> _baseScale = new();
         private bool _warned;
 
+        public int EffectiveCount => Mathf.Clamp(Count, 0, 200);
+        public float EffectiveDriftSpeed => Mathf.Max(0f, float.IsFinite(DriftSpeed) ? DriftSpeed : 0f);
+        public float EffectiveOpacity => Mathf.Clamp(float.IsFinite(Opacity) ? Opacity : 0f, 0f, 1f);
+        public Vector2 EffectiveField => new(
+            Mathf.Max(1f, float.IsFinite(Field.X) ? Mathf.Abs(Field.X) : 1280f),
+            Mathf.Max(1f, float.IsFinite(Field.Y) ? Mathf.Abs(Field.Y) : 720f));
+        public float EffectiveBandTop => Mathf.Clamp(Mathf.Min(BandTop, BandBottom), 0f, 1f);
+        public float EffectiveBandBottom => Mathf.Clamp(Mathf.Max(BandTop, BandBottom), EffectiveBandTop + 0.02f, 1f);
+        public float EffectiveFarScale => Mathf.Max(0.01f, Mathf.Min(SanitizedFarScale, SanitizedNearScale));
+        public float EffectiveNearScale => Mathf.Max(0.01f, Mathf.Max(SanitizedFarScale, SanitizedNearScale));
+        private float SanitizedFarScale => float.IsFinite(FarScale) ? FarScale : 0.9f;
+        private float SanitizedNearScale => float.IsFinite(NearScale) ? NearScale : 1.65f;
+
         public override void _Ready() => Rebuild();
 
         /// <summary>
@@ -74,14 +91,16 @@ namespace Beep.ECS
         /// </summary>
         public void Rebuild()
         {
-            foreach (var c in _clouds) c.QueueFree();
+            foreach (var c in _clouds)
+                if (GodotObject.IsInstanceValid(c)) c.QueueFree();
             _clouds.Clear();
             _speed.Clear();
             _baseScale.Clear();
 
-            if (Sprites.Length == 0)
+            var sprites = ValidSprites();
+            if (sprites.Count == 0 || EffectiveCount == 0)
             {
-                if (!_warned)
+                if (WarnMissingSprites && !Engine.IsEditorHint() && !_warned)
                 {
                     _warned = true;
                     GD.PushWarning($"[{Name}] CloudSpriteLayer has no Sprites assigned, so it "
@@ -92,28 +111,29 @@ namespace Beep.ECS
             }
 
             var rng = new RandomNumberGenerator { Seed = (ulong)Seed };
-            float top = Mathf.Clamp(Mathf.Min(BandTop, BandBottom), 0f, 1f);
-            float bottom = Mathf.Clamp(Mathf.Max(BandTop, BandBottom), top + 0.02f, 1f);
-            float bandHeight = Mathf.Max(24f, (bottom - top) * Field.Y);
+            Vector2 field = EffectiveField;
+            float top = EffectiveBandTop;
+            float bottom = EffectiveBandBottom;
+            float bandHeight = Mathf.Max(24f, (bottom - top) * field.Y);
             float maxWidth = 1f;
-            foreach (var tex in Sprites)
-                if (tex != null) maxWidth = Mathf.Max(maxWidth, tex.GetWidth());
+            foreach (var tex in sprites)
+                maxWidth = Mathf.Max(maxWidth, tex.GetWidth());
 
-            for (int i = 0; i < Count; i++)
+            for (int i = 0; i < EffectiveCount; i++)
             {
-                var tex = Sprites[rng.RandiRange(0, Sprites.Length - 1)];
+                var tex = sprites[rng.RandiRange(0, sprites.Count - 1)];
                 // Depth is seeded per cloud and then lightly influenced by the source art size.
                 // This keeps the shipped size variants useful without letting one filename family
                 // dominate the whole sky.
                 float sourceSize = Mathf.Clamp(tex.GetWidth() / maxWidth, 0.25f, 1f);
                 float near = Mathf.Clamp(Mathf.Lerp(0.2f, 1f, rng.Randf()) * Mathf.Lerp(0.8f, 1.05f, sourceSize), 0.18f, 1f);
-                float scale = Mathf.Lerp(FarScale, NearScale, near) * rng.RandfRange(0.92f, 1.08f);
+                float scale = Mathf.Lerp(EffectiveFarScale, EffectiveNearScale, near) * rng.RandfRange(0.92f, 1.08f);
                 var s = new Sprite2D
                 {
                     Texture = tex,
                     Centered = true,
-                    Position = new Vector2(rng.RandfRange(-0.15f, 1.15f) * Field.X,
-                                           top * Field.Y + rng.RandfRange(0f, bandHeight)),
+                    Position = new Vector2(rng.RandfRange(-0.15f, 1.15f) * field.X,
+                                           top * field.Y + rng.RandfRange(0f, bandHeight)),
                     Scale = new Vector2(scale, scale),
                     // Far clouds sit fainter as well as smaller — aerial perspective, and it is
                     // what stops the far layer reading as clutter.
@@ -131,34 +151,47 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint() || _clouds.Count == 0) return;
 
-            Modulate = Tint with { A = Mathf.Clamp(Opacity, 0f, 1f) };
+            Modulate = Tint with { A = EffectiveOpacity };
+            Vector2 field = EffectiveField;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
 
             for (int i = 0; i < _clouds.Count; i++)
             {
                 var c = _clouds[i];
-                Vector2 dir = WindDirection.LengthSquared() > 0.0001f
+                if (!GodotObject.IsInstanceValid(c))
+                    continue;
+                Vector2 dir = float.IsFinite(WindDirection.X) && float.IsFinite(WindDirection.Y) && WindDirection.LengthSquared() > 0.0001f
                     ? WindDirection.Normalized()
                     : Vector2.Right;
-                c.Position += dir * DriftSpeed * _speed[i] * (float)delta;
+                c.Position += dir * EffectiveDriftSpeed * _speed[i] * dt;
                 c.Scale = _baseScale[i];
 
                 // Wrap round the far side once fully off-screen, using the sprite's own width so a
                 // big cloud does not pop while its trailing edge is still visible.
                 float w = (c.Texture?.GetWidth() ?? 0f) * Mathf.Abs(c.Scale.X);
                 float h = (c.Texture?.GetHeight() ?? 0f) * Mathf.Abs(c.Scale.Y);
-                float top = Mathf.Clamp(Mathf.Min(BandTop, BandBottom), 0f, 1f);
-                float bottom = Mathf.Clamp(Mathf.Max(BandTop, BandBottom), top + 0.02f, 1f);
-                float bandHeight = Mathf.Max(24f, (bottom - top) * Field.Y);
-                if (dir.X >= 0f && c.Position.X - w > Field.X)
-                    c.Position = new Vector2(-w, top * Field.Y + GD.Randf() * bandHeight);
+                float top = EffectiveBandTop;
+                float bottom = EffectiveBandBottom;
+                float bandHeight = Mathf.Max(24f, (bottom - top) * field.Y);
+                if (dir.X >= 0f && c.Position.X - w > field.X)
+                    c.Position = new Vector2(-w, top * field.Y + GD.Randf() * bandHeight);
                 else if (dir.X < 0f && c.Position.X + w < 0f)
-                    c.Position = new Vector2(Field.X + w, top * Field.Y + GD.Randf() * bandHeight);
+                    c.Position = new Vector2(field.X + w, top * field.Y + GD.Randf() * bandHeight);
 
-                if (dir.Y >= 0f && c.Position.Y - h > Field.Y)
-                    c.Position = new Vector2(c.Position.X, top * Field.Y - h);
+                if (dir.Y >= 0f && c.Position.Y - h > field.Y)
+                    c.Position = new Vector2(c.Position.X, top * field.Y - h);
                 else if (dir.Y < 0f && c.Position.Y + h < 0f)
-                    c.Position = new Vector2(c.Position.X, bottom * Field.Y + h);
+                    c.Position = new Vector2(c.Position.X, bottom * field.Y + h);
             }
+        }
+
+        private List<Texture2D> ValidSprites()
+        {
+            var sprites = new List<Texture2D>();
+            foreach (var sprite in Sprites)
+                if (sprite != null)
+                    sprites.Add(sprite);
+            return sprites;
         }
     }
 }

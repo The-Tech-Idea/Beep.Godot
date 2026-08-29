@@ -31,22 +31,47 @@ namespace Beep.ECS.UI
         /// no skin can reach; a scene that stores Role.Info has not.</summary>
         public enum Role { Neutral, Accent, Accent2, Success, Warning, Danger, Info }
 
+        private static string SemanticKey(Role role) => role switch
+        {
+            Role.Success => "success",
+            Role.Warning => "warning",
+            Role.Danger => "danger",
+            Role.Info => "info",
+            Role.Accent2 => "accent2",
+            Role.Neutral => "neutral",
+            _ => "accent",
+        };
+
+        /// <summary>Try to read a palette role without logging. Godot can send early
+        /// NotificationThemeChanged callbacks while a ThemePresetComponent is still assembling
+        /// and assigning its generated Theme, so style wrappers use this for that transient
+        /// pass and re-apply cleanly when the real theme arrives.</summary>
+        public static bool TrySemantic(Godot.Control ctl, Role role, out Color color)
+        {
+            string key = SemanticKey(role);
+            if (ctl.HasThemeColor(key, SemanticType))
+            {
+                color = ctl.GetThemeColor(key, SemanticType);
+                return true;
+            }
+            if (ctl.HasThemeColor("accent", SemanticType))
+            {
+                color = ctl.GetThemeColor("accent", SemanticType);
+                return true;
+            }
+            color = default;
+            return false;
+        }
+
+        public static Color SemanticOrDerived(Godot.Control ctl, Role role)
+            => TrySemantic(ctl, role, out var color) ? color : DerivedSemantic(ctl);
+
         /// <summary>The active palette's colour for a role. Falls back to the accent rather than
         /// to a literal, so an incomplete theme still yields a palette colour.</summary>
         public static Color Semantic(Godot.Control ctl, Role role)
         {
-            string key = role switch
-            {
-                Role.Success => "success",
-                Role.Warning => "warning",
-                Role.Danger => "danger",
-                Role.Info => "info",
-                Role.Accent2 => "accent2",
-                Role.Neutral => "neutral",
-                _ => "accent",
-            };
-            if (ctl.HasThemeColor(key, SemanticType)) return ctl.GetThemeColor(key, SemanticType);
-            if (ctl.HasThemeColor("accent", SemanticType)) return ctl.GetThemeColor("accent", SemanticType);
+            if (TrySemantic(ctl, role, out var color)) return color;
+            string key = SemanticKey(role);
 
             // Neither the role NOR the accent is registered. GetThemeColor would hand back
             // BLACK here, silently — a meter drew as a solid black bar with a black track and no
@@ -61,6 +86,11 @@ namespace Beep.ECS.UI
                     + "A skinned scene gets these from ThemePresetComponent — if this fires at "
                     + "runtime, that component is missing or has not applied yet.");
             }
+            return DerivedSemantic(ctl);
+        }
+
+        private static Color DerivedSemantic(Godot.Control ctl)
+        {
             Color surface = Of(ctl);
             return Luminance(surface) > 0.5f
                 ? new Color(surface.R * 0.45f, surface.G * 0.45f, surface.B * 0.50f, 1f)
@@ -200,10 +230,11 @@ namespace Beep.ECS.UI
         public static int FitRole(Node n, TextRole role, Vector2 box, string? text = null,
                                   Font? font = null, int min = 7)
         {
+            min = Mathf.Max(1, min);
             int want = FontSize(n, role, min);
             // The box's height still bounds it: a Title cannot be 1.9x the theme if the box it
             // is drawn in is only 14px tall.
-            int fs = Mathf.Clamp(Mathf.FloorToInt(box.Y * 0.72f), min, want);
+            int fs = Mathf.Clamp(Mathf.FloorToInt(Mathf.Max(1f, box.Y) * 0.72f), min, want);
             if (font == null || string.IsNullOrEmpty(text) || box.X <= 1f) return fs;
             while (fs > min &&
                    font.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X > box.X)
@@ -237,11 +268,12 @@ namespace Beep.ECS.UI
                                   string? text = null, Font? font = null,
                                   int min = 7, float themeMax = 2.2f)
         {
+            min = Mathf.Max(1, min);
             int theme = FontSize(n);
             // Never larger than a sane multiple of the theme's own size: a huge box should not
             // produce absurd type just because it has room, and the theme still sets the tone.
             int cap = Mathf.Max(min, Mathf.RoundToInt(theme * themeMax));
-            int fs = Mathf.Clamp(Mathf.FloorToInt(box.Y * heightRatio), min, cap);
+            int fs = Mathf.Clamp(Mathf.FloorToInt(Mathf.Max(1f, box.Y) * heightRatio), min, cap);
 
             if (font == null || string.IsNullOrEmpty(text) || box.X <= 1f) return fs;
 
@@ -254,12 +286,6 @@ namespace Beep.ECS.UI
             return fs;
         }
 
-        /// <summary>Nominal mid-tone of the shipped 9-patch art, measured across the set:
-        /// button_normal averages (204,210,214) = 0.82, panel (190,200,205) = 0.78. A textured
-        /// box carries the palette in its modulate PRE-multiplied by this, so dividing it back
-        /// out recovers the colour the control actually renders as.</summary>
-        public const float ArtNominalLuminance = 0.80f;
-
         /// <summary>The colour a box renders as, whatever kind of box it is. False when the
         /// box carries no colour of its own (StyleBoxEmpty, StyleBoxLine, null).</summary>
         public static bool TryColorOf(StyleBox? sb, out Color color)
@@ -268,13 +294,6 @@ namespace Beep.ECS.UI
             {
                 case StyleBoxFlat flat:
                     color = flat.BgColor;
-                    return color.A > 0.02f;
-                case StyleBoxTexture tex:
-                    // modulate = surface / ArtNominalLuminance, so undo that to get the surface.
-                    var m = tex.ModulateColor;
-                    color = new Color(m.R * ArtNominalLuminance,
-                                      m.G * ArtNominalLuminance,
-                                      m.B * ArtNominalLuminance, m.A);
                     return color.A > 0.02f;
                 default:
                     color = default;
@@ -320,6 +339,20 @@ namespace Beep.ECS.UI
         /// onto every StyleBoxFlat, so a drawn outline and a themed control's border match.</summary>
         public static Color Ink(Color surface) =>
             new(surface.R * 0.22f, surface.G * 0.24f, surface.B * 0.28f, 1f);
+
+        public static Color ControlFace(Color surface)
+        {
+            if (surface.A <= 0.02f) return surface;
+
+            float lum = Luminance(surface);
+            if (lum >= 0.145f) return surface;
+
+            float t = Mathf.Clamp((0.145f - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 0.22f);
+            return new Color(Mathf.Lerp(surface.R, 1f, t),
+                             Mathf.Lerp(surface.G, 1f, t),
+                             Mathf.Lerp(surface.B, 1f, t),
+                             surface.A);
+        }
 
         public static float Luminance(Color c) => 0.2126f * c.R + 0.7152f * c.G + 0.0722f * c.B;
     }

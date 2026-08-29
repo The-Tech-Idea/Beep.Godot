@@ -1,0 +1,584 @@
+[gd_scene load_steps=24 format=3 uid="uid://cw4yghpcaxn86"]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs" id="tilemap_bridge"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cell_data"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridRoadComponent.cs" id="roads"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridNavigationComponent.cs" id="navigation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridJobQueueComponent.cs" id="jobs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridToolActionComponent.cs" id="tools"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridToolPaletteComponent.cs" id="tool_palette"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceWalletComponent.cs" id="wallet"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceBarComponent.cs" id="resource_bar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs" id="spawner_panel"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn" id="worker_unit"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="kit_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="kit_label"]
+[ext_resource type="Script" path="res://tests/examples/SettlersShowcaseController.cs" id="showcase_controller"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/settlers/reference_objects.png" id="objects_sheet"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/settlers/reference_trucks.png" id="trucks_sheet"]
+
+[sub_resource type="Shader" id="shader_chroma_key"]
+code = "shader_type canvas_item;\n\nvoid fragment() {\n\tvec4 sample_color = texture(TEXTURE, UV);\n\tif (sample_color.g > 0.72 && sample_color.r < 0.22 && sample_color.b < 0.22) {\n\t\tdiscard;\n\t}\n\tCOLOR = sample_color * COLOR;\n}\n"
+
+[sub_resource type="ShaderMaterial" id="material_chroma_key"]
+shader = SubResource("shader_chroma_key")
+
+[node name="OilfieldSettlersShowcase" type="Node2D"]
+
+[node name="Terrain" type="Node" parent="."]
+script = ExtResource("terrain")
+WidthTiles = 36
+HeightTiles = 24
+TileSize = 64
+PixelsPerTile = 48
+GrainStrength = 0.0
+UseBundledMaterialTextures = false
+EnableBiomeDetailLayers = true
+BiomeDetailCoverage = 0.30
+BiomeDetailPatchScale = 0.18
+
+[node name="VisualTileLayer" type="TileMapLayer" parent="."]
+
+[node name="TileMapBridge" type="Node" parent="."]
+script = ExtResource("tilemap_bridge")
+TileMapLayerPath = NodePath("../VisualTileLayer")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+PaintCells = true
+PaintRoads = true
+
+[node name="Grid" type="Node2D" parent="."]
+script = ExtResource("grid")
+TileSize = Vector2(64, 64)
+DrawGrid = false
+
+[node name="Cells" type="Node" parent="."]
+script = ExtResource("cell_data")
+DefaultTerrainKind = "grass"
+
+[node name="Roads" type="Node2D" parent="."]
+script = ExtResource("roads")
+GridPath = NodePath("../Grid")
+DefaultRoadKind = "dirt_path"
+DefaultRoadCostMultiplier = 0.55
+DrawRoads = true
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+RoadPath = NodePath("../Roads")
+BoundsSize = Vector2i(36, 24)
+
+[node name="Jobs" type="Node" parent="."]
+script = ExtResource("jobs")
+DefaultWorkSeconds = 1.5
+
+[node name="Resources" type="Node" parent="."]
+script = ExtResource("wallet")
+StartingResourceAmounts = {
+"coins": 450,
+"parts": 18,
+"stone": 35,
+"wood": 120
+}
+
+[node name="Commands" type="Node" parent="."]
+
+[node name="Tools" type="Node" parent="Commands"]
+script = ExtResource("tools")
+GridPath = NodePath("../../Grid")
+CellDataPath = NodePath("../../Cells")
+JobQueuePath = NodePath("../../Jobs")
+RoadPath = NodePath("../../Roads")
+CurrentAction = 5
+JobKind = "clear_land"
+
+[node name="WorldArt" type="Node2D" parent="."]
+
+[node name="Ground" type="Polygon2D" parent="WorldArt"]
+polygon = PackedVector2Array(640, 40, 1160, 300, 640, 560, 120, 300)
+color = Color(0.43, 0.57, 0.30, 1)
+
+[node name="ClearedYard" type="Polygon2D" parent="WorldArt"]
+polygon = PackedVector2Array(470, 205, 710, 325, 520, 420, 280, 300)
+color = Color(0.64, 0.55, 0.39, 1)
+
+[node name="RoadMain" type="Line2D" parent="WorldArt"]
+points = PackedVector2Array(180, 300, 330, 255, 500, 338, 650, 285, 820, 365, 1010, 310)
+width = 22.0
+default_color = Color(0.34, 0.29, 0.20, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="RoadHighlight" type="Line2D" parent="WorldArt"]
+points = PackedVector2Array(180, 300, 330, 255, 500, 338, 650, 285, 820, 365, 1010, 310)
+width = 5.0
+default_color = Color(0.74, 0.67, 0.50, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="RoadExtension" type="Line2D" parent="WorldArt"]
+visible = false
+points = PackedVector2Array(1010, 310, 1092, 270)
+width = 22.0
+default_color = Color(0.34, 0.29, 0.20, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="TreePatch" type="Node2D" parent="WorldArt"]
+
+[node name="Tree01" type="Polygon2D" parent="WorldArt/TreePatch"]
+position = Vector2(875, 205)
+polygon = PackedVector2Array(0, -46, 34, -18, 24, 22, -24, 22, -34, -18)
+color = Color(0.13, 0.33, 0.17, 1)
+
+[node name="Tree02" type="Polygon2D" parent="WorldArt/TreePatch"]
+position = Vector2(950, 250)
+polygon = PackedVector2Array(0, -40, 30, -16, 20, 20, -22, 20, -30, -16)
+color = Color(0.18, 0.41, 0.20, 1)
+
+[node name="Tree03" type="Polygon2D" parent="WorldArt/TreePatch"]
+position = Vector2(1015, 205)
+polygon = PackedVector2Array(0, -38, 28, -14, 20, 18, -20, 18, -28, -14)
+color = Color(0.15, 0.36, 0.18, 1)
+
+[node name="PreparedPlots" type="Node2D" parent="WorldArt"]
+visible = false
+
+[node name="Plot01" type="Polygon2D" parent="WorldArt/PreparedPlots"]
+polygon = PackedVector2Array(535, 365, 603, 399, 535, 433, 467, 399)
+color = Color(0.42, 0.30, 0.18, 1)
+
+[node name="Plot02" type="Polygon2D" parent="WorldArt/PreparedPlots"]
+polygon = PackedVector2Array(615, 325, 683, 359, 615, 393, 547, 359)
+color = Color(0.47, 0.34, 0.20, 1)
+
+[node name="Plot03" type="Polygon2D" parent="WorldArt/PreparedPlots"]
+polygon = PackedVector2Array(695, 365, 763, 399, 695, 433, 627, 399)
+color = Color(0.38, 0.28, 0.18, 1)
+
+[node name="CropPatch" type="Node2D" parent="WorldArt"]
+visible = false
+
+[node name="Crop01" type="Polygon2D" parent="WorldArt/CropPatch"]
+polygon = PackedVector2Array(520, 386, 532, 364, 544, 386, 532, 400)
+color = Color(0.24, 0.50, 0.18, 1)
+
+[node name="Crop02" type="Polygon2D" parent="WorldArt/CropPatch"]
+polygon = PackedVector2Array(600, 346, 612, 324, 624, 346, 612, 360)
+color = Color(0.28, 0.55, 0.20, 1)
+
+[node name="Crop03" type="Polygon2D" parent="WorldArt/CropPatch"]
+polygon = PackedVector2Array(680, 386, 692, 364, 704, 386, 692, 400)
+color = Color(0.22, 0.48, 0.17, 1)
+
+[node name="Base" type="Node2D" parent="."]
+position = Vector2(365, 265)
+
+[node name="Artwork" type="Sprite2D" parent="Base"]
+material = SubResource("material_chroma_key")
+position = Vector2(0, -42)
+scale = Vector2(0.52, 0.52)
+texture = ExtResource("objects_sheet")
+region_enabled = true
+region_rect = Rect2(570, 955, 270, 210)
+
+[node name="YardShadow" type="Polygon2D" parent="Base"]
+visible = false
+polygon = PackedVector2Array(-120, 30, 20, 98, 138, 42, -5, -30)
+color = Color(0.08, 0.07, 0.05, 0.22)
+
+[node name="DepotFloor" type="Polygon2D" parent="Base"]
+visible = false
+polygon = PackedVector2Array(-96, 0, 16, 56, 104, 12, -10, -46)
+color = Color(0.50, 0.43, 0.32, 1)
+
+[node name="DepotWall" type="Polygon2D" parent="Base"]
+visible = false
+polygon = PackedVector2Array(-48, -58, 46, -12, 46, 30, -48, -16)
+color = Color(0.62, 0.53, 0.39, 1)
+
+[node name="DepotRoof" type="Polygon2D" parent="Base"]
+visible = false
+polygon = PackedVector2Array(-62, -70, 42, -116, 116, -78, 10, -28)
+color = Color(0.23, 0.30, 0.34, 1)
+
+[node name="Door" type="Polygon2D" parent="Base"]
+visible = false
+polygon = PackedVector2Array(-18, -21, 18, -4, 18, 28, -18, 10)
+color = Color(0.16, 0.13, 0.10, 1)
+
+[node name="WorkerSpawner" type="Node" parent="Base"]
+script = ExtResource("worker_spawner")
+UnitScene = ExtResource("worker_unit")
+UnitsRootPath = NodePath("../../Units")
+GridPath = NodePath("../../Grid")
+NavigationPath = NodePath("../../Navigation")
+JobQueuePath = NodePath("../../Jobs")
+SpawnCell = Vector2i(4, 4)
+InitialWorkers = 2
+MaxWorkers = 8
+AutoSpawnOnReady = false
+
+[node name="Units" type="Node2D" parent="."]
+
+[node name="Truck_Clear" type="Node2D" parent="Units"]
+position = Vector2(540, 320)
+
+[node name="Shadow" type="Polygon2D" parent="Units/Truck_Clear"]
+visible = false
+polygon = PackedVector2Array(-38, 12, 8, 34, 52, 12, 4, -12)
+color = Color(0.06, 0.05, 0.04, 0.25)
+
+[node name="Body" type="Polygon2D" parent="Units/Truck_Clear"]
+visible = false
+polygon = PackedVector2Array(-42, -4, 4, -28, 54, -4, 8, 22)
+color = Color(0.83, 0.62, 0.25, 1)
+
+[node name="Cab" type="Polygon2D" parent="Units/Truck_Clear"]
+visible = false
+polygon = PackedVector2Array(-8, -30, 24, -48, 52, -34, 18, -15)
+color = Color(0.95, 0.75, 0.32, 1)
+
+[node name="Load" type="Polygon2D" parent="Units/Truck_Clear"]
+visible = false
+polygon = PackedVector2Array(-32, -2, -4, -16, 22, -3, -7, 12)
+color = Color(0.28, 0.22, 0.14, 1)
+
+[node name="Artwork" type="Sprite2D" parent="Units/Truck_Clear"]
+material = SubResource("material_chroma_key")
+position = Vector2(0, -10)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("trucks_sheet")
+region_enabled = true
+region_rect = Rect2(250, 595, 170, 130)
+
+[node name="Truck_Road" type="Node2D" parent="Units"]
+position = Vector2(685, 285)
+
+[node name="Shadow" type="Polygon2D" parent="Units/Truck_Road"]
+visible = false
+polygon = PackedVector2Array(-34, 10, 10, 32, 50, 10, 4, -12)
+color = Color(0.06, 0.05, 0.04, 0.22)
+
+[node name="Body" type="Polygon2D" parent="Units/Truck_Road"]
+visible = false
+polygon = PackedVector2Array(-38, -2, 2, -23, 48, -2, 7, 20)
+color = Color(0.42, 0.55, 0.58, 1)
+
+[node name="Cab" type="Polygon2D" parent="Units/Truck_Road"]
+visible = false
+polygon = PackedVector2Array(-5, -25, 22, -40, 46, -27, 17, -12)
+color = Color(0.56, 0.68, 0.70, 1)
+
+[node name="Artwork" type="Sprite2D" parent="Units/Truck_Road"]
+material = SubResource("material_chroma_key")
+position = Vector2(0, -10)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("trucks_sheet")
+region_enabled = true
+region_rect = Rect2(250, 595, 170, 130)
+
+[node name="WorkMarker" type="Node2D" parent="."]
+visible = false
+
+[node name="Ring" type="Line2D" parent="WorkMarker"]
+points = PackedVector2Array(-24, 0, -12, -18, 12, -18, 24, 0, 12, 18, -12, 18, -24, 0)
+width = 4.0
+default_color = Color(1, 0.78, 0.18, 1)
+joint_mode = 2
+
+[node name="Flag" type="Polygon2D" parent="WorkMarker"]
+polygon = PackedVector2Array(-3, -42, 4, -42, 4, 18, -3, 18, -3, -12, 20, -5, -3, 2)
+color = Color(0.96, 0.42, 0.18, 1)
+
+[node name="DemoController" type="Node" parent="."]
+script = ExtResource("showcase_controller")
+SpawnerPath = NodePath("../Base/WorkerSpawner")
+ResourceWalletPath = NodePath("../Resources")
+StatusLabelPath = NodePath("../HUD/HudRoot/StatusPanel/Panel/Rows/Status")
+TruckClearPath = NodePath("../Units/Truck_Clear")
+TruckRoadPath = NodePath("../Units/Truck_Road")
+TreePatchPath = NodePath("../WorldArt/TreePatch")
+ClearedYardPath = NodePath("../WorldArt/ClearedYard")
+PreparedPlotsPath = NodePath("../WorldArt/PreparedPlots")
+CropPatchPath = NodePath("../WorldArt/CropPatch")
+RoadExtensionPath = NodePath("../WorldArt/RoadExtension")
+WorkMarkerPath = NodePath("../WorkMarker")
+ToolButtonPaths = Array[NodePath]([NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Clear"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Hoe"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Water"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Plant"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Harvest"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Job"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/Road"), NodePath("../HUD/HudRoot/ToolPalette/Panel/Row/NoRoad")])
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(640, 315)
+enabled = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HudRoot" type="Control" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Theme" type="Node" parent="HUD/HudRoot"]
+script = ExtResource("theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+EnableAnimations = false
+EnableRippleOnClick = false
+HudMode = true
+
+[node name="ResourceBar" type="Control" parent="HUD/HudRoot"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 18.0
+offset_top = 12.0
+offset_right = -18.0
+offset_bottom = 58.0
+script = ExtResource("resource_bar")
+ResourceWalletPath = NodePath("../../../Resources")
+HideZeroAmounts = false
+BoundResourceIds = Array[String](["wood", "stone", "parts", "coins"])
+BoundLabelPaths = Array[NodePath]([NodePath("Panel/Row/Wood"), NodePath("Panel/Row/Stone"), NodePath("Panel/Row/Parts"), NodePath("Panel/Row/Coins")])
+
+[node name="Panel" type="PanelContainer" parent="HUD/HudRoot/ResourceBar"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("kit_panel")
+Title = "CAMP STORES"
+TitleStyle = 1
+
+[node name="Row" type="HBoxContainer" parent="HUD/HudRoot/ResourceBar/Panel"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 18
+
+[node name="Wood" type="Label" parent="HUD/HudRoot/ResourceBar/Panel/Row"]
+custom_minimum_size = Vector2(130, 30)
+layout_mode = 2
+text = "Wood 120"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Stone" type="Label" parent="HUD/HudRoot/ResourceBar/Panel/Row"]
+custom_minimum_size = Vector2(130, 30)
+layout_mode = 2
+text = "Stone 35"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Parts" type="Label" parent="HUD/HudRoot/ResourceBar/Panel/Row"]
+custom_minimum_size = Vector2(130, 30)
+layout_mode = 2
+text = "Parts 18"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Coins" type="Label" parent="HUD/HudRoot/ResourceBar/Panel/Row"]
+custom_minimum_size = Vector2(130, 30)
+layout_mode = 2
+text = "Coins 450"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="ToolPalette" type="Control" parent="HUD/HudRoot"]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -166.0
+offset_right = -18.0
+offset_bottom = 166.0
+script = ExtResource("tool_palette")
+ToolActionPath = NodePath("../../../Commands/Tools")
+BoundActionNames = Array[String](["Clear", "Hoe", "Water", "Plant", "Harvest", "QueueJob", "Road", "RemoveRoad"])
+BoundButtonPaths = Array[NodePath]([NodePath("Panel/Row/Clear"), NodePath("Panel/Row/Hoe"), NodePath("Panel/Row/Water"), NodePath("Panel/Row/Plant"), NodePath("Panel/Row/Harvest"), NodePath("Panel/Row/Job"), NodePath("Panel/Row/Road"), NodePath("Panel/Row/NoRoad")])
+GenerateControlsWhenPathsEmpty = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/HudRoot/ToolPalette"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("kit_panel")
+Title = "TOOLS"
+TitleStyle = 1
+
+[node name="Row" type="VBoxContainer" parent="HUD/HudRoot/ToolPalette/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Clear" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Clear"
+script = ExtResource("kit_button")
+
+[node name="Hoe" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Prepare"
+script = ExtResource("kit_button")
+
+[node name="Water" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Water"
+script = ExtResource("kit_button")
+
+[node name="Plant" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Plant"
+script = ExtResource("kit_button")
+
+[node name="Harvest" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Harvest"
+script = ExtResource("kit_button")
+
+[node name="Job" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Queue Job"
+script = ExtResource("kit_button")
+
+[node name="Road" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Road"
+script = ExtResource("kit_button")
+
+[node name="NoRoad" type="Button" parent="HUD/HudRoot/ToolPalette/Panel/Row"]
+custom_minimum_size = Vector2(112, 34)
+layout_mode = 2
+text = "Remove"
+script = ExtResource("kit_button")
+
+[node name="BasePanel" type="Control" parent="HUD/HudRoot"]
+anchors_preset = 0
+offset_left = 18.0
+offset_top = 76.0
+offset_right = 238.0
+offset_bottom = 198.0
+script = ExtResource("spawner_panel")
+SpawnerPath = NodePath("../../../Base/WorkerSpawner")
+TitleLabelPath = NodePath("Panel/Content/Title")
+CountLabelPath = NodePath("Panel/Content/Count")
+SpawnButtonPath = NodePath("Panel/Content/SpawnButton")
+TitleText = "Depot"
+SpawnButtonText = "Send Truck"
+CountTextFormat = "Trucks: {0}/{1}"
+GenerateControlsWhenPathsEmpty = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/HudRoot/BasePanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("kit_panel")
+Title = "BASE DEPOT"
+TitleStyle = 1
+
+[node name="Content" type="VBoxContainer" parent="HUD/HudRoot/BasePanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Title" type="Label" parent="HUD/HudRoot/BasePanel/Panel/Content"]
+layout_mode = 2
+text = "Depot"
+horizontal_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 1
+
+[node name="Count" type="Label" parent="HUD/HudRoot/BasePanel/Panel/Content"]
+layout_mode = 2
+text = "Trucks: 2/8"
+horizontal_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="SpawnButton" type="Button" parent="HUD/HudRoot/BasePanel/Panel/Content"]
+custom_minimum_size = Vector2(150, 34)
+layout_mode = 2
+text = "Send Truck"
+script = ExtResource("kit_button")
+
+[node name="StatusPanel" type="Control" parent="HUD/HudRoot"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 250.0
+offset_top = -86.0
+offset_right = -180.0
+offset_bottom = -18.0
+
+[node name="Panel" type="PanelContainer" parent="HUD/HudRoot/StatusPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("kit_panel")
+Title = "CURRENT ORDERS"
+TitleStyle = 1
+
+[node name="Rows" type="VBoxContainer" parent="HUD/HudRoot/StatusPanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Status" type="Label" parent="HUD/HudRoot/StatusPanel/Panel/Rows"]
+layout_mode = 2
+text = "Depot ready. Queue jobs or send trucks."
+horizontal_alignment = 1
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Orders" type="HBoxContainer" parent="HUD/HudRoot/StatusPanel/Panel/Rows"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 18
+
+[node name="Order1" type="Label" parent="HUD/HudRoot/StatusPanel/Panel/Rows/Orders"]
+layout_mode = 2
+text = "Clear brush"
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Order2" type="Label" parent="HUD/HudRoot/StatusPanel/Panel/Rows/Orders"]
+layout_mode = 2
+text = "Prepare 3 plots"
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3
+
+[node name="Order3" type="Label" parent="HUD/HudRoot/StatusPanel/Panel/Rows/Orders"]
+layout_mode = 2
+text = "Extend dirt road"
+script = ExtResource("kit_label")
+AutoRole = false
+Role = 3

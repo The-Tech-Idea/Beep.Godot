@@ -122,6 +122,11 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 script = ExtResource("k_label")
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MasterRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="SfxRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
@@ -155,6 +160,11 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 script = ExtResource("k_label")
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/SfxRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="MusicRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
@@ -188,6 +198,11 @@ horizontal_alignment = 2
 vertical_alignment = 1
 
 script = ExtResource("k_label")
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Audio/AudioList/MusicRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="Display" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
 layout_mode = 2
 visible = false
@@ -216,6 +231,11 @@ script = ExtResource("k_check")
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 4
+
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/FullscreenRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="ResolutionRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList"]
 custom_minimum_size = Vector2(0, 44)
@@ -246,6 +266,11 @@ popup/item_2/id = 2
 popup/item_3/text = "2560 x 1440"
 popup/item_3/id = 3
 selected = 0
+
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList/ResolutionRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="ResolutionHint" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Display/DisplayList"]
 theme_type_variation = &"BeepCaption"
@@ -292,6 +317,11 @@ popup/item_2/text = "日本語"
 popup/item_2/id = 2
 selected = 0
 
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/LanguageRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="GameRule" type="HSeparator" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
 layout_mode = 2
 
@@ -311,10 +341,14 @@ script = ExtResource("k_label")
 [node name="SubtitlesCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/SubtitlesRow"]
 script = ExtResource("k_check")
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 4
 size_flags_horizontal = 8
 button_pressed = true
+
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/SubtitlesRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="ScreenShakeRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
 custom_minimum_size = Vector2(0, 44)
@@ -332,10 +366,14 @@ script = ExtResource("k_label")
 [node name="ScreenShakeCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/ScreenShakeRow"]
 script = ExtResource("k_check")
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 4
 size_flags_horizontal = 8
 button_pressed = true
+
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/ScreenShakeRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="DamageNumbersRow" type="HBoxContainer" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList"]
 custom_minimum_size = Vector2(0, 44)
@@ -353,10 +391,14 @@ script = ExtResource("k_label")
 [node name="DamageNumbersCheck" type="CheckButton" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/DamageNumbersRow"]
 script = ExtResource("k_check")
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 4
 size_flags_horizontal = 8
 button_pressed = true
+
+[node name="ScrollGutter" type="Control" parent="Center/Panel/Margin/ContentVBox/Tabs/Game/GameList/DamageNumbersRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="Controls" type="ScrollContainer" parent="Center/Panel/Margin/ContentVBox/Tabs"]
 layout_mode = 2
@@ -372,6 +414,16 @@ theme_override_constants/separation = 12
 theme_type_variation = &"BeepCaption"
 layout_mode = 2
 text = "Your current controls. Rebinding is not available in this build."
+autowrap_mode = 2
+
+script = ExtResource("k_label")
+[node name="ControlsBindings" type="Label" parent="Center/Panel/Margin/ContentVBox/Tabs/Controls/ControlsList"]
+theme_type_variation = &"BeepValue"
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "No custom actions are registered."
 autowrap_mode = 2
 
 script = ExtResource("k_label")

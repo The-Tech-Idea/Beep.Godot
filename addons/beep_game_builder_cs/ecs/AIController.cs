@@ -38,6 +38,10 @@ namespace Beep.ECS
         private Node2D? _lastTarget;
         private AIMode _lastMode = AIMode.Idle;
         private AIMode _baseMode;   // the mode to return to when a chase ends
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveDetectionRange => NonNegative(DetectionRange);
+        public float EffectiveAttackRange => NonNegative(AttackRange);
+        public float EffectiveWanderChangeRate => float.IsFinite(WanderChangeRate) ? Mathf.Clamp(WanderChangeRate, 0f, 1f) : 0f;
 
         public override void _Ready()
         {
@@ -71,7 +75,10 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
+            if (!IsFinite(_moveDir)) _moveDir = Vector2.Zero;
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
 
@@ -90,10 +97,12 @@ namespace Beep.ECS
             }
 
             if (!isStunned)
-                UpdateAI((float)delta);
+                UpdateAI(dt);
+            else
+                _moveDir = Vector2.Zero;
 
-            float finalSpeed = _stats?.GetValue("move_speed", Speed) ?? Speed;
-            _body.Velocity = _body.Velocity.MoveToward(_moveDir * finalSpeed, 800f * (float)delta);
+            float finalSpeed = NonNegative(_stats?.GetValue("move_speed", EffectiveSpeed) ?? EffectiveSpeed);
+            _body.Velocity = _body.Velocity.MoveToward(_moveDir * finalSpeed, 800f * dt);
             _body.MoveAndSlide();
         }
 
@@ -128,7 +137,7 @@ namespace Beep.ECS
                     EmitSignal(SignalName.TargetDetected, _currentTarget);
                     _lastTarget = _currentTarget;
                 }
-                if (_body!.GlobalPosition.DistanceTo(_currentTarget.GlobalPosition) < AttackRange)
+                if (_body!.GlobalPosition.DistanceTo(_currentTarget.GlobalPosition) < EffectiveAttackRange)
                 {
                     EmitSignal(SignalName.InAttackRange, _currentTarget);
                     _attack?.Attack(_currentTarget.GlobalPosition);   // actually swing (AttackComponent honors its own cooldown)
@@ -150,8 +159,9 @@ namespace Beep.ECS
         private void UpdatePatrol()
         {
             if (Waypoints.Length == 0) { _moveDir = Vector2.Zero; return; }
+            if (_waypointIndex < 0 || _waypointIndex >= Waypoints.Length) _waypointIndex = 0;
             var wp = GetNodeOrNull<Node2D>(Waypoints[_waypointIndex]);
-            if (wp == null) return;
+            if (wp == null || !GodotObject.IsInstanceValid(wp)) { _moveDir = Vector2.Zero; return; }
             _moveDir = (wp.GlobalPosition - _body!.GlobalPosition).Normalized();
             if (_body!.GlobalPosition.DistanceTo(wp.GlobalPosition) < 10f)
             {
@@ -162,7 +172,7 @@ namespace Beep.ECS
 
         private void UpdateWander()
         {
-            if (GD.Randf() < WanderChangeRate)
+            if (GD.Randf() < EffectiveWanderChangeRate)
                 _moveDir = new Vector2(GD.Randf() * 2 - 1, GD.Randf() * 2 - 1).Normalized();
         }
 
@@ -178,7 +188,7 @@ namespace Beep.ECS
         {
             var nodes = GetTree().GetNodesInGroup(group);
             Node2D? nearest = null;
-            float minDist = DetectionRange;
+            float minDist = EffectiveDetectionRange;
             foreach (var node in nodes)
             {
                 if (node is Node2D n)
@@ -189,5 +199,9 @@ namespace Beep.ECS
             }
             return nearest;
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

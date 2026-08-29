@@ -129,9 +129,12 @@ namespace Beep.ECS
 
         public void Load(GameBuilder.GameStateData state)
         {
-            // Withdraw whatever _Ready equipped, then restore the saved loadout.
-            foreach (var slot in new List<EquipSlot>(_slots.Keys)) Unequip(slot);
             if (!state.GameData.TryGetValue("equipment", out var v)) return;
+            if (v.VariantType != Variant.Type.Dictionary) return;
+
+            // Withdraw whatever _Ready equipped only after a real saved loadout is present.
+            foreach (var slot in new List<EquipSlot>(_slots.Keys)) Unequip(slot);
+
             var dict = v.AsGodotDictionary();
             foreach (var key in dict.Keys)
             {

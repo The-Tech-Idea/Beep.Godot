@@ -20,8 +20,11 @@ namespace Beep.ECS
         /// <summary>Check if a recipe can be crafted with the current inventory.</summary>
         public bool CanCraft(CraftingRecipe recipe, InventoryComponent inventory)
         {
+            if (recipe == null || inventory == null || recipe.OutputItem == null || recipe.EffectiveOutputCount <= 0)
+                return false;
+
             foreach (var input in recipe.InputItems)
-                if (input.Item == null || !inventory.HasItem(input.Item.Id, input.Count))
+                if (input == null || input.Item == null || !inventory.HasItem(input.Item.Id, input.EffectiveCount))
                     return false;
             return true;
         }
@@ -31,10 +34,16 @@ namespace Beep.ECS
         public bool Craft(CraftingRecipe recipe, InventoryComponent inventory)
         {
             if (!IsActive) return false;
-            if (recipe.OutputItem == null)
+            if (recipe == null || recipe.OutputItem == null)
             {
-                GD.PushWarning($"[{Name}] Recipe '{recipe.RecipeName}' has no OutputItem — nothing to grant. Set CraftingRecipe.OutputItem.");
+                GD.PushWarning($"[{Name}] Recipe '{recipe?.RecipeName ?? "<null>"}' has no OutputItem — nothing to grant. Set CraftingRecipe.OutputItem.");
                 EmitSignal(SignalName.CraftFailed, "Recipe has no output");
+                return false;
+            }
+            int outputCount = recipe.EffectiveOutputCount;
+            if (outputCount <= 0)
+            {
+                EmitSignal(SignalName.CraftFailed, "Recipe output count is zero");
                 return false;
             }
             if (!CanCraft(recipe, inventory))
@@ -44,17 +53,17 @@ namespace Beep.ECS
             }
             // Refuse BEFORE consuming inputs if the product won't fit — otherwise the materials are
             // shredded into a full inventory and nothing is produced.
-            if (!inventory.CanFit(recipe.OutputItem, recipe.OutputCount))
+            if (!inventory.CanFit(recipe.OutputItem, outputCount))
             {
                 EmitSignal(SignalName.CraftFailed, "No room for the crafted item");
                 return false;
             }
             // Deduct materials (CanCraft guaranteed every input.Item is non-null).
             foreach (var input in recipe.InputItems)
-                inventory.RemoveItem(input.Item!.Id, input.Count);
+                inventory.RemoveItem(input.Item!.Id, input.EffectiveCount);
             // Grant result. Without this the recipe consumed the inputs and produced nothing —
             // crafting was a material shredder.
-            inventory.AddItem(recipe.OutputItem, recipe.OutputCount);
+            inventory.AddItem(recipe.OutputItem, outputCount);
             EmitSignal(SignalName.Crafted, recipe.OutputItem.Id);
             return true;
         }
@@ -73,6 +82,8 @@ namespace Beep.ECS
         [Export] public GameItem? OutputItem { get; set; }
         [Export] public int OutputCount { get; set; } = 1;
         [Export] public float CraftTime { get; set; } = 0f;
+        public int EffectiveOutputCount => Mathf.Max(0, OutputCount);
+        public float EffectiveCraftTime => float.IsFinite(CraftTime) ? Mathf.Max(0f, CraftTime) : 0f;
     }
 
     /// <summary>A single ingredient in a crafting recipe — a GameItem `.tres` and a count.</summary>
@@ -82,5 +93,6 @@ namespace Beep.ECS
     {
         [Export] public GameItem? Item { get; set; }
         [Export] public int Count { get; set; } = 1;
+        public int EffectiveCount => Mathf.Max(1, Count);
     }
 }

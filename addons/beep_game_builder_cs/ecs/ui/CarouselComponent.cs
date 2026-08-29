@@ -26,12 +26,20 @@ namespace Beep.ECS.UI
         [Export] public float InactiveScale { get; set; } = 0.85f;
         [Export] public float InactiveAlpha { get; set; } = 0.5f;
         [Export] public bool Loop { get; set; } = true;
-        [Export] public bool AutoPlay { get; set; } = false;
+        [Export] public bool AutoPlay { get => _autoPlay; set { if (_autoPlay == value) return; _autoPlay = value; UpdateProcessing(); } }
         [Export] public float AutoPlayInterval { get; set; } = 3f;
+
+        public float EffectiveCardWidth => Mathf.Max(1f, float.IsFinite(CardWidth) ? CardWidth : 280f);
+        public float EffectiveSpacing => Mathf.Max(0f, float.IsFinite(Spacing) ? Spacing : 0f);
+        public float EffectiveTransitionDuration => Mathf.Max(0.001f, float.IsFinite(TransitionDuration) ? TransitionDuration : 0.001f);
+        public float EffectiveInactiveScale => Mathf.Clamp(float.IsFinite(InactiveScale) ? InactiveScale : 0.85f, 0.01f, 10f);
+        public float EffectiveInactiveAlpha => Mathf.Clamp(float.IsFinite(InactiveAlpha) ? InactiveAlpha : 0.5f, 0f, 1f);
+        public float EffectiveAutoPlayInterval => Mathf.Max(0.05f, float.IsFinite(AutoPlayInterval) ? AutoPlayInterval : 0.05f);
 
         [Signal] public delegate void SlideChangedEventHandler(int index);
 
         private Godot.Control? _container;
+        private bool _autoPlay;
         private int _currentIndex;
         private float _autoTimer;
         // The slides this carousel drives, and each slide's vertical baseline relative to the
@@ -43,6 +51,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (Engine.IsEditorHint()) return;
             _container = GetParent() as Godot.Control;
             if (_container == null)
@@ -73,17 +82,26 @@ namespace Beep.ECS.UI
             if (_slides.Count == 0)
             {
                 GD.PushWarning($"[{Name}] CarouselComponent found no Control slides under its parent — nothing to show.");
+                UpdateProcessing();
                 return;
             }
             GoToSlide(0, true);
+            UpdateProcessing();
         }
 
         public override void _Process(double delta)
         {
-            if (!AutoPlay || !IsActive || _slides.Count == 0) return;
-            _autoTimer += (float)delta;
-            if (_autoTimer >= AutoPlayInterval) { _autoTimer = 0; Next(); }
+            if (!AutoPlay || !IsActive || _slides.Count == 0)
+            {
+                UpdateProcessing();
+                return;
+            }
+            _autoTimer += Mathf.Max(0f, (float)delta);
+            if (_autoTimer >= EffectiveAutoPlayInterval) { _autoTimer = 0; Next(); }
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && AutoPlay && _slides.Count > 0);
 
         public void Next() => GoToSlide((_currentIndex + 1) % _slides.Count);
         public void Previous() => GoToSlide((_currentIndex - 1 + _slides.Count) % _slides.Count);
@@ -118,12 +136,13 @@ namespace Beep.ECS.UI
                 var slide = _slides[i];
                 if (!GodotObject.IsInstanceValid(slide)) continue;
 
-                float offset = (i - _currentIndex) * (CardWidth + Spacing);
-                float targetX = centerX - CardWidth / 2f + offset;
+                float cardWidth = EffectiveCardWidth;
+                float offset = (i - _currentIndex) * (cardWidth + EffectiveSpacing);
+                float targetX = centerX - cardWidth / 2f + offset;
                 float targetY = baseY + _baseY.GetValueOrDefault(slide, 0f);
                 float distance = Mathf.Abs(i - _currentIndex);
-                float scale = distance < 1f ? 1f : InactiveScale;
-                float alpha = distance < 1f ? 1f : InactiveAlpha;
+                float scale = distance < 1f ? 1f : EffectiveInactiveScale;
+                float alpha = distance < 1f ? 1f : EffectiveInactiveAlpha;
 
                 if (instant)
                 {
@@ -135,9 +154,10 @@ namespace Beep.ECS.UI
                 {
                     var tween = slide.CreateTween().SetParallel(true);
                     _activeTweens.Add(tween);
-                    tween.TweenProperty(slide, "global_position", new Vector2(targetX, targetY), TransitionDuration).SetEase(Tween.EaseType.Out);
-                    tween.TweenProperty(slide, "scale", new Vector2(scale, scale), TransitionDuration);
-                    tween.TweenProperty(slide, "modulate:a", alpha, TransitionDuration);
+                    float duration = EffectiveTransitionDuration;
+                    tween.TweenProperty(slide, "global_position", new Vector2(targetX, targetY), duration).SetEase(Tween.EaseType.Out);
+                    tween.TweenProperty(slide, "scale", new Vector2(scale, scale), duration);
+                    tween.TweenProperty(slide, "modulate:a", alpha, duration);
                 }
             }
 

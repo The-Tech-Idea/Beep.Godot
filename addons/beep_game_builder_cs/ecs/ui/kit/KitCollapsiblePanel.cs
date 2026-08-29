@@ -36,27 +36,55 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Which edge the handle straddles, and therefore which way the panel folds.</summary>
         public enum Edge { Top, Bottom, Left, Right }
 
-        [Export] public Edge HandleEdge { get => _edge; set { _edge = value; QueueRedraw(); } }
+        [Export] public Edge HandleEdge { get => _edge; set { if (_edge == value) return; _edge = value; RefreshMinimumAndRedraw(); } }
         private Edge _edge = Edge.Top;
 
         [Export] public bool Collapsed
         {
             get => _collapsed;
-            set { if (_collapsed == value) return; _collapsed = value; QueueRedraw(); EmitSignal(SignalName.Toggled, value); }
+            set
+            {
+                if (_collapsed == value) return;
+                _collapsed = value;
+                RefreshVisualAndRedraw();
+                if (IsInsideTree())
+                    EmitSignal(SignalName.Toggled, value);
+            }
         }
         private bool _collapsed;
 
-        [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
+        [Export]
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                string next = value ?? "";
+                if (_title == next) return;
+                _title = next;
+                RefreshMinimumAndRedraw();
+            }
+        }
         private string _title = "";
-        [Export] public KitPanelHeaderStyle HeaderStyle { get => _headerStyle; set { _headerStyle = value; QueueRedraw(); } }
+        [Export] public KitPanelHeaderStyle HeaderStyle { get => _headerStyle; set { if (_headerStyle == value) return; _headerStyle = value; RefreshMinimumAndRedraw(); } }
         private KitPanelHeaderStyle _headerStyle = KitPanelHeaderStyle.UtilityStrip;
         [Export(PropertyHint.Range, "0.45,1.4,0.01")]
-        public float TitleFontScale { get => _titleFontScale; set { _titleFontScale = value; QueueRedraw(); } }
-        private float _titleFontScale = 0.72f;
+        public float TitleFontScale { get => _titleFontScale; set { if (Mathf.IsEqualApprox(_titleFontScale, value)) return; _titleFontScale = value; RefreshMinimumAndRedraw(); } }
+        private float _titleFontScale = 0.90f;
         [Export(PropertyHint.Range, "0.1,1.6,0.01")]
-        public float BannerShade { get => _bannerShade; set { _bannerShade = value; QueueRedraw(); } }
+        public float BannerShade
+        {
+            get => _bannerShade;
+            set
+            {
+                if (Mathf.Abs(_bannerShade - value) < 0.001f) return;
+                _bannerShade = value;
+                RefreshVisualAndRedraw();
+            }
+        }
         private float _bannerShade = 0.44f;
         private bool _hoverHandle;
+        private bool _eventsHooked;
 
         [Signal] public delegate void ToggledEventHandler(bool collapsed);
 
@@ -67,31 +95,74 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            UpdateMinimumSize();
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
+            {
+                MouseExited += ClearHandleHover;
+                _eventsHooked = true;
+            }
+            RefreshKitMinimumSize();
         }
 
         public override void _Notification(int what)
         {
             base._Notification(what);
-            if (what == NotificationThemeChanged)
-            {
-                QueueRedraw();
-            }
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHandleHover();
         }
 
-        private void UpdateMinimumSize()
+        private void RefreshKitMinimumSize()
         {
-            if (CustomMinimumSize != Vector2.Zero) return;
-            CustomMinimumSize = _GetMinimumSize();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            RefreshKitMinimumSize();
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private void ClearHandleHover()
+        {
+            if (!_hoverHandle) return;
+            _hoverHandle = false;
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            return new Vector2(fs * 14f, fs * 8f);
+            string genre = KitChrome.GenreOf(this);
+            float handlePad = HandleSize * 0.5f;
+            float width = fs * 14f;
+            float height = fs * 8f;
+            if (_edge is Edge.Left or Edge.Right)
+                width += handlePad;
+            else
+                height += handlePad;
+
+            if (!string.IsNullOrEmpty(_title) && HeaderStyle != KitPanelHeaderStyle.None)
+            {
+                Font? font = KitFont();
+                int titleFs = UiSurface.FontSize(this, TitleFontScale, min: 8);
+                float titleW = TextWidth(font, KitCase(_title), titleFs);
+                width = Mathf.Max(width, titleW + titleFs * 3.2f);
+                height += KitChrome.PanelHeaderRoom(this, genre, _title, HeaderStyle, TitleFontScale, height);
+            }
+
+            return new Vector2(width, height);
         }
+
+        private static float TextWidth(Font? font, string text, int fs)
+            => string.IsNullOrEmpty(text)
+                ? 0f
+                : font?.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X ?? text.Length * fs * 0.56f;
 
         /// <summary>The handle's rect in local space. It deliberately falls OUTSIDE the panel
         /// body — that is the measured behaviour and the reason this is a drawn widget rather

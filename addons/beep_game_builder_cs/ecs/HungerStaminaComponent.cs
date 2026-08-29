@@ -61,6 +61,19 @@ namespace Beep.ECS
         private float _lastThirst = float.NaN;
         private float _lastStamina = float.NaN;
 
+        public float EffectiveHungerDepletePerSecond => NonNegative(HungerDepletePerSecond);
+        public float EffectiveThirstDepletePerSecond => NonNegative(ThirstDepletePerSecond);
+        public float EffectiveStaminaDepleteWhenMoving => NonNegative(StaminaDepleteWhenMoving);
+        public float EffectiveMovementThreshold => NonNegative(MovementThreshold);
+        public float EffectiveHungerRecoverPerSecond => NonNegative(HungerRecoverPerSecond);
+        public float EffectiveThirstRecoverPerSecond => NonNegative(ThirstRecoverPerSecond);
+        public float EffectiveStaminaRecoverPerSecond => NonNegative(StaminaRecoverPerSecond);
+        public float EffectiveHungerCriticalLevel => ClampPercent(HungerCriticalLevel, 20f);
+        public float EffectiveThirstCriticalLevel => ClampPercent(ThirstCriticalLevel, 15f);
+        public float EffectiveStaminaCriticalLevel => ClampPercent(StaminaCriticalLevel, 10f);
+        public float EffectiveColdHungerMultiplier => NonNegative(ColdHungerMultiplier);
+        public float EffectiveOverheatThirstMultiplier => NonNegative(OverheatThirstMultiplier);
+
         public override void _Ready()
         {
             base._Ready();
@@ -73,10 +86,11 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
 
-            float dt = (float)delta;
-            bool isMoving = _body != null && _body.Velocity.Length() > MovementThreshold;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            NormalizeValues();
+            bool isMoving = _body != null && IsFinite(_body.Velocity) && _body.Velocity.Length() > EffectiveMovementThreshold;
 
             // Apply depletion
             ApplyHungerDepletion(dt, isMoving);
@@ -84,14 +98,10 @@ namespace Beep.ECS
             ApplyStaminaDepletion(dt, isMoving);
 
             // Clamp values
-            CurrentHunger = Mathf.Clamp(CurrentHunger, 0f, 100f);
-            CurrentThirst = Mathf.Clamp(CurrentThirst, 0f, 100f);
-            CurrentStamina = Mathf.Clamp(CurrentStamina, 0f, 100f);
+            NormalizeValues();
 
             // Emit only when the value actually changed (skips the frames where it's clamped).
-            if (CurrentHunger != _lastHunger) { _lastHunger = CurrentHunger; EmitSignal(SignalName.HungerChanged, CurrentHunger); }
-            if (CurrentThirst != _lastThirst) { _lastThirst = CurrentThirst; EmitSignal(SignalName.ThirstChanged, CurrentThirst); }
-            if (CurrentStamina != _lastStamina) { _lastStamina = CurrentStamina; EmitSignal(SignalName.StaminaChanged, CurrentStamina); }
+            EmitChangedSignals();
 
             // Check critical levels
             CheckCriticalLevels();
@@ -99,7 +109,7 @@ namespace Beep.ECS
 
         private void ApplyHungerDepletion(float dt, bool isMoving)
         {
-            float depleteRate = HungerDepletePerSecond;
+            float depleteRate = EffectiveHungerDepletePerSecond;
             if (isMoving) depleteRate *= 1.3f;  // 30% more hunger when active
 
             // Cold increases hunger
@@ -108,8 +118,8 @@ namespace Beep.ECS
             {
                 tempModifier = _temperature.GetTemperatureState() switch
                 {
-                    TemperatureComponent.TemperatureState.Cold => ColdHungerMultiplier,
-                    TemperatureComponent.TemperatureState.Frozen => ColdHungerMultiplier * 1.5f,
+                    TemperatureComponent.TemperatureState.Cold => EffectiveColdHungerMultiplier,
+                    TemperatureComponent.TemperatureState.Frozen => EffectiveColdHungerMultiplier * 1.5f,
                     _ => 1.0f
                 };
             }
@@ -119,7 +129,7 @@ namespace Beep.ECS
 
         private void ApplyThirstDepletion(float dt, bool isMoving)
         {
-            float depleteRate = ThirstDepletePerSecond;
+            float depleteRate = EffectiveThirstDepletePerSecond;
             if (isMoving) depleteRate *= 1.3f;  // 30% more thirst when active
 
             // Overheating increases thirst
@@ -128,8 +138,8 @@ namespace Beep.ECS
             {
                 tempModifier = _temperature.GetTemperatureState() switch
                 {
-                    TemperatureComponent.TemperatureState.Overheating => OverheatThirstMultiplier,
-                    TemperatureComponent.TemperatureState.HeatStroke => OverheatThirstMultiplier * 2f,
+                    TemperatureComponent.TemperatureState.Overheating => EffectiveOverheatThirstMultiplier,
+                    TemperatureComponent.TemperatureState.HeatStroke => EffectiveOverheatThirstMultiplier * 2f,
                     _ => 1.0f
                 };
             }
@@ -141,40 +151,40 @@ namespace Beep.ECS
         {
             if (isMoving)
             {
-                CurrentStamina -= StaminaDepleteWhenMoving * dt;
+                CurrentStamina -= EffectiveStaminaDepleteWhenMoving * dt;
             }
             else
             {
                 // Regenerate stamina at rest
-                CurrentStamina += StaminaRecoverPerSecond * dt;
+                CurrentStamina += EffectiveStaminaRecoverPerSecond * dt;
             }
         }
 
         private void CheckCriticalLevels()
         {
             // Hunger critical
-            if (CurrentHunger <= HungerCriticalLevel && !_hungerDebuffActive)
+            if (CurrentHunger <= EffectiveHungerCriticalLevel && !_hungerDebuffActive)
             {
                 _hungerDebuffActive = true;
                 _statusEffects?.ApplyEffect("hungry", 999f, 0.5f, isBuff: false,
                     stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
                 EmitSignal(SignalName.HungerCritical);
             }
-            else if (CurrentHunger > HungerCriticalLevel && _hungerDebuffActive)
+            else if (CurrentHunger > EffectiveHungerCriticalLevel && _hungerDebuffActive)
             {
                 _hungerDebuffActive = false;
                 _statusEffects?.RemoveEffect("hungry");
             }
 
             // Thirst critical
-            if (CurrentThirst <= ThirstCriticalLevel && !_thirstDebuffActive)
+            if (CurrentThirst <= EffectiveThirstCriticalLevel && !_thirstDebuffActive)
             {
                 _thirstDebuffActive = true;
                 _statusEffects?.ApplyEffect("thirsty", 999f, 0.5f, isBuff: false,
                     stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
                 EmitSignal(SignalName.ThirstCritical);
             }
-            else if (CurrentThirst > ThirstCriticalLevel && _thirstDebuffActive)
+            else if (CurrentThirst > EffectiveThirstCriticalLevel && _thirstDebuffActive)
             {
                 _thirstDebuffActive = false;
                 _statusEffects?.RemoveEffect("thirsty");
@@ -182,7 +192,7 @@ namespace Beep.ECS
 
             // Stamina critical — latch like hunger/thirst so it fires once on crossing the
             // threshold, not every frame it stays low (which spammed any SFX/UI listener).
-            if (CurrentStamina <= StaminaCriticalLevel)
+            if (CurrentStamina <= EffectiveStaminaCriticalLevel)
             {
                 if (!_staminaCriticalActive) { _staminaCriticalActive = true; EmitSignal(SignalName.StaminaCritical); }
             }
@@ -194,19 +204,31 @@ namespace Beep.ECS
         /// <summary>Consume food to restore hunger.</summary>
         public void ConsumeFood(float hungerRestore)
         {
-            CurrentHunger = Mathf.Min(CurrentHunger + hungerRestore, 100f);
+            if (!float.IsFinite(hungerRestore) || hungerRestore <= 0f) return;
+            NormalizeValues();
+            CurrentHunger = Mathf.Clamp(CurrentHunger + hungerRestore, 0f, 100f);
+            EmitChangedSignals();
+            CheckCriticalLevels();
         }
 
         /// <summary>Drink water to restore thirst.</summary>
         public void DrinkWater(float thirstRestore)
         {
-            CurrentThirst = Mathf.Min(CurrentThirst + thirstRestore, 100f);
+            if (!float.IsFinite(thirstRestore) || thirstRestore <= 0f) return;
+            NormalizeValues();
+            CurrentThirst = Mathf.Clamp(CurrentThirst + thirstRestore, 0f, 100f);
+            EmitChangedSignals();
+            CheckCriticalLevels();
         }
 
         /// <summary>Rest to restore stamina (called by rest mechanic).</summary>
         public void Rest(float duration)
         {
-            CurrentStamina = Mathf.Min(CurrentStamina + (StaminaRecoverPerSecond * duration), 100f);
+            if (!float.IsFinite(duration) || duration <= 0f) return;
+            NormalizeValues();
+            CurrentStamina = Mathf.Clamp(CurrentStamina + (EffectiveStaminaRecoverPerSecond * duration), 0f, 100f);
+            EmitChangedSignals();
+            CheckCriticalLevels();
         }
 
         /// <summary>Spend stamina for an action (e.g. a dash/sprint). Refuses — returns false —
@@ -215,13 +237,16 @@ namespace Beep.ECS
         /// nothing consumed stamina for a discrete action before, so the gate never applied.</summary>
         public bool TryConsumeStamina(float amount)
         {
+            if (!float.IsFinite(amount)) return false;
             if (amount <= 0f) return true;
+            NormalizeValues();
             if (IsExhausted || CurrentStamina < amount) return false;
             CurrentStamina -= amount;
+            _lastStamina = CurrentStamina;
             EmitSignal(SignalName.StaminaChanged, CurrentStamina);
             // Route through the same latch CheckCriticalLevels uses, so StaminaCritical stays
             // edge-triggered and doesn't double-fire with the _Process check next frame.
-            if (CurrentStamina <= StaminaCriticalLevel && !_staminaCriticalActive)
+            if (CurrentStamina <= EffectiveStaminaCriticalLevel && !_staminaCriticalActive)
             {
                 _staminaCriticalActive = true;
                 EmitSignal(SignalName.StaminaCritical);
@@ -229,8 +254,40 @@ namespace Beep.ECS
             return true;
         }
 
-        public bool IsHungry => CurrentHunger <= HungerCriticalLevel;
-        public bool IsThirsty => CurrentThirst <= ThirstCriticalLevel;
-        public bool IsExhausted => CurrentStamina <= StaminaCriticalLevel;
+        private void NormalizeValues()
+        {
+            CurrentHunger = ClampPercent(CurrentHunger, 100f);
+            CurrentThirst = ClampPercent(CurrentThirst, 100f);
+            CurrentStamina = ClampPercent(CurrentStamina, 100f);
+        }
+
+        private void EmitChangedSignals()
+        {
+            if (!Mathf.IsEqualApprox(CurrentHunger, _lastHunger))
+            {
+                _lastHunger = CurrentHunger;
+                EmitSignal(SignalName.HungerChanged, CurrentHunger);
+            }
+            if (!Mathf.IsEqualApprox(CurrentThirst, _lastThirst))
+            {
+                _lastThirst = CurrentThirst;
+                EmitSignal(SignalName.ThirstChanged, CurrentThirst);
+            }
+            if (!Mathf.IsEqualApprox(CurrentStamina, _lastStamina))
+            {
+                _lastStamina = CurrentStamina;
+                EmitSignal(SignalName.StaminaChanged, CurrentStamina);
+            }
+        }
+
+        public bool IsHungry => CurrentHunger <= EffectiveHungerCriticalLevel;
+        public bool IsThirsty => CurrentThirst <= EffectiveThirstCriticalLevel;
+        public bool IsExhausted => CurrentStamina <= EffectiveStaminaCriticalLevel;
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float ClampPercent(float value, float fallback) => float.IsFinite(value) ? Mathf.Clamp(value, 0f, 100f) : fallback;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

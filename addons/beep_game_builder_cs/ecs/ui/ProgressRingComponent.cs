@@ -17,9 +17,10 @@ namespace Beep.ECS.UI
         [Export] public float Value
         {
             get => _value;
-            set { if (Mathf.IsEqualApprox(_value, value)) return; _value = value; EmitSignal(SignalName.ValueChanged, value); }
+            set { if (Mathf.IsEqualApprox(_value, value)) return; _value = value; EmitSignal(SignalName.ValueChanged, value); UpdateProcessing(); }
         }
-        [Export] public float MaxValue { get; set; } = 1f;
+        [Export] public float MaxValue { get => _maxValue; set { if (Mathf.IsEqualApprox(_maxValue, value)) return; _maxValue = value; UpdateProcessing(); } }
+        private float _maxValue = 1f;
         [Export] public float RingThickness { get; set; } = 6f;
         // The ring is the theme's accent and its track the ink derived from the surface it
         // sits on, instead of a fixed blue on a fixed near-black.
@@ -36,13 +37,28 @@ namespace Beep.ECS.UI
 
         private float _displayValue;
 
-        public override void _Ready() { _displayValue = Value; }
+        public override void _Ready()
+        {
+            _displayValue = TargetValue;
+            SetProcess(false);
+            QueueRedraw();
+        }
 
         public override void _Process(double delta)
         {
             // Don't run the lerp/repaint loop at edit time — it would repaint every frame in-editor.
-            if (Engine.IsEditorHint()) return;
-            _displayValue = Mathf.Lerp(_displayValue, MaxValue > 0f ? Value / MaxValue : 0f, AnimSpeed * (float)delta);
+            if (Engine.IsEditorHint())
+            {
+                SetProcess(false);
+                return;
+            }
+            float target = TargetValue;
+            _displayValue = Mathf.Lerp(_displayValue, target, AnimSpeed * (float)delta);
+            if (Mathf.IsEqualApprox(_displayValue, target))
+            {
+                _displayValue = target;
+                SetProcess(false);
+            }
             QueueRedraw();
         }
 
@@ -88,5 +104,20 @@ namespace Beep.ECS.UI
 
         // Value's setter already emits ValueChanged; assign through it (guarded against a no-op).
         public void SetValue(float value) { Value = value; }
+
+        private float TargetValue => MaxValue > 0f ? Value / MaxValue : 0f;
+
+        private void UpdateProcessing()
+        {
+            if (Engine.IsEditorHint())
+            {
+                QueueRedraw();
+                return;
+            }
+
+            if (!Mathf.IsEqualApprox(_displayValue, TargetValue))
+                SetProcess(true);
+            QueueRedraw();
+        }
     }
 }

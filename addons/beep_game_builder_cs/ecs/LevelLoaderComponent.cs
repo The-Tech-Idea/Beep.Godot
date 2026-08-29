@@ -20,7 +20,7 @@ namespace Beep.ECS
     {
         /// <summary>The per-level scenes, in order. Index 0 corresponds to level
         /// <see cref="FirstLevelIndex"/>.</summary>
-        [Export] public Godot.Collections.Array<PackedScene> Levels { get; set; } = new();
+        [Export] public Godot.Collections.Array Levels { get; set; } = new();
 
         /// <summary>Node the level instance is added under. If unset, the loader's parent is used.</summary>
         [Export] public NodePath? LevelContainerPath { get; set; }
@@ -67,17 +67,17 @@ namespace Beep.ECS
             }
 
             int idx = level - FirstLevelIndex;
-            if (idx < 0 || idx >= Levels.Count || Levels[idx] == null)
+            if (!TryGetLevelScene(idx, out PackedScene? scene))
             {
-                GD.PushError($"[{Name}] No level scene for level {level} (index {idx} of {Levels.Count} levels).");
-                EmitSignal(SignalName.LevelLoadFailed, level, "no scene for level");
+                string reason = idx < 0 || idx >= Levels.Count ? "no scene for level" : "invalid level scene";
+                EmitSignal(SignalName.LevelLoadFailed, level, reason);
                 return;
             }
 
             if (_currentLevelInstance != null && GodotObject.IsInstanceValid(_currentLevelInstance))
                 _currentLevelInstance.QueueFree();
 
-            _currentLevelInstance = Levels[idx].Instantiate();
+            _currentLevelInstance = scene.Instantiate();
             _container.AddChild(_currentLevelInstance);
             CurrentLevel = level;
 
@@ -92,6 +92,20 @@ namespace Beep.ECS
             if (GetNodeOrNull(PlayerPath) is not Node2D player) return;
             if (_currentLevelInstance.FindChild("PlayerSpawn", true, false) is Marker2D spawn)
                 player.GlobalPosition = spawn.GlobalPosition;
+        }
+
+        private bool TryGetLevelScene(int index, out PackedScene scene)
+        {
+            scene = null!;
+            if (index < 0 || index >= Levels.Count)
+                return false;
+
+            Variant value = Levels[index];
+            if (value.VariantType != Variant.Type.Object)
+                return false;
+
+            scene = value.AsGodotObject() as PackedScene ?? null!;
+            return scene != null;
         }
     }
 }

@@ -28,56 +28,90 @@ namespace Beep.ECS.UI.Kit
                 if (_layout == value) return;
                 _layout = value;
                 ApplyMinimumSize(force: true);
-                UpdateMinimumSize();
                 QueueRedraw();
             }
         }
         private KitItemCardLayout _layout = KitItemCardLayout.Row;
 
-        [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
+        [Export] public string Title { get => _title; set { SetText(ref _title, value); } }
         private string _title = "Iron Sword";
 
-        [Export(PropertyHint.MultilineText)] public string Description { get => _description; set { _description = value ?? ""; QueueRedraw(); } }
+        [Export(PropertyHint.MultilineText)] public string Description { get => _description; set { SetText(ref _description, value); } }
         private string _description = "A sturdy weapon.";
 
-        [Export] public string PriceText { get => _price; set { _price = value ?? ""; QueueRedraw(); } }
+        [Export] public string PriceText { get => _price; set { SetText(ref _price, value); } }
         private string _price = "100";
 
-        [Export] public string CountText { get => _count; set { _count = value ?? ""; QueueRedraw(); } }
+        [Export] public string CountText { get => _count; set { SetText(ref _count, value); } }
         private string _count = "";
 
-        [Export] public string BadgeText { get => _badge; set { _badge = value ?? ""; QueueRedraw(); } }
+        [Export] public string BadgeText { get => _badge; set { SetText(ref _badge, value); } }
         private string _badge = "";
 
-        [Export] public Texture2D? Icon { get => _icon; set { _icon = value; QueueRedraw(); } }
+        [Export] public Texture2D? Icon { get => _icon; set { if (_icon == value) return; _icon = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _icon;
 
-        [Export] public UiSurface.Role Accent { get => _accent; set { _accent = value; QueueRedraw(); } }
+        [Export] public UiSurface.Role Accent { get => _accent; set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); } }
         private UiSurface.Role _accent = UiSurface.Role.Warning;
 
-        [Export] public bool Selected { get => _selected; set { _selected = value; QueueRedraw(); } }
+        [Export] public bool Selected { get => _selected; set { if (_selected == value) return; _selected = value; RefreshVisualAndRedraw(); } }
         private bool _selected;
 
-        [Export] public bool Locked { get => _locked; set { _locked = value; SetState(value ? KitState.Locked : KitState.Normal); QueueRedraw(); } }
+        [Export] public bool Locked { get => _locked; set { if (_locked == value) return; _locked = value; SetState(value ? KitState.Locked : KitState.Normal); RefreshVisualAndRedraw(); } }
         private bool _locked;
+        private bool _eventsHooked;
 
         [Signal] public delegate void PressedEventHandler();
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            MouseEntered += () => { if (!_locked) { SetState(KitState.Hover); } };
-            MouseExited += () => { if (!_locked) { SetState(KitState.Normal); } };
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
+            {
+                MouseEntered += () => { if (!_locked) { SetState(KitState.Hover); } };
+                MouseExited += () => { if (!_locked) { SetState(KitState.Normal); } };
+                _eventsHooked = true;
+            }
             ApplyMinimumSize();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearPointerState();
         }
 
         private void ApplyMinimumSize(bool force = false)
         {
-            Vector2 wanted = _GetMinimumSize();
-            if (!force && CustomMinimumSize != Vector2.Zero && CustomMinimumSize.X >= wanted.X && CustomMinimumSize.Y >= wanted.Y) return;
-            CustomMinimumSize = wanted;
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize(), force);
+            UpdateMinimumSize();
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            ApplyMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private void ClearPointerState()
+        {
+            if (_locked || State == KitState.Normal) return;
+            SetState(KitState.Normal);
         }
 
         public override Vector2 _GetMinimumSize()
@@ -90,19 +124,9 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (_locked) return;
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
-            {
-                EmitSignal(SignalName.Pressed);
-                AcceptEvent();
-                return;
-            }
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                GrabFocus();
-                EmitSignal(SignalName.Pressed);
-                AcceptEvent();
-            }
+            KitChrome.ActivateOnClickOrConfirm(this, @event,
+                () => EmitSignal(SignalName.Pressed),
+                interactive: !_locked);
         }
 
         public override void _Draw()
@@ -242,7 +266,10 @@ namespace Beep.ECS.UI.Kit
             Color ink = UiSurface.Luminance(fill) > 0.52f ? new Color(0.10f, 0.08f, 0.06f) : new Color(0.98f, 0.96f, 0.92f);
             DrawShape(r, KitShape.Pill, fill, InkColor(), Mathf.Max(1f, Geo.Rim * 0.55f));
             if (font == null || string.IsNullOrEmpty(text)) return;
+            text = KitCase(text);
             int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small, r.Size * 0.76f, text, font, min: 7);
+            text = KitChrome.EllipsizeText(font, text, fs, r.Size.X * 0.76f);
+            if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             float y = r.Position.Y + (r.Size.Y - font.GetHeight(fs)) * 0.5f + font.GetAscent(fs);
             DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, y), text, fs, ink);
@@ -252,7 +279,10 @@ namespace Beep.ECS.UI.Kit
                                     HorizontalAlignment align, int min)
         {
             if (string.IsNullOrEmpty(text) || r.Size.X <= 1f || r.Size.Y <= 1f) return;
+            text = KitCase(text);
             int fs = UiSurface.FitRole(this, role, r.Size, text, font, min: min);
+            text = KitChrome.EllipsizeText(font, text, fs, r.Size.X);
+            if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             float x = align == HorizontalAlignment.Center
                 ? r.Position.X + (r.Size.X - m.X) * 0.5f

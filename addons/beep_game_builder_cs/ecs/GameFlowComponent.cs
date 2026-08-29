@@ -27,6 +27,7 @@ namespace Beep.ECS
         /// <summary>Delay (seconds) before navigating after GameOver/LevelComplete fires.
         /// Gives time for death animations, particle bursts, etc.</summary>
         [Export] public float NavigateDelay { get; set; } = 0f;
+        public float EffectiveNavigateDelay => NonNegativeFinite(NavigateDelay);
 
         [ExportGroup("Pause")]
         /// <summary>Open the pause overlay on the pause action (Escape by default), giving
@@ -168,13 +169,14 @@ namespace Beep.ECS
                 return;
             }
 
-            if (NavigateDelay > 0f)
+            float delay = EffectiveNavigateDelay;
+            if (delay > 0f)
             {
                 // Defer the scene change so animations can play first.
                 var tree = GetTree();
                 if (tree != null)
                 {
-                    var timer = tree.CreateTimer(NavigateDelay);
+                    var timer = tree.CreateTimer(delay);
                     timer.Timeout += () =>
                     {
                         if (GodotObject.IsInstanceValid(this) && IsActive)
@@ -191,6 +193,9 @@ namespace Beep.ECS
                 tree2?.ChangeSceneToFile(path);
             }
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
 
         private static string FirstExistingPath(params string?[] paths)
         {

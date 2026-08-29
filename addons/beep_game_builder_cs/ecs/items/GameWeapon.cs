@@ -13,6 +13,7 @@ namespace Beep.ECS
     public partial class GameWeapon : GameEquipment
     {
         [Export] public float Damage { get; set; } = 10f;
+        public float EffectiveDamage => NonNegativeFinite(Damage);
 
         /// <summary>The type this weapon deals, matched against a target's ResistanceComponent.
         /// Reuses the shared <see cref="DamageType"/> enum, so a weapon's type lines up with the
@@ -22,6 +23,7 @@ namespace Beep.ECS
         /// <summary>Melee reach. Becomes real once Phase 3 replaces AttackComponent's cursor
         /// point-query with an Area2D hitbox; until then it is authored but not yet read.</summary>
         [Export] public float Range { get; set; } = 50f;
+        public float EffectiveRange => NonNegativeFinite(Range);
 
         [Export] public bool IsRanged { get; set; } = false;
 
@@ -34,19 +36,24 @@ namespace Beep.ECS
         /// (Phase 7). Speed buffs are StatModifiers on this axis (Phase 2), not a second field —
         /// which is why there is no AttackSpeedMultiplier.</summary>
         [Export] public float Cooldown { get; set; } = 0.5f;
+        public float EffectiveCooldown => NonNegativeFinite(Cooldown);
 
         /// <summary>What this weapon consumes per shot, or null if it needs none (a sword). A gun
         /// eats ammo regardless of how it was crafted, so this belongs on the item — Phase 7.</summary>
         [Export] public GameItem? AmmoItem { get; set; }
 
         [Export] public int AmmoPerUse { get; set; } = 1;
+        public int EffectiveAmmoPerUse => Mathf.Max(0, AmmoPerUse);
 
         /// <summary>Adds this weapon's <see cref="Damage"/> to the wielder's "damage" stat while
         /// equipped. (The DamageType reaches combat separately — AttackComponent reads the equipped
         /// MainWeapon's type — since a type is not a number a stat can hold.)</summary>
         public override System.Collections.Generic.IEnumerable<StatModifier> GetIntrinsicModifiers()
         {
-            yield return new StatModifier { Stat = "damage", Op = StatOp.Add, Amount = Damage, Duration = -1f };
+            yield return new StatModifier { Stat = "damage", Op = StatOp.Add, Amount = EffectiveDamage, Duration = -1f };
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

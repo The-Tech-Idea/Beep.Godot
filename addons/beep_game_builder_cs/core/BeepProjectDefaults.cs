@@ -46,8 +46,6 @@ public static class BeepProjectDefaults
             Variant.Type.Int, PropertyHint.Range, "0,8,1");
         Reg(Beep.ECS.UI.SkinCatalog.SettingShadow, 4,
             Variant.Type.Int, PropertyHint.Range, "0,12,1");
-        Reg(Beep.ECS.UI.SkinCatalog.SettingHudArt, true,
-            Variant.Type.Bool, PropertyHint.None, "");
         Reg(Beep.ECS.UI.SkinCatalog.SettingHudOpacity, 0.82f,
             Variant.Type.Float, PropertyHint.Range, "0.3,1.0,0.01");
         Beep.ECS.UI.SkinCatalog.RefreshRegisterSettings();

@@ -39,23 +39,24 @@ namespace Beep.ECS.UI.Kit
     }
 
     /// <summary>
-    /// Resolves a <see cref="KitFontRole"/> to a real font, and says so loudly when it cannot.
+    /// Resolves a <see cref="KitFontRole"/> to a real font, and reports real missing resources.
     ///
     /// A missing font falls back to the theme default and renders *identically to having no font
     /// system at all* — which is the single most invisible way this feature can fail. Three roles
-    /// (Serif, Blackletter, Handwritten) genuinely have no CC0 face in the shipped set; they warn
-    /// once and return null so a developer knows to supply their own rather than wondering why
-    /// their gothic rpg looks like everything else.
+    /// (Serif, Blackletter, Handwritten) genuinely have no CC0 face in the shipped set; they use
+    /// a deterministic substitute so runtime startup does not fill the Godot log for an
+    /// already-known packaging choice.
     /// </summary>
     public static class KitFonts
     {
         private const string Dir = "res://addons/beep_game_builder_cs/fonts/";
+        private const string BundledFallbackFile = "Kenney_Future.ttf";
 
         /// <summary>Role → shipped file. Absent = no CC0 face available for that role.</summary>
         private static readonly Dictionary<KitFontRole, string> Files = new()
         {
-            [KitFontRole.Sans] = "Kenney_Future.ttf",
-            [KitFontRole.Condensed] = "Kenney_Future_Narrow.ttf",
+            [KitFontRole.Sans] = "NotoSans-Variable.ttf",
+            [KitFontRole.Condensed] = "Audex-Regular.ttf",
             [KitFontRole.Rounded] = "Kenney_Blocks.ttf",
             [KitFontRole.Heavy] = "Kenney_Thick.ttf",
             [KitFontRole.Pixel] = "Kenney_Pixel.ttf",
@@ -84,6 +85,7 @@ namespace Beep.ECS.UI.Kit
 
         private static readonly Dictionary<KitFontRole, Font?> _cache = new();
         private static readonly HashSet<KitFontRole> _warned = new();
+        private static Font? _bundledFallback;
 
         /// <summary>True when a role has a shipped face. Lets the gate assert coverage without
         /// triggering the warning.</summary>
@@ -96,8 +98,8 @@ namespace Beep.ECS.UI.Kit
         /// <summary>
         /// The font for a role, or null to mean "use the theme default".
         ///
-        /// Warns ONCE per role. The warning is the point: without it a theme declaring `Serif`
-        /// renders in the default sans and looks exactly like a theme declaring nothing.
+        /// Missing files warn because they are package defects; known substitute roles are silent
+        /// because they are deliberate fallbacks.
         /// </summary>
         public static Font? Resolve(KitFontRole role)
         {
@@ -112,13 +114,6 @@ namespace Beep.ECS.UI.Kit
                 // theme instead of merely approximating it.
                 if (Substitute.TryGetValue(role, out var stand) && Files.TryGetValue(stand, out string? sf))
                 {
-                    if (_warned.Add(role))
-                        GD.PushWarning(
-                            $"[KitFonts] role '{role}' has no CC0 face in this addon — substituting "
-                            + $"'{stand}' ({sf}) so this theme still differs from a sans one. It is "
-                            + $"NOT a real {role} face. Serif / Blackletter / Handwritten are a known "
-                            + "gap — see addons/beep_game_builder_cs/fonts/LICENSE.txt. Ship your own "
-                            + "licensed face and point the theme at it.");
                     file = sf;
                 }
                 else if (_warned.Add(role))
@@ -131,7 +126,9 @@ namespace Beep.ECS.UI.Kit
             if (file != null)
             {
                 string path = Dir + file;
-                font = ResourceLoader.Exists(path) ? GD.Load<Font>(path) : null;
+                font = ResourceLoader.Exists(path) || FileAccess.FileExists(path)
+                    ? GD.Load<Font>(path)
+                    : null;
                 if (font == null && _warned.Add(role))
                     GD.PushWarning(
                         $"[KitFonts] role '{role}' maps to {path}, which is missing. Text falls "
@@ -142,5 +139,25 @@ namespace Beep.ECS.UI.Kit
             _cache[role] = font;
             return font;
         }
+
+        private static Font? BundledFallback()
+        {
+            if (_bundledFallback != null) return _bundledFallback;
+            string path = Dir + BundledFallbackFile;
+            _bundledFallback = ResourceLoader.Exists(path) ? GD.Load<Font>(path) : null;
+            return _bundledFallback;
+        }
+
+        /// <summary>
+        /// Resolve the kit role, then the active Godot theme, then Godot's fallback font.
+        /// Text rendering is a hot path and Godot's low-level text API logs loudly when asked to
+        /// measure or draw with a null font, so all drawn kit chrome should enter through here.
+        /// </summary>
+        public static Font? Fallback(Godot.Control? control, KitFontRole role = KitFontRole.Default)
+            => Resolve(role)
+            ?? BundledFallback()
+            ?? control?.GetThemeDefaultFont()
+            ?? ThemeDB.FallbackFont
+            ?? null;
     }
 }

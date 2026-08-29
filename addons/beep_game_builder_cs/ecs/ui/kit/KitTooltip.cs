@@ -22,34 +22,105 @@ namespace Beep.ECS.UI.Kit
 
         public enum TailSide { Bottom, Top, Left, Right }
 
-        [Export] public string Text { get => _text; set { _text = value ?? ""; QueueRedraw(); } }
+        [Export]
+        public string Text
+        {
+            get => _text;
+            set
+            {
+                string next = value ?? "";
+                if (_text == next) return;
+                _text = next;
+                RefreshMinimumAndRedraw();
+            }
+        }
         private string _text = "Hint";
 
-        [Export] public TailSide Tail { get => _tail; set { _tail = value; QueueRedraw(); } }
+        [Export] public TailSide Tail { get => _tail; set { if (_tail == value) return; _tail = value; RefreshMinimumAndRedraw(); } }
         private TailSide _tail = TailSide.Bottom;
 
         /// <summary>Where the tail sits along its edge, 0..1. Lets one tooltip point at a control
         /// that is not centred under it.</summary>
-        [Export(PropertyHint.Range, "0.05,0.95,0.01")] public float TailOffset { get; set; } = 0.5f;
+        [Export(PropertyHint.Range, "0.05,0.95,0.01")]
+        public float TailOffset
+        {
+            get => _tailOffset;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.05f, 0.95f);
+                if (Mathf.IsEqualApprox(_tailOffset, next)) return;
+                _tailOffset = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _tailOffset = 0.5f;
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Ignore;   // a hint never takes the click
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 9f, fs * 2.35f);
-            }
+            ApplyInputDefaults(MouseFilterEnum.Ignore);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
-
-        private float TailSize => Mathf.Clamp(UiSurface.FontSize(this) * 0.42f, 5f, 9f);
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            return new Vector2(fs * 9f, fs * 2.35f);
+            int textFs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
+            Font? font = KitFont();
+            string text = KitCase(_text);
+            float pad = Mathf.Max(5f, textFs * 0.55f);
+            float textW = Mathf.Clamp(LongestLineWidth(font, text, textFs), fs * 5.5f, fs * 16f);
+            int lines = EstimateWrappedLineCount(font, text, textFs, textW);
+            float lineH = font?.GetHeight(textFs) * 1.08f ?? textFs * 1.25f;
+
+            float w = Mathf.Max(fs * 9f, textW + pad * 2f);
+            float h = Mathf.Max(fs * 2.35f, lineH * lines + pad * 2f);
+            float tail = TailSizeFor(fs);
+            if (_tail == TailSide.Left || _tail == TailSide.Right)
+                w += tail;
+            else
+                h += tail;
+            return new Vector2(w, h);
         }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private static float TailSizeFor(int fs) => Mathf.Clamp(fs * 0.42f, 5f, 9f);
+
+        private static float LongestLineWidth(Font? font, string text, int fs)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return fs * 4f;
+
+            float width = 0f;
+            foreach (string line in text.Replace("\r", "").Split('\n'))
+                width = Mathf.Max(width, TextWidth(font, line, fs));
+            return width;
+        }
+
+        private static int EstimateWrappedLineCount(Font? font, string text, int fs, float width)
+        {
+            if (string.IsNullOrWhiteSpace(text) || width <= 1f)
+                return 1;
+
+            int count = 0;
+            foreach (string line in text.Replace("\r", "").Split('\n'))
+                count += Mathf.Max(1, Mathf.CeilToInt(TextWidth(font, line, fs) / width));
+            return Mathf.Clamp(count, 1, 2);
+        }
+
+        private static float TextWidth(Font? font, string text, int fs)
+            => font?.GetStringSize(text ?? "", HorizontalAlignment.Left, -1, fs).X ?? (text ?? "").Length * fs * 0.55f;
 
         public override void _Draw()
         {
@@ -59,7 +130,7 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
             var font = KitFont();
             int fs = UiSurface.FontSize(this);
-            float t = TailSize;
+            float t = TailSizeFor(fs);
 
             // Opposite polarity to the surface it overlays.
             bool lightSurface = UiSurface.Luminance(face) > 0.5f;

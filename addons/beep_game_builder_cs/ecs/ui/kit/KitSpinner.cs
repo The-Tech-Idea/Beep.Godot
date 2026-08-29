@@ -21,16 +21,47 @@ namespace Beep.ECS.UI.Kit
     {
         public enum SpinnerKind { Ring, Dots, Bar }
 
-        [Export] public SpinnerKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateMinimumSize(); QueueRedraw(); } }
+        [Export] public SpinnerKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateProcessing(); RefreshMinimumAndRedraw(); } }
         private SpinnerKind _kind = SpinnerKind.Ring;
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
+        [Export]
+        public UiSurface.Role Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _role = UiSurface.Role.Accent;
 
         /// <summary>Known progress 0..1 for <see cref="SpinnerKind.Bar"/>. Negative = unknown,
         /// which makes the bar sweep instead of fill.</summary>
-        [Export(PropertyHint.Range, "-1.0,1.0,0.01")] public float Progress { get; set; } = -1f;
+        [Export(PropertyHint.Range, "-1.0,1.0,0.01")]
+        public float Progress
+        {
+            get => _progress;
+            set
+            {
+                float next = Mathf.Clamp(value, -1f, 1f);
+                if (Mathf.IsEqualApprox(_progress, next)) return;
+                _progress = next;
+                UpdateProcessing();
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _progress = -1f;
 
-        [Export(PropertyHint.Range, "0.1,4.0,0.05")] public float Speed { get; set; } = 1.1f;
+        [Export(PropertyHint.Range, "0.1,4.0,0.05")]
+        public float Speed
+        {
+            get => _speed;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.1f, 4f);
+                if (Mathf.IsEqualApprox(_speed, next)) return;
+                _speed = next;
+                RefreshVisualAndRedraw();
+            }
+        }
+        private float _speed = 1.1f;
 
         private float _t;
 
@@ -38,9 +69,9 @@ namespace Beep.ECS.UI.Kit
         {
             base._Ready();
             ProcessMode = ProcessModeEnum.Always;   // must keep moving while the tree is paused
-            MouseFilter = MouseFilterEnum.Ignore;
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            ApplyInputDefaults(MouseFilterEnum.Ignore);
+            UpdateProcessing();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override Vector2 _GetMinimumSize()
@@ -50,6 +81,33 @@ namespace Beep.ECS.UI.Kit
                 ? new Vector2(fs * 10f, fs * 0.9f)
                 : new Vector2(fs * 3f, fs * 3f);
         }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationVisibilityChanged)
+                UpdateProcessing();
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private void UpdateProcessing()
+        {
+            SetProcess(IsVisibleInTree() && ShouldAnimate());
+        }
+
+        private bool ShouldAnimate()
+            => Kind != SpinnerKind.Bar || Progress < 0f;
 
         public override void _Process(double delta)
         {

@@ -41,6 +41,11 @@ namespace Beep.ECS
 
         /// <summary>Current difficulty, 0–1. Read by spawners, drop tables, hazards.</summary>
         public float Difficulty { get; private set; }
+        public float EffectiveBaseDifficulty => Mathf.Clamp(FiniteOr(BaseDifficulty, 0.5f), 0f, 1f);
+        public float EffectiveAdaptSpeed => NonNegative(AdaptSpeed);
+        public float EffectiveStruggleHealthThreshold => Mathf.Clamp(FiniteOr(StruggleHealthThreshold, 0.35f), 0f, 1f);
+        public float EffectiveDeathPenalty => Mathf.Clamp(FiniteOr(DeathPenalty, 0.15f), 0f, 1f);
+        public float EffectiveDeathMemorySeconds => NonNegative(DeathMemorySeconds);
 
         private HealthComponent? _playerHealth;
         private float _recentDeaths;   // decays toward 0 over DeathMemorySeconds
@@ -49,7 +54,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            Difficulty = Mathf.Clamp(BaseDifficulty, 0f, 1f);
+            Difficulty = EffectiveBaseDifficulty;
             if (Engine.IsEditorHint()) return;
             if (!IsInGroup("adaptive_difficulty")) AddToGroup("adaptive_difficulty");
 
@@ -73,26 +78,30 @@ namespace Beep.ECS
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive) return;
-            float dt = (float)delta;
+            float dt = DeltaSeconds(delta);
+            Difficulty = Mathf.Clamp(FiniteOr(Difficulty, EffectiveBaseDifficulty), 0f, 1f);
+            _recentDeaths = NonNegative(_recentDeaths);
 
             // Forget old deaths so a rough patch early on doesn't punish the player forever.
-            if (_recentDeaths > 0f && DeathMemorySeconds > 0f)
-                _recentDeaths = Mathf.Max(0f, _recentDeaths - dt / DeathMemorySeconds);
+            if (_recentDeaths > 0f && EffectiveDeathMemorySeconds > 0f)
+                _recentDeaths = Mathf.Max(0f, _recentDeaths - dt / EffectiveDeathMemorySeconds);
 
             // Compute the target: base, raised when healthy, lowered per recent death.
-            float target = BaseDifficulty;
+            float baseDifficulty = EffectiveBaseDifficulty;
+            float threshold = EffectiveStruggleHealthThreshold;
+            float target = baseDifficulty;
             if (_playerHealth != null && GodotObject.IsInstanceValid(_playerHealth))
             {
-                float hp = _playerHealth.HealthPercent;
+                float hp = Mathf.Clamp(FiniteOr(_playerHealth.HealthPercent, 1f), 0f, 1f);
                 // Above the struggle threshold, creep up toward harder; below it, ease down.
-                target += hp >= StruggleHealthThreshold
-                    ? (1f - BaseDifficulty) * (hp - StruggleHealthThreshold) / Mathf.Max(0.0001f, 1f - StruggleHealthThreshold) * 0.5f
-                    : -(BaseDifficulty) * (StruggleHealthThreshold - hp) / Mathf.Max(0.0001f, StruggleHealthThreshold) * 0.5f;
+                target += hp >= threshold
+                    ? (1f - baseDifficulty) * (hp - threshold) / Mathf.Max(0.0001f, 1f - threshold) * 0.5f
+                    : -baseDifficulty * (threshold - hp) / Mathf.Max(0.0001f, threshold) * 0.5f;
             }
-            target -= _recentDeaths * DeathPenalty;
+            target -= _recentDeaths * EffectiveDeathPenalty;
             target = Mathf.Clamp(target, 0f, 1f);
 
-            Difficulty = Mathf.MoveToward(Difficulty, target, AdaptSpeed * dt);
+            Difficulty = Mathf.MoveToward(Difficulty, target, EffectiveAdaptSpeed * dt);
             if (!Mathf.IsEqualApprox(Difficulty, _lastEmitted))
             {
                 _lastEmitted = Difficulty;
@@ -102,13 +111,13 @@ namespace Beep.ECS
 
         /// <summary>Multiply a spawner's base interval by this: harder → shorter interval (more
         /// spawns), easier → longer. At Difficulty 0 returns 1.5×, at 1 returns 0.6×.</summary>
-        public float GetSpawnIntervalScale() => Mathf.Lerp(1.5f, 0.6f, Difficulty);
+        public float GetSpawnIntervalScale() => Mathf.Lerp(1.5f, 0.6f, Mathf.Clamp(FiniteOr(Difficulty, EffectiveBaseDifficulty), 0f, 1f));
 
         /// <summary>Drop-rate / loot multiplier: harder → more loot (rewards scale with risk).
         /// At Difficulty 0 returns 0.75×, at 1 returns 1.5×.</summary>
-        public float GetDropMultiplier() => Mathf.Lerp(0.75f, 1.5f, Difficulty);
+        public float GetDropMultiplier() => Mathf.Lerp(0.75f, 1.5f, Mathf.Clamp(FiniteOr(Difficulty, EffectiveBaseDifficulty), 0f, 1f));
 
-        private void OnPlayerDied() => _recentDeaths += 1f;
+        private void OnPlayerDied() => _recentDeaths = NonNegative(_recentDeaths) + 1f;
 
         private Node? FindPlayer()
         {
@@ -118,5 +127,14 @@ namespace Beep.ECS
                 if (n is Node2D body) return body;
             return null;
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
     }
 }

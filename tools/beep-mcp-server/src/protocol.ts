@@ -190,7 +190,6 @@ const EDITOR_BEEP_COMMANDS = new Set([
   "beep.add_node",
   "beep.remove_node",
   "beep.save_scene",
-  "beep.bake_textures",
   "beep.new_screen",
 ]);
 

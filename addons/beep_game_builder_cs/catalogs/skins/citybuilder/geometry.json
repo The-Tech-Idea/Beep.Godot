@@ -7,8 +7,6 @@
   "shadow_offset_y": 3,
   "content_padding": 10,
   "font_size": 14,
-  "background_image": "res://addons/beep_game_builder_cs/textures/backgrounds/city_grid.png",
-  "background_mode": "tile",
   "shapes": {
     "panel": {
       "shadow_reduction": 2

@@ -15,6 +15,10 @@ namespace Beep.ECS.UI
         [Export] public float Duration { get; set; } = 0.3f;
         [Export] public int Vibrato { get; set; } = 20;
 
+        public float EffectiveIntensity => Mathf.Max(0f, float.IsFinite(Intensity) ? Intensity : 0f);
+        public float EffectiveDuration => Mathf.Max(0.001f, float.IsFinite(Duration) ? Duration : 0.001f);
+        public int EffectiveVibrato => Mathf.Clamp(Vibrato, 1, 200);
+
         [Signal] public delegate void ShakeStartedEventHandler();
         [Signal] public delegate void ShakeFinishedEventHandler();
 
@@ -28,6 +32,12 @@ namespace Beep.ECS.UI
         private float _activeIntensity = 10f;
         private float _activeDuration = 0.3f;
 
+        public override void _Ready()
+        {
+            base._Ready();
+            SetProcess(false);
+        }
+
         public void Shake(float intensity = -1, float duration = -1)
         {
             if (!IsActive || Targets.Count == 0) return;
@@ -39,16 +49,21 @@ namespace Beep.ECS.UI
                     _shaking.Add(c);
                 }
             _elapsed = 0;
-            _activeIntensity = intensity > 0 ? intensity : Intensity;   // don't clobber the exports
-            _activeDuration = duration > 0 ? duration : Duration;
+            _activeIntensity = intensity > 0 && float.IsFinite(intensity) ? intensity : EffectiveIntensity;   // don't clobber the exports
+            _activeDuration = duration > 0 && float.IsFinite(duration) ? duration : EffectiveDuration;
+            SetProcess(true);
             EmitSignal(SignalName.ShakeStarted);
         }
 
         public override void _Process(double delta)
         {
-            if (_elapsed >= _activeDuration || _shaking.Count == 0) return;
-            _elapsed += (float)delta;
-            float decay = 1f - (_elapsed / _activeDuration);
+            if (!IsActive || _elapsed >= _activeDuration || _shaking.Count == 0)
+            {
+                FinishShake(emitSignal: false);
+                return;
+            }
+            _elapsed += Mathf.Max(0f, (float)delta);
+            float decay = Mathf.Clamp(1f - (_elapsed / _activeDuration), 0f, 1f);
 
             foreach (var c in _shaking)
             {
@@ -60,10 +75,18 @@ namespace Beep.ECS.UI
 
             if (_elapsed >= _activeDuration)
             {
-                foreach (var c in _shaking)
-                    if (GodotObject.IsInstanceValid(c)) c.OffsetTransformPosition = Vector2.Zero;
-                EmitSignal(SignalName.ShakeFinished);
+                FinishShake(emitSignal: true);
             }
+        }
+
+        private void FinishShake(bool emitSignal)
+        {
+            foreach (var c in _shaking)
+                if (GodotObject.IsInstanceValid(c)) c.OffsetTransformPosition = Vector2.Zero;
+            _shaking.Clear();
+            SetProcess(false);
+            if (emitSignal)
+                EmitSignal(SignalName.ShakeFinished);
         }
     }
 }

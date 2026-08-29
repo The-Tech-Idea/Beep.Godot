@@ -272,10 +272,10 @@ check("unregistered theme variation warns about the validator", /warning/.test(t
 
 const snakeRes = await rpc("tools/call", {
   name: "godot_resource_create",
-  arguments: { type: "UISkin", path: "res://s.tres", properties: { patch_margin: 12 } },
+  arguments: { type: "GameInfo", path: "res://s.tres", properties: { game_name: "Demo" } },
 });
 check("resource property snake_case [Export] refused",
-      snakeRes?.result?.isError === true && /SNAKE_CASE_EXPORT/.test(textOf(snakeRes)) && /PatchMargin/.test(textOf(snakeRes)));
+      snakeRes?.result?.isError === true && /SNAKE_CASE_EXPORT/.test(textOf(snakeRes)) && /GameName/.test(textOf(snakeRes)));
 
 const badSig = await rpc("tools/call", {
   name: "godot_signal_connect",

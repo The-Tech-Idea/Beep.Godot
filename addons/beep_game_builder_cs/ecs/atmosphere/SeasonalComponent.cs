@@ -62,6 +62,14 @@ namespace Beep.ECS
         private DayNightCycleComponent? _dayNight;
         private int _seasonStartDay;
         private bool _warnedNoClock;
+        public int EffectiveDaysPerSeason => Mathf.Max(1, Mathf.CeilToInt((float)(double.IsFinite(DaysPerSeason) ? DaysPerSeason : 1.0)));
+        public float EffectiveSeasonTintStrength => Mathf.Clamp(float.IsFinite(SeasonTintStrength) ? SeasonTintStrength : 0f, 0f, 1f);
+        public float EffectiveSpringWindSpeed => Mathf.Max(0f, float.IsFinite(SpringWindSpeed) ? SpringWindSpeed : 0f);
+        public float EffectiveSummerWindSpeed => Mathf.Max(0f, float.IsFinite(SummerWindSpeed) ? SummerWindSpeed : 0f);
+        public float EffectiveFallWindSpeed => Mathf.Max(0f, float.IsFinite(FallWindSpeed) ? FallWindSpeed : 0f);
+        public float EffectiveWinterWindSpeed => Mathf.Max(0f, float.IsFinite(WinterWindSpeed) ? WinterWindSpeed : 0f);
+        public float EffectiveFoliageWindStrength => Mathf.Max(0f, float.IsFinite(FoliageWindStrength) ? FoliageWindStrength : 0f);
+        public float EffectiveTransitionDuration => Mathf.Max(0f, float.IsFinite(TransitionDuration) ? TransitionDuration : 0f);
 
         public override void _Ready()
         {
@@ -92,7 +100,9 @@ namespace Beep.ECS
         private void DeferredInit()
         {
             if (Engine.IsEditorHint()) return;
-            _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(GetTree().Root, true);
+            var root = GetTree()?.Root;
+            if (root == null) return;
+            _dayNight = EntityComponent.FindComponent<DayNightCycleComponent>(root, true);
             _seasonStartDay = _dayNight?.DaysElapsed ?? 0;
             _ambient = AmbientController.ForTree(this);
         }
@@ -104,7 +114,7 @@ namespace Beep.ECS
             // Apply the (eased) season tint to the shared AmbientController every frame so the
             // season's visual output actually shows — softened toward white so it's a wash, not a
             // heavy cast, and composed multiplicatively with day/night + weather by the controller.
-            _ambient?.SetContribution(ContributionKey, Colors.White.Lerp(_currentSeasonColor, SeasonTintStrength));
+            _ambient?.SetContribution(ContributionKey, Colors.White.Lerp(_currentSeasonColor, EffectiveSeasonTintStrength));
 
             if (!AutoCycle) return;
 
@@ -121,7 +131,7 @@ namespace Beep.ECS
                 return;
             }
 
-            if (_dayNight.DaysElapsed - _seasonStartDay >= DaysPerSeason)
+            if (_dayNight.DaysElapsed - _seasonStartDay >= EffectiveDaysPerSeason)
             {
                 _seasonStartDay = _dayNight.DaysElapsed;
                 SetSeason((Season)(((int)CurrentSeason + 1) % 4));
@@ -141,13 +151,19 @@ namespace Beep.ECS
 
             Color targetColor = GetColorForSeason(newSeason);
             _seasonTransitionTween?.Kill();
+            if (!IsInsideTree() || EffectiveTransitionDuration <= 0f)
+            {
+                _currentSeasonColor = targetColor;
+                EmitSignal(SignalName.SeasonChanged, (int)newSeason);
+                return;
+            }
             _seasonTransitionTween = CreateTween();
             _seasonTransitionTween.SetTrans(Tween.TransitionType.Sine);
             _seasonTransitionTween.TweenMethod(
                 Callable.From<Color>(c => _currentSeasonColor = c),
                 _currentSeasonColor,
                 targetColor,
-                TransitionDuration
+                EffectiveTransitionDuration
             );
 
             EmitSignal(SignalName.SeasonChanged, (int)newSeason);
@@ -164,10 +180,10 @@ namespace Beep.ECS
 
         private float GetWindSpeedForSeason(Season season) => season switch
         {
-            Season.Spring => SpringWindSpeed,
-            Season.Summer => SummerWindSpeed,
-            Season.Fall => FallWindSpeed,
-            Season.Winter => WinterWindSpeed,
+            Season.Spring => EffectiveSpringWindSpeed,
+            Season.Summer => EffectiveSummerWindSpeed,
+            Season.Fall => EffectiveFallWindSpeed,
+            Season.Winter => EffectiveWinterWindSpeed,
             _ => 1.0f
         };
 
@@ -184,7 +200,7 @@ namespace Beep.ECS
         public Vector2 GetFoliageWindParams()
         {
             float windSpeed = GetWindSpeedForSeason(CurrentSeason);
-            return new Vector2(windSpeed, FoliageWindStrength);
+            return new Vector2(windSpeed, EffectiveFoliageWindStrength);
         }
 
         /// <summary>

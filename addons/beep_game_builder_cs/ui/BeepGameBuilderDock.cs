@@ -26,7 +26,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
 
     // ── Picker state ──
     private OptionButton _genrePicker = null!, _themePicker = null!, _palettePicker = null!;
-    private EditorResourcePicker _skinPicker = null!;
     private readonly List<string> _genreIds = new();
     private readonly List<string> _themeIds = new();
     private readonly List<string> _paletteIds = new();
@@ -42,8 +41,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
     // ── Skin & screen tools ──
     private LineEdit _newScreenName = null!;
     private CheckBox _overwriteScenes = null!;
-    private OptionButton _textureSource = null!;
-    private LineEdit _textureRoot = null!;
 
     // ── Create-row widgets (kept as fields so the busy guard can disable them) ──
     private Button _genBtn = null!;
@@ -123,9 +120,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _palettePicker = AddDropdown(b, "Palette");
         // Geometry is per-genre (geometry.json) — applied automatically.
 
-        _skinPicker = new EditorResourcePicker { BaseType = "UISkin", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        b.AddChild(Row("Texture Skin (optional)", _skinPicker));
-
         _genrePicker.ItemSelected += OnGenreItemSelected;
         _themePicker.ItemSelected += OnThemeItemSelected;
         PopulateGenres();
@@ -176,46 +170,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         // ── 5. Skin + screen tools ──
         AddSectionHeader(b, "5. Skin & screens");
 
-        // Where the art behind every theme slot comes from. The theme/skin system itself is
-        // unchanged — this only chooses the SOURCE, so a project can ship the built-in art,
-        // point at its own folder, or run textureless on the procedural look.
-        _textureSource = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _textureSource.AddItem("Built-in textures (shipped with the addon)", (int)TextureSlotDef.SourceMode.BuiltIn);
-        _textureSource.AddItem("My own textures (folder below)",            (int)TextureSlotDef.SourceMode.Custom);
-        _textureSource.AddItem("No textures — procedural skin only",        (int)TextureSlotDef.SourceMode.None);
-        _textureSource.Selected = _textureSource.GetItemIndex((int)TextureSlotDef.Source);
-        b.AddChild(Row("Texture source", _textureSource));
-
-        _textureRoot = new LineEdit
-        {
-            PlaceholderText = "res://ui_textures   (…/<genre>/<theme>/<slot>.png, or flat <slot>.png)",
-            Text = TextureSlotDef.CustomRoot,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        b.AddChild(Row("My textures folder", _textureRoot));
-
-        var applySrcBtn = new Button { Text = "✔ Apply texture source" };
-        applySrcBtn.Pressed += ApplyTextureSource;
-        b.AddChild(applySrcBtn);
-        b.AddChild(new Label
-        {
-            Text = "Own textures fall back per slot: supply only the files you want to replace and "
-                 + "the rest keep the built-in art.",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        });
-
-        b.AddChild(new HSeparator());
-        b.AddChild(new Label { Text = "Every theme.json declares 9-patch textures. Bake writes them from that theme's own colors." });
-
-        var bakeThemeBtn = new Button { Text = "🎨 Bake textures — selected genre" };
-        bakeThemeBtn.Pressed += () => RunBake(allGenres: false);
-        b.AddChild(bakeThemeBtn);
-
-        var bakeAllBtn = new Button { Text = "🎨 Bake textures — ALL genres + page backgrounds" };
-        bakeAllBtn.Pressed += () => RunBake(allGenres: true);
-        b.AddChild(bakeAllBtn);
-
-        b.AddChild(new HSeparator());
         var driftBtn = new Button { Text = "🔎 Check my scenes against the templates" };
         driftBtn.Pressed += CheckSceneDrift;
         b.AddChild(driftBtn);
@@ -228,7 +182,7 @@ public partial class BeepGameBuilderDock : VBoxContainer
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         });
 
-        var galleryBtn = new Button { Text = "🔍 Open Theme Gallery (compare textures vs procedural)" };
+        var galleryBtn = new Button { Text = "🔍 Open Theme Gallery" };
         galleryBtn.Pressed += OpenThemeGallery;
         b.AddChild(galleryBtn);
 
@@ -242,66 +196,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         // ── Output log ──
         _output = new TextEdit { CustomMinimumSize = new Vector2(0, S(100)), Editable = false, PlaceholderText = "Output..." };
         AddChild(_output);
-    }
-
-    /// <summary>Persist the texture source into ProjectSettings and re-skin what is open.
-    /// Written to ProjectSettings rather than held in the dock so the running GAME honours it
-    /// too — the dock is an editor tool, and a setting only the editor knew would make the
-    /// export behave differently from the editor preview.</summary>
-    private void ApplyTextureSource()
-    {
-        var mode = (TextureSlotDef.SourceMode)_textureSource.GetItemId(_textureSource.Selected);
-        string root = _textureRoot.Text.Trim();
-
-        if (mode == TextureSlotDef.SourceMode.Custom)
-        {
-            if (string.IsNullOrEmpty(root))
-            {
-                Log("✖ Pick a folder first — 'My own textures' with an empty path would silently "
-                  + "fall back to the built-in art for every slot.");
-                return;
-            }
-            if (!DirAccess.DirExistsAbsolute(root))
-            {
-                Log($"✖ '{root}' does not exist. Create it, or point at the folder holding your PNGs.");
-                return;
-            }
-        }
-
-        ProjectSettings.SetSetting(TextureSlotDef.SettingSource, mode.ToString());
-        ProjectSettings.SetSetting(TextureSlotDef.SettingRoot, root);
-        // Keep them in the saved project so an exported build resolves the same art.
-        ProjectSettings.SetInitialValue(TextureSlotDef.SettingSource,
-                                        TextureSlotDef.SourceMode.BuiltIn.ToString());
-        ProjectSettings.SetInitialValue(TextureSlotDef.SettingRoot, "");
-        ProjectSettings.Save();
-        TextureSlotDef.RefreshSourceSettings();
-
-        int reskinned = ReapplyOpenThemes();
-        Log(mode switch
-        {
-            TextureSlotDef.SourceMode.None =>
-                $"✔ Texture source: none — every theme now renders its procedural box. Re-skinned {reskinned} component(s).",
-            TextureSlotDef.SourceMode.Custom =>
-                $"✔ Texture source: '{root}'. Slots you have not supplied keep the built-in art. Re-skinned {reskinned} component(s).",
-            _ => $"✔ Texture source: built-in addon art. Re-skinned {reskinned} component(s).",
-        });
-    }
-
-    /// <summary>Re-run ApplyTheme on every ThemePresetComponent in the edited scene so the
-    /// change is visible immediately instead of on the next scene load.</summary>
-    private int ReapplyOpenThemes()
-    {
-        var root = EditorInterface.Singleton?.GetEditedSceneRoot();
-        if (root == null) return 0;
-        int n = 0;
-        void Walk(Node node)
-        {
-            if (node is Beep.ECS.UI.ThemePresetComponent tp) { tp.ApplyTheme(); n++; }
-            foreach (var child in node.GetChildren()) Walk(child);
-        }
-        Walk(root);
-        return n;
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -488,7 +382,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.GenreId = gid;
         info.DefaultThemePreset = tid;
         info.PaletteName = pid;
-        info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
         info.GeometryProfileName = genre?.Geometry?.DisplayName ?? "As-Authored";
         info.TargetResolutionWidth = (int)_resW.Value;
         info.TargetResolutionHeight = (int)_resH.Value;
@@ -567,8 +460,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         _resH.Value = info.TargetResolutionHeight;
         _targetFps.Value = info.TargetFps;
         _pixelArt.ButtonPressed = info.PixelArt;
-        _skinPicker.EditedResource = info.Skin;
-
         // Select genre → cascades
         string gid = info.GenreId;
         int gi = _genreIds.IndexOf(gid);
@@ -597,7 +488,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
         info.TargetResolutionHeight = (int)_resH.Value;
         info.TargetFps = (int)_targetFps.Value;
         info.PixelArt = _pixelArt.ButtonPressed;
-        info.Skin = _skinPicker.EditedResource as Beep.ECS.UI.UISkin;
         string? gid = GetSelectedGenreId();
         if (gid != null) info.GenreId = gid;
         string? tid = GetSelectedThemeId();
@@ -679,20 +569,6 @@ public partial class BeepGameBuilderDock : VBoxContainer
     // ════════════════════════════════════════════════════════════════
     // Skin & screen tools
     // ════════════════════════════════════════════════════════════════
-
-    /// <summary>Write the 9-patch PNGs every theme.json already points at. Until this runs the
-    /// whole texture pipeline is inert: SkinCatalog cannot load a file that isn't there, so each
-    /// slot falls back to the procedural box.</summary>
-    private void RunBake(bool allGenres)
-    {
-        string? genreId = GetSelectedGenreId();
-        if (!allGenres && string.IsNullOrEmpty(genreId)) { Log("✗ Pick a genre first."); return; }
-
-        Log(allGenres ? "Baking every genre…" : $"Baking '{genreId}'…");
-        var log = allGenres ? BeepTextureBaker.BakeAll() : BeepTextureBaker.BakeGenre(genreId!);
-        foreach (var line in log) Log("  " + line);
-        Log("Done. Godot re-imports the new files automatically; toggle Textures in the Theme Gallery to compare.");
-    }
 
     private void OpenThemeGallery()
     {

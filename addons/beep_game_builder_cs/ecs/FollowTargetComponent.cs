@@ -25,6 +25,8 @@ namespace Beep.ECS
         // Edge state: emit TargetLost/TargetReached on transitions, not every frame.
         private bool _targetLostEmitted;
         private bool _atTarget;
+        public float EffectiveFollowSpeed => NonNegativeFinite(FollowSpeed);
+        public float EffectiveMaxDistance => NonNegativeFinite(MaxDistance);
 
         public override void _Ready()
         {
@@ -40,7 +42,7 @@ namespace Beep.ECS
                 SetTarget(resolved);
             }
             if (_target != null && SnapOnStart && _parent != null)
-                _parent.GlobalPosition = _target.GlobalPosition + Offset;
+                _parent.GlobalPosition = FiniteVector(_target.GlobalPosition + Offset, _parent.GlobalPosition);
         }
 
         public void SetTarget(Node2D? target)
@@ -67,13 +69,16 @@ namespace Beep.ECS
                 return;
             }
 
-            Vector2 desired = _target.GlobalPosition + Offset;
-            if (MaxDistance > 0 && _parent.GlobalPosition.DistanceTo(desired) > MaxDistance)
+            Vector2 desired = FiniteVector(_target.GlobalPosition + Offset, _parent.GlobalPosition);
+            Vector2 current = FiniteVector(_parent.GlobalPosition, desired);
+            float maxDistance = EffectiveMaxDistance;
+            if (maxDistance > 0f && current.DistanceTo(desired) > maxDistance)
             {
-                desired = _parent.GlobalPosition + (desired - _parent.GlobalPosition).Normalized() * MaxDistance;
+                desired = current + (desired - current).Normalized() * maxDistance;
             }
 
-            _parent.GlobalPosition = _parent.GlobalPosition.Lerp(desired, FollowSpeed * (float)delta);
+            float weight = Mathf.Clamp(EffectiveFollowSpeed * DeltaSeconds(delta), 0f, 1f);
+            _parent.GlobalPosition = current.Lerp(desired, weight);
 
             // TargetReached fires on arrival; re-arms once the parent drifts away again.
             bool near = _parent.GlobalPosition.DistanceTo(desired) < 1f;
@@ -88,7 +93,20 @@ namespace Beep.ECS
             }
 
             if (LookAtTarget)
-                _parent.Rotation = (_target.GlobalPosition - _parent.GlobalPosition).Angle();
+            {
+                Vector2 lookDelta = FiniteVector(_target.GlobalPosition, _parent.GlobalPosition) - _parent.GlobalPosition;
+                if (lookDelta.LengthSquared() > 0.0001f)
+                    _parent.Rotation = lookDelta.Angle();
+            }
         }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) && value > 0f ? value : 0f;
+
+        private static Vector2 FiniteVector(Vector2 value, Vector2 fallback)
+            => new(float.IsFinite(value.X) ? value.X : fallback.X, float.IsFinite(value.Y) ? value.Y : fallback.Y);
     }
 }

@@ -181,30 +181,12 @@ namespace Beep.ECS.UI.Kit
         {
             if (c.A <= 0.004f) return;
 
-            // Subtract the widget. ClipPolygons returns the pieces of `p` outside `cutout`,
-            // which is exactly the visible part of a shadow; it can return several pieces (a
-            // ring becomes two) and can return none at all when the shadow is entirely covered.
-            if (cutout is { Length: >= 3 })
-            {
-                var pieces = Geometry2D.ClipPolygons(p, cutout);
-                if (pieces.Count > 0)
-                {
-                    foreach (var piece in pieces) Emit(ci, piece, c);
-                    return;
-                }
-                // No pieces means fully covered -- nothing to draw. Falling through to draw the
-                // uncut polygon here would silently reintroduce the bleed-through.
-                return;
-            }
             Emit(ci, p, c);
         }
 
         private static void Emit(CanvasItem ci, Vector2[] p, Color c)
         {
-            // A silhouette that cannot be triangulated draws nothing; skipping quietly is fine
-            // here because the plate above will still render — the widget loses its shadow, not
-            // its body, and KitGrain already warns about the same silhouettes.
-            if (p.Length < 3 || Geometry2D.TriangulatePolygon(p).Length == 0) return;
+            if (p.Length < 3) return;
             ci.DrawColoredPolygon(p, c);
         }
 

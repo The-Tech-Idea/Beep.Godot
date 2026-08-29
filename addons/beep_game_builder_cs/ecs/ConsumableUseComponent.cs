@@ -19,6 +19,7 @@ namespace Beep.ECS
         /// <summary>Default status-effect duration for a consumable that names an effect but no
         /// duration (GameLiquid has no Duration field of its own).</summary>
         [Export] public float DefaultEffectDuration { get; set; } = 5f;
+        public float EffectiveDefaultEffectDuration => NonNegativeFinite(DefaultEffectDuration);
 
         [Signal] public delegate void ConsumedEventHandler(string itemId);
 
@@ -71,14 +72,15 @@ namespace Beep.ECS
 
         private void ApplyEffects(float healAmount, string statusEffectId, float duration)
         {
-            if (healAmount > 0f)
+            if (float.IsFinite(healAmount) && healAmount > 0f)
             {
                 if (_health != null) _health.Heal(healAmount);
                 else GD.PushWarning($"[{Name}] Consumable heals {healAmount} but there is no sibling HealthComponent to heal.");
             }
             if (!string.IsNullOrEmpty(statusEffectId))
             {
-                if (_statusEffects != null) _statusEffects.ApplyEffect(statusEffectId, duration > 0f ? duration : DefaultEffectDuration);
+                float effectDuration = float.IsFinite(duration) && duration > 0f ? duration : EffectiveDefaultEffectDuration;
+                if (_statusEffects != null) _statusEffects.ApplyEffect(statusEffectId, effectDuration);
                 else GD.PushWarning($"[{Name}] Consumable applies '{statusEffectId}' but there is no sibling StatusEffectComponent.");
             }
         }
@@ -91,5 +93,8 @@ namespace Beep.ECS
                     return slot.Item;
             return null;
         }
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

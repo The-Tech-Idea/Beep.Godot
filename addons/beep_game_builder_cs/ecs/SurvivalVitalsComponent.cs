@@ -1,4 +1,5 @@
 using Godot;
+using System.Globalization;
 
 namespace Beep.ECS
 {
@@ -67,10 +68,22 @@ namespace Beep.ECS
         public bool IsParched => Thirst <= 0f;
         public bool IsExhausted => Stamina <= 0f;
 
-        public float HealthFraction => MaxHealth <= 0f ? 0f : Health / MaxHealth;
-        public float HungerFraction => MaxHunger <= 0f ? 0f : Hunger / MaxHunger;
-        public float ThirstFraction => MaxThirst <= 0f ? 0f : Thirst / MaxThirst;
-        public float StaminaFraction => MaxStamina <= 0f ? 0f : Stamina / MaxStamina;
+        public float EffectiveMaxHealth => AtLeast(MaxHealth, 1f);
+        public float EffectiveMaxHunger => AtLeast(MaxHunger, 1f);
+        public float EffectiveMaxThirst => AtLeast(MaxThirst, 1f);
+        public float EffectiveMaxStamina => AtLeast(MaxStamina, 1f);
+        public float EffectiveSecondsToStarve => NonNegative(SecondsToStarve);
+        public float EffectiveThirstRateMultiplier => NonNegative(ThirstRateMultiplier);
+        public float EffectiveStarvationDamagePerSecond => NonNegative(StarvationDamagePerSecond);
+        public float EffectiveRegenPerSecond => NonNegative(RegenPerSecond);
+        public float EffectiveStaminaDrainPerSecond => NonNegative(StaminaDrainPerSecond);
+        public float EffectiveStaminaRecoverPerSecond => NonNegative(StaminaRecoverPerSecond);
+        public float EffectiveLowThreshold => float.IsFinite(LowThreshold) ? Mathf.Clamp(LowThreshold, 0.01f, 1f) : 0.25f;
+
+        public float HealthFraction => ClampFinite(Health / EffectiveMaxHealth, 0f, 1f, 1f);
+        public float HungerFraction => ClampFinite(Hunger / EffectiveMaxHunger, 0f, 1f, 1f);
+        public float ThirstFraction => ClampFinite(Thirst / EffectiveMaxThirst, 0f, 1f, 1f);
+        public float StaminaFraction => ClampFinite(Stamina / EffectiveMaxStamina, 0f, 1f, 1f);
 
         [Signal] public delegate void VitalsChangedEventHandler();
         /// <summary>Raised once per transition, not per frame — a HUD toast that fired every
@@ -88,36 +101,40 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
-            Health = MaxHealth;
-            Hunger = MaxHunger;
-            Thirst = MaxThirst;
-            Stamina = MaxStamina;
+            Health = EffectiveMaxHealth;
+            Hunger = EffectiveMaxHunger;
+            Thirst = EffectiveMaxThirst;
+            Stamina = EffectiveMaxStamina;
+            NormalizeVitals();
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
 
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint() || IsDead) return;
-            float dt = (float)delta;
+            if (Engine.IsEditorHint() || !IsActive || IsDead) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            NormalizeVitals();
 
             // Rates derived from SecondsToStarve so one exported number tunes the whole loop —
             // four independent per-second rates drift apart the moment anyone edits one.
-            float hungerRate = SecondsToStarve <= 0f ? 0f : MaxHunger / SecondsToStarve;
+            float hungerRate = EffectiveSecondsToStarve <= 0f ? 0f : EffectiveMaxHunger / EffectiveSecondsToStarve;
             Hunger = Mathf.Max(0f, Hunger - hungerRate * dt);
-            Thirst = Mathf.Max(0f, Thirst - hungerRate * ThirstRateMultiplier * dt);
+            Thirst = Mathf.Max(0f, Thirst - hungerRate * EffectiveThirstRateMultiplier * dt);
 
             // Stamina will not recover while a vital is empty. Without this the player can
             // sprint indefinitely on an empty stomach and hunger stops meaning anything.
             if (Exerting)
-                Stamina = Mathf.Max(0f, Stamina - StaminaDrainPerSecond * dt);
+                Stamina = Mathf.Max(0f, Stamina - EffectiveStaminaDrainPerSecond * dt);
             else if (!IsStarving && !IsParched)
-                Stamina = Mathf.Min(MaxStamina, Stamina + StaminaRecoverPerSecond * dt);
+                Stamina = Mathf.Min(EffectiveMaxStamina, Stamina + EffectiveStaminaRecoverPerSecond * dt);
 
             int empty = (IsStarving ? 1 : 0) + (IsParched ? 1 : 0);
             if (empty > 0)
-                Health = Mathf.Max(0f, Health - StarvationDamagePerSecond * empty * dt);
+                Health = Mathf.Max(0f, Health - EffectiveStarvationDamagePerSecond * empty * dt);
             else if (!IsExhausted)
-                Health = Mathf.Min(MaxHealth, Health + RegenPerSecond * dt);
+                Health = Mathf.Min(EffectiveMaxHealth, Health + EffectiveRegenPerSecond * dt);
+
+            NormalizeVitals();
 
             RaiseTransitions();
 
@@ -153,27 +170,31 @@ namespace Beep.ECS
         // ── Gameplay API ──────────────────────────────────────────────────────────────────
         public void Eat(float amount)
         {
-            if (amount <= 0f) return;
-            Hunger = Mathf.Min(MaxHunger, Hunger + amount);
+            if (!float.IsFinite(amount) || amount <= 0f) return;
+            NormalizeVitals();
+            Hunger = Mathf.Min(EffectiveMaxHunger, Hunger + amount);
             Changed();
         }
 
         public void Drink(float amount)
         {
-            if (amount <= 0f) return;
-            Thirst = Mathf.Min(MaxThirst, Thirst + amount);
+            if (!float.IsFinite(amount) || amount <= 0f) return;
+            NormalizeVitals();
+            Thirst = Mathf.Min(EffectiveMaxThirst, Thirst + amount);
             Changed();
         }
 
         public void Heal(float amount)
         {
-            if (amount <= 0f || IsDead) return;
-            Health = Mathf.Min(MaxHealth, Health + amount);
+            if (!float.IsFinite(amount) || amount <= 0f || IsDead) return;
+            NormalizeVitals();
+            Health = Mathf.Min(EffectiveMaxHealth, Health + amount);
             Changed();
         }
 
         private void Changed()
         {
+            NormalizeVitals();
             RaiseTransitions();
             EmitSignal(SignalName.VitalsChanged);
         }
@@ -182,7 +203,8 @@ namespace Beep.ECS
         /// without re-reading state and racing the signal.</summary>
         public bool Damage(float amount)
         {
-            if (amount <= 0f || IsDead) return false;
+            if (!float.IsFinite(amount) || amount <= 0f || IsDead) return false;
+            NormalizeVitals();
             Health = Mathf.Max(0f, Health - amount);
             Changed();
             return IsDead;
@@ -191,7 +213,7 @@ namespace Beep.ECS
         /// <summary>Restore everything — respawn, or a full night's rest.</summary>
         public void Restore()
         {
-            Health = MaxHealth; Hunger = MaxHunger; Thirst = MaxThirst; Stamina = MaxStamina;
+            Health = EffectiveMaxHealth; Hunger = EffectiveMaxHunger; Thirst = EffectiveMaxThirst; Stamina = EffectiveMaxStamina;
             _wasStarving = _wasParched = _wasDead = false;
             EmitSignal(SignalName.VitalsChanged);
         }
@@ -204,6 +226,7 @@ namespace Beep.ECS
 
         public void Save(GameBuilder.GameStateData state)
         {
+            NormalizeVitals();
             state.GameData[KHealth] = Health;
             state.GameData[KHunger] = Hunger;
             state.GameData[KThirst] = Thirst;
@@ -213,10 +236,11 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp((float)h.AsDouble(), 0f, MaxHealth);
-            if (d.TryGetValue(KHunger, out var u)) Hunger = Mathf.Clamp((float)u.AsDouble(), 0f, MaxHunger);
-            if (d.TryGetValue(KThirst, out var t)) Thirst = Mathf.Clamp((float)t.AsDouble(), 0f, MaxThirst);
-            if (d.TryGetValue(KStamina, out var s)) Stamina = Mathf.Clamp((float)s.AsDouble(), 0f, MaxStamina);
+            if (d.TryGetValue(KHealth, out var h)) Health = ClampFinite(ReadFloat(h, EffectiveMaxHealth), 0f, EffectiveMaxHealth, EffectiveMaxHealth);
+            if (d.TryGetValue(KHunger, out var u)) Hunger = ClampFinite(ReadFloat(u, EffectiveMaxHunger), 0f, EffectiveMaxHunger, EffectiveMaxHunger);
+            if (d.TryGetValue(KThirst, out var t)) Thirst = ClampFinite(ReadFloat(t, EffectiveMaxThirst), 0f, EffectiveMaxThirst, EffectiveMaxThirst);
+            if (d.TryGetValue(KStamina, out var s)) Stamina = ClampFinite(ReadFloat(s, EffectiveMaxStamina), 0f, EffectiveMaxStamina, EffectiveMaxStamina);
+            NormalizeVitals();
 
             // Recomputed, never restored: a save that carried "was starving" could suppress the
             // alert for a state the loaded numbers no longer describe.
@@ -224,6 +248,41 @@ namespace Beep.ECS
             _wasParched = IsParched;
             _wasDead = IsDead;
             EmitSignal(SignalName.VitalsChanged);
+        }
+
+        private void NormalizeVitals()
+        {
+            Health = ClampFinite(Health, 0f, EffectiveMaxHealth, EffectiveMaxHealth);
+            Hunger = ClampFinite(Hunger, 0f, EffectiveMaxHunger, EffectiveMaxHunger);
+            Thirst = ClampFinite(Thirst, 0f, EffectiveMaxThirst, EffectiveMaxThirst);
+            Stamina = ClampFinite(Stamina, 0f, EffectiveMaxStamina, EffectiveMaxStamina);
+        }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float AtLeast(float value, float minimum) => float.IsFinite(value) ? Mathf.Max(minimum, value) : minimum;
+
+        private static float ClampFinite(float value, float min, float max, float fallback)
+            => float.IsFinite(value) ? Mathf.Clamp(value, min, max) : fallback;
+
+        private static float ReadFloat(Variant value, float fallback)
+        {
+            switch (value.VariantType)
+            {
+                case Variant.Type.Int:
+                case Variant.Type.Float:
+                {
+                    double raw = value.AsDouble();
+                    return double.IsFinite(raw) ? (float)raw : fallback;
+                }
+                case Variant.Type.String:
+                    return float.TryParse(value.AsString(), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+                        && float.IsFinite(parsed)
+                            ? parsed
+                            : fallback;
+                default:
+                    return fallback;
+            }
         }
     }
 }

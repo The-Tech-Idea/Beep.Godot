@@ -50,6 +50,10 @@ namespace Beep.ECS
         private WeatherSystemComponent? _weather;
         private readonly List<CharacterBody2D> _characters = new();
 
+        public float EffectivePhysicsWindScale => NonNegative(PhysicsWindScale);
+        public float EffectiveCharacterPushAccel => NonNegative(CharacterPushAccel);
+        public float EffectiveMaxCharacterWindSpeed => NonNegative(MaxCharacterWindSpeed);
+
         public override void _Ready()
         {
             base._Ready();
@@ -62,7 +66,7 @@ namespace Beep.ECS
             }
 
             // Auto-discover the weather system if not wired.
-            if (WeatherSystemPath != null)
+            if (WeatherSystemPath != null && !WeatherSystemPath.IsEmpty)
                 _weather = GetNodeOrNull<WeatherSystemComponent>(WeatherSystemPath);
             _weather ??= FindWeatherSystem();
             if (_weather == null)
@@ -79,7 +83,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_area != null)
+            if (_area != null && GodotObject.IsInstanceValid(_area))
             {
                 _area.BodyEntered -= OnBodyEntered;
                 _area.BodyExited -= OnBodyExited;
@@ -89,18 +93,29 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsActive || _weather == null || _area == null || !GodotObject.IsInstanceValid(_area)) return;
+            if (Engine.IsEditorHint() || !IsActive || _area == null || !GodotObject.IsInstanceValid(_area)) return;
             PruneCharacters();
+            if (_weather == null || !GodotObject.IsInstanceValid(_weather))
+            {
+                _weather = FindWeatherSystem();
+                if (_weather == null)
+                {
+                    _area.Gravity = 0f;
+                    _area.GravityDirection = Vector2.Zero;
+                    return;
+                }
+            }
 
             // Mirror the weather wind into the Area2D gravity (drives RigidBodies).
-            Vector2 wind = _weather.WindForce * PhysicsWindScale;
+            Vector2 sourceWind = IsFinite(_weather.WindForce) ? _weather.WindForce : Vector2.Zero;
+            Vector2 wind = sourceWind * EffectivePhysicsWindScale;
             _area.Gravity = wind.Length();
             _area.GravityDirection = wind.Length() > 0.001f
                 ? wind.Normalized()
                 : Vector2.Zero;
 
             // Manually push CharacterBody2Ds (they ignore area gravity).
-            float dt = (float)delta;
+            float dt = DeltaSeconds(delta);
             // Iterate backwards so we can prune bodies freed inside the field. BodyExited
             // does not always fire before a body is QueueFree'd (e.g. an enemy dies in the
             // wind), which would leave a disposed reference here — touching it throws.
@@ -114,9 +129,9 @@ namespace Beep.ECS
                 }
                 if (OnlyPushAirborne && body.IsOnFloor()) continue;
                 // Apply horizontal wind push to the character's velocity with clamping.
-                var v = body.Velocity;
-                v.X += wind.X * 0.01f * CharacterPushAccel * dt;
-                v.X = Mathf.Clamp(v.X, -MaxCharacterWindSpeed, MaxCharacterWindSpeed);
+                var v = IsFinite(body.Velocity) ? body.Velocity : Vector2.Zero;
+                v.X += wind.X * 0.01f * EffectiveCharacterPushAccel * dt;
+                v.X = Mathf.Clamp(v.X, -EffectiveMaxCharacterWindSpeed, EffectiveMaxCharacterWindSpeed);
                 body.Velocity = v;
             }
         }
@@ -155,5 +170,14 @@ namespace Beep.ECS
             if (body is CharacterBody2D cb)
                 _characters.Remove(cb);
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

@@ -10,10 +10,6 @@ namespace Beep.ECS.UI.Kit
         Solid,
         /// <summary>Nothing — a deliberate break in the frame.</summary>
         Gap,
-        /// <summary>Diagonal hatching.</summary>
-        Hatch,
-        /// <summary>A run of short perpendicular ticks, ruler-like.</summary>
-        Ticks,
         /// <summary>A filled block, several times the base weight.</summary>
         Block,
     }
@@ -35,9 +31,9 @@ namespace Beep.ECS.UI.Kit
     /// A frame described as a RUN LIST PER EDGE.
     ///
     /// The sci-fi reference sheets (art pass files 14 and 43) are the reason this exists. Their
-    /// frame is not a border with decorated corners: the stroke **changes weight along its
-    /// length**, **breaks and restarts**, turns into **solid blocks**, carries **hatch** and
-    /// **tick** runs, and is **deliberately asymmetric** — no two corners of the same frame are
+        /// frame is not a border with decorated corners: the stroke **changes weight along its
+        /// length**, **breaks and restarts**, turns into **solid blocks**, and is
+        /// **deliberately asymmetric** — no two corners of the same frame are
     /// treated alike. Eight frames on one sheet, not one of them expressible as a StyleBox, a
     /// silhouette, or a corner-ornament enum.
     ///
@@ -70,9 +66,9 @@ namespace Beep.ECS.UI.Kit
         /// The sci-fi run, read off files 14 and 43.
         ///
         /// Asymmetry is the point and is built in: the top edge carries a heavy block on its left
-        /// third then breaks; the right edge is a hairline with a tick run; the bottom is a long
-        /// solid with a hatch; the left is mostly gap with one short block. Rotating this frame
-        /// 180 degrees does not give the same frame, which is exactly what the sheets do.
+        /// third then breaks; the right and bottom edges stay solid; the left is mostly gap with
+        /// one short block. Rotating this frame 180 degrees does not give the same frame, which is
+        /// exactly what the sheets do.
         /// </summary>
         public static KitEdgeRun SciFi() => new()
         {
@@ -85,13 +81,13 @@ namespace Beep.ECS.UI.Kit
             Right = new[]
             {
                 new KitEdgeSeg(0.00f, 0.22f, 1f),
-                new KitEdgeSeg(0.22f, 0.30f, 1f, KitSegFill.Ticks),
+                new KitEdgeSeg(0.22f, 0.30f, 1f),
                 new KitEdgeSeg(0.52f, 0.48f, 1f),
             },
             Bottom = new[]
             {
                 new KitEdgeSeg(0.00f, 0.58f, 1f),
-                new KitEdgeSeg(0.58f, 0.26f, 1f, KitSegFill.Hatch),
+                new KitEdgeSeg(0.58f, 0.26f, 1f),
                 new KitEdgeSeg(0.84f, 0.16f, 2.2f, KitSegFill.Block),
             },
             Left = new[]
@@ -186,33 +182,6 @@ namespace Beep.ECS.UI.Kit
                         }, col);
                         break;
 
-                    case KitSegFill.Ticks:
-                    {
-                        // Ruler marks perpendicular to the edge. Count from length so a long run
-                        // gets more ticks rather than longer ones.
-                        int n = Mathf.Max(2, Mathf.RoundToInt((b - a) / (baseWidth * 3.5f)));
-                        for (int i = 0; i <= n; i++)
-                        {
-                            Vector2 p = p0.Lerp(p1, i / (float)n);
-                            ci.DrawLine(p, p + inward * (w * 2.6f), col, Mathf.Max(1f, w * 0.6f));
-                        }
-                        break;
-                    }
-
-                    case KitSegFill.Hatch:
-                    {
-                        int n = Mathf.Max(2, Mathf.RoundToInt((b - a) / (baseWidth * 2.6f)));
-                        var skew = new Vector2(dir.Y, -dir.X) * 0f;   // kept for clarity
-                        for (int i = 0; i < n; i++)
-                        {
-                            Vector2 p = p0.Lerp(p1, i / (float)n);
-                            // Diagonal: along the edge AND inward, so it reads as hatching
-                            // rather than as a second tick run.
-                            ci.DrawLine(p, p + inward * (w * 2.2f) + dir * (w * 2.2f) + skew,
-                                        col, Mathf.Max(1f, w * 0.5f));
-                        }
-                        break;
-                    }
                 }
             }
         }

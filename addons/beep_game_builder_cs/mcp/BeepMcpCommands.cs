@@ -35,9 +35,9 @@ namespace Beep.GameBuilder;
 ///        level_complete, set_level, set_weather, set_time, set_setting, set_language
 ///        (all gated by allow_runtime_writes)
 ///
-/// Scene management, texture baking and screenshots live in the BeepMcpSceneCommands partial:
+/// Scene management and screenshots live in the BeepMcpSceneCommands partial:
 ///   read   — list_scenes, open_scene, inspect_scene, get_node_property, screenshot
-///   editor write — set_node_property, add_node, remove_node, save_scene, bake_textures,
+///   editor write — set_node_property, add_node, remove_node, save_scene,
 ///        new_screen  (allow_editor_writes)
 /// </summary>
 public static partial class BeepMcpCommands
@@ -106,7 +106,7 @@ public static partial class BeepMcpCommands
         McpCommandRegistry.RegisterCommand("beep.set_language", args => SetLanguage(Str(args, "locale")));
         McpCommandRegistry.RegisterCommand("beep.translate", args => Translate(Str(args, "key")));
 
-        // ── Scene management, texture baking, screenshots (see BeepMcpSceneCommands.cs) ──
+        // ── Scene management and screenshots (see BeepMcpSceneCommands.cs) ──
         RegisterSceneCommands();
     }
 
@@ -532,8 +532,7 @@ public static partial class BeepMcpCommands
                 ["shadow_size"] = geo.ShadowSize,
                 ["shadow_offset_y"] = geo.ShadowOffsetY,
                 ["content_padding"] = geo.ContentPadding,
-                ["font_size"] = geo.FontSize,
-                ["background_mode"] = geo.BackgroundMode
+                ["font_size"] = geo.FontSize
             };
 
         return new JsonObject
@@ -776,15 +775,15 @@ public static partial class BeepMcpCommands
 
         var w = RequireWeather();
         float transition = Flt(args, "transition_seconds", 0f);
-        float intensity = Flt(args, "intensity", 1f);
+        float intensity = Flt(args, "intensity", -1f);
         if (transition > 0f)
             w.TransitionTo(wt, transition, intensity);
         else
         {
             w.SetWeather(wt);
-            if (Has(args, "intensity")) w.TargetIntensity = intensity;
+            if (Has(args, "intensity")) w.TargetIntensity = Math.Clamp(intensity, 0f, 1f);
         }
-        return new JsonObject { ["weather"] = wt.ToString(), ["intensity"] = intensity, ["transition_seconds"] = transition };
+        return new JsonObject { ["weather"] = wt.ToString(), ["intensity"] = w.TargetIntensity, ["transition_seconds"] = transition };
     }
 
     // ════════════════════════════════════════════════════════════════

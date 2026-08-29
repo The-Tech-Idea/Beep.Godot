@@ -28,9 +28,9 @@ namespace Beep.ECS
             if (GetParent() is not Node parent) return;
 
             // Grid container.
-            _grid = new GridContainer { Name = "InventoryGrid", Columns = Columns };
-            _grid.AddThemeConstantOverride("h_separation", 4);
-            _grid.AddThemeConstantOverride("v_separation", 4);
+            _grid = new GridContainer { Name = "InventoryGrid", Columns = EffectiveColumns };
+            KitChrome.SetConstantOverrideIfChanged(_grid, "h_separation", 4);
+            KitChrome.SetConstantOverrideIfChanged(_grid, "v_separation", 4);
             parent.AddChild(_grid);
             if (parent.IsInsideTree()) _grid.Owner = parent.Owner;
 
@@ -46,9 +46,10 @@ namespace Beep.ECS
             foreach (var c in _grid.GetChildren()) c.QueueFree();
             _slotViews.Clear();
 
-            for (int i = 0; i < MaxSlots; i++)
+            Vector2I slotSize = EffectiveSlotSize;
+            for (int i = 0; i < EffectiveSlotCount; i++)
             {
-                var slot = new KitInventorySlot { Name = $"Slot_{i}", CustomMinimumSize = SlotSize };
+                var slot = new KitInventorySlot { Name = $"Slot_{i}", CustomMinimumSize = slotSize };
                 slot.MouseFilter = Godot.Control.MouseFilterEnum.Stop;
 
                 // Wire the interaction handlers (Interact partial). Without this, drag-to-move,
@@ -87,7 +88,7 @@ namespace Beep.ECS
         private void RebuildGrid()
         {
             if (_grid == null) return;
-            _grid.Columns = Columns;
+            _grid.Columns = EffectiveColumns;
             BuildSlots();
             RefreshAllSlots();
         }
@@ -97,7 +98,7 @@ namespace Beep.ECS
         /// <summary>Refresh every slot from Slots[]. Called on InventoryChanged.</summary>
         public void RefreshAllSlots()
         {
-            for (int i = 0; i < MaxSlots; i++) RefreshSlot(i);
+            for (int i = 0; i < EffectiveSlotCount; i++) RefreshSlot(i);
         }
 
         /// <summary>Refresh a single slot's visuals from the data.</summary>
@@ -144,7 +145,7 @@ namespace Beep.ECS
         private void ProcessHover(double delta)
         {
             if (!ShowTooltips || _hoveredSlot < 0 || _tooltipShowing) return;
-            _hoverTimer -= (float)delta;
+            _hoverTimer -= DeltaSeconds(delta);
             if (_hoverTimer <= 0)
             {
                 _tooltipShowing = true;
@@ -185,9 +186,12 @@ namespace Beep.ECS
         private void SetHoverSlot(int slot)
         {
             _hoveredSlot = slot;
-            _hoverTimer = HoverDelay;
+            _hoverTimer = EffectiveHoverDelay;
             _tooltipShowing = false;
             if (slot < 0 && _tooltipPanel != null) _tooltipPanel.Visible = false;
         }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
     }
 }

@@ -47,7 +47,8 @@ namespace Beep.ECS.UI.Kit
             public readonly List<int> Parents = new();
         }
 
-        [Export] public ColourAxis ColourCarries { get; set; } = ColourAxis.Branch;
+        [Export] public ColourAxis ColourCarries { get => _colourCarries; set { if (_colourCarries == value) return; _colourCarries = value; RefreshVisualAndRedraw(); } }
+        private ColourAxis _colourCarries = ColourAxis.Branch;
 
         /// <summary>Palette role per branch. Branch identity is read before anything else on the
         /// screen, so it comes from the theme rather than from literals.</summary>
@@ -57,7 +58,572 @@ namespace Beep.ECS.UI.Kit
             UiSurface.Role.Warning, UiSurface.Role.Accent2,
         };
 
+        [Export]
+        public int[] BranchRoleOrdinals
+        {
+            get
+            {
+                var roles = new int[BranchRoles.Length];
+                for (int i = 0; i < BranchRoles.Length; i++)
+                    roles[i] = (int)BranchRoles[i];
+                return roles;
+            }
+            set => SetBranchRoleOrdinals(value);
+        }
+
         public readonly List<Node> Nodes = new();
+
+        [Export]
+        public int[] NodeColumns
+        {
+            get
+            {
+                var columns = new int[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    columns[i] = Nodes[i].Column;
+                return columns;
+            }
+            set => SetNodeColumns(value);
+        }
+
+        [Export]
+        public int[] NodeTiers
+        {
+            get
+            {
+                var tiers = new int[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    tiers[i] = Nodes[i].Tier;
+                return tiers;
+            }
+            set => SetNodeTiers(value);
+        }
+
+        [Export]
+        public int[] NodeBranches
+        {
+            get
+            {
+                var branches = new int[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    branches[i] = Nodes[i].Branch;
+                return branches;
+            }
+            set => SetNodeBranches(value);
+        }
+
+        [Export]
+        public int[] NodeStates
+        {
+            get
+            {
+                var states = new int[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    states[i] = (int)Nodes[i].State;
+                return states;
+            }
+            set => SetNodeStates(value);
+        }
+
+        [Export]
+        public Texture2D[] NodeIcons
+        {
+            get
+            {
+                var icons = new Texture2D[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    icons[i] = Nodes[i].Icon!;
+                return icons;
+            }
+            set => SetNodeIcons(value);
+        }
+
+        [Export]
+        public int[] NodeCosts
+        {
+            get
+            {
+                var costs = new int[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    costs[i] = Nodes[i].Cost;
+                return costs;
+            }
+            set => SetNodeCosts(value);
+        }
+
+        [Export]
+        public string[] NodeParentIndices
+        {
+            get
+            {
+                var parents = new string[Nodes.Count];
+                for (int i = 0; i < Nodes.Count; i++)
+                    parents[i] = string.Join(",", Nodes[i].Parents);
+                return parents;
+            }
+            set => SetNodeParentIndices(value);
+        }
+
+        public void SetNodes(IEnumerable<Node>? nodes, bool expandBounds = true)
+        {
+            List<Node> next = NormalizeNodes(nodes);
+            if (SameNodes(Nodes, next))
+                return;
+            Nodes.Clear();
+            Nodes.AddRange(next);
+            RefreshNodes(expandBounds);
+        }
+
+        public void SetNodeColumns(int[]? columns)
+        {
+            int count = columns?.Length ?? 0;
+            bool changed = Nodes.Count != count;
+            while (Nodes.Count > count)
+                Nodes.RemoveAt(Nodes.Count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                EnsureNode(i);
+                int next = Mathf.Max(0, columns![i]);
+                if (Nodes[i].Column == next) continue;
+                Nodes[i].Column = next;
+                changed = true;
+            }
+            if (!changed) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeTiers(int[]? tiers)
+        {
+            if (tiers == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Nodes.Count; i++)
+                {
+                    if (Nodes[i].Tier == 0) continue;
+                    Nodes[i].Tier = 0;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < tiers.Length; i++)
+            {
+                EnsureNode(i);
+                int next = Mathf.Max(0, tiers[i]);
+                if (Nodes[i].Tier == next) continue;
+                Nodes[i].Tier = next;
+                updated = true;
+            }
+            for (int i = tiers.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].Tier == 0) continue;
+                Nodes[i].Tier = 0;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeBranches(int[]? branches)
+        {
+            if (branches == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Nodes.Count; i++)
+                {
+                    if (Nodes[i].Branch == 0) continue;
+                    Nodes[i].Branch = 0;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < branches.Length; i++)
+            {
+                EnsureNode(i);
+                int next = Mathf.Max(0, branches[i]);
+                if (Nodes[i].Branch == next) continue;
+                Nodes[i].Branch = next;
+                updated = true;
+            }
+            for (int i = branches.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].Branch == 0) continue;
+                Nodes[i].Branch = 0;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeStates(int[]? states)
+        {
+            if (states == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Nodes.Count; i++)
+                {
+                    if (Nodes[i].State == NodeState.Locked) continue;
+                    Nodes[i].State = NodeState.Locked;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < states.Length; i++)
+            {
+                EnsureNode(i);
+                NodeState next = StateFromOrdinal(states[i]);
+                if (Nodes[i].State == next) continue;
+                Nodes[i].State = next;
+                updated = true;
+            }
+            for (int i = states.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].State == NodeState.Locked) continue;
+                Nodes[i].State = NodeState.Locked;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeIcons(Texture2D[]? icons)
+        {
+            if (icons == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Nodes.Count; i++)
+                {
+                    if (Nodes[i].Icon == null) continue;
+                    Nodes[i].Icon = null;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < icons.Length; i++)
+            {
+                EnsureNode(i);
+                if (Nodes[i].Icon == icons[i]) continue;
+                Nodes[i].Icon = icons[i];
+                updated = true;
+            }
+            for (int i = icons.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].Icon == null) continue;
+                Nodes[i].Icon = null;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeCosts(int[]? costs)
+        {
+            if (costs == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Nodes.Count; i++)
+                {
+                    if (Nodes[i].Cost == 0) continue;
+                    Nodes[i].Cost = 0;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < costs.Length; i++)
+            {
+                EnsureNode(i);
+                int next = Mathf.Max(0, costs[i]);
+                if (Nodes[i].Cost == next) continue;
+                Nodes[i].Cost = next;
+                updated = true;
+            }
+            for (int i = costs.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].Cost == 0) continue;
+                Nodes[i].Cost = 0;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetNodeParentIndices(string[]? parents)
+        {
+            if (parents == null)
+            {
+                bool changed = false;
+                foreach (Node node in Nodes)
+                {
+                    if (node.Parents.Count == 0) continue;
+                    node.Parents.Clear();
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshNodes();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < parents.Length; i++)
+            {
+                EnsureNode(i);
+                List<int> next = ParseParentList(parents[i], Nodes.Count);
+                if (SameParents(Nodes[i].Parents, next)) continue;
+                Nodes[i].Parents.Clear();
+                Nodes[i].Parents.AddRange(next);
+                updated = true;
+            }
+            for (int i = parents.Length; i < Nodes.Count; i++)
+            {
+                if (Nodes[i].Parents.Count == 0) continue;
+                Nodes[i].Parents.Clear();
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshNodes();
+        }
+
+        public void SetBranchRoleOrdinals(int[]? roles)
+        {
+            if (roles == null || roles.Length == 0)
+            {
+                if (BranchRoles.Length == 0) return;
+                BranchRoles = System.Array.Empty<UiSurface.Role>();
+                RefreshVisualAndRedraw();
+                return;
+            }
+
+            UiSurface.Role[] next = new UiSurface.Role[roles.Length];
+            for (int i = 0; i < roles.Length; i++)
+                next[i] = RoleFromOrdinal(roles[i]);
+            if (SameRoles(BranchRoles, next)) return;
+            BranchRoles = next;
+            RefreshVisualAndRedraw();
+        }
+
+        public Node AddNode(int column, int tier, int branch = 0,
+                            NodeState state = NodeState.Locked, int cost = 0,
+                            Texture2D? icon = null, IEnumerable<int>? parents = null,
+                            bool expandBounds = true)
+        {
+            var node = new Node
+            {
+                Column = Mathf.Max(0, column),
+                Tier = Mathf.Max(0, tier),
+                Branch = branch,
+                State = state,
+                Cost = Mathf.Max(0, cost),
+                Icon = icon,
+            };
+            if (parents != null)
+            {
+                foreach (int parent in parents)
+                    if (parent >= 0 && parent < Nodes.Count)
+                        node.Parents.Add(parent);
+            }
+            Nodes.Add(node);
+            RefreshNodes(expandBounds);
+            return node;
+        }
+
+        public bool RemoveNode(int index, bool expandBounds = true)
+        {
+            if (index < 0 || index >= Nodes.Count)
+                return false;
+
+            Nodes.RemoveAt(index);
+            RemapParentReferencesAfterRemove(index);
+            if (index <= _sel)
+                _sel = Mathf.Max(-1, _sel - 1);
+            if (_hover == index)
+                _hover = -1;
+            else if (index < _hover)
+                _hover--;
+            RefreshNodes(expandBounds);
+            return true;
+        }
+
+        public void ClearNodes()
+        {
+            if (Nodes.Count == 0 && _sel < 0 && _hover < 0)
+                return;
+
+            Nodes.Clear();
+            _sel = -1;
+            _hover = -1;
+            RefreshNodes(expandBounds: false);
+        }
+
+        public void RefreshNodes(bool expandBounds = true)
+        {
+            NormalizeParentReferences();
+            if (expandBounds)
+                ExpandBoundsToNodes();
+            if (_sel >= Nodes.Count)
+                _sel = Nodes.Count - 1;
+            if (_hover >= Nodes.Count)
+                _hover = -1;
+            if (IsInsideTree())
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RemapParentReferencesAfterRemove(int removed)
+        {
+            foreach (Node node in Nodes)
+            {
+                for (int i = node.Parents.Count - 1; i >= 0; i--)
+                {
+                    int parent = node.Parents[i];
+                    if (parent == removed)
+                        node.Parents.RemoveAt(i);
+                    else if (parent > removed)
+                        node.Parents[i] = parent - 1;
+                }
+            }
+        }
+
+        private void NormalizeParentReferences()
+        {
+            int count = Nodes.Count;
+            foreach (Node node in Nodes)
+            {
+                for (int i = node.Parents.Count - 1; i >= 0; i--)
+                {
+                    int parent = node.Parents[i];
+                    if (parent < 0 || parent >= count)
+                        node.Parents.RemoveAt(i);
+                }
+            }
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            if (IsInsideTree())
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void EnsureNode(int index)
+        {
+            while (Nodes.Count <= index)
+                Nodes.Add(new Node());
+        }
+
+        private static List<Node> NormalizeNodes(IEnumerable<Node>? nodes)
+        {
+            var next = new List<Node>();
+            var parentSources = new List<List<int>>();
+            if (nodes == null)
+                return next;
+
+            foreach (Node? node in nodes)
+            {
+                next.Add(new Node
+                {
+                    Column = Mathf.Max(0, node?.Column ?? 0),
+                    Tier = Mathf.Max(0, node?.Tier ?? 0),
+                    Branch = Mathf.Max(0, node?.Branch ?? 0),
+                    State = StateFromOrdinal((int)(node?.State ?? NodeState.Locked)),
+                    Icon = node?.Icon,
+                    Cost = Mathf.Max(0, node?.Cost ?? 0),
+                });
+
+                var parents = new List<int>();
+                if (node != null)
+                    parents.AddRange(node.Parents);
+                parentSources.Add(parents);
+            }
+
+            for (int i = 0; i < next.Count; i++)
+            {
+                foreach (int parent in parentSources[i])
+                    if (parent >= 0 && parent < next.Count)
+                        next[i].Parents.Add(parent);
+            }
+            return next;
+        }
+
+        private static bool SameNodes(IReadOnlyList<Node> left, IReadOnlyList<Node> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+            {
+                if (Mathf.Max(0, left[i].Column) != right[i].Column) return false;
+                if (Mathf.Max(0, left[i].Tier) != right[i].Tier) return false;
+                if (Mathf.Max(0, left[i].Branch) != right[i].Branch) return false;
+                if (StateFromOrdinal((int)left[i].State) != right[i].State) return false;
+                if (!ReferenceEquals(left[i].Icon, right[i].Icon)) return false;
+                if (Mathf.Max(0, left[i].Cost) != right[i].Cost) return false;
+                if (!SameParents(left[i].Parents, right[i].Parents)) return false;
+            }
+            return true;
+        }
+
+        private static bool SameParents(IReadOnlyList<int> left, IReadOnlyList<int> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+                if (left[i] != right[i]) return false;
+            return true;
+        }
+
+        private static bool SameRoles(IReadOnlyList<UiSurface.Role> left, IReadOnlyList<UiSurface.Role> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+                if (left[i] != right[i]) return false;
+            return true;
+        }
+
+        private static NodeState StateFromOrdinal(int value)
+            => (NodeState)Mathf.Clamp(value, (int)NodeState.Locked, (int)NodeState.Owned);
+
+        private static UiSurface.Role RoleFromOrdinal(int value)
+            => (UiSurface.Role)Mathf.Clamp(value, (int)UiSurface.Role.Neutral, (int)UiSurface.Role.Info);
+
+        private static List<int> ParseParentList(string? text, int nodeCount)
+        {
+            var parents = new List<int>();
+            if (string.IsNullOrWhiteSpace(text))
+                return parents;
+            string[] parts = text.Split(',');
+            foreach (string part in parts)
+            {
+                string token = part.Trim();
+                if (token.Length == 0 || !int.TryParse(token, out int parent))
+                    continue;
+                if (parent >= 0 && parent < nodeCount)
+                    parents.Add(parent);
+            }
+            return parents;
+        }
 
         [Export(PropertyHint.Range, "1,10,1")]
         public int Columns
@@ -68,8 +634,7 @@ namespace Beep.ECS.UI.Kit
                 int next = Mathf.Max(1, value);
                 if (_cols == next) return;
                 _cols = next;
-                UpdateMinimumSize();
-                QueueRedraw();
+                RefreshMinimumAndRedraw();
             }
         }
         private int _cols = 4;
@@ -83,33 +648,48 @@ namespace Beep.ECS.UI.Kit
                 int next = Mathf.Max(1, value);
                 if (_tiers == next) return;
                 _tiers = next;
-                UpdateMinimumSize();
-                QueueRedraw();
+                RefreshMinimumAndRedraw();
             }
         }
         private int _tiers = 3;
 
-        [Export] public int Selected { get => _sel; set { _sel = value; QueueRedraw(); } }
+        [Export] public int Selected
+        {
+            get => _sel;
+            set
+            {
+                int next = Nodes.Count == 0 ? -1 : Mathf.Clamp(value, -1, Nodes.Count - 1);
+                if (_sel == next) return;
+                _sel = next;
+                RefreshVisualAndRedraw();
+            }
+        }
         private int _sel = -1;
         private int _hover = -1;
 
-        [Export] public bool CycleStateOnClick { get; set; } = true;
+        [Export] public bool CycleStateOnClick { get => _cycleStateOnClick; set { if (_cycleStateOnClick == value) return; _cycleStateOnClick = value; } }
+        private bool _cycleStateOnClick = true;
+        private bool _eventsHooked;
 
         [Signal] public delegate void NodeActivatedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            if (Nodes.Count == 0)
-                SeedDemoNodes();
-            if (CustomMinimumSize == Vector2.Zero)
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
             {
-                int fs = UiSurface.FontSize(this);
-                float pitch = fs * 3.6f;
-                CustomMinimumSize = new Vector2(pitch * _cols, pitch * _tiers);
+                MouseExited += ClearHover;
+                _eventsHooked = true;
             }
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
         }
 
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _tiers);
@@ -121,19 +701,17 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(pitch * _cols, pitch * _tiers);
         }
 
-        private void SeedDemoNodes()
+        private void ExpandBoundsToNodes()
         {
-            _cols = Mathf.Max(_cols, 4);
-            _tiers = Mathf.Max(_tiers, 3);
-
-            Nodes.Add(new Node { Column = 1, Tier = 0, Branch = 0, State = NodeState.Owned, Cost = 1 });
-            Nodes.Add(new Node { Column = 0, Tier = 1, Branch = 0, State = NodeState.Owned, Cost = 1, Parents = { 0 } });
-            Nodes.Add(new Node { Column = 1, Tier = 1, Branch = 1, State = NodeState.Available, Cost = 2, Parents = { 0 } });
-            Nodes.Add(new Node { Column = 2, Tier = 1, Branch = 2, State = NodeState.Locked, Parents = { 0 } });
-            Nodes.Add(new Node { Column = 0, Tier = 2, Branch = 0, State = NodeState.Available, Cost = 3, Parents = { 1 } });
-            Nodes.Add(new Node { Column = 1, Tier = 2, Branch = 1, State = NodeState.Locked, Parents = { 2 } });
-            Nodes.Add(new Node { Column = 2, Tier = 2, Branch = 2, State = NodeState.Locked, Parents = { 3 } });
-            Nodes.Add(new Node { Column = 3, Tier = 2, Branch = 3, State = NodeState.Locked, Parents = { 3 } });
+            int maxColumn = _cols;
+            int maxTier = _tiers;
+            foreach (Node node in Nodes)
+            {
+                maxColumn = Mathf.Max(maxColumn, node.Column + 1);
+                maxTier = Mathf.Max(maxTier, node.Tier + 1);
+            }
+            _cols = Mathf.Clamp(maxColumn, 1, 10);
+            _tiers = Mathf.Clamp(maxTier, 1, 10);
         }
 
         /// <summary>Node box. The gutter is ~12% of the tile, per the measured 7-14px on ~50px.</summary>
@@ -249,11 +827,25 @@ namespace Beep.ECS.UI.Kit
             return -1;
         }
 
+        private void ClearHover()
+        {
+            if (_hover < 0) return;
+            _hover = -1;
+            QueueRedraw();
+        }
+
         private KitShape NodeShape => Geo.Register == KitRegister.Pixel ? KitShape.Stepped : KitShape.Round;
 
         public override void _Draw()
         {
-            if (Size.X <= 8 || Size.Y <= 8 || Nodes.Count == 0) return;
+            if (Size.X <= 8 || Size.Y <= 8) return;
+            if (Nodes.Count == 0)
+            {
+                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Nodes");
+                DrawAttachments();
+                return;
+            }
 
             var g = Geo;
             Color face = FaceColor();
@@ -348,6 +940,8 @@ namespace Beep.ECS.UI.Kit
                     int small = UiSurface.FitRole(this, UiSurface.TextRole.Small,
                                                   new Vector2(r.Size.X * 0.50f, r.Size.Y * 0.34f),
                                                   txt, font, min: 8);
+                    txt = KitChrome.EllipsizeText(font, txt, small, r.Size.X * 0.50f);
+                    if (string.IsNullOrEmpty(txt)) continue;
                     Vector2 m = font.GetStringSize(txt, HorizontalAlignment.Left, -1, small);
                     float bw = Mathf.Max(m.X + small * 0.7f, small * 1.4f), bh = small * 1.2f;
                     var b = new Rect2(r.End.X - bw * 0.55f, r.Position.Y - bh * 0.35f, bw, bh);

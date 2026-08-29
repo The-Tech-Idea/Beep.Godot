@@ -17,6 +17,8 @@ namespace Beep.ECS
         [Export] public PackedScene? Scene { get; set; }
         [Export] public int PreloadCount { get; set; } = 5;
         [Export] public int MaxSize { get; set; } = 50;
+        public int EffectivePreloadCount => Mathf.Max(0, PreloadCount);
+        public int EffectiveMaxSize => Mathf.Max(0, MaxSize);
 
         private readonly Queue<Node> _pool = new();
         // TOTAL live instances (checked-out + idle), not the idle-queue size — MaxSize caps this.
@@ -28,15 +30,22 @@ namespace Beep.ECS
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            for (int i = 0; i < PreloadCount; i++)
+            int preload = Mathf.Min(EffectivePreloadCount, EffectiveMaxSize);
+            for (int i = 0; i < preload; i++)
                 Expand();
         }
 
         private void Expand()
         {
-            if (Scene == null || _totalAllocated >= MaxSize) return;
+            if (Scene == null || _totalAllocated >= EffectiveMaxSize) return;
             var inst = Scene.Instantiate();
-            GetParent().AddChild(inst);
+            var parent = GetParent();
+            if (parent == null || !GodotObject.IsInstanceValid(parent))
+            {
+                inst.QueueFree();
+                return;
+            }
+            parent.AddChild(inst);
             if (inst is CanvasItem ci) ci.Visible = false;
             if (inst is Node2D n2d) n2d.SetProcess(false);
             _pool.Enqueue(inst);
@@ -47,7 +56,7 @@ namespace Beep.ECS
         /// Returns null if no Scene is set, or if the pool is at MaxSize with none idle.</summary>
         public Node? Get()
         {
-            if (!IsActive || Scene == null) return null;
+            if (!IsActive || Scene == null || EffectiveMaxSize <= 0) return null;
 
             // Purge instances that were freed while idle (e.g. a self-freeing projectile that was
             // Release()d then QueueFree()d). Without this, Get() could hand out a freed node and

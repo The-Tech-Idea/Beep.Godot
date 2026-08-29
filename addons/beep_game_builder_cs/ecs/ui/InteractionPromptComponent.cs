@@ -18,6 +18,9 @@ namespace Beep.ECS.UI
         [Export(PropertyHint.Range, "0.3,6.0,0.05")] public float FontScale { get; set; } = 1.0f;
         private int FontSize => UiSurface.FontSize(this, FontScale);
         [Export] public float FadeDuration { get; set; } = 0.15f;
+        [Export] public NodePath PromptLabelPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         private Godot.Control? _label;
         private bool _createdLabel;   // true only when we new'd the label (vs adopting a parent Label)
@@ -26,22 +29,45 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(SetupLabel));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(SetupLabel));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindPromptLabel() == null && GetParent() is not Label)
+                return new[] { "Set PromptLabelPath, add a scene-authored Label/KitHudText named PromptLabel, parent the component under a Label, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void SetupLabel()
         {
-            if (Engine.IsEditorHint()) return;
             EnsureLabel();
             if (_label != null)
             {
-                _label.Visible = false;
-                _label.Modulate = new Color(1, 1, 1, 0);
+                if (Engine.IsEditorHint())
+                {
+                    SetText(DefaultText);
+                    _label.Visible = true;
+                    _label.Modulate = Colors.White;
+                }
+                else
+                {
+                    _label.Visible = false;
+                    _label.Modulate = new Color(1, 1, 1, 0);
+                }
             }
         }
 
         private void EnsureLabel()
         {
+            if (BindExistingLabel())
+                return;
+
+            if (!GenerateControlsWhenPathsEmpty)
+                return;
+
             if (GetParent() is Label existing) { _label = existing; StyleLabel(); return; }
             _createdLabel = true;
             _label = new KitHudText
@@ -64,6 +90,40 @@ namespace Beep.ECS.UI
             }
         }
 
+        private bool BindExistingLabel()
+        {
+            _createdLabel = false;
+            if (FindPromptLabel() is { } direct)
+            {
+                _label = direct;
+                StyleLabel();
+                return true;
+            }
+
+            if (GetParent() is Label existing)
+            {
+                _label = existing;
+                StyleLabel();
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool UsesSceneControls()
+            => !PromptLabelPath.IsEmpty || FindPromptLabel() != null || GetParent() is Label;
+
+        private Godot.Control? FindPromptLabel()
+        {
+            if (!PromptLabelPath.IsEmpty && GetNodeOrNull<Godot.Control>(PromptLabelPath) is { } pathLabel)
+                return pathLabel;
+
+            if (FindChild("PromptLabel", recursive: true, owned: false) is Godot.Control childLabel)
+                return childLabel;
+
+            return GetParent()?.FindChild("PromptLabel", recursive: true, owned: false) as Godot.Control;
+        }
+
         private void StyleLabel()
         {
             if (_label == null) return;
@@ -75,10 +135,10 @@ namespace Beep.ECS.UI
                 label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
                 label.AutowrapMode = TextServer.AutowrapMode.Off;
                 label.ClipText = true;
-                label.AddThemeFontSizeOverride("font_size", FontSize);
-                label.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
-                label.AddThemeConstantOverride("shadow_offset_x", 1);
-                label.AddThemeConstantOverride("shadow_offset_y", 2);
+                KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", FontSize);
+                KitChrome.SetColorOverrideIfChanged(label, "font_shadow_color", new Color(0, 0, 0, 0.75f));
+                KitChrome.SetConstantOverrideIfChanged(label, "shadow_offset_x", 1);
+                KitChrome.SetConstantOverrideIfChanged(label, "shadow_offset_y", 2);
             }
         }
 

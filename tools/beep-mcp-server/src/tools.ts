@@ -42,11 +42,10 @@ function fail(err: unknown): ToolResult {
   return { content: [{ type: "text", text: `[UNEXPECTED] ${e?.message ?? String(err)}` }], isError: true };
 }
 
-/** Slow operations. Baking 50 themes writes 200 PNGs and then rescans the
- *  filesystem; 15s is not enough and a timeout there looks like a hang. */
+/** Slow operations. Project generation and catalog reloads rescan many files;
+ * 15s is not enough and a timeout there looks like a hang. */
 const SLOW_METHOD_TIMEOUT_MS = 180_000;
 const SLOW_BEEP_COMMANDS = new Set([
-  "beep.bake_textures",
   "beep.generate_project",
   "beep.reload_catalog",
 ]);
@@ -182,7 +181,7 @@ export function registerTools(server: McpServer, bridge: GodotBridge): void {
     {
       title: "Run a beep.* command",
       description:
-        "Invoke any Beep command (beep.catalog, beep.inspect_scene, beep.bake_textures, beep.add_score, …) via the bridge's game.command. The target Godot process is chosen from the command name — editor commands go to the editor, runtime commands to the running game. Use beep_list_commands to discover names.",
+        "Invoke any Beep command (beep.catalog, beep.inspect_scene, beep.add_score, …) via the bridge's game.command. The target Godot process is chosen from the command name — editor commands go to the editor, runtime commands to the running game. Use beep_list_commands to discover names.",
       inputSchema: {
         name: z.string().describe("Command name, e.g. 'beep.inspect_scene'."),
         args: z.record(z.unknown()).optional().describe("Command arguments object."),

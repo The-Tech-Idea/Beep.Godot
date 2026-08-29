@@ -39,12 +39,16 @@ namespace Beep.ECS
         [Signal] public delegate void StoppedEventHandler();
 
         public Vector2 Velocity { get; set; }
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveAcceleration => NonNegative(Acceleration);
+        public float EffectiveFriction => NonNegative(Friction);
 
         /// <summary>Where to steer. Set by an AI/controller, or by input when
         /// <see cref="ReadInput"/> is on. Zero = decelerate to a stop.</summary>
         public Vector2 DesiredDirection { get; set; }
 
         private CharacterBody2D? _body;
+        private bool _missingInputWarned;
 
         public override void _Ready()
         {
@@ -66,16 +70,20 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint()) return;
-            if (_body == null || !IsActive) return;
+            if (_body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
 
             if (ReadInput)
-                DesiredDirection = Input.GetVector("move_left", "move_right", "move_up", "move_down");
+            {
+                DesiredDirection = InputActionsAvailable("move_left", "move_right", "move_up", "move_down")
+                    ? Input.GetVector("move_left", "move_right", "move_up", "move_down")
+                    : Vector2.Zero;
+            }
 
             Move(DesiredDirection, delta);
 
             // Actually drive the body. Computing Velocity and stopping there is what made
             // this component inert in every scene that shipped it.
-            _body.Velocity = Velocity;
+            _body.Velocity = IsFinite(Velocity) ? Velocity : Vector2.Zero;
             _body.MoveAndSlide();
             // Take back what the collision solver actually allowed, so running into a wall
             // doesn't keep accumulating speed into it.
@@ -95,17 +103,22 @@ namespace Beep.ECS
         public void Move(Vector2 direction, double delta)
         {
             if (!IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(Velocity)) Velocity = Vector2.Zero;
+            if (!IsFinite(direction)) direction = Vector2.Zero;
             DesiredDirection = direction;
 
             if (direction.Length() > 0)
             {
-                Velocity = Velocity.MoveToward(direction * Speed, Acceleration * (float)delta);
+                float speed = EffectiveSpeed;
+                Vector2 normalized = direction.Normalized();
+                Velocity = Velocity.MoveToward(normalized * speed, EffectiveAcceleration * dt);
                 _isMoving = true;
-                EmitSignal(SignalName.Moved, direction, Speed);
+                EmitSignal(SignalName.Moved, normalized, speed);
             }
             else
             {
-                Velocity = Velocity.MoveToward(Vector2.Zero, Friction * (float)delta);
+                Velocity = Velocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
                 if (_isMoving && Velocity.Length() < 1f)
                 {
                     _isMoving = false;
@@ -113,6 +126,25 @@ namespace Beep.ECS
                 }
             }
         }
+
+        private bool InputActionsAvailable(params string[] actions)
+        {
+            foreach (var action in actions)
+            {
+                if (InputMap.HasAction(action)) continue;
+                if (!_missingInputWarned)
+                {
+                    GD.PushWarning($"[{Name}] Input action '{action}' is not in the InputMap - MovementComponent can't read input and will decelerate. Generate a project or add the action.");
+                    _missingInputWarned = true;
+                }
+                return false;
+            }
+            return true;
+        }
         private bool _isMoving;
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

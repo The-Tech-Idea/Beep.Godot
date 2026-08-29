@@ -34,10 +34,13 @@ namespace Beep.ECS.Scenes
         private const int SummaryFont = 13;
         private const float MinCellWidth = 96f;
 
-        /// <summary>Genre to open on. Empty = rpg. Lets a scene or a probe open the board on a
+        /// <summary>Genre to open on. Empty = citybuilder. Lets a scene or a probe open the board on a
         /// chosen register, which is also how the layout gets checked against a genre whose face
         /// is not RPG's wide display one — the sizes here were all judged against that.</summary>
-        [Export] public string StartGenre { get; set; } = "";
+        [Export] public string StartGenre { get; set; } = "citybuilder";
+
+        /// <summary>Preferred theme for the starting genre. Empty = the genre default.</summary>
+        [Export] public string StartTheme { get; set; } = "oilfield_days";
 
         private OptionButton? _genrePicker;
         private VBoxContainer? _content;
@@ -48,83 +51,60 @@ namespace Beep.ECS.Scenes
         public override void _Ready()
         {
             if (Engine.IsEditorHint()) return;
-            BuildChrome();
+            BindChrome();
             PopulateGenres();
-            Rebuild();
+            CallDeferred(nameof(DeferredInitialRebuild));
         }
+
+        private void DeferredInitialRebuild()
+            => Rebuild();
 
         // ── chrome ──────────────────────────────────────────────────────────────────────
 
-        private void BuildChrome()
+        private void BindChrome()
         {
             SetAnchorsPreset(LayoutPreset.FullRect);
 
-            var bg = new ColorRect { Color = new Color(0.09f, 0.09f, 0.12f) };
-            bg.SetAnchorsPreset(LayoutPreset.FullRect);
-            bg.MouseFilter = MouseFilterEnum.Ignore;
-            AddChild(bg);
+            var title = this.Find<Label>("TitleLabel");
+            if (title != null)
+            {
+                title.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                KitChrome.SetFontSizeOverrideIfChanged(title, "font_size", TitleFont);
+            }
 
-            var margin = new MarginContainer();
-            margin.SetAnchorsPreset(LayoutPreset.FullRect);
-            foreach (string s in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" })
-                margin.AddThemeConstantOverride(s, 18);
-            AddChild(margin);
-
-            var root = new VBoxContainer();
-            root.AddThemeConstantOverride("separation", 10);
-            margin.AddChild(root);
-
-            // ── header ──
-            var header = new HBoxContainer();
-            header.AddThemeConstantOverride("separation", 12);
-            root.AddChild(header);
-
-            var title = new Label { Text = "Beep Game UI Kit" };
-            title.AddThemeFontSizeOverride("font_size", TitleFont);
-            header.AddChild(title);
-
-            header.AddChild(new Godot.Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
-
-            header.AddChild(new Label { Text = "Genre:" });
-            _genrePicker = new OptionButton { CustomMinimumSize = new Vector2(180, 0) };
+            _genrePicker = RequireNode<OptionButton>("GenrePicker");
             _genrePicker.ItemSelected += _ => Rebuild();
-            header.AddChild(_genrePicker);
 
             // Build stamp. Not decoration: a stale Godot editor keeps its own loaded assembly, and
             // a window left open from an earlier run keeps the code it started with — both look
             // identical to "the fix did not work". This says which build you are actually looking
             // at, so that question can be answered by reading the screen.
-            var stamp = new Label { Text = "build " + BuildStamp() };
-            stamp.AddThemeFontSizeOverride("font_size", CaptionFont);
-            stamp.AddThemeColorOverride("font_color", new Color(0.45f, 0.85f, 0.60f));
-            header.AddChild(stamp);
-
-            _summary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-            _summary.AddThemeFontSizeOverride("font_size", SummaryFont);
-            _summary.AddThemeColorOverride("font_color", new Color(0.62f, 0.64f, 0.72f));
-            root.AddChild(_summary);
-
-            root.AddChild(new HSeparator());
-
-            // ── scrolling body ──
-            var scroll = new ScrollContainer
+            var stamp = this.Find<Label>("BuildStampLabel");
+            if (stamp != null)
             {
-                SizeFlagsVertical = SizeFlags.ExpandFill,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            };
-            root.AddChild(scroll);
+                stamp.Text = "build " + BuildStamp();
+                KitChrome.SetFontSizeOverrideIfChanged(stamp, "font_size", CaptionFont);
+                KitChrome.SetColorOverrideIfChanged(stamp, "font_color", new Color(0.45f, 0.85f, 0.60f));
+            }
 
-            _content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            _content.AddThemeConstantOverride("separation", 14);
-            scroll.AddChild(_content);
+            _summary = this.Find<Label>("SummaryLabel");
+            if (_summary != null)
+            {
+                _summary.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                KitChrome.SetFontSizeOverrideIfChanged(_summary, "font_size", SummaryFont);
+                KitChrome.SetColorOverrideIfChanged(_summary, "font_color", new Color(0.62f, 0.64f, 0.72f));
+            }
 
-            // Parented to the CONTENT control, not the root — ThemePresetComponent themes
-            // GetParent()'s subtree. Without it UiSurface.Semantic finds no 'BeepSemantic' type
-            // and every accent/success/danger resolves to a surface-derived grey, so the whole
-            // board renders monochrome and a chip's colour tells you nothing.
-            _theme = new ThemePresetComponent { Name = "Theme" };
-            _content.AddChild(_theme);
+            _content = RequireNode<VBoxContainer>("Content");
+            _theme = RequireNode<ThemePresetComponent>("Theme");
+        }
+
+        private T RequireNode<T>(string name) where T : Node
+        {
+            if (this.Find<T>(name) is { } node)
+                return node;
+            throw new System.InvalidOperationException(
+                $"{nameof(KitBrowser)} requires a design-time {typeof(T).Name} named '{name}'.");
         }
 
         private void PopulateGenres()
@@ -143,7 +123,7 @@ namespace Beep.ECS.Scenes
                              + "every widget will draw its fallback register. Check catalogs/skins/.");
                 return;
             }
-            string want = string.IsNullOrWhiteSpace(StartGenre) ? "rpg" : StartGenre.ToLowerInvariant();
+            string want = string.IsNullOrWhiteSpace(StartGenre) ? "citybuilder" : StartGenre.ToLowerInvariant();
             int idx = _genreIds.IndexOf(want);
             if (idx < 0 && !string.IsNullOrWhiteSpace(StartGenre))
                 GD.PushWarning($"[KitBrowser] StartGenre '{StartGenre}' is not in the catalog — "
@@ -160,6 +140,15 @@ namespace Beep.ECS.Scenes
                 string path = typeof(KitBrowser).Assembly.Location;
                 if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
                     return System.IO.File.GetLastWriteTime(path).ToString("HH:mm:ss");
+
+                string assemblyName = typeof(KitBrowser).Assembly.GetName().Name ?? "";
+                if (!string.IsNullOrWhiteSpace(assemblyName))
+                {
+                    string candidate = ProjectSettings.GlobalizePath(
+                        $"res://.godot/mono/temp/bin/Debug/{assemblyName}.dll");
+                    if (System.IO.File.Exists(candidate))
+                        return System.IO.File.GetLastWriteTime(candidate).ToString("HH:mm:ss");
+                }
             }
             catch (System.Exception e) { GD.PushWarning($"[KitBrowser] build stamp unavailable: {e.Message}"); }
             return "unknown";
@@ -179,8 +168,8 @@ namespace Beep.ECS.Scenes
             // Genre is GLOBAL, not per-node: KitChrome.GenreOf ignores its argument and reads
             // SkinCatalog.ActiveGenre. Theme/palette/geometry are left empty so the comparison
             // varies exactly ONE axis — the same reason KitProofProbe holds colour constant.
-            string theme = SkinCatalog.GetGenre(genre)?.DefaultTheme ?? "";
-            SkinCatalog.SetActiveSkin(genre, theme, "default", "");
+            string theme = PreferredThemeFor(genre);
+            _theme?.SetThemeSelection(genre, theme, "default", "");
 
             // Everything except the themer — it lives here so it can theme this subtree, and
             // freeing it would take the palette with it.
@@ -201,34 +190,61 @@ namespace Beep.ECS.Scenes
             // applying before the rebuild would theme an empty container and leave every new
             // widget unthemed — the half-applied state this class rebuilds to avoid.
             if (_theme != null)
-            {
-                _theme.GenreName = genre;
-                _theme.PresetName = theme;
-                _theme.PaletteName = "default";
                 _theme.ApplyTheme();
-            }
         }
 
-        private HFlowContainer Section(string title)
+        private string PreferredThemeFor(string genre)
+        {
+            var genreDef = SkinCatalog.GetGenre(genre);
+            if (genreDef == null) return "";
+
+            if (genre.Equals((string.IsNullOrWhiteSpace(StartGenre) ? "citybuilder" : StartGenre).ToLowerInvariant(),
+                    System.StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(StartTheme)
+                && genreDef.Themes.ContainsKey(StartTheme.ToLowerInvariant()))
+            {
+                return StartTheme.ToLowerInvariant();
+            }
+
+            return genreDef.DefaultTheme ?? "";
+        }
+
+        private bool CompactLayout()
+        {
+            float width = Size.X > 0f ? Size.X : GetViewportRect().Size.X;
+            return width > 0f && width < 560f;
+        }
+
+        private Container Section(string title)
         {
             var head = new Label { Text = title };
-            head.AddThemeFontSizeOverride("font_size", SectionFont);
-            head.AddThemeColorOverride("font_color", new Color(0.85f, 0.88f, 1f));
+            KitChrome.SetFontSizeOverrideIfChanged(head, "font_size", SectionFont);
+            KitChrome.SetColorOverrideIfChanged(head, "font_color", new Color(0.85f, 0.88f, 1f));
             _content!.AddChild(head);
 
+            if (CompactLayout())
+            {
+                var list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+                KitChrome.SetConstantOverrideIfChanged(list, "separation", 14);
+                _content.AddChild(list);
+                return list;
+            }
+
             var flow = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            flow.AddThemeConstantOverride("h_separation", 18);
-            flow.AddThemeConstantOverride("v_separation", 16);
+            KitChrome.SetConstantOverrideIfChanged(flow, "h_separation", 18);
+            KitChrome.SetConstantOverrideIfChanged(flow, "v_separation", 16);
             _content.AddChild(flow);
             return flow;
         }
 
         /// <summary>One labelled cell. <paramref name="size"/> is a floor, not a cap: widgets that
         /// size themselves in _Ready keep their own minimum when it is larger.</summary>
-        private static void Card(HFlowContainer row, string name, Godot.Control w, Vector2 size)
+        private static void Card(Container row, string name, Godot.Control w, Vector2 size)
         {
             var box = new VBoxContainer();
-            box.AddThemeConstantOverride("separation", 4);
+            if (row is VBoxContainer)
+                box.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            KitChrome.SetConstantOverrideIfChanged(box, "separation", 4);
 
             w.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             w.SizeFlagsVertical = SizeFlags.ShrinkCenter;
@@ -246,20 +262,49 @@ namespace Beep.ECS.Scenes
                 w.CustomMinimumSize = new Vector2(Mathf.Max(w.CustomMinimumSize.X, size.X),
                                                   Mathf.Max(w.CustomMinimumSize.Y, size.Y));
 
+            string caption = HumanizeCaption(name);
             var cap = new Label
             {
-                Text = name,
+                Text = caption,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 // A floor, so a long widget name wraps instead of stretching its cell and
                 // ragging the flow; the widget's own width still wins when it is wider.
                 CustomMinimumSize = new Vector2(Mathf.Max(size.X, MinCellWidth), 0),
             };
-            cap.AddThemeFontSizeOverride("font_size", CaptionFont);
-            cap.AddThemeColorOverride("font_color", new Color(0.72f, 0.75f, 0.84f));
+            KitChrome.SetFontSizeOverrideIfChanged(cap, "font_size", CaptionFont);
+            KitChrome.SetColorOverrideIfChanged(cap, "font_color", new Color(0.72f, 0.75f, 0.84f));
             box.AddChild(cap);
 
             row.AddChild(box);
+        }
+
+        private static string HumanizeCaption(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "";
+
+            int variantStart = name.IndexOf(" (", System.StringComparison.Ordinal);
+            string main = variantStart >= 0 ? name[..variantStart] : name;
+            string variant = variantStart >= 0 ? name[variantStart..] : "";
+            if (main.StartsWith("Kit", System.StringComparison.Ordinal))
+                main = main[3..];
+
+            var words = new System.Text.StringBuilder(main.Length + variant.Length + 6);
+            for (int i = 0; i < main.Length; i++)
+            {
+                char c = main[i];
+                bool startsWord = i > 0
+                    && char.IsUpper(c)
+                    && (char.IsLower(main[i - 1])
+                     || (i + 1 < main.Length && char.IsLower(main[i + 1])));
+                if (startsWord)
+                    words.Append(' ');
+                words.Append(c);
+            }
+
+            words.Append(variant);
+            return words.ToString().Trim();
         }
 
         // ── sections ────────────────────────────────────────────────────────────────────
@@ -284,8 +329,7 @@ namespace Beep.ECS.Scenes
             Card(r, "KitKnob", Ranged(new KitKnob(), 0.65), new Vector2(74, 74));
 
             var sel = new KitArrowSelector();
-            sel.Options.AddRange(new[] { "EASY", "NORMAL", "HARD" });
-            sel.Current = 1;
+            sel.SetOptions(new[] { "EASY", "NORMAL", "HARD" }, 1);
             Card(r, "KitArrowSelector", sel, new Vector2(170, 42));
 
             var stars = new KitStarRating();
@@ -307,8 +351,7 @@ namespace Beep.ECS.Scenes
             Card(r, "KitLabelValue", new KitLabelValue { Label = "ATTACK", Value = "7" }, new Vector2(150, 34));
 
             var cur = new KitCurrencyBar();
-            cur.Entries.Clear();
-            cur.Entries.AddRange(new[]
+            cur.SetEntries(new[]
             {
                 new KitCurrencyBar.Entry { Value = "12,480", Glyph = "$", Accent = UiSurface.Role.Warning },
                 new KitCurrencyBar.Entry { Value = "340", Glyph = "*", Accent = UiSurface.Role.Info },
@@ -349,7 +392,7 @@ namespace Beep.ECS.Scenes
             var r = Section("Inventory & progression");
 
             var grid = new KitSlotGrid { Columns = 4, Rows = 3, Selected = 1 };
-            grid.Slots.AddRange(new[]
+            grid.SetSlots(new[]
             {
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Filled, Count = 12, Tint = UiSurface.Role.Info },
                 new KitSlotGrid.Slot { Kind = KitSlotGrid.SlotKind.Filled, Count = 3 },
@@ -371,26 +414,23 @@ namespace Beep.ECS.Scenes
                  new Vector2(130, 190));
 
             var tree = new KitTree { Columns = 4, Tiers = 3, Selected = 1 };
-            tree.Nodes.AddRange(new[]
+            tree.SetNodes(new[]
             {
                 new KitTree.Node { Column = 1, Tier = 0, Branch = 0, State = KitTree.NodeState.Owned, Cost = 1 },
-                new KitTree.Node { Column = 0, Tier = 1, Branch = 0, State = KitTree.NodeState.Available, Cost = 2 },
-                new KitTree.Node { Column = 2, Tier = 1, Branch = 1, State = KitTree.NodeState.Available, Cost = 2 },
-                new KitTree.Node { Column = 1, Tier = 2, Branch = 2, State = KitTree.NodeState.Locked },
+                new KitTree.Node { Column = 0, Tier = 1, Branch = 0, State = KitTree.NodeState.Available, Cost = 2, Parents = { 0 } },
+                new KitTree.Node { Column = 2, Tier = 1, Branch = 1, State = KitTree.NodeState.Available, Cost = 2, Parents = { 0 } },
+                new KitTree.Node { Column = 1, Tier = 2, Branch = 2, State = KitTree.NodeState.Locked, Parents = { 1 } },
             });
-            tree.Nodes[1].Parents.Add(0);
-            tree.Nodes[2].Parents.Add(0);
-            tree.Nodes[3].Parents.Add(1);
             Card(r, "KitTree", tree, new Vector2(240, 190));
 
-            var path = new KitLevelPath { PerRow = 4, Current = 2 };
-            path.Levels.AddRange(new[]
+            var path = new KitLevelPath { PerRow = 4 };
+            path.SetLevels(new[]
             {
                 new KitLevelPath.Level { Label = "1", State = KitLevelPath.LevelState.Complete, Stars = 3 },
                 new KitLevelPath.Level { Label = "2", State = KitLevelPath.LevelState.Complete, Stars = 2 },
                 new KitLevelPath.Level { Label = "3", State = KitLevelPath.LevelState.Available },
                 new KitLevelPath.Level { Label = "4", State = KitLevelPath.LevelState.Locked },
-            });
+            }, current: 2);
             Card(r, "KitLevelPath", path, new Vector2(260, 130));
 
             Card(r, "KitLevelButton", new KitLevelButton(), new Vector2(74, 74));
@@ -401,8 +441,7 @@ namespace Beep.ECS.Scenes
             var r = Section("Navigation & ornament");
 
             var tabs = new KitTabStrip();
-            tabs.Tabs.Clear();
-            tabs.Tabs.AddRange(new[]
+            tabs.SetTabs(new[]
             {
                 new KitTabStrip.Tab { Text = "GEAR" },
                 new KitTabStrip.Tab { Text = "MAP", Badge = 3 },
@@ -413,7 +452,7 @@ namespace Beep.ECS.Scenes
             Card(r, "KitPager", new KitPager { Page = 1, MaxDots = 5 }, new Vector2(180, 40));
 
             var seg = new KitSegmentedIconGroup { Current = 1 };
-            seg.Segments.AddRange(new[]
+            seg.SetSegments(new[]
             {
                 new KitSegmentedIconGroup.Segment { Glyph = "A" },
                 new KitSegmentedIconGroup.Segment { Glyph = "B" },
@@ -428,13 +467,15 @@ namespace Beep.ECS.Scenes
             Card(r, "KitAvatarFrame", new KitAvatarFrame { BadgeText = "24" }, new Vector2(84, 84));
 
             var radar = new KitRadarChart();
-            radar.Axes.AddRange(new[] { "ATK", "DEF", "SPD", "MAG", "LUK" });
-            radar.Values.AddRange(new[] { 0.8f, 0.5f, 0.65f, 0.9f, 0.35f });
+            radar.SetData(new[] { "ATK", "DEF", "SPD", "MAG", "LUK" },
+                          new[] { 0.8f, 0.5f, 0.65f, 0.9f, 0.35f });
             Card(r, "KitRadarChart", radar, new Vector2(150, 150));
 
             Card(r, "KitOrnament", new KitOrnament { Kind = KitOrnament.OrnamentKind.Crown }, new Vector2(90, 60));
             Card(r, "KitPanelHanger", new KitPanelHanger { Kind = KitPanelHanger.HangerKind.Chain }, Vector2.Zero);
-            Card(r, "KitSpinWheel", new KitSpinWheel(), new Vector2(140, 140));
+            var wheel = new KitSpinWheel();
+            wheel.SetWedges(new[] { "50", "10", "x2", "5", "100", "1", "x3", "25" });
+            Card(r, "KitSpinWheel", wheel, new Vector2(140, 140));
         }
 
         // ── helpers ─────────────────────────────────────────────────────────────────────

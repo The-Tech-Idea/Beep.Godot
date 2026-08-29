@@ -37,6 +37,11 @@ namespace Beep.ECS
         [Signal] public delegate void DashStartedEventHandler(Vector2 direction);
         [Signal] public delegate void DashEndedEventHandler();
 
+        public float EffectiveDashSpeed => NonNegative(DashSpeed);
+        public float EffectiveDashDuration => NonNegative(DashDuration);
+        public float EffectiveDashCooldown => NonNegative(DashCooldown);
+        public float EffectiveStaminaCost => NonNegative(StaminaCost);
+
         private CharacterBody2D? _body;
         private StatusEffectComponent? _statusEffects;
         private HungerStaminaComponent? _stamina;
@@ -58,8 +63,10 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || !IsActive) return;
-            float dt = (float)delta;
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
+            if (!IsFinite(_dashDirection)) _dashDirection = Vector2.Right;
 
             if (_dashTimer > 0)
             {
@@ -67,8 +74,9 @@ namespace Beep.ECS
                 // Apply dash velocity. X always; Y only when the dash has vertical intent, so a
                 // platformer's horizontal dash still leaves gravity to control Y, while a
                 // top-down/fly vertical dash actually moves (the Y component used to be discarded).
-                float vx = _dashDirection.X * DashSpeed;
-                float vy = _dashDirection.Y != 0f ? _dashDirection.Y * DashSpeed : _body.Velocity.Y;
+                float dashSpeed = EffectiveDashSpeed;
+                float vx = _dashDirection.X * dashSpeed;
+                float vy = _dashDirection.Y != 0f ? _dashDirection.Y * dashSpeed : _body.Velocity.Y;
                 _body.Velocity = new Vector2(vx, vy);
                 // Set-only: the sibling controller owns MoveAndSlide. Calling it here too
                 // integrated the body twice per frame (~2x dash distance) — the same fix
@@ -76,7 +84,7 @@ namespace Beep.ECS
 
                 // Apply invincibility effect during dash.
                 if (GrantIFrames && _statusEffects != null && !_statusEffects.HasEffect("invincible"))
-                    _statusEffects.ApplyEffect("invincible", DashDuration, isBuff: true, stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
+                    _statusEffects.ApplyEffect("invincible", EffectiveDashDuration, isBuff: true, stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
 
                 if (_dashTimer <= 0)
                 {
@@ -95,19 +103,22 @@ namespace Beep.ECS
                 if (InputActionsAvailable(DashAction, "move_left", "move_right", "move_up", "move_down")
                     && Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0 && !stunned)
                 {
+                    if (EffectiveDashDuration <= 0f || EffectiveDashSpeed <= 0f)
+                        return;
+
                     // Pay stamina if a HungerStaminaComponent is present — refuses when exhausted.
-                    if (_stamina != null && !_stamina.TryConsumeStamina(StaminaCost))
+                    if (_stamina != null && !_stamina.TryConsumeStamina(EffectiveStaminaCost))
                         return;
                     // Determine direction from input, fall back to facing.
                     float x = Input.GetAxis("move_left", "move_right");
                     float y = Input.GetAxis("move_up", "move_down");
                     _dashDirection = new Vector2(x, y);
-                    if (_dashDirection == Vector2.Zero)
+                    if (!IsFinite(_dashDirection) || _dashDirection == Vector2.Zero)
                         _dashDirection = new Vector2(_body.Velocity.X >= 0 ? 1f : -1f, 0f);
                     _dashDirection = _dashDirection.Normalized();
 
-                    _dashTimer = DashDuration;
-                    _cooldownTimer = DashCooldown;
+                    _dashTimer = EffectiveDashDuration;
+                    _cooldownTimer = EffectiveDashCooldown;
                     EmitSignal(SignalName.DashStarted, _dashDirection);
                 }
             }
@@ -115,5 +126,9 @@ namespace Beep.ECS
 
         /// <summary>Reset cooldown (e.g. on landing for "ground dash only" games).</summary>
         public void ResetCooldown() => _cooldownTimer = 0;
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

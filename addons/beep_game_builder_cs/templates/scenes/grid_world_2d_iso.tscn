@@ -1,0 +1,1117 @@
+[gd_scene load_steps=55 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs" id="grid_object"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectInspectorComponent.cs" id="grid_object_inspector"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridMinimapComponent.cs" id="grid_minimap"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPlacementComponent.cs" id="placement"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceWalletComponent.cs" id="resource_wallet"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceBarComponent.cs" id="resource_bar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceNodeComponent.cs" id="resource_node"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridResourceScatterComponent.cs" id="resource_scatter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProductionComponent.cs" id="production"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProductionPanelComponent.cs" id="production_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBuildCatalogComponent.cs" id="build_catalog"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBuildToolbarComponent.cs" id="build_toolbar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBuildSiteComponent.cs" id="build_site"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridNavigationComponent.cs" id="navigation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridRoadComponent.cs" id="roads"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSelectionComponent.cs" id="selection"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridJobBoardComponent.cs" id="job_board"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPathFollowerComponent.cs" id="follower"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridJobQueueComponent.cs" id="job_queue"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridJobEffectComponent.cs" id="job_effect"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerComponent.cs" id="worker"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs" id="worker_spawner_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerStatusPanelComponent.cs" id="worker_status_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSelectionJobCommandComponent.cs" id="selection_job_command"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs" id="world_state"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cell_data"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridToolActionComponent.cs" id="tool_action"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridToolPaletteComponent.cs" id="tool_palette"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeComponent.cs" id="interaction_mode"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeBarComponent.cs" id="interaction_mode_bar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridInteractionStatusComponent.cs" id="interaction_status"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridInteractionCursorComponent.cs" id="interaction_cursor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellOverlayComponent.cs" id="cell_overlay"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs" id="tilemap_bridge"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs" id="painterly_bridge"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="terrain_generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCalendarComponent.cs" id="calendar"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCalendarHudComponent.cs" id="calendar_hud"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCropCatalogComponent.cs" id="crop_catalog"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectiveTrackerComponent.cs" id="objective_tracker"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectivePanelComponent.cs" id="objective_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectiveEventBinderComponent.cs" id="objective_binder"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn" id="worker_unit_scene"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="hud_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="kit_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="kit_label"]
+
+[sub_resource type="PlaceholderTexture2D" id="base_texture"]
+size = Vector2(96, 72)
+
+[sub_resource type="PlaceholderTexture2D" id="worker_texture"]
+size = Vector2(64, 48)
+
+[sub_resource type="RectangleShape2D" id="worker_shape"]
+size = Vector2(24, 24)
+
+[node name="GridWorld2DIso" type="Node2D"]
+
+[node name="Terrain" type="Node" parent="."]
+script = ExtResource("terrain")
+WidthTiles = 64
+HeightTiles = 64
+TileSize = 64
+PixelsPerTile = 64
+MaxGeneratedPixels = 16777216
+PostSharpenStrength = 0.16
+GrainStrength = 0.0
+UseBundledMaterialTextures = false
+MaterialTextureStrength = 0.0
+EnableBiomeDetailLayers = true
+BiomeDetailCoverage = 0.30
+BiomeDetailPatchScale = 0.18
+BiomeDetailStrength = 0.48
+BiomeDetailDensity = 1.0
+GenerateOnReady = false
+
+[node name="VisualTileLayer" type="TileMapLayer" parent="."]
+
+[node name="TileMapBridge" type="Node" parent="."]
+script = ExtResource("tilemap_bridge")
+TileMapLayerPath = NodePath("../VisualTileLayer")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+PaintCells = true
+PaintRoads = true
+RoadsOverrideCells = true
+ClearBeforeRebuild = true
+
+[node name="TerrainBridge" type="Node" parent="."]
+script = ExtResource("painterly_bridge")
+PainterlyTerrainPath = NodePath("../Terrain")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+UsePainterDimensions = true
+AutoRebuildOnReady = true
+AutoRebuildOnChanges = true
+GenerateBeforeFirstRebuild = true
+RebuildInEditor = false
+PaintRoads = true
+
+[node name="Grid" type="Node2D" parent="."]
+script = ExtResource("grid")
+TileSize = Vector2(64, 64)
+DrawGrid = true
+DrawRadius = 16
+
+[node name="Placement" type="Node2D" parent="."]
+script = ExtResource("placement")
+GridPath = NodePath("../Grid")
+PlacementRootPath = NodePath("../Buildings")
+ResourceWalletPath = NodePath("../Resources")
+CellDataPath = NodePath("../Cells")
+NavigationPath = NodePath("../Navigation")
+Footprint = Vector2i(1, 1)
+KeepPlacingAfterConfirm = true
+MarkPlacedCellsOccupied = true
+MarkPlacedCellsBlockedInNavigation = true
+SetZIndexFromY = true
+
+[node name="Resources" type="Node" parent="."]
+script = ExtResource("resource_wallet")
+SaveKey = "grid_resources.state"
+StartingResourceAmounts = {
+"coins": 450,
+"parts": 18,
+"stone": 35,
+"wood": 120
+}
+
+[node name="BuildCatalog" type="Node" parent="."]
+script = ExtResource("build_catalog")
+PlacementPath = NodePath("../Placement")
+ResourceWalletPath = NodePath("../Resources")
+
+[node name="BuildSites" type="Node" parent="."]
+script = ExtResource("build_site")
+PlacementPath = NodePath("../Placement")
+BuildCatalogPath = NodePath("../BuildCatalog")
+JobQueuePath = NodePath("../Jobs")
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+PlacementPath = NodePath("../Placement")
+RoadPath = NodePath("../Roads")
+CellDataPath = NodePath("../Cells")
+BoundsOrigin = Vector2i(0, 0)
+BoundsSize = Vector2i(64, 64)
+Diagonals = 2
+TreatPlacementOccupiedAsBlocked = true
+
+[node name="Roads" type="Node2D" parent="."]
+script = ExtResource("roads")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+DefaultRoadKind = "dirt_path"
+DefaultRoadCostMultiplier = 0.55
+DrawRoads = true
+
+[node name="Selection" type="Node2D" parent="."]
+script = ExtResource("selection")
+GridPath = NodePath("../Grid")
+Mode = 1
+DrawSelection = true
+DrawHover = true
+
+[node name="CellOverlay" type="Node2D" parent="."]
+script = ExtResource("cell_overlay")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+
+[node name="InteractionCursor" type="Node2D" parent="."]
+script = ExtResource("interaction_cursor")
+GridPath = NodePath("../Grid")
+InteractionModePath = NodePath("../Commands/InteractionMode")
+SelectionPath = NodePath("../Selection")
+PlacementPath = NodePath("../Placement")
+ZIndex = 4090
+
+[node name="Buildings" type="Node2D" parent="."]
+
+[node name="ProductionBuildings" type="Node2D" parent="."]
+
+[node name="SampleWorkshop" type="Node2D" parent="ProductionBuildings"]
+position = Vector2(288, 160)
+
+[node name="GridObject" type="Node" parent="ProductionBuildings/SampleWorkshop"]
+script = ExtResource("grid_object")
+ObjectId = "sample_workshop"
+DisplayName = "Sample Workshop"
+Category = "Production"
+Cell = Vector2i(4, 2)
+Footprint = Vector2i(2, 2)
+BlocksNavigation = true
+PlacementPath = NodePath("../../Placement")
+NavigationPath = NodePath("../../Navigation")
+ReserveFootprintOnReady = true
+Selectable = true
+Complete = true
+
+[node name="Production" type="Node" parent="ProductionBuildings/SampleWorkshop"]
+script = ExtResource("production")
+ResourceWalletPath = NodePath("../../../Resources")
+ActiveRecipeId = "planks"
+AutoStart = false
+Loop = true
+
+[node name="ResourceNodes" type="Node2D" parent="."]
+
+[node name="ResourceScatter" type="Node" parent="ResourceNodes"]
+script = ExtResource("resource_scatter")
+GridPath = NodePath("../../Grid")
+ResourceRootPath = NodePath("..")
+PlacementPath = NodePath("../../Placement")
+CellDataPath = NodePath("../../Cells")
+ResourceWalletPath = NodePath("../../Resources")
+JobQueuePath = NodePath("../../Jobs")
+GenerateOnReady = false
+BoundsOrigin = Vector2i(0, 0)
+BoundsSize = Vector2i(24, 24)
+Density = 0.08
+MaxNodes = 36
+MarkGeneratedCellsOccupied = true
+ResourceId = "wood"
+MinAmount = 2
+MaxAmount = 6
+
+[node name="SampleTree" type="Node2D" parent="ResourceNodes"]
+script = ExtResource("resource_node")
+GridPath = NodePath("../../Grid")
+PlacementPath = NodePath("../../Placement")
+ResourceWalletPath = NodePath("../../Resources")
+JobQueuePath = NodePath("../../Jobs")
+UseExplicitCell = true
+Cell = Vector2i(5, 5)
+ResourceId = "wood"
+Amount = 5
+AmountPerGather = 1
+GatherJobKind = "gather"
+GatherSeconds = 1.5
+MarkCellOccupiedOnReady = true
+
+[node name="Crown" type="Polygon2D" parent="ResourceNodes/SampleTree"]
+polygon = PackedVector2Array(0, -18, 15, -7, 10, 12, -10, 12, -15, -7)
+color = Color(0.18, 0.48, 0.22, 1)
+
+[node name="Base" type="Node2D" parent="."]
+position = Vector2(160, 160)
+
+[node name="Sprite2D" type="Sprite2D" parent="Base"]
+position = Vector2(0, -28)
+texture = SubResource("base_texture")
+
+[node name="WorkerSpawner" type="Node" parent="Base"]
+script = ExtResource("worker_spawner")
+UnitScene = ExtResource("worker_unit_scene")
+UnitsRootPath = NodePath("../../Units")
+GridPath = NodePath("../../Grid")
+NavigationPath = NodePath("../../Navigation")
+JobQueuePath = NodePath("../../Jobs")
+CellDataPath = NodePath("../../Cells")
+PlacementPath = NodePath("../../Placement")
+SpawnCell = Vector2i(2, 2)
+AutoSpawnOnReady = false
+InitialWorkers = 1
+MaxWorkers = 8
+DefaultUnitSpeed = 140.0
+
+[node name="Cells" type="Node" parent="."]
+script = ExtResource("cell_data")
+DefaultTerrainKind = "grass"
+ClearWaterOnNewDay = true
+
+[node name="TerrainGenerator" type="Node" parent="."]
+script = ExtResource("terrain_generator")
+CellDataPath = NodePath("../Cells")
+PainterlyTerrainPath = NodePath("../Terrain")
+UsePainterSettings = true
+GenerateOnReady = false
+GenerateInEditor = false
+ClearExistingCells = true
+
+[node name="Calendar" type="Node" parent="."]
+script = ExtResource("calendar")
+CellDataPath = NodePath("../Cells")
+AutoAdvance = false
+SecondsPerDay = 45.0
+DaysPerSeason = 28
+
+[node name="Crops" type="Node" parent="."]
+script = ExtResource("crop_catalog")
+AllowUnknownCrops = true
+
+[node name="Objectives" type="Node" parent="."]
+script = ExtResource("objective_tracker")
+SaveKey = "grid_objectives.state"
+AutoActivateAll = true
+
+[node name="ObjectiveEvents" type="Node" parent="Objectives"]
+script = ExtResource("objective_binder")
+ObjectiveTrackerPath = NodePath("..")
+JobQueuePath = NodePath("../../Jobs")
+BuildSitePath = NodePath("../../BuildSites")
+ResourceNodesRootPath = NodePath("../../ResourceNodes")
+ProductionRootPath = NodePath("../../ProductionBuildings")
+
+[node name="Jobs" type="Node" parent="."]
+script = ExtResource("job_queue")
+DefaultWorkSeconds = 1.5
+
+[node name="JobEffects" type="Node" parent="."]
+script = ExtResource("job_effect")
+JobQueuePath = NodePath("../Jobs")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+ObjectsRootPath = NodePath(".")
+ToolActionPath = NodePath("../Commands/Tools")
+ResourceNodesRootPath = NodePath("../ResourceNodes")
+
+[node name="Commands" type="Node" parent="."]
+
+[node name="InteractionMode" type="Node" parent="Commands"]
+script = ExtResource("interaction_mode")
+GridPath = NodePath("../../Grid")
+SelectionPath = NodePath("../../Selection")
+ToolActionPath = NodePath("../Tools")
+PlacementPath = NodePath("../../Placement")
+ManageChildMouseInput = true
+
+[node name="Tools" type="Node" parent="Commands"]
+script = ExtResource("tool_action")
+GridPath = NodePath("../../Grid")
+CellDataPath = NodePath("../../Cells")
+SelectionPath = NodePath("../../Selection")
+JobQueuePath = NodePath("../../Jobs")
+RoadPath = NodePath("../../Roads")
+NavigationPath = NodePath("../../Navigation")
+CropCatalogPath = NodePath("../../Crops")
+CalendarPath = NodePath("../../Calendar")
+ResourceWalletPath = NodePath("../../Resources")
+CurrentAction = 1
+RoadKind = "dirt_path"
+RoadCostMultiplier = 0.55
+CropId = "turnip"
+CropDaysToMature = 3
+JobKind = "clear_land"
+JobWorkSeconds = 1.5
+
+[node name="ClearLandCommand" type="Node" parent="Commands"]
+script = ExtResource("selection_job_command")
+SelectionPath = NodePath("../../Selection")
+JobQueuePath = NodePath("../../Jobs")
+CellDataPath = NodePath("../../Cells")
+NavigationPath = NodePath("../../Navigation")
+JobKind = "clear_land"
+WorkSeconds = 1.5
+Priority = 0
+ClearSelectionAfterQueue = true
+
+[node name="State" type="Node" parent="."]
+script = ExtResource("world_state")
+PlacementPath = NodePath("../Placement")
+NavigationPath = NodePath("../Navigation")
+SelectionPath = NodePath("../Selection")
+JobQueuePath = NodePath("../Jobs")
+CellDataPath = NodePath("../Cells")
+RoadPath = NodePath("../Roads")
+ObjectsRootPath = NodePath(".")
+
+[node name="Units" type="Node2D" parent="."]
+
+[node name="Worker" type="CharacterBody2D" parent="Units"]
+position = Vector2(32, 32)
+
+[node name="Sprite2D" type="Sprite2D" parent="Units/Worker"]
+position = Vector2(0, -12)
+texture = SubResource("worker_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Units/Worker"]
+shape = SubResource("worker_shape")
+
+[node name="PathFollower" type="Node" parent="Units/Worker"]
+script = ExtResource("follower")
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+Speed = 140.0
+DriveCharacterBody = true
+SetZIndexFromY = true
+
+[node name="GridWorker" type="Node" parent="Units/Worker"]
+script = ExtResource("worker")
+JobQueuePath = NodePath("../../../Jobs")
+GridPath = NodePath("../../../Grid")
+PathFollowerPath = NodePath("../PathFollower")
+WorkerId = "worker_1"
+AutoClaimJobs = true
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(640, 360)
+enabled = true
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="GridCameraController" type="Node" parent="Camera2D"]
+script = ExtResource("camera_controller")
+UseMouseDrag = true
+DragButton = 3
+UseWheelZoom = true
+UseKeyboardPan = true
+UseEdgePan = false
+UseBounds = true
+BoundsPosition = Vector2(0, 0)
+BoundsSize = Vector2(4096, 4096)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="ResourceBar" type="Control" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 40.0
+grow_horizontal = 2
+script = ExtResource("resource_bar")
+ResourceWalletPath = NodePath("../../Resources")
+BoundResourceIds = Array[String](["wood", "stone", "parts", "coins"])
+BoundLabelPaths = Array[NodePath]([NodePath("Row/Wood"), NodePath("Row/Stone"), NodePath("Row/Parts"), NodePath("Row/Coins")])
+
+[node name="Theme" type="Node" parent="HUD/ResourceBar"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Row" type="HBoxContainer" parent="HUD/ResourceBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Wood" type="Label" parent="HUD/ResourceBar/Row"]
+custom_minimum_size = Vector2(96, 32)
+layout_mode = 2
+text = "wood: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+
+[node name="Stone" type="Label" parent="HUD/ResourceBar/Row"]
+custom_minimum_size = Vector2(96, 32)
+layout_mode = 2
+text = "stone: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+
+[node name="Parts" type="Label" parent="HUD/ResourceBar/Row"]
+custom_minimum_size = Vector2(96, 32)
+layout_mode = 2
+text = "parts: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+
+[node name="Coins" type="Label" parent="HUD/ResourceBar/Row"]
+custom_minimum_size = Vector2(96, 32)
+layout_mode = 2
+text = "coins: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("kit_label")
+
+[node name="CalendarHud" type="Control" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -212.0
+offset_top = 8.0
+offset_right = -16.0
+offset_bottom = 44.0
+grow_horizontal = 0
+script = ExtResource("calendar_hud")
+CalendarPath = NodePath("../../Calendar")
+DateLabelPath = NodePath("Panel/Date")
+ShowProgress = false
+ShowAdvanceButton = false
+
+[node name="Theme" type="Node" parent="HUD/CalendarHud"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/CalendarHud"]
+custom_minimum_size = Vector2(196, 36)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "DAY"
+TitleStyle = 0
+Intent = 0
+
+[node name="Date" type="Label" parent="HUD/CalendarHud/Panel"]
+layout_mode = 2
+text = "Year 1, Spring 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="ModeBar" type="Control" parent="HUD"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -190.0
+offset_top = 48.0
+offset_right = 190.0
+offset_bottom = 88.0
+grow_horizontal = 2
+script = ExtResource("interaction_mode_bar")
+InteractionModePath = NodePath("../../Commands/InteractionMode")
+BoundModeNames = Array[String](["Select", "Inspect", "Tool", "Build"])
+BoundButtonPaths = Array[NodePath]([NodePath("Row/Select"), NodePath("Row/Inspect"), NodePath("Row/Tools"), NodePath("Row/Build")])
+GenerateControlsWhenPathsEmpty = false
+
+[node name="Theme" type="Node" parent="HUD/ModeBar"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Row" type="HBoxContainer" parent="HUD/ModeBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Select" type="Button" parent="HUD/ModeBar/Row"]
+custom_minimum_size = Vector2(88, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Select"
+script = ExtResource("kit_button")
+
+[node name="Inspect" type="Button" parent="HUD/ModeBar/Row"]
+custom_minimum_size = Vector2(88, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Inspect"
+script = ExtResource("kit_button")
+
+[node name="Tools" type="Button" parent="HUD/ModeBar/Row"]
+custom_minimum_size = Vector2(88, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Tools"
+script = ExtResource("kit_button")
+
+[node name="Build" type="Button" parent="HUD/ModeBar/Row"]
+custom_minimum_size = Vector2(88, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Build"
+script = ExtResource("kit_button")
+
+[node name="InteractionStatus" type="Control" parent="HUD"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -190.0
+offset_top = 92.0
+offset_right = 190.0
+offset_bottom = 126.0
+grow_horizontal = 2
+script = ExtResource("interaction_status")
+InteractionModePath = NodePath("../../Commands/InteractionMode")
+SelectionPath = NodePath("../../Selection")
+ToolActionPath = NodePath("../../Commands/Tools")
+PlacementPath = NodePath("../../Placement")
+StatusLabelPath = NodePath("Panel/Status")
+
+[node name="Theme" type="Node" parent="HUD/InteractionStatus"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/InteractionStatus"]
+custom_minimum_size = Vector2(380, 34)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+TitleStyle = 0
+Intent = 0
+
+[node name="Status" type="Label" parent="HUD/InteractionStatus/Panel"]
+layout_mode = 2
+text = "Select"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="ToolPalette" type="Control" parent="HUD"]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -112.0
+offset_top = -130.0
+offset_bottom = 130.0
+grow_horizontal = 0
+grow_vertical = 2
+script = ExtResource("tool_palette")
+ToolActionPath = NodePath("../../Commands/Tools")
+InteractionModePath = NodePath("../../Commands/InteractionMode")
+BoundActionNames = Array[String](["Clear", "Hoe", "Water", "Plant", "Harvest", "QueueJob", "Road", "RemoveRoad"])
+BoundButtonPaths = Array[NodePath]([NodePath("Row/Clear"), NodePath("Row/Hoe"), NodePath("Row/Water"), NodePath("Row/Plant"), NodePath("Row/Harvest"), NodePath("Row/Job"), NodePath("Row/Road"), NodePath("Row/NoRoad")])
+GenerateControlsWhenPathsEmpty = false
+
+[node name="Theme" type="Node" parent="HUD/ToolPalette"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Row" type="VBoxContainer" parent="HUD/ToolPalette"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Clear" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Clear"
+script = ExtResource("kit_button")
+
+[node name="Hoe" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Hoe"
+script = ExtResource("kit_button")
+
+[node name="Water" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Water"
+script = ExtResource("kit_button")
+
+[node name="Plant" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Plant"
+script = ExtResource("kit_button")
+
+[node name="Harvest" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Harvest"
+script = ExtResource("kit_button")
+
+[node name="Job" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Job"
+script = ExtResource("kit_button")
+
+[node name="Road" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "Road"
+script = ExtResource("kit_button")
+
+[node name="NoRoad" type="Button" parent="HUD/ToolPalette/Row"]
+custom_minimum_size = Vector2(96, 34)
+layout_mode = 2
+text = "No Road"
+script = ExtResource("kit_button")
+
+[node name="BasePanel" type="Control" parent="HUD"]
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 52.0
+offset_right = 204.0
+offset_bottom = 138.0
+script = ExtResource("worker_spawner_panel")
+SpawnerPath = NodePath("../../Base/WorkerSpawner")
+TitleLabelPath = NodePath("Panel/Content/Title")
+CountLabelPath = NodePath("Panel/Content/Count")
+SpawnButtonPath = NodePath("Panel/Content/SpawnButton")
+TitleText = "Base"
+SpawnButtonText = "Spawn Truck"
+
+[node name="Theme" type="Node" parent="HUD/BasePanel"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/BasePanel"]
+custom_minimum_size = Vector2(176, 78)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "BASE"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/BasePanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/BasePanel/Panel/Content"]
+layout_mode = 2
+text = "Base"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Count" type="Label" parent="HUD/BasePanel/Panel/Content"]
+layout_mode = 2
+text = "Workers: 0/8"
+horizontal_alignment = 1
+script = ExtResource("kit_label")
+
+[node name="SpawnButton" type="Button" parent="HUD/BasePanel/Panel/Content"]
+custom_minimum_size = Vector2(132, 32)
+layout_mode = 2
+text = "Spawn Truck"
+script = ExtResource("kit_button")
+
+[node name="JobBoard" type="Control" parent="HUD"]
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 146.0
+offset_right = 252.0
+offset_bottom = 286.0
+script = ExtResource("job_board")
+JobQueuePath = NodePath("../../Jobs")
+TitleLabelPath = NodePath("Panel/Content/Title")
+SummaryLabelPath = NodePath("Panel/Content/Summary")
+RowsContainerPath = NodePath("Panel/Content/Rows")
+HideWhenEmpty = false
+MaxVisibleJobs = 5
+
+[node name="Theme" type="Node" parent="HUD/JobBoard"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/JobBoard"]
+custom_minimum_size = Vector2(236, 140)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "JOBS"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/JobBoard/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/JobBoard/Panel/Content"]
+layout_mode = 2
+text = "Jobs"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Summary" type="Label" parent="HUD/JobBoard/Panel/Content"]
+layout_mode = 2
+text = "Queued 0 | Active 0 | Done 0"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/JobBoard/Panel/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+
+[node name="WorkerStatus" type="Control" parent="HUD"]
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 294.0
+offset_right = 252.0
+offset_bottom = 430.0
+script = ExtResource("worker_status_panel")
+UnitsRootPath = NodePath("../../Units")
+JobQueuePath = NodePath("../../Jobs")
+TitleLabelPath = NodePath("Panel/Content/Title")
+SummaryLabelPath = NodePath("Panel/Content/Summary")
+RowsContainerPath = NodePath("Panel/Content/Rows")
+MaxVisibleWorkers = 5
+
+[node name="Theme" type="Node" parent="HUD/WorkerStatus"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/WorkerStatus"]
+custom_minimum_size = Vector2(236, 136)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "CREW"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/WorkerStatus/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/WorkerStatus/Panel/Content"]
+layout_mode = 2
+text = "Workers"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Summary" type="Label" parent="HUD/WorkerStatus/Panel/Content"]
+layout_mode = 2
+text = "Total 0 | Idle 0 | Active 0"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/WorkerStatus/Panel/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+
+[node name="ObjectivesPanel" type="Control" parent="HUD"]
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 438.0
+offset_right = 252.0
+offset_bottom = 568.0
+script = ExtResource("objective_panel")
+ObjectiveTrackerPath = NodePath("../../Objectives")
+TitleLabelPath = NodePath("Panel/Content/Title")
+SummaryLabelPath = NodePath("Panel/Content/Summary")
+RowsContainerPath = NodePath("Panel/Content/Rows")
+MaxVisibleObjectives = 5
+
+[node name="Theme" type="Node" parent="HUD/ObjectivesPanel"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/ObjectivesPanel"]
+custom_minimum_size = Vector2(236, 130)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "GOALS"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/ObjectivesPanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/ObjectivesPanel/Panel/Content"]
+layout_mode = 2
+text = "Objectives"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Summary" type="Label" parent="HUD/ObjectivesPanel/Panel/Content"]
+layout_mode = 2
+text = "Goals 0 | Done 0"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/ObjectivesPanel/Panel/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 2
+
+[node name="Minimap" type="Control" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -180.0
+offset_top = 52.0
+offset_right = -16.0
+offset_bottom = 172.0
+grow_horizontal = 0
+script = ExtResource("grid_minimap")
+GridPath = NodePath("../../Grid")
+NavigationPath = NodePath("../../Navigation")
+RoadPath = NodePath("../../Roads")
+SelectionPath = NodePath("../../Selection")
+JobQueuePath = NodePath("../../Jobs")
+UnitsRootPath = NodePath("../../Units")
+CameraPath = NodePath("../../Camera2D")
+BoundsSize = Vector2i(64, 64)
+
+[node name="BuildToolbar" type="Control" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -120.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("build_toolbar")
+BuildCatalogPath = NodePath("../../BuildCatalog")
+ResourceWalletPath = NodePath("../../Resources")
+InteractionModePath = NodePath("../../Commands/InteractionMode")
+CategoryRowPath = NodePath("Panel/Content/Categories")
+BuildGridPath = NodePath("Panel/Content/BuildScroll/Builds")
+GenerateControlsWhenPathsEmpty = false
+
+[node name="Theme" type="Node" parent="HUD/BuildToolbar"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/BuildToolbar"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "BUILD"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/BuildToolbar/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Categories" type="HBoxContainer" parent="HUD/BuildToolbar/Panel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BuildScroll" type="ScrollContainer" parent="HUD/BuildToolbar/Panel/Content"]
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 0
+
+[node name="Builds" type="GridContainer" parent="HUD/BuildToolbar/Panel/Content/BuildScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 8
+
+[node name="ObjectInspector" type="Control" parent="HUD"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -226.0
+offset_right = -16.0
+offset_bottom = -136.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("grid_object_inspector")
+SelectionPath = NodePath("../../Selection")
+ObjectsRootPath = NodePath("../..")
+PanelPath = NodePath("Panel")
+TitleLabelPath = NodePath("Panel/Content/Title")
+DetailsLabelPath = NodePath("Panel/Content/Details")
+HideWhenEmpty = true
+
+[node name="Theme" type="Node" parent="HUD/ObjectInspector"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/ObjectInspector"]
+custom_minimum_size = Vector2(244, 90)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "INSPECT"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/ObjectInspector/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/ObjectInspector/Panel/Content"]
+layout_mode = 2
+text = "No object selected"
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Details" type="Label" parent="HUD/ObjectInspector/Panel/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+script = ExtResource("kit_label")
+
+[node name="ProductionPanel" type="Control" parent="HUD"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -374.0
+offset_right = -16.0
+offset_bottom = -236.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("production_panel")
+ProductionRootPath = NodePath("../../ProductionBuildings")
+TitleLabelPath = NodePath("Panel/Content/Title")
+SummaryLabelPath = NodePath("Panel/Content/Summary")
+RowsContainerPath = NodePath("Panel/Content/Rows")
+MaxVisibleMachines = 5
+
+[node name="Theme" type="Node" parent="HUD/ProductionPanel"]
+script = ExtResource("hud_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+
+[node name="Panel" type="PanelContainer" parent="HUD/ProductionPanel"]
+custom_minimum_size = Vector2(244, 138)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("kit_panel")
+Title = "PRODUCTION"
+TitleStyle = 1
+Intent = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/ProductionPanel/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/ProductionPanel/Panel/Content"]
+layout_mode = 2
+text = "Production"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Summary" type="Label" parent="HUD/ProductionPanel/Panel/Content"]
+layout_mode = 2
+text = "Machines 0 | Active 0"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+script = ExtResource("kit_label")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/ProductionPanel/Panel/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 2

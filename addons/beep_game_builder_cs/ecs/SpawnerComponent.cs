@@ -33,10 +33,15 @@ namespace Beep.ECS
         private int _spawnedCount;
         private System.Collections.Generic.HashSet<Node> _activeSpawned = new();
 
+        public float EffectiveSpawnInterval => Mathf.Max(0.001f, FiniteOr(SpawnInterval, 3f));
+        public int EffectiveMaxSpawned => Mathf.Max(0, MaxSpawned);
+        public Vector2 EffectiveSpawnOffset => FiniteVectorOr(SpawnOffset, Vector2.Zero);
+        public Vector2 EffectiveSpawnRandomRange => new(NonNegativeAbs(SpawnRandomRange.X), NonNegativeAbs(SpawnRandomRange.Y));
+
         public override void _Ready()
         {
             base._Ready();
-            _timer = SpawnOnStart ? 0 : SpawnInterval;
+            _timer = SpawnOnStart ? 0f : EffectiveSpawnInterval;
             // SpawnScene is explicitly named in CLAUDE.md as a must-warn null export: a spawner with
             // no scene sits inert on its timer and used to say nothing.
             if (!Engine.IsEditorHint() && SpawnScene == null)
@@ -50,14 +55,14 @@ namespace Beep.ECS
             // the scene on a timer just from being opened in the editor.
             if (Engine.IsEditorHint()) return;
             if (!IsActive || SpawnScene == null) return;
-            if (_spawnedCount >= MaxSpawned) return;
+            if (_spawnedCount >= EffectiveMaxSpawned) return;
 
-            _timer -= (float)delta;
+            _timer = Mathf.Max(0f, FiniteOr(_timer, 0f) - DeltaSeconds(delta));
             if (_timer <= 0)
             {
                 // Adaptive difficulty shortens the interval when the player is doing well (more
                 // spawns) and lengthens it when they're struggling. Opt-in: no component = 1.0×.
-                _timer = SpawnInterval * DifficultyIntervalScale();
+                _timer = EffectiveSpawnInterval * DifficultyIntervalScale();
                 Spawn();
             }
         }
@@ -75,13 +80,13 @@ namespace Beep.ECS
                     if (n is AdaptiveDifficultyComponent a) { _adaptive = a; break; }
             }
             return _adaptive != null && GodotObject.IsInstanceValid(_adaptive)
-                ? _adaptive.GetSpawnIntervalScale() : 1f;
+                ? Mathf.Max(0.001f, FiniteOr(_adaptive.GetSpawnIntervalScale(), 1f)) : 1f;
         }
 
         public Node? Spawn()
         {
             if (SpawnScene == null || !IsActive) return null;
-            if (_spawnedCount >= MaxSpawned) { EmitSignal(SignalName.SpawnLimitReached); return null; }
+            if (_spawnedCount >= EffectiveMaxSpawned) { EmitSignal(SignalName.SpawnLimitReached); return null; }
 
             // A Node2D parent spawns into the GRANDPARENT (so the instance is a world sibling, not glued
             // to the spawner); a non-Node2D parent spawns as its own child. Resolve the target first so
@@ -101,15 +106,18 @@ namespace Beep.ECS
             addTarget.AddChild(inst);
             if (parent is Node2D parent2D && inst is Node2D n2d)
             {
-                Vector2 randomOffset = SpawnRandomRange == Vector2.Zero ? Vector2.Zero :
+                Vector2 randomRange = EffectiveSpawnRandomRange;
+                Vector2 randomOffset = randomRange == Vector2.Zero ? Vector2.Zero :
                     new Vector2(
-                        (GD.Randf() * 2f - 1f) * SpawnRandomRange.X,
-                        (GD.Randf() * 2f - 1f) * SpawnRandomRange.Y
+                        (GD.Randf() * 2f - 1f) * randomRange.X,
+                        (GD.Randf() * 2f - 1f) * randomRange.Y
                     );
-                n2d.GlobalPosition = parent2D.GlobalPosition + SpawnOffset + randomOffset;
+                Vector2 parentPosition = IsFinite(parent2D.GlobalPosition) ? parent2D.GlobalPosition : Vector2.Zero;
+                n2d.GlobalPosition = parentPosition + EffectiveSpawnOffset + randomOffset;
             }
 
-            inst.AddToGroup(SpawnGroup);
+            if (!string.IsNullOrWhiteSpace(SpawnGroup))
+                inst.AddToGroup(SpawnGroup);
             _activeSpawned.Add(inst);
             _spawnedCount++;
             EmitSignal(SignalName.Spawned, inst);
@@ -127,5 +135,21 @@ namespace Beep.ECS
             _spawnedCount--;
             if (_spawnedCount <= 0) EmitSignal(SignalName.AllDespawned);
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegativeAbs(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, Mathf.Abs(value)) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static Vector2 FiniteVectorOr(Vector2 value, Vector2 fallback) => new(
+            float.IsFinite(value.X) ? value.X : fallback.X,
+            float.IsFinite(value.Y) ? value.Y : fallback.Y);
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

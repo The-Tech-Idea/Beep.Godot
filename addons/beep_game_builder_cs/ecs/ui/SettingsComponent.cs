@@ -141,6 +141,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (Engine.IsEditorHint()) return;
             LoadSettings();
         }
@@ -194,6 +195,7 @@ namespace Beep.ECS.UI
         {
             _saveDirty = true;
             _saveTimer = SaveDebounceSeconds;
+            UpdateProcessing();
         }
 
         /// <summary>Write now, skipping the debounce. Used on exit, where there is no later.</summary>
@@ -202,6 +204,7 @@ namespace Beep.ECS.UI
             _saveDirty = false;
             _saveTimer = 0f;
             _config.Save(SettingsPath);
+            UpdateProcessing();
         }
 
         /// <summary>How long changes must be quiet before the write lands.</summary>
@@ -212,7 +215,11 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint() || !_saveDirty) return;
+            if (Engine.IsEditorHint() || !_saveDirty)
+            {
+                UpdateProcessing();
+                return;
+            }
             _saveTimer -= (float)delta;
             if (_saveTimer <= 0f) FlushSettings();
         }
@@ -222,8 +229,12 @@ namespace Beep.ECS.UI
         public override void _ExitTree()
         {
             if (_saveDirty && !Engine.IsEditorHint()) FlushSettings();
+            SetProcess(false);
             base._ExitTree();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && _saveDirty);
 
         // ════════════════════════════════════════════════════════════════
         // Apply to engine

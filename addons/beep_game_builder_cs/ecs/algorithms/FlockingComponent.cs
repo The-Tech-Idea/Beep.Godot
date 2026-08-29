@@ -38,6 +38,14 @@ namespace Beep.ECS
         /// <summary>How sharply velocity turns toward the blended desired velocity (0-1 per tick).</summary>
         [Export(PropertyHint.Range, "0,1,0.01")] public float SteerLerp { get; set; } = 0.15f;
 
+        public float EffectiveMaxSpeed => NonNegative(MaxSpeed);
+        public float EffectiveNeighborRadius => NonNegative(NeighborRadius);
+        public float EffectiveSeparationRadius => NonNegative(SeparationRadius);
+        public float EffectiveSeparationWeight => NonNegative(SeparationWeight);
+        public float EffectiveAlignmentWeight => NonNegative(AlignmentWeight);
+        public float EffectiveCohesionWeight => NonNegative(CohesionWeight);
+        public float EffectiveSteerLerp => Mathf.Clamp(FiniteOr(SteerLerp, 0.15f), 0f, 1f);
+
         private CharacterBody2D? _body;
         private Vector2 _velocity;
         private bool _warnedNoGroup;
@@ -51,16 +59,17 @@ namespace Beep.ECS
                 GD.PushWarning($"[{Name}] FlockingComponent needs a CharacterBody2D parent to move; got '{GetParent()?.GetType().Name ?? "null"}'. The agent will stay inert.");
             if (string.IsNullOrEmpty(FlockGroup) && !Engine.IsEditorHint())
                 GD.PushWarning($"[{Name}] FlockGroup is empty — the agent has no flockmates to flock with and will fly straight. Set FlockGroup to the group its flockmates share.");
-            _velocity = Vector2.FromAngle(GD.Randf() * Mathf.Tau) * MaxSpeed;
+            _velocity = Vector2.FromAngle(GD.Randf() * Mathf.Tau) * EffectiveMaxSpeed;
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || !IsActive || _body == null) return;
+            if (!IsFinite(_velocity)) _velocity = Vector2.Zero;
 
             Vector2 desired = ComputeDesired();
-            _velocity = _velocity.Lerp(desired, SteerLerp);
-            _velocity = SteeringBehavior.Limit(_velocity, MaxSpeed);
+            _velocity = _velocity.Lerp(desired, EffectiveSteerLerp);
+            _velocity = SteeringBehavior.Limit(_velocity, EffectiveMaxSpeed);
 
             _body.Velocity = _velocity;
             _body.MoveAndSlide();
@@ -73,40 +82,53 @@ namespace Beep.ECS
         {
             if (_body == null || string.IsNullOrEmpty(FlockGroup)) return _velocity;
 
-            Vector2 pos = _body.GlobalPosition;
+            Vector2 pos = IsFinite(_body.GlobalPosition) ? _body.GlobalPosition : Vector2.Zero;
             Vector2 separation = Vector2.Zero;
             Vector2 alignment = Vector2.Zero;
             Vector2 cohesionCenter = Vector2.Zero;
             int neighbors = 0;
+            float neighborRadius = EffectiveNeighborRadius;
+            float separationRadius = EffectiveSeparationRadius;
+            float maxSpeed = EffectiveMaxSpeed;
 
             foreach (var n in GetTree().GetNodesInGroup(FlockGroup))
             {
                 if (n is not Node2D other || other == _body || !GodotObject.IsInstanceValid(other)) continue;
-                float dist = pos.DistanceTo(other.GlobalPosition);
-                if (dist > NeighborRadius) continue;
+                Vector2 otherPosition = IsFinite(other.GlobalPosition) ? other.GlobalPosition : Vector2.Zero;
+                float dist = pos.DistanceTo(otherPosition);
+                if (!float.IsFinite(dist) || dist > neighborRadius) continue;
 
                 neighbors++;
-                alignment += other is CharacterBody2D cb ? cb.Velocity : Vector2.Zero;
-                cohesionCenter += other.GlobalPosition;
-                if (dist < SeparationRadius && dist > 0.0001f)
-                    separation += (pos - other.GlobalPosition).Normalized() / dist;  // closer = stronger
+                alignment += other is CharacterBody2D cb && IsFinite(cb.Velocity) ? cb.Velocity : Vector2.Zero;
+                cohesionCenter += otherPosition;
+                if (dist < separationRadius && dist > 0.0001f)
+                    separation += (pos - otherPosition).Normalized() / dist;  // closer = stronger
             }
 
             if (neighbors == 0) return _velocity;
 
             // Alignment: match the flock's average heading.
             Vector2 alignDesired = alignment.LengthSquared() > 0.0001f
-                ? alignment.Normalized() * MaxSpeed : _velocity;
+                ? alignment.Normalized() * maxSpeed : _velocity;
             // Cohesion: steer toward the flock's center of mass.
             Vector2 cohesionDesired = SteeringBehavior.Arrive(
-                pos, cohesionCenter / neighbors, MaxSpeed, NeighborRadius * 0.5f);
+                pos, cohesionCenter / neighbors, maxSpeed, neighborRadius * 0.5f);
             // Separation: away from crowding neighbors, scaled to max speed.
             Vector2 separationDesired = separation.LengthSquared() > 0.0001f
-                ? separation.Normalized() * MaxSpeed : Vector2.Zero;
+                ? separation.Normalized() * maxSpeed : Vector2.Zero;
 
-            return alignDesired * AlignmentWeight
-                 + cohesionDesired * CohesionWeight
-                 + separationDesired * SeparationWeight;
+            return alignDesired * EffectiveAlignmentWeight
+                 + cohesionDesired * EffectiveCohesionWeight
+                 + separationDesired * EffectiveSeparationWeight;
         }
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
+
+        private static bool IsFinite(Vector2 value) =>
+            float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

@@ -16,6 +16,7 @@ public partial class BeepDropdown : KitPushButton
     private List<string> _allItems = new();
     private List<string> _filteredItems = new();
     private KitContextMenu? _menu;
+    private bool _pressedHooked;
 
     [Export] public string Placeholder { get; set; } = "Search...";
     public string SelectedItem { get; private set; } = "";
@@ -26,16 +27,20 @@ public partial class BeepDropdown : KitPushButton
         Text = Placeholder;
         Alignment = HorizontalAlignment.Left;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        base._Ready();
 
-        _menu = new KitContextMenu();
-        _menu.ItemSelected += OnMenuItemSelected;
-        AddChild(_menu);
-
-        Pressed += () =>
+        if (_menu == null)
         {
-            RefreshList("");
-            _menu.PopupAt(GlobalPosition + new Vector2(0, Size.Y));
-        };
+            _menu = new KitContextMenu();
+            _menu.ItemSelected += OnMenuItemSelected;
+            AddChild(_menu);
+        }
+
+        if (!_pressedHooked)
+        {
+            Pressed += OpenMenu;
+            _pressedHooked = true;
+        }
     }
 
     /// <summary>Set available items.</summary>
@@ -69,6 +74,12 @@ public partial class BeepDropdown : KitPushButton
             Text = SelectedItem;
             ItemSelected?.Invoke(SelectedItem);
         }
+    }
+
+    private void OpenMenu()
+    {
+        RefreshList("");
+        _menu?.PopupAt(GlobalPosition + new Vector2(0, Size.Y));
     }
 
     /// <summary>Get or set the selected value.</summary>

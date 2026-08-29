@@ -162,6 +162,27 @@ namespace Beep.ECS.UI
 
         [Export] public Vector2 OffsetTarget { get; set; } = Vector2.Zero;
 
+        public float EffectiveDuration => Mathf.Max(0.001f, FiniteOr(Duration, 0.001f));
+        public float EffectiveInitialDelay => Mathf.Max(0f, FiniteOr(InitialDelay, 0f));
+        public float EffectiveLoopDelay => Mathf.Max(0f, FiniteOr(LoopDelay, 0f));
+        public float EffectiveSlideDistance => Mathf.Max(0f, FiniteOr(SlideDistance, 0f));
+        public float EffectiveShakeIntensity => Mathf.Max(0f, FiniteOr(ShakeIntensity, 0f));
+        public int EffectiveShakeVibrato => Mathf.Clamp(ShakeVibrato, 1, 200);
+        public float EffectivePulseMinScale => Mathf.Clamp(Mathf.Min(FiniteOr(PulseMinScale, 0.95f), FiniteOr(PulseMaxScale, 1.05f)), 0.01f, 10f);
+        public float EffectivePulseMaxScale => Mathf.Clamp(Mathf.Max(FiniteOr(PulseMinScale, 0.95f), FiniteOr(PulseMaxScale, 1.05f)), 0.01f, 10f);
+        public int EffectivePulseLoops => Mathf.Clamp(PulseLoops, 0, 1000);
+        public float EffectiveBobHeight => Mathf.Max(0f, FiniteOr(BobHeight, 0f));
+        public float EffectiveBobSpeed => Mathf.Max(0f, FiniteOr(BobSpeed, 0f));
+        public int EffectiveFlashCount => Mathf.Clamp(FlashCount, 1, 1000);
+        public float EffectiveGlitchIntensity => Mathf.Max(0f, FiniteOr(GlitchIntensity, 0f));
+        public int EffectiveGlitchSegments => Mathf.Clamp(GlitchSegments, 1, 1000);
+        public float EffectiveRotateAngle => FiniteOr(RotateAngle, 0f);
+        public float EffectiveFadeTargetAlpha => Mathf.Clamp(FiniteOr(FadeTargetAlpha, 0f), 0f, 1f);
+        public float EffectiveTypewriterSpeed => Mathf.Max(1f, FiniteOr(TypewriterSpeed, 30f));
+        public float EffectiveBounceHeight => Mathf.Max(0f, FiniteOr(BounceHeight, 0f));
+        public int EffectiveBounceCount => Mathf.Clamp(BounceCount, 1, 1000);
+        public Vector2 EffectiveOffsetTarget => new(FiniteOr(OffsetTarget.X, 0f), FiniteOr(OffsetTarget.Y, 0f));
+
         // ═══════════════════════════════════════════════════════════════
         // Signals
         // ═══════════════════════════════════════════════════════════════
@@ -193,6 +214,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (Engine.IsEditorHint()) return;
             ResolveTargets();
             if (PlayOnReady)
@@ -201,13 +223,17 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (!IsActive || !_isPlaying) return;
+            if (!IsActive || !_isPlaying)
+            {
+                UpdateProcessing();
+                return;
+            }
 
             // Bob needs per-frame sine-based animation
             if (Effect == EffectType.Bob)
             {
-                _processTime += (float)delta;
-                float offset = (float)Math.Sin(_processTime * BobSpeed) * BobHeight;
+                _processTime += Mathf.Max(0f, (float)delta);
+                float offset = (float)Math.Sin(_processTime * EffectiveBobSpeed) * EffectiveBobHeight;
                 foreach (var c in _targets)
                 {
                     if (c != null && GodotObject.IsInstanceValid(c))
@@ -308,10 +334,10 @@ namespace Beep.ECS.UI
             _isPlaying = true;
             _loopCount = 0;
 
-            if (InitialDelay > 0f)
+            if (EffectiveInitialDelay > 0f)
             {
                 // Use a one-shot timer for delay
-                var timer = new Timer { OneShot = true, WaitTime = InitialDelay };
+                var timer = new Timer { OneShot = true, WaitTime = EffectiveInitialDelay };
                 timer.Timeout += () =>
                 {
                     timer.QueueFree();
@@ -331,6 +357,7 @@ namespace Beep.ECS.UI
             _isPlaying = false;
             _processTime = 0f;
             StopTypewriter();
+            UpdateProcessing();
 
             foreach (var t in _activeTweens)
                 if (t != null && GodotObject.IsInstanceValid(t))
@@ -398,6 +425,7 @@ namespace Beep.ECS.UI
                 var lastTween = _activeTweens[^1];
                 lastTween.Finished += OnAllCompleted;
             }
+            UpdateProcessing();
         }
 
         private void OnAllCompleted()
@@ -407,9 +435,9 @@ namespace Beep.ECS.UI
                 _loopCount++;
                 EmitSignal(SignalName.EffectLooped, _loopCount);
 
-                if (LoopDelay > 0f)
+                if (EffectiveLoopDelay > 0f)
                 {
-                    var timer = new Timer { OneShot = true, WaitTime = LoopDelay };
+                    var timer = new Timer { OneShot = true, WaitTime = EffectiveLoopDelay };
                     timer.Timeout += () => { timer.QueueFree(); if (_isPlaying) ExecuteEffect(); };
                     AddChild(timer);
                     timer.Start();
@@ -422,6 +450,7 @@ namespace Beep.ECS.UI
             else
             {
                 _isPlaying = false;
+                UpdateProcessing();
                 EmitSignal(SignalName.EffectCompleted);
             }
         }
@@ -434,10 +463,10 @@ namespace Beep.ECS.UI
         {
             Vector2 offset = SlideDir switch
             {
-                SlideDirection.Left => new Vector2(-SlideDistance, 0),
-                SlideDirection.Right => new Vector2(SlideDistance, 0),
-                SlideDirection.Up => new Vector2(0, -SlideDistance),
-                SlideDirection.Down => new Vector2(0, SlideDistance),
+                SlideDirection.Left => new Vector2(-EffectiveSlideDistance, 0),
+                SlideDirection.Right => new Vector2(EffectiveSlideDistance, 0),
+                SlideDirection.Up => new Vector2(0, -EffectiveSlideDistance),
+                SlideDirection.Down => new Vector2(0, EffectiveSlideDistance),
                 _ => Vector2.Zero
             };
 
@@ -445,8 +474,9 @@ namespace Beep.ECS.UI
             c.Modulate = new Color(1, 1, 1, 0);
 
             var tween = c.CreateTween().SetParallel(true);
-            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, Duration).SetEase(Easing).SetTrans(Transition);
-            tween.TweenProperty(c, "modulate:a", 1f, Duration * 0.6f);
+            float duration = EffectiveDuration;
+            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, duration).SetEase(Easing).SetTrans(Transition);
+            tween.TweenProperty(c, "modulate:a", 1f, duration * 0.6f);
             _activeTweens.Add(tween);
         }
 
@@ -456,18 +486,20 @@ namespace Beep.ECS.UI
 
         private void PlayShake(Godot.Control c)
         {
-            int steps = ShakeVibrato;
+            int steps = EffectiveShakeVibrato;
+            float duration = EffectiveDuration;
+            float intensity = EffectiveShakeIntensity;
 
             var tween = c.CreateTween();
             for (int i = 0; i < steps; i++)
             {
                 float fraction = (i + 1) / (float)steps;
                 float decay = 1f - fraction;
-                float xOff = (GD.Randf() * 2 - 1) * ShakeIntensity * decay;
-                float yOff = (GD.Randf() * 2 - 1) * ShakeIntensity * decay;
-                tween.TweenProperty(c, "offset_transform_position", new Vector2(xOff, yOff), Duration / steps);
+                float xOff = (GD.Randf() * 2 - 1) * intensity * decay;
+                float yOff = (GD.Randf() * 2 - 1) * intensity * decay;
+                tween.TweenProperty(c, "offset_transform_position", new Vector2(xOff, yOff), duration / steps);
             }
-            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, Duration / steps); // settle
+            tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, duration / steps); // settle
             _activeTweens.Add(tween);
         }
 
@@ -477,16 +509,19 @@ namespace Beep.ECS.UI
 
         private void PlayPulse(Godot.Control c)
         {
-            float halfDur = Duration / 2f;
-            int loops = PulseLoops > 0 ? PulseLoops : -1;
+            float halfDur = EffectiveDuration / 2f;
+            int effectiveLoops = EffectivePulseLoops;
+            int loops = effectiveLoops > 0 ? effectiveLoops : -1;
+            float minScale = EffectivePulseMinScale;
+            float maxScale = EffectivePulseMaxScale;
 
             if (loops < 0)
             {
                 // Infinite: use a looping tween
                 var tween = c.CreateTween().SetLoops(0);
-                tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
+                tween.TweenProperty(c, "offset_transform_scale", new Vector2(maxScale, maxScale), halfDur)
                     .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Sine);
-                tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
+                tween.TweenProperty(c, "offset_transform_scale", new Vector2(minScale, minScale), halfDur)
                     .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Sine);
                 _activeTweens.Add(tween);
             }
@@ -495,9 +530,9 @@ namespace Beep.ECS.UI
                 var tween = c.CreateTween();
                 for (int i = 0; i < loops; i++)
                 {
-                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMaxScale, PulseMaxScale), halfDur)
+                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(maxScale, maxScale), halfDur)
                         .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Sine);
-                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(PulseMinScale, PulseMinScale), halfDur)
+                    tween.TweenProperty(c, "offset_transform_scale", new Vector2(minScale, minScale), halfDur)
                         .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Sine);
                 }
                 tween.TweenProperty(c, "offset_transform_scale", Vector2.One, halfDur);
@@ -512,10 +547,11 @@ namespace Beep.ECS.UI
         private void PlayFlash(Godot.Control c)
         {
             var origColor = c.Modulate;
-            float flashDur = Duration / (FlashCount * 2);
+            int count = EffectiveFlashCount;
+            float flashDur = EffectiveDuration / (count * 2);
             var tween = c.CreateTween();
 
-            for (int i = 0; i < FlashCount; i++)
+            for (int i = 0; i < count; i++)
             {
                 tween.TweenProperty(c, "modulate", FlashColor, flashDur);
                 tween.TweenProperty(c, "modulate", origColor, flashDur);
@@ -529,21 +565,23 @@ namespace Beep.ECS.UI
 
         private void PlayGlitch(Godot.Control c)
         {
-            float segDur = Duration / GlitchSegments;
+            int segments = EffectiveGlitchSegments;
+            float segDur = EffectiveDuration / segments;
+            float intensity = EffectiveGlitchIntensity;
             var tween = c.CreateTween();
 
-            for (int i = 0; i < GlitchSegments; i++)
+            for (int i = 0; i < segments; i++)
             {
-                float xOff = (GD.Randf() * 2 - 1) * GlitchIntensity;
-                float yOff = (GD.Randf() * 2 - 1) * GlitchIntensity;
-                float sOff = 1f + (GD.Randf() * 2 - 1) * GlitchIntensity * 0.01f;
-                float rOff = (GD.Randf() * 2 - 1) * GlitchIntensity * 0.02f;
+                float xOff = (GD.Randf() * 2 - 1) * intensity;
+                float yOff = (GD.Randf() * 2 - 1) * intensity;
+                float sOff = Mathf.Max(0.01f, 1f + (GD.Randf() * 2 - 1) * intensity * 0.01f);
+                float rOff = (GD.Randf() * 2 - 1) * intensity * 0.02f;
 
                 tween.TweenProperty(c, "offset_transform_position", new Vector2(xOff, yOff), segDur * 0.5f);
                 tween.TweenProperty(c, "offset_transform_scale", new Vector2(sOff, sOff), segDur * 0.5f);
                 tween.TweenProperty(c, "offset_transform_rotation", rOff, segDur * 0.5f);
 
-                if (i < GlitchSegments - 1)
+                if (i < segments - 1)
                 {
                     tween.TweenProperty(c, "offset_transform_position", Vector2.Zero, segDur * 0.5f);
                     tween.TweenProperty(c, "offset_transform_scale", Vector2.One, segDur * 0.5f);
@@ -565,30 +603,31 @@ namespace Beep.ECS.UI
 
         private void PlayRotate(Godot.Control c)
         {
-            float radians = Mathf.DegToRad(RotateAngle);
+            float radians = Mathf.DegToRad(EffectiveRotateAngle);
+            float duration = EffectiveDuration;
 
             switch (RotateAxis)
             {
                 case RotateAxis.X:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "offset_transform_scale:y", 0f, Duration * 0.5f);
-                    tween.TweenProperty(c, "offset_transform_scale:y", 1f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:y", 0f, duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:y", 1f, duration * 0.5f);
                     _activeTweens.Add(tween);
                     break;
                 }
                 case RotateAxis.Y:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "offset_transform_scale:x", 0f, Duration * 0.5f);
-                    tween.TweenProperty(c, "offset_transform_scale:x", 1f, Duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:x", 0f, duration * 0.5f);
+                    tween.TweenProperty(c, "offset_transform_scale:x", 1f, duration * 0.5f);
                     _activeTweens.Add(tween);
                     break;
                 }
                 case RotateAxis.Z:
                 {
                     var tween = c.CreateTween();
-                    tween.TweenProperty(c, "offset_transform_rotation", radians, Duration).SetEase(Easing).SetTrans(Transition);
+                    tween.TweenProperty(c, "offset_transform_rotation", radians, duration).SetEase(Easing).SetTrans(Transition);
                     _activeTweens.Add(tween);
                     break;
                 }
@@ -615,16 +654,17 @@ namespace Beep.ECS.UI
             }
 
             var tween = c.CreateTween();
-            float target = FadeTargetAlpha;
+            float target = EffectiveFadeTargetAlpha;
+            float duration = EffectiveDuration;
 
             if (FadeDir == FadeDirection.InOut)
             {
-                tween.TweenProperty(c, "modulate:a", 1f, Duration * 0.5f).SetEase(Easing).SetTrans(Transition);
-                tween.TweenProperty(c, "modulate:a", target, Duration * 0.5f).SetEase(Easing).SetTrans(Transition);
+                tween.TweenProperty(c, "modulate:a", 1f, duration * 0.5f).SetEase(Easing).SetTrans(Transition);
+                tween.TweenProperty(c, "modulate:a", target, duration * 0.5f).SetEase(Easing).SetTrans(Transition);
             }
             else
             {
-                tween.TweenProperty(c, "modulate:a", target, Duration).SetEase(Easing).SetTrans(Transition);
+                tween.TweenProperty(c, "modulate:a", target, duration).SetEase(Easing).SetTrans(Transition);
             }
 
             _activeTweens.Add(tween);
@@ -671,12 +711,16 @@ namespace Beep.ECS.UI
             foreach (var kvp in _typewriterStates)
             {
                 var c = kvp.Key;
-                if (c == null || !GodotObject.IsInstanceValid(c)) continue;
                 var state = kvp.Value;
-                state.Elapsed += delta;
+                if (!GodotObject.IsInstanceValid(c))
+                {
+                    (completed ??= new List<Godot.Control>()).Add(c);
+                    continue;
+                }
+                state.Elapsed += Mathf.Max(0f, delta);
 
                 int totalChars = state.FullText.Length;
-                int visible = Mathf.Clamp((int)(state.Elapsed * TypewriterSpeed), 0, totalChars);
+                int visible = Mathf.Clamp((int)(state.Elapsed * EffectiveTypewriterSpeed), 0, totalChars);
                 string shown = state.FullText[..visible];
 
                 // Cursor only while still revealing; blinks unless TypewriterBlinkCursor is off.
@@ -701,6 +745,21 @@ namespace Beep.ECS.UI
                     _typewriterStates.Remove(c);
                     EmitSignal(SignalName.EffectCompleted);
                 }
+
+            if (_typewriterStates.Count == 0)
+            {
+                if (Looping && IsActive && _isPlaying)
+                {
+                    _loopCount++;
+                    EmitSignal(SignalName.EffectLooped, _loopCount);
+                    ExecuteEffect();
+                }
+                else
+                {
+                    _isPlaying = false;
+                    UpdateProcessing();
+                }
+            }
         }
 
         private void StopTypewriter()
@@ -708,18 +767,26 @@ namespace Beep.ECS.UI
             _typewriterStates.Clear();
         }
 
+        private bool ShouldProcess()
+            => IsActive && _isPlaying
+            && (Effect == EffectType.Bob || (Effect == EffectType.Typewriter && _typewriterStates.Count > 0));
+
+        private void UpdateProcessing() => SetProcess(ShouldProcess());
+
         // ═══════════════════════════════════════════════════════════════
         // Bounce
         // ═══════════════════════════════════════════════════════════════
 
         private void PlayBounce(Godot.Control c)
         {
-            float perBounce = Duration / BounceCount;
+            int count = EffectiveBounceCount;
+            float perBounce = EffectiveDuration / count;
+            float bounceHeight = EffectiveBounceHeight;
             var tween = c.CreateTween();
 
-            for (int i = 0; i < BounceCount; i++)
+            for (int i = 0; i < count; i++)
             {
-                float height = BounceHeight * (1f - (float)i / BounceCount); // decay
+                float height = bounceHeight * (1f - (float)i / count); // decay
                 tween.TweenProperty(c, "offset_transform_position:y", -height, perBounce * 0.4f)
                     .SetEase(Tween.EaseType.Out);
                 tween.TweenProperty(c, "offset_transform_position:y", 0f, perBounce * 0.6f)
@@ -736,9 +803,11 @@ namespace Beep.ECS.UI
         private void PlayOffset(Godot.Control c)
         {
             var tween = c.CreateTween();
-            tween.TweenProperty(c, "offset_transform_position", OffsetTarget, Duration).SetEase(Easing).SetTrans(Transition);
+            tween.TweenProperty(c, "offset_transform_position", EffectiveOffsetTarget, EffectiveDuration).SetEase(Easing).SetTrans(Transition);
             _activeTweens.Add(tween);
         }
+
+        private static float FiniteOr(float value, float fallback) => float.IsFinite(value) ? value : fallback;
 
         // ═══════════════════════════════════════════════════════════════
         // Editor Property Visibility

@@ -37,18 +37,16 @@ namespace Beep.ECS.UI
         // this game use heavy game-art chrome" was answered separately by every scene — 40-odd
         // scene files each holding their own copy of one art direction, which had to be edited
         // in lockstep and never was. A game has ONE art register; it is configured in one
-        // place, the same place the texture source already lives.
+        // place.
         public const string SettingChrome     = "beep/ui/game_art_chrome";
         public const string SettingOutline    = "beep/ui/game_art_outline";
         public const string SettingShadow     = "beep/ui/game_art_shadow";
-        public const string SettingHudArt     = "beep/ui/hud_textures";
         public const string SettingHudOpacity = "beep/ui/hud_plate_opacity";
 
         private static bool _registerRead;
         private static bool _chrome = true;
         private static int _outline = 3;
         private static int _shadow = 4;
-        private static bool _hudArt = true;
         private static float _hudOpacity = 0.82f;
 
         /// <summary>Heavy outline + drop shadow on every generated control. Off gives a flat,
@@ -60,10 +58,6 @@ namespace Beep.ECS.UI
 
         /// <summary>Drop shadow size, applied only where the geometry profile asked for none.</summary>
         public static int GameArtShadow { get { ReadRegister(); return _shadow; } }
-
-        /// <summary>Whether HUD chrome uses the shipped HUD art. Off keeps the procedural HUD
-        /// plates, which still follow the palette.</summary>
-        public static bool HudTextures { get { ReadRegister(); return _hudArt; } }
 
         /// <summary>Opacity of HUD plates. Lower lets more of the world through.</summary>
         public static float HudPlateOpacity { get { ReadRegister(); return _hudOpacity; } }
@@ -78,8 +72,6 @@ namespace Beep.ECS.UI
                 _outline = Mathf.Clamp(ProjectSettings.GetSetting(SettingOutline).AsInt32(), 0, 8);
             if (ProjectSettings.HasSetting(SettingShadow))
                 _shadow = Mathf.Clamp(ProjectSettings.GetSetting(SettingShadow).AsInt32(), 0, 12);
-            if (ProjectSettings.HasSetting(SettingHudArt))
-                _hudArt = ProjectSettings.GetSetting(SettingHudArt).AsBool();
             if (ProjectSettings.HasSetting(SettingHudOpacity))
                 _hudOpacity = Mathf.Clamp((float)ProjectSettings.GetSetting(SettingHudOpacity).AsDouble(), 0.3f, 1f);
         }
@@ -117,6 +109,16 @@ namespace Beep.ECS.UI
             var def = string.IsNullOrEmpty(ActiveGenre) || string.IsNullOrEmpty(ActiveTheme)
                 ? null : GetTheme(ActiveGenre, ActiveTheme);
             Kit.KitStyleJson.Set(ActiveGenre, def?.Kit);
+        }
+
+        /// <summary>Publish the active skin directly from the game descriptor.</summary>
+        public static void SetActiveSkin(GameInfo info)
+        {
+            string theme = info.DefaultThemePreset;
+            if (string.IsNullOrWhiteSpace(theme))
+                theme = GetGenre(info.GenreId)?.DefaultTheme ?? "";
+
+            SetActiveSkin(info.GenreId, theme, info.PaletteName, info.GeometryProfileName);
         }
 
         private const string SkinsRoot = "res://addons/beep_game_builder_cs/catalogs/skins";
@@ -366,12 +368,6 @@ namespace Beep.ECS.UI
                 };
             }
 
-            // Parse the optional "textures" block — per-node-type StyleBoxTexture specs.
-            // Pass a "<genre>/<theme>" label so a slot pointing at a missing PNG can name
-            // itself in the warning. themePath is .../skins/<genre>/themes/<theme>, so the
-            // genre is two directories up — no extra parameter needed on LoadTheme.
-            theme.Textures = ParseTextures(json, $"{themePath.GetBaseDir().GetBaseDir().GetFile()}/{themeId}");
-
             // Scan palette files (everything except theme.json).
             theme.Palettes = new Dictionary<string, ColorPalette>();
             using var themeDir = DirAccess.Open(themePath);
@@ -426,11 +422,6 @@ namespace Beep.ECS.UI
             if (json.TryGetValue("shapes", out var shapesVar) && shapesVar.VariantType == Variant.Type.Dictionary)
                 def.Shapes = ParseShapes(shapesVar.AsGodotDictionary());
 
-            // Parse the optional background-image block.
-            // Schema: { "background_image": "res://path.png", "background_mode": "tile|stretch|center" }
-            def.BackgroundImage = Str(json, "background_image");
-            def.BackgroundMode = Str(json, "background_mode", "stretch");
-
             return def;
         }
 
@@ -483,85 +474,6 @@ namespace Beep.ECS.UI
         private static Godot.Collections.Dictionary ShapeSub(Godot.Collections.Dictionary d, string key)
             => d.ContainsKey(key) ? d[key].AsGodotDictionary() : new Godot.Collections.Dictionary();
 
-        /// <summary>Parse the optional "textures" block from theme.json. Returns
-        /// null when the block is absent. Per-slot entries may themselves be
-        /// null (slot absent) — callers should use TextureSlotDef?.BuildStyleBox()
-        /// which returns null for both cases.</summary>
-        private static ThemeTextureSlots? ParseTextures(Godot.Collections.Dictionary json, string owner)
-        {
-            if (!json.TryGetValue("textures", out var texVar)
-                || texVar.VariantType != Variant.Type.Dictionary) return null;
-
-            var t = texVar.AsGodotDictionary();
-            var slots = new ThemeTextureSlots();
-            slots.ButtonNormal   = ParseTextureSlot(t, "button_normal", owner);
-            slots.ButtonHover    = ParseTextureSlot(t, "button_hover", owner);
-            slots.ButtonPressed  = ParseTextureSlot(t, "button_pressed", owner);
-            slots.ButtonDisabled = ParseTextureSlot(t, "button_disabled", owner);
-            slots.ButtonFocus    = ParseTextureSlot(t, "button_focus", owner);
-            slots.Panel          = ParseTextureSlot(t, "panel", owner);
-            slots.Dialog         = ParseTextureSlot(t, "dialog", owner);
-            slots.InputNormal    = ParseTextureSlot(t, "input_normal", owner);
-            slots.InputFocus     = ParseTextureSlot(t, "input_focus", owner);
-            slots.ProgressBg     = ParseTextureSlot(t, "progress_bg", owner);
-            slots.ProgressFill   = ParseTextureSlot(t, "progress_fill", owner);
-            slots.SliderGrabber  = ParseTextureSlot(t, "slider_grabber", owner);
-            slots.ScrollGrabber  = ParseTextureSlot(t, "scroll_grabber", owner);
-            slots.Separator      = ParseTextureSlot(t, "separator", owner);
-
-            slots.HudPanel          = ParseTextureSlot(t, "hud_panel", owner);
-            slots.HudButtonNormal   = ParseTextureSlot(t, "hud_button_normal", owner);
-            slots.HudButtonHover    = ParseTextureSlot(t, "hud_button_hover", owner);
-            slots.HudButtonPressed  = ParseTextureSlot(t, "hud_button_pressed", owner);
-            slots.HudButtonDisabled = ParseTextureSlot(t, "hud_button_disabled", owner);
-            slots.HudButtonFocus    = ParseTextureSlot(t, "hud_button_focus", owner);
-            slots.HudTabNormal      = ParseTextureSlot(t, "hud_tab_normal", owner);
-            slots.HudTabSelected    = ParseTextureSlot(t, "hud_tab_selected", owner);
-            slots.HudSlotEmpty      = ParseTextureSlot(t, "hud_slot_empty", owner);
-            slots.HudSlotFilled     = ParseTextureSlot(t, "hud_slot_filled", owner);
-            slots.HudBarBg          = ParseTextureSlot(t, "hud_bar_bg", owner);
-            slots.HudBarFill        = ParseTextureSlot(t, "hud_bar_fill", owner);
-            slots.HudFrame          = ParseTextureSlot(t, "hud_frame", owner);
-            slots.HudTooltip        = ParseTextureSlot(t, "hud_tooltip", owner);
-            return slots;
-        }
-
-        /// <summary>Parse one texture slot sub-dictionary. Returns null when the
-        /// slot key is absent from the textures block.</summary>
-        private static TextureSlotDef? ParseTextureSlot(Godot.Collections.Dictionary textures, string slotKey, string owner)
-        {
-            if (!textures.TryGetValue(slotKey, out var sVar)
-                || sVar.VariantType != Variant.Type.Dictionary) return null;
-            var s = sVar.AsGodotDictionary();
-            // texture_path is the only required-ish field; if it's absent the slot is a no-op.
-            string? path = Str(s, "texture_path");
-            if (string.IsNullOrEmpty(path)) return null;
-
-            return new TextureSlotDef
-            {
-                Path = path,
-                Owner = owner,
-                Slot = slotKey,
-                MarginLeft   = Float(s, "margin_left", 0f),
-                MarginTop    = Float(s, "margin_top", 0f),
-                MarginRight  = Float(s, "margin_right", 0f),
-                MarginBottom = Float(s, "margin_bottom", 0f),
-                StretchH     = Int(s, "axis_stretch_horizontal", 1),
-                StretchV     = Int(s, "axis_stretch_vertical", 1),
-                DrawCenter   = Bool(s, "draw_center", true),
-                Baked        = Bool(s, "baked", true),
-                Modulate     = HexColor(s, "modulate"),
-                ContentMarginLeft   = Float(s, "content_margin_left", -1f),
-                ContentMarginRight  = Float(s, "content_margin_right", -1f),
-                ContentMarginTop    = Float(s, "content_margin_top", -1f),
-                ContentMarginBottom = Float(s, "content_margin_bottom", -1f),
-                ExpandMarginLeft   = Float(s, "expand_margin_left", 0f),
-                ExpandMarginRight  = Float(s, "expand_margin_right", 0f),
-                ExpandMarginTop    = Float(s, "expand_margin_top", 0f),
-                ExpandMarginBottom = Float(s, "expand_margin_bottom", 0f),
-            };
-        }
-
         /// <summary>Parse a #RRGGBB or #RRGGBBAA hex string into a Godot Color.</summary>
         private static Color HexColor(Godot.Collections.Dictionary d, string key)
         {
@@ -587,255 +499,6 @@ namespace Beep.ECS.UI
     // ════════════════════════════════════════════════════════════════
     //  Data definitions (plain classes — loaded from JSON at runtime)
     // ════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// One slot in the textures{} block of theme.json. Mirrors every
-    /// StyleBoxTexture property so the engine can build the exact 9-patch
-    /// the author specified. Defaults match StyleBoxTexture defaults, so a
-    /// partial entry paints the texture 1:1 with no margins.
-    /// </summary>
-    public class TextureSlotDef
-    {
-        /// <summary>res:// path to the PNG. Null/empty disables this slot.</summary>
-        public string? Path;
-
-        /// <summary>"&lt;genre&gt;/&lt;theme&gt;" this slot came from, and the slot key
-        /// ("button_normal"…). Carried purely so a missing PNG can name itself — a
-        /// warning reading "file not found" with no owner is nearly useless when 50
-        /// themes declare the same five slots.</summary>
-        public string Owner = "", Slot = "";
-
-        // 9-patch margins — how many px from each edge stay fixed when stretching.
-        public float MarginLeft = 0, MarginTop = 0, MarginRight = 0, MarginBottom = 0;
-
-        // AxisStretchMode: 0=Stretch, 1=Tile, 2=TileFit (matches Godot enum order).
-        public int StretchH = 1, StretchV = 1;
-
-        /// <summary>Whether to paint the center tile (true) or just the 9-patch borders (false).</summary>
-        public bool DrawCenter = true;
-
-        /// <summary>Whether <see cref="GameBuilder.BeepTextureBaker"/> may (re)generate this
-        /// slot's PNG. The baker draws a plain rounded box, which is the right default for a
-        /// theme whose art has never been authored — but it silently overwrites hand-drawn
-        /// art, and the baker is reachable from a dock button and an MCP command. Set
-        /// <c>"baked": false</c> in theme.json to mark a slot as authored and off-limits.</summary>
-        public bool Baked = true;
-
-        /// <summary>Color tint applied over the texture.</summary>
-        public Color Modulate = new(1, 1, 1, 1);
-
-        // Content margins — negative = leave default (StyleBoxTexture falls back to texture_margin_).
-        public float ContentMarginLeft = -1, ContentMarginRight = -1,
-                    ContentMarginTop = -1, ContentMarginBottom = -1;
-
-        // Expand margins (push the box outward from its content rect).
-        public float ExpandMarginLeft = 0, ExpandMarginRight = 0,
-                    ExpandMarginTop = 0, ExpandMarginBottom = 0;
-
-        /// <summary>Paths already reported missing. ApplyTheme() runs several times per
-        /// scene load (every ThemePresetComponent setter calls it), so an unguarded
-        /// warning would print hundreds of lines for one broken slot.</summary>
-        private static readonly System.Collections.Generic.HashSet<string> _reportedMissing = new();
-
-        // ── Texture source selection ─────────────────────────────────────────────────────
-        // Which art a theme's slots actually load. The theme/skin system is unchanged: this
-        // only decides WHERE the PNG behind each slot comes from, so a developer can ship the
-        // built-in art, drop in their own, or run with no textures at all and keep the
-        // procedural StyleBoxFlat look.
-        public const string SettingSource = "beep/ui/texture_source";
-        public const string SettingRoot   = "beep/ui/texture_custom_root";
-
-        public enum SourceMode
-        {
-            /// <summary>Ignore every texture slot — pure procedural skin from theme colours.</summary>
-            None,
-            /// <summary>The art shipped in addons/.../textures (what theme.json points at).</summary>
-            BuiltIn,
-            /// <summary>The developer's own folder, per slot, falling back to built-in.</summary>
-            Custom,
-        }
-
-        private static bool _settingsRead;
-        private static SourceMode _source = SourceMode.BuiltIn;
-        private static string _customRoot = "";
-
-        public static SourceMode Source
-        {
-            get { ReadSettings(); return _source; }
-            set { _source = value; _settingsRead = true; _reportedMissing.Clear(); }
-        }
-
-        /// <summary>res:// folder holding replacement art. Layout may be either
-        /// <c>&lt;root&gt;/&lt;genre&gt;/&lt;theme&gt;/&lt;slot&gt;.png</c> (per-theme) or a flat
-        /// <c>&lt;root&gt;/&lt;slot&gt;.png</c> (one set for the whole project).</summary>
-        public static string CustomRoot
-        {
-            get { ReadSettings(); return _customRoot; }
-            set { _customRoot = value ?? ""; _settingsRead = true; _reportedMissing.Clear(); }
-        }
-
-        private static void ReadSettings()
-        {
-            if (_settingsRead) return;
-            _settingsRead = true;
-            if (ProjectSettings.HasSetting(SettingSource)
-                && System.Enum.TryParse<SourceMode>(ProjectSettings.GetSetting(SettingSource).AsString(), true, out var m))
-                _source = m;
-            if (ProjectSettings.HasSetting(SettingRoot))
-                _customRoot = ProjectSettings.GetSetting(SettingRoot).AsString() ?? "";
-        }
-
-        /// <summary>Re-read the project settings — call after the dock changes them so a live
-        /// editor reflects the new source without a restart.</summary>
-        public static void RefreshSourceSettings()
-        {
-            _settingsRead = false;
-            _reportedMissing.Clear();
-            ReadSettings();
-        }
-
-        /// <summary>The path this slot should actually load, after the source selection.
-        ///
-        /// Custom overrides are resolved PER SLOT and fall through to the built-in path when
-        /// the developer has not supplied that particular file — so replacing just the buttons
-        /// does not blank out panels, inputs and bars.</summary>
-        public string? ResolvePath()
-        {
-            ReadSettings();
-            if (_source == SourceMode.None) return null;
-
-            if (_source == SourceMode.Custom && !string.IsNullOrEmpty(_customRoot))
-            {
-                string root = _customRoot.TrimEnd('/');
-                foreach (string candidate in CustomCandidates(root))
-                    if (ResourceLoader.Exists(candidate)) return candidate;
-            }
-            return Path;
-        }
-
-        /// <summary>Where to look for a developer-supplied replacement, most specific first.
-        ///
-        /// HUD slots need their own layout: HUD art is per GENRE (the shape belongs to the
-        /// genre and the five themes recolour it via modulate), so it is stored as
-        /// <c>hud/&lt;genre&gt;/&lt;component&gt;.png</c> — not under a theme folder like the
-        /// menu slots. Without this branch a custom root silently resolved nothing for every
-        /// HUD slot and fell back to built-in art.</summary>
-        private System.Collections.Generic.IEnumerable<string> CustomCandidates(string root)
-        {
-            string genre = Owner.Contains('/') ? Owner[..Owner.IndexOf('/')] : Owner;
-
-            if (Slot.StartsWith("hud_"))
-            {
-                string component = Slot[4..];
-                yield return $"{root}/hud/{genre}/{component}.png";   // hud/rpg/button_normal.png
-                yield return $"{root}/hud/{component}.png";           // one HUD set for the project
-            }
-
-            yield return $"{root}/{Owner}/{Slot}.png";                // rpg/fantasy/button_normal.png
-            yield return $"{root}/{genre}/{Slot}.png";                // rpg/button_normal.png
-            yield return $"{root}/{Slot}.png";                        // flat: one set for everything
-        }
-
-        /// <summary>Build the live StyleBoxTexture. Returns null if no texture_path
-        /// is set OR the resource fails to load — callers fall back to procedural.
-        ///
-        /// A path that is SET but missing is a defect, not a configuration: the theme
-        /// asked for a texture and silently got a procedural box instead. Every one of
-        /// the 50 shipped themes declared five slots whose PNGs were never in the repo,
-        /// so the entire texture pipeline was inert and said nothing about it. Warn,
-        /// naming theme, slot and path, then fall back.</summary>
-        public StyleBoxTexture? BuildStyleBox()
-        {
-            string? path = ResolvePath();
-            if (string.IsNullOrEmpty(path)) return null;
-            if (!ResourceLoader.Exists(path))
-            {
-                if (_reportedMissing.Add(path))
-                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}' points at '{path}', which does not exist — falling back to the procedural box. Bake it (dock → Bake Textures, or beep.bake_textures) or clear texture_path in that theme.json.");
-                return null;
-            }
-            var tex = ResourceLoader.Load<Texture2D>(path);
-            if (tex == null)
-            {
-                if (_reportedMissing.Add(path))
-                    GD.PushWarning($"[SkinCatalog] {Owner} slot '{Slot}': '{path}' exists but did not load as a Texture2D — falling back to the procedural box.");
-                return null;
-            }
-            var sb = new StyleBoxTexture { Texture = tex };
-            sb.TextureMarginLeft   = MarginLeft;
-            sb.TextureMarginTop    = MarginTop;
-            sb.TextureMarginRight  = MarginRight;
-            sb.TextureMarginBottom = MarginBottom;
-            sb.AxisStretchHorizontal = (StyleBoxTexture.AxisStretchMode)StretchH;
-            sb.AxisStretchVertical   = (StyleBoxTexture.AxisStretchMode)StretchV;
-            sb.DrawCenter = DrawCenter;
-            sb.ModulateColor = Modulate;
-            if (ContentMarginLeft   >= 0) sb.ContentMarginLeft   = ContentMarginLeft;
-            if (ContentMarginRight  >= 0) sb.ContentMarginRight  = ContentMarginRight;
-            if (ContentMarginTop    >= 0) sb.ContentMarginTop    = ContentMarginTop;
-            if (ContentMarginBottom >= 0) sb.ContentMarginBottom = ContentMarginBottom;
-            sb.ExpandMarginLeft   = ExpandMarginLeft;
-            sb.ExpandMarginTop    = ExpandMarginTop;
-            sb.ExpandMarginRight  = ExpandMarginRight;
-            sb.ExpandMarginBottom = ExpandMarginBottom;
-            return sb;
-        }
-    }
-
-    /// <summary>All texture slots declared by a theme.json's "textures" block.
-    /// Null = theme ships without textures; per-slot null = that slot uses
-    /// procedural StyleBoxFlat.</summary>
-    public class ThemeTextureSlots
-    {
-        // Button states
-        public TextureSlotDef? ButtonNormal;
-        public TextureSlotDef? ButtonHover;
-        public TextureSlotDef? ButtonPressed;
-        public TextureSlotDef? ButtonDisabled;
-        public TextureSlotDef? ButtonFocus;
-        // Other nodes
-        public TextureSlotDef? Panel;
-        public TextureSlotDef? Dialog;
-        public TextureSlotDef? InputNormal;
-        public TextureSlotDef? InputFocus;
-        public TextureSlotDef? ProgressBg;
-        public TextureSlotDef? ProgressFill;
-        public TextureSlotDef? SliderGrabber;
-        public TextureSlotDef? ScrollGrabber;
-        public TextureSlotDef? Separator;
-
-        // ── HUD slots ────────────────────────────────────────────────────────────────
-        // Deliberately a SEPARATE set from the menu slots above, not a tint of them. A menu
-        // plate is opaque and raised because it owns the screen; a HUD plate is translucent
-        // and flat because the game is behind it. And each HUD component carries its own
-        // shape, border and shadow — a hotbar slot is square, a minimap frame is round, a
-        // toolbar tab is rounded on top only — so they cannot share one master.
-        // See docs/HUD_TEXTURE_SYSTEM.md.
-        public TextureSlotDef? HudPanel;
-        public TextureSlotDef? HudButtonNormal, HudButtonHover, HudButtonPressed,
-                               HudButtonDisabled, HudButtonFocus;
-        public TextureSlotDef? HudTabNormal, HudTabSelected;
-        public TextureSlotDef? HudSlotEmpty, HudSlotFilled;
-        public TextureSlotDef? HudBarBg, HudBarFill;
-        public TextureSlotDef? HudFrame, HudTooltip;
-
-        /// <summary>True if this theme declares any HUD art. False routes HudMode to the
-        /// procedural HUD chrome instead, which is a complete look in its own right.</summary>
-        public bool AnyHudTexture =>
-            HudPanel != null || HudButtonNormal != null || HudButtonHover != null
-            || HudButtonPressed != null || HudButtonDisabled != null || HudButtonFocus != null
-            || HudTabNormal != null || HudTabSelected != null || HudSlotEmpty != null
-            || HudSlotFilled != null || HudBarBg != null || HudBarFill != null
-            || HudFrame != null || HudTooltip != null;
-
-        /// <summary>True if any slot has a texture_path set.</summary>
-        public bool AnyTexture =>
-            ButtonNormal != null || ButtonHover != null || ButtonPressed != null
-            || ButtonDisabled != null || ButtonFocus != null || Panel != null || Dialog != null
-            || InputNormal != null || InputFocus != null
-            || ProgressBg != null || ProgressFill != null
-            || SliderGrabber != null || ScrollGrabber != null || Separator != null;
-    }
 
     public class GenreDef
     {
@@ -872,10 +535,6 @@ namespace Beep.ECS.UI
         public ThemeGeometry Geometry;
         public AnimationConfig Animation; // populated from theme.json's "animation" block
         public Dictionary<string, ColorPalette> Palettes = new();
-        /// <summary>Per-node-type StyleBoxTexture specs from the "textures" block.
-        /// Null when the theme ships without textures.</summary>
-        public ThemeTextureSlots? Textures;
-
         /// <summary>The raw "kit" block, if the theme declares one — the style axes
         /// (shadow, outline polarity, corner, shear, font, selection). Kept as the raw
         /// dictionary because <see cref="Kit.KitStyleJson"/> owns its schema and validates it,
@@ -911,14 +570,6 @@ namespace Beep.ECS.UI
         /// defaults".</summary>
         public ShapeOverrides? Shapes;
 
-        /// <summary>Background option (texture path for a full-canvas backdrop,
-        /// drawn behind all panels). Null = no background image.</summary>
-        public string? BackgroundImage;
-
-        /// <summary>How to render the background image: "tile", "stretch", or
-        /// "center". Only meaningful when <see cref="BackgroundImage"/> is set.</summary>
-        public string BackgroundMode = "stretch";
-
         /// <summary>Convert to the runtime GeometryProfile (reuses the existing ApplyTo logic).</summary>
         public GeometryProfile ToProfile() => new()
         {
@@ -929,9 +580,7 @@ namespace Beep.ECS.UI
             ShadowOffsetY = ShadowOffsetY,
             ContentPadding = ContentPadding,
             FontSize = FontSize,
-            Shapes = Shapes,
-            BackgroundImage = BackgroundImage,
-            BackgroundMode = BackgroundMode
+            Shapes = Shapes
         };
     }
 }

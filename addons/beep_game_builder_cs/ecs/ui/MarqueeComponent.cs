@@ -14,7 +14,22 @@ namespace Beep.ECS.UI
         [Export] public float PauseAtStart { get; set; } = 2f;
         [Export] public float PauseAtEnd { get; set; } = 2f;
         [Export] public bool Bounce { get; set; } = false;
-        [Export] public bool AutoStart { get; set; } = true;
+        [Export]
+        public bool AutoStart
+        {
+            get => _autoStart;
+            set
+            {
+                if (_autoStart == value) return;
+                _autoStart = value;
+                if (!Engine.IsEditorHint() && IsInsideTree())
+                {
+                    if (_autoStart) Start();
+                    else Stop();
+                }
+            }
+        }
+        private bool _autoStart = true;
 
         private Label? _label;
         private float _scrollPos;
@@ -29,6 +44,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (Engine.IsEditorHint()) return;
             _label = GetParent() as Label;
             if (_label != null)
@@ -40,19 +56,33 @@ namespace Beep.ECS.UI
                 _label.OffsetTransformEnabled = true;
             }
             else GD.PushWarning($"[{Name}] MarqueeComponent needs a Label parent to scroll; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Label.");
-            _running = AutoStart;
+            if (AutoStart)
+                Start();
         }
 
         /// <summary>Begin scrolling. Use this when AutoStart is false (drive the ticker from code).</summary>
-        public void Start() => _running = true;
+        public void Start()
+        {
+            _running = true;
+            if (_label != null && IsActive)
+                SetProcess(true);
+        }
 
         /// <summary>Stop scrolling. The ticker holds its current offset until Start() is called.</summary>
-        public void Stop() => _running = false;
+        public void Stop()
+        {
+            _running = false;
+            SetProcess(false);
+        }
 
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint()) return;
-            if (_label == null || !IsActive || !_running) return;
+            if (_label == null || !IsActive || !_running)
+            {
+                SetProcess(false);
+                return;
+            }
 
             float textWidth = _label.GetThemeDefaultFont()?.GetStringSize(_label.Text, fontSize: _label.GetThemeFontSize("font_size")).X ?? _label.Size.X;
 

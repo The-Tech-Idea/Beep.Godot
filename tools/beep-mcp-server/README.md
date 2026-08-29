@@ -145,7 +145,6 @@ Leave them off for read-only work; nothing below in the "look" list needs them.
 - *"Restyle this header — 44px back button, 20px separation"* → `godot_batch`, which lands
   as **one** Godot undo entry you can Ctrl-Z
 - *"Preview that first"* → same call with `dry_run: true`; mutates nothing
-- *"Bake the textures for the racing genre"* → `beep_command` / `beep.bake_textures`
 - *"Make a new screen for the rpg genre called Shop"* → `beep_command` / `beep.new_screen`
 - *"Wire this button's pressed signal to OnBackPressed"* → `godot_signal_connect`
 

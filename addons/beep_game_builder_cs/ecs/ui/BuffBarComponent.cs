@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -13,8 +14,12 @@ namespace Beep.ECS.UI
     {
         [Export] public int MaxSlots { get; set; } = 8;
         [Export] public Vector2 IconSize { get; set; } = new(32, 32);
+        [Export] public NodePath ContainerPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         private HBoxContainer? _container;
+        private bool _createdContainer;
         private readonly Dictionary<string, ProgressRingComponent> _icons = new();
         // Resolved once in Setup — walking the sibling list every _Process frame was pure waste.
         private StatusEffectComponent? _status;
@@ -22,24 +27,35 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            CallDeferred(nameof(Setup));
+            SetProcess(false);
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindBuffBar() == null)
+                return new[] { "Add an authored HBoxContainer named BuffBar, set ContainerPath, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void Setup()
         {
-            if (Engine.IsEditorHint()) return;
-            _container = new HBoxContainer
+            if (!BindExistingContainer())
             {
-                Name = "BuffBar"
-            };
-            _container.AddThemeConstantOverride("separation", 4);
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
 
-            if (GetParent() is Node parent)
-            {
-                parent.AddChild(_container);
-                if (parent.IsInsideTree())
-                    _container.Owner = parent.Owner;
+                BuildGeneratedContainer();
             }
+
+            if (_container == null)
+                return;
+
+            StyleContainer();
+            if (Engine.IsEditorHint())
+                return;
 
             _status = GetSiblingComponent<StatusEffectComponent>();
             if (_status != null)
@@ -52,12 +68,60 @@ namespace Beep.ECS.UI
             {
                 GD.PushWarning($"[{Name}] BuffBarComponent found no sibling StatusEffectComponent — it will display nothing. Add one alongside it.");
             }
+            UpdateProcessing();
+        }
+
+        private void BuildGeneratedContainer()
+        {
+            if (GetParent() is not Node parent)
+                return;
+
+            _createdContainer = true;
+            _container = new HBoxContainer
+            {
+                Name = "BuffBar"
+            };
+            StyleContainer();
+
+            parent.AddChild(_container);
+            SetEditedOwner(_container);
+        }
+
+        private bool BindExistingContainer()
+        {
+            _createdContainer = false;
+            _container = FindBuffBar();
+            return _container != null;
+        }
+
+        public bool UsesSceneControls()
+            => FindBuffBar() != null;
+
+        private HBoxContainer? FindBuffBar()
+        {
+            if (!ContainerPath.IsEmpty && GetNodeOrNull<HBoxContainer>(ContainerPath) is { } pathContainer)
+                return pathContainer;
+
+            if (FindChild("BuffBar", recursive: true, owned: false) is HBoxContainer childContainer)
+                return childContainer;
+
+            return GetParent()?.FindChild("BuffBar", recursive: true, owned: false) as HBoxContainer;
+        }
+
+        private void StyleContainer()
+        {
+            if (_container != null)
+                KitChrome.SetConstantOverrideIfChanged(_container, "separation", 4);
         }
 
         public override void _Process(double delta)
         {
             // Update progress rings from active effects.
-            if (_status == null || !GodotObject.IsInstanceValid(_status)) return;
+            if (_status == null || !GodotObject.IsInstanceValid(_status))
+            {
+                UpdateProcessing();
+                return;
+            }
             foreach (var effect in _status.ActiveEffects)
             {
                 if (_icons.TryGetValue(effect.Id, out var ring))
@@ -88,7 +152,9 @@ namespace Beep.ECS.UI
                 Accent = isBuff ? UiSurface.Role.Success : UiSurface.Role.Danger
             };
             _container.AddChild(ring);
+            SetEditedOwner(ring);
             _icons[effectId] = ring;
+            UpdateProcessing();
         }
 
         private void OnEffectExpired(string effectId)
@@ -98,9 +164,17 @@ namespace Beep.ECS.UI
                 _icons.Remove(effectId);
                 ring.QueueFree();
             }
+            UpdateProcessing();
         }
 
         private void OnEffectTicked(string effectId, float remaining) { /* optional tick visual */ }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint()
+                          && IsActive
+                          && _status != null
+                          && GodotObject.IsInstanceValid(_status)
+                          && _icons.Count > 0);
 
         public override void _ExitTree()
         {
@@ -114,9 +188,16 @@ namespace Beep.ECS.UI
                 _status.EffectTicked -= OnEffectTicked;
             }
             _status = null;
-            // _container was AddChild'd to the parent — free it or it's orphaned onscreen.
-            if (_container != null && GodotObject.IsInstanceValid(_container)) _container.QueueFree();
+            if (_createdContainer && _container != null && GodotObject.IsInstanceValid(_container)) _container.QueueFree();
             _container = null;
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

@@ -29,13 +29,16 @@ namespace Beep.ECS
         private Vector2 _velocity;
         private int _bounces;
         private bool _warnedBounceParent;
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveHomingStrength => NonNegative(HomingStrength);
+        public int EffectiveMaxBounces => Mathf.Max(0, MaxBounces);
 
         public override void _Ready()
         {
             base._Ready();
             _body = GetParent() as Node2D;
             if (_body != null)
-                _velocity = Vector2.FromAngle(_body.Rotation) * Speed;
+                _velocity = Vector2.FromAngle(_body.Rotation) * EffectiveSpeed;
             else if (!Engine.IsEditorHint())
                 // Every mode moves _body — a non-Node2D parent makes this modifier a silent no-op
                 // (and if a sibling ProjectileComponent delegated motion to it, the projectile freezes).
@@ -48,13 +51,15 @@ namespace Beep.ECS
         /// ProjectileComponent.Speed, which this never read) in its rotation-derived direction.</summary>
         public void SetLaunch(Vector2 direction, float speed)
         {
-            Speed = speed;
-            _velocity = direction * speed;
+            Speed = NonNegative(speed);
+            _velocity = IsFinite(direction) && direction != Vector2.Zero ? direction.Normalized() * Speed : Vector2.Right * Speed;
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (!IsActive || _body == null || Engine.IsEditorHint()) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_velocity)) _velocity = Vector2.Zero;
 
             switch (Mode)
             {
@@ -62,11 +67,12 @@ namespace Beep.ECS
                     var target = FindNearestTarget();
                     if (target != null)
                     {
-                        Vector2 desired = (target.GlobalPosition - _body.GlobalPosition).Normalized() * Speed;
-                        _velocity = _velocity.Lerp(desired, HomingStrength * (float)delta);
+                        Vector2 toTarget = target.GlobalPosition - _body.GlobalPosition;
+                        Vector2 desired = IsFinite(toTarget) && toTarget != Vector2.Zero ? toTarget.Normalized() * EffectiveSpeed : _velocity;
+                        _velocity = _velocity.Lerp(desired, Mathf.Clamp(EffectiveHomingStrength * dt, 0f, 1f));
                         _body.Rotation = _velocity.Angle();
                     }
-                    _body.GlobalPosition += _velocity * (float)delta;
+                    _body.GlobalPosition += _velocity * dt;
                     break;
 
                 case ModifierMode.Bounce:
@@ -74,13 +80,14 @@ namespace Beep.ECS
                     {
                         cb.Velocity = _velocity;
                         cb.MoveAndSlide();
-                        if (cb.GetSlideCollisionCount() > 0 && _bounces < MaxBounces)
+                        int maxBounces = EffectiveMaxBounces;
+                        if (cb.GetSlideCollisionCount() > 0 && _bounces < maxBounces)
                         {
                             var col = cb.GetSlideCollision(0);
                             _velocity = _velocity.Bounce(col.GetNormal());
                             _bounces++;
                         }
-                        else if (cb.GetSlideCollisionCount() > 0 && _bounces >= MaxBounces)
+                        else if (cb.GetSlideCollisionCount() > 0 && _bounces >= maxBounces)
                         {
                             cb.QueueFree();
                         }
@@ -95,12 +102,12 @@ namespace Beep.ECS
                             _warnedBounceParent = true;
                             GD.PushWarning($"[{Name}] Bounce mode requires a CharacterBody2D parent for wall reflection; parent is {_body.GetType().Name} — flying straight instead.");
                         }
-                        _body.GlobalPosition += _velocity * (float)delta;
+                        _body.GlobalPosition += _velocity * dt;
                     }
                     break;
 
                 default: // Straight
-                    _body.GlobalPosition += _velocity * (float)delta;
+                    _body.GlobalPosition += _velocity * dt;
                     break;
             }
         }
@@ -117,5 +124,9 @@ namespace Beep.ECS
             }
             return nearest;
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

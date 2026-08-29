@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -161,15 +162,15 @@ namespace Beep.ECS.UI
 			// (640x520, 10px, 58px), so two screens one click apart never lined up.
 			BeepDialogLayout.ApplyShell(this);
 			if (_saveButton?.GetParent()?.GetParent() is VBoxContainer vbox)
-				vbox.AddThemeConstantOverride("separation", BeepDialogLayout.SectionGap);
+				KitChrome.SetConstantOverrideIfChanged(vbox, "separation", BeepDialogLayout.SectionGap);
 			if (_saveButton?.GetParent() is HBoxContainer hbox)
-				hbox.AddThemeConstantOverride("separation", BeepDialogLayout.ButtonGap);
+				KitChrome.SetConstantOverrideIfChanged(hbox, "separation", BeepDialogLayout.ButtonGap);
 			if (_saveButton != null)
 				_saveButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
 			if (_cancelButton != null)
 				_cancelButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
 			if (_slotsVBox != null)
-				_slotsVBox.AddThemeConstantOverride("separation", BeepDialogLayout.RowGap);
+				KitChrome.SetConstantOverrideIfChanged(_slotsVBox, "separation", BeepDialogLayout.RowGap);
 			// Same row height as the load menu's slot rows, so the two lists read as one system.
 			foreach (var b in SlotButtons())
 				b.CustomMinimumSize = new Vector2(0, BeepDialogLayout.Row(this));
@@ -178,7 +179,7 @@ namespace Beep.ECS.UI
 			if (FindChild("NameLabel", recursive: true, owned: false) is Label nameLabel)
 				nameLabel.CustomMinimumSize = new Vector2(BeepDialogLayout.FieldLabelWidth, 0);
 			if (_nameInput?.GetParent() is HBoxContainer nameRow)
-				nameRow.AddThemeConstantOverride("separation", BeepDialogLayout.RowInnerGap);
+				KitChrome.SetConstantOverrideIfChanged(nameRow, "separation", BeepDialogLayout.RowInnerGap);
 		}
 
 		private void OnSlotSelected(int slot)

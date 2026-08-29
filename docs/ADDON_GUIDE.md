@@ -1,0 +1,744 @@
+# Beep.Godot Full Addon Guide
+
+Generated from the addon source tree on 2026-08-28 01:16:35 +03:00. Regenerate with powershell -ExecutionPolicy Bypass -File tools/Generate-AddonGuide.ps1.
+
+## Inventory
+
+| Item | Count |
+| --- | ---: |
+| Addon C# source files | 426 |
+| Public C# classes | 417 |
+| Godot [GlobalClass] editor-addable types | 353 |
+| GDScript files across addons | 29 |
+| Template scenes | 87 |
+| Texture assets | 392 |
+| Audio assets | 75 |
+| Skin genres | 10 |
+
+## How To Use This Addon
+
+1. Add a normal Godot scene root first: Node2D for world scenes, Control for HUD/menu scenes, or Resource files for data.
+2. Add Beep components from Godot's Add Node dialog. The editor-addable column below means the class is marked with [GlobalClass].
+3. Build UI and HUD layout at design time. Attach kit/runtime UI scripts to authored Control nodes instead of creating whole panels in code.
+4. For grid games, use PainterlyTerrainComponent plus GridProjectionComponent, GridCellDataComponent, GridPlacementComponent, GridNavigationComponent, GridJobQueueComponent, and GridWorkerSpawnerComponent as separate nodes.
+5. Use templates as starter scenes, not as black boxes. Preserve expected node names when a template controller depends on them.
+
+## Core Builder Services
+
+Project generation, editor dock support, file/template helpers, state data, data binding, screen generation, skin catalog loading, command history, utility math, and debug helpers.
+
+Use when: Start here when you are wiring project-wide services, generated scenes, save state, input maps, forms, data-driven UI, or editor workflows.
+
+Scene pattern: Use a normal Godot scene root, add the required resource/control classes from the Add Node dialog, and keep generator/editor helpers out of runtime gameplay nodes unless they are explicitly runtime-safe.
+
+Source areas: root, core, ui
+
+Types in this section: 39
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| Achievement | - | No | - | addons/beep_game_builder_cs/core/BeepAchievementDebug.cs |
+| BeepCommandHistory | - | No | - | addons/beep_game_builder_cs/core/BeepCommandHistory.cs |
+| BeepDataGrid | VBoxContainer | Yes | Auto-generates a GridContainer from any C# collection. Column headers from property names, rows from items. | addons/beep_game_builder_cs/core/BeepDataGrid.cs |
+| BeepDebugConsole | Godot.Control | No | - | addons/beep_game_builder_cs/core/BeepAchievementDebug.cs |
+| BeepDropdown | KitPushButton | Yes | Searchable dropdown with filter-as-you-type. | addons/beep_game_builder_cs/core/BeepDropdown.cs |
+| BeepFormBuilder | VBoxContainer | Yes | Auto-generates a form from any C# class properties with labels, inputs, and validation. | addons/beep_game_builder_cs/core/BeepFormBuilder.cs |
+| BeepGridNavigator | - | No | - | addons/beep_game_builder_cs/core/BeepServiceLocator.cs |
+| BeepPathfindingGrid | - | No | - | addons/beep_game_builder_cs/core/BeepEncryptionPathfinding.cs |
+| BeepProceduralAnim | - | No | - | addons/beep_game_builder_cs/core/BeepProceduralAnim.cs |
+| BeepProceduralAnim2D | - | No | - | addons/beep_game_builder_cs/core/BeepProceduralAnim.cs |
+| BeepStateMachine | - | No | - | addons/beep_game_builder_cs/core/BeepStateMachine.cs |
+| BeepTreeView | KitGodotTree | Yes | Wraps Godot's Tree with data-binding helpers. Build a tree from hierarchical data or add rows programmatically. | addons/beep_game_builder_cs/core/BeepTreeView.cs |
+| BeepWeightedTable | - | No | - | addons/beep_game_builder_cs/core/BeepWeightedTable.cs |
+| Binding | - | No | - | addons/beep_game_builder_cs/core/BeepDataBinder.cs |
+| Builder | - | No | - | addons/beep_game_builder_cs/core/BeepServiceLocator.cs |
+| EntityStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| GameInfo | Resource | Yes | Central game descriptor read by every scene template. This is a Resource, saved as res://game_info.tres so it round-trips through the inspector. The GameApp node autoload loads it and exposes it as GameApp.Info; C# code can use GameInfo.Instance as a convenience accessor. | addons/beep_game_builder_cs/core/GameInfo.cs |
+| GameStartup | Node | No | TEMPLATE: Usage example in your game startup. | addons/beep_game_builder_cs/core/GameStateTemplate.cs |
+| GameStateData | Resource | Yes | Aggregated game state container using Feature-Based Architecture. Each feature (movement, combat, inventory, progression) has its own state class. The root GameState aggregates them + allows game-specific features via the Features dict. This pattern allows different game types (platformer, RPG, shooter) to include o... | addons/beep_game_builder_cs/core/GameStateData.cs |
+| InventoryStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| Keybind | - | No | Keyboard shortcut / hotkey manager. Register actions with keys and callbacks. Auto-processes input in _Input and fires callbacks. | addons/beep_game_builder_cs/core/BeepKeybindManager.cs |
+| ListBinding | - | No | - | addons/beep_game_builder_cs/core/BeepDataBinder.cs |
+| OptionBinding | - | No | - | addons/beep_game_builder_cs/core/BeepDataBinder.cs |
+| ParallelBuilder | - | No | - | addons/beep_game_builder_cs/core/BeepServiceLocator.cs |
+| PlatformerCombatStateData | GameBuilder.PlayerCombatStateData | No | Example: Platformer-specific combat state (extends the base combat state). Different game types can add their own feature-specific state classes. | addons/beep_game_builder_cs/core/GameStateTemplate.cs |
+| PlatformerFeatures | - | No | Example: Platformer game features state (goes into GameStateData.Features dictionary). | addons/beep_game_builder_cs/core/GameStateTemplate.cs |
+| PlatformerHealthComponent | Beep.ECS.HealthComponent, Beep.ECS.ISaveable | No | TEMPLATE: Implement ISaveable on your gameplay components to participate in saves. This component syncs health state with GameStateData when Save/Load is called. In your game: 1. Attach GameStateManagerComponent to the Game/World node 2. Attach this component (or similar) to your player 3. Call GameStateManagerCompo... | addons/beep_game_builder_cs/core/GameStateTemplate.cs |
+| PlatformerMovementComponent | Beep.ECS.EntityComponent, Beep.ECS.ISaveable | No | Platformer-specific: lives are not part of the base HealthComponent. [Export] public int Lives { get; set; } = 3; public new void Save(GameBuilder.GameStateData state) { // Sync this component's state TO the global GameStateData state.Combat.Health = CurrentHealth; state.Combat.MaxHealth = MaxHealth; state.Combat.Li... | addons/beep_game_builder_cs/core/GameStateTemplate.cs |
+| PlayerCombatStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| PlayerMovementStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| PlayerStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| ProgressionStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| SaveMetadata | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| SessionStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| State | - | No | - | addons/beep_game_builder_cs/core/BeepStateMachine.cs |
+| WeatherData | Resource | Yes | Single day's weather forecast data. Serializable resource for persistence. | addons/beep_game_builder_cs/core/WeatherForecast.cs |
+| WeatherForecast | Resource | Yes | Multi-day weather forecast generator using Perlin noise. Deterministic based on seed so forecasts are repeatable. | addons/beep_game_builder_cs/core/WeatherForecast.cs |
+| WorldStateData | - | No | - | addons/beep_game_builder_cs/core/GameStateData.cs |
+| BeepGameBuilderDock | VBoxContainer | No | Beep Game Builder editor dock. A SINGLE scrollable form - one page, one button. The user picks a genre (dynamically loaded from the file-based skin catalog), sets game options, and clicks "Create Game". All scenes, navigation, theming, and autoloads are stamped in one pass. Adding components (Health, Attack, TopDown... | addons/beep_game_builder_cs/ui/BeepGameBuilderDock.cs |
+
+## ECS Foundation
+
+Base node categories and common gameplay systems: entity lifecycle, controllers, world components, UI screens, stats, saveability, health, combat, inventory, progression, quests, movement, pooling, particles, audio, interactions, and game flow.
+
+Use when: Use these as attachable component nodes on Godot Node2D, Control, CharacterBody2D, Area2D, or resource-backed entities.
+
+Scene pattern: Author parent nodes in the scene, add components as children, set exported NodePath fields in the inspector, and let components communicate through Godot signals and exported resources.
+
+Source areas: ecs, ecs/categories, ecs/stats
+
+Types in this section: 103
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| ActiveEffect | - | No | Status effects component. Blind - attach to any entity for behavioural status FLAGS: stun, invincibility, hunger, thirst, poison, burning - anything queried by presence ( ) and duration, with stacking/refresh/extend. It no longer carries stat modifiers. Numeric buffs/debuffs (a +10 damage, a x1.5 speed) are s added ... | addons/beep_game_builder_cs/ecs/StatusEffectComponent.cs |
+| AggroComponent | GameplayComponent | Yes | Aggro/threat management component. Blind - tracks threat from multiple sources. Works for enemy AI targeting, boss mechanics, taunt abilities. | addons/beep_game_builder_cs/ecs/AggroComponent.cs |
+| AIController | ControllerComponent | Yes | Simple AI controller component. Attach to any CharacterBody2D. Blind - works for enemies, NPCs, patrol guards, wandering animals. Modes: Patrol (between waypoints), Chase (follow target), Wander (random). | addons/beep_game_builder_cs/ecs/AIController.cs |
+| AnimalBehaviorComponent | GameplayComponent | Yes | Seasonal animal behavior system. Attach to animal entities (deer, rabbits, birds). Animals exhibit different behaviors based on season and weather: - Foraging: normal movement, can be hunted - Hibernating: stationary, inactive (winter) - Migrating: moving in a direction (season transitions) - Fleeing: running from t... | addons/beep_game_builder_cs/ecs/AnimalBehaviorComponent.cs |
+| AttackComponent | GameplayComponent | Yes | Attack component for any entity that can deal damage. Blind - works for player weapons, enemy attacks, traps, or hazards. | addons/beep_game_builder_cs/ecs/AttackComponent.cs |
+| AudioComponent | GameplayComponent | Yes | Audio component. Blind - attach to any Node to give it sound. One-shot SFX or looping background music. Works for UI, entities, environments. | addons/beep_game_builder_cs/ecs/AudioComponent.cs |
+| AutoHealComponent | GameplayComponent | Yes | Auto-recovery component. Blind - auto-heals HP, regens mana, recovers stamina. Finds a sibling HealthComponent and heals over time after a delay since last damage. Integrates with TemperatureComponent (modulates healing rate) and StatusEffectComponent (blocks healing if negative effects active like poison/curse). | addons/beep_game_builder_cs/ecs/AutoHealComponent.cs |
+| BeepGenreScene | Node | Yes | Picks a genre at design time and wires the shared MainGame shell at runtime. Drop a into any scene root, set in the inspector, and at _Ready this node will: 1. Resolve catalogs/skins/&lt;GenreId&gt;/genre.json . 2. Apply the genre's default theme + tuning to GameApp.Info . 3. If is true (default), load the resolved ... | addons/beep_game_builder_cs/ecs/BeepGenreScene.cs |
+| BootComponent | ControllerComponent | Yes | Boot/initialization component. Place in the project's main (boot) scene. On _Ready it: 1. Ensures GameApp autoload is initialized and has loaded game_info.tres. 2. Applies saved audio/display settings from GameApp. 3. Waits seconds (so a splash/logo is visible). 4. Transitions to the main menu via NavigationComponen... | addons/beep_game_builder_cs/ecs/BootComponent.cs |
+| CameraZoomComponent | ControllerComponent | Yes | Camera zoom component. Attach to any Camera2D. Blind - smooth zoom in/out. Works for any camera - game world, minimap, UI preview. | addons/beep_game_builder_cs/ecs/CameraZoomComponent.cs |
+| CardDeckComponent | GameplayComponent, ISaveable | Yes | The card genre's run state: the draw/discard cycle, the per-turn energy budget, and the player's health and gold. CardGameHudComponent registered all five readouts as Placeholder(...) . Eighth and last genre to get a real one. The shape is a DECKBUILDER, inferred from the HUD's own bindings rather than assumed: it a... | addons/beep_game_builder_cs/ecs/CardDeckComponent.cs |
+| CheckpointComponent | WorldComponent | Yes | Checkpoint/respawn point. Attach to an Area2D. When a body enters, it becomes the active respawn point (stored on GameApp). Emits CheckpointActivated. Pair with a HealthComponent + GameApp for death-respawn: on death, respawn at GameApp's stored checkpoint position. | addons/beep_game_builder_cs/ecs/CheckpointComponent.cs |
+| CityEconomyComponent | GameplayComponent, ISaveable | Yes | The city-builder simulation: the single source of truth for every number the City Builder HUD shows. Owns the treasury, population, utilities, happiness, RCI demand and the calendar, advances them on a monthly tick, and persists through . This exists because the HUD had no data source at all - all five City Builder ... | addons/beep_game_builder_cs/ecs/CityEconomyComponent.cs |
+| ConsumableUseComponent | GameplayComponent | Yes | Uses consumable items - the missing consumer for and . Their HealAmount / StatusEffectId were authorable but inert: nothing read them, so a potion or food was just data. Attach to a character alongside its Health/StatusEffect/Inventory. applies a consumable's effects; finds one in the sibling inventory, uses it, and... | addons/beep_game_builder_cs/ecs/ConsumableUseComponent.cs |
+| CooldownComponent | GameplayComponent | Yes | Generic ability cooldown timer. Stack as many as you need on an entity - one per ability. Trigger() starts the cooldown; IsReady tells you when the ability is available again. Emits CooldownReady when it expires. | addons/beep_game_builder_cs/ecs/CooldownComponent.cs |
+| CraftingComponent | GameplayComponent | Yes | Recipe-based item crafting. Attach alongside InventoryComponent. Define recipes as CraftingRecipe resources (drag-and-drop in the inspector). Call Craft(recipe) to check materials, deduct them, and emit Crafted. | addons/beep_game_builder_cs/ecs/CraftingComponent.cs |
+| CraftingIngredient | Resource | Yes | A crafting recipe resource. Drag-and-drop in the inspector on CraftingComponent.Recipes. | addons/beep_game_builder_cs/ecs/CraftingComponent.cs |
+| CraftingRecipe | Resource | Yes | A crafting recipe resource. Drag-and-drop in the inspector on CraftingComponent.Recipes. | addons/beep_game_builder_cs/ecs/CraftingComponent.cs |
+| CropGrowthComponent | GameplayComponent | Yes | Seasonal crop growth system. Attach to a Node2D for farmable terrain/crops. Crops progress through growth stages (Sprout -> Growing -> Mature -> Harvestable). Growth speed varies by season. Harvest produces items via DropTableComponent. Supports multiple crop types with different growth times. | addons/beep_game_builder_cs/ecs/CropGrowthComponent.cs |
+| DashComponent | ControllerComponent | Yes | Dash ability component. Attach to a CharacterBody2D. Provides a burst-speed directional dash with cooldown, optional i-frames (invincibility), and an afterimage trail effect. Input action: "dash" (defaults to Shift). Dash direction follows current input or facing direction if no input is held. Composable - stack alo... | addons/beep_game_builder_cs/ecs/DashComponent.cs |
+| DespawnOnDeathComponent | GameplayComponent | Yes | Frees the entity when its sibling dies - the enemy-side counterpart to . HealthComponent.Died only emits a signal; nothing removed the body, so a dead enemy lingered at 0 HP forever AND (because it never left the tree) permanently jammed 's respawn accounting, which decrements on a spawned node's TreeExiting. Attach... | addons/beep_game_builder_cs/ecs/DespawnOnDeathComponent.cs |
+| DestructibleComponent | WorldComponent | Yes | Destructible object. Attach to a StaticBody2D/AnimatableBody2D alongside a HealthComponent ; when that health reaches 0 the object breaks - spawns debris and (optionally) frees the body. For loot, add a DropTableComponent: it rolls off the same Died, independently of this. It no longer carries its own HP. It used to... | addons/beep_game_builder_cs/ecs/DestructibleComponent.cs |
+| DialogComponent | GameplayComponent | Yes | Dialog component. Blind - attach to any NPC, signpost, terminal, or readable object. Holds dialog lines and emits DialogStarted when interacted with. Progression (per-line stepping, typewriter, choices) is owned by DialogUIComponent , which connects to DialogStarted . | addons/beep_game_builder_cs/ecs/DialogComponent.cs |
+| DoorSwitchComponent | AreaTriggerComponent | Yes | Switch/lever + key-gated door. Attach to the Area2D switch trigger; point at the door body (StaticBody2D/AnimatableBody2D). When a body enters the switch zone and (optionally) holds the required key item, the door opens (becomes non-colliding + hides or animates). Emits SwitchToggled(isOpen). Can be wired to other c... | addons/beep_game_builder_cs/ecs/DoorSwitchComponent.cs |
+| DropTableComponent | GameplayComponent | Yes | Weighted loot drop table component. Blind - attach to any entity. Rolls on death/destroy to spawn items. Works for enemies, chests, crates, bosses. Supports seasonal/weather-based drops, difficulty scaling, and auto-cleanup. | addons/beep_game_builder_cs/ecs/DropTableComponent.cs |
+| DropTableEntry | Resource | Yes | One weighted entry in a , authorable in the inspector as a .tres - the same pattern as CraftingIngredient / CraftingRecipe . Replaces the old code-only nested DropEntry , which had no [Export] and could only be filled by an AddEntry() that nothing ever called - so every Roll() returned nothing and no loot dropped an... | addons/beep_game_builder_cs/ecs/DropTableEntry.cs |
+| EffectDisplayData | - | No | - | addons/beep_game_builder_cs/ecs/StatusEffectComponent.cs |
+| EntityComponent | Node | Yes | Base class for all Entity Components. Components are BLIND - they don't know what entity they're attached to. They only expose data and emit signals. The parent entity configures them. Usage: Add as a child of any Node. The parent entity reads data via GetNode&lt;T&gt;() and connects to signals. Systems find compone... | addons/beep_game_builder_cs/ecs/EntityComponent.cs |
+| EquipmentComponent | GameplayComponent, ISaveable | Yes | What an entity is currently wearing/wielding - runtime state, one item per . It CONTRIBUTES the equipped items' stat modifiers to the entity's and withdraws them on unequip; it exposes no DamageBonus/ DefenseBonus accessors, because nothing asks it anything - whoever computes damage reads the entity's stats. That is... | addons/beep_game_builder_cs/ecs/EquipmentComponent.cs |
+| FlashComponent | GameplayComponent | Yes | Damage flash component. Blind - flashes any CanvasItem white/red on trigger. Works for players, enemies, destructible objects, UI elements. | addons/beep_game_builder_cs/ecs/FlashComponent.cs |
+| FloatingTextComponent | GameplayComponent | Yes | Damage numbers / floating text component. Blind - attach to any entity. Spawns a Label that floats up and fades out. Works for damage, heals, XP, crits. | addons/beep_game_builder_cs/ecs/FloatingTextComponent.cs |
+| FlyComponent | ControllerComponent | Yes | Free-flight movement component for top-down shooters, flying enemies, or zero-gravity sections. Attach to a CharacterBody2D. Provides full 360-degree movement with acceleration, friction, and optional banking (visual tilt based on turn direction). Composable - can replace TopDownController or ShooterController for f... | addons/beep_game_builder_cs/ecs/FlyComponent.cs |
+| FollowTargetComponent | ControllerComponent | Yes | Follow target component. Blind - smoothly follows any Node2D target. Works for camera, pets, drones, UI elements, crosshairs. | addons/beep_game_builder_cs/ecs/FollowTargetComponent.cs |
+| FootstepComponent | WorldComponent | Yes | Procedural footstep audio. Plays random footstep sounds from an array at a configurable interval while the entity is moving. Supports random pitch variation and minimum speed threshold. Attach to a CharacterBody2D (reads its velocity). | addons/beep_game_builder_cs/ecs/FootstepComponent.cs |
+| GameApp | Node, ISaveable | Yes | The single global game node. Registered as the "GameApp" autoload so any scene references it via /root/GameApp (C# GameApp.Instance , GDScript get_node("/root/GameApp") ). Drop-in referenceable from every scene. Two kinds of data, clearly separated: * - the static resource (game name, version, genre, theme preset, r... | addons/beep_game_builder_cs/ecs/GameApp.cs |
+| GameFlowComponent | GameplayComponent | Yes | Gameplay state component: score, lives, and win/lose flow. Attach as a child of the game-scene root (or an autoload). UI components (HudComponent) connect to its signals to update their display. This is the runtime/playing counterpart to GameInfo (which holds static configuration). GameFlow holds the live state that... | addons/beep_game_builder_cs/ecs/GameFlowComponent.cs |
+| GameOverOnDeathComponent | GameplayComponent | Yes | Bridges a sibling 's death to the run's : when the entity dies, it calls GameFlow.LoseLife() , which decrements Lives and (at zero, when AutoLoseOnZeroLives ) fires GameOver -> the game-over / level-failed navigation. This is the demonstrated "death ends the run" path - the loss counterpart to demonstrating scoring. ... | addons/beep_game_builder_cs/ecs/GameOverOnDeathComponent.cs |
+| GameStateManagerComponent | GameplayComponent | Yes | Feature-based game state manager (best practice for Godot 4.7 C#). Handles serialization, persistence, and auto-discovery of ISaveable components. Architecture: Each game feature (movement, combat, inventory) has its own state class. The root GameStateData aggregates all features. Components implement ISaveable to p... | addons/beep_game_builder_cs/ecs/GameStateManagerComponent.cs |
+| GlideComponent | ControllerComponent | Yes | Glide/parachute ability component. Attach to a CharacterBody2D. While falling and the glide input is held, the body descends slowly with horizontal air control - like a wingsuit, cape, or parachute. Good for long jumps, exploring large levels, or soft landings. Composable - stack alongside Jump, Dash, Slide, Hover, ... | addons/beep_game_builder_cs/ecs/GlideComponent.cs |
+| HazardComponent | AreaTriggerComponent | Yes | Damage-on-contact hazard - spikes, lava, a poison cloud, a damaging trap. Attach to an Area2D; a body that enters (and, unless , keeps standing in it) takes typed . This is the "damage on contact" primitive the framework was missing, and it is deliberately tiny: already does the safe Area2D body-trigger (resolve + w... | addons/beep_game_builder_cs/ecs/HazardComponent.cs |
+| HealthBarComponent | GameplayComponent | Yes | Health bar component. Blind - auto-locates a sibling HealthComponent and renders a bar. Works for any entity with health - players, enemies, bosses. | addons/beep_game_builder_cs/ecs/HealthBarComponent.cs |
+| HealthComponent | GameplayComponent, ISaveable | No | - | addons/beep_game_builder_cs/ecs/ISaveable.cs |
+| HealthComponent | GameplayComponent, ISaveable | Yes | Health component for any entity that can take damage or be destroyed. Blind - doesn't know if parent is player, enemy, or destructible object. Implements ISaveable for state persistence (save/load). | addons/beep_game_builder_cs/ecs/HealthComponent.cs |
+| HitSoundComponent | GameplayComponent | Yes | Impact sound on damage. The audio twin of : listens to a sibling 's Damaged signal and plays a random hit sound with a little pitch variation so repeated hits don't sound mechanical. Ships audible out of the box - if is left empty it falls back to the addon's bundled impact clips, so combat has feedback with zero wi... | addons/beep_game_builder_cs/ecs/HitSoundComponent.cs |
+| HitSparkComponent | WorldComponent | Yes | Particle burst on damage impact. Listens to a sibling HealthComponent's Damaged signal and spawns a particle effect at the collision point. | addons/beep_game_builder_cs/ecs/HitSparkComponent.cs |
+| HitStopComponent | WorldComponent | Yes | Freeze-frame hit stop for impact feel. Listens to a sibling HealthComponent's Damaged signal and briefly sets Engine.TimeScale to 0 so the world pauses for a few frames, making heavy hits feel weighty. Attach as a child of the same node that has a HealthComponent. | addons/beep_game_builder_cs/ecs/HitStopComponent.cs |
+| HoverComponent | ControllerComponent | Yes | Hover ability component. Attach to a CharacterBody2D. While the hover input ("jump" held in air, or a dedicated "hover" action) is held, the body floats with near-zero gravity. Good for precision platforming, aerial combat, or jetpack-style mechanics. Composable - stack alongside Jump, Dash, Slide, Glide, WallJump. | addons/beep_game_builder_cs/ecs/HoverComponent.cs |
+| HungerStaminaComponent | GameplayComponent | Yes | Survival mechanic: hunger, thirst, and stamina tracking. Hunger/thirst decrease over time, faster when moving or in extreme temperatures. Stamina regenerates during rest. Critical levels apply negative status effects. Integrates with StatusEffectComponent for debuffs and TemperatureComponent for temperature-based dr... | addons/beep_game_builder_cs/ecs/HungerStaminaComponent.cs |
+| InteractableComponent | AreaTriggerComponent | Yes | Interactable component. Blind - attach to an Area2D to make it interactive. Works for doors, switches, NPCs, chests, terminals, levers. Parent resolution + body-signal wiring live in . This used to do GetParent() as Area2D itself, so on the CharacterBody2D parents in the shipped scenes it silently did nothing; the b... | addons/beep_game_builder_cs/ecs/InteractableComponent.cs |
+| InventoryComponent | - | No | PARTIAL: Interaction logic for InventoryComponent. Handles mouse input for slot clicking, drag-and-drop (left-drag move, right-click split), and hover-tooltips. All mutations delegate to the core methods in the main partial (MoveItem, SplitStack, etc.). | addons/beep_game_builder_cs/ecs/InventoryComponent.Interact.cs |
+| InventoryComponent | - | No | PARTIAL: Grid display + tooltip rendering for InventoryComponent. Builds the GridContainer, renders slot icons/quantities, and shows item tooltips on hover. All state is read from the main partial's Slots[] array - this partial holds NO data of its own. | addons/beep_game_builder_cs/ecs/InventoryComponent.Display.cs |
+| InventoryComponent | GameplayComponent, ISaveable | Yes | The ONE inventory component. Holds the data model, handles all display (grid rendering, slot icons, quantity labels, tooltips), and all interaction (drag-and-drop, right-click split, hover tooltip, sort). Drop this single node under any Control to get a fully functional inventory. Implements ISaveable for state pers... | addons/beep_game_builder_cs/ecs/InventoryComponent.cs |
+| InventorySlot | - | No | The ONE inventory component. Holds the data model, handles all display (grid rendering, slot icons, quantity labels, tooltips), and all interaction (drag-and-drop, right-click split, hover tooltip, sort). Drop this single node under any Control to get a fully functional inventory. Implements ISaveable for state pers... | addons/beep_game_builder_cs/ecs/InventoryComponent.cs |
+| JumpComponent | ControllerComponent | Yes | Advanced jump component. Attach as a child to a CharacterBody2D (alongside a movement controller like PlatformerController). Provides double-jump, variable jump height (release early = shorter jump), and apex hang (brief slow-down at the top of the arc for floaty feel). Does NOT apply gravity itself - must be compos... | addons/beep_game_builder_cs/ecs/JumpComponent.cs |
+| KnockbackComponent | GameplayComponent | Yes | Knockback component. Blind - pushes any CharacterBody2D away from damage source. Works for players, enemies, physics objects. | addons/beep_game_builder_cs/ecs/KnockbackComponent.cs |
+| LevelingComponent | GameplayComponent | Yes | XP and leveling system for RPGs, roguelikes, and progression-based games. Attach to the player entity alongside HealthComponent / GameFlowComponent. Call AddXp() to grant experience; when XP exceeds the threshold, the entity levels up and awards stat points to spend. | addons/beep_game_builder_cs/ecs/LevelingComponent.cs |
+| LevelLoaderComponent | WorldComponent | Yes | Loads a level's content into a container node at runtime, keyed by . The gameplay main scene holds the pieces that persist across levels (player, HUD, atmosphere, game flow); each level is a separate PackedScene (tilemaps, parallax, enemies, items) instanced into the LevelContainer. This is what makes level selectio... | addons/beep_game_builder_cs/ecs/LevelLoaderComponent.cs |
+| MainGameComponent | Node | Yes | Shared gameplay shell based on the MainGame pattern: stable roots for systems, level content, entities, effects, HUD, pause, transitions and debug. Genre scenes become content/configuration. The shell stays alive while levels are swapped underneath it, so player, HUD, game flow, weather and save/session systems have... | addons/beep_game_builder_cs/ecs/MainGameComponent.cs |
+| MovementComponent | GameplayComponent | Yes | Movement component for any entity that moves. Blind - works for player, NPC, projectile, or camera follow target. Attach to a child of a CharacterBody2D. Each physics frame it accelerates toward (or the move_* input actions when is on), then drives the body. It used to only *compute* Velocity and leave applying it t... | addons/beep_game_builder_cs/ecs/MovementComponent.cs |
+| MovingPlatformComponent | WorldComponent | Yes | Moving platform. Attach to an AnimatableBody2D. Moves between waypoints (child Marker2D nodes) on a loop or ping-pong, with optional pause at each end. Reads speed from GameInfo.MoveSpeed if available. | addons/beep_game_builder_cs/ecs/MovingPlatformComponent.cs |
+| NavigationComponent | ControllerComponent | Yes | Scene navigation component. Attach as a child of any node that drives scene transitions. ALL navigation targets are exported PackedScene properties - drag-and-drop .tscn files in the inspector. The generator auto-wires these when stamping scenes. Designed to work with or without .tscn [connection] lines - at _Ready ... | addons/beep_game_builder_cs/ecs/NavigationComponent.cs |
+| ObjectPoolComponent | GameplayComponent | Yes | Scene instance pool. Attach to a Node that will own the pool (e.g. a "Projectiles" or "Effects" container). Set the PackedScene + preload count in the inspector. Get() returns an instance (instantiating if the pool is empty); Release() returns one to the pool (hides it instead of freeing). Replaces the old GDScript ... | addons/beep_game_builder_cs/ecs/ObjectPoolComponent.cs |
+| ParticleComponent | WorldComponent | Yes | Particle effect component. Attach to any Node to add a one-shot or looping particle burst. Blind - works for explosions, pickups, weather, UI feedback, anything. Leave ParticleScene unset to use the shipped default burst, or point it at any of the 9 bundled particle scenes in templates/particles/ (or your own GPUPar... | addons/beep_game_builder_cs/ecs/ParticleComponent.cs |
+| PickupComponent | GameplayComponent | Yes | Pickup component. Blind - attach to any Area2D to make it collectible. Works for coins, health packs, keys, power-ups, loot drops. | addons/beep_game_builder_cs/ecs/PickupComponent.cs |
+| PlatformerController | ControllerComponent | Yes | Platformer movement controller component. Add as a CHILD of the CharacterBody2D it drives (not as the body's own script - see ControllerComponent.ResolveBody2D). Blind - works for players, enemies, NPCs with platformer physics. Uses Input actions: move_left, move_right, jump. When a JumpComponent sibling is present,... | addons/beep_game_builder_cs/ecs/PlatformerController.cs |
+| ProjectileComponent | GameplayComponent | Yes | Projectile component. Attach to any Area2D to make it a projectile. Blind - works for bullets, arrows, spell orbs, thrown items, sports balls. | addons/beep_game_builder_cs/ecs/ProjectileComponent.cs |
+| ProjectileModifierComponent | GameplayComponent | Yes | Projectile behavior modifier. Attach to a projectile Area2D/CharacterBody2D alongside a ProjectileComponent (or instead of one). One component, one mode from the enum: * Straight - constant velocity (the default, basically no modifier). * Homing - steers toward the nearest node in TargetGroup. * Bounce - reflects ve... | addons/beep_game_builder_cs/ecs/ProjectileModifierComponent.cs |
+| PuzzleLevelComponent | GameplayComponent, ISaveable | Yes | The puzzle genre's level state: the score target, the move budget, and whether the level is won or lost. PuzzleHudComponent registered Target and Moves as Placeholder(...) , so both showed whatever text was typed into the scene. Sixth genre to get a real one. What makes it a puzzle level rather than two counters: - ... | addons/beep_game_builder_cs/ecs/PuzzleLevelComponent.cs |
+| QuestComponent | GameplayComponent | Yes | Quest tracking system. Define objectives as QuestObjective resources. Progress objectives by calling ProgressObjective(targetId, amount). Emits signals when objectives complete or the whole quest is done. | addons/beep_game_builder_cs/ecs/QuestComponent.cs |
+| QuestObjective | Resource | Yes | Progress an objective by its target ID. Auto-completes when count met. public void ProgressObjective(string targetId, int amount = 1) { if (!IsActive \|\| IsComplete) return; EnsureCounts(); for (int i = 0; i Force-complete a specific objective by index. public void CompleteObjective(int index) { if (IsComplete) retur... | addons/beep_game_builder_cs/ecs/QuestComponent.cs |
+| RaceStateComponent | GameplayComponent, ISaveable | Yes | The racing genre's session state: speed, lap, position and lap timing. RacingHudComponent registered all four as Placeholder(...) , so every readout showed whatever text was typed into the scene. Fifth genre to get a real one. What makes it a race rather than four readouts: - the lap clock RUNS, per frame, and split... | addons/beep_game_builder_cs/ecs/RaceStateComponent.cs |
+| ResistanceComponent | GameplayComponent | Yes | Damage resistance modifier. Attach alongside a HealthComponent. Stores per-type multipliers (0 = immune, 0.5 = half, 1 = normal, 2 = double/weak). When HealthComponent takes damage, this component modifies the incoming amount based on the damage type. | addons/beep_game_builder_cs/ecs/ResistanceComponent.cs |
+| RespawnComponent | GameplayComponent | Yes | Respawn-at-checkpoint on death - the consumer that closes the loop opens. Attach to the player alongside its : when it dies, after a short delay this repositions the body to the reached checkpoint ( GameApp.LastCheckpointPosition when a checkpoint has been hit) - or, before any checkpoint, back to the entity's captu... | addons/beep_game_builder_cs/ecs/RespawnComponent.cs |
+| RpgPartyComponent | GameplayComponent, ISaveable | Yes | The RPG genre's character simulation: health, mana, experience and the active quest. RpgHudComponent registered Health, Mana and Quest as Placeholder(...) , so those three readouts showed whatever text was typed into the scene and never moved. This is the third genre to get a real one, after and , and follows their ... | addons/beep_game_builder_cs/ecs/RpgPartyComponent.cs |
+| ScreenShakeComponent | ControllerComponent | Yes | Screen shake component. Attach to a Camera2D. Blind - any Camera2D, works for impacts, explosions, footsteps. | addons/beep_game_builder_cs/ecs/ScreenShakeComponent.cs |
+| ShooterCombatComponent | GameplayComponent, ISaveable | Yes | The shooter genre's combat state: the weapon's magazine and reserve, and the wave the player is fighting. ShooterHudComponent registered Ammo and Wave as Placeholder(...) , so both showed whatever text was typed into the scene and never moved. Fourth genre to get a real one, following , and . What makes it a weapon ... | addons/beep_game_builder_cs/ecs/ShooterCombatComponent.cs |
+| ShooterController | ControllerComponent | Yes | Top-down shooter controller for a CharacterBody2D. 8-directional movement + look_at the mouse + fire from a muzzle Marker2D at a configurable rate. Emits FireFired(muzzleGlobalPos, direction) so a projectile spawner can react. Reads tuning (MoveSpeed, FireRate) from GameInfo if present. | addons/beep_game_builder_cs/ecs/ShooterController.cs |
+| SlideComponent | ControllerComponent | Yes | Ground slide ability component. Attach to a CharacterBody2D. When activated (input "slide" or "crouch" + move direction), the body slides at high speed with reduced collision height, maintaining momentum. Good for dodging under obstacles, crossing gaps, or speedrunning. Composable - stack alongside Jump, Dash, Glide... | addons/beep_game_builder_cs/ecs/SlideComponent.cs |
+| SpawnerComponent | WorldComponent | Yes | Spawner component. Blind - attach to any Node to spawn entities on a timer or trigger. Works for enemy spawners, item generators, wave systems, particle emitters. | addons/beep_game_builder_cs/ecs/SpawnerComponent.cs |
+| SpriteEffectComponent | WorldComponent | Yes | One-shot sprite-flipbook effect - the AnimatedSprite2D counterpart to . Spawns an AnimatedSprite2D scene (an explosion, a poof, a slash) at the parent's position, plays it once, and frees it when the animation finishes. Good for the punchy frame-animated bursts a GPUParticles2D can't do. Ships playable out of the bo... | addons/beep_game_builder_cs/ecs/SpriteEffectComponent.cs |
+| SquashAndStretchComponent | ControllerComponent | Yes | Squash-and-stretch visual juice. Automatically deforms the parent Node2D (or Control) on jump and land events for bouncy, alive feel. Listens to sibling JumpComponent signals. Attach as a child of the same node that has JumpComponent. | addons/beep_game_builder_cs/ecs/SquashAndStretchComponent.cs |
+| StateMachineComponent | GameplayComponent, ISaveable | Yes | Finite state machine component wrapping BeepStateMachine with ECS lifecycle. Attach to any entity for callback-driven state behavior. States support OnEnter, OnUpdate, OnExit callbacks and trigger-based transitions. Example: var fsm = GetNode&lt;StateMachineComponent&gt;("FSM"); fsm.AddState("idle", onEnter: () => s... | addons/beep_game_builder_cs/ecs/StateMachineComponent.cs |
+| StatusEffectComponent | GameplayComponent | Yes | Status effects component. Blind - attach to any entity for behavioural status FLAGS: stun, invincibility, hunger, thirst, poison, burning - anything queried by presence ( ) and duration, with stacking/refresh/extend. It no longer carries stat modifiers. Numeric buffs/debuffs (a +10 damage, a x1.5 speed) are s added ... | addons/beep_game_builder_cs/ecs/StatusEffectComponent.cs |
+| StrategyEmpireComponent | GameplayComponent, ISaveable | Yes | The strategy genre's empire state: turn-based gold, food and wood, plus the unit roster they support. StrategyHudComponent registered all five readouts as Placeholder(...) , so every number shown was typed into the scene. Seventh genre to get a real one. ASSUMPTIONS, since the specific game is not yet defined - all ... | addons/beep_game_builder_cs/ecs/StrategyEmpireComponent.cs |
+| SurvivalVitalsComponent | GameplayComponent, ISaveable | Yes | The survival genre's simulation: health, hunger, thirst and stamina, and the way they feed each other. This exists because SurvivalHudComponent registered all four readouts as Placeholder(...) - the HUD showed whatever text was typed into the scene, so the numbers a player saw were invented and never changed. Eight ... | addons/beep_game_builder_cs/ecs/SurvivalVitalsComponent.cs |
+| TemperatureComponent | ControllerComponent | Yes | Temperature system that tracks character core temperature and applies debuffs. Attach to a character or player node. Temperature states: Frozen (temp &lt; 0 degC): 50% movement speed penalty, 0.5 hp/sec damage Cold (0 degC - 10 degC): 20% movement speed penalty, 0.2 hp/sec damage Normal (10 degC - 35 degC): No penalties Overheatin... | addons/beep_game_builder_cs/ecs/TemperatureComponent.cs |
+| TopDownController | ControllerComponent | Yes | Top-down movement controller component. Add as a CHILD of the CharacterBody2D it drives (not as the body's own script - see ControllerComponent.ResolveBody2D). Blind - works for players, NPCs, enemies with top-down movement. Uses Input actions: move_left, move_right, move_up, move_down. | addons/beep_game_builder_cs/ecs/TopDownController.cs |
+| TrailComponent | UIComponent | Yes | Motion trail effect. Attaches as a child of a Node2D and renders a fading Line2D trail behind it. Good for dashes, projectiles, fast enemies. | addons/beep_game_builder_cs/ecs/TrailComponent.cs |
+| TurnManager | Node | Yes | The turn clock for turn-based genres (cardgame, strategy). Registered as an autoload by the generator ONLY when genre.json tuning.time_axis == "turns" ; its very presence in the tree is the signal that durations tick per turn rather than per frame. It is deliberately tiny - a Lamport logical clock : a counter and a ... | addons/beep_game_builder_cs/ecs/TurnManager.cs |
+| TurretComponent | GameplayComponent | Yes | Stationary turret. Attach to a Node2D (the turret base). Rotates to aim at the nearest node in , fires projectiles from at intervals, and respects a line-of-sight ray check. Uses an ObjectPoolComponent sibling for projectile instantiation if present, otherwise instantiates the ProjectileScene directly. Replaces turr... | addons/beep_game_builder_cs/ecs/TurretComponent.cs |
+| TweenComponent | GameplayComponent | Yes | Tween preset component. Attach to any Node to add a tween animation. Blind - works on any Control or Node2D regardless of what it is. All presets in the Preset enum have concrete behavior. | addons/beep_game_builder_cs/ecs/TweenComponent.cs |
+| WallJumpComponent | ControllerComponent | Yes | Wall slide + wall jump ability component. Attach to a CharacterBody2D. When the body touches a wall while in the air, it slides down slowly. Pressing jump while wall-sliding launches the body away from the wall (wall jump). Direction of jump is away from the wall. Composable - stack alongside Jump, Dash, Slide, Glid... | addons/beep_game_builder_cs/ecs/WallJumpComponent.cs |
+| WindFieldComponent | WorldComponent | Yes | Physical wind field driven by a . Converts the weather's data-only WindForce into actual physics forces on bodies inside an . Two pathways (Area2D gravity only auto-affects RigidBodies): * RigidBody2D (crates, debris, dropped items): pushed automatically via the Area2D's gravity space override - zero gameplay code n... | addons/beep_game_builder_cs/ecs/WindFieldComponent.cs |
+| WorkComponent | GameplayComponent | Yes | Work/Crafting component. Blind - works for furnaces, factories, workbenches, labs, kitchens. Progresses through work units and emits output on completion. | addons/beep_game_builder_cs/ecs/WorkComponent.cs |
+| AreaTriggerComponent | EntityComponent | Yes | Base class for components that react to bodies entering/leaving an Area2D - interaction zones, hazards, pickups, door switches, level-transition gates, lap gates, melee hitboxes. It is the Area2D counterpart to : attach the component as a CHILD Node of the Area2D it should watch, Zone (Area2D) +- Trigger (Node, an A... | addons/beep_game_builder_cs/ecs/categories/AreaTriggerComponent.cs |
+| ControllerComponent | EntityComponent | Yes | Base class for all controller components - PlatformerController, TopDownController, AIController, ShooterController, camera controllers. Exists purely to organize components into a category folder in Godot's Add Node dialog. In the tree they appear as: EntityComponent -> ControllerComponent -> (all controllers) | addons/beep_game_builder_cs/ecs/categories/ControllerComponent.cs |
+| GameplayComponent | EntityComponent | Yes | Base class for all gameplay components - health, attack, movement, inventory, AI, status effects, projectiles, pickups, interaction, damage, etc. Exists purely to organize components into a category folder in Godot's Add Node dialog. In the tree they appear as: EntityComponent -> GameplayComponent -> (all gameplay com... | addons/beep_game_builder_cs/ecs/categories/GameplayComponent.cs |
+| UIComponent | EntityComponent | Yes | Base class for all UI components - buttons, menus, dialogs, themes, effects, HUD elements, settings, tables, notifications, etc. Exists purely to organize components into a category folder in Godot's Add Node dialog. In the tree they appear as: EntityComponent -> UIComponent -> (all UI components) | addons/beep_game_builder_cs/ecs/categories/UIComponent.cs |
+| UIScreenComponent | Godot.Control | Yes | Base class for a component that IS A SCREEN - the root Control of a menu, an overlay, or a laid-out region - rather than a droppable child node. WHY THIS EXISTS --------------- derives from , which is a . That is right for the vast majority of UI components: you drop a ThemePresetComponent or a ToastComponent into a... | addons/beep_game_builder_cs/ecs/categories/UIScreenComponent.cs |
+| WorldComponent | EntityComponent | Yes | Base class for all world/environment components - weather, day/night, spawners, checkpoints, doors, moving platforms, parallax, wind field, particles, etc. Exists purely to organize components into a category folder in Godot's Add Node dialog. In the tree they appear as: EntityComponent -> WorldComponent -> (all world... | addons/beep_game_builder_cs/ecs/categories/WorldComponent.cs |
+| Stat | Resource | Yes | A single numeric attribute - "damage", "armor", "move_speed" - as a base value plus a list of s. is recomputed on change and cached, so consumers read it per-frame without cost, and the recompute is idempotent (running it twice yields the same number - the bug that bit ApplyTheme). Order of combination: all modifier... | addons/beep_game_builder_cs/ecs/stats/Stat.cs |
+| StatModifier | Resource | Yes | How a combines with the base value. public enum StatOp { Add, Multiply } One contribution to a - a sword's +10 damage, a rage buff's x1.5, a permanent level-up bonus. Authorable as a `.tres` (a GameWeapon can carry the modifiers it contributes on equip), or built at runtime by a status effect. is what unifies equipm... | addons/beep_game_builder_cs/ecs/stats/StatModifier.cs |
+| StatsComponent | GameplayComponent | Yes | The entity's stat block - the ONE place stats live, so whoever computes damage or defense reads them and nobody owns a private copy. This is deliberate: the shooter has no AttackComponent, so a bonus bolted onto AttackComponent would leave that genre inert; a Stat owned by the entity is read by both damage paths wit... | addons/beep_game_builder_cs/ecs/stats/StatsComponent.cs |
+
+## Algorithms And Motion
+
+Reusable algorithm components and helpers for easing, ball motion, flocking, height, procedural level generation, steering, loot affixes, and adaptive difficulty.
+
+Use when: Use this section when gameplay needs deterministic movement, procedural content, agent steering, or reusable math.
+
+Scene pattern: Keep simulation nodes separate from visual nodes; connect generated values to existing Sprite2D, CharacterBody2D, TileMapLayer, or Control nodes.
+
+Source areas: ecs/algorithms
+
+Types in this section: 4
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| AdaptiveDifficultyComponent | WorldComponent | Yes | Adaptive (rubber-band) difficulty. Watches the player's performance and eases a 0-1 scalar that other systems read to soften or stiffen the challenge - spawners shorten their interval, drop tables raise their multiplier, hazards tick faster. The signal it reads is deliberately simple and genre-agnostic: the player's... | addons/beep_game_builder_cs/ecs/algorithms/AdaptiveDifficultyComponent.cs |
+| BallComponent | GameplayComponent | Yes | A 2D ball for sports / physics play - soccer, basketball, a bouncing grenade, a marble. Attach to a CharacterBody2D. Unlike a projectile (which lands and despawns), a ball BOUNCES: it owns ground-plane roll (friction) plus a logical Z handled by a sibling , re-launching with damped velocity each landing until it rol... | addons/beep_game_builder_cs/ecs/algorithms/BallComponent.cs |
+| FlockingComponent | GameplayComponent | Yes | Boids flocking - Reynolds' three rules (separation, alignment, cohesion) for groups that move like a flock, school, or swarm instead of independent chasers. Attach as a child of a CharacterBody2D; every flockmate shares . Bird (CharacterBody2D) +- Flock (FlockingComponent, FlockGroup = "birds") Uses to cap the blend... | addons/beep_game_builder_cs/ecs/algorithms/FlockingComponent.cs |
+| HeightComponent | GameplayComponent | Yes | Logical 2.5D height - the "off the ground" axis Godot's 2D world doesn't have. Attach to a Node2D (the entity body). It owns a scalar and keeps the three things that must agree about that height in sync: * VISUAL - a sprite child is drawn Height px above the body, and a ground shadow stays at the true ground positio... | addons/beep_game_builder_cs/ecs/algorithms/HeightComponent.cs |
+
+## Atmosphere, Weather, Day Night
+
+World atmosphere stack for ambient audio, cloud sprites, day/night phase changes, fog, lightning, shelter zones, seasonal changes, weather audio, weather sprites, and weather system orchestration.
+
+Use when: Use this when a scene needs mood, time-of-day, weather-driven modifiers, or lightweight overlays.
+
+Scene pattern: Add the controller/world components to the scene, bind overlay/audio paths through exported fields, and keep weather visuals above terrain but below HUD.
+
+Source areas: ecs/atmosphere
+
+Types in this section: 14
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| AmbientAudioComponent | WorldComponent | Yes | Zone-based ambient audio. Attach to an Area2D. When a body enters the zone, crossfades to the ambient track. On exit (once the LAST body leaves), crossfades back to silence. Integrates with WeatherSystemComponent - storm weather can trigger a thunder ambient override. | addons/beep_game_builder_cs/ecs/atmosphere/AmbientAudioComponent.cs |
+| AmbientController | WorldComponent | Yes | The single owner of the scene's ambient tint. Godot allows only ONE CanvasModulate per viewport, but several systems want to tint the world - the day/night cycle, the weather system, potentially seasons. They used to each find-or-create their own CanvasModulate and fight over it. This component owns the one CanvasMo... | addons/beep_game_builder_cs/ecs/atmosphere/AmbientController.cs |
+| CloudSpriteLayer | Node2D | Yes | Drifting SPRITE clouds, as an alternative to the procedural density field. WHY THIS EXISTS --------------- The shader-based cloud renders a tiling noise field, and at the resolution it samples it reads as blocky low-frequency mush with visible tile seams - repeatedly and correctly judged as the worst part of the wea... | addons/beep_game_builder_cs/ecs/atmosphere/CloudSpriteLayer.cs |
+| DayNightCycleComponent | WorldComponent | Yes | Day/night cycle - the single source of time-of-day for the atmosphere system. Attach to a Node2D world root alongside an . Runs a 24-hour clock, samples a four-key sky gradient (night -> dawn -> day -> dusk), and contributes the resulting tint to the AmbientController. Optionally drives the viewport's clear colour so t... | addons/beep_game_builder_cs/ecs/atmosphere/DayNightCycleComponent.cs |
+| DynamicFogLayer | WorldComponent | Yes | Dynamic 2D fog overlay that reduces visibility based on weather intensity. Attach to the scene root; creates its own CanvasLayer with high layer index. Uses a Canvas Item shader with animated noise texture for organic fog motion. Fog density and speed are controlled by weather intensity. | addons/beep_game_builder_cs/ecs/atmosphere/DynamicFogLayer.cs |
+| LightningBoltComponent | Line2D | Yes | Procedural 2D lightning bolt built from a Line2D. Generates a jagged zig-zag path from a start point to a target point, with optional smaller sub-branches that split off the main path. Auto-fades out and frees itself after the strike. Usage (typically driven by WeatherSystemComponent): var bolt = new LightningBoltCo... | addons/beep_game_builder_cs/ecs/atmosphere/LightningBoltComponent.cs |
+| SeasonalComponent | WorldComponent | Yes | Seasonal system with visual transitions. Controls foliage color, wind effects, and environment tinting across Spring/Summer/Fall/Winter. Attach to a Node2D world root. Seasons rotate on a configurable cycle or can be set manually. Uses Canvas Item shaders for color blending and foliage wind. | addons/beep_game_builder_cs/ecs/atmosphere/SeasonalComponent.cs |
+| ShelterZoneComponent | AreaTriggerComponent | Yes | Drives from an Area2D over a roof / building interior. Attach as a CHILD of the Area2D that marks the sheltered region: House (Area2D, with a CollisionShape2D covering the interior) +- ShelterZone (Node, this component) While any watched body is inside, the weather's InsideShelter goes true, which eases up - precipi... | addons/beep_game_builder_cs/ecs/atmosphere/ShelterZoneComponent.cs |
+| WeatherAudioController | WorldComponent | Yes | Layered weather audio system. Manages multiple audio tracks (rain, wind, distant thunder) on a dedicated audio bus with parameter-driven mixing. Integrates with WeatherSystemComponent: listens for weather changes and cross-fades audio tracks accordingly. Supports intensity-based volume control. | addons/beep_game_builder_cs/ecs/atmosphere/WeatherAudioController.cs |
+| WeatherSpriteLayer | Node2D | Yes | Screen-space pixel weather renderer. It draws hard-edged sprites directly instead of velocity-stretched particles, so 2D games get readable rain, snow, hail, and sand. | addons/beep_game_builder_cs/ecs/atmosphere/WeatherSpriteLayer.cs |
+| WeatherSystemComponent | - | No | Partial: weather intensity engine + global shader parameters. This is the single most important architectural piece the system was missing. Instead of a binary "rain on / rain off", weather now has a smooth 0..1 intensity that cross-fades EVERYTHING driven by the weather: * particle emission count (amount_ratio equi... | addons/beep_game_builder_cs/ecs/atmosphere/WeatherSystemComponent.Intensity.cs |
+| WeatherSystemComponent | - | No | Partial: cloud + cloud-shadow overlays and the smooth weather cross-fade. Kept separate from the main file because these are the heaviest pieces (two procedural canvas_item shaders + a transition tween) and they read cleaner on their own. They share the same node cache the main file builds. | addons/beep_game_builder_cs/ecs/atmosphere/WeatherSystemComponent.Overlays.cs |
+| WeatherSystemComponent | WorldComponent | Yes | Comprehensive 2D weather system. Attach to a Node2D (or the world root). Supports 10 weather types, each with particle effects, ambient tinting, wind force, and lightning flashes. Fog/haze is rendered by the standalone DynamicFogLayer (which reads this system's WeatherIntensity/CurrentWeather). Weather types: Clear,... | addons/beep_game_builder_cs/ecs/atmosphere/WeatherSystemComponent.cs |
+| WeatherSystemComponent | - | No | Partial: the season-aware AutoCycle weather picker. This file used to also hold a full day/night cycle and its own Season enum, both of which duplicated standalone components. Those were removed: * day/night -> (the better implementation) * seasons -> (the single Season authority) What stays here is genuinely weather'... | addons/beep_game_builder_cs/ecs/atmosphere/WeatherSystemComponent.DayNight.cs |
+
+## Items, Equipment, Catalogs
+
+Resource classes and catalog utilities for item identity, rarity, consumables, liquids, equipment, weapons, armor, shields, and item lookup.
+
+Use when: Use this when inventory, crafting, loot, stores, or equipment need reusable data resources.
+
+Scene pattern: Create item resources in the inspector, assign them to inventory/crafting/drop components, and keep item definitions in resources instead of hard-coded gameplay scripts.
+
+Source areas: ecs/items
+
+Types in this section: 7
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| GameArmor | GameEquipment | Yes | Body/head armor. Earns its class with and per-type resistances - fields a plain GameEquipment does not carry. `helmet_iron.tres`, `plate_steel.tres` are `.tres` of this class. The resistance fields mirror 's per-type multipliers (1 = no effect, 0.5 = halves that type, 0 = immune), so an armor's values line up with t... | addons/beep_game_builder_cs/ecs/items/GameArmor.cs |
+| GameConsumable | GameItem | Yes | A one-shot consumable - food, scroll, bandage, elixir. Earns its class with a heal and a timed status effect on use. `bread.tres`, `scroll_haste.tres` are `.tres` of this class. (Survival's GameFood earns a further subclass by adding HungerRestore - see items/survival.md.) | addons/beep_game_builder_cs/ecs/items/GameConsumable.cs |
+| GameEquipment | GameItem | Yes | Where a piece of equipment goes on the body. Declared here because GameEquipment is the first thing that needs it; Phase 2's EquipmentComponent reads it. public enum EquipSlot { MainHand, OffHand, Head, Body, Accessory } Base for anything worn or wielded - weapons, shields, armor. Adds the equip slot and the (the no... | addons/beep_game_builder_cs/ecs/items/GameEquipment.cs |
+| GameItem | Resource | Yes | Base class for every authored item - the DEFINITION, not the instance. A `.tres` a developer makes in the inspector, drags onto an `[Export]`, stacks in an inventory, and saves. It is a , so it is NOT in the scene tree and carries no components; when an item needs to exist as a node (lying in the world, wielded), it... | addons/beep_game_builder_cs/ecs/items/GameItem.cs |
+| GameLiquid | GameItem | Yes | A liquid - potion, fuel, lamp oil, water. Earns its class with and : fuel and lamp oil are liquids you never swallow, which a plain consumable cannot express. `potion_health.tres`, `lamp_oil.tres` are `.tres` of this class. | addons/beep_game_builder_cs/ecs/items/GameLiquid.cs |
+| GameShield | GameEquipment | Yes | An off-hand shield. Earns its class over GameArmor with - a real field, an active-block probability that armor has no notion of. `buckler.tres`, `tower_shield.tres` are `.tres` of this class. Resistance fields mirror (1 = no effect, 0 = immune), same as - Phase 3b turns them into Stat contributions. | addons/beep_game_builder_cs/ecs/items/GameShield.cs |
+| GameWeapon | GameEquipment | Yes | A weapon definition. Earns its class by adding fields GameEquipment has no business carrying: base , its , reach, and ranged firing. `sword_iron.tres`, `axe.tres`, `dagger.tres` are all `.tres` of THIS class - same fields, different numbers. A "SwordClass" would be a rename. | addons/beep_game_builder_cs/ecs/items/GameWeapon.cs |
+
+## Genre Scene Components
+
+Scene controllers for starter genre templates and genre-specific screens.
+
+Use when: Use these as working examples or as starter shells when creating a new game from the addon.
+
+Scene pattern: Instance the matching template scene, then replace placeholder art and data while preserving the named nodes that the script expects.
+
+Source areas: ecs/scenes, ecs/scenes/cardgame, ecs/scenes/citybuilder, ecs/scenes/platformer, ecs/scenes/puzzle, ecs/scenes/racing, ecs/scenes/rpg, ecs/scenes/shooter, ecs/scenes/strategy, ecs/scenes/survival, ecs/scenes/topdown
+
+Types in this section: 36
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| GameOver | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/GameOver.cs |
+| KitBrowser | Godot.Control | Yes | Every Game UI Kit widget on one scrolling page, with a genre switcher. Why it exists: the kit is GENRE-AWARE - reads the global , and shape/material/geometry/font/text-treatment all resolve from it (48 ForGenre call sites). So "what does the kit look like" has ten answers, and the only way to compare them was to ren... | addons/beep_game_builder_cs/ecs/scenes/KitBrowser.cs |
+| KitGallery | Control | Yes | Every Game UI Kit widget in ONE real scene, under a real , inside real Containers. This is the migration half of PLAN.md phase B. Building the widgets proves they can be drawn; only putting them in a scene proves they are usable - that a container sizes them, that they resolve the palette through the generated Theme... | addons/beep_game_builder_cs/ecs/scenes/KitGallery.cs |
+| LevelSummary | CanvasLayer | Yes | Generic "level complete" results screen - a reusable, genre-agnostic destination for GameFlow.LevelComplete when a genre has no dedicated results screen of its own. Continue advances to the next level and reloads the gameplay scene; Menu returns to the main menu. Wired as LevelCompletePath for the action genres that... | addons/beep_game_builder_cs/ecs/scenes/LevelSummary.cs |
+| MainMenu | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/MainMenu.cs |
+| SettingsMenu | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/SettingsMenu.cs |
+| ThemeGallery | Control | Yes | Every themed widget on one screen, with live genre / theme / palette pickers. Why it exists: judging a skin previously meant opening several screens and remembering what the last one looked like. This scene keeps every control type together so geometry, palette, focus states, and compact HUD treatment can be reviewe... | addons/beep_game_builder_cs/ecs/scenes/ThemeGallery.cs |
+| CardBattle | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/cardgame/CardBattle.cs |
+| Collection | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/cardgame/Collection.cs |
+| DeckBuilder | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/cardgame/DeckBuilder.cs |
+| BuildMenu | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/citybuilder/BuildMenu.cs |
+| Districts | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/citybuilder/Districts.cs |
+| Economy | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/citybuilder/Economy.cs |
+| LevelResults | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/platformer/LevelResults.cs |
+| LevelSelect | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/platformer/LevelSelect.cs |
+| LevelComplete | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelComplete.cs |
+| LevelFailed | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelFailed.cs |
+| LevelMap | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/puzzle/LevelMap.cs |
+| PreLevel | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/puzzle/PreLevel.cs |
+| Garage | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/racing/Garage.cs |
+| RaceResults | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/racing/RaceResults.cs |
+| VehicleSelect | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/racing/VehicleSelect.cs |
+| Character | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/rpg/Character.cs |
+| Inventory | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/rpg/Inventory.cs |
+| Quests | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/rpg/Quests.cs |
+| CharacterSelect | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/shooter/CharacterSelect.cs |
+| Codex | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/shooter/Codex.cs |
+| LevelUpChoice | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/shooter/LevelUpChoice.cs |
+| RunResults | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/shooter/RunResults.cs |
+| Diplomacy | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/strategy/Diplomacy.cs |
+| Research | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/strategy/Research.cs |
+| UnitPanel | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/strategy/UnitPanel.cs |
+| Backpack | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/survival/Backpack.cs |
+| Crafting | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/survival/Crafting.cs |
+| WorldMap | Control | Yes | - | addons/beep_game_builder_cs/ecs/scenes/survival/WorldMap.cs |
+| PauseSubscreen | CanvasLayer | Yes | - | addons/beep_game_builder_cs/ecs/scenes/topdown/PauseSubscreen.cs |
+
+## 2D Grid, Terrain, Builder Systems
+
+Painterly terrain, grid projection, tilemap bridging, selection, placement, roads, navigation, path following, job queues, resources, workers, spawners, and builder HUD/resource panels.
+
+Use when: Use this for top-down, isometric, city-builder, RTS, farming, survival, and Settlers-style workflows.
+
+Scene pattern: Build the world at design time with authored Node2D/Control nodes, then attach grid components. Prefer painterly terrain or sparse visual TileMap layers over huge fully painted maps.
+
+Source areas: ecs/terrain
+
+Types in this section: 49
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| GridBuildCatalogComponent | Node | Yes | Catalog of placeable grid builds. It keeps build menu data together and can start GridPlacementComponent with footprint, scene, preview, id, and costs. | addons/beep_game_builder_cs/ecs/terrain/GridBuildCatalogComponent.cs |
+| GridBuildDefinition | Resource | Yes | Data for one placeable building/prop/tool target in grid builder games. Menus can list these definitions and pass the selected one to placement. | addons/beep_game_builder_cs/ecs/terrain/GridBuildDefinition.cs |
+| GridBuildSiteComponent | Node | Yes | Turns placed build definitions with BuildSeconds into worker-completed build sites. This gives builder games a blueprint -> job -> finished building loop without project-specific glue. | addons/beep_game_builder_cs/ecs/terrain/GridBuildSiteComponent.cs |
+| GridBuildToolbarComponent | Control | Yes | Simple build palette for grid builder/farming/settler scenes. It reads GridBuildCatalogComponent and creates category/build buttons that call BeginPlacement on the selected build. | addons/beep_game_builder_cs/ecs/terrain/GridBuildToolbarComponent.cs |
+| GridCalendarComponent | Node, ISaveable | Yes | Simple grid-game calendar for farming and settlement loops. It advances GridCellDataComponent crops by day, tracks season/year, and can run from real seconds or be advanced manually from a sleep/end-day screen. | addons/beep_game_builder_cs/ecs/terrain/GridCalendarComponent.cs |
+| GridCalendarHudComponent | Control | Yes | Compact HUD panel for GridCalendarComponent. It shows the current date, optional day progress, and an optional advance-day button for farming and settlement loops. | addons/beep_game_builder_cs/ecs/terrain/GridCalendarHudComponent.cs |
+| GridCameraControllerComponent | ControllerComponent | Yes | Pan/zoom controller for authored top-down and isometric 2D maps. Attach this as a child of a Camera2D. It supports mouse drag, wheel zoom, keyboard/edge pan, and optional world bounds without depending on TileMap. | addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs |
+| GridCellDataComponent | Node | Yes | Per-cell land data for top-down/isometric farming, builder, tactics, and settlement games. It stores terrain kind, flags, crop id, growth age, and arbitrary small metadata without requiring a TileMap. | addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs |
+| GridCellOverlayComponent | Node2D | Yes | Lightweight visual overlay for GridCellDataComponent. It draws cell-state fills/outline cues for farming and builder workflows before a project has custom TileMap art for every state. | addons/beep_game_builder_cs/ecs/terrain/GridCellOverlayComponent.cs |
+| GridCropCatalogComponent | Node | Yes | Lookup table for farming crop definitions. Pair with GridToolActionComponent so the plant tool can read maturity days and season restrictions from data. | addons/beep_game_builder_cs/ecs/terrain/GridCropCatalogComponent.cs |
+| GridCropDefinition | Resource | Yes | Crop data for GridCropCatalogComponent. Use one resource per crop so farming games can configure maturity, valid seasons, regrowth, and harvest yield in the Inspector instead of hard-coding tool behavior. | addons/beep_game_builder_cs/ecs/terrain/GridCropDefinition.cs |
+| GridInteractionCursorComponent | Node2D | Yes | Draws a lightweight cell cursor for the active grid interaction. It uses GridProjectionComponent.CellCorners, so the same node works for top-down square cells and isometric diamond cells. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionCursorComponent.cs |
+| GridInteractionModeBarComponent | Control | Yes | HUD button bar for GridInteractionModeComponent. It lets players switch between select, inspect, tool, build, and disabled map interaction modes. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeBarComponent.cs |
+| GridInteractionModeComponent | Node | Yes | Coordinates map interaction modes so selection, tools, and placement do not all consume the same click. Attach one scene-level node and point it at the existing grid components. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeComponent.cs |
+| GridInteractionStatusComponent | Control | Yes | Compact HUD status readout for grid interaction. It shows the active mode, hovered/placement cell, selected tool or build id, and recent interaction feedback. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionStatusComponent.cs |
+| GridJobBoardComponent | Control | Yes | Compact HUD panel for GridJobQueueComponent. It shows queued/claimed/done counts plus a short job list so builder and settlement games can expose what workers are doing without custom queue UI. | addons/beep_game_builder_cs/ecs/terrain/GridJobBoardComponent.cs |
+| GridJobEffectComponent | Node | Yes | Applies cell effects when GridJobQueueComponent jobs complete. This turns settler/worker jobs into land state changes without custom project glue. | addons/beep_game_builder_cs/ecs/terrain/GridJobEffectComponent.cs |
+| GridJobQueueComponent | Node | Yes | Lightweight cell-job queue for builder, RTS, farming, tactics, and settlement games. Use this for jobs such as clear land, build road, harvest tile, repair object, deliver resource, or inspect a cell. Workers claim jobs by id and complete, release, or cancel them without the queue depending on TileMap. | addons/beep_game_builder_cs/ecs/terrain/GridJobQueueComponent.cs |
+| GridMinimapComponent | Control | Yes | Lightweight HUD overview for top-down/isometric grid worlds. It draws roads, selected cells, jobs, units, and the camera viewport from existing Godot nodes without requiring a TileMap or custom minimap scene. | addons/beep_game_builder_cs/ecs/terrain/GridMinimapComponent.cs |
+| GridNavigationComponent | Node | Yes | A* navigation over a 2D grid. Works with top-down or isometric worlds by using GridProjectionComponent only for world/cell conversion; the pathing itself stays cell-based and independent of TileMap. | addons/beep_game_builder_cs/ecs/terrain/GridNavigationComponent.cs |
+| GridObjectComponent | EntityComponent | Yes | Common identity/inspection component for placed grid objects. Add it under any Node2D building, prop, machine, resource, or unit scene to expose the object's grid cell, footprint, ids, and state through normal Godot exports. | addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs |
+| GridObjectInspectorComponent | Control | Yes | Compact HUD inspector for the currently selected GridObjectComponent. It bridges grid selection to normal Godot UI so games can show selected buildings, props, resource nodes, machines, and units without custom glue. | addons/beep_game_builder_cs/ecs/terrain/GridObjectInspectorComponent.cs |
+| GridObjectiveDefinition | Resource | Yes | Authored data for one settlement/grid objective. Runtime progress lives on GridObjectiveTrackerComponent so this resource can be reused safely. | addons/beep_game_builder_cs/ecs/terrain/GridObjectiveDefinition.cs |
+| GridObjectiveEventBinderComponent | Node | Yes | Connects grid gameplay signals to GridObjectiveTrackerComponent progress. Use it to advance goals from completed jobs, finished builds, gathered resources, and completed production cycles without project-specific glue. | addons/beep_game_builder_cs/ecs/terrain/GridObjectiveEventBinderComponent.cs |
+| GridObjectivePanelComponent | Control | Yes | Compact HUD panel for GridObjectiveTrackerComponent. It lists active settlement/tutorial goals and their progress. | addons/beep_game_builder_cs/ecs/terrain/GridObjectivePanelComponent.cs |
+| GridObjectiveTrackerComponent | Node, ISaveable | Yes | Tracks objective activation, progress, completion, and save/load state for top-down and isometric builder games. | addons/beep_game_builder_cs/ecs/terrain/GridObjectiveTrackerComponent.cs |
+| GridPathFollowerComponent | GameplayComponent | Yes | Moves a Node2D/CharacterBody2D along paths produced by GridNavigationComponent. Use it for workers, trucks, RTS units, town NPCs, or enemies that need simple top-down/isometric grid navigation without writing a movement loop. | addons/beep_game_builder_cs/ecs/terrain/GridPathFollowerComponent.cs |
+| GridPlacementComponent | Node2D | Yes | Grid-based scene placement for top-down and isometric 2D games. Pair with . UI can call BeginPlacement after a toolbar/build-menu selection, and this component handles preview movement, grid snapping, footprint occupancy, click-to-place, and cancel. | addons/beep_game_builder_cs/ecs/terrain/GridPlacementComponent.cs |
+| GridProductionComponent | Node | Yes | Attach to a building Node to run simple resource production cycles. It consumes input resources from GridResourceWalletComponent, waits for the recipe duration, then adds outputs back to the wallet. | addons/beep_game_builder_cs/ecs/terrain/GridProductionComponent.cs |
+| GridProductionPanelComponent | Control | Yes | Compact HUD panel for GridProductionComponent buildings. It scans a production root, shows machine/recipe state, and exposes start, pause, resume, and cancel commands without custom game UI glue. | addons/beep_game_builder_cs/ecs/terrain/GridProductionPanelComponent.cs |
+| GridProductionRecipe | Resource | Yes | Data-driven production recipe for top-down/isometric settlement buildings. Use with GridProductionComponent to convert wallet resources over time. | addons/beep_game_builder_cs/ecs/terrain/GridProductionRecipe.cs |
+| GridProjectionComponent | Node2D | Yes | Shared grid math for top-down and isometric 2D worlds. Drop this Node2D at the map origin, set Projection/TileSize, then use WorldToCell, CellToWorld, and SnapWorld from placement, selection, AI job, or build-preview code. The optional debug drawing makes tile alignment visible in the editor without requiring a Tile... | addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs |
+| GridResourceAmount | Resource | Yes | Resource id plus quantity, used by grid build costs and starting wallets. | addons/beep_game_builder_cs/ecs/terrain/GridResourceAmount.cs |
+| GridResourceBarComponent | Control | Yes | Compact HUD strip for GridResourceWalletComponent. It displays every non-zero wallet entry as a resource label and refreshes on wallet changes. | addons/beep_game_builder_cs/ecs/terrain/GridResourceBarComponent.cs |
+| GridResourceNodeComponent | Node2D | Yes | Attach to a Node2D resource prop such as a tree, rock, berry bush, scrap pile, crate, or oilfield supply cache. Workers can gather it through the grid job queue, and harvested resources go into GridResourceWalletComponent. | addons/beep_game_builder_cs/ecs/terrain/GridResourceNodeComponent.cs |
+| GridResourceScatterComponent | Node | Yes | Seeded resource-node scatter for farms, settlements, survival maps, and top-down/isometric builders. It populates trees, rocks, crates, or other gatherable nodes without hand-placing every resource prop. | addons/beep_game_builder_cs/ecs/terrain/GridResourceScatterComponent.cs |
+| GridResourceWalletComponent | Node, ISaveable | Yes | Small settlement/resource wallet for top-down builders. Use it for build costs such as wood, stone, coins, oil, parts, food, or seeds without requiring a slot inventory UI. | addons/beep_game_builder_cs/ecs/terrain/GridResourceWalletComponent.cs |
+| GridRoadComponent | Node2D, ISaveable | Yes | Stores player-built roads/paths on grid cells and exposes movement-cost helpers for GridNavigationComponent. Use it for dirt paths, roads, rails, trails, or any top-down/isometric route network. | addons/beep_game_builder_cs/ecs/terrain/GridRoadComponent.cs |
+| GridSelectionComponent | Node2D | Yes | Hover, click, and rectangular cell selection for top-down/isometric grids. Pair with GridProjectionComponent for map editors, tactics games, RTS units, farming plots, builder tools, and tile/cell inspectors. | addons/beep_game_builder_cs/ecs/terrain/GridSelectionComponent.cs |
+| GridSelectionJobCommandComponent | Node | Yes | Converts selected grid cells into jobs. Pair with GridSelectionComponent and GridJobQueueComponent for settler-style commands such as clear land, prepare pad, harvest, repair, build, deliver, or inspect. | addons/beep_game_builder_cs/ecs/terrain/GridSelectionJobCommandComponent.cs |
+| GridTileMapLayerBridgeComponent | Node | Yes | Synchronizes GridCellDataComponent and GridRoadComponent state into a real Godot TileMapLayer. Use this when a game has authored tiles and should show map state through Godot's tile renderer instead of lightweight debug overlays. | addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs |
+| GridToolActionComponent | Node | Yes | Stardew-style grid tool actions for click/toolbar driven games. It applies hoe, water, plant, harvest, clear, and job-queue actions to a target cell or to the current GridSelectionComponent selection. | addons/beep_game_builder_cs/ecs/terrain/GridToolActionComponent.cs |
+| GridToolPaletteComponent | Control | Yes | HUD palette for GridToolActionComponent. It creates tool buttons for common farming/settler actions and keeps the selected button in sync with the tool. | addons/beep_game_builder_cs/ecs/terrain/GridToolPaletteComponent.cs |
+| GridWorkerComponent | GameplayComponent | Yes | Worker/vehicle agent that claims jobs from GridJobQueueComponent, moves to the target cell with GridPathFollowerComponent, waits for the job duration, and marks the job complete. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerComponent.cs |
+| GridWorkerSpawnerComponent | Node | Yes | Spawns worker, truck, or NPC units from a base/building and wires them to the reusable grid navigation and job systems. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs |
+| GridWorkerSpawnerPanelComponent | Control | Yes | Simple HUD panel for a base, depot, garage, or barracks that spawns worker/truck/NPC units through GridWorkerSpawnerComponent. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs |
+| GridWorkerStatusPanelComponent | Control | Yes | Compact HUD panel for worker/truck status. It scans a units root for GridWorkerComponent instances and shows whether each worker is idle, moving, or working. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerStatusPanelComponent.cs |
+| GridWorldStateComponent | Node, ISaveable | Yes | Captures and restores the reusable grid toolkit state: cell data, placement occupancy, navigation blocked cells, selected cells, and jobs. The snapshot is a Godot Dictionary, so it can be stored in GameStateData, JSON, config files, or custom save systems. | addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs |
+| PainterlyTerrainComponent | WorldComponent | Yes | Renders PainterlyTerrainSprite as a saturated plain biome base and PainterlyTerrainDetailSprite above it for overlays. Biome detail is off by default; when enabled, BiomeDetailCoverage, BiomeDetailPatchScale, and BiomeDetailPatchSoftness keep grass clumps, flowers, dunes, pebbles, damp earth, rock cracks, and snow scratches in local regions instead of washing the whole scene. Bundled material textures are opt-in; leave them off when the base should stay clean green or clean sand. Use RenderOffset to place generated sprites from an authored plain Node. | addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs |
+
+## Runtime UI Components
+
+Reusable UI components for HUD, dialogs, data views, menus, settings, save/load, progress, inventory displays, countdowns, notifications, health bars, minimap, and screen transitions.
+
+Use when: Use these for gameplay HUD and menus when you need reusable behavior on existing Control scenes.
+
+Scene pattern: Create the Control tree in the editor, attach components to the authored nodes, and bind exported child paths. Do not construct HUD panels entirely in runtime code for normal game screens.
+
+Source areas: ecs/ui, ecs/ui/hud
+
+Types in this section: 94
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| AccordionComponent | UIComponent | Yes | Accordion / collapsible section. Attach to a VBoxContainer with a Button header + content. Blind - works for settings panels, FAQ sections, collapsible menus. First child = header (Button), rest = content (collapses). | addons/beep_game_builder_cs/ecs/ui/AccordionComponent.cs |
+| AchievementToastComponent | UIComponent | Yes | Shows a toast when an achievement unlocks. Drop it on a HUD / CanvasLayer that also holds a (which owns the actual toast rendering). Bridges the two achievement sources that otherwise fired with no listener: * GameApp.AchievementUnlocked - the autoload signal (id string), and * BeepAchievementSystem.AchievementUnloc... | addons/beep_game_builder_cs/ecs/ui/AchievementToastComponent.cs |
+| AnimatedMenuComponent | UIComponent | Yes | Animated menu component. Attach to any Container to animate its children. Children stagger in with configurable direction, delay, and easing. | addons/beep_game_builder_cs/ecs/ui/AnimatedMenuComponent.cs |
+| BadgeComponent | UIComponent | Yes | Notification badge component. Attach to any Control to show a red badge. Blind - works for buttons, tabs, icons, mail indicators. | addons/beep_game_builder_cs/ecs/ui/BadgeComponent.cs |
+| BossHealthBarComponent | UIComponent | Yes | Segmented boss health bar at the top of the screen with multi-phase colors: phase-based color transitions driven by a sibling HealthComponent. (No slide animation - the old SlideDuration export was never wired to anything.) | addons/beep_game_builder_cs/ecs/ui/BossHealthBarComponent.cs |
+| BuffBarComponent | UIComponent | Yes | Active buff/debuff icon display. Listens to sibling StatusEffectComponent and shows each active effect as a small icon with a duration progress ring. | addons/beep_game_builder_cs/ecs/ui/BuffBarComponent.cs |
+| BuildToolbarComponent | UIComponent | Yes | The docked build toolbar: category tabs along the bottom, each expanding into a palette of buildings with cost and affordability. This is the piece the City Builder HUD was missing. The genre's whole session is spent in this control - Cities: Skylines, SimCity and Anno all dock it permanently along the bottom. Ours ... | addons/beep_game_builder_cs/ecs/ui/BuildToolbarComponent.cs |
+| CarouselComponent | UIComponent | Yes | Horizontal card carousel. Attach to a Container (or any Control) with child Controls as slides. Blind - works for image galleries, featured items, tutorials, card browsers. The carousel fully owns slide placement (absolute x fan-out + scale + fade), so each slide is made TopLevel at startup to escape the parent's la... | addons/beep_game_builder_cs/ecs/ui/CarouselComponent.cs |
+| ChipComponent | UIComponent | Yes | Chip/tag component. Attach to a Container to create styled tag chips with remove button. Blind - works for filters, categories, player positions, selected items. | addons/beep_game_builder_cs/ecs/ui/ChipComponent.cs |
+| ChromaticAberrationComponent | UIComponent | Yes | Chromatic aberration / RGB-split overlay. Applies a shader to the parent Control (or CanvasLayer Control) that offsets the red and blue channels outward from center. Adjustable strength. Creates the shader inline. | addons/beep_game_builder_cs/ecs/ui/ChromaticAberrationComponent.cs |
+| CollapsiblePanelComponent | UIComponent, ISaveable | Yes | Makes a screen-edge HUD block collapsible with a floating kit toggle. Collapse moves the whole widget off the nearest screen edge. It does not resize the widget and it does not hide the widget's child content. | addons/beep_game_builder_cs/ecs/ui/CollapsiblePanelComponent.cs |
+| ColorPalette | Resource | Yes | A color-palette variant that retints any theme's . Instead of authoring 5 separate ColorSchemas per theme, the user picks a palette and it shifts the theme's existing colors in HSV space. So "Cartoon + Warm" and "Cartoon + Cool" share Cartoon's geometry/animation but differ in hue feel. A palette is a set of small o... | addons/beep_game_builder_cs/ecs/ui/ColorPalette.cs |
+| ComboCounterComponent | UIComponent | Yes | Combo counter display. Call Increment() each time the player lands a hit or chains an action. The combo number grows with font size + shake, and auto-resets to 0 after ResetTime seconds of inactivity. | addons/beep_game_builder_cs/ecs/ui/ComboCounterComponent.cs |
+| ContextMenuComponent | UIComponent | Yes | Right-click context menu component. Attach to any Godot.Control. Blind - works for any UI element needing a popup menu. | addons/beep_game_builder_cs/ecs/ui/ContextMenuComponent.cs |
+| CoroutineHostComponent | UIComponent, ISaveable | Yes | Per-scene coroutine/scheduler host. Schedules delayed or repeating callbacks without needing a global static. Attach to any scene; call Delay/Repeat from any sibling component. Replaces static BeepCoroutine with an instance-based component that integrates with ECS lifecycle and supports job cancellation. Example: va... | addons/beep_game_builder_cs/ecs/ui/CoroutineHostComponent.cs |
+| CounterComponent | UIComponent | Yes | Animated number counter. Attach to any Label. Blind - counts currency, scores, stats, timers, health with smooth animation. | addons/beep_game_builder_cs/ecs/ui/CounterComponent.cs |
+| CrosshairComponent | UIComponent | Yes | Center-screen crosshair. Draws via _Draw on the parent Control (which should fill the screen). Spread grows when the parent moves/fires and recovers over time. Auto-hides when a menu opens (detected via the tree's paused state). | addons/beep_game_builder_cs/ecs/ui/CrosshairComponent.cs |
+| CursorComponent | UIComponent | Yes | Sets a themed custom mouse cursor for the scene it lives in. Opt-in - drop it on a HUD or scene root and assign the cursor textures (Kenney cursor art ships under res://addons/beep_game_builder_cs/textures/cursors/ , CC0). Resets to the system cursors on _ExitTree so the custom cursor does NOT bleed into other scene... | addons/beep_game_builder_cs/ecs/ui/CursorComponent.cs |
+| DataBinderHostComponent | UIComponent, ISaveable | Yes | Data binder component for two-way UI <-> data synchronization. Manages bindings between C# object properties and Godot UI nodes. Supports formatters, two-way sync, and per-instance binding management. Example: var binder = GetNode&lt;DataBinderHostComponent&gt;("DataBinder"); binder.BindLabel(player, nameof(player.Hea... | addons/beep_game_builder_cs/ecs/ui/DataBinderHostComponent.cs |
+| DemandMeterComponent | Godot.Control | Yes | The RCI demand meter - three bars that diverge from a centre line, showing whether Residential, Commercial and Industrial zoning is under- or over-supplied. This is the city builder's core feedback loop: it is what tells the player which zone to paint next, and SimCity/Cities: Skylines keep it on screen permanently ... | addons/beep_game_builder_cs/ecs/ui/DemandMeterComponent.cs |
+| DialogUIComponent | UIComponent | Yes | Fully themed dialog box. Attach as a child of any Control (typically on a CanvasLayer). Discovers the nearest ancestor and uses its colors (AccentSecondary for speaker name, TextPrimary for body text, themed PanelContainer for the frame). If no theme is found, falls back to Godot defaults. Features: * Themed panel f... | addons/beep_game_builder_cs/ecs/ui/DialogUIComponent.cs |
+| DragComponent | UIComponent | Yes | Drag-and-drop component. Attach to any Control to make it draggable. Blind - works for windows, cards, inventory items, UI panels. | addons/beep_game_builder_cs/ecs/ui/DragComponent.cs |
+| EffectComponent | UIComponent | Yes | Base class for UI effect components (ripple, pulse, shake, slide, ...). Adds OPTIONAL cascade: set = true and the effect applies to ALL descendant Controls (Buttons only if ), so one component under a container affects every child. Default behaviour (ApplyToChildren = false) targets only the parent - unchanged from th... | addons/beep_game_builder_cs/ecs/ui/EffectComponent.cs |
+| FlipCardComponent | UIComponent | Yes | Card flip component. Attach to a Container with 2 children (front/back). First child = front face, second child = back face. | addons/beep_game_builder_cs/ecs/ui/FlipCardComponent.cs |
+| GameInfoBinder | UIComponent | Yes | Runtime binder between the active GameInfo resource and scene nodes. Attach as a child of any UI root. On _Ready it reads GameApp.Info and pushes values into the configured nodes - so a dev edits game_info.tres ONCE and every menu reflects it. Without this, scene .tscn files hold baked literals. What it binds (each ... | addons/beep_game_builder_cs/ecs/ui/GameInfoBinder.cs |
+| GameSpeedComponent | UIComponent | Yes | Simulation speed control - pause / 1x / 2x / 3x. Pause is the most-pressed control in a city builder: the player pauses to plan. It had no representation in the HUD at all, and the simulation had no way to be stopped. This drives only - it deliberately does NOT touch GetTree().Paused . Pausing the tree would freeze ... | addons/beep_game_builder_cs/ecs/ui/GameSpeedComponent.cs |
+| GenreDef | - | No | - | addons/beep_game_builder_cs/ecs/ui/SkinCatalog.cs |
+| GenreScreenComponent | UIComponent | Yes | Opens one of the genre's own screens (inventory, crafting, deck builder, research...) as an overlay, on an input action. Why this exists: seven genres shipped 14 fully-built, themed, scripted screens that no player could ever open. They had no inbound edge at all - nothing instanced them, no menu listed them, and nav_... | addons/beep_game_builder_cs/ecs/ui/GenreScreenComponent.cs |
+| GeometryDef | - | No | - | addons/beep_game_builder_cs/ecs/ui/SkinCatalog.cs |
+| GeometryProfile | Resource | Yes | Shape/geometry profile applied as an OVERRIDE layer on top of a theme preset - independent of color (handled by ) and independent of the preset's own baked geometry. After the preset builds its StyleBoxFlats, restamps each one with this profile's corner radius / border width / shadow / padding / font size. So the fo... | addons/beep_game_builder_cs/ecs/ui/GeometryProfile.cs |
+| HudCollapseComponent | UIComponent | Yes | Adds collapse handles to screen-edge HUD blocks under the parent Godot.Control. Attach once under HUD/Root. Direct HUD children are treated as widgets; nested content is left alone unless IncludeNestedPanels is explicitly enabled. | addons/beep_game_builder_cs/ecs/ui/HudCollapseComponent.cs |
+| HudComponent | UIComponent | Yes | Heads-up display binder. Attach as a child of a CanvasLayer (the HUD root). Discovers sibling GameFlowComponent and a HealthComponent on the player node, then updates named child Labels whenever score/lives/health change. Pure binding - no layout; the scene's Labels provide the layout. Expected child Labels (by Node... | addons/beep_game_builder_cs/ecs/ui/HudComponent.cs |
+| InputShape | - | No | Per-node-type shape/sizing overrides pulled from a genre's geometry.json "shapes" block. Parsed by and held on . Each nested type corresponds to one Godot UI node family (Panel, Input, Progress, ...) and contains the numeric "knobs" the theming engine uses instead of hardcoded literals. Defaults match the legacy hardc... | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| InteractionPromptComponent | UIComponent | Yes | "Press E to interact" prompt. Shows/hides a child Label via Show(text)/Hide(). Place on a HUD CanvasLayer. An InteractableComponent (or any caller) drives it: when the player enters an interaction zone, call Show("Press E: Open Door"). | addons/beep_game_builder_cs/ecs/ui/InteractionPromptComponent.cs |
+| KeybindManagerComponent | UIComponent, ISaveable | Yes | Keybind manager component. Tracks game-instance keybinds and routes input. Attach to a scene (or use as autoload) to capture keyboard input and fire keybind callbacks. Supports runtime rebinding and persistence via ISaveable. Example: var mgr = GetNode&lt;KeybindManagerComponent&gt;("KeybindMgr"); mgr.Register("jump... | addons/beep_game_builder_cs/ecs/ui/KeybindManagerComponent.cs |
+| LoadGameMenuComponent | UIScreenComponent | Yes | Universal load game menu component. Works across all game genres. Displays saved games with metadata and handles load/delete operations. Usage: Attach to a Control node in your load menu scene. Signals: LoadConfirmed (slot), DeleteConfirmed (slot), CancelPressed | addons/beep_game_builder_cs/ecs/ui/LoadGameMenuComponent.cs |
+| LoadingScreenComponent | UIComponent | Yes | Async loading screen with a progress bar. Place on a Control/CanvasLayer that covers the screen. Call LoadScene(path) to start loading a scene in the background - the progress bar fills, then the scene swaps when ready. Pairs with NavigationComponent: connect NavigationComponent.BeforeNavigate -> a method that shows ... | addons/beep_game_builder_cs/ecs/ui/LoadingScreenComponent.cs |
+| LocalizationComponent | UIComponent | Yes | Localization manager using Godot's native . Loads Godot-format CSV translation files (keys,en,es,ja,...), builds per-language resources, and registers them with TranslationServer. When the locale is set, Godot auto-translates Label/Button/RichTextLabel text - no manual Tr() calls needed on UI nodes. KEY IT ON THE ON... | addons/beep_game_builder_cs/ecs/ui/LocalizationComponent.cs |
+| MarqueeComponent | UIComponent | Yes | Scrolling text marquee/ticker. Attach to any Label. Blind - works for news tickers, song titles, status bars, long names. | addons/beep_game_builder_cs/ecs/ui/MarqueeComponent.cs |
+| Match3BoardComponent | UIComponent | Yes | Match-3 puzzle board. Maintains an integer grid of gem types, exposes Swap(a, b) which performs a swap, detects matches (3+ in a row/column), clears them, cascades gravity + refill, and emits ScoreChanged with the points earned. The parent should be a Node2D; gem rendering is left to the game (read Grid via GetGrid,... | addons/beep_game_builder_cs/ecs/ui/Match3BoardComponent.cs |
+| MatchTimerComponent | UIComponent | Yes | Countdown match timer. Creates/uses a child Label showing mm:ss. Start() begins the countdown; emits TimeUp when it reaches zero. | addons/beep_game_builder_cs/ecs/ui/MatchTimerComponent.cs |
+| MenuComponent | UIComponent | Yes | Menu component. Discovers all descendant Buttons and connects each one's Pressed signal directly to a handler that resolves the action and emits ActionTriggered. The sibling NavigationComponent listens and navigates. Simple: button press -> resolve action -> emit signal -> NavigationComponent.Dispatch. | addons/beep_game_builder_cs/ecs/ui/MenuComponent.cs |
+| MeterBarComponent | UIComponent | Yes | A labelled value meter - the widget that replaces `"Health: 72"` text across the genre HUDs. Shared by survival (health/hunger/thirst/stamina), rpg (health/mana), shooter (health/shield) and citybuilder (power/water). Three things a bare does not do, and the reason this exists: * **Thresholds.** Crossing or recolour... | addons/beep_game_builder_cs/ecs/ui/MeterBarComponent.cs |
+| MinimapComponent | Godot.Control | Yes | Circular minimap. Extends Control (one documented exception, matching the ProgressRingComponent precedent) because it needs _Draw to render blips. Place it as a child of a HUD CanvasLayer. Blips are nodes in a tracked group (default "minimap_blips"); each blip's global position is mapped into the minimap's world rad... | addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs |
+| ModalComponent | UIComponent | Yes | Modal dialog overlay component. Attach to any Control to make it a modal popup. Blind - works for dialogs, confirmations, settings, forms. Creates dark overlay behind the dialog, blocks input to background. The open/close pop animates the dialog's `scale`, which assumes the dialog is a free-positioned Control (an ov... | addons/beep_game_builder_cs/ecs/ui/ModalComponent.cs |
+| NinePatchFrameComponent | UIComponent | Yes | Paints an explicitly assigned 9-patch frame behind its parent Control. WHEN TO USE THIS - and when not to: This is not part of the UI kit skin pipeline. The kit uses procedural theme colors, geometry, and style tokens. Use this only for a deliberate scene-authored frame that needs a specific NinePatchRect texture as... | addons/beep_game_builder_cs/ecs/ui/NinePatchFrameComponent.cs |
+| PanelFrameComponent | Godot.Control | Yes | A game panel: outer frame, recessed inner well, and a title banner that OVERHANGS the top edge. This is the most repeated element across every kit in `Example_Art/gameui1..7.png`, and the one our UI got most consistently wrong. Not one of the seven puts a title inside the box - the header is always a separate piece ... | addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs |
+| PanelShape | - | No | Per-node-type shape/sizing overrides pulled from a genre's geometry.json "shapes" block. Parsed by and held on . Each nested type corresponds to one Godot UI node family (Panel, Input, Progress, ...) and contains the numeric "knobs" the theming engine uses instead of hardcoded literals. Defaults match the legacy hardc... | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| PauseComponent | UIComponent | Yes | Optional self-contained pause controller for a CUSTOM pause overlay. The framework's default pause needs none of this: shows the main menu over the frozen game and toggles it. Use this only when you build your own pause overlay scene and want it to pause/toggle itself. Attach it as a child of your overlay's root (a ... | addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs |
+| ProgressRingComponent | Godot.Control | Yes | Circular progress ring component. Extends Control to use _Draw(). Works for loading spinners, cooldowns, timers, radial health. Extends Control directly by design (not a category base) - it IS the drawable node. | addons/beep_game_builder_cs/ecs/ui/ProgressRingComponent.cs |
+| ProgressShape | - | No | - | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| PulseComponent | EffectComponent | Yes | Pulse (breathing scale) animation. Attach as a child of a Godot.Control. Cascade: set ApplyToChildren = true to pulse every descendant Control/ Button instead of just the parent. | addons/beep_game_builder_cs/ecs/ui/PulseComponent.cs |
+| RatingComponent | UIComponent | Yes | Star rating component. Attach to any Container to display 1-5 stars. Blind - works for reviews, player ratings, difficulty, quality. | addons/beep_game_builder_cs/ecs/ui/RatingComponent.cs |
+| ResourceBadgeComponent | Godot.Control | Yes | A resource readout as games actually draw it: a circular icon frame overhanging a rounded capsule plate that carries the number, with a chunky dark outline and a drop shadow. This exists because a resource strip made of Label pairs - which is what this HUD had - is the single thing that makes a game HUD read as an a... | addons/beep_game_builder_cs/ecs/ui/ResourceBadgeComponent.cs |
+| RippleComponent | EffectComponent | Yes | Kit click ripple effect. Attach as a child of a Godot.Control. TWO modes (inherited from ): * Single (ApplyToChildren = false, default): ripples the parent Control only. * Cascade (ApplyToChildren = true): ripples ALL descendant Controls - or Buttons only when ButtonsOnly = true (default). So one RippleComponent und... | addons/beep_game_builder_cs/ecs/ui/RippleComponent.cs |
+| SafeAreaComponent | UIComponent | Yes | Anchors the parent Control to the OS safe-area rect on _Ready and whenever the viewport resizes. Use on HUD roots / mobile UIs so notches and rounded corners don't clip content. | addons/beep_game_builder_cs/ecs/ui/SafeAreaComponent.cs |
+| SaveGameMenuComponent | UIScreenComponent | Yes | Universal save game menu component. Works across all game genres. Displays available save slots and handles save operations. Usage: Attach to a Control node in your save menu scene. Signals: SaveConfirmed (slot), CancelPressed | addons/beep_game_builder_cs/ecs/ui/SaveGameMenuComponent.cs |
+| SaveLoadManagerComponent | GameplayComponent | Yes | Example: Universal save/load manager that wires SaveGameMenuComponent and LoadGameMenuComponent to actual save/load logic. Usage: 1. Attach this to your GameFlow or main scene 2. Call ShowSaveMenu() when user presses "Save" button 3. Call ShowLoadMenu() when user presses "Load" button 4. This component handles the r... | addons/beep_game_builder_cs/ecs/ui/SaveLoadManagerComponent.cs |
+| SceneTransitionComponent | UIComponent | Yes | Full-screen fade transition. Creates a child kit overlay covering the screen (on the parent CanvasLayer). TransitionIn() fades the rect in then hides the scene; TransitionOut() fades it out to reveal the scene. Connect a NavigationComponent.BeforeNavigate signal -> TransitionIn, then change_scene in the Finished hand... | addons/beep_game_builder_cs/ecs/ui/SceneTransitionComponent.cs |
+| ScreenFlashComponent | UIComponent | Yes | Full-screen color flash overlay. Creates a kit overlay on a CanvasLayer, tweens its alpha up then down for a brief flash. Good for damage taken, healing received, level-up, explosions. | addons/beep_game_builder_cs/ecs/ui/ScreenFlashComponent.cs |
+| ScrollbarShape | - | No | - | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| SearchBarComponent | UIComponent | Yes | Search bar component. Attach to a Container to create a search input with icon and clear. Blind - works for any list filtering, table search, item lookup. | addons/beep_game_builder_cs/ecs/ui/SearchBarComponent.cs |
+| SelectionShape | - | No | - | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| SeparatorShape | - | No | - | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| SettingsComponent | UIComponent | Yes | SINGLE RESPONSIBILITY: user settings persistence. This is the ONLY class that owns runtime user preferences (audio volume, display, language). It: * Loads from user://settings.cfg on _Ready. * Auto-saves on every Set (with a SettingsChanged signal). * Applies audio (AudioServer bus volumes) and display (DisplayServe... | addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs |
+| ShakeComponent | EffectComponent | Yes | UI shake. Attach as a child of a Godot.Control. Shake() triggers a decaying jitter. Cascade: set ApplyToChildren = true to shake every descendant Control/Button. | addons/beep_game_builder_cs/ecs/ui/ShakeComponent.cs |
+| ShapeOverrides | - | No | Per-node-type shape/sizing overrides pulled from a genre's geometry.json "shapes" block. Parsed by and held on . Each nested type corresponds to one Godot UI node family (Panel, Input, Progress, ...) and contains the numeric "knobs" the theming engine uses instead of hardcoded literals. Defaults match the legacy hardc... | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| SkeletonLoaderComponent | UIComponent | Yes | Shimmer loading placeholder. Attach to any Control to show animated loading skeleton. Blind - works for cards, text blocks, images, any placeholder while data loads. | addons/beep_game_builder_cs/ecs/ui/SkeletonLoaderComponent.cs |
+| SlideInOutComponent | EffectComponent | Yes | Slide in/out animation. Attach as a child of a Godot.Control. SlideIn()/SlideOut() animate show/hide from a direction. Cascade: set ApplyToChildren = true to slide every descendant Control/Button. | addons/beep_game_builder_cs/ecs/ui/SlideInOutComponent.cs |
+| SliderShape | - | No | - | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
+| StepperComponent | UIComponent | Yes | Number stepper component. Attach to a Container with [-][value][+] layout. Creates +/- buttons with a value label between them. | addons/beep_game_builder_cs/ecs/ui/StepperComponent.cs |
+| TabGroupComponent | UIComponent | Yes | Tab group component. Attach to a Container with Button children as tabs. First button = tab headers, each maps to a sibling content panel. Content panels match tab order in the parent's children list. | addons/beep_game_builder_cs/ecs/ui/TabGroupComponent.cs |
+| TableComponent | UIComponent | Yes | Data table component. Attach to a VBoxContainer. Creates a sortable table with alternating row colors and click-to-sort column headers. | addons/beep_game_builder_cs/ecs/ui/TableComponent.cs |
+| ThemeDef | - | No | - | addons/beep_game_builder_cs/ecs/ui/SkinCatalog.cs |
+| ThemePresetComponent | - | No | PARTIAL: dedicated per-node-type theming methods. Each UI node type gets its OWN method that sets EVERYTHING for that type - all its color properties, all its StyleBox background states (built from the theme schema + geometry), and font size. No shared generic builders, no loops calling the same code for different t... | addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.NodeTheming.cs |
+| ThemePresetComponent | UIComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs |
+| ToastNotificationComponent | UIScreenComponent | Yes | Toast notification popup. Attach to any Node - spawns sliding toast messages. Blind - works for success, error, warning, info messages. | addons/beep_game_builder_cs/ecs/ui/ToastNotificationComponent.cs |
+| ToggleSwitchComponent | UIComponent | Yes | Animated toggle switch. Attach to a CheckBox or Button. Creates a sliding toggle with on/off states. | addons/beep_game_builder_cs/ecs/ui/ToggleSwitchComponent.cs |
+| TooltipComponent | UIComponent | Yes | Hover tooltip component. Attach to any Control to show a tooltip on hover. Blind - works for buttons, icons, inventory slots, stats, skill trees. | addons/beep_game_builder_cs/ecs/ui/TooltipComponent.cs |
+| UIEffectComponent | UIComponent | Yes | Unified UI effect component. Attach to any node to apply animated effects. Two dropdowns control everything: Effect - what animation to play (Slide, Shake, Pulse, Bob, Flash, ...) Scope - what to target (Self, Children, Scene, Global) Plays on _Ready by default. Call Play() / Stop() from code. | addons/beep_game_builder_cs/ecs/ui/UIEffectComponent.cs |
+| VignetteComponent | UIComponent | Yes | Vignette overlay. Applies a radial darkening shader to the parent Control (or CanvasLayer's first Control). Adjustable intensity and color. Creates the shader inline - no external .gdshader file needed. | addons/beep_game_builder_cs/ecs/ui/VignetteComponent.cs |
+| WeatherForecastUI | Control | Yes | Weather forecast display UI. Shows a 7-day weather prediction with icons, temperature, and wind speed. Attach to a Control node in the HUD. Forecast data is generated from a WeatherForecast resource (deterministic based on in-game day). | addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs |
+| WeatherHUDComponent | UIComponent | Yes | Weather heads-up display binder. Attach as a child of a HUD Control (typically inside a CanvasLayer). Discovers a and updates named child Labels every frame / on signal. Pure binding - no layout; the scene's nodes provide the layout. Optional child nodes (by name; create only the ones you need): "WeatherLabel" - cur... | addons/beep_game_builder_cs/ecs/ui/WeatherHUDComponent.cs |
+| CardGameHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/CardGameHudComponent.cs |
+| CityBuilderHudComponent | GenreHudComponent | Yes | City-builder HUD: the top resource strip - treasury + monthly delta, population, power, happiness, date - plus the RCI demand meter. Every readout is now driven by . This component previously registered all five as Placeholder(...) , which meant each kept whatever text was typed into the scene and only warned - so t... | addons/beep_game_builder_cs/ecs/ui/hud/CityBuilderHudComponent.cs |
+| GenreHudComponent | UIComponent | No | Base for the per-genre HUD components. The HUD LAYOUT is authored as a static block in the genre's main .tscn (labels, bars, minimap, resource bar, ...). Each genre ships its OWN concrete subclass here (PlatformerHudComponent, RacingHudComponent, ...) that is attached in that block and DRIVES those static labels in C#: ... | addons/beep_game_builder_cs/ecs/ui/hud/GenreHudComponent.cs |
+| PlatformerHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/PlatformerHudComponent.cs |
+| PuzzleHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/PuzzleHudComponent.cs |
+| RacingHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/RacingHudComponent.cs |
+| RpgHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/RpgHudComponent.cs |
+| ShooterHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/ShooterHudComponent.cs |
+| StrategyHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/StrategyHudComponent.cs |
+| SurvivalHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/SurvivalHudComponent.cs |
+| TopDownHudComponent | GenreHudComponent | Yes | - | addons/beep_game_builder_cs/ecs/ui/hud/TopDownHudComponent.cs |
+
+## Game UI Kit
+
+Custom and extended controls for buttons, panels, tabs, item cards, slots, meters, minimaps, charts, trees, labels, sliders, knobs, toggles, and genre-aware visual styling.
+
+Use when: Use this as the default UI layer for game HUDs, panels, menus, and toolbars.
+
+Scene pattern: Apply ThemePresetComponent once near the UI root, use KitPanelContainer for framed panels, use KitLabel/KitPushButton/KitIconButton for controls, and keep panel headers as normal layout rows instead of decorative nested cards.
+
+Source areas: ecs/ui/kit
+
+Types in this section: 61
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| KitArrowSelector | KitControl | Yes | `&lt; Option &gt;` - the game form's replacement for a dropdown. CATALOGUE-FROM-ART.md section D lists `ArrowSelector` from `settings1.png`, and records a correction worth keeping: dropdowns appear in NONE of the 43 reference images . Game UIs page through options with arrows instead, because a dropdown needs a popu... | addons/beep_game_builder_cs/ecs/ui/kit/KitArrowSelector.cs |
+| KitAvatarFrame | KitControl | Yes | A portrait in a frame, with a badge OVERHANGING its rim - CATALOGUE-FROM-ART.md section E (`AvatarFrame`, "overhanging its rim"), and the element `ui8`'s FriendCard hangs a level star on ("a star at the card's bottom-right, straddling the corner"). The overhang is the reason this is a widget and not a TextureRect wi... | addons/beep_game_builder_cs/ecs/ui/kit/KitAvatarFrame.cs |
+| KitBookSpread | KitControl | Yes | A two-page book - CATALOGUE-FROM-ART.md F.2's `BookSpread`, the journal / codex / quest-log set piece in the rpg and survival families. The spine is the whole idea: two pages that meet at a shaded gutter read as ONE object a player has opened, where two panels side by side read as two panels. So this owns the spine ... | addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs |
+| KitBuildTile | Button | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitBuildTile.cs |
+| KitButton | Button | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs |
+| KitCheckBox | CheckBox | Yes | A that draws a real BOX WITH A TICK in the kit's material. Migration drop-in - see . CheckBox vs CheckButton is a real distinction in Godot and the kit must keep it: a CheckButton is a SWITCH (track + sliding knob, see ) and a CheckBox is a BOX that gets a tick. They are not interchangeable, and rendering a checkbox... | addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs |
+| KitCheckButton | CheckButton | Yes | A that draws the kit's chrome: a track with a sliding knob. Migration drop-in - see . Because it IS a CheckButton, `Find&lt;CheckButton&gt;`, `.ButtonPressed`, `.SetPressedNoSignal` and `.Toggled +=` keep working - `SettingsMenu.cs` uses all four. | addons/beep_game_builder_cs/ecs/ui/kit/KitCheckButton.cs |
+| KitChip | KitControl | Yes | The small-parts family from CATALOGUE-FROM-ART.md section C, as ONE widget with variants: RarityChip, FlashBadge, CountBubble, NotificationDot, LockOverlay . They are one widget because they are one shape with different payloads - a small plate pinned to or straddling something larger, carrying at most a few charact... | addons/beep_game_builder_cs/ecs/ui/kit/KitChip.cs |
+| KitCollapsiblePanel | KitControl | Yes | A panel plus a chevron handle that STRADDLES its leading edge. Measured from Example_Art/ui8.png (plans/game-ui-kit/art/ui8.md, widget 1): \| part \| measured \| \|----------------\|-------------------------------------------------------\| \| handle \| **33px** tall, dark plate `#4D4136` **L=0.26** \| \| handle glyph \| `v` in... | addons/beep_game_builder_cs/ecs/ui/kit/KitCollapsiblePanel.cs |
+| KitColorOverlay | Control | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitColorOverlay.cs |
+| KitColorRect | ColorRect | Yes | Drop-in ColorRect for game UI scene backplates and fades. It preserves the authored ColorRect colour, but derives a fallback from the active skin so template backgrounds are not plain editor rectangles when a scene omits a colour. | addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs |
+| KitContextMenu | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitContextMenu.cs |
+| KitControl | Godot.Control | No | Base for every Game UI Kit widget: a stack of drawn layers cut to the genre's silhouette, plus attachments that may overhang. Why this exists rather than more theming: a Godot StyleBox is ONE rectangle with a border. Every reference kit builds a control from several layers, cuts it to a non-rectangular outline, and ... | addons/beep_game_builder_cs/ecs/ui/kit/KitControl.cs |
+| KitCurrencyBar | KitControl | Yes | A row of currency / resource readouts: one skinned HUD strip with one segment per value. CATALOGUE-FROM-ART.md section A lists this first: it "appears in nearly every picture", and its build order puts it in the top tier because it carries the most screens per unit of work. Measured from citybuilder5's StoneCapsule ... | addons/beep_game_builder_cs/ecs/ui/kit/KitCurrencyBar.cs |
+| KitDialogBox | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs |
+| KitGemSlot | KitControl | Yes | A socket - CATALOGUE-FROM-ART.md section E's `GemSlot`. The circular counterpart to 's square cell: rune sockets, gear inserts, augment slots. Kept separate because a socket is not a small inventory cell. It is CUT INTO its host rather than laid on it, so it uses the recessed readout shade (the 0.12 measured on city... | addons/beep_game_builder_cs/ecs/ui/kit/KitGemSlot.cs |
+| KitGodotTree | Tree | Yes | Drop-in skinned Tree for game-facing hierarchy/list screens. | addons/beep_game_builder_cs/ecs/ui/kit/KitGodotTree.cs |
+| KitHeartRow | KitControl | Yes | RPG/platform life display using drawn hearts instead of a text meter. Seen across Example_Art/gameui8.png, ui9.png, and several RPG/mobile HUD sheets. | addons/beep_game_builder_cs/ecs/ui/kit/KitHeartRow.cs |
+| KitHudText | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitHudText.cs |
+| KitIconButton | Button | Yes | A square icon button - the unit a build toolbar, ability bar, hotbar or icon rail is made of, and the control gameui3 lays out explicitly as a labelled state set: Normal / Over / Click / Disabled . Measured behaviour taken from the sheets: - Glyph : button is a per-family ratio (0.40 carved / 0.55 flat / 0.60), so t... | addons/beep_game_builder_cs/ecs/ui/kit/KitIconButton.cs |
+| KitInputHint | KitControl | Yes | `[E] Gather Wood` - a key/button glyph followed by the action it performs, with chord support (`L2 + +`). INDEX.md lists this as a new kit requirement found by the art pass, seen in three references, and chord support is called out explicitly: a hint that can only show ONE glyph cannot express the modifier combinati... | addons/beep_game_builder_cs/ecs/ui/kit/KitInputHint.cs |
+| KitInventorySlot | KitControl | Yes | ONE inventory slot, populated from the inspector. WHY THIS EXISTS ALONGSIDE -------------------------------------------------- KitSlotGrid holds a `List&lt;Slot&gt;` of plain C# objects, which means a slot's icon and count can only be set from CODE. That is right for a bag whose contents come from the game at runtim... | addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs |
+| KitItemCard | KitControl | Yes | Reusable shop, quest, inventory, and equipment card. The reference art repeats this as horizontal shop rows, mission rows, compact item tiles, and equipment cells with badges. | addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs |
+| KitItemList | ItemList | Yes | Drop-in skinned ItemList for older templates and debug-style list widgets that appear in game-facing screens. | addons/beep_game_builder_cs/ecs/ui/kit/KitItemList.cs |
+| KitKnob | HSlider | Yes | A rotary dial - CATALOGUE-FROM-ART.md section E's `RoundKnob`. Distinct from rather than a round skin of it: a knob occupies a square, is dragged vertically rather than along its own track, and shows its value as an ANGLE plus a tick ring. Mixers, radios and vehicle-tuning screens use it where a slider would not fit... | addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs |
+| KitLabel | Label | Yes | Drop-in skinned label for template scenes. It stays a Godot Label so existing scene paths, bindings, alignment, wrapping, and layout still work, but it takes its font scale and ink from the active Beep game skin instead of inheriting plain editor-style label defaults. | addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs |
+| KitLabelValue | KitControl | Yes | Two plates of OPPOSITE POLARITY welded by a thin keyline - a label plate and a value plate, sharing one silhouette. Measured from Example_Art/rpgui3.png (plans/game-ui-kit/art/rpgui3.md, widget 1), the densest reference in the folder: +----------------------------+--+--------------+ \| ATTACK \|##\| 7 \| +--------------... | addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs |
+| KitLevelButton | KitControl | Yes | Fixed-square world/level selector button with lock and star state. Based on the repeated level-node buttons in Example_Art/gameui4.png and mobile UI sheets. | addons/beep_game_builder_cs/ecs/ui/kit/KitLevelButton.cs |
+| KitLevelPath | KitControl | Yes | The zig-zag level map - CATALOGUE-FROM-ART.md F.2's `LevelNodeGrid`, and the screen the puzzle and platformer genres are built around (`level_map.tscn`, `level_select.tscn`). Not with different data: a tree branches and a level path does not. A path is a SEQUENCE with one current position, so it owns a serpentine la... | addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs |
+| KitMeter | ProgressBar | Yes | A progress/resource meter that is SEGMENTED by default. "**Segmented progress is the default, continuous is the exception**" is one of the art pass's settled rules, measured across seven independent references (gameui1-4, rpg1, rpg2, rpgui1). Every meter this framework shipped before was a continuous bar, which is t... | addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs |
+| KitModalShade | Godot.Control | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitModalShade.cs |
+| KitNodeCard | KitControl | Yes | A card with a WELDED FOOTER BAR underneath - the upgrade/shop/skill card. CATALOGUE-FROM-ART.md calls the card-plus-footer "the single most repeated compound element across three pictures", and the art pass counted the welded footer **8 times** across unrelated sheets (store, skilltree1, Upgrades, ui5, gameui7, game... | addons/beep_game_builder_cs/ecs/ui/kit/KitNodeCard.cs |
+| KitOptionButton | OptionButton | Yes | An that draws the kit's chrome. Migration drop-in - see . Because it IS an OptionButton, `Find&lt;OptionButton&gt;`, `.AddItem`, `.Selected`, `.ItemSelected +=` and the popup all keep working. `SettingsMenu.cs` binds `ResolutionOption` and `LanguageOption` this way, and `ThemeGallery.cs` three more. | addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs |
+| KitOrbMeter | KitControl | Yes | RPG vital orb: a circular reservoir filled from bottom to top. Use for life/mana where a horizontal progress bar reads too generic for fantasy RPG HUDs. | addons/beep_game_builder_cs/ecs/ui/kit/KitOrbMeter.cs |
+| KitOrnament | KitControl | Yes | Non-interactive decoration that promotes a plain plate into a reward or achievement: crown, wings, laurel, trophy, starburst, ribbon tail . PLAN.md phase D lists these as overhanging attachments and notes the golden-kit sheet "uses them constantly"; section E lists `StarburstBadge` separately, which is the same idea... | addons/beep_game_builder_cs/ecs/ui/kit/KitOrnament.cs |
+| KitPager | KitControl | Yes | Page controls - CATALOGUE-FROM-ART.md section C's `PagerArrow`, plus the correction `ui8.md` records: " Add jump-to-end pagers alongside step pagers ", and its note that "step and jump paging can be separate control pairs". So this is not one arrow: it is the pair (or two pairs), with a page indicator between them. ... | addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs |
+| KitPanel | Panel | Yes | A panel: frame, a RECESSED inner well, and an optional overhanging title banner. The structure is the one PLAN.md 4.2a extracted from the reference sheets - "a game control is a FRAME around an INNER PLATE, two nested shapes, not one plate with a bevel" - plus the banner, which the art pass counts as the most repeat... | addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs |
+| KitPanelContainer | PanelContainer | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs |
+| KitPanelHanger | KitControl | Yes | How a panel ATTACHES TO THE SCREEN - CATALOGUE-FROM-ART.md section F.1, an entire family (`ChainHang`, `RopeHang`, `NailPin`, `TapeCorner`, `ScrollRoll`, `VineFrame`) that the kit had nothing for. It is one widget with variants for the same reason is: they are one idea - a fixing drawn ABOVE or ACROSS a panel's edge... | addons/beep_game_builder_cs/ecs/ui/kit/KitPanelHanger.cs |
+| KitPushButton | Button | Yes | A Godot that draws the kit's chrome instead of a StyleBox. The migration drop-in, and the exact counterpart of : change nothing but the script and a generic Button becomes a game button. Because it IS a Button, every Find&lt;Button&gt; , GetNode&lt;Button&gt; , is Button and btn.Pressed += in the codebase keeps work... | addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs |
+| KitRadarChart | KitControl | Yes | A radar / spider chart - INDEX.md lists this as "a missing primitive, fully procedural, useful to racing, rpg and strategy", measured from `racing3.png`. It is the one comparison widget in the folder: vehicle stats, class loadouts and faction traits are all "five numbers you compare at a glance", and a stack of bars... | addons/beep_game_builder_cs/ecs/ui/kit/KitRadarChart.cs |
+| KitRadialMeter | KitControl | Yes | A ring gauge - CATALOGUE-FROM-ART.md section E (`RadialMeter`), and the shape Don't Starve's health/hunger/sanity cluster and every racing rev counter are built from. Kept separate from because the two do not share a layout problem: a bar consumes horizontal space and stacks vertically, a ring consumes a square and ... | addons/beep_game_builder_cs/ecs/ui/kit/KitRadialMeter.cs |
+| KitRemovableChip | Button | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitRemovableChip.cs |
+| KitRow | KitControl | Yes | A list row - CATALOGUE-FROM-ART.md section B's `MissionRow` and `PlayerRow`, which are one widget with different payloads: a rank or index, a title with a subtitle, a value, and an optional state chip. Selection is a FILL, per the art pass's convention-by-widget-class finding: "card carousels use an outline, tab str... | addons/beep_game_builder_cs/ecs/ui/kit/KitRow.cs |
+| KitSegmentedIconGroup | KitControl | Yes | A welded group of icon buttons where exactly one is active - CATALOGUE-FROM-ART.md section D's `SegmentedIconGroup`, from `settings1.png`. This is the game form's radio group: quality presets, camera modes, info-view overlays. Welded rather than spaced, because the join is what says "these are alternatives" - three ... | addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs |
+| KitSlider | HSlider | Yes | A slider with a chunky bar knob - CATALOGUE-FROM-ART.md sections C, D and E all list one, and `settings1.png` specifies the game form's version: a vertical bar knob , not the circular grabber a desktop toolkit draws. Two rules carried over from the theme engine, each a defect already paid for: - the track is a dark ... | addons/beep_game_builder_cs/ecs/ui/kit/KitSlider.cs |
+| KitSliderBar | HSlider | Yes | An that draws the kit's chrome. Migration drop-in - see for why these derive from the Godot type. Because it IS an HSlider, `Find&lt;HSlider&gt;`, `.Value`, `.ValueChanged +=` and every Range binding keep working. `SettingsMenu.cs` binds four of these by type. | addons/beep_game_builder_cs/ecs/ui/kit/KitSliderBar.cs |
+| KitSlotGrid | KitControl | Yes | An inventory / hotbar / recipe slot grid. Measured from Example_Art/gameui9.png, rpg3.png, gameui2.png and gameui8.png: - interior : pitch = 0.58 (gameui9: 49px interior on an ~85px pitch), so the gap between slots is a real part of the design rather than a layout leftover. - Selection is a 3px pure-white rectangle ... | addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs |
+| KitSpeechBubble | KitControl | Yes | Game-facing dialogue/callout bubble with a drawn tail. Covers RPG dialogue, city-builder world callouts, tutorials, and quest bubbles. | addons/beep_game_builder_cs/ecs/ui/kit/KitSpeechBubble.cs |
+| KitSpinner | KitControl | Yes | A loading indicator - CATALOGUE-FROM-ART.md F.2's `LoadingIndicator`. Three forms, because the references use different ones in different places and they are not interchangeable: a ring for a wait of unknown length, dots for an inline "working" cue inside a row or button, and a bar for a wait whose progress is actua... | addons/beep_game_builder_cs/ecs/ui/kit/KitSpinner.cs |
+| KitSpinWheel | KitControl | Yes | A prize wheel - CATALOGUE-FROM-ART.md F.2's `SpinWheel`, the daily-reward set piece. Wedges alternate two tones so adjacent prizes are separable without a border per wedge, and the pointer sits OUTSIDE the rim at the top: the wheel turns under a fixed marker, which is what makes the result readable. Turning the mark... | addons/beep_game_builder_cs/ecs/ui/kit/KitSpinWheel.cs |
+| KitStarRating | Godot.Range | Yes | A star rating - CATALOGUE-FROM-ART.md F.2 (`StarRating`), and the score readout every level-complete and level-select screen in the puzzle/platformer families uses. The framework already ships star art in `level_complete`, `level_results` and `level_select`, drawn per scene; this is the widget those screens should s... | addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs |
+| KitSwitchVisual | Control | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitSwitchVisual.cs |
+| KitTableCell | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitTableCell.cs |
+| KitTabPanel | TabContainer | Yes | A skinned from the active genre. Migration drop-in - see for why these derive from the Godot type. Because it IS a TabContainer, `Find&lt;TabContainer&gt;("Tabs")`, `.CurrentTab`, `.SetTabTitle` and child-as-page layout all keep working - `SettingsMenu.cs` resolves it by type and would have got null from a KitContro... | addons/beep_game_builder_cs/ecs/ui/kit/KitTabPanel.cs |
+| KitTabStrip | TabBar | Yes | A row of tabs, welded to the panel below them. CATALOGUE-FROM-ART.md section A ranks this in the top build tier - it "appears in nearly every picture". The art pass measured SEVENTEEN distinct selection mechanisms across the folder and concluded the choice follows widget CLASS, with a convention per class: tab strip... | addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs |
+| KitToast | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitToast.cs |
+| KitToggle | CheckButton | Yes | An on/off switch - CATALOGUE-FROM-ART.md F.2 lists `OnOffSwitch` with the note " this is the game checkbox ". Games do not draw a tick in a square; they draw a sliding plate in a track, because it reads at a glance and from a distance. CATALOGUE sectionD also corrects an earlier claim of mine: `gameui2`, `gameui4` and `ga... | addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs |
+| KitTooltip | KitControl | Yes | A hint tooltip WITH A TAIL - CATALOGUE-FROM-ART.md section C (`HintTooltip`, "with a tail"). The tail is the whole point: it names which control the tip belongs to, which a floating rectangle cannot do when three controls sit close together. The art pass's polarity finding applies here - "one element class flips pol... | addons/beep_game_builder_cs/ecs/ui/kit/KitTooltip.cs |
+| KitTree | KitControl | Yes | A skill / upgrade / research tree: nodes on a tier grid, joined by connector lines. Measured from Example_Art/skilltree.png and skilltree1.png: - node ~50px square on a 430px-wide screen, 7-14px gutters - roughly 12% of the tile, so the grid is derived from node size rather than set independently. - connectors are t... | addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs |
+| KitWeatherForecastCard | KitControl | Yes | - | addons/beep_game_builder_cs/ecs/ui/kit/KitWeatherForecastCard.cs |
+
+## Godot MCP Bridge
+
+Optional C# bridge for editor/runtime inspection, command routing, scene perception, safe write gates, undo integration, JSON transport, WebSocket transport, settings, and lifecycle control.
+
+Use when: Use this only when an external MCP client is controlling or inspecting the Godot project.
+
+Scene pattern: Keep write guards enabled by default, use the command registry for explicit operations, and treat runtime/editor writes as separate permission surfaces.
+
+Source areas: godot_mcp
+
+Types in this section: 9
+
+| Type | Base | Editor-addable | Summary | Source |
+| --- | --- | --- | --- | --- |
+| GodotMcpBridgeController | - | No | PARTIAL: Phase 3 - perception. An agent editing UI has been working blind. It could read the node tree - a description of intent - but not the pixels, which are the actual product. Every layout defect this repo has shipped was invisible in the tree and obvious on screen: a 0-height back button, a title at body size,... | addons/godot_mcp/GodotMcpBridgeController.Perception.cs |
+| GodotMcpBridgeController | - | No | PARTIAL: Phase 1 - safe writes. Undo-backed node edits, batching, dry run, and the capability block. The originals in GodotMcpBridgeController mutated the scene directly with no undo entry, one property per round trip, no way to preview, and no way to tell afterwards what actually landed. See docs/mcp/PHASE_1_SAFE_W... | addons/godot_mcp/GodotMcpBridgeController.SafeWrites.cs |
+| GodotMcpBridgeController | - | No | PARTIAL: Phase 4 - editor lifecycle and play control. The gates (dotnet build, validate_scenes.sh) run on the host and live in the MCP server. What only Godot can do is here: make the editor re-import, reload scripts, save, and actually PLAY something. That last one matters most. This repo's honesty rule exists beca... | addons/godot_mcp/GodotMcpBridgeController.Lifecycle.cs |
+| GodotMcpBridgeController | - | No | PARTIAL: Phase 2 - creative authoring. Before this the bridge could set a property and create a node, and that was the whole of its creative power. It could not create a Resource, edit a Theme, build an Animation, connect a Signal, instance a PackedScene, write a script, or ask what a class even offers - which is to... | addons/godot_mcp/GodotMcpBridgeController.Authoring.cs |
+| GodotMcpBridgeController | Node | No | Common bridge command dispatcher used by the editor plugin and runtime autoload. | addons/godot_mcp/GodotMcpBridgeController.cs |
+| GodotMcpPlugin | EditorPlugin | No | Editor plugin for the MCP bridge. Registers the runtime autoloads and opens the editor-side bridge connection. This addon is deliberately project-agnostic - it has no dependency on any other addon. Projects that want their own MCP commands register them with rather than being referenced from here. | addons/godot_mcp/GodotMcpPlugin.cs |
+| GodotMcpRuntime | Node | No | Runtime autoload. The editor plugin registers this automatically. It connects while the game runs and exposes runtime/game commands. | addons/godot_mcp/GodotMcpRuntime.cs |
+| McpGameAdapter | Node | No | Optional explicit game adapter. Add this as an autoload named McpGameAdapter when you want MCP to call game-specific commands/state. No reflection is used. | addons/godot_mcp/McpGameAdapter.cs |
+| McpWebSocketClient | Node | No | Reconnecting local WebSocket client. This is a bridge client, not an MCP client. | addons/godot_mcp/McpWebSocketClient.cs |
+
+## GDScript Addons
+
+| Addon | Script | Extends | Source |
+| --- | --- | --- | --- |
+| beep_ui | BeepPreset | RefCounted | addons/beep_ui/theme/beep_theme.gd |
+| beep_ui | BeepThemeApplier | Node | addons/beep_ui/theme/theme_applier.gd |
+| beep_ui | BeepToastHost | Control | addons/beep_ui/widgets/toast_host.gd |
+| beep_ui | BeepUIEffect | Node | addons/beep_ui/effects/ui_effect.gd |
+| beep_ui | BeepWidgetFactory | RefCounted | addons/beep_ui/widgets/widget_factory.gd |
+| beep_ui | plugin | EditorPlugin | addons/beep_ui/plugin.gd |
+| beep_ui | preset_candy | BeepPreset | addons/beep_ui/theme/preset_candy.gd |
+| beep_ui | preset_cartoon | BeepPreset | addons/beep_ui/theme/preset_cartoon.gd |
+| beep_ui | preset_classic | BeepPreset | addons/beep_ui/theme/preset_classic.gd |
+| beep_ui | preset_cyberpunk | BeepPreset | addons/beep_ui/theme/preset_cyberpunk.gd |
+| beep_ui | preset_desert | BeepPreset | addons/beep_ui/theme/preset_desert.gd |
+| beep_ui | preset_fantasy | BeepPreset | addons/beep_ui/theme/preset_fantasy.gd |
+| beep_ui | preset_horror | BeepPreset | addons/beep_ui/theme/preset_horror.gd |
+| beep_ui | preset_japan | BeepPreset | addons/beep_ui/theme/preset_japan.gd |
+| beep_ui | preset_military | BeepPreset | addons/beep_ui/theme/preset_military.gd |
+| beep_ui | preset_modern | BeepPreset | addons/beep_ui/theme/preset_modern.gd |
+| beep_ui | preset_nature | BeepPreset | addons/beep_ui/theme/preset_nature.gd |
+| beep_ui | preset_oilgas | BeepPreset | addons/beep_ui/theme/preset_oilgas.gd |
+| beep_ui | preset_pixel8bit | BeepPreset | addons/beep_ui/theme/preset_pixel8bit.gd |
+| beep_ui | preset_retro80s | BeepPreset | addons/beep_ui/theme/preset_retro80s.gd |
+| beep_ui | preset_scifi | BeepPreset | addons/beep_ui/theme/preset_scifi.gd |
+| beep_ui | preset_sea | BeepPreset | addons/beep_ui/theme/preset_sea.gd |
+| beep_ui | preset_soccer | BeepPreset | addons/beep_ui/theme/preset_soccer.gd |
+| beep_ui | preset_space | BeepPreset | addons/beep_ui/theme/preset_space.gd |
+| beep_ui | preset_sports | BeepPreset | addons/beep_ui/theme/preset_sports.gd |
+| beep_ui | preset_steampunk | BeepPreset | addons/beep_ui/theme/preset_steampunk.gd |
+| beep_ui | preset_toxic | BeepPreset | addons/beep_ui/theme/preset_toxic.gd |
+| beep_ui | preset_winter | BeepPreset | addons/beep_ui/theme/preset_winter.gd |
+| beep_ui | theme_studio | VBoxContainer | addons/beep_ui/editor/theme_studio.gd |
+
+## Skin Catalog
+
+| Genre | Themes |
+| --- | --- |
+| cardgame | arcane, casino, paper, royal, velvet |
+| citybuilder | blueprint, eco, future, industrial, oilfield_days, urban |
+| platformer | cartoon, modern, nature, pixel8bit, retro80s |
+| puzzle | candy, cartoon, japan, modern, sea |
+| racing | arcade, carbon, motorsport, neon, street |
+| rpg | arcane, darkfantasy, fantasy, parchment, royal |
+| shooter | cyberpunk, military, scifi, space, toxic |
+| strategy | blueprint, command, military, royal, scifi |
+| survival | apocalypse, desert, frozen, industrial, wilderness |
+| topdown | classic, fantasy, japan, military, nature |
+
+## Template Scenes
+
+| Template | Root | Source |
+| --- | --- | --- |
+| blood_splatter | BloodSplatter : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/blood_splatter.tscn |
+| coin_pickup | CoinPickup : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/coin_pickup.tscn |
+| death_smoke | DeathSmoke : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/death_smoke.tscn |
+| dust_puff | DustPuff : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/dust_puff.tscn |
+| explosion | Explosion : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/explosion.tscn |
+| explosion_anim | ExplosionAnim : AnimatedSprite2D | addons/beep_game_builder_cs/templates/particles/explosion_anim.tscn |
+| fire_torch | FireTorch : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/fire_torch.tscn |
+| heal_glow | HealGlow : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/heal_glow.tscn |
+| hit_sparks | HitSparks : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/hit_sparks.tscn |
+| magic_spell | MagicSpell : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/magic_spell.tscn |
+| muzzle_flash | MuzzleFlash : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/muzzle_flash.tscn |
+| rain_drops | RainDrops : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/rain_drops.tscn |
+| simple_burst_particles | SimpleBurstParticles : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/simple_burst_particles.tscn |
+| smoke_puff | SmokePuff : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/smoke_puff.tscn |
+| sparkle_pickup | SparklePickup : GPUParticles2D | addons/beep_game_builder_cs/templates/particles/sparkle_pickup.tscn |
+| atmosphere | Atmosphere : Node2D | addons/beep_game_builder_cs/templates/scenes/atmosphere.tscn |
+| card_battle | CardBattle : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/cardgame/card_battle.tscn |
+| collection | Collection : Control | addons/beep_game_builder_cs/templates/scenes/cardgame/collection.tscn |
+| deck_builder | DeckBuilder : Control | addons/beep_game_builder_cs/templates/scenes/cardgame/deck_builder.tscn |
+| cardgame_main | CardGameMain : Node2D | addons/beep_game_builder_cs/templates/scenes/cardgame_main.tscn |
+| build_menu | BuildMenu : Control | addons/beep_game_builder_cs/templates/scenes/citybuilder/build_menu.tscn |
+| districts | Districts : Control | addons/beep_game_builder_cs/templates/scenes/citybuilder/districts.tscn |
+| economy | Economy : Control | addons/beep_game_builder_cs/templates/scenes/citybuilder/economy.tscn |
+| citybuilder_main | CityBuilderMain : Node2D | addons/beep_game_builder_cs/templates/scenes/citybuilder_main.tscn |
+| dialog_template | DialogTemplate : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/dialog_template.tscn |
+| enemy_template | Enemy : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/enemy_template.tscn |
+| game_over | GameOver : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/game_over.tscn |
+| grid_base_depot | GridBaseDepot : Node2D | addons/beep_game_builder_cs/templates/scenes/grid_base_depot.tscn |
+| grid_worker_unit | GridWorkerUnit : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn |
+| grid_world_2d_iso | GridWorld2DIso : Node2D | addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn |
+| hud | HUD : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/hud.tscn |
+| kit_browser | KitBrowser : Control | addons/beep_game_builder_cs/templates/scenes/kit_browser.tscn |
+| kit_gallery | KitGallery : Control | addons/beep_game_builder_cs/templates/scenes/kit_gallery.tscn |
+| level_summary | LevelSummary : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/level_summary.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/platformer/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/platformer/level_2.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/racing/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/racing/level_2.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/rpg/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/rpg/level_2.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/shooter/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/shooter/level_2.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/survival/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/survival/level_2.tscn |
+| level_1 | Level1 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/topdown/level_1.tscn |
+| level_2 | Level2 : Node2D | addons/beep_game_builder_cs/templates/scenes/levels/topdown/level_2.tscn |
+| load_game_menu | LoadGameMenu : Control | addons/beep_game_builder_cs/templates/scenes/load_game_menu.tscn |
+| main_game | MainGame : Node | addons/beep_game_builder_cs/templates/scenes/main_game.tscn |
+| main_menu | MainMenu : Control | addons/beep_game_builder_cs/templates/scenes/main_menu.tscn |
+| pickup_template | PickupTemplate : Area2D | addons/beep_game_builder_cs/templates/scenes/pickup_template.tscn |
+| level_results | LevelResults : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/platformer/level_results.tscn |
+| level_select | LevelSelect : Control | addons/beep_game_builder_cs/templates/scenes/platformer/level_select.tscn |
+| platformer_main | PlatformerMain : Node2D | addons/beep_game_builder_cs/templates/scenes/platformer_main.tscn |
+| player_template | Player : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/player_template.tscn |
+| projectile_template | ProjectileTemplate : Area2D | addons/beep_game_builder_cs/templates/scenes/projectile_template.tscn |
+| level_complete | LevelComplete : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/puzzle/level_complete.tscn |
+| level_failed | LevelFailed : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/puzzle/level_failed.tscn |
+| level_map | LevelMap : Control | addons/beep_game_builder_cs/templates/scenes/puzzle/level_map.tscn |
+| pre_level | PreLevel : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/puzzle/pre_level.tscn |
+| puzzle_main | PuzzleMain : Node2D | addons/beep_game_builder_cs/templates/scenes/puzzle_main.tscn |
+| garage | Garage : Control | addons/beep_game_builder_cs/templates/scenes/racing/garage.tscn |
+| race_results | RaceResults : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/racing/race_results.tscn |
+| vehicle_select | VehicleSelect : Control | addons/beep_game_builder_cs/templates/scenes/racing/vehicle_select.tscn |
+| racing_main | RacingMain : Node2D | addons/beep_game_builder_cs/templates/scenes/racing_main.tscn |
+| robot_npc_template | RobotNPC : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/robot_npc_template.tscn |
+| character | Character : Control | addons/beep_game_builder_cs/templates/scenes/rpg/character.tscn |
+| inventory | Inventory : Control | addons/beep_game_builder_cs/templates/scenes/rpg/inventory.tscn |
+| quests | Quests : Control | addons/beep_game_builder_cs/templates/scenes/rpg/quests.tscn |
+| rpg_main | RPGMain : Node2D | addons/beep_game_builder_cs/templates/scenes/rpg_main.tscn |
+| save_game_menu | SaveGameMenu : Control | addons/beep_game_builder_cs/templates/scenes/save_game_menu.tscn |
+| settings_menu | SettingsMenu : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/settings_menu.tscn |
+| character_select | CharacterSelect : Control | addons/beep_game_builder_cs/templates/scenes/shooter/character_select.tscn |
+| codex | Codex : Control | addons/beep_game_builder_cs/templates/scenes/shooter/codex.tscn |
+| level_up_choice | LevelUpChoice : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/shooter/level_up_choice.tscn |
+| run_results | RunResults : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/shooter/run_results.tscn |
+| shooter_main | ShooterMain : Node2D | addons/beep_game_builder_cs/templates/scenes/shooter_main.tscn |
+| diplomacy | Diplomacy : Control | addons/beep_game_builder_cs/templates/scenes/strategy/diplomacy.tscn |
+| research | Research : Control | addons/beep_game_builder_cs/templates/scenes/strategy/research.tscn |
+| unit_panel | UnitPanel : Control | addons/beep_game_builder_cs/templates/scenes/strategy/unit_panel.tscn |
+| strategy_main | StrategyMain : Node2D | addons/beep_game_builder_cs/templates/scenes/strategy_main.tscn |
+| backpack | Backpack : Control | addons/beep_game_builder_cs/templates/scenes/survival/backpack.tscn |
+| crafting | Crafting : Control | addons/beep_game_builder_cs/templates/scenes/survival/crafting.tscn |
+| world_map | WorldMap : Control | addons/beep_game_builder_cs/templates/scenes/survival/world_map.tscn |
+| survival_main | SurvivalMain : Node2D | addons/beep_game_builder_cs/templates/scenes/survival_main.tscn |
+| theme_gallery | ThemeGallery : Control | addons/beep_game_builder_cs/templates/scenes/theme_gallery.tscn |
+| pause_subscreen | PauseSubscreen : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/topdown/pause_subscreen.tscn |
+| topdown_main | TopDownMain : Node2D | addons/beep_game_builder_cs/templates/scenes/topdown_main.tscn |
+
+## Runnable Examples
+
+- tests/examples/grid_world_kit_hud_example.tscn: playable Settlers-style builder slice using terrain, resources, tools, workers, and kit HUD.
+- tests/examples/grid_world_painterly_demo.tscn: focused terrain/grid sample where the bridge runs terrain generation, renders the painterly base, layers authored Kenney Map Pack detail props, seeds roads/land, reserves a depot footprint, spawns a worker, and verifies save-state restore.
+- tests/examples/painterly_terrain_biome_gallery.tscn: side-by-side painterly terrain preset gallery showing base color plus biome detail layers for desert, grass, rock, swamp, snow/ice, and sea.
+- tests/examples/base_worker_templates_example.tscn: focused depot/worker template scene.
+
+## Verification
+
+- dotnet build Beep.Godot.csproj --no-restore
+- powershell -ExecutionPolicy Bypass -File tests/runtime_smoke.ps1 -GodotCommand H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe -TimeoutSeconds 90
+- powershell -ExecutionPolicy Bypass -File tests/render_scene_probe.ps1 -GodotCommand H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe -ScenePath res://tests/examples/grid_world_painterly_demo.tscn -TimeoutSeconds 90

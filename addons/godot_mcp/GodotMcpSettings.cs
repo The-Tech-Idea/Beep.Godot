@@ -83,6 +83,20 @@ public static class GodotMcpSettings
 
     public static bool GetBool(string key, bool fallback)
     {
+        string envName = "GODOT_MCP_" + key["godot_mcp/".Length..]
+            .Replace("/", "_")
+            .Replace("-", "_")
+            .ToUpperInvariant();
+        string? env = Environment.GetEnvironmentVariable(envName);
+        if (!string.IsNullOrWhiteSpace(env))
+        {
+            string value = env.Trim();
+            if (bool.TryParse(value, out bool parsed))
+                return parsed;
+            if (value == "1") return true;
+            if (value == "0") return false;
+        }
+
         if (!ProjectSettings.HasSetting(key))
             return fallback;
         return ProjectSettings.GetSetting(key).AsBool();

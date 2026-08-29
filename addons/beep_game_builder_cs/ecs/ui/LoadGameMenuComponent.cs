@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -69,17 +70,17 @@ namespace Beep.ECS.UI
 
 			// Main VBox (button row's grandparent): consistent separation.
 			if (_loadButton?.GetParent()?.GetParent() is VBoxContainer vbox)
-				vbox.AddThemeConstantOverride("separation", BeepDialogLayout.SectionGap);
+				KitChrome.SetConstantOverrideIfChanged(vbox, "separation", BeepDialogLayout.SectionGap);
 			// Bottom button row: uniform spacing.
 			if (_loadButton?.GetParent() is HBoxContainer hbox)
-				hbox.AddThemeConstantOverride("separation", BeepDialogLayout.ButtonGap);
+				KitChrome.SetConstantOverrideIfChanged(hbox, "separation", BeepDialogLayout.ButtonGap);
 			if (_loadButton != null)
 				_loadButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
 			if (_cancelButton != null)
 				_cancelButton.CustomMinimumSize = new Vector2(0, BeepDialogLayout.ActionButton(this));
 			// Slot rows: uniform height, delete button sized, row spacing.
 			if (_slotsVBox != null)
-				_slotsVBox.AddThemeConstantOverride("separation", BeepDialogLayout.RowGap);
+				KitChrome.SetConstantOverrideIfChanged(_slotsVBox, "separation", BeepDialogLayout.RowGap);
 			foreach (var (container, _) in SlotRows())
 			{
 				// container is already a PanelContainer (which IS a Control), so no type test
@@ -88,9 +89,9 @@ namespace Beep.ECS.UI
 				// game that has its own Control type.
 				container.CustomMinimumSize = new Vector2(0, BeepDialogLayout.Row(this));
 				if (container.FindChild("SlotHBox", owned: false) is HBoxContainer row)
-					row.AddThemeConstantOverride("separation", BeepDialogLayout.RowInnerGap);
+					KitChrome.SetConstantOverrideIfChanged(row, "separation", BeepDialogLayout.RowInnerGap);
 				if (container.FindChild("SlotInfo", owned: false) is VBoxContainer info)
-					info.AddThemeConstantOverride("separation", BeepDialogLayout.RowInfoGap);
+					KitChrome.SetConstantOverrideIfChanged(info, "separation", BeepDialogLayout.RowInfoGap);
 				if (container.FindChild("SlotButton", owned: false) is Button slot)
 					slot.CustomMinimumSize = new Vector2(
 						BeepDialogLayout.SlotButtonWidth, BeepDialogLayout.SlotButtonHeight);
@@ -260,7 +261,7 @@ namespace Beep.ECS.UI
 		private void ApplyRowStyles()
 		{
 			foreach (var (container, rowSlot) in SlotRows())
-				container.AddThemeStyleboxOverride("panel", BuildRowStyle(container, rowSlot == _highlightedSlot));
+				KitChrome.SetStyleboxOverrideIfChanged(container, "panel", BuildRowStyle(container, rowSlot == _highlightedSlot));
 		}
 
 		/// <summary>A row background that works on light and dark themes, and over a textured

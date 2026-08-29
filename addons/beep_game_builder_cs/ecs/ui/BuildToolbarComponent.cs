@@ -28,6 +28,10 @@ namespace Beep.ECS.UI
         [Export] public Vector2 ItemSize { get; set; } = new(104, 82);
         [Export] public Vector2 TabSize { get; set; } = new(104, 34);
         [Export] public float PaletteHeight { get; set; } = 88f;
+        [Export] public NodePath CategoryRowPath { get; set; } = new("");
+        [Export] public NodePath PaletteContainerPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         /// <summary>Folder holding `icon_&lt;id&gt;.png` for each catalogue entry. A palette of
         /// icon tiles is what every city-builder reference uses; a column of
@@ -44,19 +48,21 @@ namespace Beep.ECS.UI
         private CityEconomyComponent? _economy;
         private HBoxContainer? _tabs;
         private HBoxContainer? _palette;
+        private Control? _generatedRoot;
         private readonly Dictionary<string, Button> _items = new();
         private readonly List<Button> _tabButtons = new();
+        private readonly List<(Button Button, System.Action Handler)> _connectedButtons = new();
         private string _category = "";
 
         public override void _Ready()
         {
             base._Ready();
-            if (Engine.IsEditorHint()) return;
             // Deferred: a node cannot AddChild to a parent that is still inside its own
             // _Ready ("Parent node is busy setting up children"), which silently produced an
             // EMPTY widget — the code ran, the error went to the log, and the UI was blank.
             // GenreHudComponent already defers its Setup for the same reason.
-            CallDeferred(nameof(Setup));
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
         }
 
         private void Setup()
@@ -68,7 +74,7 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            Build();
+            RebuildToolbar();
             _economy.StatsChanged += RefreshAffordability;
             _economy.BuildingsChanged += RefreshAffordability;
             RefreshAffordability();
@@ -77,12 +83,20 @@ namespace Beep.ECS.UI
         public override void _ExitTree()
         {
             base._ExitTree();
+            DisconnectButtons();
             if (_economy != null && GodotObject.IsInstanceValid(_economy))
             {
                 _economy.StatsChanged -= RefreshAffordability;
                 _economy.BuildingsChanged -= RefreshAffordability;
             }
             _economy = null;
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && (FindCategoryRow() == null || FindPalette() == null))
+                return new[] { "Add authored HBoxContainers named Categories and Palette, set paths, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private CityEconomyComponent? ResolveEconomy()
@@ -100,18 +114,44 @@ namespace Beep.ECS.UI
             }
         }
 
-        private void Build()
+        public void RebuildToolbar()
         {
+            DisconnectButtons();
+            _items.Clear();
+            _tabButtons.Clear();
+
+            if (!BindExistingControls())
+            {
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedSurface();
+            }
+
+            PopulateToolbar();
+        }
+
+        private void BuildGeneratedSurface()
+        {
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+
+            _generatedRoot = null;
+            _tabs = null;
+            _palette = null;
+
             if (GetParent() is not Godot.Control parent) return;
-            int captionFs = UiSurface.FontSize(this, UiSurface.TextRole.Caption);
 
             var root = new VBoxContainer { Name = "Toolbar" };
-            root.AddThemeConstantOverride("separation", 6);
+            KitChrome.SetConstantOverrideIfChanged(root, "separation", 6);
             parent.AddChild(root);
+            SetEditedOwner(root);
+            _generatedRoot = root;
 
             _tabs = new HBoxContainer { Name = "Categories" };
-            _tabs.AddThemeConstantOverride("separation", 6);
+            KitChrome.SetConstantOverrideIfChanged(_tabs, "separation", 6);
             root.AddChild(_tabs);
+            SetEditedOwner(_tabs);
 
             var scroll = new ScrollContainer
             {
@@ -120,10 +160,23 @@ namespace Beep.ECS.UI
                 VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
             };
             root.AddChild(scroll);
+            SetEditedOwner(scroll);
 
             _palette = new HBoxContainer { Name = "Palette", SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill };
-            _palette.AddThemeConstantOverride("separation", 8);
+            KitChrome.SetConstantOverrideIfChanged(_palette, "separation", 8);
             scroll.AddChild(_palette);
+            SetEditedOwner(_palette);
+        }
+
+        private void PopulateToolbar()
+        {
+            if (_tabs == null || _palette == null)
+                return;
+
+            foreach (Node child in _tabs.GetChildren())
+                child.QueueFree();
+            foreach (Node child in _palette.GetChildren())
+                child.QueueFree();
 
             // Categories in catalogue order, de-duplicated — adding a building type to the
             // catalogue adds it to the toolbar with no scene edit.
@@ -138,12 +191,15 @@ namespace Beep.ECS.UI
                 {
                     Name = $"Tab{cat}", Text = cat, ToggleMode = true,
                     CustomMinimumSize = TabSize,
-                    FocusMode = Godot.Control.FocusModeEnum.None,
+                    FocusMode = Godot.Control.FocusModeEnum.All,
                 };
                 tab.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-                tab.AddThemeFontSizeOverride("font_size", captionFs);
-                tab.Pressed += () => SelectCategory(c);
+                KitChrome.SetFontSizeOverrideIfChanged(tab, "font_size", UiSurface.FontSize(this, UiSurface.TextRole.Caption));
+                System.Action handler = () => SelectCategory(c);
+                tab.Pressed += handler;
+                _connectedButtons.Add((tab, handler));
                 _tabs.AddChild(tab);
+                SetEditedOwner(tab);
                 _tabButtons.Add(tab);
             }
 
@@ -181,9 +237,12 @@ namespace Beep.ECS.UI
                     TooltipText = Describe(b),
                 };
                 item.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-                item.AddThemeFontSizeOverride("font_size", smallFs);
-                item.Pressed += () => Purchase(id);
+                KitChrome.SetFontSizeOverrideIfChanged(item, "font_size", smallFs);
+                System.Action handler = () => Purchase(id);
+                item.Pressed += handler;
+                _connectedButtons.Add((item, handler));
                 _palette.AddChild(item);
+                SetEditedOwner(item);
                 _items[b.Id] = item;
             }
 
@@ -241,6 +300,66 @@ namespace Beep.ECS.UI
                 else
                     button.Text = $"{caption}\n{def.Cost:N0}";
             }
+        }
+
+        public bool UsesSceneControls()
+            => FindCategoryRow() != null || FindPalette() != null;
+
+        private bool BindExistingControls()
+        {
+            HBoxContainer? tabs = FindCategoryRow();
+            HBoxContainer? palette = FindPalette();
+
+            if (tabs == null || palette == null)
+                return false;
+
+            if (_generatedRoot != null && GodotObject.IsInstanceValid(_generatedRoot))
+                _generatedRoot.QueueFree();
+
+            _generatedRoot = null;
+            _tabs = tabs;
+            _palette = palette;
+            KitChrome.SetConstantOverrideIfChanged(_tabs, "separation", 6);
+            KitChrome.SetConstantOverrideIfChanged(_palette, "separation", 8);
+            return true;
+        }
+
+        private HBoxContainer? FindCategoryRow()
+        {
+            if (!CategoryRowPath.IsEmpty && GetNodeOrNull<HBoxContainer>(CategoryRowPath) is { } pathRow)
+                return pathRow;
+
+            if (FindChild("Categories", recursive: true, owned: false) is HBoxContainer childRow)
+                return childRow;
+
+            return GetParent()?.FindChild("Categories", recursive: true, owned: false) as HBoxContainer;
+        }
+
+        private HBoxContainer? FindPalette()
+        {
+            if (!PaletteContainerPath.IsEmpty && GetNodeOrNull<HBoxContainer>(PaletteContainerPath) is { } pathPalette)
+                return pathPalette;
+
+            if (FindChild("Palette", recursive: true, owned: false) is HBoxContainer childPalette)
+                return childPalette;
+
+            return GetParent()?.FindChild("Palette", recursive: true, owned: false) as HBoxContainer;
+        }
+
+        private void DisconnectButtons()
+        {
+            foreach ((Button button, System.Action handler) in _connectedButtons)
+                if (GodotObject.IsInstanceValid(button))
+                    button.Pressed -= handler;
+            _connectedButtons.Clear();
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

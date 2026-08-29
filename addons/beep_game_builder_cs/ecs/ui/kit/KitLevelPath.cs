@@ -31,6 +31,214 @@ namespace Beep.ECS.UI.Kit
 
         public readonly List<Level> Levels = new();
 
+        [Export]
+        public string[] LevelLabels
+        {
+            get
+            {
+                var labels = new string[Levels.Count];
+                for (int i = 0; i < Levels.Count; i++)
+                    labels[i] = Levels[i].Label;
+                return labels;
+            }
+            set => SetLevelLabels(value);
+        }
+
+        [Export]
+        public int[] LevelStates
+        {
+            get
+            {
+                var states = new int[Levels.Count];
+                for (int i = 0; i < Levels.Count; i++)
+                    states[i] = (int)Levels[i].State;
+                return states;
+            }
+            set => SetLevelStates(value);
+        }
+
+        [Export]
+        public int[] LevelStars
+        {
+            get
+            {
+                var stars = new int[Levels.Count];
+                for (int i = 0; i < Levels.Count; i++)
+                    stars[i] = Levels[i].Stars;
+                return stars;
+            }
+            set => SetLevelStars(value);
+        }
+
+        public void SetLevels(IEnumerable<Level>? levels, int current = -1)
+        {
+            List<Level> next = NormalizeLevels(levels);
+            int normalizedCurrent = NormalizeCurrent(current, next.Count);
+            if (SameLevels(Levels, next) && _cur == normalizedCurrent)
+                return;
+            Levels.Clear();
+            Levels.AddRange(next);
+            _cur = normalizedCurrent;
+            RefreshLevels();
+        }
+
+        public void SetLevelLabels(string[]? labels)
+        {
+            int count = labels?.Length ?? 0;
+            bool changed = Levels.Count != count;
+            while (Levels.Count > count)
+                Levels.RemoveAt(Levels.Count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                EnsureLevel(i);
+                string next = labels![i] ?? "";
+                if (Levels[i].Label == next) continue;
+                Levels[i].Label = next;
+                changed = true;
+            }
+            if (!changed) return;
+            RefreshLevels();
+        }
+
+        public void SetLevelStates(int[]? states)
+        {
+            if (states == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Levels.Count; i++)
+                {
+                    if (Levels[i].State == LevelState.Locked) continue;
+                    Levels[i].State = LevelState.Locked;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshLevels();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < states.Length; i++)
+            {
+                EnsureLevel(i);
+                LevelState next = StateFromOrdinal(states[i]);
+                if (Levels[i].State == next) continue;
+                Levels[i].State = next;
+                updated = true;
+            }
+            for (int i = states.Length; i < Levels.Count; i++)
+            {
+                if (Levels[i].State == LevelState.Locked) continue;
+                Levels[i].State = LevelState.Locked;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshLevels();
+        }
+
+        public void SetLevelStars(int[]? stars)
+        {
+            if (stars == null)
+            {
+                bool changed = false;
+                for (int i = 0; i < Levels.Count; i++)
+                {
+                    if (Levels[i].Stars == 0) continue;
+                    Levels[i].Stars = 0;
+                    changed = true;
+                }
+                if (!changed) return;
+                RefreshLevels();
+                return;
+            }
+
+            bool updated = false;
+            for (int i = 0; i < stars.Length; i++)
+            {
+                EnsureLevel(i);
+                int next = Mathf.Clamp(stars[i], 0, 3);
+                if (Levels[i].Stars == next) continue;
+                Levels[i].Stars = next;
+                updated = true;
+            }
+            for (int i = stars.Length; i < Levels.Count; i++)
+            {
+                if (Levels[i].Stars == 0) continue;
+                Levels[i].Stars = 0;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshLevels();
+        }
+
+        public void AddLevel(string label, LevelState state = LevelState.Locked, int stars = 0)
+        {
+            Levels.Add(new Level { Label = label ?? "", State = StateFromOrdinal((int)state), Stars = Mathf.Clamp(stars, 0, 3) });
+            RefreshLevels();
+        }
+
+        public void RefreshLevels()
+        {
+            if (Levels.Count == 0)
+            {
+                _cur = -1;
+                _hover = -1;
+                _focusIndex = -1;
+            }
+            else
+            {
+                _cur = Mathf.Clamp(_cur, -1, Levels.Count - 1);
+                if (_hover >= Levels.Count)
+                    _hover = -1;
+                if (_focusIndex >= Levels.Count || _focusIndex < 0)
+                    _focusIndex = FirstPlayableIndex();
+            }
+            if (IsInsideTree())
+            {
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+                UpdateMinimumSize();
+            }
+            QueueRedraw();
+        }
+
+        private void EnsureLevel(int index)
+        {
+            while (Levels.Count <= index)
+                Levels.Add(new Level());
+        }
+
+        private static List<Level> NormalizeLevels(IEnumerable<Level>? levels)
+        {
+            var next = new List<Level>();
+            if (levels == null)
+                return next;
+
+            foreach (Level? level in levels)
+            {
+                next.Add(new Level
+                {
+                    Label = level?.Label ?? "",
+                    State = StateFromOrdinal((int)(level?.State ?? LevelState.Locked)),
+                    Stars = Mathf.Clamp(level?.Stars ?? 0, 0, 3),
+                });
+            }
+            return next;
+        }
+
+        private static bool SameLevels(IReadOnlyList<Level> left, IReadOnlyList<Level> right)
+        {
+            if (left.Count != right.Count) return false;
+            for (int i = 0; i < left.Count; i++)
+            {
+                if ((left[i].Label ?? "") != right[i].Label) return false;
+                if (StateFromOrdinal((int)left[i].State) != right[i].State) return false;
+                if (Mathf.Clamp(left[i].Stars, 0, 3) != right[i].Stars) return false;
+            }
+            return true;
+        }
+
+        private static LevelState StateFromOrdinal(int value)
+            => (LevelState)Mathf.Clamp(value, (int)LevelState.Locked, (int)LevelState.Complete);
+
         /// <summary>Nodes per row before the path reverses — the serpentine.</summary>
         [Export(PropertyHint.Range, "2,10,1")]
         public int PerRow
@@ -41,6 +249,7 @@ namespace Beep.ECS.UI.Kit
                 int next = Mathf.Max(2, value);
                 if (_per == next) return;
                 _per = next;
+                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
                 UpdateMinimumSize();
                 QueueRedraw();
             }
@@ -48,33 +257,42 @@ namespace Beep.ECS.UI.Kit
         private int _per = 4;
 
         /// <summary>Index of the player's current position. -1 for none.</summary>
-        [Export] public int Current { get => _cur; set { _cur = value; QueueRedraw(); } }
+        [Export] public int Current
+        {
+            get => _cur;
+            set
+            {
+                int next = NormalizeCurrent(value);
+                if (_cur == next) return;
+                _cur = next;
+                QueueRedraw();
+            }
+        }
         private int _cur = 2;
         private int _hover = -1;
         private int _focusIndex = -1;
+        private bool _eventsHooked;
 
         [Signal] public delegate void LevelActivatedEventHandler(int index);
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            if (Levels.Count == 0)
-                for (int i = 0; i < 8; i++)
-                    Levels.Add(new Level
-                    {
-                        Label = (i + 1).ToString(),
-                        State = i < 3 ? LevelState.Complete : i == 3 ? LevelState.Available : LevelState.Locked,
-                        Stars = i < 3 ? 3 - i : 0,
-                    });
-            if (CustomMinimumSize == Vector2.Zero)
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
             {
-                int fs = UiSurface.FontSize(this);
-                int rows = Mathf.CeilToInt(Levels.Count / (float)_per);
-                CustomMinimumSize = new Vector2(fs * 3.6f * _per, fs * 4.2f * rows);
+                MouseExited += ClearHover;
+                _eventsHooked = true;
             }
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
             _focusIndex = FirstPlayableIndex();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
         }
 
         private Vector2 NodeAt(int i)
@@ -151,6 +369,21 @@ namespace Beep.ECS.UI.Kit
             return Levels.Count > 0 ? 0 : -1;
         }
 
+        private int NormalizeCurrent(int value)
+            => NormalizeCurrent(value, Levels.Count);
+
+        private static int NormalizeCurrent(int value, int levelCount)
+            => levelCount == 0
+                ? -1
+                : Mathf.Clamp(value, -1, levelCount - 1);
+
+        private void ClearHover()
+        {
+            if (_hover < 0) return;
+            _hover = -1;
+            QueueRedraw();
+        }
+
         private void MoveFocus(Vector2I dir)
         {
             if (Levels.Count == 0) return;
@@ -178,7 +411,13 @@ namespace Beep.ECS.UI.Kit
 
         public override void _Draw()
         {
-            if (Size.X < 30f || Size.Y < 30f || Levels.Count == 0) return;
+            if (Size.X < 30f || Size.Y < 30f) return;
+            if (Levels.Count == 0)
+            {
+                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Levels");
+                return;
+            }
 
             Color face = FaceColor();
             Color ink = InkColor();
@@ -246,12 +485,16 @@ namespace Beep.ECS.UI.Kit
                 // A locked node shows NO number.
                 if (lv.State != LevelState.Locked && font != null && !string.IsNullOrEmpty(lv.Label))
                 {
+                    string label = KitCase(lv.Label);
+                    float labelWidth = r * 1.45f;
                     int lf = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                               new Vector2(r * 1.45f, r * 0.90f),
-                                               lv.Label, font, min: 8);
-                    Vector2 m = font.GetStringSize(lv.Label, HorizontalAlignment.Left, -1, lf);
+                                               new Vector2(labelWidth, r * 0.90f),
+                                               label, font, min: 8);
+                    label = KitChrome.EllipsizeText(font, label, lf, labelWidth);
+                    if (string.IsNullOrEmpty(label)) continue;
+                    Vector2 m = font.GetStringSize(label, HorizontalAlignment.Left, -1, lf);
                     DrawText(font, new Vector2(p.X - m.X * 0.5f, p.Y + m.Y * 0.32f),
-                               lv.Label, lf, UiSurface.Luminance(plate) > 0.5f
+                               label, lf, UiSurface.Luminance(plate) > 0.5f
                                    ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
                 }
 

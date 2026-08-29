@@ -11,10 +11,14 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class VignetteComponent : UIComponent
     {
-        [Export] public float Intensity { get; set; } = 1.0f;
-        [Export] public Color Tint { get; set; } = new(0, 0, 0, 1);
-        [Export] public float Softness { get; set; } = 0.45f;
-        [Export] public float Radius { get; set; } = 0.5f;
+        [Export] public float Intensity { get => _intensity; set { _intensity = value; _mat?.SetShaderParameter("intensity", EffectiveIntensity); } }
+        [Export] public Color Tint { get => _tint; set { _tint = value; _mat?.SetShaderParameter("tint", value); } }
+        [Export] public float Softness { get => _softness; set { _softness = value; _mat?.SetShaderParameter("softness", EffectiveSoftness); } }
+        [Export] public float Radius { get => _radius; set { _radius = value; _mat?.SetShaderParameter("radius", EffectiveRadius); } }
+
+        public float EffectiveIntensity => Mathf.Clamp(float.IsFinite(Intensity) ? Intensity : 0f, 0f, 4f);
+        public float EffectiveSoftness => Mathf.Clamp(float.IsFinite(Softness) ? Softness : 0.45f, 0.001f, 1f);
+        public float EffectiveRadius => Mathf.Clamp(float.IsFinite(Radius) ? Radius : 0.5f, 0.001f, 1f);
 
         // Post-process overlay: sample the SCREEN behind this Control, not the
         // Control's own (usually blank) TEXTURE. `texture(TEXTURE, UV)` darkened
@@ -38,6 +42,10 @@ void fragment() {
 ";
 
         private ShaderMaterial? _mat;
+        private float _intensity = 1.0f;
+        private Color _tint = new(0, 0, 0, 1);
+        private float _softness = 0.45f;
+        private float _radius = 0.5f;
         // The parent CanvasItem's material before we overlaid the vignette, so _ExitTree restores
         // it instead of nulling out a material the node legitimately had. _replacedMaterial guards
         // the restore so we only touch it when Apply() actually swapped ours in.
@@ -47,6 +55,7 @@ void fragment() {
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(Engine.IsEditorHint());
             Apply();
         }
 
@@ -55,10 +64,10 @@ void fragment() {
             // Push export values into the shader uniforms when they change (editor live-edit).
             if (_mat != null && Engine.IsEditorHint())
             {
-                _mat.SetShaderParameter("intensity", Intensity);
+                _mat.SetShaderParameter("intensity", EffectiveIntensity);
                 _mat.SetShaderParameter("tint", Tint);
-                _mat.SetShaderParameter("softness", Softness);
-                _mat.SetShaderParameter("radius", Radius);
+                _mat.SetShaderParameter("softness", EffectiveSoftness);
+                _mat.SetShaderParameter("radius", EffectiveRadius);
             }
         }
 
@@ -71,10 +80,10 @@ void fragment() {
             }
             var shader = new Shader { Code = ShaderCode };
             _mat = new ShaderMaterial { Shader = shader };
-            _mat.SetShaderParameter("intensity", Intensity);
+            _mat.SetShaderParameter("intensity", EffectiveIntensity);
             _mat.SetShaderParameter("tint", Tint);
-            _mat.SetShaderParameter("softness", Softness);
-            _mat.SetShaderParameter("radius", Radius);
+            _mat.SetShaderParameter("softness", EffectiveSoftness);
+            _mat.SetShaderParameter("radius", EffectiveRadius);
             if (!_replacedMaterial) _priorMaterial = ci.Material;   // remember what was there, once
             _replacedMaterial = true;
             ci.Material = _mat;
@@ -87,6 +96,7 @@ void fragment() {
             // stuck with our vignette shader. Only if Apply() actually replaced it.
             if (_replacedMaterial && GetParent() is CanvasItem ci && GodotObject.IsInstanceValid(ci))
                 ci.Material = _priorMaterial;
+            SetProcess(false);
         }
     }
 }

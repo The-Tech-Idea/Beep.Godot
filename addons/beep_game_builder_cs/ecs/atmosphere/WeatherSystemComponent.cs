@@ -311,6 +311,14 @@ namespace Beep.ECS
         /// <summary>Seconds to cross-fade between weathers. 0 = instant.</summary>
         [Export] public float TransitionDuration { get; set; } = 1.5f;
 
+        [ExportGroup("Weather Sprite Rendering")]
+        /// <summary>Nearest sampling is useful for pixel games, but painterly/top-down art should
+        /// stay linear so rain/snow/sand do not read as chunky pixel art.</summary>
+        [Export] public bool WeatherSpritePixelArtSampling { get; set; } = false;
+        /// <summary>Snap sprite weather to whole pixels only when a pixel-art project wants that
+        /// hard-grid look. Leave off for painterly or higher-resolution art.</summary>
+        [Export] public bool WeatherSpriteSnapToPixelGrid { get; set; } = false;
+
         [Signal] public delegate void WeatherChangedEventHandler(int type);
         [Signal] public delegate void LightningStruckEventHandler();
 
@@ -337,6 +345,28 @@ namespace Beep.ECS
         private bool _lightningActive;
         private double _lightningFlashTime;
         private float _gustPhase;
+        private bool _nodesReady;
+
+        public double EffectiveCycleInterval => double.IsFinite(CycleInterval) ? System.Math.Max(0.1, CycleInterval) : 60.0;
+        public int EffectiveParticleCount => Mathf.Clamp(ParticleCount, 1, 5000);
+        public double EffectiveLightningMinInterval => System.Math.Min(SanitizedLightningMinInterval, SanitizedLightningMaxInterval);
+        public double EffectiveLightningMaxInterval => System.Math.Max(SanitizedLightningMinInterval, SanitizedLightningMaxInterval);
+        public float EffectiveLightningShakeIntensity => Mathf.Max(0f, float.IsFinite(LightningShakeIntensity) ? LightningShakeIntensity : 0f);
+        public float EffectiveWindChangeSpeed => Mathf.Max(0f, float.IsFinite(WindChangeSpeed) ? WindChangeSpeed : 0f);
+        public float EffectiveMaxWindMagnitude => Mathf.Max(0f, float.IsFinite(MaxWindMagnitude) ? MaxWindMagnitude : 0f);
+        public float EffectiveGustStrength => Mathf.Clamp(float.IsFinite(GustStrength) ? GustStrength : 0f, 0f, 1f);
+        public float EffectiveCloudCoverage => Mathf.Clamp(float.IsFinite(CloudCoverage) ? CloudCoverage : 0f, 0f, 1f);
+        public float EffectiveCloudDriftSpeed => Mathf.Max(0f, float.IsFinite(CloudDriftSpeed) ? CloudDriftSpeed : 0f);
+        public float EffectiveCloudShadowStrength => Mathf.Max(0f, float.IsFinite(CloudShadowStrength) ? CloudShadowStrength : 0f);
+        public float EffectiveCloudTextureScale => Mathf.Clamp(float.IsFinite(CloudTextureScale) ? CloudTextureScale : 1f, 0.1f, 8f);
+        public float EffectiveCloudParallax => Mathf.Clamp(float.IsFinite(CloudParallax) ? CloudParallax : 0f, 0f, 1f);
+        public float EffectiveCloudShadowParallax => Mathf.Clamp(float.IsFinite(CloudShadowParallax) ? CloudShadowParallax : 1f, 0f, 1f);
+        public float EffectiveTransitionDuration => Mathf.Max(0f, float.IsFinite(TransitionDuration) ? TransitionDuration : 0f);
+        public float EffectiveTargetIntensity => Mathf.Clamp(float.IsFinite(TargetIntensity) ? TargetIntensity : 0f, 0f, 1f);
+        public float EffectiveIntensityLerpSpeed => Mathf.Max(0f, float.IsFinite(IntensityLerpSpeed) ? IntensityLerpSpeed : 1.5f);
+
+        private double SanitizedLightningMinInterval => double.IsFinite(LightningMinInterval) ? System.Math.Max(0.0, LightningMinInterval) : 3.0;
+        private double SanitizedLightningMaxInterval => double.IsFinite(LightningMaxInterval) ? System.Math.Max(0.0, LightningMaxInterval) : 12.0;
 
         /// <summary>
         /// Frame-lerp rate for the weather→ambient transition. Higher = snappier.
@@ -377,14 +407,16 @@ namespace Beep.ECS
             // scene you opened (this component is in all ten genre main scenes) and warned
             // about a missing CanvasModulate every time. Only SetWeather was guarded.
             if (Engine.IsEditorHint()) return;
+            if (!IsActive) return;
 
-            EnsureNodes();
+            if (!EnsureNodes()) return;
+            _nodesReady = true;
             if (IsActive) SetWeather(CurrentWeather);
         }
 
-        private void EnsureNodes()
+        private bool EnsureNodes()
         {
-            if (GetParent() is not Node parent) return;
+            if (GetParent() is not Node parent) return false;
             if (parent is not Node2D)
                 GD.PushWarning($"[Weather] Should be a child of a Node2D (world root) for particles/ambient to render correctly. Parent was {parent.GetType().Name}.");
 
@@ -440,7 +472,7 @@ namespace Beep.ECS
                 overlayRoot.AddChild(_flashOverlay);
             }
 
-            _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
+            _lightningTimer = GD.RandRange(EffectiveLightningMinInterval, EffectiveLightningMaxInterval);
 
             // Cache the bolt container so we don't search every lightning strike.
             if (BoltContainer != null)
@@ -455,6 +487,8 @@ namespace Beep.ECS
             // white-out must be topmost. Move it to the end after the cloud/rain overlays exist.
             if (_flashOverlay != null && GodotObject.IsInstanceValid(_flashOverlay))
                 overlayRoot.MoveChild(_flashOverlay, -1);
+
+            return _particles != null && _overlayLayer != null && _weatherSprites != null;
         }
 
         private void EnsureWeatherSpriteLayer(Node parent)
@@ -476,6 +510,8 @@ namespace Beep.ECS
             _weatherSprites.SnowTexture = SnowTexture ?? (UseBundledParticleTextures ? Bundled("snow_flake_2d.png") : null);
             _weatherSprites.HailTexture = HailTexture ?? (UseBundledParticleTextures ? Bundled("hail_pellet_2d.png") : null);
             _weatherSprites.SandTexture = SandTexture ?? (UseBundledParticleTextures ? Bundled("sand_mote_2d.png") : null);
+            _weatherSprites.UsePixelArtSampling = WeatherSpritePixelArtSampling;
+            _weatherSprites.SnapToPixelGrid = WeatherSpriteSnapToPixelGrid;
         }
 
         /// <summary>
@@ -555,6 +591,8 @@ namespace Beep.ECS
             _weatherSprites.Wind = WindForce;
             _weatherSprites.CameraCenter = camera?.GetScreenCenterPosition() ?? Vector2.Zero;
             _weatherSprites.CameraZoom = camera?.Zoom ?? Vector2.One;
+            _weatherSprites.UsePixelArtSampling = WeatherSpritePixelArtSampling;
+            _weatherSprites.SnapToPixelGrid = WeatherSpriteSnapToPixelGrid;
             _weatherSprites.Intensity = wantsSprites ? _intensityCurrent * (1f - ShelterFactor) : 0f;
             float spriteDensity = CurrentWeather switch
             {
@@ -565,7 +603,7 @@ namespace Beep.ECS
                 WeatherType.Sandstorm => 0.48f,
                 _ => 0.25f,
             };
-            _weatherSprites.MaxSprites = Mathf.Clamp((int)(ParticleCount * spriteDensity), 60, 360);
+            _weatherSprites.MaxSprites = Mathf.Clamp((int)(EffectiveParticleCount * spriteDensity), 60, 360);
             ApplyWeatherSpriteTextures();
             _weatherSprites.Visible = wantsSprites && _weatherSprites.Intensity > 0.01f;
         }
@@ -576,8 +614,15 @@ namespace Beep.ECS
             // registers RenderingServer global shader params and emits IntensityChanged at edit
             // time. DeferredInit is already editor-skipped, so the nodes it drives are null anyway.
             if (Engine.IsEditorHint() || !IsActive) return;
+            if (!_nodesReady)
+            {
+                if (!EnsureNodes()) return;
+                _nodesReady = true;
+                SetWeather(CurrentWeather);
+            }
 
             // (Day/night progression moved to DayNightCycleComponent.)
+            float dt = DeltaSeconds(delta);
 
             // Intensity engine — scales particles/fog/wind, publishes global
             // shader uniforms. MUST run before the ambient tint below so the
@@ -590,7 +635,7 @@ namespace Beep.ECS
             if (_ambient != null)
             {
                 Color weatherTarget = GetTintFor(CurrentWeather);
-                _weatherTintCurrent = _weatherTintCurrent.Lerp(weatherTarget, (float)delta * TransitionLerpRate);
+                _weatherTintCurrent = _weatherTintCurrent.Lerp(weatherTarget, Mathf.Clamp(dt * TransitionLerpRate, 0f, 1f));
                 // Intensity gates how far toward the weather tint we go. The day/night
                 // multiply is no longer done here — the AmbientController composes this
                 // weather layer with the day/night layer, so a storm at midnight still
@@ -605,8 +650,8 @@ namespace Beep.ECS
             // Auto-cycle.
             if (AutoCycle)
             {
-                _cycleTimer += delta;
-                double duration = _currentWeatherDuration > 0 ? _currentWeatherDuration : CycleInterval;
+                _cycleTimer += dt;
+                double duration = _currentWeatherDuration > 0 ? _currentWeatherDuration : EffectiveCycleInterval;
                 if (_cycleTimer >= duration)
                 {
                     _cycleTimer = 0;
@@ -617,7 +662,7 @@ namespace Beep.ECS
             // Wind drift — pushes particle gravity (clouds read WindForce in ProcessClouds).
             if (EnableWind)
             {
-                UpdateWeatherWind(delta);
+                UpdateWeatherWind(dt);
                 ApplyWindToParticles();
             }
 
@@ -633,16 +678,16 @@ namespace Beep.ECS
             PositionEmitterAtCamera();
 
             // Cloud drift + wind-direction sync.
-            if (EnableClouds) ProcessClouds(delta);
+            if (EnableClouds) ProcessClouds(dt);
 
             // Lightning (Storm only).
-            ProcessLightning(delta);
+            ProcessLightning(dt);
         }
 
         private void UpdateWeatherWind(double delta)
         {
             WeatherViewMode view = EffectiveViewMode();
-            Vector2 dir = PrevailingWind.LengthSquared() > 0.0001f
+            Vector2 dir = float.IsFinite(PrevailingWind.X) && float.IsFinite(PrevailingWind.Y) && PrevailingWind.LengthSquared() > 0.0001f
                 ? PrevailingWind.Normalized()
                 : Vector2.Right;
 
@@ -670,15 +715,20 @@ namespace Beep.ECS
             else if (view == WeatherViewMode.RpgTopDown)
                 weatherWind *= 0.85f;
 
+            float gustStrength = EffectiveGustStrength;
             float gustWeight = CurrentWeather is WeatherType.Storm or WeatherType.Snow
-                or WeatherType.Sandstorm or WeatherType.Hail ? GustStrength : GustStrength * 0.35f;
-            _gustPhase += (float)delta * Mathf.Lerp(0.5f, 1.6f, gustWeight);
+                or WeatherType.Sandstorm or WeatherType.Hail ? gustStrength : gustStrength * 0.35f;
+            float dt = DeltaSeconds(delta);
+            _gustPhase += dt * Mathf.Lerp(0.5f, 1.6f, gustWeight);
             float gust = 1f + Mathf.Sin(_gustPhase * 1.7f) * gustWeight
                          + Mathf.Sin(_gustPhase * 3.9f + 1.4f) * gustWeight * 0.35f;
 
-            Vector2 target = dir * Mathf.Min(MaxWindMagnitude, weatherWind * gust * _intensityCurrent);
-            WindForce = WindForce.Lerp(target, Mathf.Clamp(WindChangeSpeed * (float)delta, 0f, 1f));
+            Vector2 target = dir * Mathf.Min(EffectiveMaxWindMagnitude, weatherWind * Mathf.Max(0f, gust) * _intensityCurrent);
+            WindForce = WindForce.Lerp(target, Mathf.Clamp(EffectiveWindChangeSpeed * dt, 0f, 1f));
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
 
         private void ApplyWindToParticles()
         {
@@ -730,9 +780,10 @@ namespace Beep.ECS
             // overrides this to fade in gradually.
             if (!_transitioning)
             {
-                TargetIntensity = 1f;
-                WeatherIntensity = 1f;
-                _intensityCurrent = 1f;
+                float defaultIntensity = DefaultIntensityFor(type);
+                TargetIntensity = defaultIntensity;
+                WeatherIntensity = defaultIntensity;
+                _intensityCurrent = defaultIntensity;
             }
 
             // Per-weather AutoCycle duration: storms are brief, fog lingers.
@@ -747,7 +798,7 @@ namespace Beep.ECS
                 _particles.Emitting = usesParticles;
                 if (usesParticles)
                 {
-                    _particles.Amount = ParticleCount;
+                _particles.Amount = EffectiveParticleCount;
                     _lastParticleAmount = -1;   // force ProcessIntensity to re-apply the scaled amount
                     ConfigureParticles(type);
                 }
@@ -762,11 +813,26 @@ namespace Beep.ECS
             }
 
             // Lightning enabled only for Storm.
-            _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
+            _lightningTimer = GD.RandRange(EffectiveLightningMinInterval, EffectiveLightningMaxInterval);
             _lightningActive = false;
 
             EmitSignal(SignalName.WeatherChanged, (int)type);
         }
+
+        private static float DefaultIntensityFor(WeatherType type) => type switch
+        {
+            WeatherType.Clear => 0f,
+            WeatherType.Cloudy => 0.55f,
+            WeatherType.Rain => 0.78f,
+            WeatherType.Snow => 0.68f,
+            WeatherType.Storm => 1f,
+            WeatherType.Fog => 0.65f,
+            WeatherType.Sandstorm => 0.9f,
+            WeatherType.Hail => 0.85f,
+            WeatherType.LeafFall => 0.45f,
+            WeatherType.Heatwave => 0.70f,
+            _ => 0.5f,
+        };
 
         /// <summary>
         /// Keep precipitation in one 2D visual layer.
@@ -831,7 +897,7 @@ namespace Beep.ECS
 
             bool storm = type == WeatherType.Storm;
             _splashes.Texture = SplashTexture ?? (UseBundledParticleTextures ? Bundled("rain_splash_2d.png") : null);
-            _splashes.Amount = Mathf.Max(1, (int)(ParticleCount * (storm ? 0.22f : 0.15f)));
+            _splashes.Amount = Mathf.Max(1, (int)(EffectiveParticleCount * (storm ? 0.22f : 0.15f)));
             _splashes.Lifetime = 0.18f;
             _splashes.EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle;
 
@@ -1044,6 +1110,7 @@ namespace Beep.ECS
 
         private void ProcessLightning(double delta)
         {
+            float dt = DeltaSeconds(delta);
             if (!EnableLightning || CurrentWeather != WeatherType.Storm)
             {
                 if (_flashOverlay != null && _flashOverlay.Color.A > 0)
@@ -1053,7 +1120,7 @@ namespace Beep.ECS
 
             if (_lightningActive)
             {
-                _lightningFlashTime += delta;
+                _lightningFlashTime += dt;
                 // Scaled by THIS bolt's strength — see LastBoltStrength. A fixed-amplitude
                 // envelope makes every strike the same distance away, which is the tell that
                 // it is an effect on a timer rather than a storm.
@@ -1062,14 +1129,14 @@ namespace Beep.ECS
                 {
                     intensity = 0f;
                     _lightningActive = false;
-                    _lightningTimer = GD.RandRange(LightningMinInterval, LightningMaxInterval);
+                    _lightningTimer = GD.RandRange(EffectiveLightningMinInterval, EffectiveLightningMaxInterval);
                 }
                 if (_flashOverlay != null)
                     _flashOverlay.Color = new Color(LightningColor.R, LightningColor.G, LightningColor.B, intensity * 0.8f);
             }
             else
             {
-                _lightningTimer -= delta;
+                _lightningTimer -= dt;
                 if (_lightningTimer <= 0)
                 {
                     _lightningActive = true;
@@ -1217,7 +1284,7 @@ namespace Beep.ECS
         /// </summary>
         private void TriggerCameraShake()
         {
-            if (LightningShakeIntensity <= 0) return;
+            if (EffectiveLightningShakeIntensity <= 0) return;
             var tree = GetTree();
             if (tree == null) return;
             var shake = tree.Root.FindChild("ScreenShakeComponent", true, false) as ScreenShakeComponent;
@@ -1230,7 +1297,7 @@ namespace Beep.ECS
                 }
             }
             if (shake != null)
-                shake.Shake(LightningShakeIntensity * _intensityCurrent, 0.4f);
+                shake.Shake(EffectiveLightningShakeIntensity * _intensityCurrent, 0.4f);
             else if (!_shakeMissWarned)
             {
                 _shakeMissWarned = true;

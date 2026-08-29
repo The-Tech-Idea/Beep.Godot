@@ -10,9 +10,14 @@ func _run() -> void:
 	_check_project_settings()
 	_check_theme_applier()
 	_check_data_binder_host()
+	_check_core_gameplay()
+	_check_grid_placement()
+	_check_grid_world_template()
+	_check_grid_scene_templates()
+	_check_test_examples()
 	await _check_tween_component()
 	if _failures.is_empty():
-		print("[headless-smoke] OK: project settings, beep_ui preset property, data binder directions, and tween preset endpoints validated.")
+		print("[headless-smoke] OK: project settings, beep_ui preset property, data binder directions, grid placement/grid-objects/builds/build-sites/resources/resource-nodes/resource-scatter/production/objectives/interaction-modes/interaction-cursor/resource-bar/build-toolbar/tool-palette/navigation/roads/road-tools/tilemap-layer-bridge/selection/camera/jobs/job-effects/worker-spawner/cells/tools/crops/overlays/calendar, grid world/base/unit templates, and tween preset endpoints validated.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -62,6 +67,105 @@ func _check_data_binder_host() -> void:
 	if not bool(smoke.call("Run")):
 		_fail("DataBinderHost smoke failed: " + str(smoke.get("Failure")))
 	smoke.queue_free()
+
+func _check_grid_placement() -> void:
+	var smoke_script := load("res://tests/GridPlacementSmoke.cs")
+	if smoke_script == null:
+		_fail("Could not load GridPlacementSmoke.cs")
+		return
+	var smoke: Node = smoke_script.new()
+	root.add_child(smoke)
+	if not bool(smoke.call("Run")):
+		_fail("GridPlacement smoke failed: " + str(smoke.get("Failure")))
+	smoke.queue_free()
+
+func _check_core_gameplay() -> void:
+	var smoke_script := load("res://tests/CoreGameplaySmoke.cs")
+	if smoke_script == null:
+		_fail("Could not load CoreGameplaySmoke.cs")
+		return
+	var smoke: Node = smoke_script.new()
+	root.add_child(smoke)
+	if not bool(smoke.call("Run")):
+		_fail("Core gameplay smoke failed: " + str(smoke.get("Failure")))
+	smoke.queue_free()
+
+func _check_grid_world_template() -> void:
+	var path := "res://addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn"
+	if not ResourceLoader.exists(path):
+		_fail("Grid world template is missing: " + path)
+		return
+	var packed := load(path)
+	if packed == null or not (packed is PackedScene):
+		_fail("Grid world template did not load as PackedScene: " + path)
+		return
+	var scene: Node = packed.instantiate()
+	root.add_child(scene)
+	for node_path in ["Terrain", "VisualTileLayer", "TileMapBridge", "Grid", "Placement", "Resources", "BuildCatalog", "BuildSites", "Navigation", "Roads", "Selection", "CellOverlay", "InteractionCursor", "Buildings", "ProductionBuildings/SampleWorkshop/GridObject", "ProductionBuildings/SampleWorkshop/Production", "ResourceNodes/ResourceScatter", "ResourceNodes/SampleTree", "Base/Sprite2D", "Base/WorkerSpawner", "Cells", "Calendar", "Crops", "Objectives", "Objectives/ObjectiveEvents", "Jobs", "JobEffects", "Commands/InteractionMode", "Commands/Tools", "Commands/ClearLandCommand", "State", "Units/Worker/Sprite2D", "Units/Worker/PathFollower", "Units/Worker/GridWorker", "Camera2D/GridCameraController", "HUD/ResourceBar", "HUD/ResourceBar/Theme", "HUD/ResourceBar/Row/Wood", "HUD/ResourceBar/Row/Stone", "HUD/ResourceBar/Row/Parts", "HUD/ResourceBar/Row/Coins", "HUD/CalendarHud", "HUD/ModeBar", "HUD/InteractionStatus", "HUD/ToolPalette", "HUD/ToolPalette/Theme", "HUD/ToolPalette/Row/Clear", "HUD/ToolPalette/Row/Hoe", "HUD/ToolPalette/Row/Water", "HUD/ToolPalette/Row/Plant", "HUD/ToolPalette/Row/Harvest", "HUD/ToolPalette/Row/Job", "HUD/ToolPalette/Row/Road", "HUD/ToolPalette/Row/NoRoad", "HUD/BasePanel", "HUD/BasePanel/Theme", "HUD/BasePanel/Panel/Content/Title", "HUD/BasePanel/Panel/Content/Count", "HUD/BasePanel/Panel/Content/SpawnButton", "HUD/JobBoard", "HUD/WorkerStatus", "HUD/ObjectivesPanel", "HUD/Minimap", "HUD/BuildToolbar", "HUD/ObjectInspector", "HUD/ProductionPanel"]:
+		if scene.get_node_or_null(node_path) == null:
+			_fail("Grid world template missing node: " + node_path)
+	scene.queue_free()
+
+func _check_grid_scene_templates() -> void:
+	var templates := {
+		"res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn": ["Sprite2D", "CollisionShape2D", "PathFollower", "GridWorker"],
+		"res://addons/beep_game_builder_cs/templates/scenes/grid_base_depot.tscn": ["Sprite2D", "SpawnPoint", "GridObject", "WorkerSpawner"],
+	}
+	for path in templates.keys():
+		if not ResourceLoader.exists(path):
+			_fail("Grid scene template is missing: " + path)
+			continue
+		var packed := load(path)
+		if packed == null or not (packed is PackedScene):
+			_fail("Grid scene template did not load as PackedScene: " + path)
+			continue
+		var scene: Node = packed.instantiate()
+		root.add_child(scene)
+		for node_path in templates[path]:
+			if scene.get_node_or_null(node_path) == null:
+				_fail("Grid scene template " + path + " missing node: " + node_path)
+		scene.queue_free()
+
+func _check_test_examples() -> void:
+	var examples := {
+		"res://tests/examples/grid_world_kit_hud_example.tscn": ["WorldArt/ClearedYard", "WorldArt/RoadMain", "WorldArt/PreparedPlots/Plot01", "Base/DepotRoof", "Units/Truck_Clear/Body", "HUD/HudRoot/ToolPalette/Panel/Row/Hoe", "HUD/HudRoot/ResourceBar/Panel/Row/Wood", "HUD/HudRoot/BasePanel/Panel/Content/SpawnButton", "TileMapBridge", "Base/WorkerSpawner"],
+		"res://tests/examples/grid_world_painterly_demo.tscn": ["Terrain", "TerrainGenerator", "TerrainBridge", "Grid", "Cells", "Roads", "Navigation", "Placement", "State", "Objects/BaseDepot/GridObject", "Objects/BaseDepot/WorkerSpawner", "Units", "HUD/StatusPanel/Status"],
+		"res://tests/examples/base_worker_templates_example.tscn": ["BaseDepot/Sprite2D", "BaseDepot/WorkerSpawner", "WorkerUnit/Sprite2D", "WorkerUnit/PathFollower", "WorkerUnit/GridWorker"],
+	}
+	for path in examples.keys():
+		if not ResourceLoader.exists(path):
+			_fail("Test example is missing: " + path)
+			continue
+		var packed := load(path)
+		if packed == null or not (packed is PackedScene):
+			_fail("Test example did not load as PackedScene: " + path)
+			continue
+		var scene: Node = packed.instantiate()
+		root.add_child(scene)
+		await process_frame
+		for node_path in examples[path]:
+			if scene.get_node_or_null(node_path) == null:
+				_fail("Test example " + path + " missing node: " + node_path)
+		if path == "res://tests/examples/grid_world_kit_hud_example.tscn":
+			var wallet := scene.get_node_or_null("Resources")
+			if wallet == null:
+				_fail("Test example " + path + " missing wallet node.")
+			else:
+				if int(wallet.call("GetAmount", "wood")) != 120:
+					_fail("Test example " + path + " did not load starting wood amount.")
+				if int(wallet.call("GetAmount", "stone")) != 35:
+					_fail("Test example " + path + " did not load starting stone amount.")
+		if path == "res://tests/examples/grid_world_painterly_demo.tscn":
+			await process_frame
+			var cells := scene.get_node_or_null("Cells")
+			if cells == null or int(cells.get("CellCount")) != 640:
+				_fail("Painterly grid demo did not generate the expected 32x20 cell map.")
+			if not bool(scene.get("LastSnapshotRestored")):
+				_fail("Painterly grid demo did not verify state restore.")
+			var terrain := scene.get_node_or_null("Terrain")
+			if terrain == null or int(terrain.get("LastGeneratedPixelCount")) <= 0:
+				_fail("Painterly grid demo did not render through PainterlyTerrainComponent.")
+		scene.queue_free()
 
 func _check_tween_component() -> void:
 	var script := load("res://addons/beep_game_builder_cs/ecs/TweenComponent.cs")

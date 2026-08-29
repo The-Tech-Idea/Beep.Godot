@@ -30,6 +30,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
 
@@ -46,7 +47,11 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (!IsActive || _jobs.Count == 0)
+            {
+                UpdateProcessing();
+                return;
+            }
 
             for (int i = _jobs.Count - 1; i >= 0; i--)
             {
@@ -73,11 +78,13 @@ namespace Beep.ECS.UI
                     _jobs[i] = job;
                 }
             }
+            UpdateProcessing();
         }
 
         public override void _ExitTree()
         {
             _jobs.Clear();
+            SetProcess(false);
             base._ExitTree();
         }
 
@@ -94,6 +101,7 @@ namespace Beep.ECS.UI
             };
             _jobs.Add(job);
             EmitSignal(SignalName.JobStarted, jobId);
+            UpdateProcessing();
             return jobId;
         }
 
@@ -128,6 +136,7 @@ namespace Beep.ECS.UI
             {
                 EmitSignal(SignalName.JobCompleted, jobId);
                 _jobs.RemoveAt(idx);
+                UpdateProcessing();
             }
         }
 
@@ -137,7 +146,11 @@ namespace Beep.ECS.UI
             foreach (var job in _jobs)
                 EmitSignal(SignalName.JobCompleted, job.Id);
             _jobs.Clear();
+            UpdateProcessing();
         }
+
+        private void UpdateProcessing()
+            => SetProcess(!Engine.IsEditorHint() && IsActive && _jobs.Count > 0);
 
         /// <summary>Get the number of active jobs.</summary>
         public int ActiveJobCount => _jobs.Count;

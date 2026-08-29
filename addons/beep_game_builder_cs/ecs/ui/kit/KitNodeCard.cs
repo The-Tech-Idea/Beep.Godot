@@ -36,44 +36,79 @@ namespace Beep.ECS.UI.Kit
             Action,
         }
 
-        [Export] public string Title { get => _title; set { _title = value ?? ""; QueueRedraw(); } }
+        [Export] public string Title { get => _title; set { SetText(ref _title, value); } }
         private string _title = "";
 
-        [Export] public Texture2D? Art { get => _art; set { _art = value; QueueRedraw(); } }
+        [Export] public Texture2D? Art { get => _art; set { if (_art == value) return; _art = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _art;
 
-        [Export] public FooterKind Footer { get; set; } = FooterKind.Status;
+        [Export] public FooterKind Footer { get => _footerKind; set { if (_footerKind == value) return; _footerKind = value; RefreshVisualAndRedraw(); } }
+        private FooterKind _footerKind = FooterKind.Status;
 
-        [Export] public string FooterText { get => _footer; set { _footer = value ?? ""; QueueRedraw(); } }
+        [Export] public string FooterText { get => _footer; set { SetText(ref _footer, value); } }
         private string _footer = "OWNED";
 
-        [Export] public UiSurface.Role FooterRole { get; set; } = UiSurface.Role.Success;
+        [Export] public UiSurface.Role FooterRole { get => _footerRole; set { if (_footerRole == value) return; _footerRole = value; RefreshVisualAndRedraw(); } }
+        private UiSurface.Role _footerRole = UiSurface.Role.Success;
 
         /// <summary>Locked cards state WHY, in words — the 5x settled rule.</summary>
-        [Export] public bool Locked { get => _locked; set { _locked = value; SetState(value ? KitState.Locked : KitState.Normal); } }
+        [Export] public bool Locked { get => _locked; set { if (_locked == value) return; _locked = value; SetState(value ? KitState.Locked : KitState.Normal); RefreshVisualAndRedraw(); } }
         private bool _locked;
 
-        [Export] public string Requirement { get => _req; set { _req = value ?? ""; QueueRedraw(); } }
+        [Export] public string Requirement { get => _req; set { SetText(ref _req, value); } }
         private string _req = "";
         private bool _hover;
+        private bool _eventsHooked;
 
         [Signal] public delegate void PressedEventHandler();
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            MouseEntered += () => { _hover = true; QueueRedraw(); };
-            MouseExited += () => { _hover = false; QueueRedraw(); };
-            if (CustomMinimumSize == Vector2.Zero)
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
             {
-                int fs = UiSurface.FontSize(this);
-                // Upgrade/shop cards need a stable compact footprint. The art does not use
-                // screen-title text inside the card; the icon and welded footer carry the read.
-                CustomMinimumSize = new Vector2(Mathf.Clamp(fs * 7.4f, 104f, 132f),
-                                                Mathf.Clamp(fs * 10.4f, 146f, 188f));
+                MouseEntered += () => { _hover = true; QueueRedraw(); };
+                MouseExited += () => { _hover = false; QueueRedraw(); };
+                _eventsHooked = true;
             }
+            // Upgrade/shop cards need a stable compact footprint. The art does not use
+            // screen-title text inside the card; the icon and welded footer carry the read.
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
+        }
+
+        private void ClearHover()
+        {
+            if (!_hover) return;
+            _hover = false;
+            QueueRedraw();
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         private float FooterHeight() => Footer switch
@@ -92,19 +127,9 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (_locked) return;
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
-            {
-                EmitSignal(SignalName.Pressed);
-                AcceptEvent();
-                return;
-            }
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                GrabFocus();
-                EmitSignal(SignalName.Pressed);
-                AcceptEvent();
-            }
+            KitChrome.ActivateOnClickOrConfirm(this, @event,
+                () => EmitSignal(SignalName.Pressed),
+                interactive: !_locked);
         }
 
         public override void _Draw()
@@ -224,7 +249,10 @@ namespace Beep.ECS.UI.Kit
                                     Color color, HorizontalAlignment align, int min)
         {
             if (string.IsNullOrEmpty(text) || r.Size.X <= 1f || r.Size.Y <= 1f) return;
+            text = KitCase(text);
             int fs = UiSurface.FitRole(this, role, r.Size, text, font, min: min);
+            text = KitChrome.EllipsizeText(font, text, fs, r.Size.X);
+            if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             float x = align == HorizontalAlignment.Center
                 ? r.Position.X + (r.Size.X - m.X) * 0.5f

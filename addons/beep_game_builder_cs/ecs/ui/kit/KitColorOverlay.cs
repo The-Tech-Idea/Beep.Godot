@@ -7,17 +7,36 @@ namespace Beep.ECS.UI.Kit
     public partial class KitColorOverlay : Control
     {
         [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
+        [Export]
         public Color Color
         {
             get => _color;
-            set { _color = value; QueueRedraw(); }
+            set
+            {
+                if (_color == value) return;
+                _color = value;
+                RefreshVisualAndRedraw();
+            }
         }
 
         private Color _color = new(0, 0, 0, 0);
 
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
         public override void _Ready()
         {
-            MouseFilter = MouseFilterEnum.Ignore;
+            base._Ready();
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, MouseFilterEnum.Ignore);
         }
 
         public override void _Draw()

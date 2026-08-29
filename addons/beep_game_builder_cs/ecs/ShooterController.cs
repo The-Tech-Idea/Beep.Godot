@@ -28,6 +28,11 @@ namespace Beep.ECS
 
         [Signal] public delegate void FireFiredEventHandler(Vector2 position, Vector2 direction);
 
+        public float EffectiveMoveSpeed => NonNegative(MoveSpeed);
+        public float EffectiveFireRate => float.IsFinite(FireRate) ? Mathf.Max(0.01f, FireRate) : 0.01f;
+        public float EffectiveProjectileDamage => NonNegative(ProjectileDamage);
+        public float EffectiveProjectileSpeed => NonNegative(ProjectileSpeed);
+
         private CharacterBody2D? _body;
         private Marker2D? _muzzle;
         private StatusEffectComponent? _statusEffects;
@@ -58,15 +63,17 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsActive || _body == null || Engine.IsEditorHint()) return;
+            if (!IsActive || _body == null || !GodotObject.IsInstanceValid(_body) || Engine.IsEditorHint()) return;
             if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down", FireAction)) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             Vector2 input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
             // Speed from the entity's "move_speed" stat when it has one (equipment/buffs modify
             // it), else the MoveSpeed export. Same stat channel AttackComponent reads for damage.
-            float speed = _stats?.GetValue("move_speed", MoveSpeed) ?? MoveSpeed;
+            float speed = NonNegative(_stats?.GetValue("move_speed", EffectiveMoveSpeed) ?? EffectiveMoveSpeed);
             _body.Velocity = input * speed;
             _body.MoveAndSlide();
 
@@ -75,14 +82,14 @@ namespace Beep.ECS
             _body.Rotation = (mouse - _body.GlobalPosition).Angle();
 
             // Fire.
-            _cooldown -= delta;
+            _cooldown -= dt;
             if (Input.IsActionPressed(FireAction) && _cooldown < 0)
             {
                 GetViewport().SetInputAsHandled();
                 // An equipped weapon drives the fire interval (its Cooldown) and the shot; unarmed
                 // uses the controller's own FireRate/ProjectileScene.
                 var weapon = _equipment?.MainWeapon;
-                _cooldown = weapon != null && weapon.Cooldown > 0f ? weapon.Cooldown : 1.0 / FireRate;
+                _cooldown = weapon != null && float.IsFinite(weapon.Cooldown) && weapon.Cooldown > 0f ? weapon.Cooldown : 1.0 / EffectiveFireRate;
                 Vector2 muzzlePos = _muzzle?.GlobalPosition ?? _body.GlobalPosition;
                 Vector2 dir = Vector2.FromAngle(_body.Rotation);
                 EmitSignal(SignalName.FireFired, muzzlePos, dir);
@@ -94,7 +101,8 @@ namespace Beep.ECS
         {
             var scene = weapon?.ProjectileScene ?? ProjectileScene;
             if (scene == null) return;
-            var root = GetTree().CurrentScene;
+            var root = GetTree()?.CurrentScene ?? GetTree()?.Root;
+            if (root == null) return;
             // Recursive: the Projectiles pool is provided by the LEVEL, which the loader
             // instances under LevelContainer — so it sits at
             // Main/LevelContainer/Level1/Projectiles. A direct child lookup never found it
@@ -113,9 +121,9 @@ namespace Beep.ECS
                 {
                     // Damage from the "damage" stat (equipment contributes the weapon's Damage),
                     // typed by the equipped weapon — the same stat channel AttackComponent reads.
-                    projComp.Damage = _stats?.GetValue("damage", ProjectileDamage) ?? ProjectileDamage;
+                    projComp.Damage = NonNegative(_stats?.GetValue("damage", EffectiveProjectileDamage) ?? EffectiveProjectileDamage);
                     projComp.DamageType = weapon?.DamageType ?? DamageType.Physical;
-                    projComp.Speed = ProjectileSpeed;
+                    projComp.Speed = EffectiveProjectileSpeed;
                     // Tell it who fired: it lives under the pool, not under us, so it cannot
                     // infer this — and without it the bullet spawns overlapping our own
                     // hurtbox and damages us on every shot.
@@ -123,6 +131,14 @@ namespace Beep.ECS
                     projComp.Launch(dir);
                 }
             }
+            else
+            {
+                proj.QueueFree();
+            }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

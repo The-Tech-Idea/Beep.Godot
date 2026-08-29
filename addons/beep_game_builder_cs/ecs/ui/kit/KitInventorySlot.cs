@@ -35,43 +35,76 @@ namespace Beep.ECS.UI.Kit
         private string _requirement = "";
         private bool _selected;
         private bool _hover;
+        private bool _eventsHooked;
         private UiSurface.Role _rarity = UiSurface.Role.Neutral;
 
         /// <summary>The item's art. Null = an empty slot, which is a normal state.</summary>
-        [Export] public Texture2D? Icon
+        [Export]
+        public Texture2D? Icon
         {
             get => _icon;
-            set { _icon = value; QueueRedraw(); }
+            set
+            {
+                if (_icon == value) return;
+                _icon = value;
+                RefreshVisualAndRedraw();
+            }
         }
 
         /// <summary>Stack size. 0 or 1 draws no badge — a badge reading "1" on every slot is
         /// noise, and none of the reference sheets do it.</summary>
-        [Export] public int Count
+        [Export]
+        public int Count
         {
             get => _count;
-            set { _count = Mathf.Max(0, value); QueueRedraw(); }
+            set
+            {
+                int next = Mathf.Max(0, value);
+                if (_count == next) return;
+                _count = next;
+                RefreshVisualAndRedraw();
+            }
         }
 
         /// <summary>Rarity, as a palette ROLE rather than a colour, so a slot reskins with the
         /// theme instead of pinning a literal into the scene.</summary>
-        [Export] public UiSurface.Role Rarity
+        [Export]
+        public UiSurface.Role Rarity
         {
             get => _rarity;
-            set { _rarity = value; QueueRedraw(); }
+            set
+            {
+                if (_rarity == value) return;
+                _rarity = value;
+                RefreshVisualAndRedraw();
+            }
         }
 
         /// <summary>Locked slots say WHY, in words — see <see cref="Requirement"/>. A padlock
         /// alone is the one thing the reference kits consistently do NOT do.</summary>
-        [Export] public bool Locked
+        [Export]
+        public bool Locked
         {
             get => _locked;
-            set { _locked = value; QueueRedraw(); }
+            set
+            {
+                if (_locked == value) return;
+                _locked = value;
+                RefreshVisualAndRedraw();
+            }
         }
 
-        [Export] public string Requirement
+        [Export]
+        public string Requirement
         {
             get => _requirement;
-            set { _requirement = value ?? ""; QueueRedraw(); }
+            set
+            {
+                string next = value ?? "";
+                if (_requirement == next) return;
+                _requirement = next;
+                RefreshVisualAndRedraw();
+            }
         }
 
         /// <summary>
@@ -82,17 +115,29 @@ namespace Beep.ECS.UI.Kit
         /// the item type it accepts, so an empty helm slot and an empty boot slot are not the
         /// same grey square. Set this and leave Icon null.
         /// </summary>
-        [Export] public Texture2D? GhostIcon
+        [Export]
+        public Texture2D? GhostIcon
         {
             get => _ghost;
-            set { _ghost = value; QueueRedraw(); }
+            set
+            {
+                if (_ghost == value) return;
+                _ghost = value;
+                RefreshVisualAndRedraw();
+            }
         }
         private Texture2D? _ghost;
 
-        [Export] public bool Selected
+        [Export]
+        public bool Selected
         {
             get => _selected;
-            set { _selected = value; QueueRedraw(); }
+            set
+            {
+                if (_selected == value) return;
+                _selected = value;
+                RefreshVisualAndRedraw();
+            }
         }
 
         /// <summary>Emitted on click. The slot reports; the game decides what a click means.</summary>
@@ -129,15 +174,29 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            MouseEntered += () => { _hover = true; QueueRedraw(); };
-            MouseExited += () => { _hover = false; QueueRedraw(); };
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
+            {
+                MouseEntered += () => { _hover = true; QueueRedraw(); };
+                MouseExited += () => { _hover = false; QueueRedraw(); };
+                _eventsHooked = true;
+            }
             // A slot is square by default and big enough for its own badge to be legible.
-            int fs = UiSurface.FontSize(this);
-            float side = Mathf.Clamp(fs * 2.65f, 40f, 52f);
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = new Vector2(side, side);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
+        }
+
+        private void ClearHover()
+        {
+            if (!_hover) return;
+            _hover = false;
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -147,21 +206,16 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(side, side);
         }
 
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
-            if (Locked) return;
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
-            {
-                EmitSignal(SignalName.SlotPressed);
-                AcceptEvent();
-                return;
-            }
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                GrabFocus();
-                EmitSignal(SignalName.SlotPressed);
-                AcceptEvent();
-            }
+            KitChrome.ActivateOnClickOrConfirm(this, @event,
+                () => EmitSignal(SignalName.SlotPressed),
+                interactive: !Locked);
         }
 
         public override void _Draw()
@@ -223,13 +277,18 @@ namespace Beep.ECS.UI.Kit
                 {
                     // INSIDE the slot, at the bottom. Drawn below it, the text collided with the
                     // next slot in the grid -- a standalone widget must stay within its own rect.
+                    string req = KitCase(_requirement);
+                    float textWidth = Size.X * 0.94f;
                     int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                               new Vector2(Size.X * 0.94f, Size.Y * 0.24f),
-                                               _requirement, font, min: 7);
-                    Vector2 m = font.GetStringSize(_requirement, HorizontalAlignment.Left, -1, fs);
-                    if (m.X <= Size.X * 0.98f)
+                                               new Vector2(textWidth, Size.Y * 0.24f),
+                                               req, font, min: 7);
+                    req = KitChrome.EllipsizeText(font, req, fs, textWidth);
+                    if (!string.IsNullOrEmpty(req))
+                    {
+                        Vector2 m = font.GetStringSize(req, HorizontalAlignment.Left, -1, fs);
                         DrawText(font, new Vector2((Size.X - m.X) * 0.5f, Size.Y - fs * 0.45f),
-                                   _requirement, fs, UiSurface.Text(this));
+                                 req, fs, UiSurface.Text(this));
+                    }
                 }
             }
             else if (_count > 1 && font != null)

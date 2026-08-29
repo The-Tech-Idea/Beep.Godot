@@ -18,24 +18,32 @@ namespace Beep.ECS
         [Signal] public delegate void CooldownProgressEventHandler(float pct);
 
         private float _timer;
-        public bool IsReady => _timer <= 0;
-        public float Remaining => Mathf.Max(0, _timer);
-        public float Progress => CooldownDuration > 0 ? 1f - (_timer / CooldownDuration) : 1f;
+        public bool IsReady => !float.IsFinite(_timer) || _timer <= 0f;
+        public float Remaining => Mathf.Max(0f, FiniteOr(_timer, 0f));
+        public float Progress => EffectiveDuration > 0f ? Mathf.Clamp(1f - (Remaining / EffectiveDuration), 0f, 1f) : 1f;
+        public float EffectiveDuration => NonNegative(CooldownDuration);
 
         public override void _Ready()
         {
             base._Ready();
-            if (StartOnReady) Trigger();
+            if (!Engine.IsEditorHint() && StartOnReady) Trigger();
         }
 
         public override void _Process(double delta)
         {
-            if (_timer <= 0) return;
-            _timer -= (float)delta;
-            EmitSignal(SignalName.CooldownProgress, Progress);
-            if (_timer <= 0)
+            if (Engine.IsEditorHint() || !IsActive) return;
+            if (!float.IsFinite(_timer))
             {
-                _timer = 0;
+                _timer = 0f;
+                EmitSignal(SignalName.CooldownReady);
+                return;
+            }
+            if (_timer <= 0f) return;
+            _timer = Mathf.Max(0f, _timer - DeltaSeconds(delta));
+            EmitSignal(SignalName.CooldownProgress, Progress);
+            if (_timer <= 0f)
+            {
+                _timer = 0f;
                 EmitSignal(SignalName.CooldownReady);
             }
         }
@@ -44,7 +52,9 @@ namespace Beep.ECS
         public void Trigger()
         {
             if (!IsActive) return;
-            _timer = CooldownDuration;
+            _timer = EffectiveDuration;
+            if (_timer <= 0f)
+                EmitSignal(SignalName.CooldownReady);
         }
 
         /// <summary>Force the cooldown to end immediately.</summary>
@@ -56,5 +66,14 @@ namespace Beep.ECS
             // after a forced reset (they otherwise only heard it via the natural _Process expiry).
             if (wasCoolingDown) EmitSignal(SignalName.CooldownReady);
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static float FiniteOr(float value, float fallback) =>
+            float.IsFinite(value) ? value : fallback;
     }
 }

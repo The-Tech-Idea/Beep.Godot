@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="steel" x1="24" y1="18" x2="72" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d9d1bf"/>
+      <stop offset="0.55" stop-color="#9e9380"/>
+      <stop offset="1" stop-color="#5a5248"/>
+    </linearGradient>
+    <linearGradient id="paint" x1="26" y1="24" x2="68" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8913e"/>
+      <stop offset="0.5" stop-color="#b25f2e"/>
+      <stop offset="1" stop-color="#6f3524"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 56 40 25h25l13 24-22 28H30z" fill="#2d2a25" opacity=".35"/>
+  <path d="M22 50 42 22h23l11 21-21 28H31z" fill="url(#paint)" stroke="#35251d" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M42 22h23l-7 19H30z" fill="url(#steel)" stroke="#35251d" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M30 41h28l-9 24H23z" fill="#a84f2a" stroke="#35251d" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M59 42h17L55 71l-6-6z" fill="#7f3c28" stroke="#35251d" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M43 27h13l-4 10H36z" fill="#a8c2c4" stroke="#394548" stroke-width="2" opacity=".85"/>
+  <ellipse cx="33" cy="67" rx="8" ry="5" fill="#1f1e1a"/>
+  <ellipse cx="56" cy="70" rx="8" ry="5" fill="#1f1e1a"/>
+  <ellipse cx="33" cy="66" rx="4" ry="2.5" fill="#c7b98e"/>
+  <ellipse cx="56" cy="69" rx="4" ry="2.5" fill="#c7b98e"/>
+</svg>

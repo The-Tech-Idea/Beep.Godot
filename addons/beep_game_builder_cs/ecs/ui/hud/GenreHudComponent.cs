@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -171,7 +172,7 @@ namespace Beep.ECS.UI
             label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             label.AutowrapMode = TextServer.AutowrapMode.Off;
             label.ClipText = true;
-            label.AddThemeFontSizeOverride("font_size", UiSurface.FontSize(label, role));
+            KitChrome.SetFontSizeOverrideIfChanged(label, "font_size", UiSurface.FontSize(label, role));
         }
 
         /// <summary>Write a value, and a 0..1 fill when the readout is a badge.</summary>
@@ -231,10 +232,10 @@ namespace Beep.ECS.UI
                     p.QueueRedraw();
                     break;
                 case Label l when role is { } r:
-                    l.AddThemeColorOverride("font_color", UiSurface.Semantic(l, r));
+                    KitChrome.SetColorOverrideIfChanged(l, "font_color", UiSurface.Semantic(l, r));
                     break;
                 case Label l:
-                    l.RemoveThemeColorOverride("font_color");
+                    KitChrome.RemoveColorOverrideIfPresent(l, "font_color");
                     break;
             }
         }

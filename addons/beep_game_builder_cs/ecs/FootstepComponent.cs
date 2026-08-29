@@ -33,13 +33,19 @@ namespace Beep.ECS
         private AudioStreamPlayer? _player;
         private float _stepTimer;
 
+        public float EffectiveMinSpeed => NonNegativeFinite(MinSpeed);
+        public float EffectiveStepInterval => float.IsFinite(StepInterval) && StepInterval > 0.05f ? StepInterval : 0.05f;
+        public float EffectivePitchVariation => float.IsFinite(PitchVariation) ? Mathf.Clamp(PitchVariation, 0f, 0.99f) : 0f;
+        public string EffectiveBus => string.IsNullOrWhiteSpace(Bus) ? "Master" : Bus;
+
         public override void _Ready()
         {
             base._Ready();
+            if (Engine.IsEditorHint()) return;
             _body = GetParent() as CharacterBody2D;
-            if (!Engine.IsEditorHint() && Sounds.Length == 0)
+            if (Sounds.Length == 0)
                 Sounds = LoadDefaults();
-            if (!Engine.IsEditorHint() && GetParent() is not CharacterBody2D)
+            if (GetParent() is not CharacterBody2D)
                 // Reads _body's velocity/IsOnFloor — a non-body parent silently never steps.
                 GD.PushWarning($"[{Name}] FootstepComponent's parent is {GetParent()?.GetType().Name ?? "null"}, not a CharacterBody2D — no footsteps will play. Parent it under the moving body.");
             Callable.From(SetupPlayer).CallDeferred();
@@ -56,22 +62,26 @@ namespace Beep.ECS
 
         private void SetupPlayer()
         {
-            _player = new AudioStreamPlayer { Name = "FootstepPlayer", Bus = Bus };
+            if (_player != null && GodotObject.IsInstanceValid(_player)) return;
+            _player = new AudioStreamPlayer { Name = "FootstepPlayer", Bus = EffectiveBus };
             AddChild(_player);
         }
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_body == null || _player == null || !IsActive) return;
+            if (Engine.IsEditorHint() || _body == null || _player == null || !IsActive) return;
             if (Sounds.Length == 0 || !_body.IsOnFloor()) return;
 
-            float speed = Mathf.Abs(_body.Velocity.Length());
-            if (speed < MinSpeed) return;
+            if (!float.IsFinite(_body.Velocity.X) || !float.IsFinite(_body.Velocity.Y))
+                return;
 
-            _stepTimer -= (float)delta;
+            float speed = _body.Velocity.Length();
+            if (speed < EffectiveMinSpeed) return;
+
+            _stepTimer -= DeltaSeconds(delta);
             if (_stepTimer <= 0)
             {
-                _stepTimer = StepInterval;
+                _stepTimer = EffectiveStepInterval;
                 PlayStep();
             }
         }
@@ -83,9 +93,17 @@ namespace Beep.ECS
             // DOUBLE overload's [0, Length-1) so the last sound never played (with 2 sounds, index 1
             // never). (There is no GD.RandiRange in the C# API.)
             var sound = Sounds[GD.RandRange(0, Sounds.Length - 1)];
+            if (sound == null) return;
             _player.Stream = sound;
-            _player.PitchScale = 1f + (float)GD.RandRange(-PitchVariation, PitchVariation);
+            _player.Bus = EffectiveBus;
+            _player.PitchScale = 1f + (float)GD.RandRange(-EffectivePitchVariation, EffectivePitchVariation);
             _player.Play();
         }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) && value > 0f ? value : 0f;
     }
 }

@@ -33,6 +33,7 @@ namespace Beep.ECS.UI
         [Export] public bool SetWindowTitle { get; set; } = false;
         /// <summary>If true and the title label is set, prefix it to the existing text (useful for results screens).</summary>
         [Export] public bool AppendGameName { get; set; } = false;
+        [Export] public bool WarnMissingGameInfo { get; set; } = false;
 
         public override void _Ready()
         {
@@ -45,7 +46,8 @@ namespace Beep.ECS.UI
             var info = GameBuilder.GameInfo.Instance;
             if (info == null)
             {
-                GD.PushWarning("[GameInfoBinder] No GameApp.Info resource found — scene will show placeholder values.");
+                if (WarnMissingGameInfo)
+                    GD.PushWarning("[GameInfoBinder] No GameApp.Info resource found — scene will show placeholder values.");
                 return;
             }
 
@@ -64,24 +66,15 @@ namespace Beep.ECS.UI
             if (Resolve<Label>(parent, GenreLabelPath, "GenreLabelPath") is { } genre)
                 genre.Text = SkinCatalog.GetGenre(info.GenreId)?.DisplayName ?? info.GenreId;
 
-            // Theme + palette + geometry + skin — drive the sibling ThemePresetComponent from GameInfo/GameApp.
+            // Theme + palette + geometry — drive the sibling ThemePresetComponent from GameInfo.
             if (Resolve<ThemePresetComponent>(parent, ThemeComponentPath, "ThemeComponentPath") is { } theme)
             {
-                // One game, one skin. The genre/theme/palette live in ONE global
-                // (SkinCatalog.ActiveGenre and friends); this just publishes them from
-                // GameInfo. No per-scene override, no rule about which wins.
-                SkinCatalog.SetActiveSkin(info.GenreId,
-                                          info.DefaultThemePreset.ToLowerInvariant(),
-                                          info.PaletteName,
-                                          info.GeometryProfileName);
+                SkinCatalog.SetActiveSkin(info);
                 // Re-apply explicitly. The component already themed itself in _Ready, before
                 // this ran, so publishing alone leaves it on its fallback skin — which is what
                 // made an rpg project render in platformer/modern. Assigning GenreName used to
                 // trigger this as a side effect of the setter; a plain global has no setter.
                 theme.ApplyTheme();
-                // Push the UISkin from GameApp if one is set there.
-                var app = GameApp.Instance;
-                if (app != null && app.Skin != null) theme.Skin = app.Skin;
             }
 
             // OS window title.

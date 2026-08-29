@@ -10,18 +10,63 @@ namespace Beep.ECS.UI.Kit
         public string CellText
         {
             get => _text;
-            set { _text = value ?? ""; QueueRedraw(); }
+            set { string next = value ?? ""; if (_text == next) return; _text = next; RefreshMinimumAndRedraw(); }
         }
 
-        [Export] public HorizontalAlignment Align { get; set; } = HorizontalAlignment.Left;
-        [Export] public UiSurface.TextRole Role { get; set; } = UiSurface.TextRole.Caption;
+        [Export]
+        public HorizontalAlignment Align
+        {
+            get => _align;
+            set { if (_align == value) return; _align = value; RefreshVisualAndRedraw(); }
+        }
+        private HorizontalAlignment _align = HorizontalAlignment.Left;
+
+        [Export]
+        public UiSurface.TextRole Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshMinimumAndRedraw(); }
+        }
+        private UiSurface.TextRole _role = UiSurface.TextRole.Caption;
 
         private string _text = "";
 
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Ignore;
+            ApplyInputDefaults(MouseFilterEnum.Ignore);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this, Role);
+            float pad = Mathf.Max(4f, fs * 0.45f);
+            float width = TextWidth(_text, Role) + pad * 2f;
+            return new Vector2(Mathf.Max(fs * 4f, width), Mathf.Max(18f, fs * 1.55f));
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private float TextWidth(string text, UiSurface.TextRole role)
+        {
+            if (string.IsNullOrEmpty(text))
+                return 0f;
+
+            Font? font = KitFont();
+            int fs = UiSurface.FontSize(this, role);
+            string draw = KitCase(text);
+            return font?.GetStringSize(draw, HorizontalAlignment.Left, -1, fs).X ?? draw.Length * fs * 0.56f;
         }
 
         public override void _Draw()
@@ -34,6 +79,8 @@ namespace Beep.ECS.UI.Kit
             float pad = Mathf.Max(4f, UiSurface.FontSize(this) * 0.45f);
             var box = new Rect2(pad, 0, Size.X - pad * 2f, Size.Y);
             int fs = UiSurface.FitRole(this, Role, box.Size, draw, font);
+            draw = KitChrome.EllipsizeText(font, draw, fs, box.Size.X);
+            if (string.IsNullOrEmpty(draw)) return;
             Vector2 m = font.GetStringSize(draw, Align, -1, fs);
             float x = Align switch
             {

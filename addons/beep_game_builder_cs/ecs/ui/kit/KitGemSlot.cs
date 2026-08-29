@@ -24,25 +24,46 @@ namespace Beep.ECS.UI.Kit
 
         public enum SocketState { Empty, Filled, Invite, Locked }
 
-        [Export] public SocketState State_ { get => _state; set { _state = value; QueueRedraw(); } }
+        [Export] public SocketState State_ { get => _state; set { if (_state == value) return; _state = value; RefreshVisualAndRedraw(); } }
         private SocketState _state = SocketState.Filled;
 
-        [Export] public Texture2D? Gem { get => _gem; set { _gem = value; QueueRedraw(); } }
+        [Export] public Texture2D? Gem { get => _gem; set { if (_gem == value) return; _gem = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _gem;
 
         /// <summary>Rarity / element colour of the inserted gem.</summary>
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Info;
+        [Export] public UiSurface.Role Role { get => _role; set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); } }
+        private UiSurface.Role _role = UiSurface.Role.Info;
 
-        [Export] public string Requirement { get => _req; set { _req = value ?? ""; QueueRedraw(); } }
+        [Export] public string Requirement { get => _req; set { SetText(ref _req, value); } }
         private string _req = "";
         private bool _hover;
+        private bool _eventsHooked;
 
         [Signal] public delegate void ActivatedEventHandler();
 
-        private void UpdateMinimumSize()
+        private void RefreshKitMinimumContract()
         {
-            if (CustomMinimumSize != Vector2.Zero) return;
-            CustomMinimumSize = _GetMinimumSize();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            RefreshKitMinimumContract();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -54,37 +75,35 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            MouseEntered += () => { _hover = true; QueueRedraw(); };
-            MouseExited += () => { _hover = false; QueueRedraw(); };
-            UpdateMinimumSize();
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            if (!_eventsHooked)
+            {
+                MouseEntered += () => { _hover = true; QueueRedraw(); };
+                MouseExited += () => { _hover = false; QueueRedraw(); };
+                _eventsHooked = true;
+            }
+            RefreshKitMinimumContract();
         }
 
         public override void _Notification(int what)
         {
             base._Notification(what);
-            if (what == NotificationThemeChanged)
-            {
-                QueueRedraw();
-            }
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
+        }
+
+        private void ClearHover()
+        {
+            if (!_hover) return;
+            _hover = false;
+            QueueRedraw();
         }
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (_state == SocketState.Locked) return;
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
-            {
-                EmitSignal(SignalName.Activated);
-                AcceptEvent();
-                return;
-            }
-            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-            {
-                GrabFocus();
-                EmitSignal(SignalName.Activated);
-                AcceptEvent();
-            }
+            KitChrome.ActivateOnClickOrConfirm(this, @event,
+                () => EmitSignal(SignalName.Activated),
+                interactive: _state != SocketState.Locked);
         }
 
         public override void _Draw()
@@ -161,12 +180,16 @@ namespace Beep.ECS.UI.Kit
                     DrawLine(c - new Vector2(a, -a), c + new Vector2(a, -a), col, w);
                     if (!string.IsNullOrEmpty(_req) && KitFont() is { } font)
                     {
+                        string req = KitCase(_req);
+                        float textWidth = Size.X * 0.86f;
                         int s = UiSurface.FitRole(this, UiSurface.TextRole.Small,
-                                                  new Vector2(Size.X * 0.86f, Size.Y * 0.22f),
-                                                  _req, font, min: 7);
-                        Vector2 m = font.GetStringSize(_req, HorizontalAlignment.Left, -1, s);
+                                                  new Vector2(textWidth, Size.Y * 0.22f),
+                                                  req, font, min: 7);
+                        req = KitChrome.EllipsizeText(font, req, s, textWidth);
+                        if (string.IsNullOrEmpty(req)) break;
+                        Vector2 m = font.GetStringSize(req, HorizontalAlignment.Left, -1, s);
                         DrawText(font, new Vector2(c.X - m.X * 0.5f, Size.Y - s * 0.1f),
-                                   _req, s, UiSurface.Text(this));
+                                   req, s, UiSurface.Text(this));
                     }
                     break;
                 }

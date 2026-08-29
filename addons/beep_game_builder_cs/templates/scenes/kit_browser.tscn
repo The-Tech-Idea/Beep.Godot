@@ -1,6 +1,10 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/KitBrowser.cs" id="1_browser"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="2_theme"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="3_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="4_label"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="5_option"]
 
 [node name="KitBrowser" type="Control"]
 anchors_preset = 15
@@ -9,3 +13,102 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_browser")
+StartGenre = "citybuilder"
+StartTheme = "oilfield_days"
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09, 0.09, 0.12, 1)
+script = ExtResource("3_color")
+
+[node name="Margin" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 18.0
+offset_right = -18.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+theme_type_variation = &"BeepTitle"
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = "UI Kit"
+vertical_alignment = 1
+script = ExtResource("4_label")
+
+[node name="Header" type="HFlowContainer" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="GenreCaption" type="Label" parent="Margin/Root/Header"]
+layout_mode = 2
+theme_type_variation = &"BeepCaption"
+text = "Genre:"
+vertical_alignment = 1
+script = ExtResource("4_label")
+
+[node name="GenrePicker" type="OptionButton" parent="Margin/Root/Header"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+script = ExtResource("5_option")
+
+[node name="BuildStampLabel" type="Label" parent="Margin/Root/Header"]
+layout_mode = 2
+theme_type_variation = &"BeepCaption"
+text = "build unknown"
+vertical_alignment = 1
+script = ExtResource("4_label")
+
+[node name="SummaryLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+theme_type_variation = &"BeepCaption"
+autowrap_mode = 3
+text = "Choose a genre to compare every UI kit widget with one shared data set."
+script = ExtResource("4_label")
+
+[node name="HeaderRule" type="HSeparator" parent="Margin/Root"]
+layout_mode = 2
+
+[node name="ScrollFrame" type="Control" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Root/ScrollFrame"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/ScrollFrame/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="Theme" type="Node" parent="Margin/Root"]
+script = ExtResource("2_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"

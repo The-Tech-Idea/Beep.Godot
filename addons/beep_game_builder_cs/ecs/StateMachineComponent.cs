@@ -51,9 +51,13 @@ namespace Beep.ECS
             if (!IsActive || _fsm == null) return;
 
             // Track time in current state.
-            if (!_stateTimers.ContainsKey(CurrentState))
-                _stateTimers[CurrentState] = 0f;
-            _stateTimers[CurrentState] += (float)delta;
+            string state = CurrentState;
+            if (!string.IsNullOrEmpty(state))
+            {
+                if (!_stateTimers.ContainsKey(state))
+                    _stateTimers[state] = 0f;
+                _stateTimers[state] += double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            }
 
             // Call the state's OnUpdate callback each frame.
             _fsm.Update();
@@ -155,7 +159,21 @@ namespace Beep.ECS
 
             // Restore the timer for this state.
             if (state.GameData.TryGetValue("state_machine_time", out var timeObj))
-                _stateTimers[current] = (float)timeObj;
+            {
+                _stateTimers[current] = Mathf.Max(0f, ReadFloat(timeObj, 0f));
+            }
+        }
+
+        private static float ReadFloat(Variant value, float fallback)
+        {
+            double seconds = value.VariantType switch
+            {
+                Variant.Type.Int or Variant.Type.Float => value.AsDouble(),
+                Variant.Type.String when double.TryParse(value.AsString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsed) => parsed,
+                _ => fallback
+            };
+
+            return double.IsFinite(seconds) ? (float)seconds : fallback;
         }
     }
 }

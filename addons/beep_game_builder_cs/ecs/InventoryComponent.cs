@@ -84,13 +84,21 @@ namespace Beep.ECS
         public InventorySlot?[] Slots { get; private set; } = null!;
 
         public int UsedSlots { get { int c = 0; if (Slots != null) foreach (var s in Slots) if (s != null) c++; return c; } }
-        public int FreeSlots => MaxSlots - UsedSlots;
-        public bool IsFull => UsedSlots >= MaxSlots;
+        public int EffectiveMaxSlots => Mathf.Clamp(MaxSlots, 1, 512);
+        public int EffectiveColumns => Mathf.Clamp(Columns, 1, 64);
+        public Vector2I EffectiveSlotSize => new(Mathf.Max(1, SlotSize.X), Mathf.Max(1, SlotSize.Y));
+        public float EffectiveHoverDelay => float.IsFinite(HoverDelay) && HoverDelay > 0f ? HoverDelay : 0f;
+        public int EffectiveSlotCount => Slots == null ? EffectiveMaxSlots : Mathf.Min(EffectiveMaxSlots, Slots.Length);
+        public int FreeSlots => Mathf.Max(0, EffectiveSlotCount - UsedSlots);
+        public bool IsFull => UsedSlots >= EffectiveSlotCount;
 
         public override void _Ready()
         {
             base._Ready();
-            Slots = new InventorySlot?[MaxSlots];
+            MaxSlots = EffectiveMaxSlots;
+            Columns = EffectiveColumns;
+            SlotSize = EffectiveSlotSize;
+            Slots = new InventorySlot?[EffectiveMaxSlots];
             // Don't build the grid/tooltip in the editor — this [Tool] node lands in scenes the dev
             // opens, and BuildUI injects Owner-stamped nodes into the parent that a scene save would
             // then serialize (and re-add on each reopen). Matches Particle/Trail/Spawner's guard.
@@ -101,6 +109,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint() || !IsActive) return;
             ProcessInteraction(delta);
         }
 
@@ -114,7 +123,7 @@ namespace Beep.ECS
         {
             Item = item,
             Quantity = quantity,
-            Durability = item.MaxDurability,
+            Durability = item.EffectiveMaxDurability,
             Socketed = System.Array.Empty<GameItem>()
         };
 
@@ -128,6 +137,7 @@ namespace Beep.ECS
         public bool AddItem(GameItem item, int quantity = 1)
         {
             if (!IsActive || Slots == null) return false;
+            if (quantity <= 0) return false;
             if (item == null)
             {
                 GD.PushWarning($"[{Name}] AddItem called with a null GameItem — nothing added.");
@@ -140,11 +150,11 @@ namespace Beep.ECS
 
             if (AutoStack)
             {
-                for (int i = 0; i < MaxSlots; i++)
+                for (int i = 0; i < EffectiveSlotCount; i++)
                 {
-                    if (Slots[i] != null && Slots[i]!.Item.Id == item.Id && Slots[i]!.Quantity < Slots[i]!.Item.MaxStack)
+                    if (Slots[i] != null && Slots[i]!.Item.Id == item.Id && Slots[i]!.Quantity < Slots[i]!.Item.EffectiveMaxStack)
                     {
-                        int space = Slots[i]!.Item.MaxStack - Slots[i]!.Quantity;
+                        int space = Slots[i]!.Item.EffectiveMaxStack - Slots[i]!.Quantity;
                         int toAdd = Mathf.Min(space, quantity);
                         Slots[i]!.Quantity += toAdd;
                         quantity -= toAdd;
@@ -164,7 +174,7 @@ namespace Beep.ECS
                     if (quantity < originalQuantity) EmitSignal(SignalName.ItemAdded, item.Id, originalQuantity - quantity);
                     EmitSignal(SignalName.InventoryFull); EmitSignal(SignalName.InventoryChanged); return false;
                 }
-                int toAdd = Mathf.Min(item.MaxStack, quantity);
+                int toAdd = Mathf.Min(item.EffectiveMaxStack, quantity);
                 Slots[slot] = NewSlot(item, toAdd);
                 quantity -= toAdd;
                 EmitSignal(SignalName.SlotUpdated, slot);
@@ -179,9 +189,10 @@ namespace Beep.ECS
         /// inventory does not hold that many.</summary>
         public bool RemoveItem(string itemId, int quantity = 1)
         {
+            if (quantity <= 0) return false;
             if (!HasItem(itemId, quantity)) return false;
             int remaining = quantity;
-            for (int i = 0; i < MaxSlots && remaining > 0; i++)
+            for (int i = 0; i < EffectiveSlotCount && remaining > 0; i++)
             {
                 if (Slots?[i] != null && Slots[i]!.Item.Id == itemId)
                 {
@@ -199,7 +210,8 @@ namespace Beep.ECS
 
         public bool RemoveAt(int slot, int quantity = 1)
         {
-            if (Slots == null || slot < 0 || slot >= MaxSlots || Slots[slot] == null) return false;
+            if (Slots == null || slot < 0 || slot >= EffectiveSlotCount || Slots[slot] == null) return false;
+            if (quantity <= 0) return false;
             Slots[slot]!.Quantity -= quantity;
             if (Slots[slot]!.Quantity <= 0) Slots[slot] = null;
             EmitSignal(SignalName.SlotUpdated, slot);
@@ -209,13 +221,13 @@ namespace Beep.ECS
 
         public void MoveItem(int fromSlot, int toSlot)
         {
-            if (Slots == null || fromSlot < 0 || toSlot < 0 || fromSlot >= MaxSlots || toSlot >= MaxSlots) return;
+            if (Slots == null || fromSlot < 0 || toSlot < 0 || fromSlot >= EffectiveSlotCount || toSlot >= EffectiveSlotCount) return;
             if (Slots[fromSlot] == null) return;
 
             if (Slots[toSlot] != null && Slots[toSlot]!.Item.Id == Slots[fromSlot]!.Item.Id
-                && Slots[toSlot]!.Quantity < Slots[toSlot]!.Item.MaxStack)
+                && Slots[toSlot]!.Quantity < Slots[toSlot]!.Item.EffectiveMaxStack)
             {
-                int space = Slots[toSlot]!.Item.MaxStack - Slots[toSlot]!.Quantity;
+                int space = Slots[toSlot]!.Item.EffectiveMaxStack - Slots[toSlot]!.Quantity;
                 int move = Mathf.Min(space, Slots[fromSlot]!.Quantity);
                 Slots[toSlot]!.Quantity += move;
                 Slots[fromSlot]!.Quantity -= move;
@@ -234,7 +246,8 @@ namespace Beep.ECS
 
         public bool SplitStack(int fromSlot, int amount)
         {
-            if (Slots == null || fromSlot < 0 || fromSlot >= MaxSlots) return false;
+            if (Slots == null || fromSlot < 0 || fromSlot >= EffectiveSlotCount) return false;
+            if (amount <= 0) return false;
             if (Slots[fromSlot] == null || Slots[fromSlot]!.Quantity <= amount) return false;
             int targetSlot = FindEmptySlot();
             if (targetSlot < 0) return false;
@@ -268,7 +281,7 @@ namespace Beep.ECS
                 SortMode.ByQuantity => b.Quantity.CompareTo(a.Quantity),
                 _ => 0
             });
-            for (int i = 0; i < MaxSlots; i++)
+            for (int i = 0; i < EffectiveSlotCount; i++)
             {
                 Slots[i] = i < items.Count ? items[i] : null;
                 EmitSignal(SignalName.SlotUpdated, i);
@@ -286,15 +299,17 @@ namespace Beep.ECS
         public bool CanFit(GameItem item, int quantity)
         {
             if (item == null || Slots == null) return false;
+            if (quantity <= 0) return false;
             int space = 0;
+            int maxStack = item.EffectiveMaxStack;
             if (AutoStack)
                 foreach (var s in Slots)
-                    if (s != null && s.Item.Id == item.Id) space += item.MaxStack - s.Quantity;
-            foreach (var s in Slots) if (s == null) space += item.MaxStack;
+                    if (s != null && s.Item.Id == item.Id) space += Mathf.Max(0, maxStack - s.Quantity);
+            foreach (var s in Slots) if (s == null) space += maxStack;
             return space >= quantity;
         }
 
-        public bool HasItem(string itemId, int quantity = 1) => CountItem(itemId) >= quantity;
+        public bool HasItem(string itemId, int quantity = 1) => quantity > 0 && CountItem(itemId) >= quantity;
 
         public int CountItem(string itemId)
         {
@@ -305,25 +320,26 @@ namespace Beep.ECS
         }
 
         public InventorySlot? GetItemAt(int slot)
-            => (Slots != null && slot >= 0 && slot < MaxSlots) ? Slots[slot] : null;
+            => (Slots != null && slot >= 0 && slot < EffectiveSlotCount) ? Slots[slot] : null;
 
         public bool IsSlotEmpty(int slot)
-            => Slots != null && slot >= 0 && slot < MaxSlots && Slots[slot] == null;
+            => Slots != null && slot >= 0 && slot < EffectiveSlotCount && Slots[slot] == null;
 
         public void Resize(int newMaxSlots)
         {
-            if (Slots == null) { MaxSlots = newMaxSlots; Slots = new InventorySlot?[newMaxSlots]; return; }
-            var newSlots = new InventorySlot?[newMaxSlots];
-            for (int i = 0; i < Mathf.Min(MaxSlots, newMaxSlots); i++) newSlots[i] = Slots[i];
+            int capacity = Mathf.Clamp(newMaxSlots, 1, 512);
+            if (Slots == null) { MaxSlots = capacity; Slots = new InventorySlot?[capacity]; return; }
+            var newSlots = new InventorySlot?[capacity];
+            for (int i = 0; i < Mathf.Min(Slots.Length, capacity); i++) newSlots[i] = Slots[i];
             Slots = newSlots;
-            MaxSlots = newMaxSlots;
+            MaxSlots = capacity;
             EmitSignal(SignalName.InventoryChanged);
         }
 
         private int FindEmptySlot()
         {
             if (Slots == null) return -1;
-            for (int i = 0; i < MaxSlots; i++) if (Slots[i] == null) return i;
+            for (int i = 0; i < EffectiveSlotCount; i++) if (Slots[i] == null) return i;
             return -1;
         }
 
@@ -334,11 +350,11 @@ namespace Beep.ECS
         public void Save(GameBuilder.GameStateData state)
         {
             state.Inventory.Items.Clear();
-            state.Inventory.MaxSlots = MaxSlots;
+            state.Inventory.MaxSlots = EffectiveMaxSlots;
 
             if (Slots == null) return;
 
-            for (int i = 0; i < MaxSlots; i++)
+            for (int i = 0; i < EffectiveSlotCount; i++)
             {
                 if (Slots[i] != null)
                 {
@@ -357,9 +373,10 @@ namespace Beep.ECS
 
         public void Load(GameBuilder.GameStateData state)
         {
-            bool capacityChanged = MaxSlots != state.Inventory.MaxSlots;
-            MaxSlots = state.Inventory.MaxSlots;
-            Slots = new InventorySlot?[MaxSlots];
+            int loadedCapacity = Mathf.Clamp(state.Inventory.MaxSlots, 1, 512);
+            bool capacityChanged = MaxSlots != loadedCapacity;
+            MaxSlots = loadedCapacity;
+            Slots = new InventorySlot?[loadedCapacity];
 
             // The grid was built for the pre-load MaxSlots in _Ready; if the save carries a different
             // capacity, rebuild it or slots past the old count have no cell to render into.

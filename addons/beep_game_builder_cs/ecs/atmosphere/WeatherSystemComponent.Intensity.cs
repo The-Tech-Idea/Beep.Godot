@@ -63,6 +63,7 @@ namespace Beep.ECS
         private float _transitionTargetIntensity;
         private WeatherType _pendingWeather;
         private bool _globalsRegistered;
+        private int _transitionSerial;
 
         /// <summary>Smooth intensity value currently applied (eased toward TargetIntensity).</summary>
         private float _intensityCurrent;
@@ -72,10 +73,25 @@ namespace Beep.ECS
         /// weather's intensity to 0, switch, then ramp to full. Audio/particles/
         /// fog/ambient all follow the intensity so the whole scene cross-fades.
         /// </summary>
-        public async void TransitionTo(WeatherType newWeather, float duration = 3f, float targetIntensity = 1f)
+        public async void TransitionTo(WeatherType newWeather, float duration = 3f, float targetIntensity = -1f)
         {
+            duration = Mathf.Max(0f, float.IsFinite(duration) ? duration : EffectiveTransitionDuration);
+            if (!IsInsideTree()) duration = 0f;
+            targetIntensity = targetIntensity < 0f ? DefaultIntensityFor(newWeather) : Mathf.Clamp(targetIntensity, 0f, 1f);
             if (CurrentWeather == newWeather && Math.Abs(WeatherIntensity - targetIntensity) < 0.01f) return;
+            if (duration <= 0.01f)
+            {
+                _transitionSerial++;
+                _transitioning = false;
+                SetWeather(newWeather);
+                TargetIntensity = targetIntensity;
+                WeatherIntensity = targetIntensity;
+                _intensityCurrent = targetIntensity;
+                EmitSignal(SignalName.IntensityChanged, _intensityCurrent);
+                return;
+            }
 
+            int serial = ++_transitionSerial;
             _transitioning = true;
             _pendingWeather = newWeather;
             _transitionTargetIntensity = targetIntensity;
@@ -84,7 +100,7 @@ namespace Beep.ECS
             TargetIntensity = 0f;
             float half = Math.Max(0.05f, duration * 0.5f);
             await ToSignal(CreateTween().TweenInterval(half), "finished");
-            if (!GodotObject.IsInstanceValid(this)) return;   // scene freed mid-transition (async void)
+            if (!GodotObject.IsInstanceValid(this) || serial != _transitionSerial) return;
 
             // Phase 2: switch at zero intensity (no visible pop).
             SetWeather(newWeather);
@@ -94,7 +110,7 @@ namespace Beep.ECS
             // Phase 3: fade in the new weather.
             TargetIntensity = targetIntensity;
             await ToSignal(CreateTween().TweenInterval(half), "finished");
-            if (!GodotObject.IsInstanceValid(this)) return;
+            if (!GodotObject.IsInstanceValid(this) || serial != _transitionSerial) return;
 
             _transitioning = false;
             EmitSignal(SignalName.IntensityChanged, _intensityCurrent);
@@ -112,9 +128,11 @@ namespace Beep.ECS
         private void ProcessIntensity(double delta)
         {
             // Ease the canonical intensity value.
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            TargetIntensity = EffectiveTargetIntensity;
             float before = _intensityCurrent;
             _intensityCurrent = Mathf.MoveToward(
-                _intensityCurrent, TargetIntensity, IntensityLerpSpeed * (float)delta);
+                _intensityCurrent, TargetIntensity, EffectiveIntensityLerpSpeed * dt);
             WeatherIntensity = _intensityCurrent;
 
             if (!Mathf.IsEqualApprox(before, _intensityCurrent))
@@ -131,12 +149,12 @@ namespace Beep.ECS
             // everything downstream scales by it. It multiplies intensity rather than replacing
             // it: standing indoors during a light shower must not look like standing indoors
             // during a storm.
-            ShelterFactor = Mathf.MoveToward(ShelterFactor, InsideShelter ? 1f : 0f, 3.5f * (float)delta);
+            ShelterFactor = Mathf.MoveToward(ShelterFactor, InsideShelter ? 1f : 0f, 3.5f * dt);
             float exposure = _intensityCurrent * (1f - ShelterFactor);
 
             if (_particles != null && _particles.Emitting)
             {
-                int amount = Mathf.Max(1, (int)(ParticleCount * exposure));
+                int amount = Mathf.Max(1, (int)(EffectiveParticleCount * exposure));
                 if (amount != _lastParticleAmount)
                 {
                     _particles.Amount = amount;
@@ -157,7 +175,7 @@ namespace Beep.ECS
             // WeatherIntensity directly — see DynamicFogLayer.FogWeightFor.)
 
             // ── Publish global shader uniforms so any shader can react ──
-            if (PublishGlobalShaderParams) PublishGlobals(delta);
+            if (PublishGlobalShaderParams) PublishGlobals(dt);
         }
 
         /// <summary>
@@ -165,7 +183,7 @@ namespace Beep.ECS
         /// uniforms. Registers the parameter names on first call (idempotent).
         /// Consuming shaders declare e.g. `global uniform float beep_puddle_depth;`.
         /// </summary>
-        private void PublishGlobals(double delta)
+        private void PublishGlobals(float dt)
         {
             if (!_globalsRegistered)
             {
@@ -208,11 +226,11 @@ namespace Beep.ECS
             // so the per-second coefficients below match the old feel.)
             float puddleTarget = CurrentWeather is WeatherType.Rain or WeatherType.Storm
                 ? _intensityCurrent : 0f;
-            _puddleDepth = Mathf.MoveToward(_puddleDepth, puddleTarget, 0.05f * (float)delta);
+            _puddleDepth = Mathf.MoveToward(_puddleDepth, puddleTarget, 0.05f * dt);
             RenderingServer.GlobalShaderParameterSet(ParamPuddleDepth, _puddleDepth);
 
             float snowTarget = CurrentWeather == WeatherType.Snow ? _intensityCurrent : 0f;
-            _snowAccumulation = Mathf.MoveToward(_snowAccumulation, snowTarget, 0.02f * (float)delta);
+            _snowAccumulation = Mathf.MoveToward(_snowAccumulation, snowTarget, 0.02f * dt);
             RenderingServer.GlobalShaderParameterSet(ParamSnowAccumulation, _snowAccumulation);
         }
 

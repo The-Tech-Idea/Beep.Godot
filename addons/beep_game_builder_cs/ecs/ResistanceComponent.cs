@@ -20,6 +20,14 @@ namespace Beep.ECS
         [Export] public float Dark { get; set; } = 1f;
         [Export] public float Lightning { get; set; } = 1f;
         [Export] public float True { get; set; } = 1f;
+        public float EffectivePhysical => Multiplier(Physical);
+        public float EffectiveFire => Multiplier(Fire);
+        public float EffectiveIce => Multiplier(Ice);
+        public float EffectivePoison => Multiplier(Poison);
+        public float EffectiveHoly => Multiplier(Holy);
+        public float EffectiveDark => Multiplier(Dark);
+        public float EffectiveLightning => Multiplier(Lightning);
+        public float EffectiveTrue => Multiplier(True);
 
         private EquipmentComponent? _equipment;
 
@@ -43,28 +51,32 @@ namespace Beep.ECS
                         GameShield s => s.ResistFor(type),
                         _ => 1f
                     };
-            return m;
+            return float.IsFinite(m) ? Mathf.Clamp(m, 0f, 100f) : 1f;
         }
 
         /// <summary>This entity's intrinsic per-type multiplier, before equipment.</summary>
         private float BaseMultiplier(DamageType type) => type switch
         {
-            DamageType.Physical => Physical,
-            DamageType.Fire => Fire,
-            DamageType.Ice => Ice,
-            DamageType.Poison => Poison,
-            DamageType.Holy => Holy,
-            DamageType.Dark => Dark,
-            DamageType.Lightning => Lightning,
-            DamageType.True => True,
+            DamageType.Physical => EffectivePhysical,
+            DamageType.Fire => EffectiveFire,
+            DamageType.Ice => EffectiveIce,
+            DamageType.Poison => EffectivePoison,
+            DamageType.Holy => EffectiveHoly,
+            DamageType.Dark => EffectiveDark,
+            DamageType.Lightning => EffectiveLightning,
+            DamageType.True => EffectiveTrue,
             _ => 1f
         };
 
         /// <summary>Apply resistance to incoming damage. Returns modified amount.</summary>
         public float ApplyResistance(float amount, DamageType type)
         {
+            if (!float.IsFinite(amount) || amount <= 0f) return 0f;
             float mult = GetMultiplier(type);
             return amount * mult;
         }
+
+        private static float Multiplier(float value)
+            => float.IsFinite(value) ? Mathf.Clamp(value, 0f, 10f) : 1f;
     }
 }

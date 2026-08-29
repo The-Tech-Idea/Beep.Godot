@@ -20,30 +20,74 @@ namespace Beep.ECS.UI.Kit
     public partial class KitRadialMeter : KitControl
     {
         [Export(PropertyHint.Range, "0.0,1.0,0.001")]
-        public float Value { get => _value; set { _value = Mathf.Clamp(value, 0f, 1f); QueueRedraw(); } }
+        public float Value { get => _value; set { float next = Mathf.Clamp(value, 0f, 1f); if (Mathf.IsEqualApprox(_value, next)) return; _value = next; RefreshContentAndRedraw(); } }
         private float _value = 0.68f;
 
         [Export(PropertyHint.Range, "0,48,1")]
-        public int Segments { get => _segments; set { _segments = Mathf.Max(0, value); QueueRedraw(); } }
+        public int Segments { get => _segments; set { int next = Mathf.Max(0, value); if (_segments == next) return; _segments = next; RefreshContentAndRedraw(); } }
         private int _segments = 16;
 
-        [Export] public UiSurface.Role Fill { get; set; } = UiSurface.Role.Success;
+        [Export]
+        public UiSurface.Role Fill
+        {
+            get => _fill;
+            set { if (_fill == value) return; _fill = value; RefreshContentAndRedraw(); }
+        }
+        private UiSurface.Role _fill = UiSurface.Role.Success;
 
         /// <summary>Gap at the bottom, in degrees. 0 is a closed ring; ~70 gives the open dial
         /// a rev counter and most mobile gauges use.</summary>
-        [Export(PropertyHint.Range, "0,180,1")] public float GapDegrees { get; set; } = 60f;
+        [Export(PropertyHint.Range, "0,180,1")]
+        public float GapDegrees
+        {
+            get => _gapDegrees;
+            set
+            {
+                float next = Mathf.Clamp(value, 0f, 180f);
+                if (Mathf.IsEqualApprox(_gapDegrees, next)) return;
+                _gapDegrees = next;
+                RefreshContentAndRedraw();
+            }
+        }
+        private float _gapDegrees = 60f;
 
         /// <summary>Ring thickness as a fraction of the radius.</summary>
-        [Export(PropertyHint.Range, "0.08,0.6,0.01")] public float Thickness { get; set; } = 0.26f;
+        [Export(PropertyHint.Range, "0.08,0.6,0.01")]
+        public float Thickness
+        {
+            get => _thickness;
+            set
+            {
+                float next = Mathf.Clamp(value, 0.08f, 0.6f);
+                if (Mathf.IsEqualApprox(_thickness, next)) return;
+                _thickness = next;
+                RefreshContentAndRedraw();
+            }
+        }
+        private float _thickness = 0.26f;
 
-        [Export] public string CentreText { get => _centre; set { _centre = value ?? ""; QueueRedraw(); } }
+        [Export] public string CentreText { get => _centre; set { SetText(ref _centre, value); } }
         private string _centre = "";
 
         public override void _Ready()
         {
             base._Ready();
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void SetText(ref string target, string? value)
+        {
+            string next = value ?? "";
+            if (target == next) return;
+            target = next;
+            RefreshContentAndRedraw();
+        }
+
+        private void RefreshContentAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -104,11 +148,14 @@ namespace Beep.ECS.UI.Kit
             // box it has to fit. A flat 1.1x body size overflowed a small dial and looked lost in
             // a large one.
             float inner = Mathf.Min(Size.X, Size.Y) * 0.62f;
+            string text = KitCase(_centre);
             int fs = UiSurface.FitRole(this, UiSurface.TextRole.Value,
-                                       new Vector2(inner, inner * 0.72f), _centre, font);
-            Vector2 m = font.GetStringSize(_centre, HorizontalAlignment.Left, -1, fs);
+                                       new Vector2(inner, inner * 0.72f), text, font);
+            text = KitChrome.EllipsizeText(font, text, fs, inner);
+            if (string.IsNullOrEmpty(text)) return;
+            Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             DrawText(font, new Vector2(c.X - m.X * 0.5f, c.Y + m.Y * 0.32f),
-                       _centre, fs, UiSurface.Text(this));
+                       text, fs, UiSurface.Text(this));
         }
     }
 }

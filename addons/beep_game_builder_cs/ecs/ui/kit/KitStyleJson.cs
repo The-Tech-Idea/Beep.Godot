@@ -74,10 +74,6 @@ namespace Beep.ECS.UI.Kit
             g.Wobble = F(k, "wobble", g.Wobble);
             g.Tracking = F(k, "tracking", g.Tracking);
             g.UpperCase = B(k, "upper_case", g.UpperCase);
-            g.GrainPattern = k.ContainsKey("grain") ? k["grain"].AsString() : g.GrainPattern;
-            g.GrainAmount = F(k, "grain_amount", g.GrainAmount);
-            g.GrainTiles = k.ContainsKey("grain_tiles") ? (int)k["grain_tiles"].AsDouble() : g.GrainTiles;
-
             g.HeightRatio = F(k, "height_ratio", g.HeightRatio);
             g.PadRatio = F(k, "pad_ratio", g.PadRatio);
             g.Rim = F(k, "rim", g.Rim);
@@ -120,7 +116,7 @@ namespace Beep.ECS.UI.Kit
             "outline_shade", "corner", "corner_panel", "corner_slot", "corner_bar", "corner_chip",
             "shear", "wobble", "tracking", "upper_case", "shadow", "font",
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
-            "grain", "grain_amount", "grain_tiles", "register", "pixel_size", "gloss_style", "edge_run", "text_treatment",
+            "register", "pixel_size", "gloss_style", "edge_run", "text_treatment",
             "height_ratio", "pad_ratio", "rim", "bevel", "gloss", "sparkle", "well_shade",
             "rim_brightness", "studs", "frame_mode", "hairline_px",
         };

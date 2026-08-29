@@ -24,7 +24,6 @@ public partial class StyleSweepProbe : Node
         var all = new List<string>();
         var shadows = new HashSet<KitShadowKind>();
         var fonts = new HashSet<KitFontRole>();
-        var materials = new HashSet<string>();
         var registers = new HashSet<KitRegister>();
         var glosses = new HashSet<KitGloss>();
         var treats = new HashSet<KitTextTreat>();
@@ -37,12 +36,11 @@ public partial class StyleSweepProbe : Node
             {
                 SkinCatalog.SetActiveSkin(genre.Id, theme.Id, "", "");
                 var g = KitGeometry.ForGenre(genre.Id);
-                var grain = KitGrain.For(genre.Id);
 
                 string sig = $"rg={g.Register} gl={g.GlossStyle} tt={g.TextTreatment} er={g.EdgeRun?.SegmentCount ?? -1} sh={g.Shadow.Kind} ol={g.OutlineShade:0.00} c={g.Corner:0.00}/"
                            + $"{g.CornerPanel:0.00}/{g.CornerBar:0.00} sk={g.Shear:0.00} "
                            + $"wb={g.Wobble:0.000} f={g.Font} up={(g.UpperCase ? 1 : 0)} "
-                           + $"tr={g.Tracking:0.00} gr={grain?.Pattern ?? "-"}@{grain?.Amount ?? 0f:0.00} "
+                           + $"tr={g.Tracking:0.00} "
                            + $"sel={g.SelectSlot}/{g.SelectButton}/{g.SelectPanel}";
 
                 registers.Add(g.Register);
@@ -58,7 +56,6 @@ public partial class StyleSweepProbe : Node
                 if (theme.Id == "street" && g.EdgeRun == null) clearedRuns++;
                 shadows.Add(g.Shadow.Kind);
                 fonts.Add(g.Font);
-                materials.Add(grain?.Pattern ?? "-");
 
                 if (sigs.TryGetValue(sig, out string? twin))
                 {
@@ -75,7 +72,6 @@ public partial class StyleSweepProbe : Node
         // decimal of one axis, which would pass while looking exactly as uniform as before.
         GD.Print($"sweep:  shadow kinds used  {shadows.Count}/5  ({string.Join(",", shadows)})");
         GD.Print($"sweep:  font roles used    {fonts.Count}  ({string.Join(",", fonts)})");
-        GD.Print($"sweep:  materials used     {materials.Count}");
         GD.Print($"sweep:  registers used     {registers.Count}/4  ({string.Join(",", registers)})");
         GD.Print($"sweep:  text treatments    {treats.Count}/4  ({string.Join(",", treats)})");
         GD.Print($"sweep:  gloss styles used  {glosses.Count}/3  ({string.Join(",", glosses)})");
@@ -83,7 +79,6 @@ public partial class StyleSweepProbe : Node
 
         if (shadows.Count < 5) { GD.Print("sweep:  <-- a shadow kind is never used by any theme"); bad++; }
         if (fonts.Count < 6) { GD.Print("sweep:  <-- fewer than 6 font roles in the whole catalog"); bad++; }
-        if (materials.Count < 6) { GD.Print("sweep:  <-- fewer than 6 materials in the whole catalog"); bad++; }
         if (all.Distinct().Count() < all.Count) { GD.Print("sweep:  <-- duplicate styles across genres"); bad++; }
 
         // The PIXEL register must be reachable from a theme. It was built as a fourth register

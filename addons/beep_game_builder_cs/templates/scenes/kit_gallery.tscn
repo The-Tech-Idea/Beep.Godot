@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/KitGallery.cs" id="2_script"]
@@ -13,6 +13,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="k_label"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs" id="k_toggle"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs" id="k_knob"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitHudText.cs" id="k_hudtext"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitInputHint.cs" id="k_inputhint"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitWeatherForecastCard.cs" id="k_weather"]
 
 [node name="KitGallery" type="Control"]
 anchors_preset = 15
@@ -44,101 +47,121 @@ theme_override_constants/margin_bottom = 20
 
 [node name="Theme" type="Node" parent="Margin"]
 script = ExtResource("1_theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
 
-[node name="Root" type="VBoxContainer" parent="Margin"]
+[node name="Scroll" type="ScrollContainer" parent="Margin"]
 layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+follow_focus = true
+
+[node name="Root" type="VBoxContainer" parent="Margin/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="TitleLabel" type="Label" parent="Margin/Root"]
+[node name="TitleLabel" type="Label" parent="Margin/Scroll/Root"]
 layout_mode = 2
 theme_type_variation = &"BeepTitle"
 text = "Game UI Kit"
 
 script = ExtResource("k_label")
-[node name="Row1" type="HBoxContainer" parent="Margin/Root"]
+[node name="Row1" type="HFlowContainer" parent="Margin/Scroll/Root"]
 layout_mode = 2
-theme_override_constants/separation = 18
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 10
 
-[node name="Stats" type="VBoxContainer" parent="Margin/Root/Row1"]
+[node name="Stats" type="VBoxContainer" parent="Margin/Scroll/Root/Row1"]
+custom_minimum_size = Vector2(118, 0)
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Attack" type="Control" parent="Margin/Root/Row1/Stats"]
+[node name="Attack" type="Control" parent="Margin/Scroll/Root/Row1/Stats"]
 layout_mode = 2
 script = ExtResource("k_labelvalue")
 Label = "ATTACK"
 Value = "7"
 
-[node name="Defense" type="Control" parent="Margin/Root/Row1/Stats"]
+[node name="Defense" type="Control" parent="Margin/Scroll/Root/Row1/Stats"]
 layout_mode = 2
 script = ExtResource("k_labelvalue")
 Label = "DEFENSE"
 Value = "12"
 
-[node name="Combo" type="Control" parent="Margin/Root/Row1/Stats"]
+[node name="Combo" type="Control" parent="Margin/Scroll/Root/Row1/Stats"]
 layout_mode = 2
 script = ExtResource("k_labelvalue")
 Label = "COMBO"
 Value = "x3"
 
-[node name="Meters" type="VBoxContainer" parent="Margin/Root/Row1"]
+[node name="Meters" type="VBoxContainer" parent="Margin/Scroll/Root/Row1"]
+custom_minimum_size = Vector2(142, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Health" type="ProgressBar" parent="Margin/Root/Row1/Meters"]
+[node name="Health" type="ProgressBar" parent="Margin/Scroll/Root/Row1/Meters"]
 layout_mode = 2
 script = ExtResource("k_meter")
 value = 0.62
 Segments = 10
 
-[node name="Stamina" type="ProgressBar" parent="Margin/Root/Row1/Meters"]
+[node name="Stamina" type="ProgressBar" parent="Margin/Scroll/Root/Row1/Meters"]
 layout_mode = 2
 script = ExtResource("k_meter")
 value = 0.4
 Segments = 0
 Fill = 5
 
-[node name="Actions" type="HBoxContainer" parent="Margin/Root/Row1"]
+[node name="Actions" type="HFlowContainer" parent="Margin/Scroll/Root/Row1"]
+custom_minimum_size = Vector2(304, 56)
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
 
-[node name="Build" type="Button" parent="Margin/Root/Row1/Actions"]
+[node name="Build" type="Button" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "+"
 
-[node name="Info" type="Button" parent="Margin/Root/Row1/Actions"]
+[node name="Info" type="Button" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "*"
 Accent = 6
 
-[node name="Off" type="Button" parent="Margin/Root/Row1/Actions"]
+[node name="Off" type="Button" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "x"
 disabled = true
 
-[node name="Sealed" type="Button" parent="Margin/Root/Row1/Actions"]
+[node name="Sealed" type="Button" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 script = ExtResource("k_iconbutton")
 Glyph = "?"
 Locked = true
 Requirement = "Lv 5"
 
-[node name="SwitchOn" type="CheckButton" parent="Margin/Root/Row1/Actions"]
+[node name="SwitchOn" type="CheckButton" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 size_flags_vertical = 4
 script = ExtResource("k_toggle")
 button_pressed = true
 
-[node name="SwitchBox" type="CheckButton" parent="Margin/Root/Row1/Actions"]
+[node name="SwitchBox" type="CheckButton" parent="Margin/Scroll/Root/Row1/Actions"]
 layout_mode = 2
 size_flags_vertical = 4
 script = ExtResource("k_toggle")
 Style = 1
 
-[node name="Dial" type="HSlider" parent="Margin/Root/Row1/Actions"]
+[node name="Dial" type="HSlider" parent="Margin/Scroll/Root/Row1/Actions"]
+custom_minimum_size = Vector2(72, 44)
 layout_mode = 2
 size_flags_vertical = 4
 script = ExtResource("k_knob")
@@ -146,18 +169,65 @@ max_value = 1.0
 step = 0.001
 value = 0.65
 
-[node name="Row2" type="HBoxContainer" parent="Margin/Root"]
+[node name="Row2" type="HFlowContainer" parent="Margin/Scroll/Root"]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 18
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 18
 
-[node name="Equipment" type="Panel" parent="Margin/Root/Row2"]
-custom_minimum_size = Vector2(260, 190)
+[node name="Equipment" type="Panel" parent="Margin/Scroll/Root/Row2"]
+custom_minimum_size = Vector2(260, 286)
 layout_mode = 2
 script = ExtResource("k_panel")
 Title = "EQUIPMENT"
 
-[node name="Bag" type="Control" parent="Margin/Root/Row2"]
+[node name="EquipmentContent" type="VBoxContainer" parent="Margin/Scroll/Root/Row2/Equipment"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 42.0
+offset_right = -18.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="OilRate" type="Control" parent="Margin/Scroll/Root/Row2/Equipment/EquipmentContent"]
+layout_mode = 2
+script = ExtResource("k_labelvalue")
+Label = "OIL"
+Value = "86"
+
+[node name="CrewMood" type="Control" parent="Margin/Scroll/Root/Row2/Equipment/EquipmentContent"]
+layout_mode = 2
+script = ExtResource("k_labelvalue")
+Label = "CREW"
+Value = "GOOD"
+
+[node name="StatusText" type="Control" parent="Margin/Scroll/Root/Row2/Equipment/EquipmentContent"]
+layout_mode = 2
+script = ExtResource("k_hudtext")
+Text = "Ready"
+Role = 1
+Accent = 4
+ShowPlate = true
+
+[node name="Hint" type="Control" parent="Margin/Scroll/Root/Row2/Equipment/EquipmentContent"]
+layout_mode = 2
+script = ExtResource("k_inputhint")
+Action = "Dispatch Truck"
+
+[node name="Weather" type="Control" parent="Margin/Scroll/Root/Row2/Equipment/EquipmentContent"]
+layout_mode = 2
+script = ExtResource("k_weather")
+DayText = "DAY 3"
+WeatherGlyph = "*"
+TemperatureText = "72 F"
+WindText = "Calm"
+WeatherRole = 6
+
+[node name="Bag" type="Control" parent="Margin/Scroll/Root/Row2"]
 custom_minimum_size = Vector2(220, 190)
 layout_mode = 2
 script = ExtResource("k_slotgrid")
@@ -165,7 +235,7 @@ Columns = 4
 Rows = 3
 Selected = 1
 
-[node name="Skills" type="Control" parent="Margin/Root/Row2"]
+[node name="Skills" type="Control" parent="Margin/Scroll/Root/Row2"]
 custom_minimum_size = Vector2(260, 190)
 layout_mode = 2
 script = ExtResource("k_tree")
@@ -173,22 +243,27 @@ Columns = 4
 Tiers = 3
 Selected = 1
 
-[node name="Footer" type="HBoxContainer" parent="Margin/Root"]
+[node name="Footer" type="HFlowContainer" parent="Margin/Scroll/Root"]
 layout_mode = 2
-theme_override_constants/separation = 12
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 10
 
-[node name="PlayButton" type="Button" parent="Margin/Root/Footer"]
+[node name="PlayButton" type="Button" parent="Margin/Scroll/Root/Footer"]
+custom_minimum_size = Vector2(104, 32)
 layout_mode = 2
 script = ExtResource("k_button")
 text = "PLAY"
 
-[node name="BuyButton" type="Button" parent="Margin/Root/Footer"]
+[node name="BuyButton" type="Button" parent="Margin/Scroll/Root/Footer"]
+custom_minimum_size = Vector2(104, 32)
 layout_mode = 2
 script = ExtResource("k_button")
 text = "BUY"
 BadgeText = "40"
 
-[node name="BackButton" type="Button" parent="Margin/Root/Footer"]
+[node name="BackButton" type="Button" parent="Margin/Scroll/Root/Footer"]
+custom_minimum_size = Vector2(104, 32)
 layout_mode = 2
 script = ExtResource("k_button")
 text = "BACK"

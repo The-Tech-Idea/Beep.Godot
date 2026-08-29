@@ -33,6 +33,7 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
+            SetProcess(false);
             _label = GetParent() as Label;
             if (_label == null)
                 GD.PushWarning($"[{Name}] CounterComponent needs a Label parent to display the count; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to the Label.");
@@ -46,12 +47,14 @@ namespace Beep.ECS.UI
             _toValue = target;
             _elapsed = 0;
             _counting = true;
+            SetProcess(true);
             EmitSignal(SignalName.CountStarted);
         }
 
         public void SetImmediate(float value)
         {
             _counting = false;
+            SetProcess(false);
             _toValue = value;
             _currentValue = value;
             if (_label != null) _label.Text = $"{Prefix}{value.ToString(Format)}{Suffix}";
@@ -59,7 +62,12 @@ namespace Beep.ECS.UI
 
         public override void _Process(double delta)
         {
-            if (!_counting || _label == null || !IsActive) return;
+            if (!_counting || _label == null)
+            {
+                SetProcess(false);
+                return;
+            }
+            if (!IsActive) return;
             _elapsed += (float)delta;
             float t = Mathf.Clamp(_elapsed / Duration, 0f, 1f);
             t = t * t * (3f - 2f * t); // Smoothstep
@@ -69,6 +77,7 @@ namespace Beep.ECS.UI
             if (_elapsed >= Duration)
             {
                 _counting = false;
+                SetProcess(false);
                 _currentValue = _toValue;
                 _label.Text = $"{Prefix}{_toValue.ToString(Format)}{Suffix}";
                 EmitSignal(SignalName.CountReached, _toValue);

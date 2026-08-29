@@ -58,6 +58,12 @@ namespace Beep.ECS
         private HeightComponent? _height;
         private float _vVel;
         private float _arcGravity;
+        public float EffectiveSpeed => NonNegative(Speed);
+        public float EffectiveMaxLifetime => NonNegative(MaxLifetime);
+        public float EffectiveDamage => NonNegative(Damage);
+        public float EffectiveGravityStrength => NonNegative(GravityStrength);
+        public float EffectiveArcGravity => float.IsFinite(GravityStrength) && GravityStrength > 0f ? GravityStrength : 980f;
+        public float EffectiveArcHeight => float.IsFinite(ArcHeight) ? Mathf.Max(1f, ArcHeight) : 1f;
 
         public override void _Ready()
         {
@@ -69,7 +75,7 @@ namespace Beep.ECS
                 return;
             }
 
-            _movementDelegated = GetSiblingComponent<ProjectileModifierComponent>() != null;
+            _movementDelegated = GetSiblingComponent<ProjectileModifierComponent>() is { IsActive: true };
             _area.BodyEntered += OnBodyEntered;
             _area.AreaEntered += OnAreaEntered;
 
@@ -89,8 +95,8 @@ namespace Beep.ECS
             }
             // v0 = sqrt(2·g·h) to just reach ArcHeight; g chosen so the flight time roughly matches
             // how long a flat shot would take to leave the screen, keeping the lob readable.
-            _arcGravity = GravityStrength > 0 ? GravityStrength : 980f;
-            _vVel = Mathf.Sqrt(2f * _arcGravity * Mathf.Max(ArcHeight, 1f));
+            _arcGravity = EffectiveArcGravity;
+            _vVel = Mathf.Sqrt(2f * _arcGravity * EffectiveArcHeight);
         }
 
         private void OnBodyEntered(Node n)
@@ -123,7 +129,7 @@ namespace Beep.ECS
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);
             if (health != null)
             {
-                health.TakeDamage(new GameDamage(Damage, DamageType, _owner));
+                health.TakeDamage(new GameDamage(EffectiveDamage, DamageType, _owner));
 
                 var knockback = EntityComponent.FindComponent<KnockbackComponent>(n, false);
                 if (knockback != null && n is Node2D)
@@ -136,14 +142,14 @@ namespace Beep.ECS
 
         public void Launch(Vector2 direction)
         {
-            var dir = direction.Normalized();
-            _velocity = dir * Speed;
-            _lifetime = MaxLifetime;
+            var dir = IsFinite(direction) && direction != Vector2.Zero ? direction.Normalized() : Vector2.Right;
+            _velocity = dir * EffectiveSpeed;
+            _lifetime = EffectiveMaxLifetime;
             // If a ProjectileModifierComponent owns motion, hand it the spawner-set speed and
             // fire direction — it initialized from its own default Speed in _Ready (before the
             // spawner set Speed), so the weapon's projectile speed was silently dropped.
             if (_movementDelegated)
-                GetSiblingComponent<ProjectileModifierComponent>()?.SetLaunch(dir, Speed);
+                GetSiblingComponent<ProjectileModifierComponent>()?.SetLaunch(dir, EffectiveSpeed);
         }
 
         /// <summary>2.5D hit gate. When <see cref="RespectHeight"/> is on AND this projectile has a
@@ -165,10 +171,11 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint()) return;
             if (_area == null || !IsActive) return;
-            float dt = (float)delta;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            if (!IsFinite(_velocity)) _velocity = Vector2.Zero;
             if (!_movementDelegated)   // a ProjectileModifierComponent sibling, if present, owns motion
             {
-                if (UseGravity) _velocity.Y += GravityStrength * dt;
+                if (UseGravity) _velocity.Y += EffectiveGravityStrength * dt;
                 _area.Position += _velocity * dt;
             }
 
@@ -209,5 +216,9 @@ namespace Beep.ECS
                 _area.AreaEntered -= OnAreaEntered;
             }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

@@ -23,8 +23,6 @@ public partial class ShadowProbe : Node
     public override async void _Ready()
     {
         DirAccess.MakeDirRecursiveAbsolute(OutDir);
-        // Flip to true to print each layer's resolved shade and drawn luminance.
-        KitControl.DebugOutline = false;
         var root = new Control { Name = "Root" };
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(root);

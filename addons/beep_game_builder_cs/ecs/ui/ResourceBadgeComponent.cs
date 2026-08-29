@@ -1,4 +1,5 @@
 using Godot;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -28,18 +29,18 @@ namespace Beep.ECS.UI
     [GlobalClass]
     public partial class ResourceBadgeComponent : Godot.Control
     {
-        [Export] public Texture2D? Icon { get => _icon; set { _icon = value; QueueRedraw(); } }
+        [Export] public Texture2D? Icon { get => _icon; set { if (_icon == value) return; _icon = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _icon;
 
         /// <summary>The number, already formatted. Kept as a string so the owner controls
         /// grouping, sign and units ("4 750", "-1,040", "60 / 140").</summary>
-        [Export] public string Value { get => _value; set { _value = value ?? ""; QueueRedraw(); } }
+        [Export] public string Value { get => _value; set { string next = value ?? ""; if (_value == next) return; _value = next; RefreshMinimumAndRedraw(); } }
         private string _value = "0";
 
         /// <summary>0..1 capacity fill drawn behind the value, as in references 1 and 5 where the
         /// badge doubles as a capacity meter. Negative disables it.</summary>
         [Export(PropertyHint.Range, "-1,1,0.01")]
-        public float Fill { get => _fill; set { _fill = value; QueueRedraw(); } }
+        public float Fill { get => _fill; set { if (Mathf.IsEqualApprox(_fill, value)) return; _fill = value; RefreshVisualAndRedraw(); } }
         private float _fill = -1f;
 
         /// <summary>What this readout MEANS — the badge's only colour input. The palette decides
@@ -53,14 +54,14 @@ namespace Beep.ECS.UI
         [Export] public UiSurface.Role Accent
         {
             get => _accent;
-            set { _accent = value; QueueRedraw(); }
+            set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); }
         }
         private UiSurface.Role _accent = UiSurface.Role.Accent;
 
         /// <summary>Transient alert role (budget in deficit, power over capacity). Null shows
         /// the declared <see cref="Accent"/>. Kept separate from Accent so clearing an alert
         /// restores the badge's identity colour instead of leaving it stuck on red.</summary>
-        public UiSurface.Role? Alert { get => _alert; set { _alert = value; QueueRedraw(); } }
+        public UiSurface.Role? Alert { get => _alert; set { if (_alert == value) return; _alert = value; RefreshVisualAndRedraw(); } }
         private UiSurface.Role? _alert;
 
         private Color _plate, _ring, _outline, _text, _fillColor;
@@ -85,43 +86,70 @@ namespace Beep.ECS.UI
 
         /// <summary>Outline thickness. The references are consistently heavy here — a hairline
         /// is what makes UI read as a document rather than an object.</summary>
-        [Export] public int OutlineWidth { get; set; } = 3;
+        [Export] public int OutlineWidth { get => _outlineWidth; set { int next = Mathf.Max(0, value); if (_outlineWidth == next) return; _outlineWidth = next; RefreshVisualAndRedraw(); } }
+        private int _outlineWidth = 3;
         /// <summary>Value text size as a multiple of the theme's body font. A readout is
         /// slightly larger than body text; it is NOT a fixed 17px, because the themes run from
         /// 14 to 24 and a fixed size renders 24pt text out of a plate built for 17.</summary>
-        [Export(PropertyHint.Range, "0.5,3.0,0.05")] public float FontScale { get; set; } = 1.18f;
+        [Export(PropertyHint.Range, "0.5,3.0,0.05")] public float FontScale { get => _fontScale; set { float next = Mathf.Clamp(value, 0.5f, 3.0f); if (Mathf.IsEqualApprox(_fontScale, next)) return; _fontScale = next; RefreshMinimumAndRedraw(); } }
+        private float _fontScale = 1.18f;
 
         /// <summary>Resolved value-text size for this draw.</summary>
         private int FontSize => UiSurface.FontSize(this, FontScale);
 
         /// <summary>Icon diameter as a multiple of the value text, so the frame, the plate and
         /// the number scale together instead of the text outgrowing its own badge.</summary>
-        [Export(PropertyHint.Range, "1.0,4.0,0.05")] public float IconScale { get; set; } = 2.35f;
+        [Export(PropertyHint.Range, "1.0,4.0,0.05")] public float IconScale { get => _iconScale; set { float next = Mathf.Clamp(value, 1.0f, 4.0f); if (Mathf.IsEqualApprox(_iconScale, next)) return; _iconScale = next; RefreshMinimumAndRedraw(); } }
+        private float _iconScale = 2.35f;
 
         private int IconSize => Mathf.RoundToInt(FontSize * IconScale);
 
         public override void _Ready()
         {
             MouseFilter = MouseFilterEnum.Ignore;   // chrome, never a click target
-            // Derived every _Ready from the resolved font, so a genre with larger type gets a
-            // larger badge rather than clipped text.
-            if (CustomMinimumSize == Vector2.Zero)
-                CustomMinimumSize = new Vector2(FontSize * 10f, IconSize + FontSize * 0.5f);
+            RefreshMinimumAndRedraw();
         }
+
+        public override Vector2 _GetMinimumSize() => NaturalMinimumSize();
 
         /// <summary>Set both halves at once — the common case, and it avoids a frame where a new
         /// value is drawn against the previous fill.</summary>
         public void Set(string value, float fill = -1f)
         {
-            _value = value ?? "";
+            string nextValue = value ?? "";
+            bool valueChanged = _value != nextValue;
+            bool fillChanged = !Mathf.IsEqualApprox(_fill, fill);
+            if (!valueChanged && !fillChanged) return;
+
+            _value = nextValue;
             _fill = fill;
-            QueueRedraw();
+            if (valueChanged) RefreshMinimumAndRedraw();
+            else RefreshVisualAndRedraw();
         }
 
         public override void _Notification(int what)
         {
-            if (what == NotificationThemeChanged) QueueRedraw();
+            if (what == NotificationThemeChanged) RefreshMinimumAndRedraw(force: true);
         }
+
+        private Vector2 NaturalMinimumSize()
+        {
+            int fs = FontSize;
+            int icon = IconSize;
+            float valueWidth = fs * 4.5f;
+            if (GetThemeDefaultFont() is { } font && !string.IsNullOrEmpty(_value))
+                valueWidth = font.GetStringSize(_value, HorizontalAlignment.Left, -1, fs).X;
+            float width = Mathf.Max(fs * 7.5f, icon * 0.78f + valueWidth + fs * 2.2f);
+            return new Vector2(width, icon + fs * 0.5f);
+        }
+
+        private void RefreshMinimumAndRedraw(bool force = false)
+        {
+            KitChrome.RefreshAutoMinimumSize(this, NaturalMinimumSize(), force);
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw() => QueueRedraw();
 
         private StyleBoxFlat Box(Color bg, int radius, bool shadow)
         {

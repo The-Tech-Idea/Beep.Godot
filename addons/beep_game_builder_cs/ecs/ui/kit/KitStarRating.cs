@@ -18,6 +18,14 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitStarRating : Godot.Range
     {
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
         /// <summary>A chip: takes the theme's chip corner, which the references vary
         /// independently of the button corner.</summary>
         private const KitWidgetClass Class = KitWidgetClass.Chip;
@@ -29,15 +37,15 @@ namespace Beep.ECS.UI.Kit
         [Export(PropertyHint.Range, "1,10,1")]
         public int Total
         {
-            get => Mathf.Max(1, (int)MaxValue);
+            get => Mathf.Clamp((int)MaxValue, 1, 10);
             set
             {
-                int next = Mathf.Max(1, value);
+                int next = Mathf.Clamp(value, 1, 10);
                 if (Mathf.IsEqualApprox((float)MaxValue, next)) return;
+                _totalExplicitlySet = true;
                 MaxValue = next;
                 Value = Mathf.Clamp(Value, MinValue, MaxValue);
-                UpdateMinimumSize();
-                QueueRedraw();
+                RefreshMinimumAndRedraw();
             }
         }
 
@@ -46,43 +54,87 @@ namespace Beep.ECS.UI.Kit
         public int Earned
         {
             get => (int)Value;
-            set { Value = Mathf.Clamp(value, 0, MaxValue); QueueRedraw(); }
+            set
+            {
+                int next = Mathf.Clamp(value, 0, (int)MaxValue);
+                if (Mathf.IsEqualApprox((float)Value, next)) return;
+                Value = next;
+                RefreshVisualAndRedraw();
+            }
         }
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private int _hover = -1;
+        private bool _eventsHooked;
+        private bool _totalExplicitlySet;
 
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Warning;
+        [Export]
+        public UiSurface.Role Role
+        {
+            get => _role;
+            set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _role = UiSurface.Role.Warning;
+
+        [Export]
+        public bool Editable
+        {
+            get => _editable;
+            set
+            {
+                if (_editable == value) return;
+                _editable = value;
+                if (!_editable) ClearHover();
+                RefreshVisualAndRedraw();
+            }
+        }
+        private bool _editable = true;
 
         public override void _Ready()
         {
+            base._Ready();
             RefreshGenre();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, MouseFilterEnum.Stop, FocusModeEnum.All);
             // Range has NO theme art of its own -- no stylebox, no icon -- so unlike Slider and
             // ProgressBar there is nothing to blank and nothing whose minimum size vanishes with
             // it. That is what makes it the right base here rather than a convenient one.
             MinValue = 0; Step = 1;
-            if (MaxValue < 1) MaxValue = 3;
+            if (!_totalExplicitlySet && Mathf.IsEqualApprox((float)MaxValue, 100f))
+                MaxValue = 5;
+            else
+                MaxValue = Mathf.Clamp((float)MaxValue, 1f, 10f);
             if (Value < MinValue) Value = MinValue;
             if (Value > MaxValue) Value = MaxValue;
-            ValueChanged += _ => QueueRedraw();
+            if (!_eventsHooked)
+            {
+                ValueChanged += _ => QueueRedraw();
+                MouseExited += ClearHover;
+                _eventsHooked = true;
+            }
             ApplyInitialMinimumSize();
         }
 
         public override void _Notification(int what)
         {
             base._Notification(what);
+            if (KitChrome.ShouldClearPointerState(this, what))
+                ClearHover();
             if (what == NotificationThemeChanged)
             {
                 RefreshGenre();
-                QueueRedraw();
+                RefreshMinimumAndRedraw();
             }
         }
 
         public override void _GuiInput(InputEvent @event)
         {
+            if (!Editable)
+            {
+                ClearHover();
+                return;
+            }
+
             if (@event is InputEventKey key)
             {
                 Vector2I dir = KitChrome.DirectionFromKey(key);
@@ -114,6 +166,13 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        private void ClearHover()
+        {
+            if (_hover < 0) return;
+            _hover = -1;
+            QueueRedraw();
+        }
+
         private int HitStar(Vector2 p)
         {
             int total = Total;
@@ -125,8 +184,19 @@ namespace Beep.ECS.UI.Kit
 
         private void ApplyInitialMinimumSize()
         {
-            if (CustomMinimumSize != Vector2.Zero) return;
-            CustomMinimumSize = _GetMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
         }
 
         public override Vector2 _GetMinimumSize()
@@ -144,13 +214,14 @@ namespace Beep.ECS.UI.Kit
         {
             if (Size.X < 8f || Size.Y < 6f) return;
 
-            Color lit = UiSurface.Semantic(this, Role);
+            KitState state = Editable ? KitState.Normal : KitState.Disabled;
+            Color lit = KitChrome.StateFace(UiSurface.SemanticOrDerived(this, Role), state);
             float l = UiSurface.Luminance(lit);
             // Unearned: same colour, saturation drained. Not hidden, not a different hue.
             Color dim = new(Mathf.Lerp(lit.R, l, 0.92f) * 0.6f,
                             Mathf.Lerp(lit.G, l, 0.92f) * 0.6f,
                             Mathf.Lerp(lit.B, l, 0.92f) * 0.6f, 1f);
-            Color ink = UiSurface.Ink(UiSurface.Of(this));
+            Color ink = KitChrome.StateFace(UiSurface.Ink(UiSurface.Of(this)), state);
 
             float pitch = Size.X / Total;
             float r = Mathf.Min(pitch, Size.Y) * 0.42f;
@@ -163,13 +234,14 @@ namespace Beep.ECS.UI.Kit
                 if (i < Earned) c.Y -= Size.Y * 0.06f;
                 if (i == _hover) c.Y -= Size.Y * 0.04f;
                 DrawStar(c, r, i < Earned ? lit : dim, ink);
-                if (i == _hover)
+                if (Editable && i == _hover)
                     DrawArc(c, r * 1.08f, 0f, Mathf.Tau, 24,
-                            UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.2f, r * 0.08f));
+                            UiSurface.SemanticOrDerived(this, UiSurface.Role.Info), Mathf.Max(1.2f, r * 0.08f));
             }
 
-            KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size),
-                                    KitMaterial.WidgetShapeForGenre(_genre, Class), 0.8f);
+            if (Editable)
+                KitChrome.DrawFocusRing(this, _genre, new Rect2(Vector2.Zero, Size),
+                                        KitMaterial.WidgetShapeForGenre(_genre, Class), 0.8f);
         }
 
         private void DrawStar(Vector2 c, float r, Color fill, Color ink)

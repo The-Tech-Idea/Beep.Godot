@@ -55,11 +55,6 @@ public partial class GameInfo : Resource
     /// selected theme's folder. "Default" = no tint.</summary>
     [Export] public string PaletteName { get; set; } = "Default";
 
-    /// <summary>Optional texture-based UI skin resource. When set, the theme engine
-    /// builds StyleBoxTexture (9-patch) for all UI nodes instead of procedural StyleBoxFlat.
-    /// Set in the inspector or via the one-click dock.</summary>
-    [Export] public Beep.ECS.UI.UISkin? Skin { get; set; }
-
     /// <summary>Geometry profile display name from the genre's geometry.json.
     /// "As-Authored" = use the theme's own geometry.</summary>
     [Export] public string GeometryProfileName { get; set; } = "As-Authored";

@@ -23,6 +23,7 @@ namespace Beep.ECS
     {
         /// <summary>Lives removed per death.</summary>
         [Export] public int LivesToLose { get; set; } = 1;
+        public int EffectiveLivesToLose => Mathf.Max(0, LivesToLose);
 
         /// <summary>Optional explicit GameFlow node. Empty = auto-find in the current scene
         /// (GameFlow sits on the main scene while this lives inside the level/player instance,
@@ -48,9 +49,12 @@ namespace Beep.ECS
 
         private void OnDied()
         {
+            int livesToLose = EffectiveLivesToLose;
+            if (livesToLose <= 0) return;
+
             var flow = ResolveGameFlow();
             if (flow != null)
-                flow.LoseLife(LivesToLose);
+                flow.LoseLife(livesToLose);
             else
                 GD.PushWarning($"[{Name}] '{_health?.Name}' died but no GameFlowComponent was found — the run can't end. Add one to the scene, or set GameFlowPath.");
         }

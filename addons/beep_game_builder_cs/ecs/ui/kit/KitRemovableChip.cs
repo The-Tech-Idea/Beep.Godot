@@ -6,22 +6,36 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitRemovableChip : Button
     {
+        [Export]
+        public bool AutoInputDefaults
+        {
+            get => _autoInputDefaults;
+            set { if (_autoInputDefaults == value) return; _autoInputDefaults = value; }
+        }
+        private bool _autoInputDefaults = true;
+
         [Signal] public delegate void RemovePressedEventHandler();
 
-        [Export] public string ChipText { get => _text; set { _text = value ?? ""; QueueRedraw(); } }
-        [Export] public bool Removable { get; set; } = true;
-        [Export] public UiSurface.Role Role { get; set; } = UiSurface.Role.Accent;
+        [Export] public string ChipText { get => _text; set { string next = value ?? ""; if (_text == next) return; _text = next; RefreshMinimumAndRedraw(); } }
+        [Export] public bool Removable { get => _removable; set { if (_removable == value) return; _removable = value; RefreshMinimumAndRedraw(); } }
+        [Export] public UiSurface.Role Role { get => _role; set { if (_role == value) return; _role = value; RefreshVisualAndRedraw(); } }
 
         private string _text = "";
+        private bool _removable = true;
+        private UiSurface.Role _role = UiSurface.Role.Accent;
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
         private bool _suppressing;
+        private bool _eventsHooked;
 
         public override void _Ready()
         {
+            base._Ready();
             _genre = KitChrome.GenreOf(this);
-            FocusMode = FocusModeEnum.All;
+            KitChrome.ApplyInputDefaults(this, AutoInputDefaults, focusMode: FocusModeEnum.All);
             Suppress();
+            KitChrome.HookButtonChromeRedraw(this, RefreshVisualAndRedraw, ref _eventsHooked);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override void _Notification(int what)
@@ -30,6 +44,33 @@ namespace Beep.ECS.UI.Kit
             if (what != NotificationThemeChanged) return;
             _genre = KitChrome.GenreOf(this);
             Suppress();
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        public override Vector2 _GetMinimumSize()
+        {
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
+            float h = Mathf.Max(fs * 1.55f, 24f);
+            string text = KitChrome.Case(_text, _genre);
+            Font? font = KitChrome.Font(this, _genre);
+            float textWidth = string.IsNullOrEmpty(text)
+                ? fs * 1.4f
+                : font?.GetStringSize(text, HorizontalAlignment.Left, -1, fs).X ?? text.Length * fs * 0.56f;
+            float closeRoom = Removable ? h * 0.85f : 0f;
+            return new Vector2(Mathf.Max(h * 2.1f, textWidth + h * 0.9f + closeRoom), h);
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
+            QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
             QueueRedraw();
         }
 
@@ -44,27 +85,32 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            base._GuiInput(@event);
             if (Removable && @event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode is Key.Delete or Key.Backspace)
             {
                 EmitSignal(SignalName.RemovePressed);
                 AcceptEvent();
                 return;
             }
-            if (!Removable || @event is not InputEventMouseButton mb || !mb.Pressed) return;
+            if (!Removable || @event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+            {
+                base._GuiInput(@event);
+                return;
+            }
             if (mb.Position.X >= Size.X - Size.Y * 0.95f)
             {
                 GrabFocus();
                 EmitSignal(SignalName.RemovePressed);
                 AcceptEvent();
+                return;
             }
+            base._GuiInput(@event);
         }
 
         public override void _Draw()
         {
             if (Size.X <= 4f || Size.Y <= 4f) return;
             KitState state = Disabled ? KitState.Disabled : IsPressed() ? KitState.Pressed : IsHovered() ? KitState.Hover : KitState.Normal;
-            Color fill = KitChrome.StateFace(UiSurface.Semantic(this, Role), state);
+            Color fill = KitChrome.StateFace(UiSurface.SemanticOrDerived(this, Role), state);
             if (fill.A < 0.02f) fill = UiSurface.Of(this);
             var r = new Rect2(Vector2.Zero, Size);
             KitChrome.DrawShape(this, _genre, r, KitShape.Pill, fill, UiSurface.Ink(fill), Mathf.Max(1f, Geo.Rim * 0.6f));
@@ -75,6 +121,8 @@ namespace Beep.ECS.UI.Kit
             float closeRoom = Removable ? Size.Y * 0.72f : 0f;
             var textBox = new Rect2(Size.Y * 0.45f, 0, Mathf.Max(1f, Size.X - Size.Y * 0.9f - closeRoom), Size.Y);
             int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small, textBox.Size, text, font);
+            text = KitChrome.EllipsizeText(font, text, fs, textBox.Size.X);
+            if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, fs);
             Color ink = UiSurface.Luminance(fill) > 0.5f ? new Color(0.1f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f);
             KitChrome.DrawText(this, _genre, font, new Vector2(textBox.Position.X, (Size.Y + m.Y * 0.62f) * 0.5f), text, fs, ink);

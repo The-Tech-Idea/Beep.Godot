@@ -49,15 +49,25 @@ namespace Beep.ECS
         public int Health { get; private set; }
         public int Mana { get; private set; }
 
-        public int MaxHealth => BaseMaxHealth + HealthPerLevel * (Level - 1);
-        public int MaxMana => BaseMaxMana + ManaPerLevel * (Level - 1);
+        public int MaxHealth => EffectiveMax(BaseMaxHealth, HealthPerLevel, Level);
+        public int MaxMana => EffectiveMax(BaseMaxMana, ManaPerLevel, Level);
 
         /// <summary>XP needed to reach the next level from the start of this one.</summary>
-        public int XpToNextLevel => Mathf.Max(1, Mathf.RoundToInt(BaseXpToLevel * Mathf.Pow(Level, XpCurve)));
+        public int XpToNextLevel
+        {
+            get
+            {
+                float curve = float.IsFinite(XpCurve) && XpCurve >= 1f ? XpCurve : 1f;
+                double required = Mathf.Max(1, BaseXpToLevel) * Mathf.Pow(Mathf.Max(1, Level), curve);
+                return ClampPositiveInt(required);
+            }
+        }
 
-        public float HealthFraction => MaxHealth <= 0 ? 0f : (float)Health / MaxHealth;
-        public float ManaFraction => MaxMana <= 0 ? 0f : (float)Mana / MaxMana;
-        public float XpFraction => Mathf.Clamp((float)Xp / XpToNextLevel, 0f, 1f);
+        public float HealthFraction => Mathf.Clamp((float)Mathf.Clamp(Health, 0, MaxHealth) / MaxHealth, 0f, 1f);
+        public float ManaFraction => Mathf.Clamp((float)Mathf.Clamp(Mana, 0, MaxMana) / MaxMana, 0f, 1f);
+        public float XpFraction => Mathf.Clamp((float)Mathf.Max(0, Xp) / XpToNextLevel, 0f, 1f);
+        public float EffectiveManaRegenPerSecond => NonNegativeFinite(ManaRegenPerSecond);
+        public float EffectiveLowThreshold => float.IsFinite(LowThreshold) ? Mathf.Clamp(LowThreshold, 0.01f, 1f) : 0.3f;
 
         public bool IsDead => Health <= 0;
 
@@ -87,6 +97,7 @@ namespace Beep.ECS
         public override void _Ready()
         {
             base._Ready();
+            Level = Mathf.Max(1, Level);
             Health = MaxHealth;
             Mana = MaxMana;
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
@@ -98,7 +109,9 @@ namespace Beep.ECS
 
             // Accumulated rather than rounded per frame: at 1.6/s a per-frame RoundToInt is 0
             // every frame, so mana would never regenerate at all.
-            _regenAccum += ManaRegenPerSecond * (float)delta;
+            _regenAccum += EffectiveManaRegenPerSecond * DeltaSeconds(delta);
+            if (!float.IsFinite(_regenAccum) || _regenAccum < 0f)
+                _regenAccum = 0f;
             if (_regenAccum < 1f) return;
             int gained = Mathf.FloorToInt(_regenAccum);
             _regenAccum -= gained;
@@ -165,7 +178,8 @@ namespace Beep.ECS
 
         public void Revive(float healthFraction = 1f)
         {
-            Health = Mathf.Max(1, Mathf.RoundToInt(MaxHealth * Mathf.Clamp(healthFraction, 0.01f, 1f)));
+            float fraction = float.IsFinite(healthFraction) ? Mathf.Clamp(healthFraction, 0.01f, 1f) : 1f;
+            Health = Mathf.Max(1, Mathf.RoundToInt(MaxHealth * fraction));
             Mana = MaxMana;
             EmitSignal(SignalName.StatsChanged);
         }
@@ -179,6 +193,8 @@ namespace Beep.ECS
             if (!_quests.TryGetValue(id, out var q))
                 _quests[id] = q = new QuestState { Id = id, Title = title, Goal = Mathf.Max(1, goal) };
             q.Title = title;
+            q.Goal = Mathf.Max(1, goal);
+            q.Progress = Mathf.Clamp(q.Progress, 0, q.Goal);
             ActiveQuest = q;
             EmitSignal(SignalName.QuestChanged);
         }
@@ -221,18 +237,21 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KLevel, out var l)) Level = Mathf.Max(1, l.AsInt32());
-            if (d.TryGetValue(KXp, out var x)) Xp = Mathf.Max(0, x.AsInt32());
+            if (d.TryGetValue(KLevel, out var l)) Level = Mathf.Max(1, VariantToInt(l, 1));
+            if (d.TryGetValue(KXp, out var x)) Xp = Mathf.Max(0, VariantToInt(x, 0));
             // Clamped AFTER Level is restored, because the maxima are derived from it — loading
             // health before level would clamp against level 1's maximum and cap a level-20 save.
-            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp(h.AsInt32(), 0, MaxHealth);
-            if (d.TryGetValue(KMana, out var m)) Mana = Mathf.Clamp(m.AsInt32(), 0, MaxMana);
+            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp(VariantToInt(h, MaxHealth), 0, MaxHealth);
+            if (d.TryGetValue(KMana, out var m)) Mana = Mathf.Clamp(VariantToInt(m, MaxMana), 0, MaxMana);
 
             _quests.Clear();
             ActiveQuest = null;
-            if (d.TryGetValue(KQuests, out var qs))
+            if (d.TryGetValue(KQuests, out var qs) && qs.VariantType == Variant.Type.Dictionary)
                 foreach (var kv in qs.AsGodotDictionary())
                 {
+                    if (kv.Value.VariantType != Variant.Type.Array)
+                        continue;
+
                     var a = kv.Value.AsGodotArray();
                     if (a.Count < 3) continue;
                     string id = kv.Key.AsString();
@@ -240,9 +259,10 @@ namespace Beep.ECS
                     {
                         Id = id,
                         Title = a[0].AsString(),
-                        Progress = a[1].AsInt32(),
-                        Goal = Mathf.Max(1, a[2].AsInt32()),
+                        Progress = Mathf.Max(0, VariantToInt(a[1], 0)),
+                        Goal = Mathf.Max(1, VariantToInt(a[2], 1)),
                     };
+                    _quests[id].Progress = Mathf.Clamp(_quests[id].Progress, 0, _quests[id].Goal);
                 }
             if (d.TryGetValue(KActive, out var act) && _quests.TryGetValue(act.AsString(), out var cur))
                 ActiveQuest = cur;
@@ -250,5 +270,47 @@ namespace Beep.ECS
             EmitSignal(SignalName.StatsChanged);
             EmitSignal(SignalName.QuestChanged);
         }
+
+        private static int EffectiveMax(int baseValue, int perLevel, int level)
+        {
+            long total = (long)Mathf.Max(1, baseValue) + (long)Mathf.Max(0, perLevel) * (Mathf.Max(1, level) - 1L);
+            return total > int.MaxValue ? int.MaxValue : (int)total;
+        }
+
+        private static int ClampPositiveInt(double value)
+        {
+            if (!double.IsFinite(value) || value <= 1.0)
+                return 1;
+            return value >= int.MaxValue ? int.MaxValue : Mathf.RoundToInt((float)value);
+        }
+
+        private static int VariantToInt(Variant value, int fallback)
+        {
+            if (value.VariantType == Variant.Type.Int)
+                return value.AsInt32();
+            if (value.VariantType == Variant.Type.Float)
+            {
+                double number = value.AsDouble();
+                if (!double.IsFinite(number))
+                    return fallback;
+                if (number >= int.MaxValue)
+                    return int.MaxValue;
+                if (number <= int.MinValue)
+                    return int.MinValue;
+                return Mathf.RoundToInt((float)number);
+            }
+            if (value.VariantType == Variant.Type.String
+                && int.TryParse(value.AsString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int parsed))
+            {
+                return parsed;
+            }
+            return fallback;
+        }
+
+        private static float DeltaSeconds(double delta)
+            => double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) && value > 0f ? value : 0f;
     }
 }

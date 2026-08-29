@@ -20,32 +20,44 @@ namespace Beep.ECS.UI.Kit
         /// references vary independently of the button corner.</summary>
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
 
-        [Export] public string LeftTitle { get => _lt; set { _lt = value ?? ""; QueueRedraw(); } }
+        [Export] public string LeftTitle { get => _lt; set { string next = value ?? ""; if (_lt == next) return; _lt = next; RefreshMinimumAndRedraw(); } }
         private string _lt = "Quests";
 
-        [Export] public string RightTitle { get => _rt; set { _rt = value ?? ""; QueueRedraw(); } }
+        [Export] public string RightTitle { get => _rt; set { string next = value ?? ""; if (_rt == next) return; _rt = next; RefreshMinimumAndRedraw(); } }
         private string _rt = "Rewards";
 
-        [Export] public string[] LeftPageTitles { get => _leftPages; set { _leftPages = value ?? System.Array.Empty<string>(); QueueRedraw(); } }
+        [Export] public string[] LeftPageTitles { get => _leftPages; set { if (SetStringArray(ref _leftPages, value)) RefreshPageList(); } }
         private string[] _leftPages = { "Inventory", "Active Quests", "World Map" };
 
-        [Export] public string[] RightPageTitles { get => _rightPages; set { _rightPages = value ?? System.Array.Empty<string>(); QueueRedraw(); } }
+        [Export] public string[] RightPageTitles { get => _rightPages; set { if (SetStringArray(ref _rightPages, value)) RefreshPageList(); } }
         private string[] _rightPages = { "Equipment", "Rewards", "Notes" };
 
-        [Export] public bool ShowPageCorners { get; set; } = true;
+        [Export] public bool ShowPageCorners { get => _showPageCorners; set { if (_showPageCorners == value) return; _showPageCorners = value; RefreshVisualAndRedraw(); } }
+        private bool _showPageCorners = true;
 
         /// <summary>Ribbon bookmark hanging over the top edge. Empty hides it.</summary>
-        [Export] public bool ShowRibbon { get; set; } = false;
+        [Export] public bool ShowRibbon { get => _showRibbon; set { if (_showRibbon == value) return; _showRibbon = value; RefreshVisualAndRedraw(); } }
+        private bool _showRibbon;
 
-        [Export] public bool ShowCover { get; set; } = true;
+        [Export] public bool ShowCover { get => _showCover; set { if (_showCover == value) return; _showCover = value; RefreshVisualAndRedraw(); } }
+        private bool _showCover = true;
 
-        [Export] public bool ShowTabs { get => _showTabs; set { _showTabs = value; QueueRedraw(); } }
+        [Export] public bool ShowTabs { get => _showTabs; set { if (_showTabs == value) return; _showTabs = value; RefreshPageList(); } }
         private bool _showTabs = true;
 
-        [Export] public string[] Tabs { get => _tabs; set { _tabs = value ?? System.Array.Empty<string>(); QueueRedraw(); } }
+        [Export] public string[] Tabs { get => _tabs; set { if (SetStringArray(ref _tabs, value)) RefreshPageList(); } }
         private string[] _tabs = { "Bag", "Quest", "Map" };
 
-        [Export(PropertyHint.Range, "0,8,1")] public int SelectedTab { get => _selectedTab; set => TurnTo(Mathf.Max(0, value)); }
+        [Export(PropertyHint.Range, "0,8,1")]
+        public int SelectedTab
+        {
+            get => _selectedTab;
+            set
+            {
+                int next = Mathf.Max(0, value);
+                TurnTo(next);
+            }
+        }
         private int _selectedTab;
         private int _turnFrom;
         private int _turnTo;
@@ -58,21 +70,48 @@ namespace Beep.ECS.UI.Kit
         public override void _Ready()
         {
             base._Ready();
-            MouseFilter = MouseFilterEnum.Stop;
-            FocusMode = FocusModeEnum.All;
-            SetProcess(false);
-            if (CustomMinimumSize == Vector2.Zero)
-            {
-                int fs = UiSurface.FontSize(this);
-                CustomMinimumSize = new Vector2(fs * 30f, fs * 17f);
-            }
+            ApplyInputDefaults(MouseFilterEnum.Stop, FocusModeEnum.All);
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
+            UpdateProcessing();
+        }
+
+        public override void _Notification(int what)
+        {
+            base._Notification(what);
+            if (what == NotificationVisibilityChanged)
+                UpdateProcessing();
         }
 
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            return new Vector2(fs * 30f, fs * 17f);
+            float width = Mathf.Clamp(fs * 24f + TabOutset * 0.78f, 300f, 340f);
+            float height = Mathf.Max(fs * 14f, 190f);
+            if (ShowTabs && _tabs.Length > 0)
+            {
+                float tabStack = _tabs.Length * TabHeight(fs) + Mathf.Max(0, _tabs.Length - 1) * 3f;
+                height = Mathf.Max(height, tabStack + fs * 5f);
+            }
+            return new Vector2(width, height);
         }
+
+        public void SetLeftPageTitles(string[]? titles) => LeftPageTitles = titles ?? System.Array.Empty<string>();
+
+        public void AddLeftPageTitle(string title) => LeftPageTitles = WithAdded(_leftPages, title);
+
+        public void ClearLeftPageTitles() => LeftPageTitles = System.Array.Empty<string>();
+
+        public void SetRightPageTitles(string[]? titles) => RightPageTitles = titles ?? System.Array.Empty<string>();
+
+        public void AddRightPageTitle(string title) => RightPageTitles = WithAdded(_rightPages, title);
+
+        public void ClearRightPageTitles() => RightPageTitles = System.Array.Empty<string>();
+
+        public void SetTabs(string[]? tabs) => Tabs = tabs ?? System.Array.Empty<string>();
+
+        public void AddTab(string tab) => Tabs = WithAdded(_tabs, tab);
+
+        public void ClearTabs() => Tabs = System.Array.Empty<string>();
 
         public override void _GuiInput(InputEvent @event)
         {
@@ -123,7 +162,7 @@ namespace Beep.ECS.UI.Kit
         {
             if (_turnTime >= 1f)
             {
-                SetProcess(false);
+                UpdateProcessing();
                 return;
             }
 
@@ -131,7 +170,7 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
             if (_turnTime >= 1f)
             {
-                SetProcess(false);
+                UpdateProcessing();
                 EmitSignal(SignalName.PageTurned, _selectedTab);
             }
         }
@@ -145,8 +184,73 @@ namespace Beep.ECS.UI.Kit
             _turnTo = next;
             _selectedTab = next;
             _turnTime = _turnFrom == _turnTo ? 1f : 0f;
-            SetProcess(_turnTime < 1f);
+            UpdateProcessing();
+            RefreshVisualAndRedraw();
+        }
+
+        private void RefreshPageList()
+        {
+            int max = Mathf.Max(0, PageCount() - 1);
+            int next = Mathf.Clamp(_selectedTab, 0, max);
+            _turnFrom = Mathf.Clamp(_turnFrom, 0, max);
+            _turnTo = Mathf.Clamp(_turnTo, 0, max);
+            if (next != _selectedTab)
+            {
+                _selectedTab = next;
+                _turnFrom = next;
+                _turnTo = next;
+                _turnTime = 1f;
+                UpdateProcessing();
+            }
+            RefreshMinimumAndRedraw();
+        }
+
+        private void RefreshMinimumAndRedraw()
+        {
+            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
+            UpdateMinimumSize();
             QueueRedraw();
+        }
+
+        private void RefreshVisualAndRedraw()
+        {
+            QueueRedraw();
+        }
+
+        private bool ShouldAnimate() => _turnTime < 1f;
+
+        private void UpdateProcessing()
+        {
+            SetProcess(IsVisibleInTree() && ShouldAnimate());
+        }
+
+        private static bool SetStringArray(ref string[] target, string[]? value)
+        {
+            string[] next = NormalizeStrings(value);
+            if (SameStrings(target, next)) return false;
+            target = next;
+            return true;
+        }
+
+        private static string[] NormalizeStrings(string[]? values)
+        {
+            if (values == null || values.Length == 0)
+                return System.Array.Empty<string>();
+
+            var next = new string[values.Length];
+            for (int i = 0; i < values.Length; i++)
+                next[i] = values[i] ?? "";
+            return next;
+        }
+
+        private static bool SameStrings(string[] a, string[] b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if ((a[i] ?? "") != (b[i] ?? ""))
+                    return false;
+            return true;
         }
 
         private float TabOutset
@@ -154,8 +258,18 @@ namespace Beep.ECS.UI.Kit
                 ? Mathf.Clamp(UiSurface.FontSize(this) * 4.9f, 62f, 90f)
                 : 0f;
 
+        private static float TabHeight(int fs) => Mathf.Clamp(fs * 1.45f, 18f, 28f);
+
         private int PageCount()
             => Mathf.Max(1, Mathf.Max(_tabs.Length, Mathf.Max(_leftPages.Length, _rightPages.Length)));
+
+        private static string[] WithAdded(string[] values, string value)
+        {
+            var next = new string[values.Length + 1];
+            System.Array.Copy(values, next, values.Length);
+            next[^1] = value ?? "";
+            return next;
+        }
 
         private Rect2 BookBounds()
         {
@@ -260,12 +374,16 @@ namespace Beep.ECS.UI.Kit
             void Title(string t, Rect2 p)
             {
                 if (string.IsNullOrEmpty(t)) return;
+                string text = KitCase(t);
+                float textWidth = p.Size.X * 0.82f;
                 int tf = UiSurface.FitRole(this, UiSurface.TextRole.Subtitle,
-                                           new Vector2(p.Size.X * 0.82f, p.Size.Y * 0.12f),
-                                           t, font, min: 9);
-                Vector2 m = font.GetStringSize(t, HorizontalAlignment.Left, -1, tf);
+                                           new Vector2(textWidth, p.Size.Y * 0.12f),
+                                           text, font, min: 9);
+                text = KitChrome.EllipsizeText(font, text, tf, textWidth);
+                if (string.IsNullOrEmpty(text)) return;
+                Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, tf);
                 DrawText(font, new Vector2(p.Position.X + (p.Size.X - m.X) * 0.5f, p.Position.Y + tf * 1.45f),
-                           t, tf, new Color(0.16f, 0.13f, 0.10f));
+                           text, tf, new Color(0.16f, 0.13f, 0.10f));
             }
 
             if (ShowTabs)
@@ -369,8 +487,11 @@ namespace Beep.ECS.UI.Kit
                          new Color(ink.R, ink.G, ink.B, 0.34f), Mathf.Max(1f, r.Size.Y * 0.08f));
                 if (font != null)
                 {
-                    string text = _tabs[i] ?? "";
-                    int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small, r.Size * 0.74f, text, font, min: 7);
+                    string text = KitCase(_tabs[i] ?? "");
+                    float textWidth = r.Size.X * 0.74f;
+                    int tf = UiSurface.FitRole(this, UiSurface.TextRole.Small, new Vector2(textWidth, r.Size.Y * 0.74f), text, font, min: 7);
+                    text = KitChrome.EllipsizeText(font, text, tf, textWidth);
+                    if (string.IsNullOrEmpty(text)) continue;
                     Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, tf);
                     Color tc = UiSurface.Luminance(fill) > 0.52f ? new Color(0.14f, 0.10f, 0.07f) : new Color(0.98f, 0.95f, 0.88f);
                     DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f,
@@ -383,7 +504,7 @@ namespace Beep.ECS.UI.Kit
         private Rect2 TabRect(Rect2 rp, int i)
         {
             int fs = UiSurface.FontSize(this);
-            float h = Mathf.Clamp(fs * 1.45f, 18f, 28f);
+            float h = TabHeight(fs);
             float w = TabOutset;
             float overlap = Mathf.Clamp(fs * 0.85f, 10f, 16f);
             float x = BookBounds().End.X - overlap;
@@ -437,7 +558,10 @@ namespace Beep.ECS.UI.Kit
 
             if (font == null) return;
             string label = $"{_selectedTab + 1}/{pages}";
-            int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small, new Vector2(rp.Size.X * 0.28f, rp.Size.Y * 0.10f), label, font, min: 7);
+            float labelWidth = rp.Size.X * 0.28f;
+            int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small, new Vector2(labelWidth, rp.Size.Y * 0.10f), label, font, min: 7);
+            label = KitChrome.EllipsizeText(font, label, fs, labelWidth);
+            if (string.IsNullOrEmpty(label)) return;
             Vector2 m = font.GetStringSize(label, HorizontalAlignment.Left, -1, fs);
             Vector2 at = new Vector2(rp.Position.X + (rp.Size.X - m.X) * 0.5f, rp.End.Y - rp.Size.Y * 0.08f);
             DrawText(font, at, label, fs, muted);

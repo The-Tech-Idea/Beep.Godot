@@ -17,6 +17,7 @@ namespace Beep.ECS
     public partial class GameArmor : GameEquipment
     {
         [Export] public float Defense { get; set; } = 0f;
+        public float EffectiveDefense => NonNegativeFinite(Defense);
 
         [ExportGroup("Resistances")]
         [Export] public float Physical { get; set; } = 1f;
@@ -33,22 +34,28 @@ namespace Beep.ECS
         /// are authored data ResistanceComponent will read.)</summary>
         public override System.Collections.Generic.IEnumerable<StatModifier> GetIntrinsicModifiers()
         {
-            yield return new StatModifier { Stat = "armor", Op = StatOp.Add, Amount = Defense, Duration = -1f };
+            yield return new StatModifier { Stat = "armor", Op = StatOp.Add, Amount = EffectiveDefense, Duration = -1f };
         }
 
         /// <summary>This armor's multiplier for a damage type (1 = no effect, 0.5 = halves it, 0 =
         /// immune). Read by a wearer's ResistanceComponent and combined multiplicatively.</summary>
         public float ResistFor(DamageType type) => type switch
         {
-            DamageType.Physical => Physical,
-            DamageType.Fire => Fire,
-            DamageType.Ice => Ice,
-            DamageType.Poison => Poison,
-            DamageType.Holy => Holy,
-            DamageType.Dark => Dark,
-            DamageType.Lightning => Lightning,
-            DamageType.True => True,
+            DamageType.Physical => Multiplier(Physical),
+            DamageType.Fire => Multiplier(Fire),
+            DamageType.Ice => Multiplier(Ice),
+            DamageType.Poison => Multiplier(Poison),
+            DamageType.Holy => Multiplier(Holy),
+            DamageType.Dark => Multiplier(Dark),
+            DamageType.Lightning => Multiplier(Lightning),
+            DamageType.True => Multiplier(True),
             _ => 1f
         };
+
+        private static float Multiplier(float value)
+            => float.IsFinite(value) ? Mathf.Clamp(value, 0f, 10f) : 1f;
+
+        private static float NonNegativeFinite(float value)
+            => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

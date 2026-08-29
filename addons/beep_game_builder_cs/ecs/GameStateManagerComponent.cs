@@ -57,6 +57,8 @@ namespace Beep.ECS
 		private float _autosaveTimer;
 		private int _currentSlot = -1;
 		private bool _pendingRestore;
+		public int EffectiveMaxSaveSlots => Mathf.Max(1, MaxSaveSlots);
+		public float EffectiveAutosaveIntervalSeconds => Mathf.Max(0.1f, float.IsFinite(AutosaveIntervalSeconds) ? AutosaveIntervalSeconds : 300f);
 
 		public override void _Ready()
 		{
@@ -81,17 +83,17 @@ namespace Beep.ECS
 
 			BeepFileUtils.EnsureDir(SaveDirectory);
 			if (AutosaveEnabled)
-				_autosaveTimer = AutosaveIntervalSeconds;
+				_autosaveTimer = EffectiveAutosaveIntervalSeconds;
 		}
 
 		public override void _Process(double delta)
 		{
 			if (Engine.IsEditorHint()) return;
 			if (!IsActive || !AutosaveEnabled) return;
-			_autosaveTimer -= (float)delta;
+			_autosaveTimer = Mathf.Max(0f, (float.IsFinite(_autosaveTimer) ? _autosaveTimer : EffectiveAutosaveIntervalSeconds) - DeltaSeconds(delta));
 			if (_autosaveTimer <= 0)
 			{
-				_autosaveTimer = AutosaveIntervalSeconds;
+				_autosaveTimer = EffectiveAutosaveIntervalSeconds;
 				SaveAutosave();
 				EmitSignal(SignalName.AutosaveTriggered);
 			}
@@ -126,7 +128,7 @@ namespace Beep.ECS
 		/// Use <see cref="SaveAutosave"/> for the autosave file.</summary>
 		public bool Save(int slot)
 		{
-			if (slot < 0 || slot >= MaxSaveSlots) return false;
+			if (slot < 0 || slot >= EffectiveMaxSaveSlots) return false;
 
 			EnsureState();
 			// Sync here rather than trusting callers to do it first. It was the caller's job,
@@ -169,7 +171,7 @@ namespace Beep.ECS
 		/// Returns false — leaving the current state untouched — if the file is missing or corrupt.</summary>
 		public virtual bool Load(int slot)
 		{
-			if (slot < AutosaveSlot || slot >= MaxSaveSlots) return false;
+			if (slot < AutosaveSlot || slot >= EffectiveMaxSaveSlots) return false;
 
 			string filename = GetSaveFilename(slot);
 			if (!BeepFileUtils.FileExists(filename)) return false;
@@ -194,7 +196,7 @@ namespace Beep.ECS
 		/// <summary>Delete a save slot.</summary>
 		public bool DeleteSave(int slot)
 		{
-			if (slot < -1 || slot >= MaxSaveSlots) return false;
+			if (slot < -1 || slot >= EffectiveMaxSaveSlots) return false;
 
 			string filename = GetSaveFilename(slot);
 			if (!BeepFileUtils.FileExists(filename)) return false;
@@ -218,7 +220,7 @@ namespace Beep.ECS
 			var slots = new List<(int slot, GameBuilder.SaveMetadata metadata)>();
 
 			if (includeAutosave) TryAddSlot(slots, AutosaveSlot);
-			for (int i = 0; i < MaxSaveSlots; i++) TryAddSlot(slots, i);
+			for (int i = 0; i < EffectiveMaxSaveSlots; i++) TryAddSlot(slots, i);
 
 			return slots;
 		}
@@ -337,5 +339,8 @@ namespace Beep.ECS
 			string slotName = slot < 0 ? "autosave" : $"save_{slot}";
 			return $"{SaveDirectory}/{slotName}.json";
 		}
+
+		private static float DeltaSeconds(double delta) =>
+			double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
 	}
 }

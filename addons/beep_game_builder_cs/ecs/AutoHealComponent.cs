@@ -27,6 +27,10 @@ namespace Beep.ECS
         private StatusEffectComponent? _statusEffects;
         private float _timeSinceLastDamage;
 
+        public float EffectiveHealPerSecond => NonNegative(HealPerSecond);
+        public float EffectiveHealDelay => NonNegative(HealDelay);
+        public float EffectiveMaxHealPerSecond => NonNegative(MaxHealPerSecond);
+
         public override void _Ready()
         {
             base._Ready();
@@ -60,21 +64,24 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (_health == null || !IsActive || _health.IsDead) return;
+            if (Engine.IsEditorHint() || _health == null || !IsActive || _health.IsDead) return;
 
             // Check if healing is blocked by negative status effects
             if (BlockHealingWhenPoisoned && (_statusEffects?.HasEffect("poisoned") ?? false)) return;
             if (BlockHealingWhenCursed && (_statusEffects?.HasEffect("cursed") ?? false)) return;
 
-            _timeSinceLastDamage += (float)delta;
-            if (_timeSinceLastDamage < HealDelay) return;   // recovery pauses during a fight
+            float dt = DeltaSeconds(delta);
+            _timeSinceLastDamage += dt;
+            if (_timeSinceLastDamage < EffectiveHealDelay) return;   // recovery pauses during a fight
 
             // Apply temperature modifier if available
-            float tempModifier = GetTemperatureModifier();
+            float rawTempModifier = GetTemperatureModifier();
+            float tempModifier = Mathf.Clamp(float.IsFinite(rawTempModifier) ? rawTempModifier : 0f, 0f, 4f);
             if (tempModifier <= 0) return;  // Don't heal in extreme conditions
 
-            float healRate = Mathf.Min(HealPerSecond * tempModifier, MaxHealPerSecond);
-            float amount = healRate * (float)delta;
+            float healRate = Mathf.Min(EffectiveHealPerSecond * tempModifier, EffectiveMaxHealPerSecond);
+            float amount = healRate * dt;
+            if (amount <= 0f) return;
             _health.Heal(amount);
             EmitSignal(SignalName.HealTick, amount, _health.CurrentHealth);
         }
@@ -93,5 +100,11 @@ namespace Beep.ECS
                 _ => 1.0f
             };
         }
+
+        private static float DeltaSeconds(double delta) =>
+            double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+
+        private static float NonNegative(float value) =>
+            float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
     }
 }

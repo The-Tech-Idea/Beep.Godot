@@ -39,7 +39,9 @@ namespace Beep.ECS
             public int StackCount = 1;
             public int MaxStacks = 10;
 
-            public float Progress => TotalDuration > 0 ? 1f - (Duration / TotalDuration) : 1f;
+            public float Progress => float.IsFinite(Duration) && float.IsFinite(TotalDuration) && TotalDuration > 0
+                ? Mathf.Clamp(1f - (Duration / TotalDuration), 0f, 1f)
+                : 1f;
 
             /// <summary>A negative AUTHORED duration (TotalDuration) means permanent: it never ticks
             /// down and never expires. This must read TotalDuration, NOT the live Duration — the live
@@ -48,16 +50,24 @@ namespace Beep.ECS
             /// Duration, reclassified every finite effect as permanent one tick before it expired, so
             /// stuns/poisons/buffs became eternal and EffectExpired never fired. (Duration == 0 remains
             /// a valid instantaneous effect: TotalDuration 0 → not permanent → expires on first tick.)</summary>
-            public bool IsPermanent => TotalDuration < 0f;
-            public bool IsExpired => !IsPermanent && Duration <= 0f;
+            public bool IsPermanent => float.IsFinite(TotalDuration) && TotalDuration < 0f;
+            public bool IsExpired => !IsPermanent && (!float.IsFinite(Duration) || Duration <= 0f);
             public bool CanStack => StackCount < MaxStacks;
-            public float RemainingPercent => Mathf.Clamp(Duration / TotalDuration, 0f, 1f);
+            public float RemainingPercent => float.IsFinite(Duration) && float.IsFinite(TotalDuration) && TotalDuration > 0
+                ? Mathf.Clamp(Duration / TotalDuration, 0f, 1f)
+                : (IsPermanent ? 1f : 0f);
         }
 
         public void ApplyEffect(string id, float duration, float tickInterval = 1f, bool isBuff = true,
             StackBehavior stackBehavior = StackBehavior.Stack, int maxStacks = 10)
         {
             if (!IsActive) return;
+            id = NormalizeEffectId(id);
+            if (string.IsNullOrEmpty(id)) return;
+
+            tickInterval = float.IsFinite(tickInterval) ? Mathf.Max(0.01f, tickInterval) : 0.01f;
+            duration = float.IsFinite(duration) ? duration : 0f;
+            maxStacks = Mathf.Max(1, maxStacks);
 
             var existing = ActiveEffects.FirstOrDefault(e => e.Id == id);
 
@@ -74,7 +84,8 @@ namespace Beep.ECS
                         return;
 
                     case StackBehavior.Extend:
-                        existing.Duration += duration;
+                        if (!existing.IsPermanent)
+                            existing.Duration = duration < 0f ? duration : existing.Duration + duration;
                         if (existing.CanStack) existing.StackCount++;
                         EmitSignal(SignalName.EffectApplied, id, existing.StackCount);
                         return;
@@ -165,12 +176,17 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive) return;
+            if (Engine.IsEditorHint() || !IsActive) return;
+            float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             for (int i = ActiveEffects.Count - 1; i >= 0; i--)
             {
                 var e = ActiveEffects[i];
-                if (!e.IsPermanent) e.Duration -= (float)delta;
-                e.TimeSinceTick += (float)delta;
+                if (!float.IsFinite(e.Duration)) e.Duration = 0f;
+                if (!float.IsFinite(e.TotalDuration)) e.TotalDuration = 0f;
+                if (!float.IsFinite(e.TimeSinceTick)) e.TimeSinceTick = 0f;
+                if (!float.IsFinite(e.TickInterval) || e.TickInterval <= 0f) e.TickInterval = 0.01f;
+                if (!e.IsPermanent) e.Duration -= dt;
+                e.TimeSinceTick += dt;
 
                 if (e.TimeSinceTick >= e.TickInterval)
                 {
@@ -185,5 +201,8 @@ namespace Beep.ECS
                 }
             }
         }
+
+        private static string NormalizeEffectId(string id)
+            => string.IsNullOrWhiteSpace(id) ? "" : id.Trim().ToLowerInvariant().Replace(' ', '_');
     }
 }

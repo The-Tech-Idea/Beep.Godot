@@ -47,10 +47,8 @@ namespace Beep.ECS.UI.Kit
         // reads as a rendering fault rather than as foliage -- and it would occupy the name, so
         // nobody would reach for the thing that actually works.
         //
-        // What actually works, today: mount a nine-patch through NinePatchFrameComponent (for
-        // decorative frames a Theme cannot reach) or a StyleBoxTexture slot (for a widget's own
-        // chrome, baked by core/BeepTextureBaker.cs). Both are documented in CLAUDE.md under
-        // "Textures are baked, not drawn".
+        // What actually works, today: mount an authored decorative frame as its own scene node.
+        // The core kit chrome stays procedural so palette and geometry remain consistent.
     }
 
     /// <summary>
@@ -199,7 +197,7 @@ namespace Beep.ECS.UI.Kit
             "racing" => KitShape.Speed,
             "platformer" => KitShape.Round,      // special capsule form belongs to bars/chips, not every control
             "puzzle" => KitShape.Round,          // candy/bubble comes from colour/gloss; controls stay readable
-            "topdown" => KitShape.Stepped,       // pixel-era stepped corners
+            "topdown" => KitShape.Round,         // top-down camera style, not automatically pixel art
             "cardgame" => KitShape.Round,
             _ => KitShape.Round,
         };
@@ -212,20 +210,20 @@ namespace Beep.ECS.UI.Kit
                 KitWidgetClass.Panel => PanelShapeForGenre(g, KitPanelIntent.Sheet),
                 KitWidgetClass.Slot => g switch
                 {
-                    "topdown" => KitShape.Stepped,
+                    "topdown" => KitShape.Round,
                     "strategy" => KitShape.Chamfer,
                     "shooter" or "racing" => KitShape.Chamfer,
                     _ => KitShape.Round,
                 },
                 KitWidgetClass.Bar => g switch
                 {
-                    "topdown" => KitShape.Stepped,
+                    "topdown" => KitShape.Pill,
                     "shooter" or "racing" => KitShape.Speed,
                     _ => KitShape.Pill,
                 },
                 KitWidgetClass.Chip => g switch
                 {
-                    "topdown" => KitShape.Stepped,
+                    "topdown" => KitShape.Pill,
                     "shooter" or "racing" => KitShape.Parallelogram,
                     _ => KitShape.Pill,
                 },
@@ -248,7 +246,7 @@ namespace Beep.ECS.UI.Kit
                     "racing" => KitShape.Parallelogram,
                     "platformer" => KitShape.Pill,
                     "puzzle" => KitShape.Round,
-                    "topdown" => KitShape.Stepped,
+                    "topdown" => KitShape.Round,
                     "cardgame" => KitShape.Round,
                     _ => KitShape.Round,
                 };
@@ -385,15 +383,6 @@ namespace Beep.ECS.UI.Kit
         public float Wobble;
 
         /// <summary>
-        /// The genre's MATERIAL, overridable per theme. Empty pattern = inherit the generated
-        /// per-genre assignment in <see cref="KitGrainTable"/>.
-        ///
-        /// Material was the first axis built and stayed C#-only longest, which meant a theme
-        /// could change its shadow, outline, corner, font and selection but not what its plates
-        /// are made of — and stone-vs-wood is the loudest difference between two themes of one
-        /// genre in the reference folder.
-        /// </summary>
-        /// <summary>
         /// Size of one ART pixel, in screen px. Only consulted by <see cref="KitRegister.Pixel"/>.
         /// Corner steps, rim width and stud size quantise to it, so a pixel theme keeps its grid
         /// instead of drawing a 1.7px rim that reads as a smooth line.
@@ -405,10 +394,6 @@ namespace Beep.ECS.UI.Kit
 
         /// <summary>How text sits on the plate. See <see cref="KitTextTreat"/>.</summary>
         public KitTextTreat TextTreatment = KitTextTreat.Plain;
-
-        public string GrainPattern = "";
-        public float GrainAmount = -1f;
-        public int GrainTiles = -1;
 
         /// <summary>Selection cues per widget class. racing3 uses accent FILL on icon cells and
         /// accent BORDER on carousel cells on one screen, so this cannot be a single value.</summary>
@@ -577,7 +562,7 @@ namespace Beep.ECS.UI.Kit
             ["platformer"]  = new() { Register = KitRegister.Casual, Corner = .26f, HeightRatio = 2.55f, PadRatio = 1.65f, Rim = 2.8f, Bevel = 1.05f, Gloss = .62f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f, Shadow = KitShadowDef.Extrude(), OutlineShade = 0.16f, CornerPanel = .20f, CornerSlot = .16f, CornerBar = .50f, CornerChip = .50f, Wobble = .004f, Font = KitFontRole.Rounded, UpperCase = true, SelectButton = KitSelectCue.Underline, SelectSlot = KitSelectCue.Border },
             ["puzzle"]      = new() { Register = KitRegister.Casual, Corner = .24f, HeightRatio = 2.55f, PadRatio = 1.60f, Rim = 2.2f, Bevel = 1.0f, Gloss = .72f, Sparkle = .24f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f, Shadow = KitShadowDef.None, OutlineShade = 1.70f, CornerPanel = .22f, CornerSlot = .18f, CornerBar = .50f, CornerChip = .50f, Wobble = .006f, Font = KitFontRole.Rounded, UpperCase = true },
             ["cardgame"]    = new() { Register = KitRegister.Casual, Corner = .18f, HeightRatio = 2.45f, PadRatio = 1.50f, Rim = 1.8f, Bevel = 0.8f, Gloss = .58f, Sparkle = .30f, FrameMode = KitFrameMode.None,   RimBrightness = 0.20f, Shadow = KitShadowDef.Soft(), OutlineShade = 0.16f, CornerPanel = .16f, CornerSlot = .12f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Rounded, SelectSlot = KitSelectCue.Border | KitSelectCue.Lift },
-            ["topdown"]     = new() { Register = KitRegister.Casual, Corner = .12f, HeightRatio = 2.20f, PadRatio = 1.35f, Rim = 1.7f, Bevel = 0.7f, Gloss = .20f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f, Shadow = KitShadowDef.None, OutlineShade = 0.22f, CornerPanel = .08f, CornerSlot = .06f, CornerBar = .06f, CornerChip = .16f, Font = KitFontRole.Pixel, SelectSlot = KitSelectCue.Border },
+            ["topdown"]     = new() { Register = KitRegister.Casual, Corner = .14f, HeightRatio = 2.20f, PadRatio = 1.35f, Rim = 1.7f, Bevel = 0.7f, Gloss = .20f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.22f, Shadow = KitShadowDef.None, OutlineShade = 0.22f, CornerPanel = .12f, CornerSlot = .10f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Sans, SelectSlot = KitSelectCue.Border },
 
             ["shooter"]     = new() { Register = KitRegister.Technical, Corner = .08f, HeightRatio = 2.10f, PadRatio = 1.25f, Rim = 1.2f, Bevel = 0.45f, Gloss = .28f,            FrameMode = KitFrameMode.Hairline, HairlinePx = 1.5f, RimBrightness = 1.25f, Shadow = KitShadowDef.None, OutlineShade = 1.70f, CornerPanel = .03f, CornerSlot = .05f, CornerBar = .02f, CornerChip = .24f, Shear = .07f, Font = KitFontRole.Condensed, UpperCase = true, Tracking = .08f, EdgeRun = KitEdgeRun.SciFi(), SelectButton = KitSelectCue.Fill, SelectPanel = KitSelectCue.Border },
             ["racing"]      = new() { Register = KitRegister.Technical, Corner = .07f, HeightRatio = 2.05f, PadRatio = 1.20f, Rim = 1.2f, Bevel = 0.5f, Gloss = .65f, Sparkle = .12f, FrameMode = KitFrameMode.Hairline, HairlinePx = 1.2f, RimBrightness = 1.30f, Shadow = KitShadowDef.None, OutlineShade = 1.70f, CornerPanel = .03f, CornerSlot = .05f, CornerBar = .02f, CornerChip = .24f, Shear = .12f, Font = KitFontRole.Condensed, UpperCase = true, Tracking = .08f, EdgeRun = KitEdgeRun.SciFi(), SelectButton = KitSelectCue.Fill, SelectPanel = KitSelectCue.Border },

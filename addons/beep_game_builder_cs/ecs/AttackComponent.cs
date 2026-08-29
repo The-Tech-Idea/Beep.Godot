@@ -28,6 +28,9 @@ namespace Beep.ECS
         [Signal] public delegate void CooldownReadyEventHandler();
 
         public float CooldownRemaining { get; private set; }
+        public float EffectiveCooldown => NonNegative(Cooldown);
+        public float EffectiveRange => NonNegative(Range);
+        public float EffectiveProjectileSpeed => NonNegative(ProjectileSpeed);
         public bool CanAttack => CooldownRemaining <= 0 && IsActive;
 
         private Node2D? _body;
@@ -48,20 +51,21 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (Engine.IsEditorHint() || !IsActive) return;
             if (CooldownRemaining > 0)
             {
-                CooldownRemaining -= (float)delta;
+                CooldownRemaining -= double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
                 if (CooldownRemaining <= 0) EmitSignal(SignalName.CooldownReady);
             }
 
-            if (AttackOnInput && !Engine.IsEditorHint())
+            if (AttackOnInput)
             {
                 // Track the last movement direction so a standing attack still faces somewhere.
-                if (_body is CharacterBody2D cb && cb.Velocity.LengthSquared() > 1f)
+                if (_body is CharacterBody2D cb && IsFinite(cb.Velocity) && cb.Velocity.LengthSquared() > 1f)
                     _lastFacing = cb.Velocity.Normalized();
 
                 if (InputMap.HasAction(AttackAction) && Input.IsActionJustPressed(AttackAction))
-                    Attack((_body?.GlobalPosition ?? Vector2.Zero) + _lastFacing * Range);
+                    Attack((_body?.GlobalPosition ?? Vector2.Zero) + _lastFacing * EffectiveRange);
             }
         }
 
@@ -74,13 +78,11 @@ namespace Beep.ECS
             var weapon = _equipment?.MainWeapon;
             if (weapon?.AmmoItem != null && !ConsumeAmmo(weapon)) return;
 
-            CooldownRemaining = Cooldown;
-
             // Damage comes from the entity's "damage" stat when it has one — so equipment and
             // timed buffs modify it — otherwise this component's own Damage export. One stat, read
             // by both damage paths (this and ShooterController), nothing to fork. See StatsComponent.
             var stats = GetSiblingComponent<StatsComponent>();
-            float finalDamage = stats?.GetValue("damage", Damage) ?? Damage;
+            float finalDamage = NonNegative(stats?.GetValue("damage", Damage) ?? Damage);
 
             // The equipped weapon decides the damage type, so a fire sword's hits meet a target's
             // fire resistance. Unarmed (no weapon) falls back to Physical.
@@ -103,7 +105,7 @@ namespace Beep.ECS
             bool fired = false;
             if (ranged && projScene != null)
             {
-                if (_body != null) { SpawnProjectile(target, finalDamage, dtype, projScene); fired = true; }
+                if (_body != null) fired = SpawnProjectile(target, finalDamage, dtype, projScene);
             }
             else if (_body != null)
             {
@@ -113,25 +115,36 @@ namespace Beep.ECS
 
             // Only announce an attack that actually happened — a null body makes both paths no-op,
             // and emitting Attacked anyway lied to listeners (attack counters, SFX).
-            if (fired) EmitSignal(SignalName.Attacked, target, finalDamage);
+            if (fired)
+            {
+                CooldownRemaining = EffectiveCooldown;
+                EmitSignal(SignalName.Attacked, target, finalDamage);
+            }
         }
 
-        private void SpawnProjectile(Vector2 target, float damage, DamageType type, PackedScene scene)
+        private bool SpawnProjectile(Vector2 target, float damage, DamageType type, PackedScene scene)
         {
-            if (_body == null) return;
+            if (_body == null) return false;
             var proj = scene.Instantiate<Node>();
-            if (proj is not Node2D projNode) return;
+            if (proj is not Node2D projNode)
+            {
+                proj.QueueFree();
+                return false;
+            }
 
-            Vector2 direction = (target - _body.GlobalPosition).Normalized();
+            if (!IsFinite(target)) target = _body.GlobalPosition + _lastFacing;
+            Vector2 direction = target == _body.GlobalPosition
+                ? _lastFacing
+                : (target - _body.GlobalPosition).Normalized();
             var pool = GetParent()?.GetParent();
-            if (pool == null) { proj.QueueFree(); return; }   // nowhere to place it — don't leak an orphan
+            if (pool == null) { proj.QueueFree(); return false; }   // nowhere to place it — don't leak an orphan
             pool.AddChild(proj);
             projNode.GlobalPosition = _body.GlobalPosition;   // AFTER parenting, or it's re-derived by the pool's transform
 
             var projComp = EntityComponent.FindComponent<ProjectileComponent>(projNode, false);
             if (projComp != null)
             {
-                projComp.Speed = ProjectileSpeed;
+                projComp.Speed = EffectiveProjectileSpeed;
                 projComp.Damage = damage;
                 projComp.DamageType = type;
                 // Without this, IsOwnedByShooter resolves the owner to the pool/level (the
@@ -140,6 +153,7 @@ namespace Beep.ECS
                 projComp.Shooter = _body;
                 projComp.Launch(direction);
             }
+            return true;
         }
 
         /// <summary>Spend a weapon's ammo from the wielder's inventory, or refuse. Warns only on
@@ -154,14 +168,17 @@ namespace Beep.ECS
                     "wielder has no InventoryComponent — it can never fire. Add an InventoryComponent, or clear GameWeapon.AmmoItem.");
                 return false;
             }
-            if (!_inventory.HasItem(weapon.AmmoItem!.Id, weapon.AmmoPerUse)) return false;   // out of ammo
-            _inventory.RemoveItem(weapon.AmmoItem.Id, weapon.AmmoPerUse);
+            int ammoPerUse = weapon.EffectiveAmmoPerUse;
+            if (ammoPerUse <= 0) return true;
+            if (!_inventory.HasItem(weapon.AmmoItem!.Id, ammoPerUse)) return false;   // out of ammo
+            _inventory.RemoveItem(weapon.AmmoItem.Id, ammoPerUse);
             return true;
         }
 
         private void DealMeleeDamage(Vector2 target, float damage, DamageType type)
         {
             if (_body == null) return;
+            if (!IsFinite(target)) return;
             var areas = _body.GetWorld2D().DirectSpaceState.IntersectPoint(
                 new PhysicsPointQueryParameters2D { Position = target });
             foreach (Godot.Collections.Dictionary result in areas)
@@ -179,5 +196,9 @@ namespace Beep.ECS
                 }
             }
         }
+
+        private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }
 }

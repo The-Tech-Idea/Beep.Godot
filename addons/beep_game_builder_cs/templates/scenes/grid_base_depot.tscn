@@ -1,0 +1,66 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs" id="grid_object"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/settlers/reference_objects.png" id="objects_sheet"]
+
+[sub_resource type="Shader" id="shader_chroma_key"]
+code = "shader_type canvas_item;\n\nvoid fragment() {\n\tvec4 sample_color = texture(TEXTURE, UV);\n\tif (sample_color.g > 0.72 && sample_color.r < 0.22 && sample_color.b < 0.22) {\n\t\tdiscard;\n\t}\n\tCOLOR = sample_color * COLOR;\n}\n"
+
+[sub_resource type="ShaderMaterial" id="material_chroma_key"]
+shader = SubResource("shader_chroma_key")
+
+[node name="GridBaseDepot" type="Node2D"]
+z_as_relative = false
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+material = SubResource("material_chroma_key")
+position = Vector2(0, -42)
+scale = Vector2(0.52, 0.52)
+texture = ExtResource("objects_sheet")
+region_enabled = true
+region_rect = Rect2(570, 955, 270, 210)
+
+[node name="YardShadow" type="Polygon2D" parent="."]
+visible = false
+polygon = PackedVector2Array(-58, 15, 3, 46, 61, 16, 0, -15)
+color = Color(0.06, 0.05, 0.04, 0.25)
+
+[node name="Floor" type="Polygon2D" parent="."]
+visible = false
+polygon = PackedVector2Array(-52, 0, 5, 29, 53, 5, -4, -23)
+color = Color(0.49, 0.42, 0.31, 1)
+
+[node name="Walls" type="Polygon2D" parent="."]
+visible = false
+polygon = PackedVector2Array(-26, -28, 23, -4, 23, 20, -26, -5)
+color = Color(0.61, 0.51, 0.37, 1)
+
+[node name="Roof" type="Polygon2D" parent="."]
+visible = false
+polygon = PackedVector2Array(-34, -35, 20, -59, 56, -41, 0, -14)
+color = Color(0.22, 0.30, 0.34, 1)
+
+[node name="Door" type="Polygon2D" parent="."]
+visible = false
+polygon = PackedVector2Array(-9, -9, 10, 0, 10, 17, -9, 7)
+color = Color(0.14, 0.12, 0.09, 1)
+
+[node name="SpawnPoint" type="Marker2D" parent="."]
+position = Vector2(32, 16)
+
+[node name="GridObject" type="Node" parent="."]
+script = ExtResource("grid_object")
+DisplayName = "Base Depot"
+ObjectKind = "base"
+Selectable = true
+Cell = Vector2i(0, 0)
+Footprint = Vector2i(2, 2)
+Description = "Starting depot for workers, trucks, and early map jobs."
+
+[node name="WorkerSpawner" type="Node" parent="."]
+script = ExtResource("worker_spawner")
+SpawnCell = Vector2i(1, 1)
+WorkerIdPrefix = "worker"
+InitialWorkers = 1
+MaxWorkers = 8

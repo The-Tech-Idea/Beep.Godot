@@ -332,15 +332,15 @@ for f in $(find . -name "*.tscn" | sort); do
   done
 done; [ $found -eq 0 ] && echo "  ok"
 
-# Skin assets: theme.json's textures{} and geometry.json's background_image name res:// files.
+# Skin assets: theme.json's textures{} res:// files.
 # SkinCatalog returns null for a missing one and the theme falls back to a procedural box; before
-# this check ALL 200 texture_path entries across the 50 shipped themes, and all 8 background_image
-# paths, pointed at files that were never in the repo. Every texture toggle in the inspector did
-# nothing and nothing anywhere said so. This is the check that keeps the bake honest.
-echo "--- skin texture/background files referenced by the catalogs exist ---"; found=0
+# this check texture_path entries in shipped themes could point at files that were never in the
+# repo. Every texture toggle in the inspector did nothing and nothing anywhere said so. This is
+# the check that keeps the bake honest. Geometry background images are intentionally unsupported.
+echo "--- skin texture files referenced by the catalogs exist ---"; found=0
 SKINS="../../catalogs/skins"
 if [ -d "$SKINS" ]; then
-  refs=$(grep -rhoE '"(texture_path|background_image)"[[:space:]]*:[[:space:]]*"[^"]+"' "$SKINS" \
+  refs=$(grep -rhoE '"texture_path"[[:space:]]*:[[:space:]]*"[^"]+"' "$SKINS" \
          | grep -oE '"res://[^"]+"' | tr -d '"' | sort -u)
   for r in $refs; do
     # res://addons/beep_game_builder_cs/<rel>  ->  ../../<rel>

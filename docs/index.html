@@ -130,19 +130,22 @@
   <header>
     <div class="wrap">
       <h1>Beep.Godot HTML Help</h1>
-      <p>Comprehensive addon help rebuilt from the 2026-08-09 source/config/template scan.</p>
+      <p>Maintained addon help with a full section-by-section guide and source-derived reference for every public addon type, template, and script.</p>
     </div>
   </header>
   <main class="wrap">
     <nav aria-label="Help sections">
       <a href="#inventory">Inventory</a>
       <a href="#game-builder">Game Builder</a>
+      <a href="addon-full-scan.html">Full File Scan</a>
+      <a href="2d-iso-toolkit.html">2D/Isometric Toolkit</a>
+      <a href="addon-guide.html">Full Addon Guide</a>
       <a href="#components">Components</a>
+      <a href="addon-reference.html">Full Reference</a>
       <a href="#skins">Skins</a>
       <a href="#templates">Templates</a>
       <a href="#beep-ui">beep_ui</a>
       <a href="#mcp">MCP</a>
-      <a href="#review">Review Findings</a>
       <a href="#files">Markdown Docs</a>
     </nav>
 
@@ -152,12 +155,13 @@
         <table>
           <thead><tr><th>Item</th><th>Count</th><th>Rule</th></tr></thead>
           <tbody>
-            <tr><td>Scanned addon files</td><td>909</td><td>Text source/config/template files under all addon roots</td></tr>
-            <tr><td><code>beep_game_builder_cs</code></td><td>862</td><td>357 C#, 420 JSON, 84 scenes, 1 config</td></tr>
-            <tr><td><code>beep_ui</code></td><td>30</td><td>GDScript source and config</td></tr>
-            <tr><td><code>godot_mcp</code></td><td>17</td><td>C# source and config</td></tr>
-            <tr><td>C# global classes</td><td>307</td><td><code>[GlobalClass]</code> under <code>addons/beep_game_builder_cs</code></td></tr>
-            <tr><td>Skin genres/themes</td><td>10 / 50</td><td>Genre directories and theme directories in the skin catalog</td></tr>
+            <tr><td>Source-derived reference</td><td>417</td><td>Public C# classes scanned from every addon C# source file</td></tr>
+            <tr><td>Full file scan</td><td>1,943</td><td>Every file under <code>addons</code>, including source, scenes, catalogs, imports, UID sidecars, textures, audio, fonts, and metadata</td></tr>
+            <tr><td>Addon C# source files</td><td>426</td><td>All C# source under <code>addons</code>, including <code>beep_game_builder_cs</code> and <code>godot_mcp</code></td></tr>
+            <tr><td><code>beep_ui</code></td><td>29</td><td>GDScript source files scanned</td></tr>
+            <tr><td><code>godot_mcp</code></td><td>16</td><td>C# source files scanned</td></tr>
+            <tr><td>C# global classes</td><td>353</td><td><code>[GlobalClass]</code> editor-addable addon types</td></tr>
+            <tr><td>Skin genres/themes</td><td>10 / 51</td><td>Genre directories and theme directories in the skin catalog</td></tr>
             <tr><td>Beep MCP commands</td><td>41</td><td><code>McpCommandRegistry.RegisterCommand("beep...")</code></td></tr>
           </tbody>
         </table>
@@ -191,12 +195,12 @@
 
       <section id="skins">
         <h2>Skin Catalog</h2>
-        <p>Skin data lives in <code>addons/beep_game_builder_cs/catalogs/skins</code>. Each of 10 genres has 5 themes and supporting palette/geometry/texture data.</p>
+        <p>Skin data lives in <code>addons/beep_game_builder_cs/catalogs/skins</code>. The catalog currently has 10 genres, 51 themes, and supporting palette, geometry, animation, and kit token data. UI chrome is procedural; texture-backed skin slots have been removed.</p>
         <table>
           <thead><tr><th>Genre</th><th>Themes</th></tr></thead>
           <tbody>
             <tr><td><code>cardgame</code></td><td>arcane, casino, paper, royal, velvet</td></tr>
-            <tr><td><code>citybuilder</code></td><td>blueprint, eco, future, industrial, urban</td></tr>
+            <tr><td><code>citybuilder</code></td><td>blueprint, eco, future, industrial, oilfield_days, urban</td></tr>
             <tr><td><code>platformer</code></td><td>cartoon, modern, nature, pixel8bit, retro80s</td></tr>
             <tr><td><code>puzzle</code></td><td>candy, cartoon, japan, modern, sea</td></tr>
             <tr><td><code>racing</code></td><td>arcade, carbon, motorsport, neon, street</td></tr>
@@ -230,38 +234,17 @@
 
       <section id="mcp">
         <h2>MCP</h2>
-        <p><code>godot_mcp</code> owns transport and write gates. <code>beep_game_builder_cs</code> registers 41 Beep commands for catalog discovery, components, game state, scene editing, screenshots, texture baking, screen generation, and kit migration.</p>
+        <p><code>godot_mcp</code> owns transport and write gates. <code>beep_game_builder_cs</code> registers Beep commands for catalog discovery, components, game state, scene editing, screenshots, screen generation, and kit migration.</p>
         <p>Safe defaults keep editor writes, runtime writes, and node method calls disabled. URL and token can be overridden with <code>GODOT_MCP_BRIDGE_URL</code> and <code>GODOT_MCP_BRIDGE_TOKEN</code>.</p>
       </section>
 
-      <section id="review">
-        <h2>Review Findings</h2>
-        <ul>
-          <li><span class="ok">Build gate:</span> root project excludes generated and test artifacts; clean build reports 0 warnings and 0 errors.</li>
-          <li><span class="ok">Tween presets:</span> <code>TweenComponent</code> exposes 22 presets and implements all 22.</li>
-          <li><span class="ok">Lifecycle:</span> kit MCP commands unregister during addon shutdown.</li>
-          <li><span class="ok">Preset registry:</span> <code>beep_ui</code> inspector choices come from the preset registry.</li>
-          <li><span class="ok">Token hygiene:</span> project settings no longer store a concrete MCP token.</li>
-          <li><span class="ok">Editor startup:</span> headless editor smoke enables and disables all three addons without logged errors.</li>
-          <li><span class="ok">Dock API:</span> Game Builder uses <code>EditorDock</code> and no longer suppresses obsolete dock API warnings.</li>
-          <li><span class="ok">UI kit headers:</span> <code>KitPanel</code>, <code>KitPanelContainer</code>, and <code>KitCollapsiblePanel</code> use one shared panel header renderer.</li>
-          <li><span class="ok">UI kit focus:</span> custom interactive controls support keyboard focus, visible focus rings, and keyboard activation/navigation across slots, tabs, knobs, books, wheels, radar charts, trees, level paths, and segmented controls.</li>
-          <li><span class="ok">UI kit text:</span> dialog bodies, speech bubbles, tooltips, toasts, and item-card descriptions use shared wrapped text handling.</li>
-          <li><span class="ok">UI kit sizing:</span> reusable kit controls report theme-aware minimum sizes, notify containers when exported layout dimensions change, and <code>KitContextMenu</code> supports keyboard popup behavior.</li>
-          <li><span class="ok">Reference check:</span> template and skin resource references resolved.</li>
-        </ul>
-      </section>
-
       <section id="files">
-        <h2>Markdown Docs</h2>
+        <h2>Generated Docs</h2>
         <ul>
-          <li><code>docs/ADDONS.md</code></li>
-          <li><code>docs/COMPONENT_REFERENCE.md</code></li>
-          <li><code>docs/MCP_HELP.md</code></li>
-          <li><code>docs/SKIN_AND_TEMPLATE_HELP.md</code></li>
-          <li><code>docs/BEEP_UI_HELP.md</code></li>
-          <li><code>docs/ADDON_REVIEW_2026_08_09.md</code></li>
-          <li><code>plans/enhancement-review-6/MASTER_TODO.md</code></li>
+          <li><a href="addon-full-scan.html">docs/addon-full-scan.html</a> and <code>docs/ADDON_FULL_SCAN.md</code> - generated full inventory of every file under <code>addons</code>, grouped section by section, with deep code, scene, JSON, and resource-reference details.</li>
+          <li><a href="2d-iso-toolkit.html">docs/2d-iso-toolkit.html</a> and <code>docs/2D_ISO_TOOLKIT.md</code> - focused guide for the grid, isometric, painterly terrain, worker, job, placement, objective, and authored HUD systems.</li>
+          <li><a href="addon-guide.html">docs/addon-guide.html</a> and <code>docs/ADDON_GUIDE.md</code> - generated section-by-section guide for every addon area.</li>
+          <li><a href="addon-reference.html">docs/addon-reference.html</a> and <code>docs/ADDON_REFERENCE.md</code> - generated catalog of every public C# type, GDScript file, skin group, and template scene.</li>
         </ul>
       </section>
     </div>

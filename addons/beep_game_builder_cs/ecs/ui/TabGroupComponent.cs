@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS.UI
 {
@@ -132,8 +133,8 @@ namespace Beep.ECS.UI
             sb.SetCornerRadiusAll(0);
             sb.BorderWidthBottom = active ? 3 : 0;
             sb.BorderColor = ActiveTabColor;
-            btn.AddThemeStyleboxOverride("normal", sb);
-            btn.AddThemeStyleboxOverride("hover", sb);
+            KitChrome.SetStyleboxOverrideIfChanged(btn, "normal", sb);
+            KitChrome.SetStyleboxOverrideIfChanged(btn, "hover", sb);
         }
 
         public override void _ExitTree()

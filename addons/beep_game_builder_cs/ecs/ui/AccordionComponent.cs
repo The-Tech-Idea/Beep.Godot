@@ -16,6 +16,10 @@ namespace Beep.ECS.UI
         [Export] public float AnimationDuration { get; set; } = 0.3f;
         [Export] public string ExpandedIcon { get; set; } = "▼";
         [Export] public string CollapsedIcon { get; set; } = "▶";
+        [Export] public NodePath HeaderPath { get; set; } = new("");
+        [Export] public NodePath ContentRootPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [Signal] public delegate void ExpandedEventHandler();
         [Signal] public delegate void CollapsedEventHandler();
@@ -23,32 +27,56 @@ namespace Beep.ECS.UI
         private Container? _container;
         private Button? _header;
         private bool _isExpanded;
+        private bool _createdHeader;
+        private string _headerText = "";
+        private readonly System.Collections.Generic.List<Godot.Control> _contentControls = new();
         private readonly System.Collections.Generic.List<Tween> _activeTweens = new();
 
         public override void _Ready()
         {
             base._Ready();
-            if (Engine.IsEditorHint()) return;
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(Setup));
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindHeader() == null)
+                return new[] { "Add an authored Button/KitPushButton named AccordionHeader, set HeaderPath, make the first sibling a Button, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
+        }
+
+        private void Setup()
+        {
             _container = GetParent() as Container;
             if (_container == null)
             {
-                GD.PushWarning($"[{Name}] AccordionComponent needs a Container parent to lay out sections; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a VBoxContainer.");
+                if (GenerateControlsWhenPathsEmpty)
+                    GD.PushWarning($"[{Name}] AccordionComponent needs a Container parent to lay out sections; got '{GetParent()?.GetType().Name ?? "null"}'. Parent it to a VBoxContainer.");
                 return;
             }
 
-            var children = _container.GetChildren();
-            if (children.Count == 0)
+            if (!BindExistingHeader())
             {
-                GD.PushWarning($"[{Name}] AccordionComponent's Container parent has no children — there is no header or content to manage.");
-                return;
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedHeader();
             }
 
-            _header = BuildKitHeader(children[0]);
-            _header.Pressed += Toggle;
-            UpdateHeaderText();
+            if (_header == null)
+                return;
 
+            StyleHeader();
+            _header.Pressed += Toggle;
+            ResolveContentControls();
             if (!StartExpanded) SetExpanded(false, true);
-            else _isExpanded = true;
+            else
+            {
+                _isExpanded = true;
+                UpdateHeaderText();
+            }
         }
 
         public void Toggle()
@@ -67,11 +95,8 @@ namespace Beep.ECS.UI
                 t?.Kill();
             _activeTweens.Clear();
 
-            var children = _container.GetChildren();
-            for (int i = 1; i < children.Count; i++)
+            foreach (var ctrl in _contentControls)
             {
-                if (children[i] is not Godot.Control ctrl) continue;
-
                 if (instant)
                 {
                     ctrl.Visible = expand;
@@ -110,39 +135,110 @@ namespace Beep.ECS.UI
 
         private void OnCollapseFinished(Godot.Control ctrl) => ctrl.Visible = false;
 
-        private Button BuildKitHeader(Node firstChild)
+        private bool BindExistingHeader()
         {
-            string text = firstChild is Button b && !string.IsNullOrWhiteSpace(b.Text)
-                ? b.Text.TrimStart('▶', '▼', ' ').Trim()
-                : _container?.Name.ToString() ?? "Section";
+            _createdHeader = false;
+            Button? header = FindHeader();
 
-            if (firstChild is KitPushButton kit)
-                return kit;
+            if (header == null)
+                return false;
 
-            var header = new KitPushButton
+            _header = header;
+            _headerText = HeaderBaseText(_header);
+            return true;
+        }
+
+        private Button? FindHeader()
+        {
+            if (!HeaderPath.IsEmpty && GetNodeOrNull<Button>(HeaderPath) is { } pathHeader)
+                return pathHeader;
+
+            if (FindChild("AccordionHeader", recursive: true, owned: false) is Button childHeader)
+                return childHeader;
+
+            if (GetParent()?.FindChild("AccordionHeader", recursive: true, owned: false) is Button parentHeader)
+                return parentHeader;
+
+            return FindFirstHeaderCandidate();
+        }
+
+        private Button? FindFirstHeaderCandidate()
+        {
+            if (GetParent() is not Container container)
+                return null;
+
+            foreach (Node child in container.GetChildren())
+            {
+                if (child == this) continue;
+                if (child is Button button) return button;
+                break;
+            }
+
+            return null;
+        }
+
+        private void BuildGeneratedHeader()
+        {
+            if (_container == null) return;
+            _createdHeader = true;
+            _headerText = _container.Name.ToString();
+            _header = new KitPushButton
             {
                 Name = "AccordionHeader",
-                Text = text,
-                Accent = UiSurface.Role.Info,
-                FocusMode = Godot.Control.FocusModeEnum.None,
-                SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill,
-                CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.4f),
+                Text = _headerText,
             };
+            StyleHeader();
+            _container.AddChild(_header);
+            _container.MoveChild(_header, 0);
+            SetEditedOwner(_header);
+        }
 
-            _container?.AddChild(header);
-            _container?.MoveChild(header, 0);
-            if (firstChild is Godot.Control oldHeader)
-                oldHeader.QueueFree();
-            return header;
+        public bool UsesSceneControls()
+            => FindHeader() != null;
+
+        private void StyleHeader()
+        {
+            if (_header == null) return;
+            if (_header is KitPushButton kit)
+            {
+                kit.Accent = UiSurface.Role.Info;
+            }
+            _header.FocusMode = Godot.Control.FocusModeEnum.All;
+            _header.SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill;
+            _header.CustomMinimumSize = new Vector2(0, UiSurface.FontSize(this) * 2.4f);
+        }
+
+        private void ResolveContentControls()
+        {
+            _contentControls.Clear();
+            if (!ContentRootPath.IsEmpty && GetNodeOrNull<Godot.Control>(ContentRootPath) is { } contentRoot)
+            {
+                _contentControls.Add(contentRoot);
+                return;
+            }
+
+            if (_container == null) return;
+            bool pastHeader = false;
+            foreach (Node child in _container.GetChildren())
+            {
+                if (child == this) continue;
+                if (child == _header) { pastHeader = true; continue; }
+                if (!pastHeader) continue;
+                if (child is Godot.Control ctrl) _contentControls.Add(ctrl);
+            }
         }
 
         private void UpdateHeaderText()
         {
             if (_header == null) return;
             string icon = _isExpanded ? ExpandedIcon : CollapsedIcon;
-            string text = _header.Text.TrimStart('▶', '▼', ' ').Trim();
-            _header.Text = $"{icon} {text}";
+            _header.Text = $"{icon} {_headerText}";
         }
+
+        private static string HeaderBaseText(Button button)
+            => string.IsNullOrWhiteSpace(button.Text)
+                ? button.Name.ToString()
+                : button.Text.TrimStart('▶', '▼', ' ').Trim();
 
         public override void _ExitTree()
         {
@@ -151,8 +247,18 @@ namespace Beep.ECS.UI
                 t?.Kill();
             _activeTweens.Clear();
 
-            if (_header != null)
+            if (_header != null && GodotObject.IsInstanceValid(_header))
                 _header.Pressed -= Toggle;
+            if (_createdHeader && _header != null && GodotObject.IsInstanceValid(_header))
+                _header.QueueFree();
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

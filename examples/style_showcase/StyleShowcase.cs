@@ -16,8 +16,8 @@ namespace Beep.Examples;
 ///
 /// The left panel is ordinary kit widgets. Not one of them names a colour, a corner radius, an
 /// outline weight or a font. The right panel prints what the selected theme actually resolved to,
-/// straight out of `KitGeometry.ForGenre` and `KitGrain.For` — so you can see the declaration and
-/// its consequence side by side.
+/// straight out of `KitGeometry.ForGenre` — so you can see the declaration and its consequence
+/// side by side.
 ///
 /// Every value on the right is settable from `catalogs/skins/&lt;genre&gt;/themes/&lt;name&gt;/theme.json`
 /// in a `kit` block, with **no C# at all**.
@@ -100,7 +100,6 @@ public partial class StyleShowcase : Control
         Refresh(this);
 
         var geo = KitGeometry.ForGenre(gid);
-        var grain = KitGrain.For(gid);
         bool authored = KitStyleJson.Has(gid);
 
         _sub.Text = authored
@@ -123,8 +122,6 @@ public partial class StyleShowcase : Control
             + $"{geo.CornerBar:0.00} / {geo.CornerChip:0.00}",
             "radius per widget CLASS, in theme units — not per widget size");
         Row("shear / wobble", $"{geo.Shear:0.00} / {geo.Wobble:0.000}", "silhouette modifiers");
-        Row("grain", grain is { } m ? $"{m.Pattern}  x{m.Tiles}  @{m.Amount:0.00}  ({m.Material})"
-                                    : "none", "the tiling material mask");
         Row("edge_run", geo.EdgeRun is { } er
                 ? $"{er.SegmentCount} segments, {er.DrawnCount} drawn" : "none",
             "constructed frame: weight changes, gaps, blocks, hatch, ticks");

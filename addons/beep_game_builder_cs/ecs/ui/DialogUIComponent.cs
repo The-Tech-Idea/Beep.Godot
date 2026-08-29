@@ -40,12 +40,15 @@ namespace Beep.ECS.UI
         /// When set, the two halves auto-connect (DialogStarted → StartFromDialogComponent) so
         /// the engine and the box work together with no hand-wiring — this was the missing link
         /// that left dialog_template.tscn showing nothing when its engine ran.</summary>
-        [Export] public NodePath? DialogEnginePath { get; set; }
+        [Export] public NodePath DialogEnginePath { get; set; } = new("");
 
         [ExportGroup("Layout")]
         [Export] public DialogPosition Position { get; set; } = DialogPosition.Bottom;
         [Export] public Vector2 DialogSize { get; set; } = new(600, 160);
         [Export] public int ContentPadding { get; set; } = 16;
+        [Export] public NodePath DialogPanelPath { get; set; } = new("");
+        [Export] public bool BuildInEditor { get; set; } = true;
+        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
 
         [ExportGroup("Animation")]
         [Export] public float EntryDuration { get; set; } = 0.3f;
@@ -61,6 +64,7 @@ namespace Beep.ECS.UI
 
         // ── Internal state ──
         private KitDialogBox? _panel;
+        private bool _createdPanel;
         private DialogLine[] _lines = System.Array.Empty<DialogLine>();
         private int _lineIndex;
         private double _charTimer;
@@ -80,14 +84,23 @@ namespace Beep.ECS.UI
         public override void _Ready()
         {
             base._Ready();
-            if (Engine.IsEditorHint()) return;
-            CallDeferred(nameof(BuildLayout));
-            ConnectDialogEngine();
+            if (!Engine.IsEditorHint() || BuildInEditor)
+                CallDeferred(nameof(SetupPanel));
+            if (!Engine.IsEditorHint())
+                ConnectDialogEngine();
+            UpdateConfigurationWarnings();
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (!GenerateControlsWhenPathsEmpty && FindDialogPanel() == null)
+                return new[] { "Add an authored KitDialogBox named DialogPanel, set DialogPanelPath, or enable GenerateControlsWhenPathsEmpty." };
+            return System.Array.Empty<string>();
         }
 
         private void ConnectDialogEngine()
         {
-            if (DialogEnginePath == null || DialogEnginePath.IsEmpty) return;
+            if (DialogEnginePath.IsEmpty) return;
             _engine = GetNodeOrNull<Beep.ECS.DialogComponent>(DialogEnginePath);
             if (_engine == null)
             {
@@ -102,7 +115,38 @@ namespace Beep.ECS.UI
         // Layout construction
         // ════════════════════════════════════════════════════════════════
 
-        private void BuildLayout()
+        private void SetupPanel()
+        {
+            if (!BindExistingPanel())
+            {
+                if (!GenerateControlsWhenPathsEmpty)
+                    return;
+
+                BuildGeneratedPanel();
+            }
+
+            if (_panel == null)
+                return;
+
+            _panel.ChoiceSelected += OnChoiceSelected;
+            ApplyAnchors();
+            DiscoverTheme();
+            if (Engine.IsEditorHint())
+            {
+                _panel.Speaker = "Speaker";
+                _panel.Body = "Dialog preview text";
+                _panel.VisibleCharacters = -1;
+                _panel.ChoicesVisible = false;
+                _panel.ContinueVisible = ShowContinueIndicator;
+                _panel.Visible = true;
+            }
+            else
+            {
+                _panel.Visible = false;
+            }
+        }
+
+        private void BuildGeneratedPanel()
         {
             if (GetParent() is not Godot.Control parent)
             {
@@ -115,9 +159,10 @@ namespace Beep.ECS.UI
                 return;
             }
 
+            _createdPanel = true;
             _panel = new KitDialogBox { Name = "DialogPanel" };
-            _panel.ChoiceSelected += OnChoiceSelected;
             parent.AddChild(_panel);
+            SetEditedOwner(_panel);
 
             // The entry animation tweens _panel.position, which a CONTAINER parent would
             // overwrite on its next layout pass — the dialog would simply snap into place with no
@@ -129,17 +174,33 @@ namespace Beep.ECS.UI
                              + "entry animation tweens position and will be overwritten every "
                              + "layout pass. Parent the dialog to a plain Control, or animate it "
                              + "with offset_transform_position instead.");
-            _panel.Owner = parent;
 
             // AnimateIn/AnimateOut tween _panel.Position; a layout Container host re-sorts its
             // children every layout pass and would overwrite the slide. Warn once (this runs
             // just once, at build) — recommend a CanvasLayer/free Control host.
             if (!Engine.IsEditorHint() && parent is Container)
                 GD.PushWarning($"[{Name}] DialogUIComponent's host is a {parent.GetType().Name} — it will re-sort the dialog panel and overwrite the slide-in/out animation. Host the dialog under a CanvasLayer or a free (non-Container) Control.");
+        }
 
-            ApplyAnchors();
-            DiscoverTheme();
-            _panel.Visible = false;
+        private bool BindExistingPanel()
+        {
+            _createdPanel = false;
+            _panel = FindDialogPanel();
+            return _panel != null;
+        }
+
+        public bool UsesSceneControls()
+            => FindDialogPanel() != null;
+
+        private KitDialogBox? FindDialogPanel()
+        {
+            if (!DialogPanelPath.IsEmpty && GetNodeOrNull<KitDialogBox>(DialogPanelPath) is { } pathPanel)
+                return pathPanel;
+
+            if (FindChild("DialogPanel", recursive: true, owned: false) is KitDialogBox childPanel)
+                return childPanel;
+
+            return GetParent()?.FindChild("DialogPanel", recursive: true, owned: false) as KitDialogBox;
         }
 
         private void ApplyAnchors()
@@ -399,9 +460,16 @@ namespace Beep.ECS.UI
                 _engine.DialogStarted -= StartFromDialogComponent;
             if (_panel != null && GodotObject.IsInstanceValid(_panel))
                 _panel.ChoiceSelected -= OnChoiceSelected;
-            // _panel is AddChild'd to the parent Control — free it or the built dialog is orphaned.
-            if (_panel != null && GodotObject.IsInstanceValid(_panel)) _panel.QueueFree();
+            if (_createdPanel && _panel != null && GodotObject.IsInstanceValid(_panel)) _panel.QueueFree();
             _panel = null;
+        }
+
+        private void SetEditedOwner(Node node)
+        {
+            if (!Engine.IsEditorHint())
+                return;
+
+            node.Owner = GetTree()?.EditedSceneRoot;
         }
     }
 }

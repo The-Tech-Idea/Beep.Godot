@@ -78,9 +78,9 @@ namespace Beep.ECS
         /// waterline rather than stamped per tile, so the coastline stays the
         /// smooth one the distance field describes.
         ///
-        /// The sheet needs a SOFT fringe - foam fading out across the strip. A
-        /// flat cutout silhouette carries no falloff to read, and yields one wide
-        /// band instead of a train of crests. Leave empty for generated crests.
+        /// It needs a SOFT fringe - foam fading out at its edges. A flat cutout
+        /// silhouette carries no falloff to read and collapses to one solid band.
+        /// Leave empty for generated crests.
         /// </summary>
         [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
         /// <summary>
@@ -93,8 +93,25 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "0,2,0.05")] public float WaveIntensity { get; set; } = 1.0f;
 
-        [Export(PropertyHint.Range, "1,64,1")] public int FoamFrames { get; set; } = 16;
-        [Export(PropertyHint.Range, "0,60,0.5")] public float FoamFps { get; set; } = 12.0f;
+        /// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
+        [Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
+
+        /// <summary>
+        /// Tiles covered by one repeat ACROSS the shore. Short: the surf band is
+        /// about a tile deep, so scaling both axes alike leaves one stretched
+        /// ribbon rather than crests sitting inside the band.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 7.0f;
+
+        /// <summary>How fast the authored crests advance onto the beach.</summary>
+        [Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
+
+        /// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
+        [Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
+
+        /// <summary>How fast arriving crests follow one another.</summary>
+        [Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
+
 
         [ExportGroup("Material Textures")]
         [Export(PropertyHint.File, "*.png,*.webp")] public string GrassTexturePath { get; set; } = "";
@@ -166,8 +183,11 @@ namespace Beep.ECS
             if (foam is not null)
                 _material.SetShaderParameter("foam_sheet", foam);
             _material.SetShaderParameter("wave_intensity", Mathf.Clamp(WaveIntensity, 0.0f, 2.0f));
-            _material.SetShaderParameter("foam_frames", Mathf.Max(1, FoamFrames));
-            _material.SetShaderParameter("foam_fps", Mathf.Max(0.0f, FoamFps));
+            _material.SetShaderParameter("foam_tiles_along", Mathf.Max(1.0f, FoamTilesAlong));
+            _material.SetShaderParameter("foam_tiles_across", Mathf.Max(0.3f, FoamTilesAcross));
+            _material.SetShaderParameter("foam_scroll", Mathf.Max(0.0f, FoamScroll));
+            _material.SetShaderParameter("foam_pulse", Mathf.Clamp(FoamPulse, 0.0f, 1.0f));
+            _material.SetShaderParameter("foam_arrival_rate", Mathf.Max(0.0f, FoamArrivalRate));
         }
 
         /// <summary>

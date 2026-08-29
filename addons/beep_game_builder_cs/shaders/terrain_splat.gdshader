@@ -42,7 +42,7 @@ uniform float shade_strength : hint_range(0.0, 2.0) = 1.0;
 // Small: this is a shore, not a fade. The BAND that makes a coast read as a
 // coast is the sand and surf sequence below, not a wide blur here.
 uniform float shore_blend_tiles : hint_range(0.05, 1.5) = 0.28;
-uniform float foam_strength : hint_range(0.0, 1.0) = 0.62;
+uniform float foam_strength : hint_range(0.0, 1.0) = 0.40;
 
 // How heavy the sea is. ONE dial, because big waves are not simply brighter
 // foam: they reach further up the beach, their crests are broader, and the
@@ -55,9 +55,9 @@ uniform float wave_intensity : hint_range(0.0, 2.0) = 1.0;
 // crests. Standard shoreline practice (Cyanilux) is to drive it from a slower
 // cosine synced to the arriving crests, and it does more to sell a heavy sea
 // than the crests themselves. Measured in tiles at full intensity.
-uniform float swash_tiles : hint_range(0.0, 3.0) = 0.55;
+uniform float swash_tiles : hint_range(0.0, 3.0) = 0.26;
 uniform float swash_speed : hint_range(0.0, 4.0) = 1.1;
-uniform float foam_tiles : hint_range(0.1, 6.0) = 1.05;
+uniform float foam_tiles : hint_range(0.1, 6.0) = 0.95;
 uniform float wave_speed : hint_range(0.0, 4.0) = 1.0;
 uniform float wave_amount : hint_range(0.0, 0.06) = 0.022;
 uniform float wet_tiles : hint_range(0.0, 2.0) = 0.45;
@@ -76,24 +76,35 @@ uniform float shallow_sand : hint_range(0.0, 1.0) = 0.34;
 // How far out the sea reaches full depth, in tiles.
 uniform float deep_tiles : hint_range(0.5, 12.0) = 4.5;
 
-// Authored surf. The sheet is a strip of equal frames of a foam ring drawn
-// around one tile. Measured, it is a FLAT SILHOUETTE - transparent, then a hard
-// alpha edge, then uniform fill - so there is no intensity gradient in it to
-// read as a falloff. What it does author is the shape of that edge and how it
-// wobbles frame to frame, so distance from the waterline is mapped ACROSS the
-// edge and the animation comes from the frames.
+// Authored surf. A seamless foam texture, sampled in SHORE SPACE: across it
+// runs distance from the waterline, along it runs the coast itself. The shore
+// tangent is taken from the gradient of the distance field, which is what lets
+// authored crests follow a curving coast instead of lying along the world axes
+// - the reason an earlier attempt to slide along a frame strip drew diagonal
+// stripes out to sea.
 //
-// Stamping the ring per tile, which is how the art is built to be used, would
-// put a rounded square of foam on every coastal tile and hand back the boxy
-// coastline the distance field exists to avoid.
-uniform sampler2D foam_sheet : filter_linear, repeat_disable;
+// The texture needs a SOFT fringe. A flat cutout silhouette carries no falloff
+// and collapses to one solid band however it is sampled.
+uniform sampler2D foam_sheet : repeat_enable, filter_linear_mipmap;
 uniform bool use_foam_sheet = false;
-uniform float foam_frames = 16.0;
-uniform float foam_fps : hint_range(0.0, 60.0) = 12.0;
-// Where to sit in a frame at the waterline and at the outer limit of the surf,
-// top down. Measured on the supplied sheet, alpha begins about 0.33.
-uniform float foam_fringe_from : hint_range(0.0, 1.0) = 0.26;
-uniform float foam_fringe_to : hint_range(0.0, 1.0) = 0.46;
+// One repeat of the foam texture covers this many tiles ALONG the shore. Long,
+// so a coastline does not visibly repeat.
+uniform float foam_tiles_along : hint_range(1.0, 48.0) = 11.0;
+// ...and this many ACROSS it. Short, because the surf band is about a tile
+// deep: scale both axes together and only a fraction of the texture's height
+// lands inside the band, so a single ribbon is stretched along the whole coast
+// instead of several crests sitting in it.
+uniform float foam_tiles_across : hint_range(0.3, 8.0) = 7.0;
+// How fast the authored crests advance onto the beach.
+uniform float foam_scroll : hint_range(0.0, 4.0) = 0.055;
+
+// How strongly the surf pulses as crests arrive, and how fast they come. Kept
+// slow and few: crowding crests into a band a tile deep and running them
+// quickly aliases, and the train then reads as moving backwards.
+uniform float foam_pulse : hint_range(0.0, 1.0) = 0.34;
+uniform float foam_arrival_rate : hint_range(0.0, 4.0) = 0.9;
+
+
 
 // Surf arrives as a train of crests running parallel to the shore, not as one
 // band. The count is what makes it read as waves rather than an outline.
@@ -204,9 +215,37 @@ void fragment() {
 	// Water gets a slow rolling warp so the surface is alive rather than a flat
 	// painted sheet.
 	float t = TIME * wave_speed;
+	// The shore frame, from the gradient of the distance field: which way is out
+	// to sea, and which way the coast runs. Everything that MOVES on the water
+	// is expressed in this frame, because a drift written in world axes runs
+	// out to sea on whichever coasts happen to face that way.
+	vec2 shore_texel = 1.0 / map_size;
+	vec2 shore_grad = vec2(
+		texture(coast_map, UV + vec2(shore_texel.x, 0.0)).r - texture(coast_map, UV - vec2(shore_texel.x, 0.0)).r,
+		texture(coast_map, UV + vec2(0.0, shore_texel.y)).r - texture(coast_map, UV - vec2(0.0, shore_texel.y)).r);
+	float shore_glen = length(shore_grad);
+	// A flat gradient is open water far from any coast, where none of this is
+	// visible; any direction will do rather than normalising zero.
+	vec2 seaward = shore_glen > 1e-6 ? shore_grad / shore_glen : vec2(0.0, 1.0);
+	vec2 along_shore = vec2(-seaward.y, seaward.x);
+
+	// How far this frame can be trusted. Out at sea the distance field saturates
+	// against coast_range, its gradient goes flat, and the direction taken from
+	// it is whatever the fallback says - so a "shoreward" drift out there is an
+	// arbitrary fixed direction, and on open water that is exactly what reads as
+	// the sea sliding the wrong way. Directed motion fades out with the gradient
+	// and leaves undirected ripple behind.
+	float shore_authority = clamp(shore_glen * 60.0, 0.0, 1.0);
+
+	// Sampled in WORLD space, on world axes. Translating these coordinates by a
+	// shore-relative vector was a mistake: that direction points at the nearest
+	// coast, so inside a lake it converges from every side, and translating UVs
+	// by a field that varies per pixel SHEARS the texture - it came out as
+	// swirling marbled smears in the water. Only the surf band, thin enough that
+	// the frame barely turns across it, is drawn shore-relative.
 	vec2 water_uv = world_uv + vec2(
-		sin((world_uv.y * 7.0) + t * 0.7),
-		cos((world_uv.x * 6.0) + t * 0.5)) * wave_amount;
+		sin((world_uv.y * 7.0) + (t * 0.7)),
+		cos((world_uv.x * 6.0) + (t * 0.5))) * wave_amount;
 
 	// Two octaves: a broad wander that breaks tile-aligned runs, and fine
 	// jitter that roughens the resulting line.
@@ -305,7 +344,10 @@ void fragment() {
 	float shade = mix(1.0, texture(shade_map, UV).r * 2.0, shade_strength);
 	land_col *= shade;
 
-	// Moving swell on open water, so the sea is never a flat sheet.
+	// Moving swell on open water, so the sea is never a flat sheet. It rolls
+	// SHOREWARD rather than along a fixed world vector: this is the largest
+	// moving thing in view, so when it drifts the wrong way the whole sea reads
+	// as running backwards no matter what the surf does.
 	float swell = value_noise((tile * 1.4) + vec2(t * 0.20, t * -0.13));
 	water_col *= 0.94 + (0.12 * swell);
 
@@ -314,26 +356,28 @@ void fragment() {
 	float reach = foam_tiles * (0.45 + (0.55 * wave_intensity));
 	float from_shore = clamp(sd / max(0.001, reach), 0.0, 1.0);
 	// Broken up along the shore so the band is never an even ribbon.
-	float patch = 0.5 + (0.5 * smoothstep(0.25, 0.80,
+	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80,
 		value_noise((tile * 1.5) + vec2(t * 0.10, t * 0.06))));
 
 	float lines;
 	if (use_foam_sheet) {
-		// The sheet is a flat silhouette with a hard, RAGGED alpha edge - there
-		// is no intensity gradient inside it to read as a falloff. What is
-		// authored is the shape of that edge and how it wobbles frame to frame,
-		// so distance from shore is mapped ACROSS the edge: inside it near the
-		// water's edge, outside it further out. Crossing a ragged, animated
-		// boundary is what the art actually provides.
-		float frame = floor(mod(t * foam_fps, foam_frames));
-		// One column per frame. Sliding along the frame with a linear function of
-		// position looked like an along-shore walk but is a diagonal sawtooth,
-		// and it smeared frames of the outline across open water as stripes.
-		// Break-up along the coast comes from patch below, variation over time
-		// from the frames themselves.
-		float u = (frame + 0.5) / max(1.0, foam_frames);
-		float v = mix(foam_fringe_to, foam_fringe_from, from_shore);
-		lines = texture(foam_sheet, vec2(u, v)).a;
+		float along_coord = dot(tile, along_shore);
+		lines = texture(foam_sheet, vec2(
+			along_coord / max(0.001, foam_tiles_along),
+			(sd / max(0.001, foam_tiles_across)) - (t * foam_scroll))).a;
+
+		// The texture supplies foam SHAPE; this supplies its ARRIVAL. Real shore
+		// break pulses - a crest sweeps in, breaks and drains - and a band of
+		// even brightness sitting on the coast is the single thing that most
+		// makes a shoreline read as a decal stuck to the map rather than water.
+		//
+		// The phase drifts ALONG the shore as well, because sets do not arrive
+		// down a whole coastline at once; without it the entire island pulses
+		// white in unison, which is its own kind of wrong.
+		float arrival = sin((from_shore * foam_lines * 6.28318)
+			+ (t * foam_arrival_rate)
+			+ (value_noise(vec2(along_coord * 0.09, 0.0)) * 6.28318));
+		lines *= mix(1.0, smoothstep(-0.35, 0.85, arrival), foam_pulse);
 	} else {
 		// No sheet assigned: a generated crest train. Deliberate, not a stand-in
 		// for missing configuration - a scene may legitimately want no art here.

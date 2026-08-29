@@ -8,8 +8,9 @@ namespace Beep.ECS
 {
     /// <summary>
     /// Instantiates a complete mountain/island object from a generated prefab
-    /// manifest. Use this for atlas-composed mountains like cliffs, mesas,
-    /// volcanoes, and snowy peaks. This is intentionally not a TileMap fill.
+    /// manifest. Use this for the reference-style atlas/prefab mountain output:
+    /// layered Sprite2D pieces for the art, Area2D regions for walkable levels,
+    /// and anchor markers for castle/player placement.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -18,7 +19,7 @@ namespace Beep.ECS
         [Signal] public delegate void PrefabGeneratedEventHandler(int partCount);
 
         [Export(PropertyHint.File, "*.json")]
-        public string PrefabManifestPath { get; set; } = "res://tmp/mountain_floor17_green_wide_castle/prefab_manifest.json";
+        public string PrefabManifestPath { get; set; } = "res://tmp/mountain_semantic_green_large_levelled_castle/prefab_manifest.json";
 
         [Export] public bool GenerateOnReady { get; set; } = false;
         [Export] public bool GenerateInEditor { get; set; } = false;
@@ -29,6 +30,8 @@ namespace Beep.ECS
         [Export] public string WalkableAreaGroup { get; set; } = "generated_mountain_walkable_region";
         [Export(PropertyHint.Layers2DPhysics)] public uint WalkableCollisionLayer { get; set; } = 1;
         [Export(PropertyHint.Layers2DPhysics)] public uint WalkableCollisionMask { get; set; } = 0;
+        [Export] public bool CreateAnchorNodes { get; set; } = true;
+        [Export] public string AnchorGroup { get; set; } = "generated_mountain_anchor";
 
         [ExportGroup("Placement")]
         [Export] public Vector2 PrefabOffset { get; set; } = Vector2.Zero;
@@ -38,6 +41,12 @@ namespace Beep.ECS
 
         private string _lastManifestPath = "";
         private int _lastPartCount;
+        private int _lastWalkableAreaCount;
+        private int _lastAnchorCount;
+        private readonly Godot.Collections.Array<Godot.Collections.Dictionary> _lastLevels = new();
+        private readonly Godot.Collections.Array<Godot.Collections.Dictionary> _lastWalkableRegions = new();
+        private readonly Godot.Collections.Array<Godot.Collections.Dictionary> _lastRouteEdges = new();
+        private readonly Godot.Collections.Dictionary _lastAnchors = new();
 
         public override void _Ready()
         {
@@ -74,8 +83,9 @@ namespace Beep.ECS
                 int count = UseSingleBakedPrefabImage
                     ? AddBakedPrefabSprite(root, manifestDiskPath)
                     : AddLayeredPrefabSprites(root, manifestDiskPath);
-                if (CreateWalkableAreas)
-                    AddWalkableAreas(root);
+                ReadPrefabGameplayData(root);
+                _lastWalkableAreaCount = CreateWalkableAreas ? AddWalkableAreas(root) : 0;
+                _lastAnchorCount = CreateAnchorNodes ? AddAnchorNodes(root) : 0;
 
                 _lastManifestPath = manifestDiskPath;
                 _lastPartCount = count;
@@ -94,9 +104,42 @@ namespace Beep.ECS
             {
                 ["manifest"] = _lastManifestPath,
                 ["part_count"] = _lastPartCount,
+                ["walkable_area_count"] = _lastWalkableAreaCount,
+                ["anchor_count"] = _lastAnchorCount,
                 ["create_walkable_areas"] = CreateWalkableAreas,
-                ["use_single_baked_prefab_image"] = UseSingleBakedPrefabImage
+                ["create_anchor_nodes"] = CreateAnchorNodes,
+                ["use_single_baked_prefab_image"] = UseSingleBakedPrefabImage,
+                ["levels"] = _lastLevels.Count,
+                ["walkable_regions"] = _lastWalkableRegions.Count,
+                ["route_edges"] = _lastRouteEdges.Count,
+                ["anchors"] = _lastAnchors.Count
             };
+
+        public Godot.Collections.Array<Godot.Collections.Dictionary> GetMountainLevels()
+            => DuplicateArray(_lastLevels);
+
+        public Godot.Collections.Array<Godot.Collections.Dictionary> GetWalkableRegions()
+            => DuplicateArray(_lastWalkableRegions);
+
+        public Godot.Collections.Array<Godot.Collections.Dictionary> GetRouteEdges()
+            => DuplicateArray(_lastRouteEdges);
+
+        public Godot.Collections.Dictionary GetAnchors()
+            => _lastAnchors.Duplicate(true);
+
+        public Vector2 GetAnchorPosition(string anchorId)
+        {
+            if (!_lastAnchors.TryGetValue(anchorId, out Variant value)
+                || value.VariantType != Variant.Type.Dictionary)
+            {
+                return Vector2.Zero;
+            }
+
+            var anchor = value.AsGodotDictionary();
+            float x = VariantToFloat(anchor.GetValueOrDefault("x", 0.0f), 0.0f);
+            float y = VariantToFloat(anchor.GetValueOrDefault("y", 0.0f), 0.0f);
+            return PrefabOffset + new Vector2(x, y) * Mathf.Max(0.01f, PrefabScale);
+        }
 
         private int AddLayeredPrefabSprites(JsonElement root, string manifestDiskPath)
         {
@@ -132,6 +175,10 @@ namespace Beep.ECS
                 string role = ReadString(placement, "role", $"part_{count:000}");
 
                 var sprite = NewPartSprite(role, texture, position, scale, zIndex);
+                sprite.SetMeta("mountain_role", role);
+                sprite.SetMeta("mountain_asset_id", ReadString(placement, "asset_id", ""));
+                sprite.SetMeta("mountain_walkable", ReadBool(placement, "walkable", false));
+                sprite.SetMeta("mountain_climbable", ReadBool(placement, "climbable", false));
                 AddChild(sprite);
                 count++;
             }
@@ -189,6 +236,43 @@ namespace Beep.ECS
             return count;
         }
 
+        private int AddAnchorNodes(JsonElement root)
+        {
+            if (!root.TryGetProperty("anchors", out JsonElement anchors) || anchors.ValueKind != JsonValueKind.Object)
+                return 0;
+
+            int count = 0;
+            foreach (JsonProperty property in anchors.EnumerateObject())
+            {
+                JsonElement anchor = property.Value;
+                if (anchor.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                float scale = Mathf.Max(0.01f, PrefabScale);
+                float x = ReadFloat(anchor, "x", 0.0f);
+                float y = ReadFloat(anchor, "y", 0.0f);
+                string id = property.Name;
+                var marker = new Marker2D
+                {
+                    Name = SafeNodeName(id),
+                    Position = PrefabOffset + new Vector2(x, y) * scale,
+                    ZIndex = BaseZIndex + ReadInt(anchor, "z_index", 100)
+                };
+                marker.SetMeta("mountain_anchor_id", id);
+                marker.SetMeta("mountain_level", ReadInt(anchor, "level", 0));
+                marker.SetMeta("mountain_kind", ReadString(anchor, "kind", ""));
+                marker.SetMeta("mountain_pivot", ReadString(anchor, "pivot", ""));
+                if (!string.IsNullOrWhiteSpace(AnchorGroup))
+                    marker.AddToGroup(AnchorGroup);
+                AddChild(marker);
+                if (Engine.IsEditorHint())
+                    marker.Owner = Owner;
+                count++;
+            }
+
+            return count;
+        }
+
         private int AddBakedPrefabSprite(JsonElement root, string manifestDiskPath)
         {
             string prefabImage = ReadString(root, "prefab_image", "prefab.png");
@@ -228,7 +312,8 @@ namespace Beep.ECS
             {
                 bool generatedPart = string.IsNullOrWhiteSpace(GeneratedPartGroup) || child.IsInGroup(GeneratedPartGroup);
                 bool walkableArea = !string.IsNullOrWhiteSpace(WalkableAreaGroup) && child.IsInGroup(WalkableAreaGroup);
-                if (generatedPart || walkableArea)
+                bool anchor = !string.IsNullOrWhiteSpace(AnchorGroup) && child.IsInGroup(AnchorGroup);
+                if (generatedPart || walkableArea || anchor)
                     toRemove.Add(child);
             }
 
@@ -237,6 +322,78 @@ namespace Beep.ECS
                 RemoveChild(child);
                 child.QueueFree();
             }
+        }
+
+        private void ReadPrefabGameplayData(JsonElement root)
+        {
+            _lastLevels.Clear();
+            _lastWalkableRegions.Clear();
+            _lastRouteEdges.Clear();
+            _lastAnchors.Clear();
+
+            ReadArrayOfObjects(root, "levels", _lastLevels);
+            ReadArrayOfObjects(root, "walkable_regions", _lastWalkableRegions);
+            ReadArrayOfObjects(root, "route_edges", _lastRouteEdges);
+
+            if (!root.TryGetProperty("anchors", out JsonElement anchors) || anchors.ValueKind != JsonValueKind.Object)
+                return;
+
+            foreach (JsonProperty property in anchors.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.Object)
+                    _lastAnchors[property.Name] = JsonObjectToDictionary(property.Value);
+            }
+        }
+
+        private static void ReadArrayOfObjects(JsonElement root, string name, Godot.Collections.Array<Godot.Collections.Dictionary> destination)
+        {
+            if (!root.TryGetProperty(name, out JsonElement value) || value.ValueKind != JsonValueKind.Array)
+                return;
+
+            foreach (JsonElement item in value.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object)
+                    destination.Add(JsonObjectToDictionary(item));
+            }
+        }
+
+        private static Godot.Collections.Array<Godot.Collections.Dictionary> DuplicateArray(Godot.Collections.Array<Godot.Collections.Dictionary> source)
+        {
+            var copy = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+            foreach (Godot.Collections.Dictionary item in source)
+                copy.Add(item.Duplicate(true));
+            return copy;
+        }
+
+        private static Godot.Collections.Dictionary JsonObjectToDictionary(JsonElement element)
+        {
+            var dictionary = new Godot.Collections.Dictionary();
+            foreach (JsonProperty property in element.EnumerateObject())
+                dictionary[property.Name] = JsonValueToVariant(property.Value);
+            return dictionary;
+        }
+
+        private static Variant JsonValueToVariant(JsonElement value)
+        {
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString() ?? "",
+                JsonValueKind.Number when value.TryGetInt32(out int integer) => integer,
+                JsonValueKind.Number when value.TryGetDouble(out double dbl) => dbl,
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Object => JsonObjectToDictionary(value),
+                JsonValueKind.Array => JsonArrayToGodotArray(value),
+                _ => new Variant()
+            };
+        }
+
+        private static Godot.Collections.Array JsonArrayToGodotArray(JsonElement value)
+        {
+            var array = new Godot.Collections.Array();
+            foreach (JsonElement item in value.EnumerateArray())
+                array.Add(JsonValueToVariant(item));
+            return array;
         }
 
         private static Texture2D? LoadTexture(string path)
@@ -279,6 +436,9 @@ namespace Beep.ECS
         private static int ReadInt(JsonElement element, string name, int fallback)
             => element.TryGetProperty(name, out JsonElement value) && value.TryGetInt32(out int result) ? result : fallback;
 
+        private static bool ReadBool(JsonElement element, string name, bool fallback)
+            => element.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : fallback;
+
         private static float ReadFloat(JsonElement element, string name, float fallback)
         {
             if (!element.TryGetProperty(name, out JsonElement value))
@@ -292,5 +452,15 @@ namespace Beep.ECS
 
         private static string SafeNodeName(string value)
             => string.IsNullOrWhiteSpace(value) ? "MountainPart" : value.Trim().Replace(' ', '_').Replace('-', '_');
+
+        private static float VariantToFloat(Variant value, float fallback)
+        {
+            return value.VariantType switch
+            {
+                Variant.Type.Int => value.AsInt32(),
+                Variant.Type.Float => (float)value.AsDouble(),
+                _ => fallback
+            };
+        }
     }
 }

@@ -65,6 +65,13 @@ namespace Beep.ECS
         [Export] public NodePath ReliefRendererPath { get; set; } = new("");
         [Export] public NodePath ResourceRendererPath { get; set; } = new("");
 
+        /// <summary>
+        /// The invisible layers that make each cell queryable. Independent of
+        /// which projection is on screen, so a game reading the map keeps working
+        /// when the player switches view.
+        /// </summary>
+        [Export] public NodePath CellDataPath { get; set; } = new("");
+
         [ExportGroup("World")]
         [Export] public TerrainShape MapType { get; set; } = TerrainShape.Continents;
         [Export] public TerrainMapSize MapSize { get; set; } = TerrainMapSize.Standard;
@@ -112,6 +119,7 @@ namespace Beep.ECS
         private GridTerrainMapOverlayComponent? _overlay;
         private GridTerrainReliefRendererComponent? _relief;
         private GridTerrainResourceRendererComponent? _resources;
+        private GridTerrainCellDataComponent? _cellData;
         private Node2D? _splatNode;
         private Node2D? _overlayNode;
 
@@ -227,6 +235,7 @@ namespace Beep.ECS
             _overlay ??= GetNodeOrNull<GridTerrainMapOverlayComponent>(MapOverlayPath);
             _relief ??= GetNodeOrNull<GridTerrainReliefRendererComponent>(ReliefRendererPath);
             _resources ??= GetNodeOrNull<GridTerrainResourceRendererComponent>(ResourceRendererPath);
+            _cellData ??= GetNodeOrNull<GridTerrainCellDataComponent>(CellDataPath);
             _overlayNode ??= GetNodeOrNull<Node2D>(MapOverlayPath);
         }
     }

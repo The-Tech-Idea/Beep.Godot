@@ -30,6 +30,17 @@ namespace Beep.ECS
         {
             bool flat = Projection != TerrainProjection.Isometric;
 
+            // Cell data first, and for EVERY projection. It is what a game reads,
+            // so it must not depend on which view happens to be drawn - that is
+            // the whole reason it is not taken from the drawing layers.
+            if (_cellData is not null)
+            {
+                _cellData.BoundsSize = size;
+                if (_splat is not null)
+                    _cellData.TileSize = _splat.TileSize;
+                _cellData.Rebuild();
+            }
+
             // The painted renderer's C# type derives from Node while the scene
             // node it is attached to is a Node2D, so visibility is toggled
             // through the node rather than the component type.

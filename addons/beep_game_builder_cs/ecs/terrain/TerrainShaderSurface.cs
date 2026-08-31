@@ -67,14 +67,9 @@ namespace Beep.ECS
             };
             source.CreateTile(Vector2I.Zero);
 
-            var tileSet = new TileSet { TileSize = size };
-            if (isometric)
-            {
-                tileSet.TileShape = TileSet.TileShapeEnum.Isometric;
-                tileSet.TileLayout = TileSet.TileLayoutEnum.DiamondDown;
-                tileSet.TileOffsetAxis = TileSet.TileOffsetAxisEnum.Horizontal;
-            }
-
+            // Through the one builder, so a shader surface is shaped the same way
+            // every other terrain TileSet is.
+            TileSet tileSet = TerrainTileSets.Create(size, isometric);
             tileSet.AddSource(source, 0);
             return tileSet;
         }

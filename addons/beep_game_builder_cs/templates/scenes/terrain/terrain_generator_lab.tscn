@@ -1,7 +1,8 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs" id="controller"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainCellDataComponent.cs" id="cell_data"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
@@ -42,6 +43,7 @@ IsoRendererPath = NodePath("../Preview/Iso")
 FeaturesPath = NodePath("../Preview/Features")
 IsoFeaturesPath = NodePath("../Preview/IsoFeatures")
 MapOverlayPath = NodePath("../Preview/MapOverlay")
+CellDataPath = NodePath("../Preview/CellData")
 BuildOnReady = false
 
 [node name="PreviewBackdrop" type="ColorRect" parent="."]
@@ -154,6 +156,13 @@ ShoreOpacity = 0.55
 WaveIntensity = 1.0
 FoamStrength = 0.4
 FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
+
+[node name="CellData" type="Node2D" parent="Preview"]
+script = ExtResource("cell_data")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+BoundsSize = Vector2i(96, 60)
+TileSize = 64
+RefreshOnReady = false
 
 [node name="MapOverlay" type="Node2D" parent="Preview"]
 script = ExtResource("map_overlay")

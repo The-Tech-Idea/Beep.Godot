@@ -29,8 +29,19 @@ const COLOURS := {
 func paint(gen, size: Vector2i, image: Image, at: Vector2i) -> void:
 	for y in range(size.y):
 		for x in range(size.x):
-			var kind: String = gen.TerrainKindAt(Vector2i(x, y))
+			var c := Vector2i(x, y)
+			var kind: String = gen.TerrainKindAt(c)
 			var colour: Color = COLOURS.get(kind, Color8(255, 0, 255))
+
+			# Relief on top of the biome colour. Hills and mountains otherwise
+			# read as ordinary grass here, so a mountain RANGE is invisible on a
+			# map coloured by terrain kind alone - which is exactly the thing
+			# being judged.
+			var relief: int = int(gen.ReliefAt(c))
+			if relief == 1:
+				colour = colour.darkened(0.22)
+			elif relief >= 2:
+				colour = colour.darkened(0.42).lerp(Color8(120, 108, 96), 0.45)
 			for py in range(SCALE):
 				for px in range(SCALE):
 					image.set_pixel(at.x + x * SCALE + px, at.y + y * SCALE + py, colour)

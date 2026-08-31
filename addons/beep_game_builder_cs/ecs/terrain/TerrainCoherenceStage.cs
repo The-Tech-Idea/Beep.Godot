@@ -64,6 +64,12 @@ namespace Beep.ECS
         /// placed by where the coast is, so letting an inland region become sand
         /// would put a beach in the middle of the map.
         /// </summary>
+        /// <summary>
+        /// What a peak is made of. Valid for a region that sits on high ground,
+        /// never for one that does not - stone at sea level is not a biome.
+        /// </summary>
+        private static readonly HashSet<string> PeakMaterials = new() { "rock", "gravel", "snow" };
+
         private static readonly HashSet<string> AbsorbTargets = new()
         {
             "desert", "dry_grass", "grass", "swamp", "jungle", "snow", "tundra", "rock", "gravel",
@@ -196,6 +202,32 @@ namespace Beep.ECS
 
                 if (region.Count >= minSamples)
                     continue;
+
+                // A peak material is only somewhere a RAISED region may go.
+                //
+                // Rock and gravel are in the target set so a dissolved snow cap
+                // has a destination - a peak ringed only by rock would otherwise
+                // have no candidate and survive by default. Nothing restricted
+                // that to peaks, though, so a FLAT region beside a rocky summit
+                // was absorbed into rock as well, and bare stone spread across
+                // level ground. It survives the reduction to tiles because that
+                // takes a tile's terrain from the samples in its own relief
+                // band: flat samples carrying rock give a flat rock tile.
+                //
+                // Measured on a twelve-island chain: three islands came out 66
+                // to 70% rock while only 9 to 11% of them was raised at all.
+                int raised = 0;
+                foreach (int at in region)
+                {
+                    if (world.Relief[at] != TerrainRelief.Flat)
+                        raised++;
+                }
+
+                if (raised * 2 < region.Count)
+                {
+                    foreach (string peak in PeakMaterials)
+                        borders.Remove(peak);
+                }
 
                 // A region below the minimum must not survive for want of a
                 // neighbour to become. Beaches were doing exactly that: a snow

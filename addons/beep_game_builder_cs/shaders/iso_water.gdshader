@@ -70,6 +70,20 @@ uniform vec2 cell_size = vec2(111.0, 64.0);
 // keeping a sea of its own to tune.
 uniform float flat_projection = 0.0;
 
+// The quad's own rectangle, in the RENDERER's coordinates: where its top-left
+// corner sits and how big it is. Both projections are resolved from this and
+// the fragment's UV rather than from its world position.
+//
+// World position is wrong the moment anything between the renderer and the
+// viewport scales, because the transform is folded into it and the shader
+// cannot see the factor. The lab draws its preview inside a container that
+// scales to fit the panel: the coast field was sampled at the wrong tiles, so
+// the isometric view lost its beaches and shallows entirely and left a patch of
+// surf stranded in open water. The standalone demos have no such parent, which
+// is exactly why they looked right and hid it.
+uniform vec2 quad_origin = vec2(0.0);
+uniform vec2 quad_size = vec2(1.0);
+
 // ADDITION 2 - clarity. How opaque the water gets once it is deep, and how far
 // out that takes. Below one, the seabed under it stays visible even offshore.
 uniform float max_opacity : hint_range(0.0, 1.0) = 0.92;
@@ -134,6 +148,10 @@ void fragment() {
 	// map_to_local, every cell came back exactly (+1, 0) wrong, which drew the
 	// surf on a shore that is not where the land is.
 	vec2 half_cell = max(cell_size * 0.5, vec2(1.0));
+	// Where this fragment is in the renderer's own space, free of any parent
+	// transform.
+	vec2 local_pos = quad_origin + (UV * quad_size);
+
 	vec2 tile;
 	if (flat_projection > 0.5) {
 		// Top-down: the quad IS the map, so its own UV gives the tile directly.
@@ -144,10 +162,10 @@ void fragment() {
 		// coordinates arrive multiplied by a factor the shader knows nothing
 		// about, and the sea covered half the map. UV is measured across the
 		// quad itself and cannot be thrown off by a parent transform.
-		tile = UV * map_size;
+		tile = local_pos / max(cell_size, vec2(1.0));
 	} else {
-		float ex = (world_pos.x - half_cell.x) / half_cell.x;
-		float ey = world_pos.y / half_cell.y;
+		float ex = (local_pos.x - half_cell.x) / half_cell.x;
+		float ey = local_pos.y / half_cell.y;
 		tile = vec2((ex + ey) * 0.5, (ey - ex) * 0.5);
 	}
 	vec2 UVm = tile / map_size;

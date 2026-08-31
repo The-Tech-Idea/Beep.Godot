@@ -191,44 +191,24 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
 
         /// <summary>
-        /// Elevation steps: sea, ground, upper ground.
-        ///
-        /// Three rather than five because PROPS interleave between them. The
-        /// draw order a scene needs is sea, ground, the things standing on the
-        /// ground, upper ground, the things standing on that - so each terrain
-        /// level owns an even z and leaves the odd one above it for its props.
-        /// A tree on low ground must be covered by the cliff in front of it,
-        /// and it cannot be if every prop is drawn after every tile.
+        /// The stack this renderer draws into lives in TerrainLayers, shared
+        /// with every other view. These forward to it so a scene or a guard can
+        /// still ask the renderer, without the renderer owning the answer.
         /// </summary>
-        public const int LevelCount = 5;
+        public const int LevelCount = TerrainLayers.Count;
 
-        /// <summary>Z index of a terrain level.</summary>
-        public static int ZIndexForLevel(int level) => level * 2;
+        public static int ZIndexForLevel(int level) => TerrainLayers.ZFor(level);
 
-        /// <summary>
-        /// Z index for the props standing on a level. ALL terrain draws first,
-        /// then props in level order: ground, upper, ground's trees, upper's
-        /// trees.
-        ///
-        /// Interleaving them - a level's props immediately above that level's
-        /// terrain - is wrong, and wrong in a way that is easy to miss. Higher
-        /// terrain is not always FURTHER from the camera: a hill behind a tree
-        /// still draws after it, so the hill was cutting the tree off at the
-        /// trunk. Terrain first, props after, keeps a tree whole wherever it
-        /// stands, and ordering the prop layers by level keeps a tree on the
-        /// upper ground above one on the ground below.
-        /// </summary>
-        public static int ZIndexForProps(int level) => (LevelCount * 2) + level;
+        public static int ZIndexForProps(int level) => TerrainLayers.ZForProps(level);
 
         private const int SourceId = 0;
         /// <summary>Flat tops, for ground with nothing lower beside it.</summary>
         private const int TopSourceId = 1;
-        /// <summary>The three terrain levels of the stack, bottom up.</summary>
-        private const int SeaLevel = 0;
-        private const int GroundLevel = 1;
-        private const int UpperLevel = 2;
-        private const int PeakLevel = 3;
-        private const int SummitLevel = 4;
+        private const int SeaLevel = TerrainLayers.Sea;
+        private const int GroundLevel = TerrainLayers.Ground;
+        private const int UpperLevel = TerrainLayers.Hills;
+        private const int PeakLevel = TerrainLayers.Mountains;
+        private const int SummitLevel = TerrainLayers.Summits;
 
         /// <summary>
         /// Land levels have a tile layer; the sea does not. The sea is drawn by
@@ -694,24 +674,9 @@ namespace Beep.ECS
             return terrain.Length > 0 && terrain is not ("deep_water" or "shallow_water");
         }
 
-        /// <summary>
-        /// Which elevation step a tile is drawn at. Water sits below the shore
-        /// so a coast steps DOWN into the sea instead of meeting it flat, and
-        /// relief raises the ground the generator already marked hill or
-        /// mountain - the same relief the 2D renderer draws as rocks and peaks.
-        /// </summary>
-        public static int LevelFor(string terrain, int relief) => terrain switch
-        {
-            "deep_water" or "shallow_water" => SeaLevel,
-
-            // A MOUNTAIN stands a step higher than a hill. Both used to return
-            // the same level, so a peak was drawn as exactly the same two-block
-            // stack as a hillside and the two were indistinguishable in the
-            // isometric view however the generator classified them. The relief
-            // bands are flat / hills / mountains, and the stack now has a step
-            // for each.
-            _ => relief >= 2 ? PeakLevel : relief > 0 ? UpperLevel : GroundLevel,
-        };
+        /// <summary>Which level a tile is drawn at. Owned by TerrainLayers.</summary>
+        public static int LevelFor(string terrain, int relief)
+            => TerrainLayers.LevelFor(terrain, relief);
 
         private void EnsureLayers()
         {
@@ -747,7 +712,7 @@ namespace Beep.ECS
             // step per depth band, which is what made the whole map three tile
             // heights deep.
             _seabed.Position = new Vector2(0.0f, SeabedStep);
-            _seabed.ZIndex = ZIndexForLevel(SeaLevel) - 2;
+            _seabed.ZIndex = TerrainLayers.ZForSeabed(0);
             _seabed.TileSet = _tileSet;
 
             EnsureWaterSurface();
@@ -843,6 +808,15 @@ namespace Beep.ECS
             else
             {
                 material.SetShaderParameter("coast_map", _coastMap);
+            }
+
+            // The quad's rectangle in THIS renderer's space. The shader resolves
+            // both projections from it and the fragment UV rather than from a
+            // world position, which carries any parent scaling with it.
+            if (_water is not null)
+            {
+                material.SetShaderParameter("quad_origin", _water.Position);
+                material.SetShaderParameter("quad_size", _water.Scale);
             }
 
             material.SetShaderParameter("coast_range", CoastRangeTiles);

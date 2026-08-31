@@ -83,7 +83,9 @@ namespace Beep.ECS
                 if (!PeakKinds.Contains(world.CellTerrain[index]))
                     continue;
 
-                world.CellTerrain[index] = NeighbourLand(world, index, PeakKinds) ?? "grass";
+                SetTile(
+                    world, index, WaterBody.None,
+                    NeighbourLand(world, index, PeakKinds) ?? "grass", land: true);
             }
         }
 
@@ -169,11 +171,53 @@ namespace Beep.ECS
                         break;
 
                     foreach (int index in lake)
-                    {
-                        world.CellWater[index] = WaterBody.None;
-                        world.CellTerrain[index] = fill;
-                    }
+                        SetTile(world, index, WaterBody.None, fill, land: true);
                     water -= lake.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Changes a tile, and the SAMPLES underneath it, together.
+        ///
+        /// The constraints run on the reduced tile grid, but the sample grid it
+        /// was reduced from is still there and still read: the painted view
+        /// draws from samples, while the tile and isometric views draw from
+        /// cells. Writing only the cell leaves the two disagreeing about the
+        /// same ground - and the bigger the change, the more obvious it gets.
+        /// Draining a lake that covered most of a continent removed it from the
+        /// tile view and left it, whole, in the painted one.
+        ///
+        /// A tile is not a separate thing from its samples; it is a summary of
+        /// them. Changing the summary without the thing it summarises is what
+        /// made one map look like two.
+        /// </summary>
+        private static void SetTile(
+            TerrainWorld world, int cell, WaterBody water, string terrain, bool land)
+        {
+            world.CellWater[cell] = water;
+            world.CellTerrain[cell] = terrain;
+
+            int cellX = cell % world.CellsWide;
+            int cellY = cell / world.CellsWide;
+            int samples = Mathf.Max(1, world.SamplesPerCell);
+
+            for (int offsetY = 0; offsetY < samples; offsetY++)
+            {
+                int y = (cellY * samples) + offsetY;
+                if (y >= world.Height)
+                    continue;
+
+                for (int offsetX = 0; offsetX < samples; offsetX++)
+                {
+                    int x = (cellX * samples) + offsetX;
+                    if (x >= world.Width)
+                        continue;
+
+                    int sample = world.Index(x, y);
+                    world.Water[sample] = water;
+                    world.Terrain[sample] = terrain;
+                    world.Land[sample] = land;
                 }
             }
         }
@@ -244,8 +288,9 @@ namespace Beep.ECS
 
                 foreach (int index in region)
                 {
-                    world.CellWater[index] = WaterBody.None;
-                    world.CellTerrain[index] = NeighbourLand(world, index) ?? "grass";
+                    SetTile(
+                        world, index, WaterBody.None,
+                        NeighbourLand(world, index) ?? "grass", land: true);
                 }
             }
         }

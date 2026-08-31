@@ -62,7 +62,15 @@ namespace Beep.ECS
 
         [ExportGroup("Rendering")]
         [Export] public bool RefreshOnReady { get; set; } = true;
-        [Export] public int BaseZIndex { get; set; } = -80;
+        /// <summary>
+        /// Where this view's biome layers start, BELOW the shared sea level.
+        ///
+        /// The biome layers are the ground: a top-down view resolves a coastline
+        /// with autotile transitions rather than by stacking blocks, so they all
+        /// belong to one level of the shared stack and are ordered among
+        /// themselves only so a shore draws over the land behind it.
+        /// </summary>
+        [Export] public int BaseZIndex { get; set; } = TerrainLayers.ZFor(TerrainLayers.Ground) - 40;
 
         /// <summary>
         /// The sea, drawn by the SAME shader the isometric view uses.
@@ -178,7 +186,9 @@ namespace Beep.ECS
 
             // Above every biome layer: the sea is a surface over the bed, not
             // another biome competing with them for the same ground.
-            _water.ZIndex = BaseZIndex + _layers.Count + 2;
+            // The shared sea level, so the water surface sits where every other
+            // view puts it rather than at a place invented here.
+            _water.ZIndex = TerrainLayers.ZFor(TerrainLayers.Sea);
             _water.ZAsRelative = false;
 
             _waterMaterial = BuildWaterMaterial(size);
@@ -211,6 +221,12 @@ namespace Beep.ECS
             else
             {
                 material.SetShaderParameter("coast_map", _coastMap);
+            }
+
+            if (_water is not null)
+            {
+                material.SetShaderParameter("quad_origin", _water.Position);
+                material.SetShaderParameter("quad_size", _water.Scale);
             }
 
             material.SetShaderParameter("coast_range", CoastRangeTiles);

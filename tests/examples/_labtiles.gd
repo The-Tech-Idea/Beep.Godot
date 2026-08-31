@@ -6,11 +6,19 @@ func _initialize() -> void:
 	# The View dropdown: 0 painted, 1 game tiles, 2 isometric.
 	for n in root_node.find_children("*", "OptionButton", true, false):
 		if n.item_count == 3 and n.get_item_text(1).to_lower().contains("tile"):
-			n.selected = 1
-			n.item_selected.emit(1)
+			var want: int = int(OS.get_environment("VIEW")) if OS.get_environment("VIEW") != "" else 1
+			n.selected = want
+			n.item_selected.emit(want)
 			break
 	for i in range(45): await process_frame
+	var zoom: String = OS.get_environment("ZOOM")
+	if zoom != "":
+		for n in root_node.find_children("*", "Node", true, false):
+			if n.has_method("SetZoomLevel"):
+				n.SetZoomLevel(float(zoom), true)
+				break
+		for i in range(20): await process_frame
 	var img := get_root().get_texture().get_image()
-	img.save_png(OS.get_environment("SHOT") + "/lab_tiles.png")
-	print("saved lab_tiles.png")
+	img.save_png(OS.get_environment("SHOT") + "/lab_view.png")
+	print("saved lab_view.png")
 	quit(0)

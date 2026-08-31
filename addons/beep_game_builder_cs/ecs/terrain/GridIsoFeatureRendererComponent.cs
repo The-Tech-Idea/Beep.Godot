@@ -166,9 +166,9 @@ namespace Beep.ECS
                     // A prop belongs to the level it stands on, so the terrain
                     // above can cover it.
                     int level = Mathf.Clamp(
-                        GridIsoTileMapRendererComponent.LevelFor(
+                        TerrainLayers.LevelFor(
                             _generator.TerrainKindAt(cell), _generator.ReliefAt(cell)),
-                        FirstPropLevel, GridIsoTileMapRendererComponent.LevelCount - 1)
+                        FirstPropLevel, TerrainLayers.Count - 1)
                         - FirstPropLevel;
                     int clump = Mathf.Max(1, SpritesPerTile)
                         + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle
@@ -220,12 +220,12 @@ namespace Beep.ECS
         /// </summary>
         private void EnsureLevels()
         {
-            int wanted = GridIsoTileMapRendererComponent.LevelCount - FirstPropLevel;
+            int wanted = TerrainLayers.Count - FirstPropLevel;
             if (_levels.Count == wanted)
                 return;
 
             _levels.Clear();
-            for (int level = FirstPropLevel; level < GridIsoTileMapRendererComponent.LevelCount; level++)
+            for (int level = FirstPropLevel; level < TerrainLayers.Count; level++)
             {
                 string name = $"Props{level}";
                 var node = GetNodeOrNull<LevelProps>(name);
@@ -240,7 +240,7 @@ namespace Beep.ECS
                 // renderer owns this rule - a single shared z for every prop is
                 // what used to put a tree on low ground over the cliff in front
                 // of it - so there is deliberately no export to override it.
-                node.ZIndex = GridIsoTileMapRendererComponent.ZIndexForProps(level);
+                node.ZIndex = TerrainLayers.ZForProps(level);
                 node.ZAsRelative = false;
                 node.TextureFilter = TextureFilterEnum.LinearWithMipmaps;
                 _levels.Add(node);

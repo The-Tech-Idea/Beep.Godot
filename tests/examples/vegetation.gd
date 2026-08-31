@@ -27,29 +27,27 @@ extends SceneTree
 # is doing something right - it is what makes a wet map greener than a dry one -
 # so the two uses are not the same fact and cannot both be made relative.
 #
-# WITHIN one landmass the woods still gather into one part of it, and four
-# attempts at spreading them all failed to beat what is here. Measured as woods
-# per WOODS-CAPABLE tile across the quadrants of one 48x48 map:
+# WITHIN one landmass, the spread came down to one detail: the local thresholds
+# must NOT be blended between blocks. Interpolating them pulls a low-lying
+# region's bar up toward the high ground around it, which is the global
+# behaviour ranking locally exists to replace. Measured on one 48x48 map, as
+# woods per woods-capable tile across its quadrants:
 #
-#   per-landmass ranking (current)   57  0 42 57   3 bare islands
-#   local block ranking              62  0 12 63   2 bare islands
+#   one ranking for the whole landmass     57  0 42 57   3 bare islands
+#   local blocks, thresholds blended       62  0 12 63   2 bare islands
+#   local blocks, nearest block            46 40 40 43   0 bare islands
 #
-# Local ranking helps small islands and is clearly worse inside a map, so it was
-# not kept. A curved placement chance and a higher noise frequency were tried
-# too; neither beat this either.
-#
-# WHERE TO LOOK NEXT. One quadrant holds 103 woods-capable tiles and no woods in
-# EVERY configuration tried, including ones that rank only against that
-# quadrant's own neighbourhood. Ranking scope is therefore not the cause, and
-# the next place to look is eligibility - what removes those 103 tiles before
-# the ranking ever sees them - not another way of thresholding.
+# The bare quadrant was not climate: it held 103 woods-capable tiles at a mean
+# moisture of 0.42, WETTER than two quadrants that were more than half wooded.
+# It simply sat in a trough of the vegetation noise and lost a ranking held
+# against the whole landmass.
 #
 # A NOTE ON MEASURING THIS. The denominator was wrong twice here, and both times
 # it invented a defect. Woods per LAND tile counts sand, rock and desert that
 # can never carry a tree, so a correct desert quadrant reads as a placement
-# failure; and a bare ratio with no denominator cannot tell 0 woods on 20 tiles
-# from 0 on 250. Only woods per woods-capable tile answers the question, which
-# is why the counts are printed and not just the percentage.
+# failure; and a bare ratio with no counts cannot tell 0 woods on 20 tiles from
+# 0 on 250. Only woods per woods-capable tile answers the question, which is why
+# the counts are printed and not just the percentage.
 
 const WOODS_CAPABLE := ["grass", "dry_grass"]
 
@@ -94,6 +92,7 @@ func _initialize() -> void:
 	get_root().add_child(root_node)
 	for i in range(20): await process_frame
 	var gen = root_node.find_child("TerrainGenerator", true, false)
+	var failed := 0
 
 	# Landform, island count, coverage, label. Every setting is stated rather
 	# than inherited from the scene, because a measurement that quietly changes
@@ -121,8 +120,11 @@ func _initialize() -> void:
 			if int(e.capable) >= 40 and int(e.grown) == 0:
 				bare.append(e)
 
-		print("%-13s %d landmasses | %d with 40+ woods-capable tiles and NO woods"
-			% [case[3], found.size(), bare.size()])
+		var ok: bool = bare.is_empty()
+		if not ok:
+			failed += 1
+		print("%-13s %d landmasses | %d with 40+ woods-capable tiles and NO woods  %s"
+			% [case[3], found.size(), bare.size(), "ok" if ok else "FAIL"])
 		for e in bare:
 			print("      %d-tile island: %d capable, 0 grown" % [e.cells, e.capable])
 
@@ -159,5 +161,11 @@ func _initialize() -> void:
 		parts.append("%d/%d=%.0f%%" % [quad_woods[q], quad_land[q], d * 100.0])
 	print("within one map: woods per woods-capable tile, by quadrant %s" % " ".join(parts))
 
-	print("RESULT: reported (measurement, not a guard - see the header)")
-	quit(0)
+	# No part of a map with real woods-capable ground may come out with none.
+	for q in range(4):
+		if quad_land[q] >= 40 and quad_woods[q] == 0:
+			print("  quadrant %d: %d woods-capable tiles and NO woods  FAIL" % [q, quad_land[q]])
+			failed += 1
+
+	print("RESULT: ", "all checks passed" if failed == 0 else "%d FAILED" % failed)
+	quit(1 if failed > 0 else 0)

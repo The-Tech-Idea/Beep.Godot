@@ -13,16 +13,31 @@ namespace Beep.ECS
     /// valleys are cut by drainage. This is the standard hybrid the modern
     /// generators use: raise land with noise, then let water shape it.
     ///
-    /// The model is stream-power incision, the usual one in the literature:
+    /// TWO PROCESSES, because one is not a landscape. A landscape evolution
+    /// model couples channel incision with hillslope transport, and they do
+    /// different jobs:
     ///
-    ///     lowering = strength * drainage^m * slope^n
+    /// 1. STREAM-POWER INCISION, the usual channel law:
     ///
-    /// with the exponents near m=0.5, n=1. The drainage term is what matters -
-    /// erosion at a point depends far more on how much water passes through it
-    /// than on anything local - and it is self-reinforcing, because a hollow
-    /// that collects a little more water erodes a little faster and so collects
-    /// more still. That feedback is what produces branching valley networks
-    /// rather than evenly rounded ground.
+    ///        lowering = strength * drainage^m * slope^n
+    ///
+    ///    with the exponents near m=0.5, n=1. The drainage term is what matters
+    ///    - erosion at a point depends far more on how much water passes
+    ///    through it than on anything local - and it is self-reinforcing,
+    ///    because a hollow that collects a little more water erodes a little
+    ///    faster and so collects more still. That feedback is what produces
+    ///    branching valley networks rather than evenly rounded ground.
+    ///
+    /// 2. HILLSLOPE DIFFUSION, which is the half this stage was missing:
+    ///
+    ///        change = diffusion * (average of neighbours - here)
+    ///
+    ///    Incision only ever REMOVES material. Real ground also receives it:
+    ///    soil creeps downhill, and the sign of the curvature decides which
+    ///    happens - a ridge loses material, a hollow gains it. Without this the
+    ///    stage could only cut channels into noise, which is why it changed so
+    ///    little of the map; with it, spurs round off and valley floors fill,
+    ///    and the two together make slopes rather than a scratched surface.
     ///
     /// The drainage network is the same one the rivers use, from TerrainFlow,
     /// so the valleys and the rivers in them are the same watercourse rather
@@ -52,6 +67,18 @@ namespace Beep.ECS
 
         /// <summary>Ceiling on the drainage factor, so a trunk cannot trench.</summary>
         private const float MaxDrainageFactor = 3.0f;
+
+        /// <summary>
+        /// How strongly ground creeps toward the average of its neighbours each
+        /// pass. This is the depositional half.
+        ///
+        /// The step is written as a weighted average - new height is (1-D) of
+        /// the old plus D of the neighbours' mean - so it is stable for any D up
+        /// to 1 and simply relaxes faster as D rises. That is NOT the quarter
+        /// limit that applies to the raw Laplacian form, which this is not:
+        /// dividing by the neighbour count is what buys the headroom.
+        /// </summary>
+        private const float Diffusion = 0.35f;
 
         /// <summary>
         /// How many times the incision is applied.
@@ -99,7 +126,13 @@ namespace Beep.ECS
             System.Array.Sort(sorted);
             float typical = Mathf.Max(1.0f, sorted[land / 2]);
 
-            float strength = Strength * Mathf.Clamp(settings.ErosionStrength, 0.0f, 4.0f);
+            // Two scalars, because the two processes are not the same size.
+            // Multiplying the diffusion by the incision constant as well made
+            // its coefficient 0.017 instead of 0.14, and the hillslopes barely
+            // moved: the whole map changed 2.9% rather than 2.6%.
+            float dial = Mathf.Clamp(settings.ErosionStrength, 0.0f, 4.0f);
+            float strength = Strength * dial;
+            var settled = new float[count];
 
             for (int pass = 0; pass < Passes; pass++)
             {
@@ -129,7 +162,58 @@ namespace Beep.ECS
                 world.Elevation[index] = Mathf.Max(
                     world.Elevation[to], world.Elevation[index] - lowering);
             }
+
+            Diffuse(world, order, land, settled, dial);
             }
+        }
+
+        /// <summary>
+        /// Moves ground toward the average of its neighbours: material off the
+        /// ridges, material into the hollows.
+        ///
+        /// Written into a scratch buffer and copied back, so every cell sees the
+        /// same starting surface. Updating in place would let a cell already
+        /// moved this pass pull its neighbour along with it, which biases the
+        /// whole sweep in the direction the loop happens to run.
+        ///
+        /// Only LAND takes part. Letting the sea average into the shore would
+        /// drag the coastline down and drown it a little more every pass.
+        /// </summary>
+        private static void Diffuse(
+            TerrainWorld world, int[] order, int land, float[] settled, float strength)
+        {
+            for (int i = 0; i < land; i++)
+            {
+                int index = order[i];
+                int x = index % world.Width;
+                int y = index / world.Width;
+
+                float total = 0.0f;
+                int counted = 0;
+
+                for (int side = 0; side < 4; side++)
+                {
+                    int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
+                    int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
+                    if (!world.InBounds(nx, ny))
+                        continue;
+
+                    int at = world.Index(nx, ny);
+                    if (!world.Land[at])
+                        continue;
+
+                    total += world.Elevation[at];
+                    counted++;
+                }
+
+                settled[index] = counted == 0
+                    ? world.Elevation[index]
+                    : world.Elevation[index]
+                        + (Diffusion * strength * ((total / counted) - world.Elevation[index]));
+            }
+
+            for (int i = 0; i < land; i++)
+                world.Elevation[order[i]] = Mathf.Clamp(settled[order[i]], 0.0f, 1.0f);
         }
     }
 }

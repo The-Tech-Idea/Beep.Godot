@@ -37,6 +37,17 @@ func paint(gen, size: Vector2i, image: Image, at: Vector2i) -> void:
 			# read as ordinary grass here, so a mountain RANGE is invisible on a
 			# map coloured by terrain kind alone - which is exactly the thing
 			# being judged.
+			# Hillshade, so the HEIGHT FIELD is visible and not just the three
+			# relief bands it gets sorted into. Erosion changes height a great
+			# deal and the bands hardly at all - they are percentiles, so the
+			# count of hills and mountains is fixed however the land is carved -
+			# which is why a map coloured by kind and band alone made a carved
+			# landscape look identical to an uncarved one.
+			colour = colour.lerp(
+				Color(colour.r * 1.35, colour.g * 1.35, colour.b * 1.35),
+				clampf((gen.ShadeAtCell(c) - 1.0) * 1.6, 0.0, 1.0))
+			colour = colour.darkened(clampf((1.0 - gen.ShadeAtCell(c)) * 1.1, 0.0, 0.55))
+
 			var relief: int = int(gen.ReliefAt(c))
 			if relief == 1:
 				colour = colour.darkened(0.22)

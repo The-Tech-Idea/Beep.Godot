@@ -200,6 +200,16 @@ namespace Beep.ECS
 
         public static int ZIndexForProps(int level) => TerrainLayers.ZForProps(level);
 
+        /// <summary>
+        /// How far the sea may overscan the map, in CELLS.
+        ///
+        /// A quad could be scaled arbitrarily for free; tiles have to be filled,
+        /// so the margin needs a ceiling. Well past the distance at which the
+        /// water goes opaque, which is what the overscan is hiding in the first
+        /// place.
+        /// </summary>
+        private const int MaxWaterMarginCells = 72;
+
         private const int SourceId = 0;
         /// <summary>Flat tops, for ground with nothing lower beside it.</summary>
         private const int TopSourceId = 1;
@@ -238,8 +248,10 @@ namespace Beep.ECS
         /// per-tile material cannot give it that, and the atlas UVs it would
         /// have to sample by belong to the tile, not the map.
         /// </summary>
-        private Sprite2D? _water;
+        private TileMapLayer? _water;
         private ShaderMaterial? _waterMaterial;
+        /// <summary>How far the sea layer was shifted, in tiles; see EnsureWaterSurface.</summary>
+        private Vector2 _waterTileOffset = Vector2.Zero;
         private ImageTexture? _coastMap;
 
         /// <summary>Steps from the nearest land, per water cell; 0 on land.</summary>
@@ -723,42 +735,49 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(WaterShaderPath))
                 return;
 
-            _water ??= GetNodeOrNull<Sprite2D>("IsoWater");
+            _water ??= GetNodeOrNull<TileMapLayer>("IsoWater");
             if (_water is null || !GodotObject.IsInstanceValid(_water))
             {
-                _water = new Sprite2D { Name = "IsoWater" };
+                _water = new TileMapLayer { Name = "IsoWater" };
                 AddChild(_water);
                 TerrainAuthoring.Adopt(_water, this);
             }
 
-            // A single white texel stretched over the map. The shader never
-            // samples it - every colour it produces comes from the coast field
-            // and the water materials - but a Sprite2D needs something to give
-            // the quad its extent.
-            if (_water.Texture is null)
-            {
-                Image dot = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-                dot.SetPixel(0, 0, Colors.White);
-                _water.Texture = ImageTexture.CreateFromImage(dot);
-            }
-
-            _water.Centered = false;
             _water.ZIndex = ZIndexForLevel(SeaLevel);
             _water.ZAsRelative = false;
 
-            // The map's diamond, overscanned so the quad's own edge is never in
-            // frame. Beyond the map the shader draws plain open sea, so there is
-            // nothing to give the boundary away.
-            Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            float halfW = Mathf.Max(1, CellSize.X) * 0.5f;
-            float halfH = Mathf.Max(1, CellSize.Y) * 0.5f;
-            var extent = new Vector2((size.X + size.Y) * halfW, (size.X + size.Y) * halfH);
-            var centre = new Vector2(0.0f, extent.Y * 0.5f);
+            // The sea is tiles, on the SAME isometric grid as the terrain, so a
+            // water cell sits exactly where its land neighbour does.
+            //
+            // The blank tile has to be a diamond rather than a rectangle.
+            // Isometric cells overlap, and since this surface is transparent, a
+            // rectangular tile would blend with its neighbours' halves twice
+            // over and draw a brighter lattice across the whole ocean.
+            Vector2I cell = new(Mathf.Max(2, CellSize.X), Mathf.Max(2, CellSize.Y));
+            if (_water.TileSet is null || _water.TileSet.TileSize != cell)
+                _water.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: true);
 
-            float over = Mathf.Max(0.0f, WaterOverscan);
-            Vector2 grown = extent * (1.0f + (2.0f * over));
-            _water.Position = centre - (grown * 0.5f);
-            _water.Scale = grown;
+            // Overscanned so the surface's own edge is never in frame: beyond the
+            // map the shader draws plain open sea, so there is nothing to give
+            // the boundary away. As a quad that was a scale multiplier; as cells
+            // it is a ring of extra tiles, and it has to be BOUNDED. The old 2.5
+            // multiplier on a 64-tile map means 160 cells of margin per side -
+            // 147,000 tiles to fill for a sea that is opaque out there anyway.
+            Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
+            int margin = Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Max(size.X, size.Y) * Mathf.Max(0.0f, WaterOverscan)),
+                0,
+                MaxWaterMarginCells);
+
+            TerrainShaderSurface.Fill(
+                _water, new Vector2I(size.X + (margin * 2), size.Y + (margin * 2)));
+
+            // Shift the layer so its filled cell (margin, margin) lands where map
+            // cell (0, 0) belongs. In a diamond grid, moving by (-m, -m) cells is
+            // a pure VERTICAL shift - the x terms cancel, since (-m) - (-m) = 0 -
+            // which is why this is one number and not a diagonal.
+            _water.Position = new Vector2(0.0f, -margin * Mathf.Max(1, CellSize.Y));
+            _waterTileOffset = new Vector2(margin, margin);
 
             _waterMaterial = BuildWaterMaterial();
             _water.Material = _waterMaterial;
@@ -803,15 +822,10 @@ namespace Beep.ECS
             // The quad's rectangle in THIS renderer's space. The shader resolves
             // both projections from it and the fragment UV rather than from a
             // world position, which carries any parent scaling with it.
-            if (_water is not null)
-            {
-                material.SetShaderParameter("quad_origin", _water.Position);
-                material.SetShaderParameter("quad_size", _water.Scale);
-            }
-
             material.SetShaderParameter("coast_range", CoastRangeTiles);
             material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
             material.SetShaderParameter("cell_size", new Vector2(CellSize.X, CellSize.Y));
+            material.SetShaderParameter("tile_offset", _waterTileOffset);
             material.SetShaderParameter("max_opacity", MaxOpacity);
             material.SetShaderParameter("clarity_tiles", ClarityTiles);
             material.SetShaderParameter("lake_opacity", LakeOpacity);

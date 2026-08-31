@@ -70,19 +70,35 @@ uniform vec2 cell_size = vec2(111.0, 64.0);
 // keeping a sea of its own to tune.
 uniform float flat_projection = 0.0;
 
-// The quad's own rectangle, in the RENDERER's coordinates: where its top-left
-// corner sits and how big it is. Both projections are resolved from this and
-// the fragment's UV rather than from its world position.
+// How far the surface was shifted, in TILES, when it was filled.
 //
-// World position is wrong the moment anything between the renderer and the
-// viewport scales, because the transform is folded into it and the shader
-// cannot see the factor. The lab draws its preview inside a container that
-// scales to fit the panel: the coast field was sampled at the wrong tiles, so
-// the isometric view lost its beaches and shallows entirely and left a patch of
-// surf stranded in open water. The standalone demos have no such parent, which
-// is exactly why they looked right and hid it.
-uniform vec2 quad_origin = vec2(0.0);
-uniform vec2 quad_size = vec2(1.0);
+// A tile layer cannot be filled from a negative cell without landing in a
+// second rendering quadrant, and a second quadrant restarts VERTEX. So a sea
+// that overscans the map is filled from the origin and the LAYER is moved
+// instead; this is what converts the result back into map tiles.
+uniform vec2 tile_offset = vec2(0.0);
+
+// Where this fragment sits in the SURFACE's own coordinates, carried over from
+// the vertex stage.
+//
+// It must not be the world position: that is wrong the moment anything between
+// the renderer and the viewport scales, because the transform is folded into it
+// and the shader cannot see the factor. The lab draws its preview inside a
+// container that scales to fit the panel, and the coast field was sampled at
+// the wrong tiles - the isometric view lost its beaches and shallows entirely
+// and left a patch of surf stranded in open water. The standalone demos have no
+// such parent, which is exactly why they looked right and hid it.
+//
+// VERTEX in vertex() is documented as local space in PIXELS relative to the
+// node's origin, which is precisely the quantity wanted, and it is unaffected
+// by any parent transform. In fragment() the same name means something else
+// entirely - screen space - so it has to travel as a varying.
+//
+// This replaces a quad_origin/quad_size pair that existed only because the
+// surface used to be a Sprite2D with a one-pixel texture, where VERTEX spans
+// 0..1 rather than the map. On a TileMapLayer it spans the map in pixels, so
+// the workaround is not needed and the surface can be real tiles.
+varying vec2 surface_local;
 
 // ADDITION 2 - clarity. How opaque the water gets once it is deep, and how far
 // out that takes. Below one, the seabed under it stays visible even offshore.
@@ -110,8 +126,6 @@ uniform float lake_opacity : hint_range(0.0, 1.0) = 0.42;
 // own overhang leaves behind.
 uniform float shore_opacity : hint_range(0.0, 1.0) = 0.55;
 
-varying vec2 world_pos;
-
 float hash(vec2 p) {
 	// NOT fract(sin(dot(p, ...)) * 43758.0). That loses precision once the
 	// coordinate is large - and the coordinate here is tile position times a
@@ -133,7 +147,15 @@ float value_noise(vec2 p) {
 }
 
 void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+	// The surface's own pixel position, for the fragment stage. There is exactly
+	// one vertex() in a shader: adding a second one beside this compiled to
+	// "Redefinition of 'vertex'", and a shader that fails to compile is not
+	// skipped - the item draws UNSHADED, so the sea came out as a flat white
+	// field of blank tiles rather than as nothing at all.
+	//
+	// This used to also carry a world_pos varying that nothing read; it was the
+	// last trace of sampling by world position, which a scaling parent breaks.
+	surface_local = VERTEX;
 }
 
 void fragment() {
@@ -148,26 +170,23 @@ void fragment() {
 	// map_to_local, every cell came back exactly (+1, 0) wrong, which drew the
 	// surf on a shore that is not where the land is.
 	vec2 half_cell = max(cell_size * 0.5, vec2(1.0));
-	// Where this fragment is in the renderer's own space, free of any parent
-	// transform.
-	vec2 local_pos = quad_origin + (UV * quad_size);
+	// Where this fragment is in the surface's own space, free of any parent
+	// transform. See surface_local.
+	vec2 local_pos = surface_local;
 
 	vec2 tile;
 	if (flat_projection > 0.5) {
-		// Top-down: the quad IS the map, so its own UV gives the tile directly.
-		//
-		// NOT the world position over the cell size. That looks equivalent and
-		// breaks the moment anything scales the renderer - the lab draws its
-		// preview inside a container that scales to fit the panel, so world
-		// coordinates arrive multiplied by a factor the shader knows nothing
-		// about, and the sea covered half the map. UV is measured across the
-		// quad itself and cannot be thrown off by a parent transform.
+		// Top-down: local pixels ARE the map, so dividing by the cell size gives
+		// the tile directly. A square TileMapLayer puts cell (0,0) across
+		// 0..cell_size, so no half-cell correction belongs here - map_to_local
+		// reports a cell's CENTRE, which is a different question.
 		tile = local_pos / max(cell_size, vec2(1.0));
 	} else {
 		float ex = (local_pos.x - half_cell.x) / half_cell.x;
 		float ey = local_pos.y / half_cell.y;
 		tile = vec2((ex + ey) * 0.5, (ey - ex) * 0.5);
 	}
+	tile -= tile_offset;
 	vec2 UVm = tile / map_size;
 
 	vec2 world_uv = tile / texture_tiles;

@@ -131,7 +131,7 @@ namespace Beep.ECS
 		private const string ShaderPath = "res://addons/beep_game_builder_cs/shaders/terrain_splat.gdshader";
 
 		private GridTerrainGeneratorComponent? _generator;
-		private Sprite2D? _surface;
+		private TileMapLayer? _surface;
 		private ShaderMaterial? _material;
 
 
@@ -186,6 +186,8 @@ namespace Beep.ECS
 			// the truth about its coast.
 			_material.SetShaderParameter("beach_tiles", _generator.BeachWidth);
 			_material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
+			_material.SetShaderParameter(
+				"cell_size", new Vector2(Mathf.Max(1, TileSize), Mathf.Max(1, TileSize)));
 			_material.SetShaderParameter("texture_tiles", Mathf.Max(1.0f, TextureTiles));
 			_material.SetShaderParameter("blend_width", BlendWidth);
 			_material.SetShaderParameter("edge_noise", EdgeNoise);
@@ -250,28 +252,33 @@ namespace Beep.ECS
 
 		private void EnsureSurface(Vector2I size)
 		{
-			_surface ??= GetNodeOrNull<Sprite2D>("SplatSurface");
+			_surface ??= GetNodeOrNull<TileMapLayer>("SplatSurface");
 			if (_surface is null || !GodotObject.IsInstanceValid(_surface))
 			{
-				_surface = new Sprite2D { Name = "SplatSurface", Centered = false };
+				_surface = new TileMapLayer { Name = "SplatSurface" };
 				AddChild(_surface);
 				TerrainAuthoring.Adopt(_surface, this);
 			}
 
-			// A single white pixel stretched over the map: the shader paints it,
-			// so the texture itself only has to provide UVs.
-			if (_surface.Texture is null)
-			{
-				var pixel = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-				pixel.SetPixel(0, 0, Colors.White);
-				_surface.Texture = ImageTexture.CreateFromImage(pixel);
-			}
-
+			// REAL TILES, not a quad stretched over the map.
+			//
+			// The look is unchanged - this is still one continuous blended surface
+			// computed per pixel - but it is now part of the tile system: saved with
+			// the scene, editable, and carrying the collision and navigation a
+			// TileMapLayer offers. The shader finds out where a fragment is from
+			// VERTEX rather than from a full-map quad's UV, which is what made the
+			// surface interchangeable at all.
 			int tile = Mathf.Max(1, TileSize);
-			_surface.Scale = new Vector2(size.X * tile, size.Y * tile);
-			// This one quad IS the whole map - bed, sea and land composited in
-			// a single pass - so it goes at the floor of the shared stack.
+			Vector2I cell = new(tile, tile);
+			if (_surface.TileSet is null || _surface.TileSet.TileSize != cell)
+				_surface.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: false);
+
+			TerrainShaderSurface.Fill(_surface, size);
+
+			// The whole map - bed, sea and land composited in a single pass - so it
+			// goes at the floor of the shared stack.
 			_surface.ZIndex = TerrainLayers.ZForFloor();
+			_surface.ZAsRelative = false;
 			_surface.TextureFilter = TextureFilterEnum.Linear;
 
 			if (_material is null)

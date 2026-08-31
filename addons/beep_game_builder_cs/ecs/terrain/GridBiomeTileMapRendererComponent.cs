@@ -102,7 +102,7 @@ namespace Beep.ECS
 
         private readonly List<GridTerrainTransitionLayerComponent> _layers = new();
         private GridTerrainGeneratorComponent? _generator;
-        private Sprite2D? _water;
+        private TileMapLayer? _water;
         private ImageTexture? _coastMap;
         private ShaderMaterial? _waterMaterial;
         /// <summary>What the current layers were built from; see Signature.</summary>
@@ -164,26 +164,26 @@ namespace Beep.ECS
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             _coastMap = TerrainCoastField.Build(_generator, size, CoastDetail, CoastRangeTiles);
 
-            _water ??= GetNodeOrNull<Sprite2D>("TileWater");
+            _water ??= GetNodeOrNull<TileMapLayer>("TileWater");
             if (_water is null || !GodotObject.IsInstanceValid(_water))
             {
-                _water = new Sprite2D { Name = "TileWater" };
+                _water = new TileMapLayer { Name = "TileWater" };
                 AddChild(_water);
                 TerrainAuthoring.Adopt(_water, this);
             }
 
-            // One white texel stretched over the map. The shader never samples
-            // it; a Sprite2D just needs something to give the quad its extent.
-            if (_water.Texture is null)
-            {
-                Image dot = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-                dot.SetPixel(0, 0, Colors.White);
-                _water.Texture = ImageTexture.CreateFromImage(dot);
-            }
+            // The sea is tiles like everything else. Every cell is filled, not
+            // just the wet ones: the shader decides where the water stops, and
+            // it needs to be able to draw the shore fade and the foam slightly
+            // INLAND of the waterline. Filling only water cells would clip both
+            // at a cell boundary and put a straight edge along every beach.
+            Vector2I cell = new(Mathf.Max(1, AtlasTileSize.X), Mathf.Max(1, AtlasTileSize.Y));
+            if (_water.TileSet is null || _water.TileSet.TileSize != cell)
+                _water.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: false);
 
-            _water.Centered = false;
+            TerrainShaderSurface.Fill(_water, size);
+
             _water.Position = Vector2.Zero;
-            _water.Scale = new Vector2(size.X * AtlasTileSize.X, size.Y * AtlasTileSize.Y);
 
             // The shared sea level: over the water tiles that are its bed, and
             // under the land. Not another biome competing for the same ground.
@@ -220,12 +220,6 @@ namespace Beep.ECS
             else
             {
                 material.SetShaderParameter("coast_map", _coastMap);
-            }
-
-            if (_water is not null)
-            {
-                material.SetShaderParameter("quad_origin", _water.Position);
-                material.SetShaderParameter("quad_size", _water.Scale);
             }
 
             material.SetShaderParameter("coast_range", CoastRangeTiles);

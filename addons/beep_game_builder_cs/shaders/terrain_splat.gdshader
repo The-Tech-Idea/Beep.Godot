@@ -21,6 +21,25 @@ uniform sampler2D coast_map : filter_linear, repeat_disable;
 uniform float coast_range = 5.0;
 uniform vec2 map_size = vec2(96.0, 60.0);
 
+// Pixels per tile. Needed because this shader now draws on a TileMapLayer
+// rather than on one quad stretched over the map: a quad's UV meant "how far
+// across the map am I" for free, and a tile layer's UV means "how far across
+// this one tile's atlas region", which is a different question entirely.
+uniform vec2 cell_size = vec2(64.0, 64.0);
+
+// Where this fragment sits in the SURFACE's own coordinates, carried from the
+// vertex stage.
+//
+// VERTEX in vertex() is documented as local space in PIXELS relative to the
+// node's origin - exactly the quantity wanted, and unaffected by any parent
+// transform, which the world position is not. In fragment() the same name means
+// screen space, so it has to travel as a varying.
+varying vec2 surface_local;
+
+void vertex() {
+	surface_local = VERTEX;
+}
+
 // How many tiles one repeat of a material texture covers. Larger means the
 // texture detail is bigger relative to a tile.
 uniform float texture_tiles = 6.0;
@@ -203,7 +222,9 @@ int id_at(vec2 cell) {
 }
 
 void fragment() {
-	vec2 tile = UV * map_size;
+	// The map-wide UV the old full-map quad used to hand over as UV.
+	vec2 map_uv = surface_local / max(map_size * cell_size, vec2(1.0));
+	vec2 tile = surface_local / max(cell_size, vec2(1.0));
 	vec2 cell = floor(tile);
 	vec2 f = fract(tile);
 
@@ -221,8 +242,8 @@ void fragment() {
 	// out to sea on whichever coasts happen to face that way.
 	vec2 shore_texel = 1.0 / map_size;
 	vec2 shore_grad = vec2(
-		texture(coast_map, UV + vec2(shore_texel.x, 0.0)).r - texture(coast_map, UV - vec2(shore_texel.x, 0.0)).r,
-		texture(coast_map, UV + vec2(0.0, shore_texel.y)).r - texture(coast_map, UV - vec2(0.0, shore_texel.y)).r);
+		texture(coast_map, map_uv + vec2(shore_texel.x, 0.0)).r - texture(coast_map, map_uv - vec2(shore_texel.x, 0.0)).r,
+		texture(coast_map, map_uv + vec2(0.0, shore_texel.y)).r - texture(coast_map, map_uv - vec2(0.0, shore_texel.y)).r);
 	float shore_glen = length(shore_grad);
 	// A flat gradient is open water far from any coast, where none of this is
 	// visible; any direction will do rather than normalising zero.
@@ -287,7 +308,7 @@ void fragment() {
 	vec3 land_col = land_w > 0.0 ? land_acc / land_w : material(0, world_uv);
 
 	// Signed distance to the waterline, in tiles: positive out to sea.
-	vec4 coast = texture(coast_map, UV);
+	vec4 coast = texture(coast_map, map_uv);
 	float sd = (coast.r - 0.5) * 2.0 * coast_range;
 	// Green marks open sea. Surf needs a fetch behind it, so a lake or a river
 	// stays flat however close to the shore it is.
@@ -341,7 +362,7 @@ void fragment() {
 
 	// Hillshade applies to ground only; lighting the sea by land relief looks
 	// like a stain on the water.
-	float shade = mix(1.0, texture(shade_map, UV).r * 2.0, shade_strength);
+	float shade = mix(1.0, texture(shade_map, map_uv).r * 2.0, shade_strength);
 	land_col *= shade;
 
 	// Moving swell on open water, so the sea is never a flat sheet. It rolls

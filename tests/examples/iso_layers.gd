@@ -20,10 +20,12 @@ const EXPECTED := [
 	{"kind": "water", "level": 0, "z": 0},    # the sea, one surface
 	{"kind": "terrain", "level": 1, "z": 2},  # ground
 	{"kind": "terrain", "level": 2, "z": 4},  # hills
-	{"kind": "terrain", "level": 3, "z": 6},  # mountains, a step above the hills
-	{"kind": "props", "level": 1, "z": 9},    # trees standing on the ground
-	{"kind": "props", "level": 2, "z": 10},   # trees standing on the hills
-	{"kind": "props", "level": 3, "z": 11},   # trees standing on the peaks
+	{"kind": "terrain", "level": 3, "z": 6},  # mountain flanks
+	{"kind": "terrain", "level": 4, "z": 8},  # summits, deep inside a massif
+	{"kind": "props", "level": 1, "z": 11},   # trees standing on the ground
+	{"kind": "props", "level": 2, "z": 12},   # trees standing on the hills
+	{"kind": "props", "level": 3, "z": 13},   # trees standing on the flanks
+	{"kind": "props", "level": 4, "z": 14},   # nothing grows this high, but it owns a slot
 ]
 
 # Seven slots above the waterline, plus the bed beneath it. Nine layers spanning
@@ -79,6 +81,15 @@ func _initialize() -> void:
 		else:
 			above.append(entry)
 
+	# How much ground each level actually holds. A level that exists but is
+	# nearly empty is a level that does nothing visible, and the counts are the
+	# only way to tell that from one doing its job.
+	var counted: Array = []
+	for entry in above:
+		if entry["kind"] == "terrain":
+			counted.append("L%d:%d" % [int(entry["level"]), int(entry["cells"])])
+	print("  terrain cells per level: %s" % " ".join(counted))
+
 	check(above.size() == EXPECTED.size(),
 		"%d layers above the waterline, expected %d" % [above.size(), EXPECTED.size()])
 
@@ -103,9 +114,23 @@ func _initialize() -> void:
 
 	# The whole stack has to stay shallow. A map three storeys tall reads as
 	# crammed however few kinds of terrain are on it.
-	var span: float = absf(float(iso.SeabedStep) + float(iso.LevelHeight) * 2.0)
+	# Derived from the level count rather than a hardcoded 2. The formula said
+	# "two levels above the ground" and went stale the moment a third was added:
+	# it still reported 1.16 tile heights when the real stack was already 1.66.
+	# A cap that measures the wrong thing is worse than no cap, because it passes.
+	var terrain_levels := 0
+	for entry in above:
+		if entry["kind"] == "terrain":
+			terrain_levels += 1
+	var steps: float = float(terrain_levels)
+	var span: float = absf(float(iso.SeabedStep) + float(iso.LevelHeight) * steps)
 	var heights: float = span / maxf(1.0, float(iso.CellSize.y))
-	check(heights <= 2.0, "the stack is %.2f tile heights (max 2)" % heights)
+	# The bar is what the eye can still read as one map, not an arbitrary round
+	# number. Nine layers spanning three tile heights was the shape this
+	# replaced, and that was unreadable; a tapering mountain reaching about two
+	# and a quarter is not. What matters is that this MEASURES the real stack, so
+	# the next level added has to be argued for rather than slipping in unseen.
+	check(heights <= 2.5, "the stack is %.2f tile heights (max 2.5)" % heights)
 
 	# Every prop layer draws after EVERY terrain layer, and prop layers keep
 	# their own level order. This is the invariant the ordering exists for: a

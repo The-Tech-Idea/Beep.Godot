@@ -200,7 +200,7 @@ namespace Beep.ECS
         /// A tree on low ground must be covered by the cliff in front of it,
         /// and it cannot be if every prop is drawn after every tile.
         /// </summary>
-        public const int LevelCount = 4;
+        public const int LevelCount = 5;
 
         /// <summary>Z index of a terrain level.</summary>
         public static int ZIndexForLevel(int level) => level * 2;
@@ -228,6 +228,7 @@ namespace Beep.ECS
         private const int GroundLevel = 1;
         private const int UpperLevel = 2;
         private const int PeakLevel = 3;
+        private const int SummitLevel = 4;
 
         /// <summary>
         /// Land levels have a tile layer; the sea does not. The sea is drawn by
@@ -236,6 +237,7 @@ namespace Beep.ECS
         /// </summary>
         private static int LayerFor(int level) => level - GroundLevel;
 
+        private int[] _mountainDepth = Array.Empty<int>();
         private GridTerrainGeneratorComponent? _generator;
         private readonly List<TileMapLayer> _layers = new();
 
@@ -302,6 +304,7 @@ namespace Beep.ECS
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             MeasureWaterDepth(size);
+            MeasureMountainDepth(size);
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
@@ -380,6 +383,15 @@ namespace Beep.ECS
                     // Written as a loop rather than a case per level so that
                     // adding a step to the stack is a change to LevelFor alone.
                     int level = LevelFor(terrain, _generator.ReliefAt(cell));
+
+                    // A mountain TAPERS. Every raised cell drawn at one height
+                    // makes a range a flat-topped mesa - correct as a stack, and
+                    // still not a mountain, because a mountain has a middle that
+                    // stands above its own edge. The cells deep inside a massif
+                    // take one more step than the cells around its rim, so the
+                    // range steps up to its summits instead of shearing off.
+                    if (level >= PeakLevel && _mountainDepth[(y * size.X) + x] >= 2)
+                        level = SummitLevel;
                     for (int step = GroundLevel; step <= level && step < LevelCount; step++)
                     {
                         _layers[LayerFor(step)].SetCell(
@@ -483,6 +495,67 @@ namespace Beep.ECS
         /// records, and taking it from the deep/shallow kind alone gives two
         /// flat terraces instead of a slope.
         /// </summary>
+        /// <summary>
+        /// How deep inside its own mountain mass each cell sits, in tiles, by
+        /// the same walk outward the seabed uses - the rim is 1, the next ring
+        /// in is 2, and so on. Anything that is not a mountain is 0.
+        /// </summary>
+        private void MeasureMountainDepth(Vector2I size)
+        {
+            int count = size.X * size.Y;
+            if (_mountainDepth.Length != count)
+                _mountainDepth = new int[count];
+            Array.Clear(_mountainDepth);
+
+            var queue = new Queue<int>();
+            for (int y = 0; y < size.Y; y++)
+            {
+                for (int x = 0; x < size.X; x++)
+                {
+                    var at = new Vector2I(x, y);
+                    if (_generator!.ReliefAt(at) < 2)
+                        continue;
+
+                    // A rim cell is one with a non-mountain beside it.
+                    for (int side = 0; side < 4; side++)
+                    {
+                        int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
+                        int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
+                        if (nx < 0 || ny < 0 || nx >= size.X || ny >= size.Y
+                            || _generator.ReliefAt(new Vector2I(nx, ny)) < 2)
+                        {
+                            _mountainDepth[(y * size.X) + x] = 1;
+                            queue.Enqueue((y * size.X) + x);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                int index = queue.Dequeue();
+                int cx = index % size.X;
+                int cy = index / size.X;
+                for (int side = 0; side < 4; side++)
+                {
+                    int nx = cx + (side == 0 ? 1 : side == 1 ? -1 : 0);
+                    int ny = cy + (side == 2 ? 1 : side == 3 ? -1 : 0);
+                    if (nx < 0 || ny < 0 || nx >= size.X || ny >= size.Y)
+                        continue;
+
+                    int next = (ny * size.X) + nx;
+                    if (_mountainDepth[next] != 0)
+                        continue;
+                    if (_generator!.ReliefAt(new Vector2I(nx, ny)) < 2)
+                        continue;
+
+                    _mountainDepth[next] = _mountainDepth[index] + 1;
+                    queue.Enqueue(next);
+                }
+            }
+        }
+
         private void MeasureWaterDepth(Vector2I size)
         {
             int count = size.X * size.Y;

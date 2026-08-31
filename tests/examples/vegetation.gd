@@ -27,13 +27,30 @@ extends SceneTree
 # is doing something right - it is what makes a wet map greener than a dry one -
 # so the two uses are not the same fact and cannot both be made relative.
 #
-# The decision worth taking deliberately: should ground the QUOTA calls grass,
-# on a map whose absolute moisture is desert-like, carry woods? Whichever way
-# that goes, the 0.26 should end up owned in one place instead of three.
+# WITHIN one landmass the woods still gather into one part of it, and four
+# attempts at spreading them all failed to beat what is here. Measured as woods
+# per WOODS-CAPABLE tile across the quadrants of one 48x48 map:
+#
+#   per-landmass ranking (current)   57  0 42 57   3 bare islands
+#   local block ranking              62  0 12 63   2 bare islands
+#
+# Local ranking helps small islands and is clearly worse inside a map, so it was
+# not kept. A curved placement chance and a higher noise frequency were tried
+# too; neither beat this either.
+#
+# WHERE TO LOOK NEXT. One quadrant holds 103 woods-capable tiles and no woods in
+# EVERY configuration tried, including ones that rank only against that
+# quadrant's own neighbourhood. Ranking scope is therefore not the cause, and
+# the next place to look is eligibility - what removes those 103 tiles before
+# the ranking ever sees them - not another way of thresholding.
+#
+# A NOTE ON MEASURING THIS. The denominator was wrong twice here, and both times
+# it invented a defect. Woods per LAND tile counts sand, rock and desert that
+# can never carry a tree, so a correct desert quadrant reads as a placement
+# failure; and a bare ratio with no denominator cannot tell 0 woods on 20 tiles
+# from 0 on 250. Only woods per woods-capable tile answers the question, which
+# is why the counts are printed and not just the percentage.
 
-# Tundra is deliberately absent. It is woods-capable in the placement stage,
-# but it is also the ground most likely to sit under the temperature floor,
-# so counting it here would blame the placement for climate doing its job.
 const WOODS_CAPABLE := ["grass", "dry_grass"]
 
 ## Islands, each with how much woods-capable ground it has and how much it grew.
@@ -108,6 +125,39 @@ func _initialize() -> void:
 			% [case[3], found.size(), bare.size()])
 		for e in bare:
 			print("      %d-tile island: %d capable, 0 grown" % [e.cells, e.capable])
+
+	# Spread WITHIN one landmass. Ranking per landmass fixed distribution
+	# between islands and says nothing about this: a single island can still
+	# take all its woods in one corner, which is what the isometric demo shows.
+	gen.Landform = 0
+	gen.ArchipelagoIslandCount = 3
+	gen.LandmassScale = 0.42
+	gen.BoundsSize = Vector2i(48, 48)
+	gen.UseScaleRules = OS.get_environment("NOTHIN") == ""
+	gen.GenerateTerrain()
+	var quad_land := [0, 0, 0, 0]
+	var quad_woods := [0, 0, 0, 0]
+	for y in range(48):
+		for x in range(48):
+			var c := Vector2i(x, y)
+			var k: String = gen.TerrainKindAt(c)
+			if k == "deep_water" or k == "shallow_water" or k == "": continue
+			var q: int = (0 if x < 24 else 1) + (0 if y < 24 else 2)
+			# Capable ground, not all land. Sand, rock and desert can never
+			# carry woods, so counting them makes a perfectly correct desert
+			# quadrant look like a placement failure - which it did, twice.
+			if WOODS_CAPABLE.has(k) and int(gen.ReliefAt(c)) < 2:
+				quad_land[q] += 1
+			if gen.FeatureAt(c) != "": quad_woods[q] += 1
+	# The denominator is printed too. A quadrant with no woods on 20 tiles of
+	# land is not the same finding as one with no woods on 250, and a bare ratio
+	# cannot tell them apart - which is exactly the mistake that made a mostly
+	# ocean quadrant look like a placement defect.
+	var parts: Array = []
+	for q in range(4):
+		var d: float = 0.0 if quad_land[q] == 0 else float(quad_woods[q]) / float(quad_land[q])
+		parts.append("%d/%d=%.0f%%" % [quad_woods[q], quad_land[q], d * 100.0])
+	print("within one map: woods per woods-capable tile, by quadrant %s" % " ".join(parts))
 
 	print("RESULT: reported (measurement, not a guard - see the header)")
 	quit(0)

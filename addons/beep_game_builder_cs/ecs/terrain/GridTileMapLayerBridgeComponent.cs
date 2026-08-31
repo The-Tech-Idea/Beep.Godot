@@ -87,6 +87,11 @@ namespace Beep.ECS
             if (FillDefaultTerrainInBounds)
                 FillDefaultTerrain();
 
+            // PaintCell, not RefreshCell: RefreshCell calls UpdateInternals for
+            // the one cell it wrote, which is right for a single edit and wrong
+            // inside a loop. Rebuilding a map ran a full internal update once per
+            // painted cell and then once more at the end, so the cost grew with
+            // the square of the map rather than with it.
             if (PaintCells && _cells != null)
             {
                 foreach (Godot.Collections.Dictionary cellData in _cells.GetCells())
@@ -95,31 +100,41 @@ namespace Beep.ECS
                     if (cell.X == int.MinValue || cell.Y == int.MinValue)
                         continue;
 
-                    RefreshCell(cell);
+                    PaintCell(cell);
                 }
             }
 
             if (PaintRoads && _roads != null)
             {
                 foreach (Vector2I roadCell in _roads.GetRoadCells())
-                    RefreshCell(roadCell);
+                    PaintCell(roadCell);
             }
 
+            // Once, for the whole batch.
             _tileMapLayer.UpdateInternals();
         }
 
+        /// <summary>Repaints one cell and publishes it immediately.</summary>
         public void RefreshCell(Vector2I cell)
         {
+            if (!PaintCell(cell))
+                return;
+
+            _tileMapLayer!.UpdateInternals();
+        }
+
+        /// <summary>
+        /// Writes one cell's tile WITHOUT publishing it, so a batch can update
+        /// the layer's internals once at the end. Reports whether it wrote.
+        /// </summary>
+        private bool PaintCell(Vector2I cell)
+        {
             ResolveReferences();
-            if (_tileMapLayer == null)
-                return;
+            if (_tileMapLayer == null || _tileMapLayer.TileSet == null)
+                return false;
 
-            if (_tileMapLayer.TileSet == null)
-                return;
-
-            Vector2I atlas = AtlasForCell(cell);
-            _tileMapLayer.SetCell(cell, SourceId, atlas, AlternativeTile);
-            _tileMapLayer.UpdateInternals();
+            _tileMapLayer.SetCell(cell, SourceId, AtlasForCell(cell), AlternativeTile);
+            return true;
         }
 
         public void EraseCell(Vector2I cell)
@@ -183,6 +198,14 @@ namespace Beep.ECS
                 _roads = !RoadPath.IsEmpty
                     ? GetNodeOrNull<GridRoadComponent>(RoadPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
+
+            // Subscribe to whatever was just resolved. Signals were connected
+            // only in _Ready, so a source that resolved later - a path assigned
+            // at runtime, or a component added after this one - was found and
+            // painted once and then never listened to again. The bridge went on
+            // reporting a painted cell count while silently no longer tracking
+            // the state it exists to mirror. ConnectSignals is idempotent.
+            ConnectSignals();
         }
 
         private void ConnectSignals()

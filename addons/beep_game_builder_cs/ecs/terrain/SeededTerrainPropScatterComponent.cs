@@ -37,7 +37,8 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,1,0.01")] public float ScatterJitter { get; set; } = 0.70f;
         [Export(PropertyHint.Range, "0.05,2,0.01")] public float MinScale { get; set; } = 0.32f;
         [Export(PropertyHint.Range, "0.05,2,0.01")] public float MaxScale { get; set; } = 0.52f;
-        [Export] public int RenderZIndex { get; set; } = -84;
+        // No z index export; TerrainLayers owns the stack. These stamps are
+        // props standing on the ground, which is a slot the stack already has.
 
         [ExportGroup("Grassland Props")]
         [Export(PropertyHint.File, "*.png,*.webp")] public string GrassPrimaryPath { get; set; } = "";
@@ -138,8 +139,10 @@ namespace Beep.ECS
                         Position = tilePosition * tile,
                         Scale = Vector2.One * Mathf.Lerp(Mathf.Min(MinScale, MaxScale), Mathf.Max(MinScale, MaxScale), Hash01(x, y, Seed + 7523)),
                         Rotation = Mathf.Lerp(-0.10f, 0.10f, Hash01(x, y, Seed + 7639)),
-                        ZIndex = RenderZIndex,
-                        TextureFilter = TextureFilterEnum.Linear,
+                        ZIndex = TerrainLayers.ZForProps(TerrainLayers.Ground),
+                        ZAsRelative = false,
+                        // Linear alone cannot use a mip chain for minification.
+                        TextureFilter = TextureFilterEnum.LinearWithMipmaps,
                     };
                     AddChild(stamp);
                     placedTiles.Add(tilePosition);
@@ -180,7 +183,7 @@ namespace Beep.ECS
             return palettes;
         }
 
-        private static void AddPalette(Dictionary<string, List<Texture2D>> palettes, string key, params string[] paths)
+        private void AddPalette(Dictionary<string, List<Texture2D>> palettes, string key, params string[] paths)
         {
             var textures = new List<Texture2D>();
             foreach (string path in paths)
@@ -190,19 +193,20 @@ namespace Beep.ECS
                 palettes[key] = textures;
         }
 
-        private static void AddTexture(string path, ICollection<Texture2D> textures)
+        /// <summary>
+        /// A prop sprite, through the shared loader.
+        ///
+        /// This read every path with Image.LoadFromFile alone, which fails on a
+        /// res:// path - the ONLY form an in-project sprite has - and produced no
+        /// mip chain for the ones it did load. So a project keeping its props
+        /// inside the project got a warning and no props at all, and one keeping
+        /// them outside got props that aliased at map zoom.
+        /// </summary>
+        private void AddTexture(string path, ICollection<Texture2D> textures)
         {
-            if (string.IsNullOrWhiteSpace(path))
-                return;
-
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-            {
-                GD.PushWarning($"Seeded terrain prop scatter could not load '{path}'.");
-                return;
-            }
-
-            textures.Add(ImageTexture.CreateFromImage(image));
+            Texture2D? texture = TerrainTextures.Load(path, Name, "prop sprite");
+            if (texture is not null)
+                textures.Add(texture);
         }
 
         private void RemoveGeneratedStamps()

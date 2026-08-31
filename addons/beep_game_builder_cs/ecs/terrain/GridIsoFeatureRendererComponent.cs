@@ -370,23 +370,7 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(path))
                 return;
 
-            Texture2D? texture;
-            if (path.StartsWith("res://", StringComparison.Ordinal))
-            {
-                texture = GD.Load<Texture2D>(path);
-            }
-            else
-            {
-                Image image = Image.LoadFromFile(path);
-                if (image.IsEmpty())
-                {
-                    GD.PushWarning($"[{Name}] could not load feature sheet '{path}' for {key}.");
-                    return;
-                }
-                image.GenerateMipmaps();
-                texture = ImageTexture.CreateFromImage(image);
-            }
-
+            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {key} feature sheet");
             if (texture is not null)
                 _sheets[key] = texture;
         }

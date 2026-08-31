@@ -174,22 +174,7 @@ namespace Beep.ECS
         }
 
         private Texture2D? Load(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return null;
-
-            if (path.StartsWith("res://", StringComparison.Ordinal))
-                return GD.Load<Texture2D>(path);
-
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-            {
-                GD.PushWarning($"[{Name}] could not load relief sheet '{path}'.");
-                return null;
-            }
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
-        }
+            => TerrainTextures.Load(path, Name, "relief sheet");
 
         private void ResolveGenerator()
         {

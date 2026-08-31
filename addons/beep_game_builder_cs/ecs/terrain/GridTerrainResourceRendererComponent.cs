@@ -271,23 +271,7 @@ namespace Beep.ECS
         private bool LoadSheet()
         {
             if (_sheet is null && !string.IsNullOrWhiteSpace(_sheetPath))
-            {
-                if (_sheetPath.StartsWith("res://", StringComparison.Ordinal))
-                {
-                    _sheet = GD.Load<Texture2D>(_sheetPath);
-                }
-                else
-                {
-                    Image image = Image.LoadFromFile(_sheetPath);
-                    if (image.IsEmpty())
-                        GD.PushWarning($"[{Name}] could not load resource icon sheet '{_sheetPath}'.");
-                    else
-                    {
-                        image.GenerateMipmaps();
-                        _sheet = ImageTexture.CreateFromImage(image);
-                    }
-                }
-            }
+                _sheet = TerrainTextures.Load(_sheetPath, Name, "the resource icon sheet");
 
             if (_frames.Count == 0 && _order is { Length: > 0 })
             {

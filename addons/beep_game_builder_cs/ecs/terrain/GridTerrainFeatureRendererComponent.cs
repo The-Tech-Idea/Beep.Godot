@@ -237,32 +237,15 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(path))
                 return;
 
-            Texture2D? texture = path.StartsWith("res://", System.StringComparison.Ordinal)
-                ? GD.Load<Texture2D>(path)
-                : LoadFromFile(path);
-
+            // Mipmaps matter more here than anywhere else in the renderer: a
+            // tree frame is around 310 pixels and is drawn about ten across with
+            // the whole map in view, a minification of thirty to one. The shared
+            // loader is what guarantees the chain exists.
+            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {key} feature sheet");
             if (texture is null)
-            {
-                GD.PushWarning($"[{Name}] could not load feature sheet '{path}' for {key}.");
                 return;
-            }
+
             _sheets[key] = texture;
-        }
-
-        private static Texture2D? LoadFromFile(string path)
-        {
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-                return null;
-
-            // Mipmaps matter more here than anywhere else in the renderer. A
-            // tree frame is around 310 pixels and is drawn about ten across when
-            // the whole map is in view - a minification of thirty to one. Without
-            // mipmaps that samples one source pixel per screen pixel and lands as
-            // aliased noise, so detailed art reads as bad pixel art precisely at
-            // the zoom where most of the map is visible.
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
         }
 
         private void ResolveGenerator()

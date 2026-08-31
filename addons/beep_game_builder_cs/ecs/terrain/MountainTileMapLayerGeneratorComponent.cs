@@ -450,6 +450,11 @@ namespace Beep.ECS
                 source.CreateTile(tileCoords);
             }
 
+            // The runtime atlas is composited here rather than imported, so
+            // nothing else can give it a mip chain. Without one, mountain tiles
+            // minified at map zoom alias into noise and the filter hint on the
+            // layer silently falls back to plain linear.
+            runtimeAtlas.GenerateMipmaps();
             source.Texture = ImageTexture.CreateFromImage(runtimeAtlas);
             var tileSet = new TileSet { TileSize = new Vector2I(Mathf.Max(1, TileSize.X), Mathf.Max(1, TileSize.Y)) };
             tileSet.AddSource(source, SourceId);
@@ -481,7 +486,16 @@ namespace Beep.ECS
             if (_tileMapLayer != null || !CreateLayerIfMissing)
                 return;
 
-            _tileMapLayer = new TileMapLayer { Name = string.IsNullOrWhiteSpace(CreatedLayerName) ? "GeneratedMountainTileMapLayer" : CreatedLayerName };
+            _tileMapLayer = new TileMapLayer
+            {
+                Name = string.IsNullOrWhiteSpace(CreatedLayerName) ? "GeneratedMountainTileMapLayer" : CreatedLayerName,
+                // Mountains are relief standing on the ground, so they take the
+                // stack's mountain level rather than Node2D's default of 0 -
+                // which is the sea's slot.
+                ZIndex = TerrainLayers.ZFor(TerrainLayers.Mountains),
+                ZAsRelative = false,
+                TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps,
+            };
             AddChild(_tileMapLayer);
             if (Engine.IsEditorHint())
                 _tileMapLayer.Owner = Owner;

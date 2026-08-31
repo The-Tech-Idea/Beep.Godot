@@ -1060,10 +1060,25 @@ namespace Beep.ECS
             return array;
         }
 
+        /// <summary>
+        /// A prefab part's art. The path is already resolved to a DISK path by
+        /// ResolvePath - a manifest may name res://, user:// or an absolute
+        /// location - so this deliberately does not go through the shared
+        /// TerrainTextures loader, which decides between the importer and the
+        /// disk by inspecting the path it is given.
+        ///
+        /// It still needs the mip chain: these become Sprite2Ds in the scene, and
+        /// CreateFromImage keeps only the levels the Image already has, which for
+        /// a freshly loaded one is none.
+        /// </summary>
         private static Texture2D? LoadTexture(string path)
         {
             Image image = Image.LoadFromFile(path);
-            return image.IsEmpty() ? null : ImageTexture.CreateFromImage(image);
+            if (image.IsEmpty())
+                return null;
+
+            image.GenerateMipmaps();
+            return ImageTexture.CreateFromImage(image);
         }
 
         private static string ResolvePath(string path, string manifestDiskPath)

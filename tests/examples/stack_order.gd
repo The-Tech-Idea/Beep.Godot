@@ -162,5 +162,55 @@ func _initialize() -> void:
 			check(marker_z > tree_z,
 				"resource markers draw over the trees (z%d > z%d)" % [marker_z, tree_z])
 
+	source_rules()
+
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)
+
+# Two rules that hold for terrain components no scene here instantiates.
+#
+# Both regressions were found by reading rather than by running, and both were
+# invisible: a renderer that keeps its own z looks fine until something else
+# moves, and a texture without a mip chain looks fine until the map is zoomed
+# out. Checking the live scene can only reach the renderers the lab happens to
+# build, so these read the source.
+func source_rules() -> void:
+	const DIR := "res://addons/beep_game_builder_cs/ecs/terrain/"
+	var names := DirAccess.get_files_at(DIR)
+	check(names.size() > 20, "the terrain source directory is readable (%d files)" % names.size())
+
+	var own_z: Array[String] = []
+	var unmipped: Array[String] = []
+	for file_name in names:
+		if not file_name.ends_with(".cs"):
+			continue
+		var text := FileAccess.get_file_as_string(DIR + file_name)
+		if text.is_empty():
+			continue
+
+		# A private z index export beside TerrainLayers is a second owner of the
+		# stack. This is the exact declaration that put the trees under the map.
+		if "int RenderZIndex" in text:
+			own_z.append(file_name)
+
+		# Art read off disk carries no mip chain, and CreateFromImage keeps only
+		# what the Image already has. TerrainTextures is where that is handled;
+		# anywhere else that turns a file into a texture must generate them.
+		#
+		# The trailing "(" matters: matching the bare name also matched the prose
+		# in a doc comment describing this very defect, and the rule reported a
+		# file that no longer calls it at all. Both halves are required too - a
+		# component that loads an Image only to read its pixels needs no mip
+		# chain, and demanding one there would be noise.
+		if (("Image.LoadFromFile(" in text)
+				and ("ImageTexture.CreateFromImage(" in text)
+				and file_name != "TerrainTextures.cs"
+				and not ("GenerateMipmaps" in text)):
+			unmipped.append(file_name)
+
+	check(own_z.is_empty(),
+		"no terrain component declares its own RenderZIndex%s"
+			% ("" if own_z.is_empty() else ": " + ", ".join(own_z)))
+	check(unmipped.is_empty(),
+		"every terrain component that loads art from disk gives it mipmaps%s"
+			% ("" if unmipped.is_empty() else ": " + ", ".join(unmipped)))

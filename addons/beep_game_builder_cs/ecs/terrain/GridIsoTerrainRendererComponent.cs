@@ -155,6 +155,27 @@ namespace Beep.ECS
             // Without Y sorting a tile drawn later covers one that should be in
             // front of it, and an isometric scene falls apart immediately.
             _layer.YSortEnabled = true;
+
+            // Y sorting alone is not enough. Godot batches tiles into quadrants
+            // and sorts whole QUADRANTS against each other, so two tiles in one
+            // batch draw in atlas order however they overlap. This layer enabled
+            // Y sorting and left the quadrant size at its default, which is the
+            // half-fixed state that looks correct until two neighbouring tiles
+            // differ in height. One tile per quadrant is what makes the sort
+            // actually per-tile - the same thing GridIsoTileMapRendererComponent
+            // does, for the same reason.
+            _layer.RenderingQuadrantSize = 1;
+
+            // The shared stack, like every other view. This layer is the ground
+            // it paints, and it drew at Node2D's default z of 0 - the slot the
+            // stack gives the SEA - so anything else on the shared stack landed
+            // on the wrong side of it.
+            _layer.ZIndex = TerrainLayers.ZFor(TerrainLayers.Ground);
+            _layer.ZAsRelative = false;
+
+            // Authored isometric tiles are detailed art minified hard at map
+            // zoom; without a mip-aware filter they alias into a shimmering grid.
+            _layer.TextureFilter = TextureFilterEnum.LinearWithMipmaps;
             return _layer;
         }
 

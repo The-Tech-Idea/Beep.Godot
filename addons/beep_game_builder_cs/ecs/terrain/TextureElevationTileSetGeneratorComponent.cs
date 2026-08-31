@@ -758,6 +758,13 @@ namespace Beep.ECS
 
         private void SaveTileSet(Image atlas, int tileWidth, int regionHeight)
         {
+            // The TileSet is saved with this texture EMBEDDED, so the mip chain
+            // has to be built here or it never exists: nothing imports a texture
+            // that lives inside a .tres, and a TileMapLayer asking for
+            // LinearWithMipmaps against it falls back to plain linear without
+            // saying so. Baking it in at generation time is what stops every
+            // future consumer of this atlas aliasing at map zoom.
+            atlas.GenerateMipmaps();
             var source = new TileSetAtlasSource
             {
                 Texture = ImageTexture.CreateFromImage(atlas),

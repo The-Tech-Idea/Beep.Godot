@@ -48,6 +48,12 @@ namespace Beep.ECS
         [Export] public float Lacunarity { get; set; } = 2.0f;
         [Export] public float Gain { get; set; } = 0.48f;
         /// <summary>
+        /// How hard running water cuts the land, 0 to 4. Zero leaves the height
+        /// field exactly as the noise made it.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,4,0.05")] public float ErosionStrength { get; set; } = 1.0f;
+
+        /// <summary>
         /// Width of the sand beach where land meets the OPEN SEA, in tiles.
         ///
         /// It reads in tiles because that is the unit anyone thinks in, and
@@ -56,12 +62,6 @@ namespace Beep.ECS
         /// tiles. The setting existed, the rule existed, and the map had no
         /// beaches at all.
         /// </summary>
-        /// <summary>
-        /// How hard running water cuts the land, 0 to 4. Zero leaves the height
-        /// field exactly as the noise made it.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,4,0.05")] public float ErosionStrength { get; set; } = 1.0f;
-
         [Export(PropertyHint.Range, "0,4,0.05")] public float BeachWidth { get; set; } = 1.0f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float Dryness { get; set; } = 0.25f;
 

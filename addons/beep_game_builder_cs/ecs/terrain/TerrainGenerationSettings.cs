@@ -46,16 +46,11 @@ namespace Beep.ECS
         float Gain,
         GridTerrainGeneratorComponent.LandformMode Landform,
         float LandmassScale,
-        float SeaCoverage,
         int ArchipelagoIslandCount,
         int TopologySamplesPerCell,
         float ErosionStrength,
         float BeachWidth,
-        float RockLevel,
         float Dryness,
-        float SwampCoverage,
-        float SnowCoverage,
-        float IceCoverage,
         float FeatureFrequencyMultiplier,
         float LakeCoverage,
         float LakeFrequencyMultiplier,
@@ -84,15 +79,18 @@ namespace Beep.ECS
         float ClimateLatitudeCentre,
         float TemperatureFrequencyMultiplier,
         float MoistureFrequencyMultiplier,
-        float FertilityFrequencyMultiplier,
-        float ColdThreshold,
-        float WetlandThreshold,
-        float FertilityThreshold)
+        float FertilityFrequencyMultiplier)
     {
-        /// <summary>Fraction of the map that must end up as land.</summary>
-        public float TargetLandCoverage => Landform == GridTerrainGeneratorComponent.LandformMode.Mainland
-            ? 1.0f - SeaCoverage
-            : LandmassScale;
+        /// <summary>
+        /// Fraction of the map that must end up as land.
+        ///
+        /// LandmassScale owns this for every mode. Mainland used to read
+        /// 1 - SeaCoverage instead, so two settings decided one fact and only
+        /// one was listened to: the Continents map type asks for 42% land and
+        /// produced 72%, its own LandCoverage quietly ignored while a sea
+        /// coverage of 0.12 answered in its place.
+        /// </summary>
+        public float TargetLandCoverage => LandmassScale;
 
         /// <summary>
         /// How many separate landmasses the map should have. This is the one

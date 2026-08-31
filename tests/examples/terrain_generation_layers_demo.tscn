@@ -45,7 +45,6 @@ Octaves = 5
 Lacunarity = 2.05
 Gain = 0.5
 BeachWidth = 0.028
-RockLevel = 0.92
 Dryness = 0.0
 CellDataPath = NodePath("../Cells")
 GenerateOnReady = true

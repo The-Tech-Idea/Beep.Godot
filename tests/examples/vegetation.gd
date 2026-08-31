@@ -92,10 +92,7 @@ func _initialize() -> void:
 	for case in cases:
 		gen.Landform = case[0]
 		gen.ArchipelagoIslandCount = case[1]
-		if case[0] == 0:
-			gen.SeaCoverage = 1.0 - float(case[2])
-		else:
-			gen.LandmassScale = float(case[2])
+		gen.LandmassScale = float(case[2])
 		gen.GenerateTerrain()
 
 		var found := islands(gen, Vector2i(128, 80))

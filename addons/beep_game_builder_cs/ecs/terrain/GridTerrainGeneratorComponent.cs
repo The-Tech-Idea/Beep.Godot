@@ -47,7 +47,6 @@ namespace Beep.ECS
         [Export] public int Octaves { get; set; } = 5;
         [Export] public float Lacunarity { get; set; } = 2.0f;
         [Export] public float Gain { get; set; } = 0.48f;
-        [Export(PropertyHint.Range, "0,0.98,0.01")] public float SeaCoverage { get; set; } = 0.12f;
         /// <summary>
         /// Width of the sand beach where land meets the OPEN SEA, in tiles.
         ///
@@ -64,50 +63,9 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,4,0.05")] public float ErosionStrength { get; set; } = 1.0f;
 
         [Export(PropertyHint.Range, "0,4,0.05")] public float BeachWidth { get; set; } = 1.0f;
-        /// <summary>
-        /// NOT ENFORCED. Nothing reads this: it is threaded into the settings
-        /// record and no stage consults it.
-        ///
-        /// The fact it would own is already owned. Rock and snow are what the
-        /// biome table gives a PEAK - see TerrainBiomeStage and the PeakKinds
-        /// set in TerrainScaleConstraintStage - so where rock begins is decided
-        /// by RELIEF, not by an elevation threshold. Wiring this up would put a
-        /// second, disagreeing answer beside that one.
-        ///
-        /// Resolving the duplicate means dropping one of the two, which is
-        /// Fahad's call, not the implementer's.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float RockLevel { get; set; } = 0.82f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float Dryness { get; set; } = 0.25f;
 
         [ExportGroup("Feature Biome Coverage")]
-        /// <summary>
-        /// NOT ENFORCED - and wiring it up would FIGHT the scale rules.
-        ///
-        /// How much swamp a map has is already decided, by rainfall and the
-        /// moisture bands in TerrainBiomeStage, scaled through the Rainfall axis
-        /// in TerrainMapSetup. A direct coverage dial would force a share of
-        /// swamp regardless of climate or map size, which is precisely the
-        /// "four environments in one small area" behaviour TerrainScaleRules and
-        /// TerrainCoherenceStage exist to prevent.
-        ///
-        /// So this is not a missing implementation to build - it is a second
-        /// owner of a fact the climate axes already own.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float SwampCoverage { get; set; } = 0.0f;
-        /// <summary>
-        /// NOT ENFORCED - and wiring it up would FIGHT the scale rules.
-        ///
-        /// Snow follows LATITUDE, through TerrainMapSetup.LatitudeCentreFor and
-        /// the MinLatitudeSpan in TerrainScaleRules. Forcing a fixed share of
-        /// snow would put an arctic patch on a small equatorial island, which is
-        /// the exact case those rules were written to stop.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float SnowCoverage { get; set; } = 0.0f;
-        /// <summary>
-        /// NOT ENFORCED. Same owner as SnowCoverage: latitude decides ice.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float IceCoverage { get; set; } = 0.0f;
         [Export(PropertyHint.Range, "0.02,4,0.01")] public float FeatureFrequencyMultiplier { get; set; } = 0.18f;
 
         [ExportGroup("Lake Features")]
@@ -258,34 +216,6 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0.1,4,0.01")] public float TemperatureFrequencyMultiplier { get; set; } = 0.72f;
         [Export(PropertyHint.Range, "0.1,4,0.01")] public float MoistureFrequencyMultiplier { get; set; } = 1.35f;
         [Export(PropertyHint.Range, "0.1,8,0.01")] public float FertilityFrequencyMultiplier { get; set; } = 2.25f;
-        /// <summary>
-        /// NOT ENFORCED. The temperature at which cold biomes begin is owned by
-        /// the latitude model - TerrainMapSetup.LatitudeCentreFor sets where the
-        /// map sits pole-to-equator, and TerrainBiomeStage reads that.
-        ///
-        /// Not to be confused with TemperatureComponent.ColdThreshold, which is
-        /// a different setting, in degrees, and IS enforced.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float ColdThreshold { get; set; } = 0.22f;
-        /// <summary>
-        /// NOT ENFORCED. The moisture level at which ground turns wetland is
-        /// owned by the moisture bands in TerrainBiomeStage, positioned by
-        /// Dryness, which the Rainfall axis sets.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float WetlandThreshold { get; set; } = 0.72f;
-        /// <summary>
-        /// NOT ENFORCED, and a threshold is the wrong shape for this anyway.
-        ///
-        /// Land quality already exists and is already used: TerrainStartPositionStage
-        /// scores food, production, fresh water and sea access over the ring a
-        /// first city would work, and takes starts greedily by that score. That
-        /// is fertility, implemented.
-        ///
-        /// A THRESHOLD would be worse than the score it duplicates: rejecting
-        /// every candidate below a bar can leave players unplaced on a poor map,
-        /// where ranking always seats them somewhere and seats them fairly.
-        /// </summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float FertilityThreshold { get; set; } = 0.24f;
 
         private GridCellDataComponent? _cells;
         private TerrainGenerationSettings? _fieldSettings;
@@ -308,44 +238,6 @@ namespace Beep.ECS
             if (BoundsSize.X <= 0 || BoundsSize.Y <= 0)
                 return new[] { "BoundsSize must be greater than zero." };
             return Array.Empty<string>();
-        }
-
-        /// <summary>
-        /// Sets every world-shaping dial from a named preset.
-        ///
-        /// Applied as a whole, not as a patch: the dials are not independent, so
-        /// leaving some at whatever the last selection set them to produces
-        /// worlds that belong to no preset at all. Size, seed and render dials
-        /// are deliberately untouched - those are the developer's, not the
-        /// world type's.
-        /// </summary>
-        public void ApplyWorldPreset(TerrainWorldPreset preset)
-        {
-            TerrainWorldDefinition world = TerrainWorldPresets.Get(preset);
-            Landform = world.Landform;
-            Preset = world.Climate;
-            LandmassScale = world.LandCoverage;
-            ArchipelagoIslandCount = world.IslandCount;
-            // Mainland takes its coverage from 1 - SeaCoverage and ignores
-            // LandmassScale entirely, so a preset asking for 44% land silently
-            // got 88%. Deriving the sea from the requested land keeps
-            // LandCoverage meaning the same thing in every preset, which is what
-            // anyone writing one will assume.
-            SeaCoverage = world.Landform == LandformMode.Mainland
-                ? Mathf.Clamp(1.0f - world.LandCoverage, 0.0f, 0.98f)
-                : world.SeaCoverage;
-            LakeCoverage = world.LakeCoverage;
-            RiverDensity = world.RiverDensity;
-            HillsFraction = world.HillsFraction;
-            MountainsFraction = world.MountainsFraction;
-            SwampCoverage = world.SwampCoverage;
-            SnowCoverage = world.SnowCoverage;
-            IceCoverage = world.IceCoverage;
-            Dryness = world.Dryness;
-            FeatureDensity = world.FeatureDensity;
-            ResourceDensity = world.ResourceDensity;
-            ResourceSet = world.Resources;
-            StartPositionCount = world.StartPositions;
         }
 
         public int GenerateTerrain()
@@ -468,6 +360,57 @@ namespace Beep.ECS
             return positions;
         }
 
+        /// <summary>
+        /// Configures the generator from a map type and the five climate axes.
+        ///
+        /// This is the ONE place that turns a chosen world into generator
+        /// settings. It used to live in the lab controller, which meant any
+        /// other caller - a game, a test - had to reproduce the same thirty
+        /// lines and would drift from it. The axes are applied on top of the
+        /// shape's own values, so a map type stays recognisable whatever the
+        /// weather is set to.
+        ///
+        /// Indices rather than enums so GDScript can call it.
+        /// </summary>
+        public void ApplyMapSetup(
+            int mapType, int worldAge, int temperature, int rainfall, int seaLevel, int resources)
+        {
+            TerrainShapeDefinition shape = TerrainShapePresets.Get(
+                (TerrainShape)Mathf.Clamp(mapType, 0, TerrainShapePresets.Order.Length - 1));
+
+            var age = (TerrainWorldAge)Mathf.Clamp(worldAge, 0, 2);
+            var warmth = (TerrainTemperature)Mathf.Clamp(temperature, 0, 2);
+            var rain = (TerrainRainfall)Mathf.Clamp(rainfall, 0, 2);
+            var seas = (TerrainSeaLevel)Mathf.Clamp(seaLevel, 0, 2);
+            var resourceLevel = (TerrainResourceLevel)Mathf.Clamp(resources, 0, 2);
+
+            Landform = shape.Landform;
+            ArchipelagoIslandCount = shape.IslandCount;
+            StartPositionCount = shape.StartPositions;
+            LandmassScale = Mathf.Clamp(
+                shape.LandCoverage * TerrainMapSetup.LandScaleFor(seas), 0.05f, 0.92f);
+
+            // World age is relief: a young world keeps its mountains, an old one
+            // is worn flat.
+            float relief = TerrainMapSetup.ReliefScaleFor(age);
+            HillsFraction = Mathf.Clamp(shape.HillsFraction * relief, 0.0f, 0.9f);
+            MountainsFraction = Mathf.Clamp(shape.MountainsFraction * relief, 0.0f, 0.9f);
+
+            // Temperature moves the map's latitude band rather than sprinkling
+            // snow on it, so a cold world is genuinely at a high latitude.
+            ClimateLatitudeCentre = TerrainMapSetup.LatitudeCentreFor(warmth);
+
+            // Rainfall drives everything water and everything that grows.
+            float wet = TerrainMapSetup.WaterScaleFor(rain);
+            Dryness = TerrainMapSetup.DrynessFor(rain);
+            LakeCoverage = Mathf.Clamp(0.05f * wet, 0.0f, 0.35f);
+            RiverDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
+            FeatureDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
+
+            ResourceDensity = Mathf.Clamp(
+                TerrainMapSetup.ResourceScaleFor(resourceLevel), 0.0f, 4.0f);
+        }
+
         public Godot.Collections.Dictionary GetGenerationDiagnostics()
             => FieldFor(CurrentSettings()).Diagnostics.ToDictionary();
 
@@ -516,10 +459,10 @@ namespace Beep.ECS
             return new TerrainGenerationSettings(
                 BoundsOrigin, size, Mode, Preset, Seed, NoiseType, FractalType,
                 Mathf.Max(0.0001f, Frequency), Mathf.Clamp(Octaves, 1, 10), Mathf.Max(1.0f, Lacunarity), Mathf.Clamp(Gain, 0.0f, 1.0f),
-                Landform, Mathf.Clamp(LandmassScale, 0.05f, 0.92f), Mathf.Clamp(SeaCoverage, 0.0f, 0.98f),
+                Landform, Mathf.Clamp(LandmassScale, 0.05f, 0.92f),
                 Mathf.Clamp(ArchipelagoIslandCount, 2, 12), Mathf.Clamp(TopologySamplesPerCell, 2, 24),
-                Mathf.Clamp(ErosionStrength, 0.0f, 4.0f), Mathf.Clamp(BeachWidth, 0.0f, 4.0f), Mathf.Clamp(RockLevel, 0.0f, 1.0f), Mathf.Clamp(Dryness, 0.0f, 1.0f),
-                Mathf.Clamp(SwampCoverage, 0.0f, 1.0f), Mathf.Clamp(SnowCoverage, 0.0f, 1.0f), Mathf.Clamp(IceCoverage, 0.0f, 1.0f), Mathf.Max(0.02f, FeatureFrequencyMultiplier),
+                Mathf.Clamp(ErosionStrength, 0.0f, 4.0f), Mathf.Clamp(BeachWidth, 0.0f, 4.0f), Mathf.Clamp(Dryness, 0.0f, 1.0f),
+                Mathf.Max(0.02f, FeatureFrequencyMultiplier),
                 Mathf.Clamp(LakeCoverage, 0.0f, 0.35f), Mathf.Max(0.02f, LakeFrequencyMultiplier), Mathf.Clamp(LakeShoreWidth, 0.0f, 3.0f),
                 Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(StartPositionCount, 0, 24),
                 Mathf.Clamp(ResourceDensity, 0.0f, 4.0f), ResourceSet, Mathf.Clamp(HillsFraction, 0.0f, 0.9f),
@@ -537,8 +480,7 @@ namespace Beep.ECS
                 Mathf.Clamp(AltitudeCooling, 0.0f, 1.0f),
                 scale.LatitudeSpan,
                 Mathf.Clamp(ClimateLatitudeCentre, 0.0f, 1.0f),
-                Mathf.Max(0.1f, TemperatureFrequencyMultiplier), Mathf.Max(0.1f, MoistureFrequencyMultiplier), Mathf.Max(0.1f, FertilityFrequencyMultiplier),
-                Mathf.Clamp(ColdThreshold, 0.0f, 1.0f), Mathf.Clamp(WetlandThreshold, 0.0f, 1.0f), Mathf.Clamp(FertilityThreshold, 0.0f, 1.0f));
+                Mathf.Max(0.1f, TemperatureFrequencyMultiplier), Mathf.Max(0.1f, MoistureFrequencyMultiplier), Mathf.Max(0.1f, FertilityFrequencyMultiplier));
         }
 
         private void ResolveReferences()

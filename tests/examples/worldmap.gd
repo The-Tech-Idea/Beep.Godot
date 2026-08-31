@@ -80,13 +80,10 @@ func _initialize() -> void:
 	for panel in panels:
 		gen.Landform = panel[0]
 		gen.ArchipelagoIslandCount = panel[1]
-		# Land coverage is reached by two different dials depending on the mode:
-		# Mainland derives it as 1 - SeaCoverage, everything else reads
-		# LandmassScale directly.
-		if panel[0] == 0:
-			gen.SeaCoverage = 1.0 - float(panel[2])
-		else:
-			gen.LandmassScale = float(panel[2])
+		# One dial for land coverage, whatever the landform. Mainland used to
+		# derive it from SeaCoverage instead, which meant the map type's own
+		# LandCoverage was ignored.
+		gen.LandmassScale = float(panel[2])
 		# EROSION=<n> re-renders the same maps at a different erosion strength,
 		# which is how the effect of the erosion stage was measured: at strength
 		# 0 against strength 1, the difference IS the erosion.

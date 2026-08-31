@@ -17,7 +17,6 @@ func _run() -> void:
 	generator.set("UsePainterSettings", false)
 	generator.set("BoundsSize", Vector2i(64, 40))
 	generator.set("Seed", 31415)
-	generator.set("SeaCoverage", 0.14)
 	generator.set("LakeCoverage", 0.18)
 	generator.set("LakeFrequencyMultiplier", 0.11)
 	generator.set("SwampCoverage", 0.45)
@@ -42,7 +41,6 @@ func _run() -> void:
 		return
 
 	generator.set("Landform", 1) # Island
-	generator.set("SeaCoverage", 0.12)
 	generator.set("LakeCoverage", 0.0)
 	generator.set("LandmassScale", 0.35)
 	generator.call("GenerateTerrain")

@@ -18,7 +18,6 @@ func _run() -> void:
 	generator.set("UsePainterSettings", false)
 	generator.set("BoundsSize", Vector2i(64, 40))
 	generator.set("Seed", 424242)
-	generator.set("SeaCoverage", 0.16)
 	generator.set("LakeCoverage", 0.22)
 	generator.set("LakeFrequencyMultiplier", 0.10)
 	generator.set("LakeShoreWidth", 0.04)

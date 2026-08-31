@@ -167,18 +167,22 @@ func check_resource_sets(gen) -> int:
 	return failures
 
 
-## Every preset must describe a DIFFERENT world. A preset that lands on the same
+## Every map type must describe a DIFFERENT world. A type that lands on the same
 ## coverage, relief and resources as another is not a choice, it is a duplicate
 ## wearing a second name - and the failure is silent, because each one still
 ## generates a perfectly good map.
+##
+## These are the SHAPE presets. The twelve combined "world types" this replaced
+## mixed geography with weather, so picking a frozen world also picked one
+## landmass; shape and climate are separate axes now, and only shape is a list
+## of alternatives that could collide.
 func check_world_presets(gen) -> int:
-	var names := ["Continents", "Pangaea", "Archipelago", "Island Chain", "Ocean World",
-		"Highlands", "Great Plains", "Desert World", "Frozen World", "Wetlands",
-		"Oil Frontier", "Barren Moon"]
+	var names := ["Continents", "Pangaea", "Archipelago", "Island Chain", "Ocean World"]
 	var seen := {}
 	var failures := 0
 	for i in range(names.size()):
-		gen.ApplyWorldPreset(i)
+		# Default climate on every one, so any difference is the map type's.
+		gen.ApplyMapSetup(i, 1, 1, 1, 1, 1)
 		gen.GenerateTerrain()
 		var d = gen.GetGenerationDiagnostics()
 		var relief := 0
@@ -198,5 +202,5 @@ func check_world_presets(gen) -> int:
 			print("  FAIL: %s is indistinguishable from %s" % [names[i], seen[signature]])
 			failures += 1
 		seen[signature] = names[i]
-	gen.ApplyWorldPreset(0)
+	gen.ApplyMapSetup(0, 1, 1, 1, 1, 1)
 	return failures

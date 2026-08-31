@@ -46,7 +46,6 @@ Frequency = 0.072
 Octaves = 5
 Lacunarity = 2.05
 Gain = 0.5
-SeaCoverage = 0.12
 LakeCoverage = 0.05
 LakeFrequencyMultiplier = 0.1
 RiverDensity = 1.0

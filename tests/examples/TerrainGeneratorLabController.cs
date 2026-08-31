@@ -43,7 +43,6 @@ public partial class TerrainGeneratorLabController : Node
     [Export] public NodePath HeightPath { get; set; } = new("");
     [Export] public NodePath FrequencyPath { get; set; } = new("");
     [Export] public NodePath OctavesPath { get; set; } = new("");
-    [Export] public NodePath SeaCoveragePath { get; set; } = new("");
     [Export] public NodePath BeachWidthPath { get; set; } = new("");
     [Export] public NodePath LakeCoveragePath { get; set; } = new("");
     [Export] public NodePath LakeSizePath { get; set; } = new("");
@@ -117,7 +116,6 @@ public partial class TerrainGeneratorLabController : Node
     private SpinBox? _height;
     private SpinBox? _frequency;
     private SpinBox? _octaves;
-    private SpinBox? _seaCoverage;
     private SpinBox? _beachWidth;
     private SpinBox? _lakeCoverage;
     private SpinBox? _lakeSize;
@@ -237,43 +235,16 @@ public partial class TerrainGeneratorLabController : Node
         // The generator owns its own generation settings now, so the UI drives it
         // directly rather than setting them on the painter and relying on the
         // generator to read them back off a renderer.
-        // Each axis is applied on top of the SHAPE's own values, so a map type
-        // stays recognisable whatever the weather is set to.
-        TerrainShapeDefinition shape = TerrainShapePresets.Get(
-            (TerrainShape)Mathf.Clamp(_mapType?.Selected ?? 0, 0, TerrainShapePresets.Order.Length - 1));
+        // The mapping from a chosen world to generator settings lives on the
+        // generator, so this reads the dropdowns and nothing else.
+        _generator.ApplyMapSetup(
+            _mapType?.Selected ?? 0,
+            _worldAge?.Selected ?? 1,
+            _temperature?.Selected ?? 1,
+            _rainfall?.Selected ?? 1,
+            _seaLevel?.Selected ?? 1,
+            _resourceLevel?.Selected ?? 1);
 
-        var age = (TerrainWorldAge)Mathf.Clamp(_worldAge?.Selected ?? 1, 0, 2);
-        var temperature = (TerrainTemperature)Mathf.Clamp(_temperature?.Selected ?? 1, 0, 2);
-        var rainfall = (TerrainRainfall)Mathf.Clamp(_rainfall?.Selected ?? 1, 0, 2);
-        var seas = (TerrainSeaLevel)Mathf.Clamp(_seaLevel?.Selected ?? 1, 0, 2);
-        var resourceLevel = (TerrainResourceLevel)Mathf.Clamp(_resourceLevel?.Selected ?? 1, 0, 2);
-
-        _generator.Landform = shape.Landform;
-        _generator.ArchipelagoIslandCount = shape.IslandCount;
-        _generator.SeaCoverage = shape.SeaCoverage;
-        _generator.StartPositionCount = shape.StartPositions;
-        _generator.LandmassScale = Mathf.Clamp(
-            shape.LandCoverage * TerrainMapSetup.LandScaleFor(seas), 0.05f, 0.92f);
-
-        // World age is relief: a young world keeps its mountains, an old one is
-        // worn flat.
-        float relief = TerrainMapSetup.ReliefScaleFor(age);
-        _generator.HillsFraction = Mathf.Clamp(shape.HillsFraction * relief, 0.0f, 0.9f);
-        _generator.MountainsFraction = Mathf.Clamp(shape.MountainsFraction * relief, 0.0f, 0.9f);
-
-        // Temperature moves the map's latitude band rather than sprinkling snow
-        // on it, so a cold world is genuinely at a high latitude.
-        _generator.ClimateLatitudeCentre = TerrainMapSetup.LatitudeCentreFor(temperature);
-
-        // Rainfall drives everything water and everything that grows.
-        float wet = TerrainMapSetup.WaterScaleFor(rainfall);
-        _generator.Dryness = TerrainMapSetup.DrynessFor(rainfall);
-        _generator.LakeCoverage = Mathf.Clamp(0.05f * wet, 0.0f, 0.35f);
-        _generator.RiverDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
-        _generator.FeatureDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
-
-        _generator.ResourceDensity = Mathf.Clamp(
-            TerrainMapSetup.ResourceScaleFor(resourceLevel), 0.0f, 4.0f);
         _generator.ResourceSet = (ResourceSet)Mathf.Clamp(_resourceSet?.Selected ?? 0, 0, 2);
 
         // The size axis owns the bounds now, so there are no raw width and
@@ -474,7 +445,6 @@ public partial class TerrainGeneratorLabController : Node
         _height = GetNodeOrNull<SpinBox>(HeightPath);
         _frequency = GetNodeOrNull<SpinBox>(FrequencyPath);
         _octaves = GetNodeOrNull<SpinBox>(OctavesPath);
-        _seaCoverage = GetNodeOrNull<SpinBox>(SeaCoveragePath);
         _beachWidth = GetNodeOrNull<SpinBox>(BeachWidthPath);
         _lakeCoverage = GetNodeOrNull<SpinBox>(LakeCoveragePath);
         _lakeSize = GetNodeOrNull<SpinBox>(LakeSizePath);

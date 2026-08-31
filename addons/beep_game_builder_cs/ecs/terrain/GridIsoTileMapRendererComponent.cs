@@ -200,7 +200,7 @@ namespace Beep.ECS
         /// A tree on low ground must be covered by the cliff in front of it,
         /// and it cannot be if every prop is drawn after every tile.
         /// </summary>
-        public const int LevelCount = 3;
+        public const int LevelCount = 4;
 
         /// <summary>Z index of a terrain level.</summary>
         public static int ZIndexForLevel(int level) => level * 2;
@@ -227,6 +227,7 @@ namespace Beep.ECS
         private const int SeaLevel = 0;
         private const int GroundLevel = 1;
         private const int UpperLevel = 2;
+        private const int PeakLevel = 3;
 
         /// <summary>
         /// Land levels have a tile layer; the sea does not. The sea is drawn by
@@ -370,15 +371,19 @@ namespace Beep.ECS
                     // level BELOW a cell as well was the earlier mistake: it
                     // stacked three overlapping tiles on one cell and sprawled
                     // them across the neighbours.
+                    // Every level from the ground up to this tile's own, so the
+                    // cell is a STACK rather than one block floating at its
+                    // height. Writing only the top level was the original bug -
+                    // it made the levels a partition instead of a stack, and the
+                    // ground vanished from under every raised cell.
+                    //
+                    // Written as a loop rather than a case per level so that
+                    // adding a step to the stack is a change to LevelFor alone.
                     int level = LevelFor(terrain, _generator.ReliefAt(cell));
-                    _layers[LayerFor(GroundLevel)].SetCell(
-                        cell, ShowsSide(cell, GroundLevel, size) ? SourceId : TopSourceId, frame);
-
-                    // Layer 3 - the second level, over the ground.
-                    if (level >= UpperLevel)
+                    for (int step = GroundLevel; step <= level && step < LevelCount; step++)
                     {
-                        _layers[LayerFor(UpperLevel)].SetCell(
-                            cell, ShowsSide(cell, UpperLevel, size) ? SourceId : TopSourceId, frame);
+                        _layers[LayerFor(step)].SetCell(
+                            cell, ShowsSide(cell, step, size) ? SourceId : TopSourceId, frame);
                     }
                 }
             }
@@ -641,8 +646,15 @@ namespace Beep.ECS
         /// </summary>
         public static int LevelFor(string terrain, int relief) => terrain switch
         {
-            "deep_water" or "shallow_water" => 0,
-            _ => relief > 0 ? 2 : 1,
+            "deep_water" or "shallow_water" => SeaLevel,
+
+            // A MOUNTAIN stands a step higher than a hill. Both used to return
+            // the same level, so a peak was drawn as exactly the same two-block
+            // stack as a hillside and the two were indistinguishable in the
+            // isometric view however the generator classified them. The relief
+            // bands are flat / hills / mountains, and the stack now has a step
+            // for each.
+            _ => relief >= 2 ? PeakLevel : relief > 0 ? UpperLevel : GroundLevel,
         };
 
         private void EnsureLayers()

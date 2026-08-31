@@ -19,13 +19,22 @@ extends SceneTree
 const EXPECTED := [
 	{"kind": "water", "level": 0, "z": 0},    # the sea, one surface
 	{"kind": "terrain", "level": 1, "z": 2},  # ground
-	{"kind": "terrain", "level": 2, "z": 4},  # upper ground
-	{"kind": "props", "level": 1, "z": 7},    # trees standing on the ground
-	{"kind": "props", "level": 2, "z": 8},    # trees standing on the upper ground
+	{"kind": "terrain", "level": 2, "z": 4},  # hills
+	{"kind": "terrain", "level": 3, "z": 6},  # mountains, a step above the hills
+	{"kind": "props", "level": 1, "z": 9},    # trees standing on the ground
+	{"kind": "props", "level": 2, "z": 10},   # trees standing on the hills
+	{"kind": "props", "level": 3, "z": 11},   # trees standing on the peaks
 ]
 
-# Five slots above the waterline, plus the bed beneath it. Nine layers spanning
+# Seven slots above the waterline, plus the bed beneath it. Nine layers spanning
 # three tile heights was the shape this replaced.
+#
+# The third TERRAIN level is what makes a mountain read as a mountain. Hills and
+# mountains are separate relief bands but were drawn at the same height, so a
+# peak was the same two-block stack as a hillside and the classification made no
+# visible difference. Each band now has its own step, and a cell draws every
+# level from the ground up to its own - which is why level 2 still covers every
+# raised cell, mountains included, rather than only the hills.
 
 var failures: Array[String] = []
 
@@ -284,7 +293,7 @@ func _initialize() -> void:
 		"every terrain has its own frame in the atlas" if clashes.is_empty() else str(clashes))
 
 	if failures.is_empty():
-		print("\nPASS: sea -> ground -> upper -> ground props -> upper props")
+		print("\nPASS: sea -> ground -> hills -> peaks -> props by level")
 		quit(0)
 	else:
 		print("\nFAIL: %d checks" % failures.size())

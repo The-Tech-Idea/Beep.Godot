@@ -10,13 +10,23 @@ namespace Beep.Tests.Examples;
 [GlobalClass]
 public partial class TerrainGeneratorLabController : Node
 {
-    [Export] public NodePath TerrainPath { get; set; } = new("");
+    [Export] public NodePath MapTypePath { get; set; } = new("");
+    [Export] public NodePath MapSizePath { get; set; } = new("");
+    [Export] public NodePath WorldAgePath { get; set; } = new("");
+    [Export] public NodePath TemperaturePath { get; set; } = new("");
+    [Export] public NodePath RainfallPath { get; set; } = new("");
+    [Export] public NodePath SeaLevelPath { get; set; } = new("");
+    [Export] public NodePath ResourceLevelPath { get; set; } = new("");
+    [Export] public NodePath ResourceSetPath { get; set; } = new("");
+    [Export] public NodePath WavesPath { get; set; } = new("");
+    [Export] public NodePath SplatRendererPath { get; set; } = new("");
     [Export] public NodePath GeneratorPath { get; set; } = new("");
-    [Export] public NodePath BridgePath { get; set; } = new("");
-    [Export] public NodePath ScatterPath { get; set; } = new("");
+    [Export] public NodePath FeaturesPath { get; set; } = new("");
     [Export] public NodePath MapOverlayPath { get; set; } = new("");
     [Export] public NodePath TileRendererPath { get; set; } = new("");
-    [Export] public NodePath TileRenderTogglePath { get; set; } = new("");
+    [Export] public NodePath IsoRendererPath { get; set; } = new("");
+    [Export] public NodePath IsoFeaturesPath { get; set; } = new("");
+    [Export] public NodePath ViewPath { get; set; } = new("");
     [Export] public NodePath ClimateBiomesPath { get; set; } = new("");
     [Export] public NodePath ReliefPath { get; set; } = new("");
     [Export] public NodePath HillshadePath { get; set; } = new("");
@@ -37,15 +47,6 @@ public partial class TerrainGeneratorLabController : Node
     [Export] public NodePath BeachWidthPath { get; set; } = new("");
     [Export] public NodePath LakeCoveragePath { get; set; } = new("");
     [Export] public NodePath LakeSizePath { get; set; } = new("");
-    [Export] public NodePath DetailCoveragePath { get; set; } = new("");
-    [Export] public NodePath SwampCoveragePath { get; set; } = new("");
-    [Export] public NodePath SnowCoveragePath { get; set; } = new("");
-    [Export] public NodePath IceCoveragePath { get; set; } = new("");
-    [Export] public NodePath GrassPropCoveragePath { get; set; } = new("");
-    [Export] public NodePath DesertPropCoveragePath { get; set; } = new("");
-    [Export] public NodePath RockPropCoveragePath { get; set; } = new("");
-    [Export] public NodePath PropSpacingPath { get; set; } = new("");
-    [Export] public NodePath FoamPath { get; set; } = new("");
     [Export] public NodePath PlantsPath { get; set; } = new("");
     [Export] public NodePath GenerateButtonPath { get; set; } = new("");
     [Export] public NodePath RandomSeedButtonPath { get; set; } = new("");
@@ -54,25 +55,59 @@ public partial class TerrainGeneratorLabController : Node
     [Export] public GridTerrainGeneratorComponent.LandformMode InitialLandform { get; set; } = GridTerrainGeneratorComponent.LandformMode.Mainland;
 
     [ExportGroup("Preview Navigation")]
-    [Export] public float MinimumZoom { get; set; } = 0.15f;
+        /// <summary>
+    /// Low enough for the ISOMETRIC view. Its cells are 111x64 against the flat
+    /// view's 64px tile, so a map that fits the panel flat needs roughly a third
+    /// of the zoom in isometric - a 96x60 map fits at 0.106, and a floor of 0.15
+    /// meant it simply could not be zoomed out far enough to see.
+    /// </summary>
+    [Export] public float MinimumZoom { get; set; } = 0.04f;
     [Export] public float MaximumZoom { get; set; } = 3.0f;
     [Export] public float ZoomStep { get; set; } = 1.15f;
 
-    private PainterlyTerrainComponent? _terrain;
+    /// <summary>
+    /// The three ways the lab can draw the same generated world. One generator,
+    /// one renderer per projection - switching changes how the world is drawn,
+    /// never what it is.
+    /// </summary>
+    private enum LabView
+    {
+        Painted = 0,
+        Tiles = 1,
+        Isometric = 2,
+    }
+
+    private GridSplatTerrainRendererComponent? _splat;
+    private GridIsoTileMapRendererComponent? _iso;
+    private GridIsoFeatureRendererComponent? _isoFeatures;
+    private OptionButton? _view;
     private Node2D? _terrainNode;
     private GridTerrainGeneratorComponent? _generator;
-    private GridPainterlyTerrainBridgeComponent? _bridge;
-    private SeededTerrainPropScatterComponent? _scatter;
+    private GridTerrainFeatureRendererComponent? _features;
     private GridTerrainMapOverlayComponent? _mapOverlay;
     private GridBiomeTileMapRendererComponent? _tileRenderer;
-    private CheckButton? _tileRenderToggle;
+    private Node2D? _mapOverlayNode;
     private CheckButton? _climateBiomes;
-    private CheckButton? _relief;
+    private SpinBox? _relief;
     private CheckButton? _hillshade;
-    private CheckButton? _rivers;
-    private CheckButton? _resources;
+    private SpinBox? _rivers;
+    private SpinBox? _resources;
     private CheckButton? _startMarkers;
     private Node2D? _preview;
+    /// <summary>
+    /// The world type currently applied. The toggles below gate ITS values
+    /// rather than hardcoded ones: a checkbox says whether a world has rivers,
+    /// not how many, so turning rivers off and on again must give back the
+    /// Highlands' 1.6 rather than a generic 1.0.
+    /// </summary>
+
+    private OptionButton? _mapType;
+    private OptionButton? _mapSize;
+    private OptionButton? _worldAge;
+    private OptionButton? _temperature;
+    private OptionButton? _rainfall;
+    private OptionButton? _seaLevel;
+    private OptionButton? _resourceLevel;
     private OptionButton? _preset;
     private OptionButton? _landform;
     private SpinBox? _landmassScale;
@@ -86,16 +121,9 @@ public partial class TerrainGeneratorLabController : Node
     private SpinBox? _beachWidth;
     private SpinBox? _lakeCoverage;
     private SpinBox? _lakeSize;
-    private SpinBox? _detailCoverage;
-    private SpinBox? _swampCoverage;
-    private SpinBox? _snowCoverage;
-    private SpinBox? _iceCoverage;
-    private SpinBox? _grassPropCoverage;
-    private SpinBox? _desertPropCoverage;
-    private SpinBox? _rockPropCoverage;
-    private SpinBox? _propSpacing;
-    private CheckButton? _foam;
-    private CheckButton? _plants;
+    private SpinBox? _waves;
+    private OptionButton? _resourceSet;
+    private SpinBox? _plants;
     private Label? _status;
     private bool _isPanning;
 
@@ -104,13 +132,36 @@ public partial class TerrainGeneratorLabController : Node
         ResolveNodes();
         PopulateOptions();
 
+        // Reframe when the window changes size. The preview's zoom and position
+        // are computed FROM the viewport, so after a resize they describe a
+        // viewport that no longer exists - which is why enlarging the window to
+        // see more of the map left it sitting somewhere off to one side.
+        GetViewport().SizeChanged += ResetPreviewView;
+
         GetNodeOrNull<Button>(GenerateButtonPath)?.Pressed += Generate;
         foreach (CheckButton? toggle in new[]
-                 { _tileRenderToggle, _climateBiomes, _relief, _hillshade, _rivers, _resources, _startMarkers })
+                 { _climateBiomes, _hillshade, _startMarkers })
         {
             if (toggle is not null)
                 toggle.Toggled += _ => Generate();
         }
+        foreach (OptionButton? axis in new[]
+                 { _mapType, _mapSize, _worldAge, _temperature, _rainfall, _seaLevel, _resourceLevel })
+        {
+            if (axis is not null)
+                axis.ItemSelected += _ => Generate();
+        }
+        if (_resourceSet is not null)
+            _resourceSet.ItemSelected += _ => Generate();
+        if (_view is not null)
+        {
+            _view.ItemSelected += _ =>
+            {
+                Generate();
+                ResetPreviewView();
+            };
+        }
+
         GetNodeOrNull<Button>(RandomSeedButtonPath)?.Pressed += RandomizeSeed;
         GetNodeOrNull<Button>(ResetViewButtonPath)?.Pressed += ResetPreviewView;
         CallDeferred(nameof(Generate));
@@ -123,7 +174,12 @@ public partial class TerrainGeneratorLabController : Node
 
         if (@event is InputEventMouseButton mouseButton)
         {
-            if (mouseButton.ButtonIndex == MouseButton.Middle)
+            // LEFT as well as middle. Middle-drag alone is what a strategy
+            // game does, but the panel is the only thing here a left click can
+            // hit, and it is a Control that takes its own clicks - so the map
+            // has nothing to lose by panning on left-drag, and plenty of people
+            // have no middle button to find.
+            if (mouseButton.ButtonIndex is MouseButton.Middle or MouseButton.Left)
             {
                 _isPanning = mouseButton.Pressed;
                 return;
@@ -149,91 +205,148 @@ public partial class TerrainGeneratorLabController : Node
             _preview.Position += pan.Delta;
     }
 
+    /// <summary>
+    /// Applies a whole world type, then pushes the resulting values back into
+    /// the controls.
+    ///
+    /// The write-back is the point. Without it the sliders keep showing the
+    /// previous world's numbers while the map shows the new one, and the next
+    /// Generate quietly reads those stale controls and undoes the preset - so
+    /// the dropdown would appear to work once and then stop.
+    /// </summary>
+    private static void SetValue(SpinBox? box, double value)
+    {
+        if (box is not null)
+            box.Value = value;
+    }
+
     public void Generate()
     {
-        if (_terrain is null || _generator is null || _bridge is null)
+        if (_splat is null || _generator is null)
             return;
 
         // A Civilization-scale map is 80-120 tiles across. Capping this at
         // 64x40 made every biome region a handful of tiles wide, which reads as
         // boxes no matter how good the generation or the tile transitions are.
-        Vector2I size = new(
-            Mathf.Clamp((int)(_width?.Value ?? _terrain.WidthTiles), 8, 200),
-            Mathf.Clamp((int)(_height?.Value ?? _terrain.HeightTiles), 6, 200));
-        int seed = Mathf.Clamp((int)(_seed?.Value ?? _terrain.Seed), 0, int.MaxValue);
-
-		_terrain.Preset = BasePresetFor(_preset?.Selected ?? 0);
-        _terrain.WidthTiles = size.X;
-        _terrain.HeightTiles = size.Y;
-        _terrain.Seed = seed;
-        _terrain.Frequency = Mathf.Clamp((float)(_frequency?.Value ?? _terrain.Frequency), 0.002f, 0.25f);
-        _terrain.Octaves = Mathf.Clamp((int)(_octaves?.Value ?? _terrain.Octaves), 1, 10);
-        _terrain.BeachWidth = Mathf.Clamp((float)(_beachWidth?.Value ?? _terrain.BeachWidth), 0.0f, 0.2f);
-        _terrain.BiomeDetailCoverage = Mathf.Clamp((float)(_detailCoverage?.Value ?? _terrain.BiomeDetailCoverage), 0.0f, 1.0f);
-        _terrain.UseAnimatedFoamEdges = _foam?.ButtonPressed ?? false;
+        Vector2I size = TerrainMapSetup.BoundsFor(
+            (TerrainMapSize)Mathf.Clamp(_mapSize?.Selected ?? 2, 0, 4));
+        int seed = Mathf.Clamp((int)(_seed?.Value ?? _generator.Seed), 0, int.MaxValue);
 
         _generator.BoundsSize = size;
         _generator.Seed = seed;
-		_generator.Preset = _terrain.Preset;
-		_generator.Landform = LandformFor(_landform?.Selected ?? 0);
-		_generator.LandmassScale = Percent(_landmassScale);
-        _generator.ArchipelagoIslandCount = Mathf.Clamp((int)(_islandCount?.Value ?? _generator.ArchipelagoIslandCount), 2, 12);
-        _generator.SeaCoverage = Percent(_seaCoverage);
-        _generator.LakeCoverage = Percent(_lakeCoverage);
-        _generator.LakeFrequencyMultiplier = Mathf.Clamp((float)(_lakeSize?.Value ?? _generator.LakeFrequencyMultiplier), 0.02f, 1.0f);
-		_generator.SwampCoverage = Percent(_swampCoverage);
-		_generator.SnowCoverage = Percent(_snowCoverage);
-		_generator.IceCoverage = Percent(_iceCoverage);
-        // Optional layers. Each is a dial the generator already owns, so turning
-        // one off here is the same switch a game would set in the inspector.
-        _generator.UseClimateBiomeMaps = _climateBiomes?.ButtonPressed ?? true;
-        bool relief = _relief?.ButtonPressed ?? true;
-        _generator.HillsFraction = relief ? 0.16f : 0.0f;
-        _generator.MountainsFraction = relief ? 0.07f : 0.0f;
-        _generator.HillshadeStrength = (_hillshade?.ButtonPressed ?? true) ? 1.0f : 0.0f;
-        _generator.RiverDensity = (_rivers?.ButtonPressed ?? true) ? 1.0f : 0.0f;
-        _generator.ResourceDensity = (_resources?.ButtonPressed ?? true) ? 1.0f : 0.0f;
-        _generator.StartPositionCount = (_startMarkers?.ButtonPressed ?? true) ? 6 : 0;
+        // The generator owns its own generation settings now, so the UI drives it
+        // directly rather than setting them on the painter and relying on the
+        // generator to read them back off a renderer.
+        // Each axis is applied on top of the SHAPE's own values, so a map type
+        // stays recognisable whatever the weather is set to.
+        TerrainShapeDefinition shape = TerrainShapePresets.Get(
+            (TerrainShape)Mathf.Clamp(_mapType?.Selected ?? 0, 0, TerrainShapePresets.Order.Length - 1));
+
+        var age = (TerrainWorldAge)Mathf.Clamp(_worldAge?.Selected ?? 1, 0, 2);
+        var temperature = (TerrainTemperature)Mathf.Clamp(_temperature?.Selected ?? 1, 0, 2);
+        var rainfall = (TerrainRainfall)Mathf.Clamp(_rainfall?.Selected ?? 1, 0, 2);
+        var seas = (TerrainSeaLevel)Mathf.Clamp(_seaLevel?.Selected ?? 1, 0, 2);
+        var resourceLevel = (TerrainResourceLevel)Mathf.Clamp(_resourceLevel?.Selected ?? 1, 0, 2);
+
+        _generator.Landform = shape.Landform;
+        _generator.ArchipelagoIslandCount = shape.IslandCount;
+        _generator.SeaCoverage = shape.SeaCoverage;
+        _generator.StartPositionCount = shape.StartPositions;
+        _generator.LandmassScale = Mathf.Clamp(
+            shape.LandCoverage * TerrainMapSetup.LandScaleFor(seas), 0.05f, 0.92f);
+
+        // World age is relief: a young world keeps its mountains, an old one is
+        // worn flat.
+        float relief = TerrainMapSetup.ReliefScaleFor(age);
+        _generator.HillsFraction = Mathf.Clamp(shape.HillsFraction * relief, 0.0f, 0.9f);
+        _generator.MountainsFraction = Mathf.Clamp(shape.MountainsFraction * relief, 0.0f, 0.9f);
+
+        // Temperature moves the map's latitude band rather than sprinkling snow
+        // on it, so a cold world is genuinely at a high latitude.
+        _generator.ClimateLatitudeCentre = TerrainMapSetup.LatitudeCentreFor(temperature);
+
+        // Rainfall drives everything water and everything that grows.
+        float wet = TerrainMapSetup.WaterScaleFor(rainfall);
+        _generator.Dryness = TerrainMapSetup.DrynessFor(rainfall);
+        _generator.LakeCoverage = Mathf.Clamp(0.05f * wet, 0.0f, 0.35f);
+        _generator.RiverDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
+        _generator.FeatureDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
+
+        _generator.ResourceDensity = Mathf.Clamp(
+            TerrainMapSetup.ResourceScaleFor(resourceLevel), 0.0f, 4.0f);
+        _generator.ResourceSet = (ResourceSet)Mathf.Clamp(_resourceSet?.Selected ?? 0, 0, 2);
+
+        // The size axis owns the bounds now, so there are no raw width and
+        // height boxes to disagree with it.
+        _generator.UseClimateBiomeMaps = true;
+        _generator.UseScaleRules = true;
+        _generator.UseBiomeQuotas = true;
+        _generator.HillshadeStrength = 1.0f;
+        _splat.WaveIntensity = 1.0f;
+        _splat.BoundsSize = size;
 
         _generator.GenerateTerrain();
-        _bridge.RebuildTerrain();
+        _splat.Rebuild();
 
-        if (_scatter is not null)
+        // Vegetation is whatever the GENERATOR decided, drawn - not a second
+        // scatter inventing its own placement from terrain kind. One owner.
+        if (_features is not null)
         {
-            _scatter.SizeInTiles = size;
-            _scatter.Seed = seed;
-            _scatter.GrassCoverage = Percent(_grassPropCoverage);
-            _scatter.DesertCoverage = Percent(_desertPropCoverage);
-            _scatter.MudCoverage = Percent(_grassPropCoverage) * 0.70f;
-            _scatter.RockCoverage = Percent(_rockPropCoverage);
-            _scatter.MinimumDistanceTiles = Mathf.Clamp((float)(_propSpacing?.Value ?? _scatter.MinimumDistanceTiles), 0.0f, 3.0f);
-            _scatter.Visible = _plants?.ButtonPressed ?? false;
-            if (_scatter.Visible)
-                _scatter.Rebuild();
+            _features.BoundsSize = size;
+            _features.Seed = seed;
+            _features.Rebuild();
         }
 
-        // Painted and tile renderers read the same generated tiles, so switching
+        // All three renderers read the same generated tiles, so switching
         // between them changes only how the world is drawn, never what it is.
-        bool tileRender = _tileRenderToggle?.ButtonPressed ?? false;
+        var view = (LabView)Mathf.Clamp(_view?.Selected ?? 0, 0, 2);
+
         if (_tileRenderer is not null)
         {
-            _tileRenderer.Visible = tileRender;
-            if (tileRender)
+            _tileRenderer.Visible = view == LabView.Tiles;
+            if (view == LabView.Tiles)
             {
                 _tileRenderer.BoundsSize = size;
                 _tileRenderer.Rebuild();
             }
         }
+
+        if (_iso is not null)
+        {
+            _iso.Visible = view == LabView.Isometric;
+            if (view == LabView.Isometric)
+            {
+                _iso.BoundsSize = size;
+                _iso.Rebuild();
+            }
+        }
+
+        if (_isoFeatures is not null)
+        {
+            _isoFeatures.Visible = view == LabView.Isometric;
+            if (view == LabView.Isometric)
+            {
+                _isoFeatures.BoundsSize = size;
+                _isoFeatures.Rebuild();
+            }
+        }
+
         // The painter's C# type derives from Node, while the scene node it is
         // attached to is a Node2D, so visibility is toggled through the node
         // resolved as Node2D rather than through the component type.
         if (_terrainNode is not null)
-            _terrainNode.Visible = !tileRender;
+            _terrainNode.Visible = view == LabView.Painted;
+
+        // The flat overlay is drawn on the square tile grid, so it lines up with
+        // the flat views only. Left on in the isometric view it would sit over
+        // the map in the wrong projection.
+        if (_mapOverlayNode is not null)
+            _mapOverlayNode.Visible = view != LabView.Isometric;
 
         if (_mapOverlay is not null)
         {
             _mapOverlay.BoundsSize = size;
-            _mapOverlay.TileSize = _terrain.TileSize;
+            _mapOverlay.TileSize = _splat.TileSize;
             _mapOverlay.Refresh();
         }
 
@@ -242,11 +355,12 @@ public partial class TerrainGeneratorLabController : Node
         float ocean = diagnostics["ocean_coverage"].AsSingle();
         float lakes = diagnostics["lake_coverage"].AsSingle();
         int components = diagnostics["land_component_count"].AsInt32();
+        int wanted = diagnostics["requested_landmass_count"].AsInt32();
         long elapsed = diagnostics["generation_milliseconds"].AsInt64();
 		int resources = diagnostics["resource_count"].AsInt32();
 		int starts = diagnostics["start_position_count"].AsInt32();
 		float rivers = diagnostics["river_coverage"].AsSingle();
-		_status?.SetText($"{size.X} x {size.Y}  |  {LandformName(_generator.Landform)}  |  land {footprint:P0}  ocean {ocean:P0}  lakes {lakes:P0}  rivers {rivers:P1}  |  {components} landmasses  |  {resources} resources  {starts} starts  |  {elapsed} ms");
+		_status?.SetText($"{size.X} x {size.Y}  |  {LandformName(_generator.Landform)}  |  land {footprint:P0}  ocean {ocean:P0}  lakes {lakes:P0}  rivers {rivers:P1}  |  {components} of {wanted} landmasses  |  {resources} resources  {starts} starts  |  {elapsed} ms");
 		if (_preview?.Scale == Vector2.One)
 			ResetPreviewView();
     }
@@ -262,13 +376,34 @@ public partial class TerrainGeneratorLabController : Node
 
     private void ResetPreviewView()
     {
-        if (_preview is null || _terrain is null)
+        if (_preview is null || _splat is null)
             return;
 
 		Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
-		Vector2 terrainSize = new(
-			Mathf.Max(1, _terrain.WidthTiles * _terrain.TileSize),
-			Mathf.Max(1, _terrain.HeightTiles * _terrain.TileSize));
+
+		// The isometric view has a different footprint AND a different origin:
+		// its map is a diamond whose top vertex sits at the local origin, so it
+		// extends to the LEFT of it. Framing it on the flat map's rectangle puts
+		// half the world off the edge of the preview.
+		var view = (LabView)Mathf.Clamp(_view?.Selected ?? 0, 0, 2);
+		Vector2 terrainSize;
+		Vector2 origin = Vector2.Zero;
+		if (view == LabView.Isometric && _iso is not null)
+		{
+			Vector2I bounds = _iso.BoundsSize;
+			float halfWide = Mathf.Max(1, _iso.CellSize.X) * 0.5f;
+			float halfHigh = Mathf.Max(1, _iso.CellSize.Y) * 0.5f;
+			terrainSize = new Vector2(
+				Mathf.Max(1.0f, (bounds.X + bounds.Y) * halfWide),
+				Mathf.Max(1.0f, ((bounds.X + bounds.Y) * halfHigh) + (_iso.LevelHeight * 2)));
+			origin = new Vector2(-bounds.Y * halfWide, -_iso.LevelHeight * 2);
+		}
+		else
+		{
+			terrainSize = new Vector2(
+				Mathf.Max(1, _splat.BoundsSize.X * _splat.TileSize),
+				Mathf.Max(1, _splat.BoundsSize.Y * _splat.TileSize));
+		}
 		const float previewLeft = 340.0f;
 		const float previewTop = 40.0f;
 		const float previewBottomMargin = 70.0f;
@@ -284,7 +419,8 @@ public partial class TerrainGeneratorLabController : Node
 		_preview.Scale = Vector2.One * zoom;
 		_preview.Position = new Vector2(
 			previewLeft + ((availableSize.X - (terrainSize.X * zoom)) * 0.5f),
-			previewTop + ((availableSize.Y - (terrainSize.Y * zoom)) * 0.5f));
+			previewTop + ((availableSize.Y - (terrainSize.Y * zoom)) * 0.5f))
+			- (origin * zoom);
     }
 
     private void ZoomAt(Vector2 screenPosition, float factor)
@@ -305,21 +441,30 @@ public partial class TerrainGeneratorLabController : Node
 
     private void ResolveNodes()
     {
-        _terrain = GetNodeOrNull<PainterlyTerrainComponent>(TerrainPath);
-        _terrainNode = GetNodeOrNull<Node2D>(TerrainPath);
+        _splat = GetNodeOrNull<GridSplatTerrainRendererComponent>(SplatRendererPath);
+        _terrainNode = GetNodeOrNull<Node2D>(SplatRendererPath);
         _generator = GetNodeOrNull<GridTerrainGeneratorComponent>(GeneratorPath);
-        _bridge = GetNodeOrNull<GridPainterlyTerrainBridgeComponent>(BridgePath);
-        _scatter = GetNodeOrNull<SeededTerrainPropScatterComponent>(ScatterPath);
+        _features = GetNodeOrNull<GridTerrainFeatureRendererComponent>(FeaturesPath);
         _mapOverlay = GetNodeOrNull<GridTerrainMapOverlayComponent>(MapOverlayPath);
         _tileRenderer = GetNodeOrNull<GridBiomeTileMapRendererComponent>(TileRendererPath);
-        _tileRenderToggle = GetNodeOrNull<CheckButton>(TileRenderTogglePath);
+        _iso = GetNodeOrNull<GridIsoTileMapRendererComponent>(IsoRendererPath);
+        _isoFeatures = GetNodeOrNull<GridIsoFeatureRendererComponent>(IsoFeaturesPath);
+        _view = GetNodeOrNull<OptionButton>(ViewPath);
+        _mapOverlayNode = GetNodeOrNull<Node2D>(MapOverlayPath);
         _climateBiomes = GetNodeOrNull<CheckButton>(ClimateBiomesPath);
-        _relief = GetNodeOrNull<CheckButton>(ReliefPath);
+        _relief = GetNodeOrNull<SpinBox>(ReliefPath);
         _hillshade = GetNodeOrNull<CheckButton>(HillshadePath);
-        _rivers = GetNodeOrNull<CheckButton>(RiversPath);
-        _resources = GetNodeOrNull<CheckButton>(ResourcesPath);
+        _rivers = GetNodeOrNull<SpinBox>(RiversPath);
+        _resources = GetNodeOrNull<SpinBox>(ResourcesPath);
         _startMarkers = GetNodeOrNull<CheckButton>(StartMarkersPath);
         _preview = GetNodeOrNull<Node2D>(PreviewPath);
+        _mapType = GetNodeOrNull<OptionButton>(MapTypePath);
+        _mapSize = GetNodeOrNull<OptionButton>(MapSizePath);
+        _worldAge = GetNodeOrNull<OptionButton>(WorldAgePath);
+        _temperature = GetNodeOrNull<OptionButton>(TemperaturePath);
+        _rainfall = GetNodeOrNull<OptionButton>(RainfallPath);
+        _seaLevel = GetNodeOrNull<OptionButton>(SeaLevelPath);
+        _resourceLevel = GetNodeOrNull<OptionButton>(ResourceLevelPath);
         _preset = GetNodeOrNull<OptionButton>(PresetPath);
         _landform = GetNodeOrNull<OptionButton>(LandformPath);
         _landmassScale = GetNodeOrNull<SpinBox>(LandmassScalePath);
@@ -333,43 +478,67 @@ public partial class TerrainGeneratorLabController : Node
         _beachWidth = GetNodeOrNull<SpinBox>(BeachWidthPath);
         _lakeCoverage = GetNodeOrNull<SpinBox>(LakeCoveragePath);
         _lakeSize = GetNodeOrNull<SpinBox>(LakeSizePath);
-        _detailCoverage = GetNodeOrNull<SpinBox>(DetailCoveragePath);
-        _swampCoverage = GetNodeOrNull<SpinBox>(SwampCoveragePath);
-        _snowCoverage = GetNodeOrNull<SpinBox>(SnowCoveragePath);
-        _iceCoverage = GetNodeOrNull<SpinBox>(IceCoveragePath);
-        _grassPropCoverage = GetNodeOrNull<SpinBox>(GrassPropCoveragePath);
-        _desertPropCoverage = GetNodeOrNull<SpinBox>(DesertPropCoveragePath);
-        _rockPropCoverage = GetNodeOrNull<SpinBox>(RockPropCoveragePath);
-        _propSpacing = GetNodeOrNull<SpinBox>(PropSpacingPath);
-        _foam = GetNodeOrNull<CheckButton>(FoamPath);
-        _plants = GetNodeOrNull<CheckButton>(PlantsPath);
+        _waves = GetNodeOrNull<SpinBox>(WavesPath);
+        _resourceSet = GetNodeOrNull<OptionButton>(ResourceSetPath);
+        _plants = GetNodeOrNull<SpinBox>(PlantsPath);
         _status = GetNodeOrNull<Label>(StatusPath);
+    }
+
+    /// <summary>Fills a chooser once, and selects its default.</summary>
+    private static void Fill(OptionButton? option, string[] names, int selected = 0)
+    {
+        if (option is null || option.ItemCount > 0)
+            return;
+
+        foreach (string name in names)
+            option.AddItem(name);
+        option.Selected = Mathf.Clamp(selected, 0, option.ItemCount - 1);
     }
 
     private void PopulateOptions()
     {
-        if (_preset is not null && _preset.ItemCount == 0)
+        if (_resourceSet is not null && _resourceSet.ItemCount == 0)
         {
-            foreach (string preset in new[] { "Grassland", "Desert", "Sand", "Rock", "Lava" })
-                _preset.AddItem(preset);
-            _preset.Selected = 0;
+            foreach (string name in new[] { "Historical", "Oil and gas", "Space exploration" })
+                _resourceSet.AddItem(name);
+            _resourceSet.Selected = 0;
         }
 
-        if (_landform is not null && _landform.ItemCount == 0)
+        if (_view is not null && _view.ItemCount == 0)
         {
-            foreach (string landform in new[] { "Mainland", "Island", "Archipelago" })
-                _landform.AddItem(landform);
-            _landform.Selected = Mathf.Clamp((int)InitialLandform, 0, _landform.ItemCount - 1);
+            // In the order the enum declares them, so the index IS the view.
+            _view.AddItem("Painted");
+            _view.AddItem("Game tiles");
+            _view.AddItem("Isometric");
+            _view.Selected = 0;
         }
+
+        Fill(_mapType, TerrainShapePresets.DisplayNames());
+        Fill(_mapSize, TerrainMapSetup.MapSizeNames, (int)TerrainMapSize.Standard);
+        Fill(_worldAge, TerrainMapSetup.WorldAgeNames, (int)TerrainWorldAge.Mature);
+        Fill(_temperature, TerrainMapSetup.TemperatureNames, (int)TerrainTemperature.Temperate);
+        Fill(_rainfall, TerrainMapSetup.RainfallNames, (int)TerrainRainfall.Normal);
+        Fill(_seaLevel, TerrainMapSetup.SeaLevelNames, (int)TerrainSeaLevel.Normal);
+        Fill(_resourceLevel, TerrainMapSetup.ResourceLevelNames, (int)TerrainResourceLevel.Normal);
     }
 
-	private static PainterlyTerrainComponent.TerrainPreset BasePresetFor(int selected) => selected switch
+	private static TerrainPreset BasePresetFor(int selected) => selected switch
 	{
-		1 => PainterlyTerrainComponent.TerrainPreset.Desert,
-		2 => PainterlyTerrainComponent.TerrainPreset.Sand,
-		3 => PainterlyTerrainComponent.TerrainPreset.Rock,
-		4 => PainterlyTerrainComponent.TerrainPreset.Lava,
-		_ => PainterlyTerrainComponent.TerrainPreset.Grassland,
+		1 => TerrainPreset.Desert,
+		2 => TerrainPreset.Sand,
+		3 => TerrainPreset.Rock,
+		4 => TerrainPreset.Lava,
+		_ => TerrainPreset.Grassland,
+	};
+
+	/// <summary>Inverse of BasePresetFor, so a preset can select the matching row.</summary>
+	private static int PresetIndexFor(TerrainPreset preset) => preset switch
+	{
+		TerrainPreset.Desert => 1,
+		TerrainPreset.Sand => 2,
+		TerrainPreset.Rock => 3,
+		TerrainPreset.Lava => 4,
+		_ => 0,
 	};
 
 	private static GridTerrainGeneratorComponent.LandformMode LandformFor(int selected) => selected switch
@@ -387,6 +556,14 @@ public partial class TerrainGeneratorLabController : Node
 			_ => "mainland"
 		};
 
-	private static float Percent(SpinBox? control)
-		=> Mathf.Clamp((float)(control?.Value ?? 0.0) / 100.0f, 0.0f, 1.0f);
+	/// <summary>
+	/// A percentage control's value, or the world preset's own value when the
+	/// control is not on the panel. Defaulting to zero instead would mean
+	/// removing a row silently sets the value to nothing, which is the same
+	/// accepted-then-ignored failure wearing a different hat.
+	/// </summary>
+	private static float Percent(SpinBox? control, float fallback)
+		=> control is null
+			? Mathf.Clamp(fallback, 0.0f, 1.0f)
+			: Mathf.Clamp((float)control.Value / 100.0f, 0.0f, 1.0f);
 }

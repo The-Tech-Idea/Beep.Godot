@@ -31,7 +31,6 @@ DefaultTerrainKind = "deep_water"
 script = ExtResource("generator")
 CellDataPath = NodePath("../Cells")
 DefaultTerrainKind = "deep_water"
-UsePainterSettings = false
 GenerateOnReady = false
 ClearExistingCells = true
 BoundsSize = Vector2i(96, 60)

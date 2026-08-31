@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -15,17 +16,109 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainBiomeStage
     {
+        /// <summary>Rainfall cutoffs between desert, dry grass, grass and swamp.</summary>
+        private readonly record struct MoistureBands(float Desert, float DryGrass, float Swamp);
+
+        /// <summary>The fixed cutoffs, used when quotas are off.</summary>
+        private static readonly MoistureBands Fixed = new(0.20f, 0.38f, 0.78f);
+
         public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
         {
+            // Distance to the OPEN SEA, in samples. A beach belongs to the
+            // ocean; a lake shore is a different thing with its own width.
+            var ocean = new bool[world.Count];
+            for (int index = 0; index < world.Count; index++)
+                ocean[index] = world.Water[index] == WaterBody.Ocean;
+
+            int[] fromOcean = TerrainGeometry.DistanceTo(ocean, world.Width, world.Height);
+
+            // BeachWidth is in TILES, so it has to be converted to the sample
+            // grid the field is measured on. Before this the beach was whatever
+            // touched the sea - ONE SAMPLE - which is an eighth of a tile, and
+            // never survived the majority reduction to tiles. The map had a
+            // beach setting, a beach rule, and no beaches.
+            int beachSamples = Mathf.RoundToInt(
+                Mathf.Max(0.0f, settings.BeachWidth) * world.SamplesPerCell);
+
+            // A lake gets its own shore, measured the same way but from the lake
+            // rather than the sea. Sharing the ocean's field would put a beach
+            // round every pond at whatever width the coast uses, and the two are
+            // not the same thing: a sea beach is surf-built and wide, a lake
+            // shore is a thin rim.
+            var lakes = new bool[world.Count];
+            for (int index = 0; index < world.Count; index++)
+                lakes[index] = world.Water[index] == WaterBody.Lake;
+
+            int[] fromLake = TerrainGeometry.DistanceTo(lakes, world.Width, world.Height);
+            int lakeShoreSamples = Mathf.RoundToInt(
+                Mathf.Max(0.0f, settings.LakeShoreWidth) * world.SamplesPerCell);
+
+            // After the beach field, because the quota counts only the cells the
+            // rainfall table decides - and a beach is decided before it.
+            MoistureBands bands = settings.UseBiomeQuotas
+                ? Quotas(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples)
+                : Fixed;
+
             for (int y = 0; y < world.Height; y++)
             {
                 for (int x = 0; x < world.Width; x++)
                 {
                     int index = world.Index(x, y);
                     world.Terrain[index] = world.Land[index]
-                        ? LandKind(world, settings, index, x, y)
+                        ? LandKind(world, settings, bands, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y)
                         : WaterKind(world, x, y);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Cutoffs taken from the rainfall a map ACTUALLY has, so a named
+        /// fraction of the land comes out desert whatever the map's size or
+        /// noise settings.
+        ///
+        /// This is how Civilization does it - its climate generator works in
+        /// "percent of land below the rainfall threshold" rather than in
+        /// absolute rainfall - and the reason is the failure this replaces.
+        /// Fixed cutoffs read a noise field whose spread changes with map size,
+        /// frequency and octave count, so the same numbers gave 33% desert on
+        /// one setting and 6% on another. Nothing in the parameters says
+        /// "desert", so nobody can tell which they will get.
+        /// </summary>
+        private static MoistureBands Quotas(
+            TerrainWorld world, TerrainGenerationSettings settings,
+            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples)
+        {
+            // Only the cells the rainfall table actually decides.
+            var moisture = new List<float>();
+            for (int y = 0; y < world.Height; y++)
+            {
+                for (int x = 0; x < world.Width; x++)
+                {
+                    int index = world.Index(x, y);
+                    if (world.Land[index] && EarlyKind(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y) is null)
+                        moisture.Add(world.Moisture[index]);
+                }
+            }
+
+            if (moisture.Count == 0)
+                return Fixed;
+
+            moisture.Sort();
+
+            float desert = Mathf.Clamp(settings.DesertFraction, 0.0f, 1.0f);
+            float dry = Mathf.Clamp(settings.DryGrassFraction, 0.0f, 1.0f - desert);
+            float swamp = Mathf.Clamp(settings.SwampFraction, 0.0f, 1.0f - desert - dry);
+
+            return new MoistureBands(
+                At(moisture, desert),
+                At(moisture, desert + dry),
+                At(moisture, 1.0f - swamp));
+
+            static float At(List<float> sorted, float fraction)
+            {
+                int at = Mathf.Clamp(
+                    Mathf.RoundToInt(fraction * (sorted.Count - 1)), 0, sorted.Count - 1);
+                return sorted[at];
             }
         }
 
@@ -41,7 +134,40 @@ namespace Beep.ECS
             return TouchesLand(world, x, y) ? "shallow_water" : "deep_water";
         }
 
-        private static string LandKind(TerrainWorld world, TerrainGenerationSettings settings, int index, int x, int y)
+        private static string LandKind(
+            TerrainWorld world, TerrainGenerationSettings settings, MoistureBands bands,
+            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples,
+            int index, int x, int y)
+        {
+            string? early = EarlyKind(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y);
+            if (early is not null)
+                return early;
+
+            float moisture = world.Moisture[index];
+            if (moisture <= bands.Desert)
+                return "desert";
+            if (moisture <= bands.DryGrass)
+                return "dry_grass";
+            if (moisture >= bands.Swamp)
+                return "swamp";
+
+            return "grass";
+        }
+
+        /// <summary>
+        /// Everything decided BEFORE rainfall: a themed preset, the beach, the
+        /// peaks, and cold that nothing grows through. Null where the cell falls
+        /// through to the rainfall table.
+        ///
+        /// It is one method, and both the classifier and the quota call it. A
+        /// quota counted over all land instead would be a fraction of a
+        /// population the table never sees - ask for 30% dry grassland, get 24%,
+        /// with nothing to say where the rest went.
+        /// </summary>
+        private static string? EarlyKind(
+            TerrainWorld world, TerrainGenerationSettings settings,
+            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples,
+            int index, int x, int y)
         {
             // An explicitly themed preset overrides climate entirely, so the
             // preset dropdown still means what it says.
@@ -49,12 +175,23 @@ namespace Beep.ECS
             if (themed is not null)
                 return themed;
 
-            // A narrow beach wherever land meets the sea.
-            if (world.Relief[index] == TerrainRelief.Flat && TouchesOcean(world, x, y))
+            // A beach of the requested width wherever flat land meets the sea.
+            if (beachSamples > 0
+                && world.Relief[index] == TerrainRelief.Flat
+                && fromOcean[index] <= beachSamples)
+            {
                 return "sand";
+            }
+
+            // The lake's own rim.
+            if (lakeShoreSamples > 0
+                && world.Relief[index] == TerrainRelief.Flat
+                && fromLake[index] <= lakeShoreSamples)
+            {
+                return "sand";
+            }
 
             float temperature = world.Temperature[index];
-            float moisture = world.Moisture[index];
 
             // Mountains are their own terrain, as in Civilization, and take a
             // snow cap where it is cold enough for one to persist.
@@ -77,27 +214,21 @@ namespace Beep.ECS
             // Hills deliberately fall through to the biome table. Their relief
             // is carried by the hillshade, so a grassland hill stays grassland
             // instead of being flattened into grey rock.
-            if (temperature > 0.72f && moisture > 0.58f)
+            if (temperature > 0.72f && world.Moisture[index] > 0.58f)
                 return "jungle";
-            if (moisture < 0.20f)
-                return "desert";
-            if (moisture < 0.38f)
-                return "dry_grass";
-            if (moisture > 0.78f)
-                return "swamp";
 
-            return "grass";
+            return null;
         }
 
         /// <summary>The single ground type a preset uses when climate is off.</summary>
-        private static string PlainGround(PainterlyTerrainComponent.TerrainPreset preset) => preset switch
+        private static string PlainGround(TerrainPreset preset) => preset switch
         {
-            PainterlyTerrainComponent.TerrainPreset.Desert => "desert",
-            PainterlyTerrainComponent.TerrainPreset.Sand => "sand",
-            PainterlyTerrainComponent.TerrainPreset.Rock => "gravel",
-            PainterlyTerrainComponent.TerrainPreset.Swamp => "swamp",
-            PainterlyTerrainComponent.TerrainPreset.Snow => "snow",
-            PainterlyTerrainComponent.TerrainPreset.Ice => "ice",
+            TerrainPreset.Desert => "desert",
+            TerrainPreset.Sand => "sand",
+            TerrainPreset.Rock => "gravel",
+            TerrainPreset.Swamp => "swamp",
+            TerrainPreset.Snow => "snow",
+            TerrainPreset.Ice => "ice",
             _ => "grass",
         };
 
@@ -110,13 +241,13 @@ namespace Beep.ECS
             float elevation = world.Elevation[index];
             return settings.Preset switch
             {
-                PainterlyTerrainComponent.TerrainPreset.Desert => elevation >= 0.72f ? "rock" : "desert",
-                PainterlyTerrainComponent.TerrainPreset.Sand => elevation >= 0.78f ? "rock" : "sand",
-                PainterlyTerrainComponent.TerrainPreset.Rock => elevation >= 0.55f ? "rock" : "gravel",
-                PainterlyTerrainComponent.TerrainPreset.Lava => elevation >= 0.58f ? "lava" : "rock",
-                PainterlyTerrainComponent.TerrainPreset.Ice => elevation >= 0.54f ? "snow" : "ice",
-                PainterlyTerrainComponent.TerrainPreset.Snow => elevation >= 0.62f ? "rock" : "snow",
-                PainterlyTerrainComponent.TerrainPreset.Swamp => elevation >= 0.70f ? "gravel" : "swamp",
+                TerrainPreset.Desert => elevation >= 0.72f ? "rock" : "desert",
+                TerrainPreset.Sand => elevation >= 0.78f ? "rock" : "sand",
+                TerrainPreset.Rock => elevation >= 0.55f ? "rock" : "gravel",
+                TerrainPreset.Lava => elevation >= 0.58f ? "lava" : "rock",
+                TerrainPreset.Ice => elevation >= 0.54f ? "snow" : "ice",
+                TerrainPreset.Snow => elevation >= 0.62f ? "rock" : "snow",
+                TerrainPreset.Swamp => elevation >= 0.70f ? "gravel" : "swamp",
                 _ => null,
             };
         }
@@ -131,14 +262,5 @@ namespace Beep.ECS
             return false;
         }
 
-        private static bool TouchesOcean(TerrainWorld world, int x, int y)
-        {
-            foreach (int neighbour in TerrainGeometry.Neighbours(x, y, world.Width, world.Height))
-            {
-                if (world.Water[neighbour] == WaterBody.Ocean)
-                    return true;
-            }
-            return false;
-        }
     }
 }

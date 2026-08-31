@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scale", type=float, default=1.0)
     parser.add_argument("--castle-width", type=int, default=220)
     parser.add_argument("--castle-height", type=int, default=120)
+    parser.add_argument("--shape-style", choices=("rect", "terraced"), default="terraced")
     return parser.parse_args()
 
 
@@ -43,7 +44,7 @@ def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     level_sizes = parse_level_sizes(args.level_sizes, args.level_widths)
-    image, manifest = compose(args.floor17_dir, args.name, level_sizes, args.tile_step, args.depth_step, args.level_gap, args.scale, args.castle_width, args.castle_height)
+    image, manifest = compose(args.floor17_dir, args.name, level_sizes, args.tile_step, args.depth_step, args.level_gap, args.scale, args.castle_width, args.castle_height, args.shape_style)
     image.save(args.output_dir / "prefab.png")
     (args.output_dir / "prefab_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     write_preview(args.output_dir / "prefab_preview.png", image)
@@ -76,6 +77,7 @@ def compose(
     scale: float,
     castle_width: int,
     castle_height: int,
+    shape_style: str,
 ) -> tuple[Image.Image, dict]:
     data = json.loads((floor17_dir / "floor17_manifest.json").read_text(encoding="utf-8"))
     asset_list = list(data.get("assets", []))
@@ -104,17 +106,24 @@ def compose(
     level_rects = []
 
     for index, (width, depth) in enumerate(level_sizes):
-        level_width_px = (width - 1) * tile_step + floor_width
-        level_depth_px = (depth - 1) * depth_step + floor_height
+        shape = level_shape(width, depth, index, shape_style)
+        min_col = min(row["offset"] for row in shape)
+        max_col = max(row["offset"] + row["width"] - 1 for row in shape)
+        level_width_px = (max_col - min_col) * tile_step + floor_width
+        level_depth_px = (len(shape) - 1) * depth_step + floor_height
         x = round(center_x - level_width_px * 0.5 + (-50 if index % 2 == 0 else 54))
         y = round(base_y - index * level_gap)
-        draw_floor_level(canvas, floor17_dir, assets, sprites, placements, x, y, width, depth, tile_step, depth_step, scale, index)
+        is_castle_level = index == len(level_sizes) - 1
+        draw_floor_level(canvas, floor17_dir, assets, sprites, placements, x, y, shape, tile_step, depth_step, scale, index, is_castle_level)
 
         region_id = f"level_{index}_floor"
         walkable_regions.append(
             {
                 "id": region_id,
                 "level": index,
+                "height_level": index,
+                "elevation_px": index * level_gap,
+                "z_index": index * 10,
                 "x": x + 22,
                 "y": y + 20,
                 "width": max(32, level_width_px - 44),
@@ -127,8 +136,12 @@ def compose(
                 "id": f"level_{index}",
                 "index": index,
                 "height": index,
+                "height_level": index,
+                "elevation_px": index * level_gap,
+                "z_index": index * 10,
                 "width_tiles": width,
                 "depth_tiles": depth,
+                "shape": shape,
                 "walkable_region": region_id,
             }
         )
@@ -138,17 +151,17 @@ def compose(
         lower = level_rects[index]
         upper = level_rects[index + 1]
         role = "ramp_left_to_right" if index % 2 == 0 else "ramp_right_to_left"
-        if index == 0 and "bottom_entry_ramp" in assets:
-            role = "bottom_entry_ramp"
         route_sprite = sprites.get(role)
         if not route_sprite:
             continue
-        route_scale = scale * 0.82
+        route_scale = scale * 1.55
         route_width = round(route_sprite.width * route_scale)
         route_height = round(route_sprite.height * route_scale)
-        x = round((lower["x"] + lower["width"] * 0.45 + upper["x"] + upper["width"] * 0.55) * 0.5 - route_width * 0.5)
-        y = round((lower["y"] + lower["height"] + upper["y"]) * 0.5 - route_height * 0.35)
-        paste(canvas, floor17_dir, assets, placements, role, x, y, route_scale, 50 + index)
+        lower_anchor = (lower["x"] + lower["width"] * (0.58 if index % 2 == 0 else 0.42), lower["y"] + lower["height"] * 0.42)
+        upper_anchor = (upper["x"] + upper["width"] * (0.42 if index % 2 == 0 else 0.58), upper["y"] + upper["height"] * 0.72)
+        x = round((lower_anchor[0] + upper_anchor[0]) * 0.5 - route_width * 0.5)
+        y = round((lower_anchor[1] + upper_anchor[1]) * 0.5 - route_height * 0.5)
+        paste(canvas, floor17_dir, assets, placements, role, x, y, route_scale, 80 + index)
         route_region_id = f"route_{index}_to_{index + 1}"
         walkable_regions.append(
             {
@@ -156,10 +169,13 @@ def compose(
                 "level": index,
                 "from_level": index,
                 "to_level": index + 1,
-                "x": x + round(route_width * 0.18),
-                "y": y + round(route_height * 0.22),
-                "width": round(route_width * 0.64),
-                "height": round(route_height * 0.50),
+                "from_elevation_px": index * level_gap,
+                "to_elevation_px": (index + 1) * level_gap,
+                "height_level": index + 1,
+                "x": min(lower_anchor[0], upper_anchor[0]) - 28,
+                "y": min(lower_anchor[1], upper_anchor[1]) - 28,
+                "width": abs(upper_anchor[0] - lower_anchor[0]) + 56,
+                "height": abs(upper_anchor[1] - lower_anchor[1]) + 56,
                 "kind": "climb_route",
             }
         )
@@ -169,6 +185,10 @@ def compose(
                 "to": f"level_{index + 1}",
                 "role": role,
                 "walkable_region": route_region_id,
+                "from_level": index,
+                "to_level": index + 1,
+                "from_elevation_px": index * level_gap,
+                "to_elevation_px": (index + 1) * level_gap,
                 "climbable": True,
             }
         )
@@ -180,6 +200,8 @@ def compose(
         "width": castle_width,
         "height": castle_height,
         "level": len(level_sizes) - 1,
+        "height_level": len(level_sizes) - 1,
+        "elevation_px": (len(level_sizes) - 1) * level_gap,
         "pivot": "footprint_center",
         "z_index": 100,
     }
@@ -203,14 +225,15 @@ def compose(
         "route_up": [edge["role"] for edge in route_edges],
         "anchors": {
             "castle_anchor": castle_anchor,
-            "player_spawn": {"x": level_rects[0]["x"] + 52, "y": level_rects[0]["y"] + 46, "level": 0, "kind": "route_start"},
-            "plateau_exit": {"x": castle_anchor["x"] + castle_width * 0.5, "y": castle_anchor["y"] + castle_height * 0.70, "level": len(level_sizes) - 1, "kind": "route_end"},
+            "player_spawn": {"x": level_rects[0]["x"] + 52, "y": level_rects[0]["y"] + 46, "level": 0, "height_level": 0, "elevation_px": 0, "kind": "route_start"},
+            "plateau_exit": {"x": castle_anchor["x"] + castle_width * 0.5, "y": castle_anchor["y"] + castle_height * 0.70, "level": len(level_sizes) - 1, "height_level": len(level_sizes) - 1, "elevation_px": (len(level_sizes) - 1) * level_gap, "kind": "route_end"},
         },
         "placements": sorted(placements, key=lambda item: item["z_index"]),
         "notes": [
             "Uses a strict first-row 17-piece floor atlas.",
             "Developer controls each level with --level-sizes WIDTHxDEPTH.",
-            "Floor surfaces are built only from floor17 roles; cliffs/routes/castle pieces are separate rows.",
+            "Normal floor surfaces are built only from floor17 roles; the highest castle level uses the castle floor pieces from extras.",
+            "Every level includes cliff/foundation tiles under the visible top so higher floors do not float.",
         ],
     }
     return canvas, manifest
@@ -230,10 +253,40 @@ def draw_floor_level(
     depth_step: int,
     scale: float,
     level_index: int,
+    is_castle_level: bool,
 ) -> None:
-    for row in range(depth):
-        for col in range(width):
-            role = floor_role_for(col, row, width, depth, assets)
+    raise NotImplementedError
+
+
+def draw_floor_level(
+    canvas: Image.Image,
+    atlas_dir: Path,
+    assets: dict,
+    sprites: dict,
+    placements: list[dict],
+    x: int,
+    y: int,
+    shape: list[dict],
+    tile_step: int,
+    depth_step: int,
+    scale: float,
+    level_index: int,
+    is_castle_level: bool,
+) -> None:
+    width = max(row["offset"] + row["width"] for row in shape)
+    depth = len(shape)
+    if is_castle_level and "castle_foundation" in assets:
+        foundation_y = y + round(avg_floor_height(sprites) * scale * 0.66)
+        for row in shape:
+            for local_col in range(row["width"]):
+                col = row["offset"] + local_col
+                paste(canvas, atlas_dir, assets, placements, "castle_foundation", x + tile_step * col, foundation_y + depth_step * row["row"], scale * 0.92, level_index * 10 + 2 + col)
+
+    occupied = {(row["offset"] + col, row["row"]) for row in shape for col in range(row["width"])}
+    for row in shape:
+        for local_col in range(row["width"]):
+            col = row["offset"] + local_col
+            role = castle_role_for(local_col, row["width"], assets) if is_castle_level else floor_role_for_shape(col, row["row"], occupied, assets)
             paste(
                 canvas,
                 atlas_dir,
@@ -243,15 +296,36 @@ def draw_floor_level(
                 x + tile_step * col,
                 y + depth_step * row,
                 scale,
-                10 + level_index + row,
+                level_index * 10 + 10 + row,
             )
+    if is_castle_level:
+        if "front_lip" in assets:
+            lip_y = y + (depth - 1) * depth_step + round(avg_floor_height(sprites) * scale * 0.76)
+            front_row = shape[-1]
+            for local_col in range(front_row["width"]):
+                col = front_row["offset"] + local_col
+                paste(canvas, atlas_dir, assets, placements, "front_lip", x + tile_step * col, lip_y, scale * 0.86, level_index * 10 + 22 + col)
+        if "bridge_edge" in assets:
+            paste(canvas, atlas_dir, assets, placements, "bridge_edge", x - round(tile_step * 0.55), y + round(depth_step * 0.55), scale * 0.86, level_index * 10 + 20)
+
     if "cliff_middle_a" in assets:
-        cliff_y = y + (depth - 1) * depth_step + round(avg_floor_height(sprites) * scale) - 2
-        paste(canvas, atlas_dir, assets, placements, "cliff_left", x, cliff_y, scale * 0.86, level_index)
-        for tile in range(max(0, width - 2)):
+        front_row = shape[-1]
+        cliff_y = y + front_row["row"] * depth_step + round(avg_floor_height(sprites) * scale) - 2
+        paste(canvas, atlas_dir, assets, placements, "cliff_left", x + tile_step * front_row["offset"], cliff_y, scale * 0.86, level_index)
+        for tile in range(max(0, front_row["width"] - 2)):
             role = "cliff_middle_a" if tile % 2 == 0 else "cliff_middle_b"
-            paste(canvas, atlas_dir, assets, placements, role, x + tile_step * (tile + 1), cliff_y, scale * 0.86, level_index)
-        paste(canvas, atlas_dir, assets, placements, "cliff_right", x + tile_step * (width - 1), cliff_y, scale * 0.86, level_index)
+            paste(canvas, atlas_dir, assets, placements, role, x + tile_step * (front_row["offset"] + tile + 1), cliff_y, scale * 0.86, level_index)
+        paste(canvas, atlas_dir, assets, placements, "cliff_right", x + tile_step * (front_row["offset"] + front_row["width"] - 1), cliff_y, scale * 0.86, level_index)
+
+
+def castle_role_for(col: int, width: int, assets: dict) -> str:
+    if width <= 1:
+        return role_or("castle_floor_middle", assets)
+    if col == 0:
+        return role_or("castle_floor_left", assets)
+    if col == width - 1:
+        return role_or("castle_floor_right", assets)
+    return role_or("castle_floor_middle", assets)
 
 
 def floor_role_for(col: int, row: int, width: int, depth: int, assets: dict) -> str:

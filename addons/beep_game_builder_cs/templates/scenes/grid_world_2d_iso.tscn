@@ -1,6 +1,6 @@
 [gd_scene load_steps=55 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs" id="grid"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs" id="grid_object"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectInspectorComponent.cs" id="grid_object_inspector"]
@@ -38,7 +38,6 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridInteractionCursorComponent.cs" id="interaction_cursor"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellOverlayComponent.cs" id="cell_overlay"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs" id="tilemap_bridge"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs" id="painterly_bridge"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="terrain_generator"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCalendarComponent.cs" id="calendar"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCalendarHudComponent.cs" id="calendar_hud"]
@@ -63,23 +62,21 @@ size = Vector2(24, 24)
 
 [node name="GridWorld2DIso" type="Node2D"]
 
-[node name="Terrain" type="Node" parent="."]
-script = ExtResource("terrain")
-WidthTiles = 64
-HeightTiles = 64
+[node name="Splat" type="Node2D" parent="."]
+script = ExtResource("splat")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+BoundsSize = Vector2i(64, 64)
 TileSize = 64
-PixelsPerTile = 64
-MaxGeneratedPixels = 16777216
-PostSharpenStrength = 0.16
-GrainStrength = 0.0
-UseBundledMaterialTextures = false
-MaterialTextureStrength = 0.0
-EnableBiomeDetailLayers = true
-BiomeDetailCoverage = 0.30
-BiomeDetailPatchScale = 0.18
-BiomeDetailStrength = 0.48
-BiomeDetailDensity = 1.0
-GenerateOnReady = false
+GrassTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
+DryGrassTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Dry Grassland Texture.png"
+SandTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
+DirtTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Warm Brown Dirt Texture.png"
+SnowTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
+MudTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Wet Muddy Earth Texture.png"
+GravelTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Neutral Gravel Ground Texture.png"
+RockTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Gravelly Earth Texture.png"
+ShallowWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
+DeepWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
 
 [node name="VisualTileLayer" type="TileMapLayer" parent="."]
 
@@ -92,19 +89,6 @@ PaintCells = true
 PaintRoads = true
 RoadsOverrideCells = true
 ClearBeforeRebuild = true
-
-[node name="TerrainBridge" type="Node" parent="."]
-script = ExtResource("painterly_bridge")
-PainterlyTerrainPath = NodePath("../Terrain")
-CellDataPath = NodePath("../Cells")
-RoadPath = NodePath("../Roads")
-TerrainGeneratorPath = NodePath("../TerrainGenerator")
-UsePainterDimensions = true
-AutoRebuildOnReady = true
-AutoRebuildOnChanges = true
-GenerateBeforeFirstRebuild = true
-RebuildInEditor = false
-PaintRoads = true
 
 [node name="Grid" type="Node2D" parent="."]
 script = ExtResource("grid")
@@ -282,11 +266,10 @@ ClearWaterOnNewDay = true
 [node name="TerrainGenerator" type="Node" parent="."]
 script = ExtResource("terrain_generator")
 CellDataPath = NodePath("../Cells")
-PainterlyTerrainPath = NodePath("../Terrain")
-UsePainterSettings = true
-GenerateOnReady = false
+GenerateOnReady = true
 GenerateInEditor = false
 ClearExistingCells = true
+BoundsSize = Vector2i(64, 64)
 
 [node name="Calendar" type="Node" parent="."]
 script = ExtResource("calendar")

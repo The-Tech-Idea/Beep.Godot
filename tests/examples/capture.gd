@@ -13,6 +13,7 @@ const SCENES := {
 	"lab": "res://tests/examples/terrain_generator_lab.tscn",
 	"splat": "res://tests/examples/terrain_splat_demo.tscn",
 	"tilemap": "res://tests/examples/terrain_tilemap_demo.tscn",
+	"iso": "res://tests/examples/terrain_iso_demo.tscn",
 }
 
 func _initialize() -> void:
@@ -35,11 +36,13 @@ func _initialize() -> void:
 
 	var failures := 0
 	for name in wanted:
+		var started := Time.get_ticks_msec()
 		var root_node = load(SCENES[name]).instantiate()
 		get_root().add_child(root_node)
 		# Enough frames for the deferred generate and render to have landed.
 		for i in range(45):
 			await process_frame
+		print("%s: ready in %d ms" % [name, Time.get_ticks_msec() - started])
 		failures += await shoot(out_dir, name)
 
 		# CAPTURE_ZOOM takes a second shot pushed in to the given zoom level, to

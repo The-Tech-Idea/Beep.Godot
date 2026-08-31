@@ -1,6 +1,5 @@
 [gd_scene load_steps=24 format=3 uid="uid://cw4yghpcaxn86"]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs" id="terrain"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs" id="grid"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs" id="tilemap_bridge"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cell_data"]
@@ -29,18 +28,6 @@ code = "shader_type canvas_item;\n\nvoid fragment() {\n\tvec4 sample_color = tex
 shader = SubResource("shader_chroma_key")
 
 [node name="OilfieldSettlersShowcase" type="Node2D"]
-
-[node name="Terrain" type="Node" parent="."]
-script = ExtResource("terrain")
-WidthTiles = 36
-HeightTiles = 24
-TileSize = 64
-PixelsPerTile = 48
-GrainStrength = 0.0
-UseBundledMaterialTextures = false
-EnableBiomeDetailLayers = true
-BiomeDetailCoverage = 0.30
-BiomeDetailPatchScale = 0.18
 
 [node name="VisualTileLayer" type="TileMapLayer" parent="."]
 

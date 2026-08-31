@@ -10,6 +10,21 @@ namespace Beep.ECS
     /// Loads one generated mountain/hill asset-pack manifest, builds a runtime
     /// TileSetAtlasSource from its atlas, creates or reuses a TileMapLayer, and
     /// paints a deterministic top-down mountain footprint.
+    ///
+    /// NOT A MAP GENERATOR, and not the source of a map's mountains. This paints
+    /// VISUALS ONLY from an authored asset pack: it writes nothing to
+    /// GridCellDataComponent, so gameplay - pathfinding, placement, terrain
+    /// queries - cannot see anything it paints.
+    ///
+    /// Where mountains are on a generated map is already decided by
+    /// GridTerrainGeneratorComponent, which owns TerrainRelief (Flat, Hills,
+    /// Mountains) and writes it to the cell data. Use this for an authored
+    /// set-piece placed on top of that, never as a second way to make terrain.
+    ///
+    /// Not yet wired to the cell data: what an authored mountain should mean to
+    /// gameplay - blocked, which terrain kind, which relief - is a decision for
+    /// the mountain asset-pack workstream that owns this file, not something to
+    /// guess at from here.
     /// </summary>
     [Tool]
     [GlobalClass]

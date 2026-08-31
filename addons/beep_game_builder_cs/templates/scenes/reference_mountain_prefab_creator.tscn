@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/MountainPrefabGeneratorComponent.cs" id="1_mountain_prefab_generator"]
+
+[node name="ReferenceMountainPrefabCreator" type="Node2D"]
+script = ExtResource("1_mountain_prefab_generator")
+PrefabManifestPath = "res://addons/beep_game_builder_cs/generated/mountains/shape_based_mountain_prefab/prefab_manifest.json"
+GenerateOnReady = true
+SourceMode = 0
+LayoutPreset = 0
+CreateWalkableAreas = true
+CreateAnchorNodes = true
+CreateRouteConnectorAreas = true
+SaveGeneratedScenePath = "res://generated/mountain_cliff_terrain_prefab.tscn"

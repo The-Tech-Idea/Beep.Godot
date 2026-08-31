@@ -7,17 +7,6 @@ const SCENES := [
 		"min_pixels": 32,
 	},
 	{
-		"path": "res://tests/examples/grid_world_painterly_demo.tscn",
-		"output": "res://tmp/grid_world_painterly_demo.png",
-		"min_pixels": 32,
-	},
-	{
-		"path": "res://tests/examples/painterly_terrain_biome_gallery.tscn",
-		"output": "res://tmp/painterly_terrain_biome_gallery.png",
-		"min_pixels": 128,
-		"check": "biome_gallery",
-	},
-	{
 		"path": "res://addons/beep_game_builder_cs/templates/scenes/theme_gallery.tscn",
 		"output": "res://tmp/theme_gallery.png",
 		"min_pixels": 128,
@@ -60,9 +49,6 @@ func _probe_scene(entry: Dictionary) -> bool:
 	if str(entry.get("check", "")) == "theme_gallery" and not _check_theme_gallery(scene):
 		scene.queue_free()
 		return false
-	if str(entry.get("check", "")) == "biome_gallery" and not _check_biome_gallery(scene):
-		scene.queue_free()
-		return false
 
 	var image := root.get_texture().get_image()
 	if image == null or image.is_empty():
@@ -92,29 +78,6 @@ func _probe_scene(entry: Dictionary) -> bool:
 	print("[render-probe] OK: saved " + output_path + " with visible pixels " + str(non_empty_pixels))
 	scene.queue_free()
 	await process_frame
-	return true
-
-func _check_biome_gallery(scene: Node) -> bool:
-	for terrain_name in ["Desert", "Grass", "Rock", "Swamp", "Snow", "Sea"]:
-		var terrain := scene.get_node_or_null(terrain_name)
-		if terrain == null:
-			push_error("[render-probe] Biome gallery is missing terrain node " + terrain_name + ".")
-			return false
-		var sprite := terrain.get_node_or_null("PainterlyTerrainSprite") as Sprite2D
-		if sprite == null or sprite.texture == null:
-			push_error("[render-probe] Biome gallery terrain did not render: " + terrain_name + ".")
-			return false
-		var detail_sprite := terrain.get_node_or_null("PainterlyTerrainDetailSprite") as Sprite2D
-		if detail_sprite == null or detail_sprite.texture == null:
-			push_error("[render-probe] Biome gallery terrain did not render a separate detail overlay: " + terrain_name + ".")
-			return false
-		var offset: Vector2 = terrain.get("RenderOffset")
-		if sprite.position.distance_to(offset) > 0.1:
-			push_error("[render-probe] Biome gallery terrain offset was not applied: " + terrain_name + ".")
-			return false
-		if detail_sprite.position.distance_to(offset) > 0.1:
-			push_error("[render-probe] Biome gallery terrain detail offset was not applied: " + terrain_name + ".")
-			return false
 	return true
 
 func _check_theme_gallery(scene: Node) -> bool:

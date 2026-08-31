@@ -13,6 +13,8 @@ public partial class TerrainSplatDemoController : Node
     [Export] public NodePath GeneratorPath { get; set; } = new("");
     [Export] public NodePath SplatPath { get; set; } = new("");
     [Export] public NodePath FeaturesPath { get; set; } = new("");
+    [Export] public NodePath ReliefPath { get; set; } = new("");
+    [Export] public NodePath ResourcesPath { get; set; } = new("");
     [Export] public NodePath CameraPath { get; set; } = new("");
     [Export] public NodePath CameraControllerPath { get; set; } = new("");
     [Export] public NodePath WorldPath { get; set; } = new("");
@@ -22,6 +24,8 @@ public partial class TerrainSplatDemoController : Node
     private GridTerrainGeneratorComponent? _generator;
     private GridSplatTerrainRendererComponent? _splat;
     private GridTerrainFeatureRendererComponent? _features;
+    private GridTerrainReliefRendererComponent? _relief;
+    private GridTerrainResourceRendererComponent? _resources;
     private Node2D? _world;
     private Camera2D? _camera;
     private GridCameraControllerComponent? _cameraController;
@@ -32,6 +36,8 @@ public partial class TerrainSplatDemoController : Node
         _generator = GetNodeOrNull<GridTerrainGeneratorComponent>(GeneratorPath);
         _splat = GetNodeOrNull<GridSplatTerrainRendererComponent>(SplatPath);
         _features = GetNodeOrNull<GridTerrainFeatureRendererComponent>(FeaturesPath);
+        _relief = GetNodeOrNull<GridTerrainReliefRendererComponent>(ReliefPath);
+        _resources = GetNodeOrNull<GridTerrainResourceRendererComponent>(ResourcesPath);
         _world = GetNodeOrNull<Node2D>(WorldPath);
         _camera = GetNodeOrNull<Camera2D>(CameraPath);
         _cameraController = GetNodeOrNull<GridCameraControllerComponent>(CameraControllerPath);
@@ -47,7 +53,9 @@ public partial class TerrainSplatDemoController : Node
 
         _generator.GenerateTerrain();
         _splat.Rebuild();
+        _relief?.Rebuild();
         _features?.Rebuild();
+        _resources?.Rebuild();
         Fit();
 
         Godot.Collections.Dictionary d = _generator.GetGenerationDiagnostics();

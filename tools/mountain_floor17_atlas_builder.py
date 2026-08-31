@@ -93,8 +93,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--padding", type=int, default=3)
     parser.add_argument("--texture", type=Path, default=None, help="Single material texture used for both floor17 tiles and wall extras.")
     parser.add_argument("--texture-cell", default=None, help="Optional atlas cell as COL,ROW using 1-based indexes, for example 3,2.")
+    parser.add_argument("--cliff-cell", default="1,1", help="Optional cliff atlas cell as COL,ROW using 1-based indexes.")
     parser.add_argument("--surface-texture", type=Path, default=DEFAULT_TEXTURE_DIR / "Natural Grassy Meadow Texture.png")
     parser.add_argument("--cliff-texture", type=Path, default=DEFAULT_TEXTURE_DIR / "Cliff Texture Atlas 2.png")
+    parser.add_argument("--path-texture", type=Path, default=DEFAULT_TEXTURE_DIR / "Seamless Warm Brown Dirt Texture.png")
+    parser.add_argument("--castle-texture", type=Path, default=DEFAULT_TEXTURE_DIR / "stone_atlas.png")
     return parser.parse_args()
 
 
@@ -109,6 +112,9 @@ def main() -> None:
     rects = components(source, args.min_area)
     floor_sprites = build_floor17_sprites(args, source, rects)
     cliff_sprites = build_cliff_sprites(args, source, rects)
+    route_sprites = build_route_sprites(args, floor_sprites)
+    castle_sprites = build_castle_sprites(args, cliff_sprites)
+    detail_sprites = build_detail_sprites(args, floor_sprites, cliff_sprites)
 
     extra_specs: list[tuple[str, str, tuple[int, int, int, int, int]]] = []
     for category, roles, top, bottom in EXTRA_ROLE_GROUPS:
@@ -123,6 +129,9 @@ def main() -> None:
         add_sprite_slot(floor_atlas, sprites_dir, floor_assets, args.name, role, "floor17", floor_sprites[role], index, 0, args.slot_width, args.slot_height, args.padding, True, False, 20, "synthesized_floor17")
 
     extras_items: list[tuple[str, str, Image.Image | tuple[int, int, int, int, int]]] = [("cliff", role, cliff_sprites[role]) for role in CLIFF_ROLES]
+    extras_items.extend(("route", role, route_sprites[role]) for role in ROUTE_ROLES)
+    extras_items.extend(("castle", role, castle_sprites[role]) for role in CASTLE_ROLES)
+    extras_items.extend(("detail", role, detail_sprites[role]) for role in DETAIL_ROLES)
     extras_items.extend((category, role, rect) for category, role, rect in extra_specs)
     extras_rows = max(1, (len(extras_items) + args.extra_columns - 1) // args.extra_columns)
     extras_atlas = Image.new("RGBA", (args.extra_columns * args.slot_width, extras_rows * args.slot_height), (0, 0, 0, 0))
@@ -202,18 +211,43 @@ def build_floor17_sprites(args: argparse.Namespace, source: Image.Image, rects: 
         surface = pick_material_patch(material) if material else fallback_floor_texture(source, rects)
     else:
         surface = load_texture(args.surface_texture) or fallback_floor_texture(source, rects)
+    cliff = load_texture(args.cliff_texture)
+    rock = pick_material_patch_for_cell(cliff, args.cliff_cell) if cliff else fallback_cliff_texture(source, rects)
     roles: dict[str, Image.Image] = {}
     for index, role in enumerate(FLOOR17_ROLES):
-        roles[role] = make_floor_tile(role, surface, args.slot_width, args.slot_height, index)
+        roles[role] = make_floor_tile(role, surface, rock, args.slot_width, args.slot_height, index)
     return roles
 
 
 def build_cliff_sprites(args: argparse.Namespace, source: Image.Image, rects: list[tuple[int, int, int, int, int]]) -> dict[str, Image.Image]:
     cliff = load_texture(args.texture or args.cliff_texture)
-    rock = pick_material_patch(cliff) if cliff else fallback_cliff_texture(source, rects)
+    rock = pick_material_patch_for_cell(cliff, args.texture_cell or args.cliff_cell) if cliff else fallback_cliff_texture(source, rects)
     roles: dict[str, Image.Image] = {}
     for index, role in enumerate(CLIFF_ROLES):
         roles[role] = make_cliff_tile(role, rock, args.slot_width, args.slot_height, index)
+    return roles
+
+
+def build_route_sprites(args: argparse.Namespace, floor_sprites: dict[str, Image.Image]) -> dict[str, Image.Image]:
+    dirt = load_texture(args.path_texture) or floor_sprites["floor_center"]
+    roles: dict[str, Image.Image] = {}
+    for index, role in enumerate(ROUTE_ROLES):
+        roles[role] = make_route_tile(role, dirt, args.slot_width, args.slot_height, index)
+    return roles
+
+
+def build_castle_sprites(args: argparse.Namespace, cliff_sprites: dict[str, Image.Image]) -> dict[str, Image.Image]:
+    stone = load_texture(args.castle_texture) or cliff_sprites["cliff_middle_a"]
+    roles: dict[str, Image.Image] = {}
+    for index, role in enumerate(CASTLE_ROLES):
+        roles[role] = make_castle_tile(role, stone, args.slot_width, args.slot_height, index)
+    return roles
+
+
+def build_detail_sprites(args: argparse.Namespace, floor_sprites: dict[str, Image.Image], cliff_sprites: dict[str, Image.Image]) -> dict[str, Image.Image]:
+    roles: dict[str, Image.Image] = {}
+    for index, role in enumerate(DETAIL_ROLES):
+        roles[role] = make_detail_tile(role, floor_sprites["floor_center"], cliff_sprites["cliff_middle_a"], args.slot_width, args.slot_height, index)
     return roles
 
 
@@ -270,6 +304,20 @@ def pick_material_patch(texture: Image.Image) -> Image.Image:
     return pick_cliff_patch(texture)
 
 
+def pick_material_patch_for_cell(texture: Image.Image, cell: str | None) -> Image.Image:
+    if cell:
+        grid_patches = atlas_grid_patches(texture)
+        if grid_patches:
+            col_text, row_text = cell.split(",", 1)
+            col = max(1, int(col_text.strip()))
+            row = max(1, int(row_text.strip()))
+            columns = round(len(grid_patches) ** 0.5)
+            index = (row - 1) * columns + (col - 1)
+            if 0 <= index < len(grid_patches):
+                return grid_patches[index]
+    return pick_material_patch(texture)
+
+
 def pick_material_patch_for_args(texture: Image.Image, args: argparse.Namespace) -> Image.Image:
     grid_patches = atlas_grid_patches(texture)
     if args.texture_cell and grid_patches:
@@ -287,6 +335,8 @@ def pick_material_patch_for_args(texture: Image.Image, args: argparse.Namespace)
 def atlas_grid_patches(atlas: Image.Image) -> list[Image.Image]:
     width, height = atlas.size
     candidates: list[tuple[int, int]] = []
+    if width >= 512 and height >= 512:
+        candidates.append((4, 4))
     if width % 4 == 0 and height % 4 == 0:
         candidates.append((4, 4))
     if width % 3 == 0 and height % 4 == 0:
@@ -296,13 +346,19 @@ def atlas_grid_patches(atlas: Image.Image) -> list[Image.Image]:
 
     patches: list[Image.Image] = []
     for columns, rows in candidates:
-        cell_w = width // columns
-        cell_h = height // rows
+        cell_w = width / columns
+        cell_h = height / rows
         if cell_w < 96 or cell_h < 96:
             continue
         for row in range(rows):
             for col in range(columns):
-                patch = atlas.crop((col * cell_w, row * cell_h, (col + 1) * cell_w, (row + 1) * cell_h)).convert("RGBA")
+                pad_x = round(cell_w * 0.055)
+                pad_y = round(cell_h * 0.055)
+                x1 = max(0, round(col * cell_w) + pad_x)
+                y1 = max(0, round(row * cell_h) + pad_y)
+                x2 = min(width, round((col + 1) * cell_w) - pad_x)
+                y2 = min(height, round((row + 1) * cell_h) - pad_y)
+                patch = atlas.crop((x1, y1, x2, y2)).convert("RGBA")
                 patches.append(crop_non_background(patch))
         if patches:
             return patches
@@ -385,7 +441,7 @@ def opaque_components(image: Image.Image, min_area: int) -> list[tuple[int, int,
     return sorted(found, key=lambda item: (item[1], item[0]))
 
 
-def make_floor_tile(role: str, surface: Image.Image, width: int, height: int, variant: int) -> Image.Image:
+def make_floor_tile(role: str, surface: Image.Image, rock: Image.Image, width: int, height: int, variant: int) -> Image.Image:
     base = sample_texture(surface, width, height, variant * 37, variant * 53)
     base = ImageEnhance.Contrast(base).enhance(1.08)
     base = ImageEnhance.Color(base).enhance(1.04)
@@ -395,15 +451,57 @@ def make_floor_tile(role: str, surface: Image.Image, width: int, height: int, va
     edges = role_edges(role)
     draw = ImageDraw.Draw(tile, "RGBA")
     if edges:
-        if "n" in edges:
-            draw.line((0, 1, width, 1), fill=(18, 22, 18, 55), width=2)
-        if "s" in edges:
-            draw.line((0, height - 2, width, height - 2), fill=(18, 22, 18, 70), width=3)
-        if "w" in edges:
-            draw.line((1, 0, 1, height), fill=(18, 22, 18, 55), width=2)
-        if "e" in edges:
-            draw.line((width - 2, 0, width - 2, height), fill=(18, 22, 18, 55), width=2)
+        for edge in sorted(edges):
+            overlay_floor_edge(tile, rock, edge, variant)
+        if role.endswith("_alt"):
+            add_floor_scatter(tile, rock, variant)
     return tile
+
+
+def overlay_floor_edge(tile: Image.Image, rock: Image.Image, edge: str, variant: int) -> None:
+    width, height = tile.size
+    draw = ImageDraw.Draw(tile, "RGBA")
+    if edge in {"n", "s"}:
+        thickness = 18 if edge == "n" else 28
+        strip = sample_texture(rock, width, thickness, variant * 23, variant * 41)
+        strip = ImageEnhance.Contrast(strip).enhance(1.15)
+        mask = Image.new("L", (width, thickness), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        for x in range(width):
+            wobble = ((x * 17 + variant * 29) % 9) - 4
+            if edge == "n":
+                mask_draw.line((x, 0, x, max(4, thickness - 6 + wobble)), fill=150)
+            else:
+                mask_draw.line((x, max(0, 5 + wobble), x, thickness), fill=210)
+        y = 0 if edge == "n" else height - thickness
+        tile.alpha_composite(Image.composite(strip, Image.new("RGBA", strip.size, (0, 0, 0, 0)), mask), (0, y))
+        line_y = thickness - 3 if edge == "n" else height - thickness + 4
+        draw.line((0, line_y, width, line_y), fill=(42, 49, 30, 135), width=3)
+    else:
+        thickness = 22
+        strip = sample_texture(rock, thickness, height, variant * 31, variant * 13)
+        strip = ImageEnhance.Contrast(strip).enhance(1.12)
+        mask = Image.new("L", (thickness, height), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        for y in range(height):
+            wobble = ((y * 19 + variant * 11) % 9) - 4
+            if edge == "w":
+                mask_draw.line((0, y, max(5, thickness - 7 + wobble), y), fill=160)
+            else:
+                mask_draw.line((max(0, 6 + wobble), y, thickness, y), fill=160)
+        x = 0 if edge == "w" else width - thickness
+        tile.alpha_composite(Image.composite(strip, Image.new("RGBA", strip.size, (0, 0, 0, 0)), mask), (x, 0))
+        line_x = thickness - 4 if edge == "w" else width - thickness + 4
+        draw.line((line_x, 0, line_x, height), fill=(42, 49, 30, 110), width=3)
+
+
+def add_floor_scatter(tile: Image.Image, rock: Image.Image, variant: int) -> None:
+    draw = ImageDraw.Draw(tile, "RGBA")
+    for i in range(5):
+        x = 18 + ((variant * 23 + i * 37) % max(1, tile.width - 36))
+        y = 18 + ((variant * 41 + i * 29) % max(1, tile.height - 36))
+        radius = 2 + ((variant + i) % 4)
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(92, 96, 74, 95))
 
 
 def role_edges(role: str) -> set[str]:
@@ -482,6 +580,95 @@ def make_cliff_tile(role: str, rock: Image.Image, width: int, height: int, varia
         mask = Image.new("L", (width, height), 0)
         ImageDraw.Draw(mask).rounded_rectangle((7, 2, width - 8, height - 3), radius=18, fill=255)
         tile.putalpha(mask)
+    return tile
+
+
+def make_route_tile(role: str, dirt: Image.Image, width: int, height: int, variant: int) -> Image.Image:
+    tile = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    fill = sample_texture(dirt, width, height, variant * 19, variant * 31)
+    fill = ImageEnhance.Contrast(fill).enhance(1.08)
+    fill = ImageEnhance.Brightness(fill).enhance(0.96)
+    mask = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask)
+    if role == "ramp_left_to_right":
+        draw.polygon([(12, height - 22), (32, height - 8), (width - 10, 28), (width - 30, 14)], fill=255)
+    elif role == "ramp_right_to_left":
+        draw.polygon([(width - 12, height - 22), (width - 32, height - 8), (10, 28), (30, 14)], fill=255)
+    elif role == "bottom_entry_ramp":
+        draw.polygon([(42, height - 4), (88, height - 4), (82, 12), (48, 12)], fill=255)
+    elif role in {"switchback_landing_left", "switchback_landing_right", "top_landing"}:
+        draw.rounded_rectangle((18, 35, width - 18, height - 36), radius=16, fill=255)
+    elif role == "stairs_up":
+        draw.polygon([(36, height - 8), (92, height - 8), (86, 14), (42, 14)], fill=255)
+    else:
+        draw.rounded_rectangle((14, 48, width - 14, height - 48), radius=18, fill=255)
+
+    tile.alpha_composite(Image.composite(fill, Image.new("RGBA", (width, height), (0, 0, 0, 0)), mask))
+    draw_tile = ImageDraw.Draw(tile, "RGBA")
+    if role == "stairs_up":
+        for y in range(24, height - 10, 14):
+            draw_tile.line((42, y, 88, y), fill=(52, 42, 30, 130), width=2)
+    draw_tile.line((16, height - 18, width - 16, height - 18), fill=(42, 35, 24, 80), width=2)
+    return tile
+
+
+def make_castle_tile(role: str, stone: Image.Image, width: int, height: int, variant: int) -> Image.Image:
+    tile = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    fill = sample_texture(stone, width, height, variant * 29, variant * 37)
+    fill = ImageEnhance.Contrast(fill).enhance(0.92)
+    fill = ImageEnhance.Brightness(fill).enhance(1.10)
+    mask = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask)
+    if role == "castle_foundation":
+        draw.polygon([(14, 22), (width - 14, 22), (width - 4, height - 8), (4, height - 8)], fill=255)
+    elif role in {"front_lip", "side_lip", "bridge_edge"}:
+        draw.rectangle((5, height // 2 - 12, width - 5, height // 2 + 12), fill=255)
+    else:
+        draw.rectangle((5, 20, width - 5, height - 20), fill=255)
+    tile.alpha_composite(Image.composite(fill, Image.new("RGBA", (width, height), (0, 0, 0, 0)), mask))
+    draw_tile = ImageDraw.Draw(tile, "RGBA")
+    if role.startswith("castle_floor"):
+        for x in range(16, width, 28):
+            draw_tile.line((x, 20, x, height - 20), fill=(54, 55, 50, 95), width=2)
+        for y in range(28, height - 16, 24):
+            draw_tile.line((5, y, width - 5, y), fill=(54, 55, 50, 95), width=2)
+    if role == "castle_foundation":
+        for x in range(22, width, 30):
+            draw_tile.line((x, 24, x - 8, height - 10), fill=(35, 37, 34, 140), width=3)
+    draw_tile.rectangle((5, 20, width - 6, height - 21), outline=(34, 36, 34, 115), width=2)
+    return tile
+
+
+def make_detail_tile(role: str, floor: Image.Image, cliff: Image.Image, width: int, height: int, variant: int) -> Image.Image:
+    tile = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(tile, "RGBA")
+    if role == "dirt_path_overlay":
+        dirt = ImageEnhance.Brightness(sample_texture(floor, width, height, 11, 17)).enhance(0.75)
+        mask = Image.new("L", (width, height), 0)
+        ImageDraw.Draw(mask).rounded_rectangle((8, 50, width - 8, height - 50), radius=18, fill=140)
+        tile.alpha_composite(Image.composite(dirt, Image.new("RGBA", (width, height), (0, 0, 0, 0)), mask))
+    elif role == "grass_patch":
+        draw.ellipse((28, 44, 92, 83), fill=(80, 119, 44, 180))
+        draw.ellipse((52, 56, 110, 98), fill=(104, 142, 57, 150))
+    elif role == "cracks":
+        for x in (36, 62, 91):
+            draw.line((x, 30, x - 10, 55, x + 8, 86, x - 2, 108), fill=(27, 29, 26, 160), width=2)
+    elif role in {"rocks", "boulder"}:
+        rock = sample_texture(cliff, width, height, variant * 17, variant * 23)
+        mask = Image.new("L", (width, height), 0)
+        md = ImageDraw.Draw(mask)
+        md.ellipse((30, 50, 68, 88), fill=255)
+        md.ellipse((64, 42, 105, 84), fill=230)
+        if role == "boulder":
+            md.ellipse((26, 32, 108, 108), fill=255)
+        tile.alpha_composite(Image.composite(rock, Image.new("RGBA", (width, height), (0, 0, 0, 0)), mask))
+    elif role.startswith("conifer"):
+        x = width // 2
+        draw.rectangle((x - 4, 78, x + 4, 112), fill=(67, 45, 28, 255))
+        draw.polygon([(x, 12), (x - 35, 70), (x + 35, 70)], fill=(31, 92, 54, 230))
+        draw.polygon([(x, 38), (x - 31, 91), (x + 31, 91)], fill=(24, 75, 46, 240))
+    elif role == "shadow":
+        draw.ellipse((14, 46, width - 14, height - 34), fill=(0, 0, 0, 90))
     return tile
 
 

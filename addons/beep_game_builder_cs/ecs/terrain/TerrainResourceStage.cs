@@ -3,6 +3,25 @@ using System.Collections.Generic;
 
 namespace Beep.ECS
 {
+    /// <summary>
+    /// Which catalogue a map draws its resources from. A map is a setting, and
+    /// the setting decides what is worth digging up: a lunar survey has no
+    /// cattle and an oilfield has no ivory. Rolling one catalogue and filtering
+    /// afterwards would leave whole terrains barren, so each set is its own
+    /// weighted list.
+    /// </summary>
+    public enum ResourceSet
+    {
+        /// <summary>Food, luxuries and strategics, as a historical 4X uses them.</summary>
+        Historical = 0,
+
+        /// <summary>Hydrocarbon extraction: what a licence block is bought for.</summary>
+        OilAndGas = 1,
+
+        /// <summary>Off-world prospecting: volatiles, regolith and refractory metals.</summary>
+        SpaceExploration = 2,
+    }
+
     /// <summary>What a resource is for, in the Civilization sense.</summary>
     internal enum ResourceCategory : byte
     {
@@ -46,7 +65,57 @@ namespace Beep.ECS
         /// <summary>Tiles that must separate two of the same resource.</summary>
         private const int SameResourceSpacing = 4;
 
-        private static readonly ResourceDefinition[] Catalogue =
+        private static ResourceDefinition[] CatalogueFor(ResourceSet set) => set switch
+        {
+            ResourceSet.OilAndGas => OilAndGasCatalogue,
+            ResourceSet.SpaceExploration => SpaceCatalogue,
+            _ => HistoricalCatalogue,
+        };
+
+        /// <summary>
+        /// Hydrocarbons follow the geology that traps them: sands and evaporite
+        /// basins onshore, continental shelf offshore, heavy oil in cold bogs.
+        /// Categories are reused - Bonus is what a field yields directly, Luxury
+        /// what is worth exporting, Strategic what the plant cannot run without.
+        /// </summary>
+        private static readonly ResourceDefinition[] OilAndGasCatalogue =
+        {
+            new("crude_oil", ResourceCategory.Strategic, new[] { "desert", "dry_grass", "swamp" }, 1.2f),
+            new("offshore_oil", ResourceCategory.Strategic, new[] { "deep_water" }, 0.9f),
+            new("natural_gas", ResourceCategory.Strategic, new[] { "desert", "tundra", "dry_grass" }, 1.1f),
+            new("offshore_gas", ResourceCategory.Strategic, new[] { "shallow_water", "deep_water" }, 0.8f),
+            new("shale", ResourceCategory.Strategic, new[] { "gravel", "rock", "dry_grass" }, 0.9f),
+            new("oil_sands", ResourceCategory.Strategic, new[] { "tundra", "swamp" }, 0.7f),
+            new("condensate", ResourceCategory.Bonus, new[] { "desert", "shallow_water" }, 0.6f),
+            new("helium", ResourceCategory.Luxury, new[] { "desert", "rock" }, 0.35f),
+            new("sulphur", ResourceCategory.Bonus, new[] { "swamp", "desert" }, 0.6f),
+            new("salt_dome", ResourceCategory.Bonus, new[] { "desert", "shallow_water" }, 0.5f),
+            new("brine", ResourceCategory.Bonus, new[] { "shallow_water", "desert" }, 0.5f),
+            new("coalbed_methane", ResourceCategory.Strategic, new[] { "gravel", "rock" }, 0.7f),
+        };
+
+        /// <summary>
+        /// Off-world prospecting. Volatiles sit where it is cold enough to keep
+        /// them, metals in exposed rock and regolith. Water ice leads because on
+        /// any real mission it is the resource the others depend on.
+        /// </summary>
+        private static readonly ResourceDefinition[] SpaceCatalogue =
+        {
+            new("water_ice", ResourceCategory.Strategic, new[] { "snow", "ice", "tundra" }, 1.3f),
+            new("ammonia_ice", ResourceCategory.Bonus, new[] { "snow", "ice" }, 0.7f),
+            new("methane_ice", ResourceCategory.Strategic, new[] { "snow", "ice" }, 0.7f),
+            new("helium3", ResourceCategory.Strategic, new[] { "gravel", "desert" }, 0.8f),
+            new("regolith", ResourceCategory.Bonus, new[] { "gravel", "desert", "dry_grass" }, 1.2f),
+            new("silicates", ResourceCategory.Bonus, new[] { "desert", "gravel" }, 0.9f),
+            new("iron_ore", ResourceCategory.Strategic, new[] { "rock", "gravel" }, 1.0f),
+            new("titanium", ResourceCategory.Strategic, new[] { "rock" }, 0.7f),
+            new("rare_earths", ResourceCategory.Luxury, new[] { "rock", "gravel" }, 0.6f),
+            new("platinum", ResourceCategory.Luxury, new[] { "rock" }, 0.45f),
+            new("thorium", ResourceCategory.Strategic, new[] { "rock", "desert" }, 0.4f),
+            new("deuterium", ResourceCategory.Strategic, new[] { "deep_water", "shallow_water" }, 0.6f),
+        };
+
+        private static readonly ResourceDefinition[] HistoricalCatalogue =
         {
             // Bonus - food and early production.
             new("wheat", ResourceCategory.Bonus, new[] { "grass", "dry_grass" }, 1.0f),
@@ -80,6 +149,7 @@ namespace Beep.ECS
             if (settings.ResourceDensity <= 0.0f)
                 return;
 
+            ResourceDefinition[] catalogue = CatalogueFor(settings.ResourceSet);
             int wide = world.CellsWide;
             int high = world.CellsHigh;
             var placed = new List<(Vector2I Cell, string Id)>();
@@ -96,7 +166,7 @@ namespace Beep.ECS
                     if (Hash01(settings.Seed + 63601, cellX, cellY) > density)
                         continue;
 
-                    string chosen = Choose(terrain, world.CellRelief[cell], settings.Seed, cellX, cellY);
+                    string chosen = Choose(catalogue, terrain, world.CellRelief[cell], settings.Seed, cellX, cellY);
                     if (chosen.Length == 0)
                         continue;
 
@@ -113,10 +183,11 @@ namespace Beep.ECS
         /// Picks among everything this terrain supports, weighted, using a hash
         /// so the choice is stable for a seed.
         /// </summary>
-        private static string Choose(string terrain, TerrainRelief relief, int seed, int cellX, int cellY)
+        private static string Choose(
+            ResourceDefinition[] catalogue, string terrain, TerrainRelief relief, int seed, int cellX, int cellY)
         {
             float total = 0.0f;
-            foreach (ResourceDefinition definition in Catalogue)
+            foreach (ResourceDefinition definition in catalogue)
             {
                 if (Supports(definition, terrain, relief))
                     total += definition.Weight;
@@ -125,7 +196,7 @@ namespace Beep.ECS
                 return string.Empty;
 
             float roll = Hash01(seed + 63611, cellX, cellY) * total;
-            foreach (ResourceDefinition definition in Catalogue)
+            foreach (ResourceDefinition definition in catalogue)
             {
                 if (!Supports(definition, terrain, relief))
                     continue;
@@ -167,14 +238,25 @@ namespace Beep.ECS
             return true;
         }
 
+        /// <summary>
+        /// Searches every catalogue, because a saved map may carry ids from a set
+        /// the generator is no longer configured for.
+        /// </summary>
         public static ResourceCategory CategoryOf(string id)
         {
-            foreach (ResourceDefinition definition in Catalogue)
+            foreach (ResourceDefinition definition in AllDefinitions())
             {
                 if (definition.Id == id)
                     return definition.Category;
             }
             return ResourceCategory.Bonus;
+        }
+
+        private static IEnumerable<ResourceDefinition> AllDefinitions()
+        {
+            foreach (ResourceDefinition d in HistoricalCatalogue) yield return d;
+            foreach (ResourceDefinition d in OilAndGasCatalogue) yield return d;
+            foreach (ResourceDefinition d in SpaceCatalogue) yield return d;
         }
 
         private static float Hash01(int seed, int x, int y)

@@ -69,7 +69,6 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyGridCellOverlay()) return false;
         if (!VerifyGridVisualHelpersBoundInvalidTuning()) return false;
         if (!VerifyGridTileMapLayerBridge()) return false;
-        if (!VerifyGridPainterlyTerrainBridge()) return false;
         if (!VerifyGridCalendar()) return false;
         if (!VerifyGridCalendarHud()) return false;
         if (!VerifyGridWorldStateRoundTrip()) return false;
@@ -3868,17 +3867,6 @@ public partial class GridPlacementSmoke : Node
         var root = new Node { Name = "GridTerrainGeneratorSmokeRoot" };
         AddChild(root);
 
-        var terrain = new PainterlyTerrainComponent
-        {
-            Name = "Terrain",
-            GenerateOnReady = false,
-            Mode = PainterlyTerrainComponent.TerrainMode.Plain,
-            Preset = PainterlyTerrainComponent.TerrainPreset.Sea,
-            WidthTiles = 3,
-            HeightTiles = 2
-        };
-        root.AddChild(terrain);
-
         var cells = new GridCellDataComponent
         {
             Name = "Cells",
@@ -3890,8 +3878,9 @@ public partial class GridPlacementSmoke : Node
         {
             Name = "TerrainGenerator",
             CellDataPath = new NodePath("../Cells"),
-            PainterlyTerrainPath = new NodePath("../Terrain"),
-            UsePainterSettings = true
+            Mode = TerrainMode.Plain,
+            Preset = TerrainPreset.Sea,
+            BoundsSize = new Vector2I(3, 2)
         };
         root.AddChild(generator);
 
@@ -3912,9 +3901,8 @@ public partial class GridPlacementSmoke : Node
         var waterPath = nav.FindCellPath(Vector2I.Zero, new Vector2I(2, 0));
         bool navigationUsesGeneratedTerrain = waterPath.Count == 0;
 
-        generator.UsePainterSettings = false;
-        generator.Mode = PainterlyTerrainComponent.TerrainMode.Plain;
-        generator.Preset = PainterlyTerrainComponent.TerrainPreset.Sand;
+        generator.Mode = TerrainMode.Plain;
+        generator.Preset = TerrainPreset.Sand;
         generator.BoundsSize = new Vector2I(2, 1);
         int sandGenerated = generator.GenerateTerrain();
         bool localSettingsWork = sandGenerated == 2
@@ -4837,150 +4825,6 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(bulkSignalsOk, "Grid cell/road bulk load and clear operations must emit whole-state change signals for visual bridges."))
-            return false;
-
-        return true;
-    }
-
-    private bool VerifyGridPainterlyTerrainBridge()
-    {
-        var root = new Node { Name = "GridPainterlyTerrainBridgeSmokeRoot" };
-        AddChild(root);
-
-        var terrain = new PainterlyTerrainComponent
-        {
-            Name = "Terrain",
-            GenerateOnReady = false,
-            UseBundledMaterialTextures = false,
-            AnimateWater = false,
-            WidthTiles = 4,
-            HeightTiles = 3,
-            TileSize = 16,
-            PixelsPerTile = 8,
-            MaxGeneratedPixels = 4096
-        };
-        root.AddChild(terrain);
-
-        var cells = new GridCellDataComponent
-        {
-            Name = "Cells",
-            DefaultTerrainKind = "grass"
-        };
-        root.AddChild(cells);
-        cells.SetTerrainKind(new Vector2I(1, 1), "water");
-        cells.Till(new Vector2I(2, 1));
-        cells.Water(new Vector2I(2, 1));
-
-        var roads = new GridRoadComponent
-        {
-            Name = "Roads",
-            DrawRoads = false
-        };
-        root.AddChild(roads);
-        roads.SetRoad(new Vector2I(3, 1), "stone_path", 0.4f);
-
-        var bridge = new GridPainterlyTerrainBridgeComponent
-        {
-            Name = "PainterBridge",
-            PainterlyTerrainPath = new NodePath("../Terrain"),
-            CellDataPath = new NodePath("../Cells"),
-            RoadPath = new NodePath("../Roads"),
-            AutoRebuildOnReady = false,
-            AutoRebuildOnChanges = false,
-            UsePainterDimensions = true,
-            PaintRoads = true
-        };
-        root.AddChild(bridge);
-
-        PainterlyTerrainComponent.PaintSample water = bridge.SampleCell(new Vector2I(1, 1));
-        PainterlyTerrainComponent.PaintSample farm = bridge.SampleCell(new Vector2I(2, 1));
-        PainterlyTerrainComponent.PaintSample road = bridge.SampleCell(new Vector2I(3, 1));
-        bridge.RebuildTerrain();
-        var sprite = terrain.GetNodeOrNull<Sprite2D>("PainterlyTerrainSprite");
-
-        bool samplesOk = water.Effect == PainterlyTerrainComponent.TerrainPaintEffect.Water
-            && water.Colour.A > 0f
-            && farm.Effect == PainterlyTerrainComponent.TerrainPaintEffect.None
-            && road.Colour != bridge.SampleCell(Vector2I.Zero).Colour;
-        bool renderedOk = terrain.LastGeneratedPixelsPerTile == 8
-            && terrain.LastGeneratedPixelCount == 4 * 3 * 8 * 8
-            && sprite?.Texture != null
-            && sprite.Scale.IsEqualApprox(new Vector2(2f, 2f));
-
-        root.QueueFree();
-
-        if (!Expect(samplesOk, "GridPainterlyTerrainBridge did not sample terrain, flags, water, and roads coherently."))
-            return false;
-
-        if (!Expect(renderedOk, "GridPainterlyTerrainBridge did not render GridCellData/GridRoad state through PainterlyTerrainComponent."))
-            return false;
-
-        if (!VerifyGridPainterlyTerrainBridgeGeneratesBeforeFirstRender())
-            return false;
-
-        return true;
-    }
-
-    private bool VerifyGridPainterlyTerrainBridgeGeneratesBeforeFirstRender()
-    {
-        var root = new Node { Name = "GridPainterlyTerrainBridgeGeneratorSmokeRoot" };
-        AddChild(root);
-
-        var terrain = new PainterlyTerrainComponent
-        {
-            Name = "Terrain",
-            GenerateOnReady = false,
-            UseBundledMaterialTextures = false,
-            AnimateWater = false,
-            Mode = PainterlyTerrainComponent.TerrainMode.Plain,
-            Preset = PainterlyTerrainComponent.TerrainPreset.Sea,
-            WidthTiles = 3,
-            HeightTiles = 2,
-            TileSize = 16,
-            PixelsPerTile = 4,
-            MaxGeneratedPixels = 512
-        };
-        root.AddChild(terrain);
-
-        var cells = new GridCellDataComponent { Name = "Cells" };
-        root.AddChild(cells);
-
-        var generator = new GridTerrainGeneratorComponent
-        {
-            Name = "TerrainGenerator",
-            CellDataPath = new NodePath("../Cells"),
-            PainterlyTerrainPath = new NodePath("../Terrain"),
-            UsePainterSettings = true,
-            GenerateOnReady = false
-        };
-        root.AddChild(generator);
-
-        var bridge = new GridPainterlyTerrainBridgeComponent
-        {
-            Name = "PainterBridge",
-            PainterlyTerrainPath = new NodePath("../Terrain"),
-            CellDataPath = new NodePath("../Cells"),
-            TerrainGeneratorPath = new NodePath("../TerrainGenerator"),
-            GenerateBeforeFirstRebuild = true,
-            AutoRebuildOnReady = false,
-            AutoRebuildOnChanges = true,
-            UsePainterDimensions = true,
-            PaintRoads = false
-        };
-        root.AddChild(bridge);
-
-        bridge.RebuildTerrain();
-        var sprite = terrain.GetNodeOrNull<Sprite2D>("PainterlyTerrainSprite");
-
-        bool generatedBeforePaint = cells.CellCount == 6
-            && cells.GetTerrainKind(new Vector2I(2, 1)) == "water"
-            && terrain.LastGeneratedPixelsPerTile == 4
-            && terrain.LastGeneratedPixelCount == 3 * 2 * 4 * 4
-            && sprite?.Texture != null;
-
-        root.QueueFree();
-
-        if (!Expect(generatedBeforePaint, "GridPainterlyTerrainBridge did not generate grid terrain before its first painterly render."))
             return false;
 
         return true;

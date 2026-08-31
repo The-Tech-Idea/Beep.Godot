@@ -129,7 +129,6 @@ func _check_grid_scene_templates() -> void:
 func _check_test_examples() -> void:
 	var examples := {
 		"res://tests/examples/grid_world_kit_hud_example.tscn": ["WorldArt/ClearedYard", "WorldArt/RoadMain", "WorldArt/PreparedPlots/Plot01", "Base/DepotRoof", "Units/Truck_Clear/Body", "HUD/HudRoot/ToolPalette/Panel/Row/Hoe", "HUD/HudRoot/ResourceBar/Panel/Row/Wood", "HUD/HudRoot/BasePanel/Panel/Content/SpawnButton", "TileMapBridge", "Base/WorkerSpawner"],
-		"res://tests/examples/grid_world_painterly_demo.tscn": ["Terrain", "TerrainGenerator", "TerrainBridge", "Grid", "Cells", "Roads", "Navigation", "Placement", "State", "Objects/BaseDepot/GridObject", "Objects/BaseDepot/WorkerSpawner", "Units", "HUD/StatusPanel/Status"],
 		"res://tests/examples/base_worker_templates_example.tscn": ["BaseDepot/Sprite2D", "BaseDepot/WorkerSpawner", "WorkerUnit/Sprite2D", "WorkerUnit/PathFollower", "WorkerUnit/GridWorker"],
 	}
 	for path in examples.keys():
@@ -155,16 +154,6 @@ func _check_test_examples() -> void:
 					_fail("Test example " + path + " did not load starting wood amount.")
 				if int(wallet.call("GetAmount", "stone")) != 35:
 					_fail("Test example " + path + " did not load starting stone amount.")
-		if path == "res://tests/examples/grid_world_painterly_demo.tscn":
-			await process_frame
-			var cells := scene.get_node_or_null("Cells")
-			if cells == null or int(cells.get("CellCount")) != 640:
-				_fail("Painterly grid demo did not generate the expected 32x20 cell map.")
-			if not bool(scene.get("LastSnapshotRestored")):
-				_fail("Painterly grid demo did not verify state restore.")
-			var terrain := scene.get_node_or_null("Terrain")
-			if terrain == null or int(terrain.get("LastGeneratedPixelCount")) <= 0:
-				_fail("Painterly grid demo did not render through PainterlyTerrainComponent.")
 		scene.queue_free()
 
 func _check_tween_component() -> void:

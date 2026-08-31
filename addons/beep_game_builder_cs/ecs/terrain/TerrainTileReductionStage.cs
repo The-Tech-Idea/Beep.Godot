@@ -40,6 +40,12 @@ namespace Beep.ECS
             int perTile = world.SamplesPerCell * world.SamplesPerCell;
             var counts = new Dictionary<string, int>();
             var waterCounts = new Dictionary<string, int>();
+            var byRelief = new[]
+            {
+                new Dictionary<string, int>(),
+                new Dictionary<string, int>(),
+                new Dictionary<string, int>(),
+            };
 
             for (int cellY = 0; cellY < high; cellY++)
             {
@@ -47,6 +53,9 @@ namespace Beep.ECS
                 {
                     counts.Clear();
                     waterCounts.Clear();
+                    byRelief[0].Clear();
+                    byRelief[1].Clear();
+                    byRelief[2].Clear();
                     int land = 0;
                     int ocean = 0;
                     int lake = 0;
@@ -69,9 +78,19 @@ namespace Beep.ECS
                             if (world.Land[sample])
                             {
                                 land++;
-                                relief[(int)world.Relief[sample]]++;
+                                int band = (int)world.Relief[sample];
+                                relief[band]++;
                                 string kind = world.Terrain[sample];
                                 counts[kind] = counts.TryGetValue(kind, out int seen) ? seen + 1 : 1;
+
+                                // Also tallied per relief band. Terrain and
+                                // relief are two separate majorities, and two
+                                // majorities of the same tile can disagree: a
+                                // tile can take its terrain from the mountain
+                                // samples and its relief from the flat ones, and
+                                // come out as a snowfield lying on level ground.
+                                Dictionary<string, int> band_counts = byRelief[band];
+                                band_counts[kind] = band_counts.TryGetValue(kind, out int seenBand) ? seenBand + 1 : 1;
                             }
                             else
                             {
@@ -111,8 +130,20 @@ namespace Beep.ECS
                     else
                     {
                         world.CellWater[cell] = WaterBody.None;
-                        world.CellRelief[cell] = (TerrainRelief)LargestIndex(relief);
-                        world.CellTerrain[cell] = MostCommon(counts, "grass");
+
+                        // Relief decides FIRST, then the terrain is taken from
+                        // the samples that agree with it. Two independent
+                        // majorities of one tile can disagree - the terrain from
+                        // the mountain samples, the relief from the flat ones -
+                        // and the tile comes out as a snowfield on level ground,
+                        // drawn as flat white terrain beside a meadow. Falling
+                        // back to the whole-tile majority keeps a tile that has
+                        // no sample in its own band from being left blank.
+                        int band = LargestIndex(relief);
+                        world.CellRelief[cell] = (TerrainRelief)band;
+                        world.CellTerrain[cell] = byRelief[band].Count > 0
+                            ? MostCommon(byRelief[band], "grass")
+                            : MostCommon(counts, "grass");
                     }
                 }
             }

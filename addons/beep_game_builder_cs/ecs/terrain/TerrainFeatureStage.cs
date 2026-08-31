@@ -16,20 +16,39 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainFeatureStage
     {
+        /// <summary>
+        /// Half-width of the band the vegetation fractal actually occupies.
+        /// Measured, not guessed: fbm output sits overwhelmingly within about
+        /// this much of zero, so it is what the field must be stretched by.
+        /// </summary>
+        private const float StandSpread = 0.32f;
+
         public const string None = "";
         public const string Woods = "woods";
+
+        /// <summary>A dense stand, as opposed to the scattered woodland of Woods.</summary>
+        public const string Forest = "forest";
         public const string Jungle = "jungle";
         public const string Marsh = "marsh";
         public const string Oasis = "oasis";
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
         {
             if (settings.FeatureDensity <= 0.0f)
                 return;
 
             int wide = world.CellsWide;
             int high = world.CellsHigh;
+            int count = wide * high;
 
+            // Vegetation comes from a FIELD, not a per-tile roll. A roll gives
+            // every tile an independent verdict, so however the odds are
+            // weighted the result is uniform speckle that can never form the
+            // edge of a wood. A thresholded field makes stands connected, with
+            // clearings between them - the same reason land is a thresholded
+            // fractal rather than scattered dots.
+            var stand = new float[count];
+            var eligible = new bool[count];
             for (int cellY = 0; cellY < high; cellY++)
             {
                 for (int cellX = 0; cellX < wide; cellX++)
@@ -43,9 +62,74 @@ namespace Beep.ECS
                     if (world.CellRelief[cell] == TerrainRelief.Mountains)
                         continue;
 
-                    world.Feature[cell] = Choose(world, settings, cell, cellX, cellY);
+                    // Eligible means WOODS-CAPABLE, not merely land. Jungle,
+                    // swamp and desert get their features unconditionally, and
+                    // ground too dry or too cold for trees must not sit in the
+                    // ranking - it would be excluded by the moisture gate anyway
+                    // AND drag the budget down, penalising the same tile twice.
+                    string kind = world.CellTerrain[cell];
+                    if (kind is not ("grass" or "dry_grass" or "tundra"))
+                        continue;
+
+                    int centre = world.CellCentreIndex(cellX, cellY);
+                    if (world.Moisture[centre] < 0.26f || world.Temperature[centre] < 0.15f)
+                        continue;
+
+                    eligible[cell] = true;
+                    stand[cell] = noise.Vegetation.GetNoise2D(cellX + 0.5f, cellY + 0.5f);
                 }
             }
+
+            // The threshold is a PERCENTILE of the field, not a fixed level.
+            // Measured, fbm output here spans about -0.26 to +0.27 with its
+            // median below zero, so a level chosen as "0.85" covers a few percent
+            // of tiles rather than the fifteen it looks like. Ranking the field
+            // makes the dial mean the coverage it claims, which is how the
+            // landmass and hill stages already work.
+            float wanted = Mathf.Clamp(AverageWetness(world, settings, eligible), 0.0f, 0.95f);
+            float threshold = TerrainGeometry.Percentile(stand, eligible, 1.0f - wanted);
+            float dense = TerrainGeometry.Percentile(stand, eligible, 1.0f - (wanted * 0.45f));
+
+            for (int cellY = 0; cellY < high; cellY++)
+            {
+                for (int cellX = 0; cellX < wide; cellX++)
+                {
+                    int cell = world.CellIndex(cellX, cellY);
+                    if (world.CellWater[cell] != WaterBody.None)
+                        continue;
+                    if (world.CellRelief[cell] == TerrainRelief.Mountains)
+                        continue;
+
+                    world.Feature[cell] = Choose(
+                        world, settings, cell, cellX, cellY, stand[cell], threshold, dense);
+                }
+            }
+        }
+
+        /// <summary>
+        /// How much of the eligible land should carry vegetation, averaged over
+        /// the map. Per-cell moisture still decides WHERE within that budget,
+        /// but the budget itself has to be one number for a percentile to mean
+        /// anything.
+        /// </summary>
+        private static float AverageWetness(
+            TerrainWorld world, TerrainGenerationSettings settings, bool[] eligible)
+        {
+            float total = 0.0f;
+            int seen = 0;
+            for (int cell = 0; cell < eligible.Length; cell++)
+            {
+                if (!eligible[cell])
+                    continue;
+
+                int sample = world.CellCentreIndex(cell % world.CellsWide, cell / world.CellsWide);
+                float moisture = world.Moisture[sample];
+                total += Mathf.Clamp((moisture - 0.26f) * 2.6f, 0.0f, 0.85f);
+                seen++;
+            }
+            if (seen == 0)
+                return 0.0f;
+            return (total / seen) * Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
         }
 
         private static string Choose(
@@ -53,7 +137,10 @@ namespace Beep.ECS
             TerrainGenerationSettings settings,
             int cell,
             int cellX,
-            int cellY)
+            int cellY,
+            float stand,
+            float threshold,
+            float dense)
         {
             string terrain = world.CellTerrain[cell];
             int sample = world.CellCentreIndex(cellX, cellY);
@@ -76,17 +163,25 @@ namespace Beep.ECS
             if (terrain is not ("grass" or "dry_grass" or "tundra"))
                 return None;
 
-            // Woods want rain and not too much heat; the chance is scaled by
-            // moisture so forest thickens toward wet ground rather than
-            // appearing at a flat rate everywhere.
+            // Woods want rain and not too much heat.
             if (moisture < 0.26f || temperature < 0.15f)
                 return None;
 
-            float chance = Mathf.Clamp((moisture - 0.26f) * 2.6f, 0.0f, 0.85f) * density;
+            // Local moisture shifts this cell's place in the ranking, so stands
+            // still thicken toward wet ground - but as bigger stands rather than
+            // a finer sprinkle. Jitter keeps the boundary off a clean contour.
+            float bias = ((moisture - 0.45f) * 0.10f) + ((roll - 0.5f) * 0.02f);
+            float value = stand + bias;
             if (terrain == "tundra")
-                chance *= 0.45f;
+                value -= 0.05f;
 
-            return roll < chance ? Woods : None;
+            if (value < threshold)
+                return None;
+
+            // Well inside a stand is closed forest; the fringe is open woodland.
+            // Drawing both the same is what makes a wood read as a texture rather
+            // than a place with a middle and an edge.
+            return value >= dense ? Forest : Woods;
         }
 
         private static float Hash01(int seed, int x, int y)

@@ -48,11 +48,11 @@ namespace Beep.ECS
                 settings.Size.Y * samplesPerCell,
                 samplesPerCell);
 
-            if (settings.Mode == PainterlyTerrainComponent.TerrainMode.Plain)
+            if (settings.Mode == TerrainMode.Plain)
                 return BuildPlain(world, settings, stopwatch);
 
             TerrainNoiseSet noise = TerrainNoiseSet.Create(settings);
-            TerrainLandmassStage.Apply(world, noise, settings);
+            TerrainLandmassStage.Apply(world, settings);
             // Freeze the landmass outline before lakes are carved out of it.
             world.Land.CopyTo(world.Footprint, 0);
             TerrainWaterStage.Apply(world, noise, settings);
@@ -62,6 +62,11 @@ namespace Beep.ECS
             TerrainShadingStage.Apply(world, settings);
             TerrainBiomeStage.Apply(world, settings);
 
+            // Straight after the biome table, and before anything reads terrain
+            // kinds: features, resources and start positions all ask what a tile
+            // IS, and they must see the map the renderer will draw.
+            TerrainCoherenceStage.Apply(world, settings);
+
             // Everything above works at sub-tile resolution because that is what
             // makes good coastlines. This collapses it to one value per gameplay
             // tile, which is the generator's actual output.
@@ -70,7 +75,14 @@ namespace Beep.ECS
             // Gameplay layers read the reduced tile grid, so they run last.
             TerrainContinentStage.Apply(world);
             TerrainResourceStage.Apply(world, settings);
-            TerrainFeatureStage.Apply(world, settings);
+            TerrainFeatureStage.Apply(world, noise, settings);
+            // Last, and on the reduced tile grid: a feature has to reach a size
+            // in TILES to exist, which is only meaningful once tiles exist. It
+            // runs after the feature stage because woods are placed there, and
+            // before start positions, which should not be put on a lake that is
+            // about to be drained.
+            TerrainScaleConstraintStage.Apply(world, settings);
+
             TerrainStartPositionStage.Apply(world, settings);
 
             stopwatch.Stop();
@@ -150,6 +162,7 @@ namespace Beep.ECS
                 ocean / total,
                 lake / total,
                 river / total,
+                settings.RequestedLandmassCount,
                 TerrainGeometry.CountComponents(world.Footprint, world.Width, world.Height),
                 continents,
                 resources,
@@ -171,16 +184,16 @@ namespace Beep.ECS
             return samples;
         }
 
-        private static string PlainKind(PainterlyTerrainComponent.TerrainPreset preset) => preset switch
+        private static string PlainKind(TerrainPreset preset) => preset switch
         {
-            PainterlyTerrainComponent.TerrainPreset.Desert => "desert",
-            PainterlyTerrainComponent.TerrainPreset.Sand => "sand",
-            PainterlyTerrainComponent.TerrainPreset.Ice => "ice",
-            PainterlyTerrainComponent.TerrainPreset.Sea => "deep_water",
-            PainterlyTerrainComponent.TerrainPreset.Rock => "rock",
-            PainterlyTerrainComponent.TerrainPreset.Lava => "lava",
-            PainterlyTerrainComponent.TerrainPreset.Swamp => "swamp",
-            PainterlyTerrainComponent.TerrainPreset.Snow => "snow",
+            TerrainPreset.Desert => "desert",
+            TerrainPreset.Sand => "sand",
+            TerrainPreset.Ice => "ice",
+            TerrainPreset.Sea => "deep_water",
+            TerrainPreset.Rock => "rock",
+            TerrainPreset.Lava => "lava",
+            TerrainPreset.Swamp => "swamp",
+            TerrainPreset.Snow => "snow",
             _ => "grass",
         };
     }

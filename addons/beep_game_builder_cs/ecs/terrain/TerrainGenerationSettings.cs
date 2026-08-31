@@ -3,6 +3,31 @@ using Godot;
 namespace Beep.ECS
 {
     /// <summary>
+    /// What kind of world to build. Owned by the generation layer, not by a
+    /// renderer: the pipeline decides terrain, and nothing about that decision
+    /// should depend on which component happens to draw the result.
+    /// </summary>
+    public enum TerrainMode
+    {
+        Plain,
+        ProceduralNoise,
+    }
+
+    /// <summary>The broad climate a map is generated around.</summary>
+    public enum TerrainPreset
+    {
+        Grassland,
+        Desert,
+        Sand,
+        Ice,
+        Sea,
+        Rock,
+        Lava,
+        Swamp,
+        Snow,
+    }
+
+    /// <summary>
     /// Complete, immutable input to world generation. Generation is a pure
     /// function of this value, so two equal settings always produce an identical
     /// world and the field can be cached on equality alone.
@@ -10,8 +35,8 @@ namespace Beep.ECS
     internal readonly record struct TerrainGenerationSettings(
         Vector2I Origin,
         Vector2I Size,
-        PainterlyTerrainComponent.TerrainMode Mode,
-        PainterlyTerrainComponent.TerrainPreset Preset,
+        TerrainMode Mode,
+        TerrainPreset Preset,
         int Seed,
         FastNoiseLite.NoiseTypeEnum NoiseType,
         FastNoiseLite.FractalTypeEnum FractalType,
@@ -37,11 +62,25 @@ namespace Beep.ECS
         float RiverDensity,
         int StartPositionCount,
         float ResourceDensity,
+        ResourceSet ResourceSet,
         float HillsFraction,
         float MountainsFraction,
         float HillshadeStrength,
         float FeatureDensity,
         bool UseClimateBiomeMaps,
+        bool UseScaleRules,
+        bool UseBiomeQuotas,
+        int BiomeCoherencePasses,
+        float MinBiomeRegionFraction,
+        int BiomeCoherenceKeep,
+        float DesertFraction,
+        float DryGrassFraction,
+        float SwampFraction,
+        float OceanMarginTiles,
+        float CoastlineRaggedness,
+        float AltitudeCooling,
+        float ClimateLatitudeSpan,
+        float ClimateLatitudeCentre,
         float TemperatureFrequencyMultiplier,
         float MoistureFrequencyMultiplier,
         float FertilityFrequencyMultiplier,
@@ -54,16 +93,38 @@ namespace Beep.ECS
             ? 1.0f - SeaCoverage
             : LandmassScale;
 
-        /// <summary>How many separate landmasses the mode asks for; 0 means unconstrained.</summary>
+        /// <summary>
+        /// How many separate landmasses the map should have. This is the one
+        /// place that decides it - the landmass stage asks here rather than
+        /// keeping its own copy, which is how the two came to disagree: this
+        /// said Mainland wanted no particular number while the stage said three,
+        /// and neither honoured the count the caller had actually set.
+        /// </summary>
         public int RequestedLandmassCount => Landform switch
         {
             GridTerrainGeneratorComponent.LandformMode.Island => 1,
             GridTerrainGeneratorComponent.LandformMode.Archipelago => Mathf.Max(2, ArchipelagoIslandCount),
-            _ => 0,
+
+            // Mainland means a few CONTINENTS, not one - the word is plural, and
+            // a single mass filling the map is the thing this generator was
+            // rewritten to stop producing. It takes the requested count like any
+            // other mode; continents are simply fewer and larger, which is the
+            // land coverage talking, not a separate rule.
+            _ => Mathf.Clamp(ArchipelagoIslandCount, 2, 6),
         };
     }
 
-    /// <summary>Measured outcome of one generation run, surfaced to tooling.</summary>
+    /// <summary>
+    /// Measured outcome of one generation run, surfaced to tooling.
+    ///
+    /// RequestedLandmassCount sits beside LandComponentCount deliberately. A
+    /// map can be asked for twelve islands and come back with eleven - twelve
+    /// masses with a channel between each pair genuinely do not fit on a small
+    /// map, and the generator's honest answer is to grow the ones that fit and
+    /// give the rest their share. Reporting only what was achieved makes that
+    /// indistinguishable from success, which is the caller being told a number
+    /// it has no way to check.
+    /// </summary>
     internal readonly record struct TerrainGenerationDiagnostics(
         float TargetLandCoverage,
         float LandFootprintCoverage,
@@ -71,6 +132,7 @@ namespace Beep.ECS
         float OceanCoverage,
         float LakeCoverage,
         float RiverCoverage,
+        int RequestedLandmassCount,
         int LandComponentCount,
         int ContinentCount,
         int ResourceCount,
@@ -89,6 +151,7 @@ namespace Beep.ECS
             ["ocean_coverage"] = OceanCoverage,
             ["lake_coverage"] = LakeCoverage,
             ["river_coverage"] = RiverCoverage,
+            ["requested_landmass_count"] = RequestedLandmassCount,
             ["land_component_count"] = LandComponentCount,
             ["continent_count"] = ContinentCount,
             ["resource_count"] = ResourceCount,

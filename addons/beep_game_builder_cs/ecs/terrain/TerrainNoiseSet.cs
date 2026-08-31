@@ -17,7 +17,8 @@ namespace Beep.ECS
             FastNoiseLite moisture,
             FastNoiseLite temperature,
             FastNoiseLite lake,
-            FastNoiseLite detail)
+            FastNoiseLite detail,
+            FastNoiseLite vegetation)
         {
             Shape = shape;
             ShapeWarpX = shapeWarpX;
@@ -28,6 +29,7 @@ namespace Beep.ECS
             Temperature = temperature;
             Lake = lake;
             Detail = detail;
+            Vegetation = vegetation;
         }
 
         /// <summary>Continental fractal that decides where land is.</summary>
@@ -44,6 +46,15 @@ namespace Beep.ECS
         public FastNoiseLite Temperature { get; }
         public FastNoiseLite Lake { get; }
         public FastNoiseLite Detail { get; }
+
+        /// <summary>
+        /// Where vegetation MASSES. Woods used to be an independent dice roll per
+        /// tile, which gives uniform speckle however the odds are weighted: every
+        /// tile decides alone, so a stand can never form an edge. A field makes
+        /// forest a connected shape with clearings, the same way the shape
+        /// fractal makes land a landmass instead of scattered dots.
+        /// </summary>
+        public FastNoiseLite Vegetation { get; }
 
         public static TerrainNoiseSet Create(TerrainGenerationSettings settings)
         {
@@ -62,7 +73,10 @@ namespace Beep.ECS
                 Create(settings, 9719, Mathf.Max(0.004f, shapeFrequency * 1.25f * settings.MoistureFrequencyMultiplier)),
                 Create(settings, 19739, Mathf.Max(0.004f, shapeFrequency * 0.85f * settings.TemperatureFrequencyMultiplier)),
                 Create(settings, 51053, Mathf.Max(0.02f, shapeFrequency * 2.4f * settings.LakeFrequencyMultiplier)),
-                Create(settings, 71069, Mathf.Max(0.05f, settings.Frequency * 3.2f)));
+                Create(settings, 71069, Mathf.Max(0.05f, settings.Frequency * 3.2f)),
+                // Stands are a few tiles across, so this runs coarser than the
+                // detail noise and finer than the continents.
+                Create(settings, 33427, Mathf.Max(0.01f, shapeFrequency * 2.2f * settings.FeatureFrequencyMultiplier)));
         }
 
         private static FastNoiseLite Create(TerrainGenerationSettings settings, int seedOffset, float frequency) => new()

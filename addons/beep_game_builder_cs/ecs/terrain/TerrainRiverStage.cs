@@ -1,33 +1,53 @@
 using Godot;
-using System.Collections.Generic;
+using System;
 
 namespace Beep.ECS
 {
     /// <summary>
-    /// Traces rivers from high wet ground downhill until they reach water.
+    /// Rivers as a DRAINAGE NETWORK, not as a set of independent traces.
     ///
-    /// Sources are picked where rain actually falls on high ground, then each
-    /// river follows steepest descent, which is what makes it hug valleys and
-    /// wrap around ridges instead of running in a straight line to the coast.
+    /// Every point of land drains somewhere. Following steepest descent from
+    /// each one gives a flow direction; counting how much land drains THROUGH
+    /// each point gives flow accumulation; and a river is simply where enough
+    /// land drains through. That is the standard hydrological construction, and
+    /// the reason to use it here is that it produces the thing rivers actually
+    /// are: headwaters that merge.
     ///
-    /// Steepest descent alone can strand a river in a local depression, and a
-    /// river that stops in the middle of a continent looks broken. Where no
-    /// lower neighbour exists, the trace falls back to the neighbour nearest the
-    /// coast. Coast distance strictly decreases toward water, so that fallback
-    /// guarantees every river terminates in a lake or the sea rather than
-    /// looping or dead-ending inland.
+    /// WHAT THIS REPLACES. The previous version picked scattered sources on high
+    /// wet ground and walked each one downhill on its own. Two courses that met
+    /// did not join - the second stopped dead, because it saw the first as water
+    /// and treated it as its mouth. So the map got a handful of parallel
+    /// streams, each the same width along its length, none of them a system. A
+    /// tributary is not a special case here; it is what merging accumulation
+    /// looks like.
     ///
-    /// Rivers widen downstream, standing in for the flow they have accumulated.
+    /// Width falls out of the same number. A river carrying the drainage of a
+    /// hundred tiles is wider than one carrying ten, without anyone tracking how
+    /// far along its course it is.
+    ///
+    /// DEPRESSIONS. Steepest descent alone strands flow in any local hollow, and
+    /// a river that stops mid-continent looks broken. Where nothing is lower,
+    /// flow goes to whichever neighbour is nearest the coast: coast distance
+    /// decreases strictly toward water, so every drop reaches the sea and no
+    /// cycle can form.
     /// </summary>
     internal static class TerrainRiverStage
     {
-        /// <summary>One river per this many tiles of land, before density scaling.</summary>
-        private const float TilesPerRiver = 40.0f;
-
-        private const int MaximumRivers = 64;
-
-        /// <summary>Only ground above this elevation percentile can be a source.</summary>
-        private const float SourcePercentile = 0.65f;
+        /// <summary>
+        /// Share of the land that becomes river at density 1, as a fraction.
+        ///
+        /// The threshold on accumulation is taken as a PERCENTILE of the
+        /// accumulation the map actually has, not as an absolute number of
+        /// upstream cells. Accumulation scales with map area and with how the
+        /// noise came out, so a fixed number gives a continent a hundred rivers
+        /// and an island none.
+        ///
+        /// It is far below the share of land that ends up wet, because it picks
+        /// the CENTRES and carving widens each into a channel. Tune it from the
+        /// finished map, not from the threshold: 2% of centres came out as 22%
+        /// of the land under water.
+        /// </summary>
+        private const float RiverShareAtDensityOne = 0.0045f;
 
         public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
         {
@@ -35,121 +55,89 @@ namespace Beep.ECS
             if (density <= 0.0f)
                 return;
 
-            int landSamples = 0;
-            for (int index = 0; index < world.Count; index++)
+            int count = world.Count;
+            var flowsTo = new int[count];
+            var order = new int[count];
+            int land = 0;
+
+            for (int index = 0; index < count; index++)
             {
+                flowsTo[index] = -1;
                 if (world.Land[index])
-                    landSamples++;
+                    order[land++] = index;
             }
-            if (landSamples == 0)
+
+            if (land == 0)
                 return;
 
-            float samplesPerTile = world.SamplesPerCell * world.SamplesPerCell;
-            float landTiles = landSamples / Mathf.Max(1.0f, samplesPerTile);
-            int wanted = Mathf.Clamp(
-                Mathf.RoundToInt(landTiles / TilesPerRiver * density), 0, MaximumRivers);
-            if (wanted == 0)
-                return;
+            for (int i = 0; i < land; i++)
+                flowsTo[order[i]] = Downhill(world, order[i]);
 
-            foreach (int source in ChooseSources(world, wanted))
-                Trace(world, source);
-        }
+            // Highest first, so a cell's own accumulation is complete before it
+            // is handed downstream. This is what lets one pass do the work.
+            Array.Sort(order, 0, land, new HighestFirst(world.Elevation));
 
-        /// <summary>
-        /// High, wet ground, spread out so rivers do not all spring from the
-        /// same massif.
-        /// </summary>
-        private static List<int> ChooseSources(TerrainWorld world, int wanted)
-        {
-            float threshold = TerrainGeometry.Percentile(world.Elevation, world.Land, SourcePercentile);
+            var flow = new float[count];
+            for (int i = 0; i < land; i++)
+                flow[order[i]] = 1.0f;
 
-            var candidates = new List<int>();
-            var score = new float[world.Count];
-            for (int index = 0; index < world.Count; index++)
+            for (int i = 0; i < land; i++)
             {
-                if (!world.Land[index] || world.Elevation[index] < threshold)
+                int from = order[i];
+                int to = flowsTo[from];
+                if (to >= 0 && world.Land[to])
+                    flow[to] += flow[from];
+            }
+
+            float share = Mathf.Clamp(RiverShareAtDensityOne * density, 0.0f, 0.5f);
+            float threshold = Threshold(flow, order, land, share);
+            if (threshold <= 1.0f)
+                return;
+
+            for (int i = 0; i < land; i++)
+            {
+                int index = order[i];
+                if (flow[index] < threshold)
                     continue;
-                score[index] = (world.Elevation[index] * 0.6f) + (world.Moisture[index] * 0.4f);
-                candidates.Add(index);
-            }
-            candidates.Sort((left, right) => score[right].CompareTo(score[left]));
 
-            float minimumSpacing = world.SamplesPerCell * 4.0f;
-            float minimumSpacingSquared = minimumSpacing * minimumSpacing;
-            var sources = new List<int>();
-            foreach (int candidate in candidates)
-            {
-                if (sources.Count >= wanted)
-                    break;
-
-                int cx = candidate % world.Width;
-                int cy = candidate / world.Width;
-                bool farEnough = true;
-                foreach (int chosen in sources)
-                {
-                    float dx = cx - (chosen % world.Width);
-                    float dy = cy - (chosen / world.Width);
-                    if ((dx * dx) + (dy * dy) < minimumSpacingSquared)
-                    {
-                        farEnough = false;
-                        break;
-                    }
-                }
-                if (farEnough)
-                    sources.Add(candidate);
+                // Width from flow, so a trunk is wider than the streams feeding
+                // it. Never below one sample of margin: a river a single sample
+                // across is thinner than a pixel at map zoom and reads as a
+                // seam rather than as water.
+                int radius = Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Log(flow[index] / threshold + 1.0f) * 1.6f), 1, 3);
+                Carve(world, index, radius);
             }
-            return sources;
         }
 
         /// <summary>
-        /// Walks the whole course first, then carves it.
-        ///
-        /// These two steps must stay separate. Carving as it goes turns the
-        /// cell the river is standing on into water, and the very next search
-        /// for somewhere downhill sees that fresh water as the sea and stops -
-        /// so every river ends one step from its own source.
+        /// The accumulation above which a cell counts as river, chosen so the
+        /// requested share of the land ends up wet.
         /// </summary>
-        private static void Trace(TerrainWorld world, int source)
+        private static float Threshold(float[] flow, int[] order, int land, float share)
         {
-            var visited = new HashSet<int>();
-            var path = new List<int>();
-            int current = source;
-            int maximumSteps = (world.Width + world.Height) * 2;
+            if (share <= 0.0f)
+                return float.MaxValue;
 
-            for (int step = 0; step < maximumSteps; step++)
-            {
-                if (!visited.Add(current))
-                    break;
+            var values = new float[land];
+            for (int i = 0; i < land; i++)
+                values[i] = flow[order[i]];
 
-                // Reaching water - the sea, a lake, or an earlier river - is the
-                // river's mouth, and it is not carved over.
-                if (!world.Land[current])
-                    break;
-
-                path.Add(current);
-
-                int next = NextDownhill(world, current, visited);
-                if (next < 0)
-                    break;
-                current = next;
-            }
-
-            for (int step = 0; step < path.Count; step++)
-                Carve(world, path[step], RadiusFor(world, step));
+            Array.Sort(values);
+            int at = Mathf.Clamp(Mathf.RoundToInt((1.0f - share) * (land - 1)), 0, land - 1);
+            return values[at];
         }
 
         /// <summary>
-        /// Steepest descent, falling back to whichever neighbour is closest to
-        /// the coast when the river is sitting in a depression.
+        /// Where a cell's water goes: the steepest descent, or failing that the
+        /// neighbour nearest the coast.
         /// </summary>
-        private static int NextDownhill(TerrainWorld world, int current, HashSet<int> visited)
+        private static int Downhill(TerrainWorld world, int current)
         {
             int x = current % world.Width;
             int y = current / world.Width;
-            float here = world.Elevation[current];
 
             int lowest = -1;
-            float lowestElevation = here;
+            float lowestElevation = world.Elevation[current];
             int nearestToCoast = -1;
             int nearestDistance = world.CoastDistance[current];
 
@@ -167,18 +155,16 @@ namespace Beep.ECS
 
                     int neighbour = world.Index(atX, atY);
 
-                    // Open water ends the trace immediately, whichever it is.
+                    // Open water is the mouth: flow leaves the land here.
                     if (!world.Land[neighbour])
                         return neighbour;
-
-                    if (visited.Contains(neighbour))
-                        continue;
 
                     if (world.Elevation[neighbour] < lowestElevation)
                     {
                         lowestElevation = world.Elevation[neighbour];
                         lowest = neighbour;
                     }
+
                     if (world.CoastDistance[neighbour] < nearestDistance)
                     {
                         nearestDistance = world.CoastDistance[neighbour];
@@ -189,15 +175,6 @@ namespace Beep.ECS
 
             return lowest >= 0 ? lowest : nearestToCoast;
         }
-
-        /// <summary>
-        /// A river gathers flow as it runs, so it widens downstream. The minimum
-        /// is one sample of margin either side, because a river only one sample
-        /// across is thinner than a pixel at normal zoom and reads as a seam
-        /// rather than as water.
-        /// </summary>
-        private static int RadiusFor(TerrainWorld world, int step)
-            => Mathf.Clamp(1 + (step / Mathf.Max(1, world.SamplesPerCell * 6)), 1, 3);
 
         private static void Carve(TerrainWorld world, int index, int radius)
         {
@@ -217,8 +194,6 @@ namespace Beep.ECS
                         continue;
 
                     int at = world.Index(atX, atY);
-                    // Never overwrite the sea or a lake: a river joins them, it
-                    // does not replace them.
                     if (!world.Land[at])
                         continue;
 
@@ -226,6 +201,20 @@ namespace Beep.ECS
                     world.Water[at] = WaterBody.River;
                 }
             }
+        }
+
+        /// <summary>
+        /// Orders land samples from high to low. Accumulation is a single pass
+        /// only if every cell is settled before whatever it drains into.
+        /// </summary>
+        private sealed class HighestFirst : System.Collections.Generic.IComparer<int>
+        {
+            private readonly float[] _elevation;
+
+            public HighestFirst(float[] elevation) => _elevation = elevation;
+
+            public int Compare(int left, int right)
+                => _elevation[right].CompareTo(_elevation[left]);
         }
     }
 }

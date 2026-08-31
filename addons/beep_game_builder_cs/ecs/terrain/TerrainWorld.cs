@@ -178,8 +178,27 @@ namespace Beep.ECS
         /// so the climate bands meander instead of drawing as perfectly
         /// horizontal stripes across the map.
         /// </param>
-        public float Latitude(int y, float offsetSamples = 0.0f)
-            => Mathf.Abs(((y + 0.5f + offsetSamples) / Height * 2.0f) - 1.0f);
+        /// <summary>
+        /// Latitude at a row: 0 at the equator, 1 at a pole.
+        ///
+        /// A WHOLE-WORLD map - span 1 - runs pole to equator to pole down its
+        /// height, which is what gives a Civilization map its structure. A small
+        /// map is not a whole world, and treating it as one is what puts an ice
+        /// cap, a desert and a jungle on the same island: the map is only fifty
+        /// tiles tall, so those fifty tiles get handed the entire climate range.
+        ///
+        /// Below span 1 the map becomes a WINDOW on one band instead - a gentle
+        /// gradient across it, centred where centre says. One hemisphere, one
+        /// climate, which is what a regional map actually is.
+        /// </summary>
+        public float Latitude(int y, float offsetSamples, float span, float centre)
+        {
+            float down = (y + 0.5f + offsetSamples) / Height;
+            if (span >= 1.0f)
+                return Mathf.Abs((down * 2.0f) - 1.0f);
+
+            return Mathf.Clamp(centre + ((down - 0.5f) * span), 0.0f, 1.0f);
+        }
     }
 
     internal enum TerrainRelief : byte

@@ -17,9 +17,6 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainClimateStage
     {
-        /// <summary>How much altitude cools a tile, as a fraction of full range.</summary>
-        private const float LapseRate = 0.35f;
-
         /// <summary>Prevailing wind direction, in samples, for the rain shadow.</summary>
         private const int WindStepX = -1;
 
@@ -38,12 +35,16 @@ namespace Beep.ECS
                     // Displace the row before taking latitude, so every band -
                     // ice, tundra, the desert belts - bends together as one
                     // coherent climate rather than as separate stripes.
-                    float latitude = world.Latitude(y, noise.Temperature.GetNoise2D(at.X, at.Y) * bandWander);
+                    float latitude = world.Latitude(
+                        y,
+                        noise.Temperature.GetNoise2D(at.X, at.Y) * bandWander,
+                        settings.ClimateLatitudeSpan,
+                        settings.ClimateLatitudeCentre);
 
                     // Warm at the equator, cold at the poles, then cooled by
                     // altitude so highlands are colder than the plains below.
                     float temperature = 1.0f - (latitude * latitude * 1.15f);
-                    temperature -= world.Elevation[index] * LapseRate;
+                    temperature -= world.Elevation[index] * settings.AltitudeCooling;
                     world.Temperature[index] = Mathf.Clamp(temperature, 0.0f, 1.0f);
 
                     float fractal = TerrainGeometry.Normalized(noise.Moisture.GetNoise2D(at.X, at.Y));

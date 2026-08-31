@@ -41,10 +41,21 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string OasisSheetPath { get; set; } = "";
         [Export(PropertyHint.Range, "1,16,1")] public int OasisColumns { get; set; } = 4;
         [Export(PropertyHint.Range, "1,16,1")] public int OasisRows { get; set; } = 4;
+        [Export(PropertyHint.File, "*.png,*.webp")] public string MarshSheetPath { get; set; } = "";
+        [Export(PropertyHint.Range, "1,16,1")] public int MarshColumns { get; set; } = 4;
+        [Export(PropertyHint.Range, "1,16,1")] public int MarshRows { get; set; } = 4;
 
         [ExportGroup("Look")]
         [Export(PropertyHint.Range, "0.2,3,0.05")] public float SpriteScale { get; set; } = 0.62f;
         [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 4;
+
+        /// <summary>
+        /// Extra canopies on a dense stand. Closed forest and open woodland come
+        /// from the same sheet; what separates them is how much of the tile is
+        /// covered, so drawing both at one density would throw away the
+        /// distinction the generator just made.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,8,1")] public int ForestExtraSprites { get; set; } = 3;
         [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.18f;
         [Export(PropertyHint.Range, "0,0.6,0.01")] public float ScaleJitter { get; set; } = 0.18f;
         [Export] public int RenderZIndex { get; set; } = -60;
@@ -110,7 +121,9 @@ namespace Beep.ECS
                     if (!TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows) || sheet is null)
                         continue;
 
-                    int clump = Mathf.Max(1, SpritesPerTile);
+                    int clump = Mathf.Max(1, SpritesPerTile)
+                        + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle
+                            ? Mathf.Max(0, ForestExtraSprites) : 0);
                     for (int i = 0; i < clump; i++)
                         AddStamp(sheet, columns, rows, x, y, tile, i);
                 }
@@ -137,10 +150,16 @@ namespace Beep.ECS
             string key = feature switch
             {
                 TerrainFeatureStage.Woods => "woods",
+                // Dense forest is the same art, drawn thicker.
+                TerrainFeatureStage.Forest => "woods",
                 // Jungle falls back to the woods sheet when none is assigned, so
                 // a missing sheet still shows vegetation rather than nothing.
                 TerrainFeatureStage.Jungle => _sheets.ContainsKey("jungle") ? "jungle" : "woods",
                 TerrainFeatureStage.Oasis => _sheets.ContainsKey("oasis") ? "oasis" : "woods",
+                // No fallback to woods: reeds are not trees, and standing a
+                // forest canopy in a bog would misdescribe the ground. Without a
+                // marsh sheet the feature is simply not drawn.
+                TerrainFeatureStage.Marsh => _sheets.ContainsKey("marsh") ? "marsh" : string.Empty,
                 _ => string.Empty,
             };
             if (key.Length == 0 || !_sheets.TryGetValue(key, out sheet))
@@ -150,6 +169,7 @@ namespace Beep.ECS
             {
                 "jungle" => (Mathf.Max(1, JungleColumns), Mathf.Max(1, JungleRows)),
                 "oasis" => (Mathf.Max(1, OasisColumns), Mathf.Max(1, OasisRows)),
+                "marsh" => (Mathf.Max(1, MarshColumns), Mathf.Max(1, MarshRows)),
                 _ => (Mathf.Max(1, WoodsColumns), Mathf.Max(1, WoodsRows)),
             };
             return true;
@@ -193,6 +213,7 @@ namespace Beep.ECS
             Add("woods", WoodsSheetPath);
             Add("jungle", JungleSheetPath);
             Add("oasis", OasisSheetPath);
+            Add("marsh", MarshSheetPath);
         }
 
         private void Add(string key, string path)

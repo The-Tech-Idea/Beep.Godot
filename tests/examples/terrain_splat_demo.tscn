@@ -5,6 +5,8 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainFeatureRendererComponent.cs" id="features"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainReliefRendererComponent.cs" id="relief"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainResourceRendererComponent.cs" id="resources"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
 
 [node name="TerrainSplatDemo" type="Node2D"]
@@ -12,6 +14,8 @@ script = ExtResource("controller")
 GeneratorPath = NodePath("World/TerrainGenerator")
 SplatPath = NodePath("World/Splat")
 FeaturesPath = NodePath("World/Features")
+ReliefPath = NodePath("World/Relief")
+ResourcesPath = NodePath("World/Resources")
 CameraPath = NodePath("Camera")
 CameraControllerPath = NodePath("Camera/CameraController")
 WorldPath = NodePath("World")
@@ -31,9 +35,9 @@ DefaultTerrainKind = "deep_water"
 
 [node name="TerrainGenerator" type="Node" parent="World"]
 script = ExtResource("generator")
+ResourceSet = 0
 CellDataPath = NodePath("../Cells")
 DefaultTerrainKind = "deep_water"
-UsePainterSettings = false
 GenerateOnReady = false
 BoundsSize = Vector2i(96, 60)
 Mode = 1
@@ -75,6 +79,23 @@ RockTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamle
 ShallowWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
 DeepWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
 
+[node name="Relief" type="Node2D" parent="World"]
+script = ExtResource("relief")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+RefreshOnReady = false
+BoundsSize = Vector2i(96, 60)
+TileSize = 64
+HillsSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/Rock and Debris Sprite Sheet.png"
+HillsColumns = 4
+HillsRows = 4
+HillsScale = 0.66
+HillsPerTile = 2
+MountainsSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Rocks/mountain_peaks_4x4.png"
+MountainsColumns = 4
+MountainsRows = 4
+MountainsScale = 1.45
+MountainsPerTile = 1
+
 [node name="Features" type="Node2D" parent="World"]
 script = ExtResource("features")
 RefreshOnReady = false
@@ -85,6 +106,12 @@ Seed = 31415
 WoodsSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/Forst Tree Sprite.png"
 WoodsColumns = 4
 WoodsRows = 4
+JungleSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/jungle_canopy_4x4.png"
+JungleColumns = 4
+JungleRows = 4
+MarshSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/marsh_reeds_4x4.png"
+MarshColumns = 4
+MarshRows = 4
 OasisSheetPath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/Desert Oasis Tree Sprite Sheet.png"
 OasisColumns = 4
 OasisRows = 4
@@ -92,6 +119,14 @@ SpriteScale = 0.70
 SpritesPerTile = 7
 PositionJitter = 0.62
 ScaleJitter = 0.18
+
+[node name="Resources" type="Node2D" parent="World"]
+script = ExtResource("resources")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+RefreshOnReady = false
+BoundsSize = Vector2i(96, 60)
+TileSize = 64
+IconScale = 0.5
 
 [node name="Camera" type="Camera2D" parent="."]
 

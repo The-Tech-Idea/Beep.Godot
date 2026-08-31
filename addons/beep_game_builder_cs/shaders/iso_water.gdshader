@@ -8,12 +8,14 @@ render_mode blend_mix;
 // it was right; a second implementation of it would be a second thing to tune,
 // and the two would drift until the same map had two different oceans.
 //
-// EXACTLY TWO things are added, and neither touches the water maths:
+// EXACTLY THREE things are added, and none touches the water maths:
 //
-//   1. The projection. The flat shader is a full-map quad, so its UV already IS
-//      the map. Here the surface is a diamond, so the fragment's world position
-//      is run back through the inverse isometric transform to recover which tile
-//      it is over. Everything downstream then works in tiles, unchanged.
+//   1. The projection, chosen by flat_projection. The flat shader is a full-map
+//      quad, so its UV already IS the map. Drawn isometrically the surface is a
+//      diamond, so the fragment's world position is run back through the inverse
+//      isometric transform to recover which tile it is over; drawn top-down the
+//      position simply divides by the cell size. Everything downstream then
+//      works in tiles, unchanged, whichever way it got there.
 //
 //   2. Alpha from depth. The flat shader is opaque - it composites the sand
 //      itself, in the same pass, and never needs to be seen through. Here the
@@ -61,6 +63,12 @@ uniform float foam_lines : hint_range(1.0, 8.0) = 2.3;
 // ADDITION 1 - the projection. Half the diamond a tile occupies, which is what
 // turns a world position back into a tile coordinate.
 uniform vec2 cell_size = vec2(111.0, 64.0);
+
+// Which projection the surface is drawn in: 0 isometric, 1 top-down. The water
+// maths below is identical either way - only the step that recovers which tile
+// a fragment is over differs - so both views share this file rather than each
+// keeping a sea of its own to tune.
+uniform float flat_projection = 0.0;
 
 // ADDITION 2 - clarity. How opaque the water gets once it is deep, and how far
 // out that takes. Below one, the seabed under it stays visible even offshore.
@@ -126,9 +134,22 @@ void fragment() {
 	// map_to_local, every cell came back exactly (+1, 0) wrong, which drew the
 	// surf on a shore that is not where the land is.
 	vec2 half_cell = max(cell_size * 0.5, vec2(1.0));
-	float ex = (world_pos.x - half_cell.x) / half_cell.x;
-	float ey = world_pos.y / half_cell.y;
-	vec2 tile = vec2((ex + ey) * 0.5, (ey - ex) * 0.5);
+	vec2 tile;
+	if (flat_projection > 0.5) {
+		// Top-down: the quad IS the map, so its own UV gives the tile directly.
+		//
+		// NOT the world position over the cell size. That looks equivalent and
+		// breaks the moment anything scales the renderer - the lab draws its
+		// preview inside a container that scales to fit the panel, so world
+		// coordinates arrive multiplied by a factor the shader knows nothing
+		// about, and the sea covered half the map. UV is measured across the
+		// quad itself and cannot be thrown off by a parent transform.
+		tile = UV * map_size;
+	} else {
+		float ex = (world_pos.x - half_cell.x) / half_cell.x;
+		float ey = world_pos.y / half_cell.y;
+		tile = vec2((ex + ey) * 0.5, (ey - ex) * 0.5);
+	}
 	vec2 UVm = tile / map_size;
 
 	vec2 world_uv = tile / texture_tiles;
@@ -228,5 +249,12 @@ void fragment() {
 	float depth_alpha = mix(
 		shore_opacity, body_opacity, smoothstep(0.0, max(0.001, clarity_tiles), sd));
 
-	COLOR = vec4(water_col, max(depth_alpha, foam));
+	// ADDITION 3. Drawn TOP-DOWN the sea shares one plane with the land, so it
+	// has to stop at the shore. Isometrically it deliberately does not: there
+	// the land is opaque geometry drawn above the water, and letting the sea run
+	// on underneath is what fills the strip a coastal block would otherwise
+	// leave bare. Same field, same shoreline, different compositing.
+	float on_water = mix(1.0, smoothstep(-0.35, 0.15, sd), flat_projection);
+
+	COLOR = vec4(water_col, max(depth_alpha, foam) * on_water);
 }

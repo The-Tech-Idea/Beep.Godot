@@ -75,6 +75,17 @@ SnowAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/snow_15piece.p
 IceAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/ice_15piece.png"
 WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
 WaterDetailAtlasPath = ""
+GeneratorPath = NodePath("../TerrainGenerator")
+WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
+ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
+DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
+SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
+CoastRangeTiles = 5.0
+ClarityTiles = 3.0
+LakeOpacity = 0.42
+ShoreOpacity = 0.55
+WaveIntensity = 1.0
+FoamStrength = 0.4
 
 [node name="Camera" type="Camera2D" parent="."]
 

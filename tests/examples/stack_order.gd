@@ -49,7 +49,7 @@ func z_span(node: Node) -> Array:
 	return [lo, hi]
 
 func _initialize() -> void:
-	var root_node = load("res://tests/examples/terrain_generator_lab.tscn").instantiate()
+	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	get_root().add_child(root_node)
 	for i in range(60): await process_frame
 
@@ -208,9 +208,55 @@ func source_rules() -> void:
 				and not ("GenerateMipmaps" in text)):
 			unmipped.append(file_name)
 
+	scene_rules()
+
 	check(own_z.is_empty(),
 		"no terrain component declares its own RenderZIndex%s"
 			% ("" if own_z.is_empty() else ": " + ", ".join(own_z)))
 	check(unmipped.is_empty(),
 		"every terrain component that loads art from disk gives it mipmaps%s"
 			% ("" if unmipped.is_empty() else ": " + ", ".join(unmipped)))
+
+# No TileMapLayer may carry its stacking or its filtering in SCENE DATA.
+#
+# This is the form of the defect that code review cannot see. The 15-piece demo
+# scene held six hand-written z values - and a comment calling that "visual
+# ownership in design-time nodes" - so it kept water stacked above grass and
+# desert, and every layer on Nearest, long after both faults were found and
+# fixed in the renderers. Neither half is wrong on its own, nothing warns, and
+# correcting the code does not reach it.
+#
+# The component that paints a terrain kind knows which level that kind is and
+# what its atlas was built with, so both belong to it. A ColorRect backdrop
+# behind the world is scene chrome and is deliberately not covered.
+func scene_rules() -> void:
+	# The example scenes ship WITH the addon; only guards live under tests.
+	const DIR := "res://addons/beep_game_builder_cs/templates/scenes/terrain/"
+	var offenders: Array[String] = []
+	var scanned := 0
+
+	for file_name in DirAccess.get_files_at(DIR):
+		if not file_name.ends_with(".tscn"):
+			continue
+		var text := FileAccess.get_file_as_string(DIR + file_name)
+		if text.is_empty():
+			continue
+
+		# Walk node blocks: a header line, then its properties until the next.
+		var in_tilemap_layer := false
+		for line in text.split("\n"):
+			if line.begins_with("[node "):
+				in_tilemap_layer = 'type="TileMapLayer"' in line
+				if in_tilemap_layer:
+					scanned += 1
+				continue
+			if not in_tilemap_layer:
+				continue
+			var key := line.split(" = ")[0].strip_edges()
+			if key == "z_index" or key == "texture_filter":
+				offenders.append("%s: %s" % [file_name, line.strip_edges()])
+
+	check(scanned > 0, "scene rules found TileMapLayer nodes to check (%d)" % scanned)
+	check(offenders.is_empty(),
+		"no scene sets a TileMapLayer's z or filter%s"
+			% ("" if offenders.is_empty() else ": " + ", ".join(offenders)))

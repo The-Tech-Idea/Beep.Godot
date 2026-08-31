@@ -48,7 +48,7 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 
 func _initialize() -> void:
-	var scene := load("res://tests/examples/terrain_iso_demo.tscn")
+	var scene := load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_iso_demo.tscn")
 	var root_node = scene.instantiate()
 	get_root().add_child(root_node)
 	await process_frame

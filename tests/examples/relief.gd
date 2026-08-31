@@ -38,7 +38,7 @@ func flat_peaks(gen, size: Vector2i) -> Dictionary:
 	return {"flat": flat, "raised": raised}
 
 func _initialize() -> void:
-	var root_node = load("res://tests/examples/terrain_iso_demo.tscn").instantiate()
+	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_iso_demo.tscn").instantiate()
 	get_root().add_child(root_node)
 	for i in range(20): await process_frame
 	var gen = root_node.find_child("TerrainGenerator", true, false)

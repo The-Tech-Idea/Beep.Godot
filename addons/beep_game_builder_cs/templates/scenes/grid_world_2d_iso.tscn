@@ -67,16 +67,16 @@ script = ExtResource("splat")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(64, 64)
 TileSize = 64
-GrassTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Natural Grassy Meadow Texture.png"
-DryGrassTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Dry Grassland Texture.png"
-SandTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Golden Desert Sand Texture.png"
-DirtTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Warm Brown Dirt Texture.png"
-SnowTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Frosted Snow and Ice Texture.png"
-MudTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Wet Muddy Earth Texture.png"
-GravelTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Neutral Gravel Ground Texture.png"
-RockTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Gravelly Earth Texture.png"
-ShallowWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Turquoise Shallow Water Texture.png"
-DeepWaterTexturePath = "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/textures/Seamless Deep Blue Ocean Texture.png"
+GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
+DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
+SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
+DirtTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dirt.png"
+SnowTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
+MudTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
+GravelTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/gravel.png"
+RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/rock.png"
+ShallowWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_shallow.png"
+DeepWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_deep.png"
 
 [node name="VisualTileLayer" type="TileMapLayer" parent="."]
 

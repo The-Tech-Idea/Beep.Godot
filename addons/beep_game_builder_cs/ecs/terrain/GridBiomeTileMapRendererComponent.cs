@@ -23,10 +23,14 @@ namespace Beep.ECS
     public partial class GridBiomeTileMapRendererComponent : Node2D
     {
         /// <summary>
-        /// A biome's tiles, and which level of the shared stack they belong to.
+        /// A biome and the atlas that draws it. WHICH LEVEL it belongs to is not
+        /// stored here: TerrainLayers.LevelForKind answers that from the kind,
+        /// and the transition layer places its own node from the same call. A
+        /// level recorded here as well would be a second copy of that mapping,
+        /// which is how gravel and rock came to be classified in two places.
         /// </summary>
         private readonly record struct BiomeLayer(
-            string TerrainKind, string AtlasPath, string DetailAtlasPath, int Level);
+            string TerrainKind, string AtlasPath, string DetailAtlasPath);
 
         [Export] public NodePath CellDataPath { get; set; } = new("");
 
@@ -283,27 +287,32 @@ namespace Beep.ECS
         /// </summary>
         private List<BiomeLayer> ConfiguredLayers()
         {
+            // Declaration order is DRAW order within a level. TerrainLayers
+            // decides which level each kind lands on; this list only decides who
+            // draws over whom among equals - which is why the beach comes last
+            // of the ground biomes, so it meets the sea rather than being buried
+            // by the biome behind it.
             var candidates = new List<BiomeLayer>
             {
                 // SEA, beneath everything.
-                new("deep_water", WaterAtlasPath, WaterDetailAtlasPath, TerrainLayers.Sea),
-                new("shallow_water", WaterAtlasPath, WaterDetailAtlasPath, TerrainLayers.Sea),
+                new("deep_water", WaterAtlasPath, WaterDetailAtlasPath),
+                new("shallow_water", WaterAtlasPath, WaterDetailAtlasPath),
 
-                // GROUND. The beach comes last of these so it meets the sea, and
-                // is not buried by the biome behind it.
-                new("swamp", SwampAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("jungle", JungleAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("grass", GrassAtlasPath, GrassDetailAtlasPath, TerrainLayers.Ground),
-                new("dry_grass", DryGrassAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("desert", DesertAtlasPath, DesertDetailAtlasPath, TerrainLayers.Ground),
-                new("tundra", TundraAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("snow", SnowAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("ice", IceAtlasPath, string.Empty, TerrainLayers.Ground),
-                new("sand", SandAtlasPath, string.Empty, TerrainLayers.Ground),
+                // GROUND.
+                new("swamp", SwampAtlasPath, string.Empty),
+                new("jungle", JungleAtlasPath, string.Empty),
+                new("grass", GrassAtlasPath, GrassDetailAtlasPath),
+                new("dry_grass", DryGrassAtlasPath, string.Empty),
+                new("desert", DesertAtlasPath, DesertDetailAtlasPath),
+                new("tundra", TundraAtlasPath, string.Empty),
+                new("snow", SnowAtlasPath, string.Empty),
+                new("ice", IceAtlasPath, string.Empty),
+                new("sand", SandAtlasPath, string.Empty),
 
-                // HILLS and MOUNTAINS, above the ground they rise from.
-                new("gravel", GravelAtlasPath, string.Empty, TerrainLayers.Hills),
-                new("rock", RockAtlasPath, string.Empty, TerrainLayers.Mountains),
+                // HILLS and MOUNTAINS, which TerrainLayers raises above the
+                // ground they rise from.
+                new("gravel", GravelAtlasPath, string.Empty),
+                new("rock", RockAtlasPath, string.Empty),
             };
 
             var configured = new List<BiomeLayer>();
@@ -341,24 +350,23 @@ namespace Beep.ECS
 
             // A filled base at the floor of the stack, so a gap between biome
             // layers shows water rather than a hole.
+            //
+            // No z is passed to CreateLayer any more. The transition component
+            // on each layer places its own node from the terrain kind it paints,
+            // so this renderer setting one too would be a second write of the
+            // same decision - agreeing today and diverging the first time either
+            // side is edited. Layers sharing a level are ordered among
+            // themselves by creation order, which is the order declared above.
             if (!string.IsNullOrWhiteSpace(BaseAtlasPath))
-            {
-                _layers.Add(CreateLayer(
-                    "Base", "grass", BaseAtlasPath, string.Empty,
-                    TerrainLayers.ZForFloor(), filledBase: true));
-            }
+                _layers.Add(CreateLayer("Base", "grass", BaseAtlasPath, string.Empty, filledBase: true));
 
             foreach (BiomeLayer layer in configured)
             {
-                // Layers of the same level share its z and are ordered among
-                // themselves by the order they are created in, which is the
-                // order the list above declares.
                 _layers.Add(CreateLayer(
                     NodeNameFor(layer.TerrainKind),
                     layer.TerrainKind,
                     layer.AtlasPath,
                     layer.DetailAtlasPath,
-                    TerrainLayers.ZFor(layer.Level) - 1,
                     filledBase: false));
             }
         }
@@ -387,7 +395,6 @@ namespace Beep.ECS
             foreach (BiomeLayer layer in configured)
             {
                 text.Append('|').Append(layer.TerrainKind)
-                    .Append('@').Append(layer.Level)
                     .Append('=').Append(layer.AtlasPath)
                     .Append('+').Append(layer.DetailAtlasPath);
             }
@@ -395,10 +402,14 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Re-applies what a KEPT layer can actually act on. The atlas and the
-        /// z index are fixed when the layer is built, so they are deliberately
-        /// not re-assigned here - setting them would look like configuration and
-        /// change nothing, which is the failure this method used to embody.
+        /// Re-applies what a KEPT layer can actually act on.
+        ///
+        /// The atlas is deliberately not re-assigned: a layer's TileSet is built
+        /// once and kept, so writing a new path here would look like
+        /// configuration and change nothing - the failure this method used to
+        /// embody. The z index is not set here either, and for the opposite
+        /// reason: the transition component re-places its own layer on every
+        /// refresh, so it is already correct.
         /// </summary>
         private void Configure()
         {
@@ -414,7 +425,6 @@ namespace Beep.ECS
             string terrainKind,
             string atlasPath,
             string detailAtlasPath,
-            int zIndex,
             bool filledBase)
         {
             // A dual-grid renderer paints one MORE row and column than the map
@@ -422,20 +432,15 @@ namespace Beep.ECS
             // Shifting the layer back half a tile is what lines that grid up
             // with the cells; without it the extra ring shows as a border frame
             // around the whole map.
+            //
+            // Neither the z index nor the texture filter is set here: the
+            // transition component below places the layer from the terrain kind
+            // it paints, and sets the filter to match the atlas it just built
+            // with a mip chain. Both used to be written twice.
             var display = new TileMapLayer
             {
                 Name = $"{name}Tiles",
-                ZIndex = zIndex,
                 Position = new Vector2(AtlasTileSize.X * -0.5f, AtlasTileSize.Y * -0.5f),
-                // Linear WITH MIPMAPS, not nearest.
-                //
-                // A whole map on screen draws each 64-pixel tile at around
-                // nine, and nearest sampling takes one texel in fifty: the
-                // result crawls and sparkles as the view moves, and it is why
-                // this view read as the roughest of the three. These atlases are
-                // painted art rather than pixel art, so there is no pixel grid
-                // to preserve by sampling nearest.
-                TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps,
             };
             AddChild(display);
 

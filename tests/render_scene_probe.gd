@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENES := [
 	{
-		"path": "res://tests/examples/grid_world_kit_hud_example.tscn",
+		"path": "res://addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn",
 		"output": "res://tmp/grid_world_kit_hud_example.png",
 		"min_pixels": 32,
 	},

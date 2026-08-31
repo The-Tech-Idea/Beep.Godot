@@ -109,6 +109,8 @@ namespace Beep.ECS
             ResolveReferences();
             if (_cells == null || _displayLayer == null)
                 return;
+
+            PlaceDisplayLayer();
             if (!UseTileSetTerrains)
             {
                 EnsureDisplayTileSet(_displayLayer, AtlasTexturePath, BuildTileSetFromAtlasPath, SourceId);
@@ -235,6 +237,45 @@ namespace Beep.ECS
                 _detailDisplayLayer = !DetailDisplayLayerPath.IsEmpty ? GetNodeOrNull<TileMapLayer>(DetailDisplayLayerPath) : null;
         }
 
+        /// <summary>
+        /// Puts this layer where the shared stack says its terrain belongs.
+        ///
+        /// A layer knows which terrain kind it paints, and TerrainLayers knows
+        /// which level that kind is, so there is nothing left for a scene to
+        /// decide. The 15-piece demo scene carried six hand-written z values and
+        /// a comment calling that "visual ownership in design-time nodes" - which
+        /// is exactly how it kept water stacked ABOVE grass and desert long after
+        /// the same fault was found and fixed in the tile renderer. A number
+        /// typed into scene data cannot be corrected by fixing the code, and
+        /// nothing reports it, because scene data is not wrong on its own.
+        ///
+        /// This runs on every refresh rather than only when the atlas is built,
+        /// so a layer handed an authored TileSet is placed too.
+        ///
+        /// The filled base is the floor of the world rather than a terrain of
+        /// its own: it exists so a gap between layers shows water, not a hole.
+        /// </summary>
+        private void PlaceDisplayLayer()
+        {
+            if (_displayLayer is null)
+                return;
+
+            int z = RenderFilledBase
+                ? TerrainLayers.ZForFloor()
+                : TerrainLayers.ZForKind(Normalize(TransitionTerrainKind));
+
+            _displayLayer.ZIndex = z;
+            _displayLayer.ZAsRelative = false;
+
+            // The detail pass belongs to the same level, drawn over it - which
+            // is what the level's own even slot is kept free for.
+            if (_detailDisplayLayer is not null && _detailDisplayLayer != _displayLayer)
+            {
+                _detailDisplayLayer.ZIndex = z + 1;
+                _detailDisplayLayer.ZAsRelative = false;
+            }
+        }
+
         private void EnsureDisplayTileSet(TileMapLayer? layer, string atlasPath, bool buildFromPath, int sourceId)
         {
             if (!buildFromPath || layer is null || string.IsNullOrWhiteSpace(atlasPath))
@@ -271,6 +312,21 @@ namespace Beep.ECS
             var tileSet = layer.TileSet ?? new TileSet { TileSize = tileSize };
             tileSet.AddSource(source, sourceId);
             layer.TileSet = tileSet;
+
+            // Having built the atlas WITH a mip chain, say how it is sampled.
+            //
+            // Otherwise the two halves of one decision sit in different places:
+            // this builds mipmaps, and a scene that authored the TileMapLayer
+            // itself decides whether anything ever uses them. The 15-piece demo
+            // scene had every layer on Nearest, so the chain built here was
+            // discarded at draw time and the tiles aliased exactly as they did
+            // before any of this was fixed - with nothing anywhere reporting a
+            // problem, because neither half is wrong on its own.
+            //
+            // Nearest is not an option worth preserving here: it cannot sample a
+            // mip level at all, so it is the one setting guaranteed to waste
+            // what this method just produced.
+            layer.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
         }
 
         private void ConnectSignals()

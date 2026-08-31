@@ -85,6 +85,18 @@ namespace Beep.ECS
         public static readonly string[] SeaLevelNames = { "Low  (more land)", "Normal", "High  (more sea)" };
         public static readonly string[] ResourceLevelNames = { "Sparse", "Normal", "Abundant" };
 
+        /// <summary>Resource catalogues, in ResourceSet's own declaration order.</summary>
+        public static readonly string[] ResourceSetNames =
+            { "Historical", "Oil and gas", "Space exploration" };
+
+        /// <summary>
+        /// The projections a world can be drawn in, in TerrainProjection's own
+        /// order - so a chooser's selected index IS the projection and no second
+        /// mapping can drift from it.
+        /// </summary>
+        public static readonly string[] ProjectionNames =
+            { "Painted", "Game tiles", "Isometric" };
+
         public static readonly string[] MapSizeNames =
         {
             "Tiny  32x32", "Small  48x48", "Standard  64x64", "Large  96x60", "Huge  128x80",

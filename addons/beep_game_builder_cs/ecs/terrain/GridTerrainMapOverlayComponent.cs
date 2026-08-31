@@ -39,6 +39,17 @@ namespace Beep.ECS
         /// <summary>Re-reads the generator and repaints the markers.</summary>
         public void Refresh()
         {
+            // Markers, so the stack's marker slot - above the props, because a
+            // forest must never hide the thing the player is meant to click.
+            //
+            // This node set no z of its own, and the lab scene supplied 60. That
+            // is the same defect as a private RenderZIndex export, only harder to
+            // find: the number is not in the source at all, so the component
+            // reads as though it has no opinion while a scene quietly holds the
+            // answer. It happened to be above the props and happened to work.
+            ZIndex = TerrainLayers.ZForMarkers();
+            ZAsRelative = false;
+
             if (_generator == null || !GodotObject.IsInstanceValid(_generator))
                 _generator = TerrainGeneratorPath.IsEmpty
                     ? null

@@ -1,0 +1,77 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainTransitionLayerComponent.cs" id="transitions"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs" id="scatter"]
+
+[node name="TerrainGenerationLayersDemo" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -200
+offset_right = 1280.0
+offset_bottom = 768.0
+color = Color(0.08, 0.12, 0.09, 1)
+mouse_filter = 2
+
+[node name="Splat" type="Node2D" parent="."]
+script = ExtResource("splat")
+RefreshOnReady = true
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+BoundsSize = Vector2i(20, 12)
+TileSize = 64
+GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
+DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
+SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
+DirtTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dirt.png"
+SnowTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
+MudTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
+GravelTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/gravel.png"
+RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/rock.png"
+ShallowWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_shallow.png"
+DeepWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_deep.png"
+
+[node name="Cells" type="Node" parent="."]
+script = ExtResource("cells")
+DefaultTerrainKind = "grass"
+
+[node name="TerrainGenerator" type="Node" parent="."]
+script = ExtResource("generator")
+BoundsSize = Vector2i(20, 12)
+Seed = 31415
+Frequency = 0.072
+Octaves = 5
+Lacunarity = 2.05
+Gain = 0.5
+BeachWidth = 1.0
+Dryness = 0.0
+CellDataPath = NodePath("../Cells")
+GenerateOnReady = true
+ClearExistingCells = true
+
+[node name="TerrainTransitions" type="TileMapLayer" parent="."]
+visible = false
+
+[node name="TerrainTransitionConnector" type="Node" parent="."]
+script = ExtResource("transitions")
+CellDataPath = NodePath("../Cells")
+DisplayLayerPath = NodePath("../TerrainTransitions")
+BoundsSize = Vector2i(20, 12)
+TransitionTerrainKind = "water"
+UseTileSetTerrains = true
+RefreshOnReady = false
+
+[node name="TerrainPropScatter" type="Node2D" parent="."]
+script = ExtResource("scatter")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+SizeInTiles = Vector2i(20, 12)
+TileSize = 64
+Seed = 31415
+GenerateOnReady = true
+MaxProps = 26
+MinScale = 0.34
+MaxScale = 0.48
+GrassPrimaryPath = "res://addons/beep_game_builder_cs/textures/plants/grasses01.png"
+GrassSecondaryPath = "res://addons/beep_game_builder_cs/textures/plants/grasses02.png"
+GrassAccentPath = "res://addons/beep_game_builder_cs/textures/plants/weed01.png"

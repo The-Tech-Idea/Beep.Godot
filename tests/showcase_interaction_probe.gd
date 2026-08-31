@@ -1,6 +1,6 @@
 extends SceneTree
 
-const SCENE_PATH := "res://tests/examples/grid_world_kit_hud_example.tscn"
+const SCENE_PATH := "res://addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn"
 
 func _init() -> void:
 	call_deferred("_run")

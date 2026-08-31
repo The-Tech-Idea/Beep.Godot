@@ -20,11 +20,5 @@
     <Compile Include="tests/DataBinderHostSmoke.cs" />
     <Compile Include="tests/GridPlacementSmoke.cs" />
     <Compile Include="tests/CoreGameplaySmoke.cs" />
-    <Compile Include="tests/examples/SettlersShowcaseController.cs" />
-    <Compile Include="tests/examples/TerrainGeneratorLabController.cs" />
-    <Compile Include="tests/examples/Terrain15PieceLayersDemoController.cs" />
-    <Compile Include="tests/examples/TerrainTileMapDemoController.cs" />
-    <Compile Include="tests/examples/TerrainSplatDemoController.cs" />
-    <Compile Include="tests/examples/TerrainIsoDemoController.cs" />
   </ItemGroup>
 </Project>

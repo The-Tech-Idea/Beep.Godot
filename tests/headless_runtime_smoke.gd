@@ -128,8 +128,8 @@ func _check_grid_scene_templates() -> void:
 
 func _check_test_examples() -> void:
 	var examples := {
-		"res://tests/examples/grid_world_kit_hud_example.tscn": ["WorldArt/ClearedYard", "WorldArt/RoadMain", "WorldArt/PreparedPlots/Plot01", "Base/DepotRoof", "Units/Truck_Clear/Body", "HUD/HudRoot/ToolPalette/Panel/Row/Hoe", "HUD/HudRoot/ResourceBar/Panel/Row/Wood", "HUD/HudRoot/BasePanel/Panel/Content/SpawnButton", "TileMapBridge", "Base/WorkerSpawner"],
-		"res://tests/examples/base_worker_templates_example.tscn": ["BaseDepot/Sprite2D", "BaseDepot/WorkerSpawner", "WorkerUnit/Sprite2D", "WorkerUnit/PathFollower", "WorkerUnit/GridWorker"],
+		"res://addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn": ["WorldArt/ClearedYard", "WorldArt/RoadMain", "WorldArt/PreparedPlots/Plot01", "Base/DepotRoof", "Units/Truck_Clear/Body", "HUD/HudRoot/ToolPalette/Panel/Row/Hoe", "HUD/HudRoot/ResourceBar/Panel/Row/Wood", "HUD/HudRoot/BasePanel/Panel/Content/SpawnButton", "TileMapBridge", "Base/WorkerSpawner"],
+		"res://addons/beep_game_builder_cs/templates/scenes/terrain/base_worker_templates_example.tscn": ["BaseDepot/Sprite2D", "BaseDepot/WorkerSpawner", "WorkerUnit/Sprite2D", "WorkerUnit/PathFollower", "WorkerUnit/GridWorker"],
 	}
 	for path in examples.keys():
 		if not ResourceLoader.exists(path):
@@ -145,7 +145,7 @@ func _check_test_examples() -> void:
 		for node_path in examples[path]:
 			if scene.get_node_or_null(node_path) == null:
 				_fail("Test example " + path + " missing node: " + node_path)
-		if path == "res://tests/examples/grid_world_kit_hud_example.tscn":
+		if path == "res://addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn":
 			var wallet := scene.get_node_or_null("Resources")
 			if wallet == null:
 				_fail("Test example " + path + " missing wallet node.")

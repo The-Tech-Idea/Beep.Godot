@@ -23,11 +23,15 @@ namespace Beep.ECS
     ///     props             by the level they stand on
     ///     markers           icons that are not part of the world
     ///
-    /// EVERY TERRAIN LEVEL OWNS AN EVEN Z, leaving the odd one above it free.
-    /// That is what lets props interleave without a cliff slicing a tree in
-    /// half: all terrain draws first, then props in level order, so a tree on
-    /// low ground is covered by the cliff in front of it while a tree on the
-    /// upper ground still draws above one below.
+    /// EVERY TERRAIN LEVEL OWNS AN EVEN Z, leaving the odd one below it for the
+    /// layer that draws that level and the even slot itself for anything drawn
+    /// over it at the same level - a detail pass, a decal.
+    ///
+    /// Props do NOT interleave with the terrain levels. All terrain draws first
+    /// and props follow in level order, above every level; see ZForProps for
+    /// why. An earlier design interleaved them and this comment described it
+    /// long after ZForProps stopped doing it, which is worse than no comment:
+    /// the next reader implements the scheme the documentation states.
     ///
     /// A renderer decides how to REALISE a level - the isometric view stacks
     /// blocks, the tile view draws a plane, the painted view composites in one
@@ -107,9 +111,36 @@ namespace Beep.ECS
         /// </summary>
         public static int LevelFor(string terrain, int relief) => terrain switch
         {
-            "deep_water" or "shallow_water" => Sea,
+            "deep_water" or "shallow_water" or "water" => Sea,
             _ => relief >= 2 ? Mountains : relief > 0 ? Hills : Ground,
         };
+
+        /// <summary>
+        /// Which level a terrain kind belongs to when there is no relief field
+        /// to consult - the flat views, where a layer draws ONE kind and the
+        /// kind is all there is to go on.
+        ///
+        /// Some kinds are their own relief: gravel is a hillside and rock is a
+        /// mountain, whatever the relief map says. That knowledge lived in a
+        /// private table inside the tile renderer, so a layer built anywhere
+        /// else - by a scene, by the transition component - had no way to reach
+        /// it and fell back to a hand-written z. This is the single answer both
+        /// now ask.
+        /// </summary>
+        public static int LevelForKind(string terrain) => terrain switch
+        {
+            "deep_water" or "shallow_water" or "water" => Sea,
+            "gravel" => Hills,
+            "rock" => Mountains,
+            _ => Ground,
+        };
+
+        /// <summary>
+        /// The z a flat view's layer for this terrain draws at: just under the
+        /// level's own even slot, leaving that slot for anything drawn at the
+        /// same level but over it.
+        /// </summary>
+        public static int ZForKind(string terrain) => ZFor(LevelForKind(terrain)) - 1;
 
         /// <summary>The name of a level, for diagnostics and guards.</summary>
         public static string NameFor(int level) => level switch

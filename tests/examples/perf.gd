@@ -31,7 +31,7 @@ func run_case(gen, landform: int, coverage: float, islands: int, seed_value: int
 	}
 
 func _initialize() -> void:
-	var scene := load("res://tests/examples/terrain_generator_lab.tscn")
+	var scene := load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn")
 	var root_node = scene.instantiate()
 	get_root().add_child(root_node)
 	await process_frame
@@ -92,7 +92,7 @@ func _initialize() -> void:
 ## gameplay read defaults - no water, no biomes, props in the sea. This asserts a
 ## generated map actually lands in GridCellDataComponent.
 func check_generated_map_reaches_cells() -> int:
-	var scene = load("res://tests/examples/terrain_generation_layers_demo.tscn")
+	var scene = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generation_layers_demo.tscn")
 	var root_node = scene.instantiate()
 	get_root().add_child(root_node)
 	for i in range(20):

@@ -10,10 +10,10 @@ extends SceneTree
 # below; the default renders all of them.
 
 const SCENES := {
-	"lab": "res://tests/examples/terrain_generator_lab.tscn",
-	"splat": "res://tests/examples/terrain_splat_demo.tscn",
-	"tilemap": "res://tests/examples/terrain_tilemap_demo.tscn",
-	"iso": "res://tests/examples/terrain_iso_demo.tscn",
+	"lab": "res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn",
+	"splat": "res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_splat_demo.tscn",
+	"tilemap": "res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_tilemap_demo.tscn",
+	"iso": "res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_iso_demo.tscn",
 }
 
 func _initialize() -> void:

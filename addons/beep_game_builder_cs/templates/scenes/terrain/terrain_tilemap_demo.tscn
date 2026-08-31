@@ -1,0 +1,138 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world_builder"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldStatusComponent.cs" id="world_status"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBiomeTileMapRendererComponent.cs" id="tile_renderer"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
+
+[node name="TerrainTileMapDemo" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -300
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.05, 0.09, 0.12, 1)
+mouse_filter = 2
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Cells" type="Node" parent="World"]
+script = ExtResource("cells")
+DefaultTerrainKind = "deep_water"
+
+[node name="TerrainGenerator" type="Node" parent="World"]
+script = ExtResource("generator")
+CellDataPath = NodePath("../Cells")
+DefaultTerrainKind = "deep_water"
+GenerateOnReady = false
+ClearExistingCells = true
+BoundsSize = Vector2i(96, 60)
+Mode = 1
+Preset = 0
+Seed = 31415
+UseClimateBiomeMaps = true
+Landform = 1
+LandmassScale = 0.4
+ArchipelagoIslandCount = 4
+TopologySamplesPerCell = 8
+Frequency = 0.072
+Octaves = 5
+Lacunarity = 2.05
+Gain = 0.5
+LakeCoverage = 0.05
+LakeFrequencyMultiplier = 0.1
+RiverDensity = 1.0
+StartPositionCount = 6
+
+[node name="TileRenderer" type="Node2D" parent="World"]
+script = ExtResource("tile_renderer")
+CellDataPath = NodePath("../Cells")
+BoundsSize = Vector2i(96, 60)
+AtlasTileSize = Vector2i(64, 64)
+AtlasColumns = 4
+AtlasTileRows = 4
+RefreshOnReady = false
+BaseAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
+GrassAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/grass_15piece.png"
+GrassDetailAtlasPath = ""
+DryGrassAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/grass_15piece.png"
+SandAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/beach_15piece.png"
+DesertAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/desert_15piece.png"
+DesertDetailAtlasPath = ""
+JungleAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/rich_grass_15piece.png"
+SwampAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/swamp_15piece.png"
+TundraAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/mud_15piece.png"
+RockAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/rock_15piece.png"
+GravelAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/gravel_15piece.png"
+SnowAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/snow_15piece.png"
+IceAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/ice_15piece.png"
+WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
+WaterDetailAtlasPath = ""
+GeneratorPath = NodePath("../TerrainGenerator")
+WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
+ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
+DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
+SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
+CoastRangeTiles = 5.0
+ClarityTiles = 3.0
+LakeOpacity = 0.42
+ShoreOpacity = 0.55
+WaveIntensity = 1.0
+FoamStrength = 0.4
+
+[node name="Camera" type="Camera2D" parent="."]
+
+[node name="CameraController" type="Node" parent="Camera"]
+script = ExtResource("camera_controller")
+UseMouseDrag = true
+DragButton = 2
+UseWheelZoom = true
+ZoomTowardMouse = true
+UseKeyboardPan = true
+MinZoom = Vector2(0.08, 0.08)
+MaxZoom = Vector2(4, 4)
+ZoomStep = 0.12
+PanSpeed = 1400.0
+UseBounds = true
+KeepViewportInsideBounds = false
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 690.0
+offset_right = 1264.0
+offset_bottom = 714.0
+text = "generating..."
+
+[node name="Help" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 900.0
+offset_bottom = 36.0
+text = "Mouse wheel: zoom  |  Middle-drag: pan  |  WASD / arrows: pan  |  R: reset view"
+
+[node name="WorldBuilder" type="Node" parent="."]
+script = ExtResource("world_builder")
+GeneratorPath = NodePath("../World/TerrainGenerator")
+TileRendererPath = NodePath("../World/TileRenderer")
+MapType = 0
+MapSize = 3
+Seed = 31415
+Projection = 1
+BuildOnReady = true
+
+[node name="WorldCamera" type="Node" parent="."]
+script = ExtResource("world_camera")
+WorldPath = NodePath("../WorldBuilder")
+CameraPath = NodePath("../Camera")
+CameraControllerPath = NodePath("../Camera/CameraController")
+Framing = 0
+
+[node name="WorldStatus" type="Node" parent="."]
+script = ExtResource("world_status")
+WorldPath = NodePath("../WorldBuilder")
+LabelPath = NodePath("../HUD/Status")

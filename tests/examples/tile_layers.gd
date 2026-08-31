@@ -27,7 +27,7 @@ func check(ok: bool, message: String) -> void:
 		failures.append(message)
 
 func _initialize() -> void:
-	var root_node = load("res://tests/examples/terrain_tilemap_demo.tscn").instantiate()
+	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_tilemap_demo.tscn").instantiate()
 	get_root().add_child(root_node)
 	for i in range(45): await process_frame
 

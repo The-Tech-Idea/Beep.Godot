@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -16,6 +17,7 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainFeatureStage
     {
+
         /// <summary>
         /// Half-width of the band the vegetation fractal actually occupies.
         /// Measured, not guessed: fbm output sits overwhelmingly within about
@@ -87,8 +89,41 @@ namespace Beep.ECS
             // makes the dial mean the coverage it claims, which is how the
             // landmass and hill stages already work.
             float wanted = Mathf.Clamp(AverageWetness(world, settings, eligible), 0.0f, 0.95f);
-            float threshold = TerrainGeometry.Percentile(stand, eligible, 1.0f - wanted);
-            float dense = TerrainGeometry.Percentile(stand, eligible, 1.0f - (wanted * 0.45f));
+
+            // The threshold is ranked PER LANDMASS, not over the whole map.
+            //
+            // One ranking for every island means the top slice of a smooth field
+            // can land almost entirely on one of them, and it does: measured on
+            // a 128x80 map, a quadrant with 886 woods-capable tiles grew ZERO
+            // trees while another with 919 grew a quarter of them, and on 48x48
+            // the whole right half was bare grass. Nothing was wrong with the
+            // eligibility - every quadrant had ample land that could carry woods
+            // - the global cut simply never reached it. Raising the noise
+            // frequency only rearranges which half loses.
+            //
+            // Ranking within each landmass makes the coverage dial mean what it
+            // says everywhere: every island gets its own share of woods, and
+            // where they fall on that island is still the noise's business. It
+            // is the same rule the lakes follow - a feature is bounded by the
+            // landmass it sits on, not by the map.
+            var thresholds = new Dictionary<int, float>();
+            var densities = new Dictionary<int, float>();
+            var islands = new HashSet<int>();
+            for (int index = 0; index < eligible.Length; index++)
+            {
+                if (eligible[index])
+                    islands.Add(world.CellContinent[index]);
+            }
+
+            var mask = new bool[eligible.Length];
+            foreach (int island in islands)
+            {
+                for (int index = 0; index < mask.Length; index++)
+                    mask[index] = eligible[index] && world.CellContinent[index] == island;
+
+                thresholds[island] = TerrainGeometry.Percentile(stand, mask, 1.0f - wanted);
+                densities[island] = TerrainGeometry.Percentile(stand, mask, 1.0f - (wanted * 0.45f));
+            }
 
             for (int cellY = 0; cellY < high; cellY++)
             {
@@ -100,8 +135,13 @@ namespace Beep.ECS
                     if (world.CellRelief[cell] == TerrainRelief.Mountains)
                         continue;
 
+                    int island = world.CellContinent[cell];
+                    if (!thresholds.TryGetValue(island, out float threshold))
+                        continue;
+
                     world.Feature[cell] = Choose(
-                        world, settings, cell, cellX, cellY, stand[cell], threshold, dense);
+                        world, settings, cell, cellX, cellY, stand[cell],
+                        threshold, densities[island]);
                 }
             }
         }

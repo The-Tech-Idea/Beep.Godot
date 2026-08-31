@@ -150,11 +150,10 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = 5.0f;
 
         /// <summary>
-        /// How opaque deep water gets, and how far out it takes to get there.
-        /// This is what lets the seabed show: below the waterline the surface is
-        /// clear, and it closes over as the bottom drops away.
-        /// </summary>
-        /// <summary>
+        /// How opaque deep water gets. With ClarityTiles below, this is what
+        /// lets the seabed show: at the waterline the surface is clear, and it
+        /// closes over as the bottom drops away.
+        ///
         /// Deep water wants to be fully opaque. Anything less leaks the seabed
         /// through, and since the bed only exists inside the map that leak draws
         /// the map's own boundary as a faint diamond out in open water.
@@ -304,14 +303,6 @@ namespace Beep.ECS
                     {
                         // The bed under open water, dropping away from the shore.
                         //
-                        // Every water cell, the front edges included. An
-                        // earlier version skipped those because the bed showed
-                        // past the water and left a rim - but the sea now runs
-                        // well beyond the map and is opaque out there, so it
-                        // covers the overhang. Skipping them instead left the
-                        // shallows with nothing under them, and a transparent
-                        // surface over nothing is a flat grey band exactly where
-                        // the beach should be.
                         // Only where the surface is see-through. Clamping every
                         // water cell to the deepest step instead put a bed under
                         // the whole ocean - hundreds of tiles that opaque water
@@ -473,12 +464,6 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Steps from the nearest land for every water cell, by breadth-first
-        /// sweep out from the coast. Depth is not something the generator
-        /// records, and taking it from the deep/shallow kind alone gives two
-        /// flat terraces instead of a slope.
-        /// </summary>
-        /// <summary>
         /// The height above which a mountain tile is drawn as a SUMMIT.
         ///
         /// Taken over the mountain tiles of this map rather than as a fixed
@@ -519,6 +504,12 @@ namespace Beep.ECS
             _summitFloor = heights[index];
         }
 
+        /// <summary>
+        /// Steps from the nearest land for every water cell, by breadth-first
+        /// sweep out from the coast. Depth is not something the generator
+        /// records, and taking it from the deep/shallow kind alone gives two
+        /// flat terraces instead of a slope.
+        /// </summary>
         private void MeasureWaterDepth(Vector2I size)
         {
             int count = size.X * size.Y;
@@ -1041,27 +1032,9 @@ namespace Beep.ECS
             return LoadTexture(BlockSheetPath, "block sheet");
         }
 
-        /// <summary>
-        /// Loads a texture from either an imported resource or a file on disk.
-        /// GD.Load only resolves res:// paths - handed an absolute one it fails
-        /// with "no loader found", which is what an unimported art folder gives.
-        /// </summary>
+        /// <summary>Named art, through the shared loader.</summary>
         private Texture2D? LoadTexture(string path, string what)
-        {
-            if (path.StartsWith("res://", StringComparison.Ordinal))
-                return GD.Load<Texture2D>(path);
-
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-            {
-                GD.PushWarning($"[{Name}] could not load {what} '{path}'.");
-                return null;
-            }
-            // CreateFromImage keeps whatever mip chain the Image has, and a
-            // freshly loaded one has none.
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
-        }
+            => TerrainTextures.Load(path, Name, what);
 
         private void ResolveGenerator()
         {

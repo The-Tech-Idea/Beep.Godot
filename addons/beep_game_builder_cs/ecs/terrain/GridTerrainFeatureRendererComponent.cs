@@ -58,7 +58,17 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,8,1")] public int ForestExtraSprites { get; set; } = 3;
         [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.18f;
         [Export(PropertyHint.Range, "0,0.6,0.01")] public float ScaleJitter { get; set; } = 0.18f;
-        [Export] public int RenderZIndex { get; set; } = -60;
+        // No z index export. This one was the reason the trees were missing
+        // from the tile view: it was declared, set to -84 in three scenes, and
+        // NEVER ASSIGNED TO ANYTHING - so the node kept Node2D's default z of
+        // 0. That happened to look right over the painted view, whose surface
+        // sits far below, and put every tree under the tile view's ground the
+        // moment its layers moved to the shared stack. An accepted setting that
+        // enforces nothing is worse than no setting: the scenes said where the
+        // trees went, and nothing read it.
+        //
+        // Props stand ON the ground, so the level is the stack's, not this
+        // renderer's.
 
         /// <summary>One drawn sprite: sheet region, where, and how big.</summary>
         private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY);
@@ -92,6 +102,12 @@ namespace Beep.ECS
         {
             // The mipmaps built above are only used if the node asks for them.
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+
+            // Above all terrain, below the markers. Everything is drawn from
+            // this one node in painter's order, so the whole batch shares the
+            // level it stands on.
+            ZIndex = TerrainLayers.ZForProps(TerrainLayers.Ground);
+            ZAsRelative = false;
             ResolveGenerator();
             _stamps.Clear();
             if (_generator is null)

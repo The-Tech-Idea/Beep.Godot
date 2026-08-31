@@ -70,7 +70,10 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "1,8,1")] public int CoastDetail { get; set; } = 4;
 
-        [Export] public int RenderZIndex { get; set; } = -95;
+        // No z index export here. Where a view sits in the stack belongs to
+        // TerrainLayers, and a per-renderer dial beside it is a second owner of
+        // the same fact - which is how the top-down feature renderer ended up
+        // drawing its trees underneath the map.
 
         [ExportGroup("Surf")]
         /// <summary>
@@ -189,9 +192,9 @@ namespace Beep.ECS
             _material.SetShaderParameter("noise_scale", NoiseScale);
             _material.SetShaderParameter("shade_strength", ShadeStrength);
 
-            Texture2D? foam = string.IsNullOrWhiteSpace(FoamSheetPath) ? null : LoadTexture(FoamSheetPath);
+            Texture2D? foam = TerrainTextures.Load(FoamSheetPath, Name, "foam sheet");
             if (foam is null && !string.IsNullOrWhiteSpace(FoamSheetPath))
-                GD.PushWarning($"[{Name}] could not load foam sheet '{FoamSheetPath}'; using generated crests.");
+                GD.PushWarning($"[{Name}] falling back to generated crests.");
             _material.SetShaderParameter("use_foam_sheet", foam is not null);
             if (foam is not null)
                 _material.SetShaderParameter("foam_sheet", foam);
@@ -267,7 +270,9 @@ namespace Beep.ECS
 
             int tile = Mathf.Max(1, TileSize);
             _surface.Scale = new Vector2(size.X * tile, size.Y * tile);
-            _surface.ZIndex = RenderZIndex;
+            // This one quad IS the whole map - bed, sea and land composited in
+            // a single pass - so it goes at the floor of the shared stack.
+            _surface.ZIndex = TerrainLayers.ZForFloor();
             _surface.TextureFilter = TextureFilterEnum.Linear;
 
             if (_material is null)
@@ -303,34 +308,11 @@ namespace Beep.ECS
             if (_material is null || string.IsNullOrWhiteSpace(path))
                 return;
 
-            Texture2D? texture = LoadTexture(path);
+            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {parameter} material");
             if (texture is null)
-            {
-                GD.PushWarning($"[{Name}] could not load terrain material texture '{path}' for {parameter}.");
                 return;
-            }
+
             _material.SetShaderParameter(parameter, texture);
-        }
-
-        private static Texture2D? LoadTexture(string path)
-        {
-            if (path.StartsWith("res://", System.StringComparison.Ordinal))
-                return GD.Load<Texture2D>(path);
-
-            // Absolute paths are supported so art can live outside the project,
-            // which is how the existing terrain material textures are wired.
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-                return null;
-
-            // The shader declares these samplers filter_linear_mipmap, but that
-            // hint does nothing unless the texture actually carries a mip chain -
-            // it silently falls back to plain linear and the ground aliases and
-            // shimmers as soon as the map is zoomed out. Only the material
-            // textures get this; the id, shade and coast maps are data and are
-            // built elsewhere.
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
         }
 
         private void ResolveGenerator()

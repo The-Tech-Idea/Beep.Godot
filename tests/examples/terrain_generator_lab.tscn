@@ -179,7 +179,6 @@ OasisColumns = 4
 OasisRows = 4
 SpriteScale = 0.62
 SpritesPerTile = 5
-RenderZIndex = -84
 
 [node name="Iso" type="Node2D" parent="Preview"]
 script = ExtResource("iso")

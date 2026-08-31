@@ -13,6 +13,7 @@ namespace Beep.ECS
     ///
     /// THE ORDER, bottom to top:
     ///
+    ///     floor             a filled base, or a whole map composited at once
     ///     seabed steps      the bed under see-through water, deepest first
     ///     sea               the water surface
     ///     ground            flat land
@@ -20,6 +21,7 @@ namespace Beep.ECS
     ///     mountains         the flanks of a range
     ///     summits           its crest
     ///     props             by the level they stand on
+    ///     markers           icons that are not part of the world
     ///
     /// EVERY TERRAIN LEVEL OWNS AN EVEN Z, leaving the odd one above it free.
     /// That is what lets props interleave without a cliff slicing a tree in
@@ -74,6 +76,24 @@ namespace Beep.ECS
         /// after it, so the hill was cutting the tree off at the trunk.
         /// </summary>
         public static int ZForProps(int level) => (Count * 2) + level;
+
+        /// <summary>
+        /// The bottom of the world: a filled base beneath the tile layers, or
+        /// the single blended surface the painted view draws in one pass.
+        ///
+        /// Below the seabed, because a view that composites its whole map into
+        /// one quad is drawing the bed and the sea and the land together, and
+        /// anything the stack puts under the water still has to come out over
+        /// it.
+        /// </summary>
+        public static int ZForFloor() => ZForSeabed(Count) - 1;
+
+        /// <summary>
+        /// Icons and markers that are not part of the world: resource symbols,
+        /// start positions. Above the props, because a tree must never hide the
+        /// thing the player is meant to click.
+        /// </summary>
+        public static int ZForMarkers() => ZForProps(Count);
 
         /// <summary>
         /// Which level a tile belongs to.

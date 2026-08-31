@@ -243,17 +243,20 @@ namespace Beep.ECS
 			if (layer.TileSet?.HasSource(sourceId) == true)
 				return;
 
-            Image image = Image.LoadFromFile(atlasPath);
-            if (image.IsEmpty())
-            {
-                GD.PushWarning($"[{Name}] Could not load 15-piece terrain atlas '{atlasPath}'.");
+            // Through the shared loader, which imports where it can and builds
+            // a mip chain where it cannot. Reading the PNG straight off disk
+            // here bypassed the import pipeline entirely, so the mipmap setting
+            // beside every atlas never applied and this view alone drew its
+            // tiles unfiltered.
+            Texture2D? texture = TerrainTextures.Load(
+                atlasPath, Name, "15-piece terrain atlas");
+            if (texture is null)
                 return;
-            }
 
             Vector2I tileSize = new(Mathf.Max(1, AtlasTileSize.X), Mathf.Max(1, AtlasTileSize.Y));
             var source = new TileSetAtlasSource
             {
-                Texture = ImageTexture.CreateFromImage(image),
+                Texture = texture,
                 TextureRegionSize = tileSize,
             };
 

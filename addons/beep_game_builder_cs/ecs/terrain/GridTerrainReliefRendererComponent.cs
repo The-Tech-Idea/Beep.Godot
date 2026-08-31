@@ -54,7 +54,10 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,8,1")] public int MountainsPerTile { get; set; } = 1;
         [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.22f;
         [Export(PropertyHint.Range, "0,0.6,0.01")] public float ScaleJitter { get; set; } = 0.16f;
-        [Export] public int RenderZIndex { get; set; } = -55;
+        // No z index export; the shared stack owns this. Relief draws the
+        // hills and mountains standing on the ground, so it takes the prop slot
+        // of the highest level it draws - above the trees, which is what lets a
+        // peak occlude a tree standing in front of it.
 
         /// <summary>
         /// Whether this renderer builds itself once the scene is ready. Turn it
@@ -85,7 +88,8 @@ namespace Beep.ECS
         /// <summary>Rebuilds every relief stamp from the generator.</summary>
         public void Rebuild()
         {
-            ZIndex = RenderZIndex;
+            ZIndex = TerrainLayers.ZForProps(TerrainLayers.Mountains);
+            ZAsRelative = false;
             // The sheets are mipmapped; without asking for them a peak drawn a
             // few pixels across aliases into noise at map zoom.
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;

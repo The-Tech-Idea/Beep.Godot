@@ -272,6 +272,20 @@ public partial class TerrainGeneratorLabController : Node
         // between them changes only how the world is drawn, never what it is.
         var view = (LabView)Mathf.Clamp(_view?.Selected ?? 0, 0, 2);
 
+        // The top-down trees belong to the FLAT views, exactly like the overlay
+        // below - they are stamped on the square grid, and the isometric view
+        // has its own feature renderer drawing the same vegetation in its own
+        // projection.
+        //
+        // This was the one renderer of six whose visibility nobody set, and it
+        // stayed hidden by accident: at Node2D's default z of 0 it fell behind
+        // the isometric sea and terrain. Once the props moved to their proper
+        // place above the stack, the accident ran out and flat trees appeared
+        // standing on the open ocean. Being invisible is not the same as being
+        // turned off.
+        if (_features is not null)
+            _features.Visible = view != LabView.Isometric;
+
         if (_tileRenderer is not null)
         {
             _tileRenderer.Visible = view == LabView.Tiles;

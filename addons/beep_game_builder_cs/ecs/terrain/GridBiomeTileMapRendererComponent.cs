@@ -23,11 +23,6 @@ namespace Beep.ECS
     public partial class GridBiomeTileMapRendererComponent : Node2D
     {
         /// <summary>
-        /// A biome and the 15-piece atlas that draws it. Order is paint order:
-        /// later layers draw over earlier ones, so the base goes first and water
-        /// last.
-        /// </summary>
-        /// <summary>
         /// A biome's tiles, and which level of the shared stack they belong to.
         /// </summary>
         private readonly record struct BiomeLayer(
@@ -67,16 +62,6 @@ namespace Beep.ECS
         [ExportGroup("Rendering")]
         [Export] public bool RefreshOnReady { get; set; } = true;
         /// <summary>
-        /// Where this view's biome layers start, BELOW the shared sea level.
-        ///
-        /// The biome layers are the ground: a top-down view resolves a coastline
-        /// with autotile transitions rather than by stacking blocks, so they all
-        /// belong to one level of the shared stack and are ordered among
-        /// themselves only so a shore draws over the land behind it.
-        /// </summary>
-        [Export] public int BaseZIndex { get; set; } = TerrainLayers.ZFor(TerrainLayers.Ground) - 40;
-
-        /// <summary>
         /// The sea, drawn by the SAME shader the isometric view uses.
         ///
         /// Water tiles alone give a flat blue field: no depth, no shore, no
@@ -104,11 +89,20 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string DeepTexturePath { get; set; } = "";
         [Export(PropertyHint.File, "*.png,*.webp")] public string SandTexturePath { get; set; } = "";
 
+        /// <summary>
+        /// The authored surf, as the isometric sea takes. Without it the shader
+        /// falls back to generated crests - which is a different sea from the
+        /// one the other view draws off the same coastline.
+        /// </summary>
+        [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
+
         private readonly List<GridTerrainTransitionLayerComponent> _layers = new();
         private GridTerrainGeneratorComponent? _generator;
         private Sprite2D? _water;
         private ImageTexture? _coastMap;
         private ShaderMaterial? _waterMaterial;
+        /// <summary>What the current layers were built from; see Signature.</summary>
+        private string _builtSignature = string.Empty;
 
 
 
@@ -188,10 +182,8 @@ namespace Beep.ECS
             _water.Position = Vector2.Zero;
             _water.Scale = new Vector2(size.X * AtlasTileSize.X, size.Y * AtlasTileSize.Y);
 
-            // Above every biome layer: the sea is a surface over the bed, not
-            // another biome competing with them for the same ground.
-            // The shared sea level, so the water surface sits where every other
-            // view puts it rather than at a place invented here.
+            // The shared sea level: over the water tiles that are its bed, and
+            // under the land. Not another biome competing for the same ground.
             _water.ZIndex = TerrainLayers.ZFor(TerrainLayers.Sea);
             _water.ZAsRelative = false;
 
@@ -249,6 +241,10 @@ namespace Beep.ECS
             SetTexture(material, "tex_shallow", ShallowTexturePath);
             SetTexture(material, "tex_deep", DeepTexturePath);
             SetTexture(material, "tex_sand", SandTexturePath);
+            // Only take the authored-surf path if the art actually loaded;
+            // turning it on without the sheet draws no surf at all.
+            material.SetShaderParameter(
+                "use_foam_sheet", SetTexture(material, "foam_sheet", FoamSheetPath));
             return material;
         }
 
@@ -260,12 +256,12 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(path))
                 return false;
 
-            var texture = GD.Load<Texture2D>(path);
+            // Through the shared loader. A bare GD.Load here could only ever
+            // resolve res:// paths, so the same absolute path that works for the
+            // isometric sea failed silently for this one.
+            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {parameter} material");
             if (texture is null)
-            {
-                GD.PushWarning($"[{Name}] could not load '{path}' for {parameter}.");
                 return false;
-            }
 
             material.SetShaderParameter(parameter, texture);
             return true;
@@ -322,25 +318,34 @@ namespace Beep.ECS
         private void EnsureLayers()
         {
             List<BiomeLayer> configured = ConfiguredLayers();
-            if (_layers.Count == configured.Count && AllValid())
+
+            // Reuse the layers only when the configuration behind them has not
+            // changed. Comparing the COUNT alone was wrong twice over: _layers
+            // holds the filled base as well, so with a base atlas set the counts
+            // could never match and every rebuild tore down and recreated every
+            // layer; and swapping one atlas path for another keeps the count
+            // identical while changing what must be drawn. A reused layer cannot
+            // pick a new atlas up - its TileSet is built once and kept - so a
+            // changed configuration has to rebuild.
+            string signature = Signature(configured);
+            if (signature == _builtSignature && AllValid())
             {
-                Configure(configured);
+                Configure();
                 return;
             }
+            _builtSignature = signature;
 
             foreach (Node child in GetChildren())
                 child.QueueFree();
             _layers.Clear();
 
-            // A filled base under everything, so gaps between biome layers never
-            // show through as holes.
-            // The filled base sits under the sea, so a gap between layers shows
-            // water rather than a hole.
+            // A filled base at the floor of the stack, so a gap between biome
+            // layers shows water rather than a hole.
             if (!string.IsNullOrWhiteSpace(BaseAtlasPath))
             {
                 _layers.Add(CreateLayer(
                     "Base", "grass", BaseAtlasPath, string.Empty,
-                    TerrainLayers.ZFor(TerrainLayers.Sea) - 2, filledBase: true));
+                    TerrainLayers.ZForFloor(), filledBase: true));
             }
 
             foreach (BiomeLayer layer in configured)
@@ -368,14 +373,40 @@ namespace Beep.ECS
             return true;
         }
 
-        private void Configure(List<BiomeLayer> configured)
+        /// <summary>
+        /// What the current exports would build. Two runs with the same
+        /// signature produce the same layers, so the existing ones can be kept
+        /// and simply repainted.
+        /// </summary>
+        private string Signature(List<BiomeLayer> configured)
+        {
+            var text = new System.Text.StringBuilder();
+            text.Append(BaseAtlasPath).Append('|')
+                .Append(AtlasTileSize).Append('|')
+                .Append(AtlasColumns).Append('x').Append(AtlasTileRows);
+            foreach (BiomeLayer layer in configured)
+            {
+                text.Append('|').Append(layer.TerrainKind)
+                    .Append('@').Append(layer.Level)
+                    .Append('=').Append(layer.AtlasPath)
+                    .Append('+').Append(layer.DetailAtlasPath);
+            }
+            return text.ToString();
+        }
+
+        /// <summary>
+        /// Re-applies what a KEPT layer can actually act on. The atlas and the
+        /// z index are fixed when the layer is built, so they are deliberately
+        /// not re-assigned here - setting them would look like configuration and
+        /// change nothing, which is the failure this method used to embody.
+        /// </summary>
+        private void Configure()
         {
             foreach (GridTerrainTransitionLayerComponent layer in _layers)
             {
                 layer.BoundsOrigin = BoundsOrigin;
                 layer.BoundsSize = BoundsSize;
             }
-            _ = configured;
         }
 
         private GridTerrainTransitionLayerComponent CreateLayer(
@@ -396,7 +427,15 @@ namespace Beep.ECS
                 Name = $"{name}Tiles",
                 ZIndex = zIndex,
                 Position = new Vector2(AtlasTileSize.X * -0.5f, AtlasTileSize.Y * -0.5f),
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
+                // Linear WITH MIPMAPS, not nearest.
+                //
+                // A whole map on screen draws each 64-pixel tile at around
+                // nine, and nearest sampling takes one texel in fifty: the
+                // result crawls and sparkles as the view moves, and it is why
+                // this view read as the roughest of the three. These atlases are
+                // painted art rather than pixel art, so there is no pixel grid
+                // to preserve by sampling nearest.
+                TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps,
             };
             AddChild(display);
 

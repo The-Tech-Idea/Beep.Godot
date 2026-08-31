@@ -91,7 +91,9 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "-1,1,0.01")] public float VerticalOffset { get; set; } = -0.12f;
         [Export] public bool ShowBackplate { get; set; } = true;
         [Export] public Color BackplateColour { get; set; } = new(0.09f, 0.10f, 0.13f, 0.62f);
-        [Export] public int RenderZIndex { get; set; } = -40;
+        // No z index export; the shared stack owns this. These are markers
+        // rather than world objects, and they sit above the props so a forest
+        // can never hide the thing the player is meant to click.
 
         /// <summary>
         /// Whether this renderer builds itself once the scene is ready. Turn it
@@ -164,7 +166,8 @@ namespace Beep.ECS
         /// <summary>Rebuilds every resource icon from the generator.</summary>
         public void Rebuild()
         {
-            ZIndex = RenderZIndex;
+            ZIndex = TerrainLayers.ZForMarkers();
+            ZAsRelative = false;
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
 
             ResolveGenerator();

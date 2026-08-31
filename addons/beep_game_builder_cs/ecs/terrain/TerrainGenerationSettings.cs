@@ -49,6 +49,7 @@ namespace Beep.ECS
         float SeaCoverage,
         int ArchipelagoIslandCount,
         int TopologySamplesPerCell,
+        float ErosionStrength,
         float BeachWidth,
         float RockLevel,
         float Dryness,

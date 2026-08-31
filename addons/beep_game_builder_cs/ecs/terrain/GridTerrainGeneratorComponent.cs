@@ -57,6 +57,12 @@ namespace Beep.ECS
         /// tiles. The setting existed, the rule existed, and the map had no
         /// beaches at all.
         /// </summary>
+        /// <summary>
+        /// How hard running water cuts the land, 0 to 4. Zero leaves the height
+        /// field exactly as the noise made it.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,4,0.05")] public float ErosionStrength { get; set; } = 1.0f;
+
         [Export(PropertyHint.Range, "0,4,0.05")] public float BeachWidth { get; set; } = 1.0f;
         /// <summary>
         /// NOT ENFORCED. Nothing reads this: it is threaded into the settings
@@ -512,7 +518,7 @@ namespace Beep.ECS
                 Mathf.Max(0.0001f, Frequency), Mathf.Clamp(Octaves, 1, 10), Mathf.Max(1.0f, Lacunarity), Mathf.Clamp(Gain, 0.0f, 1.0f),
                 Landform, Mathf.Clamp(LandmassScale, 0.05f, 0.92f), Mathf.Clamp(SeaCoverage, 0.0f, 0.98f),
                 Mathf.Clamp(ArchipelagoIslandCount, 2, 12), Mathf.Clamp(TopologySamplesPerCell, 2, 24),
-                Mathf.Clamp(BeachWidth, 0.0f, 4.0f), Mathf.Clamp(RockLevel, 0.0f, 1.0f), Mathf.Clamp(Dryness, 0.0f, 1.0f),
+                Mathf.Clamp(ErosionStrength, 0.0f, 4.0f), Mathf.Clamp(BeachWidth, 0.0f, 4.0f), Mathf.Clamp(RockLevel, 0.0f, 1.0f), Mathf.Clamp(Dryness, 0.0f, 1.0f),
                 Mathf.Clamp(SwampCoverage, 0.0f, 1.0f), Mathf.Clamp(SnowCoverage, 0.0f, 1.0f), Mathf.Clamp(IceCoverage, 0.0f, 1.0f), Mathf.Max(0.02f, FeatureFrequencyMultiplier),
                 Mathf.Clamp(LakeCoverage, 0.0f, 0.35f), Mathf.Max(0.02f, LakeFrequencyMultiplier), Mathf.Clamp(LakeShoreWidth, 0.0f, 3.0f),
                 Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(StartPositionCount, 0, 24),

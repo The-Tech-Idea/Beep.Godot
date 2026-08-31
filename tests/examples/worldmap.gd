@@ -87,6 +87,11 @@ func _initialize() -> void:
 			gen.SeaCoverage = 1.0 - float(panel[2])
 		else:
 			gen.LandmassScale = float(panel[2])
+		# EROSION=<n> re-renders the same maps at a different erosion strength,
+		# which is how the effect of the erosion stage was measured: at strength
+		# 0 against strength 1, the difference IS the erosion.
+		var erosion: String = OS.get_environment("EROSION")
+		gen.ErosionStrength = float(erosion) if erosion != "" else 1.0
 		gen.GenerateTerrain()
 		var at := Vector2i((index % 2) * cell.x, (index / 2) * cell.y)
 		paint(gen, size, image, at)

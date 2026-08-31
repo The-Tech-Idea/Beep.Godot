@@ -73,12 +73,33 @@ namespace Beep.ECS
                     if (kind is not ("grass" or "dry_grass" or "tundra"))
                         continue;
 
+                    // Dryness is not re-tested here. Whether ground is too dry
+                    // for trees is already decided, by the biome - and with
+                    // quotas on, the biome bands are PERCENTILES of the map's own
+                    // moisture while this test was a fixed 0.26. On a dry map the
+                    // whole grass band sits below that number, so every grass
+                    // tile failed a gate it could never pass and whole islands of
+                    // good ground grew nothing.
+                    //
+                    // One classification decides both the ground and what stands
+                    // on it, which is how the standard biome model works: a
+                    // biome and its plant cover are read off the same climate,
+                    // never off two disagreeing tests.
                     int centre = world.CellCentreIndex(cellX, cellY);
-                    if (world.Moisture[centre] < 0.26f || world.Temperature[centre] < 0.15f)
+                    if (world.Temperature[centre] < 0.15f)
                         continue;
 
+                    // The ranked value is the value that gets thresholded,
+                    // bias included. Ranking the bare noise and then comparing
+                    // noise-plus-bias against that ranking is a quiet mistake:
+                    // the bias is negative on dry ground, uniformly so across a
+                    // dry island, so every cell there fell below a threshold
+                    // drawn from its own unbiased field and the island grew
+                    // nothing. Five islands with 49 to 171 grass tiles each came
+                    // out bare that way.
                     eligible[cell] = true;
-                    stand[cell] = noise.Vegetation.GetNoise2D(cellX + 0.5f, cellY + 0.5f);
+                    stand[cell] = noise.Vegetation.GetNoise2D(cellX + 0.5f, cellY + 0.5f)
+                        + StandBias(world, settings, cell, cellX, cellY, kind);
                 }
             }
 
@@ -88,7 +109,7 @@ namespace Beep.ECS
             // of tiles rather than the fifteen it looks like. Ranking the field
             // makes the dial mean the coverage it claims, which is how the
             // landmass and hill stages already work.
-            float wanted = Mathf.Clamp(AverageWetness(world, settings, eligible), 0.0f, 0.95f);
+            float wanted = Mathf.Clamp(AverageWetness(world, settings), 0.0f, 0.95f);
 
             // The threshold is ranked PER LANDMASS, not over the whole map.
             //
@@ -152,14 +173,34 @@ namespace Beep.ECS
         /// but the budget itself has to be one number for a percentile to mean
         /// anything.
         /// </summary>
+        /// <summary>
+        /// How much of the woods-capable land should carry vegetation, from the
+        /// map's climate.
+        ///
+        /// Measured over ALL LAND rather than over the eligible cells, and that
+        /// distinction is the whole point. These are two different questions -
+        /// how wet is this world, and where on it may a tree stand - and
+        /// answering the first over the answer to the second couples them:
+        /// widening eligibility then pulled dry cells into the average, dropped
+        /// the coverage, and left FEWER woods than before. Measured when that
+        /// happened: seven bare islands became eleven.
+        ///
+        /// The 0.26 anchor stays absolute here, because this is the question it
+        /// actually answers well - a wet world is greener than a dry one, and
+        /// that is a fact about the world, not about the map's own spread.
+        /// </summary>
         private static float AverageWetness(
-            TerrainWorld world, TerrainGenerationSettings settings, bool[] eligible)
+            TerrainWorld world, TerrainGenerationSettings settings)
         {
             float total = 0.0f;
             int seen = 0;
-            for (int cell = 0; cell < eligible.Length; cell++)
+            for (int cell = 0; cell < world.CellTerrain.Length; cell++)
             {
-                if (!eligible[cell])
+                if (world.CellWater[cell] != WaterBody.None)
+                    continue;
+
+                string kind = world.CellTerrain[cell];
+                if (kind is "" or "deep_water" or "shallow_water")
                     continue;
 
                 int sample = world.CellCentreIndex(cell % world.CellsWide, cell / world.CellsWide);
@@ -203,25 +244,40 @@ namespace Beep.ECS
             if (terrain is not ("grass" or "dry_grass" or "tundra"))
                 return None;
 
-            // Woods want rain and not too much heat.
-            if (moisture < 0.26f || temperature < 0.15f)
+            // Cold is the floor here, not dryness - and this has to agree with
+            // the eligibility test, because a cell ranked there and rejected
+            // here would take a share of the budget and grow nothing with it.
+            if (temperature < 0.15f)
                 return None;
 
-            // Local moisture shifts this cell's place in the ranking, so stands
-            // still thicken toward wet ground - but as bigger stands rather than
-            // a finer sprinkle. Jitter keeps the boundary off a clean contour.
-            float bias = ((moisture - 0.45f) * 0.10f) + ((roll - 0.5f) * 0.02f);
-            float value = stand + bias;
-            if (terrain == "tundra")
-                value -= 0.05f;
-
-            if (value < threshold)
+            // The bias is already in `stand`, applied where the field was
+            // ranked, so this is a straight comparison against the threshold
+            // that ranking produced.
+            if (stand < threshold)
                 return None;
 
             // Well inside a stand is closed forest; the fringe is open woodland.
             // Drawing both the same is what makes a wood read as a texture rather
             // than a place with a middle and an edge.
-            return value >= dense ? Forest : Woods;
+            return stand >= dense ? Forest : Woods;
+        }
+
+        /// <summary>
+        /// What shifts a cell's place in the ranking: wetter ground ranks
+        /// higher, so stands thicken toward it as bigger woods rather than a
+        /// finer sprinkle, with jitter to keep the edge off a clean contour and
+        /// a penalty for tundra, where trees are marginal.
+        /// </summary>
+        private static float StandBias(
+            TerrainWorld world, TerrainGenerationSettings settings,
+            int cell, int cellX, int cellY, string terrain)
+        {
+            int sample = world.CellCentreIndex(cellX, cellY);
+            float moisture = world.Moisture[sample];
+            float roll = Hash01(settings.Seed + 55001, cellX, cellY);
+
+            float bias = ((moisture - 0.45f) * 0.10f) + ((roll - 0.5f) * 0.02f);
+            return terrain == "tundra" ? bias - 0.05f : bias;
         }
 
         private static float Hash01(int seed, int x, int y)

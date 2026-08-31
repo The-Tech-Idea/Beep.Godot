@@ -31,7 +31,10 @@ extends SceneTree
 # on a map whose absolute moisture is desert-like, carry woods? Whichever way
 # that goes, the 0.26 should end up owned in one place instead of three.
 
-const WOODS_CAPABLE := ["grass", "dry_grass", "tundra"]
+# Tundra is deliberately absent. It is woods-capable in the placement stage,
+# but it is also the ground most likely to sit under the temperature floor,
+# so counting it here would blame the placement for climate doing its job.
+const WOODS_CAPABLE := ["grass", "dry_grass"]
 
 ## Islands, each with how much woods-capable ground it has and how much it grew.
 func islands(gen, size: Vector2i) -> Array:

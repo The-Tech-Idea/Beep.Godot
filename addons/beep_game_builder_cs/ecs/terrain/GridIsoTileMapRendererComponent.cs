@@ -828,7 +828,23 @@ namespace Beep.ECS
             }
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            material.SetShaderParameter("coast_map", _coastMap);
+
+            // The coast field is what tells the shader where the shore is, and
+            // how far from it each pixel lies. Without it the water has no
+            // shallows: it would draw at open-sea opacity right up to the beach.
+            // Handing the shader a null texture does that SILENTLY, so say so
+            // instead - the caller can see a warning, where it cannot see a
+            // uniform that was never set.
+            if (_coastMap is null)
+            {
+                GD.PushWarning(
+                    $"[{Name}] the coast field is missing; the sea will draw without shallows.");
+            }
+            else
+            {
+                material.SetShaderParameter("coast_map", _coastMap);
+            }
+
             material.SetShaderParameter("coast_range", CoastRangeTiles);
             material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
             material.SetShaderParameter("cell_size", new Vector2(CellSize.X, CellSize.Y));

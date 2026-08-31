@@ -57,6 +57,12 @@ namespace Beep.ECS
             world.Land.CopyTo(world.Footprint, 0);
             TerrainWaterStage.Apply(world, noise, settings);
             TerrainElevationStage.Apply(world, noise, settings);
+
+            // Water shapes the land before the land is named. Erosion carves the
+            // valleys, and only then is the height cut into hills and mountains,
+            // because those bands are percentiles of a field erosion changes.
+            TerrainErosionStage.Apply(world, settings);
+            TerrainElevationStage.Classify(world, settings);
             TerrainClimateStage.Apply(world, noise, settings);
             TerrainRiverStage.Apply(world, settings);
             TerrainShadingStage.Apply(world, settings);
@@ -74,6 +80,10 @@ namespace Beep.ECS
 
             // Gameplay layers read the reduced tile grid, so they run last.
             TerrainContinentStage.Apply(world);
+
+            // The land settles before anything is placed on it: a drained lake
+            // becomes ground, and ground grows things.
+            TerrainScaleConstraintStage.ApplyTerrain(world, settings);
             TerrainResourceStage.Apply(world, settings);
             TerrainFeatureStage.Apply(world, noise, settings);
             // Last, and on the reduced tile grid: a feature has to reach a size
@@ -81,7 +91,7 @@ namespace Beep.ECS
             // runs after the feature stage because woods are placed there, and
             // before start positions, which should not be put on a lake that is
             // about to be drained.
-            TerrainScaleConstraintStage.Apply(world, settings);
+            TerrainScaleConstraintStage.ApplyFeatures(world, settings);
 
             TerrainStartPositionStage.Apply(world, settings);
 

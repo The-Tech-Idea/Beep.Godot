@@ -61,6 +61,18 @@ namespace Beep.ECS
                 }
             }
 
+        }
+
+        /// <summary>
+        /// Cuts the height field into flat, hills and mountains.
+        ///
+        /// Separate from building the height because EROSION runs between the
+        /// two. The bands are percentiles of the field, so classifying first
+        /// and carving after would label the land from a shape that no longer
+        /// exists - the valleys would be full of tiles still marked mountain.
+        /// </summary>
+        public static void Classify(TerrainWorld world, TerrainGenerationSettings settings)
+        {
             // Zero fractions mean a game that does not want relief at all, so
             // nothing is promoted above flat.
             if (settings.HillsFraction <= 0.0f && settings.MountainsFraction <= 0.0f)

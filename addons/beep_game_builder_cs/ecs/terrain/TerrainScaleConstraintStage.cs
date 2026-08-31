@@ -35,7 +35,17 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainScaleConstraintStage
     {
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        /// <summary>
+        /// The constraints on the LAND itself, which have to settle before
+        /// anything is placed on it.
+        ///
+        /// Draining a lake turns its bed into ground, and ground grows things.
+        /// Running that after the feature stage meant vegetation was placed on a
+        /// map that did not exist yet: five islands in a twelve-island chain
+        /// were mostly lake when the woods were sown, so nothing could be sown
+        /// on them, and they finished as bare grassland once the lakes drained.
+        /// </summary>
+        public static void ApplyTerrain(TerrainWorld world, TerrainGenerationSettings settings)
         {
             if (!settings.UseScaleRules)
                 return;
@@ -44,6 +54,48 @@ namespace Beep.ECS
             DrainSmallLakes(world);
             LevelSmallRelief(world);
             ClearShortRivers(world);
+            GroundPeakMaterial(world);
+        }
+
+        /// <summary>
+        /// Stone belongs on high ground. Any peak material left on the flat is
+        /// given the ground around it instead.
+        ///
+        /// This is stated ONCE here rather than relied upon at every stage that
+        /// touches terrain or relief, and the difference is not academic: the
+        /// coherence stage was fixed so it could not absorb a flat region into
+        /// rock, and adding erosion promptly produced five flat rock tiles by
+        /// another route, because erosion changes WHICH tiles are mountains and
+        /// the reduction that follows had its own way of getting there.
+        ///
+        /// An invariant that every upstream stage must remember to preserve is
+        /// one that breaks whenever a new stage is added. Enforced in one place,
+        /// last, it holds however the map got here.
+        /// </summary>
+        private static void GroundPeakMaterial(TerrainWorld world)
+        {
+            for (int index = 0; index < world.CellTerrain.Length; index++)
+            {
+                if (world.CellWater[index] != WaterBody.None)
+                    continue;
+                if (world.CellRelief[index] != TerrainRelief.Flat)
+                    continue;
+                if (!PeakKinds.Contains(world.CellTerrain[index]))
+                    continue;
+
+                world.CellTerrain[index] = NeighbourLand(world, index, PeakKinds) ?? "grass";
+            }
+        }
+
+        /// <summary>
+        /// The constraints on what STANDS on the land, which can only run once
+        /// it has been placed.
+        /// </summary>
+        public static void ApplyFeatures(TerrainWorld world, TerrainGenerationSettings settings)
+        {
+            if (!settings.UseScaleRules)
+                return;
+
             ThinLoneFeatures(world);
         }
 

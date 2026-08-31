@@ -169,6 +169,19 @@ namespace Beep.ECS
             _material.SetShaderParameter("shade_map", shadeMap);
             _material.SetShaderParameter("coast_map", coastMap);
             _material.SetShaderParameter("coast_range", CoastRangeTiles);
+
+            // The beach is as wide as the GENERATOR says, not as wide as this
+            // shader happens to default to.
+            //
+            // This view composites its own sand at the shore from the coast
+            // field, while the tile and isometric views draw the sand BIOME the
+            // beach stage assigns. Two sources for one fact, and they drifted
+            // exactly as that always does: with BeachWidth at 0.028 the
+            // generator made no beach at all, the tile and isometric views
+            // showed none, and this one carried on drawing the 1.15 tiles its
+            // shader defaulted to. One map, and only one of three views telling
+            // the truth about its coast.
+            _material.SetShaderParameter("beach_tiles", _generator.BeachWidth);
             _material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
             _material.SetShaderParameter("texture_tiles", Mathf.Max(1.0f, TextureTiles));
             _material.SetShaderParameter("blend_width", BlendWidth);

@@ -27,7 +27,11 @@ namespace Beep.ECS
         /// later layers draw over earlier ones, so the base goes first and water
         /// last.
         /// </summary>
-        private readonly record struct BiomeLayer(string TerrainKind, string AtlasPath, string DetailAtlasPath);
+        /// <summary>
+        /// A biome's tiles, and which level of the shared stack they belong to.
+        /// </summary>
+        private readonly record struct BiomeLayer(
+            string TerrainKind, string AtlasPath, string DetailAtlasPath, int Level);
 
         [Export] public NodePath CellDataPath { get; set; } = new("");
 
@@ -268,27 +272,42 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Paint order. Land biomes are drawn before water so a coastline is
-        /// resolved by the water layer's transition tiles, which is what makes
-        /// the shore read as a shore rather than as a row of squares.
+        /// Paint order, taken from the SHARED stack in TerrainLayers: sea, then
+        /// ground, then hills, then mountains.
+        ///
+        /// This view used to order its layers by biome alone and draw water
+        /// LAST, so the sea's transition tiles resolved the coastline by
+        /// covering the land at the shore - which meant they covered the BEACH.
+        /// The sand layer was there, 436 tiles of it, drawn and then buried
+        /// under deep water. A view that stacks its own way will eventually
+        /// contradict the others, and this is what that looks like.
+        ///
+        /// Water below, land above: the coast is now resolved by the LAND's
+        /// transition tiles meeting the sea, which is what a beach is.
         /// </summary>
         private List<BiomeLayer> ConfiguredLayers()
         {
             var candidates = new List<BiomeLayer>
             {
-                new("grass", GrassAtlasPath, GrassDetailAtlasPath),
-                new("dry_grass", DryGrassAtlasPath, string.Empty),
-                new("sand", SandAtlasPath, string.Empty),
-                new("desert", DesertAtlasPath, DesertDetailAtlasPath),
-                new("tundra", TundraAtlasPath, string.Empty),
-                new("snow", SnowAtlasPath, string.Empty),
-                new("ice", IceAtlasPath, string.Empty),
-                new("jungle", JungleAtlasPath, string.Empty),
-                new("swamp", SwampAtlasPath, string.Empty),
-                new("gravel", GravelAtlasPath, string.Empty),
-                new("rock", RockAtlasPath, string.Empty),
-                new("shallow_water", WaterAtlasPath, WaterDetailAtlasPath),
-                new("deep_water", WaterAtlasPath, WaterDetailAtlasPath),
+                // SEA, beneath everything.
+                new("deep_water", WaterAtlasPath, WaterDetailAtlasPath, TerrainLayers.Sea),
+                new("shallow_water", WaterAtlasPath, WaterDetailAtlasPath, TerrainLayers.Sea),
+
+                // GROUND. The beach comes last of these so it meets the sea, and
+                // is not buried by the biome behind it.
+                new("swamp", SwampAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("jungle", JungleAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("grass", GrassAtlasPath, GrassDetailAtlasPath, TerrainLayers.Ground),
+                new("dry_grass", DryGrassAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("desert", DesertAtlasPath, DesertDetailAtlasPath, TerrainLayers.Ground),
+                new("tundra", TundraAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("snow", SnowAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("ice", IceAtlasPath, string.Empty, TerrainLayers.Ground),
+                new("sand", SandAtlasPath, string.Empty, TerrainLayers.Ground),
+
+                // HILLS and MOUNTAINS, above the ground they rise from.
+                new("gravel", GravelAtlasPath, string.Empty, TerrainLayers.Hills),
+                new("rock", RockAtlasPath, string.Empty, TerrainLayers.Mountains),
             };
 
             var configured = new List<BiomeLayer>();
@@ -315,20 +334,27 @@ namespace Beep.ECS
 
             // A filled base under everything, so gaps between biome layers never
             // show through as holes.
+            // The filled base sits under the sea, so a gap between layers shows
+            // water rather than a hole.
             if (!string.IsNullOrWhiteSpace(BaseAtlasPath))
-                _layers.Add(CreateLayer("Base", "grass", BaseAtlasPath, string.Empty, BaseZIndex, filledBase: true));
+            {
+                _layers.Add(CreateLayer(
+                    "Base", "grass", BaseAtlasPath, string.Empty,
+                    TerrainLayers.ZFor(TerrainLayers.Sea) - 2, filledBase: true));
+            }
 
-            int z = BaseZIndex + 1;
             foreach (BiomeLayer layer in configured)
             {
+                // Layers of the same level share its z and are ordered among
+                // themselves by the order they are created in, which is the
+                // order the list above declares.
                 _layers.Add(CreateLayer(
                     NodeNameFor(layer.TerrainKind),
                     layer.TerrainKind,
                     layer.AtlasPath,
                     layer.DetailAtlasPath,
-                    z,
+                    TerrainLayers.ZFor(layer.Level) - 1,
                     filledBase: false));
-                z++;
             }
         }
 

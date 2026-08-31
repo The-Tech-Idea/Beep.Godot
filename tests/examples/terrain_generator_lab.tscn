@@ -100,7 +100,7 @@ DefaultTerrainKind = "deep_water"
 script = ExtResource("generator")
 Lacunarity = 2.05
 Gain = 0.5
-BeachWidth = 0.028
+BeachWidth = 1.0
 Dryness = 0.0
 CellDataPath = NodePath("../Cells")
 GenerateOnReady = false
@@ -110,7 +110,7 @@ ArchipelagoIslandCount = 4
 TopologySamplesPerCell = 8
 LakeCoverage = 0.05
 LakeFrequencyMultiplier = 0.10
-LakeShoreWidth = 0.04
+LakeShoreWidth = 1.0
 
 [node name="TileRenderer" type="Node2D" parent="Preview"]
 visible = false

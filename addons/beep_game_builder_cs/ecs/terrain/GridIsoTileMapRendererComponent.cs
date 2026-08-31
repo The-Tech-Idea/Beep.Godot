@@ -237,7 +237,10 @@ namespace Beep.ECS
         /// </summary>
         private static int LayerFor(int level) => level - GroundLevel;
 
-        private int[] _mountainDepth = Array.Empty<int>();
+        /// <summary>The top share of mountain tiles drawn as summits.</summary>
+        private const float SummitShare = 0.45f;
+
+        private float _summitFloor = float.MaxValue;
         private GridTerrainGeneratorComponent? _generator;
         private readonly List<TileMapLayer> _layers = new();
 
@@ -304,7 +307,7 @@ namespace Beep.ECS
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             MeasureWaterDepth(size);
-            MeasureMountainDepth(size);
+            MeasureSummitFloor(size);
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
@@ -390,7 +393,7 @@ namespace Beep.ECS
                     // stands above its own edge. The cells deep inside a massif
                     // take one more step than the cells around its rim, so the
                     // range steps up to its summits instead of shearing off.
-                    if (level >= PeakLevel && _mountainDepth[(y * size.X) + x] >= 2)
+                    if (level >= PeakLevel && _generator.ElevationAt(cell) >= _summitFloor)
                         level = SummitLevel;
                     for (int step = GroundLevel; step <= level && step < LevelCount; step++)
                     {
@@ -496,64 +499,44 @@ namespace Beep.ECS
         /// flat terraces instead of a slope.
         /// </summary>
         /// <summary>
-        /// How deep inside its own mountain mass each cell sits, in tiles, by
-        /// the same walk outward the seabed uses - the rim is 1, the next ring
-        /// in is 2, and so on. Anything that is not a mountain is 0.
+        /// The height above which a mountain tile is drawn as a SUMMIT.
+        ///
+        /// Taken over the mountain tiles of this map rather than as a fixed
+        /// number, so a low range and a high one each get a crest instead of one
+        /// being uniformly summit and the other uniformly flank.
+        ///
+        /// This replaced a walk that measured how deep inside its massif a tile
+        /// sat. That works on a broad massif and does nothing on a narrow one -
+        /// every tile of a two-wide ridge is a rim tile - and these ranges are
+        /// mostly narrow ridges, so only 11 tiles of 57 ever reached a summit.
+        /// Height is the field that actually says which part of a range is its
+        /// crest, and a ridge one tile wide still has one.
         /// </summary>
-        private void MeasureMountainDepth(Vector2I size)
+        private void MeasureSummitFloor(Vector2I size)
         {
-            int count = size.X * size.Y;
-            if (_mountainDepth.Length != count)
-                _mountainDepth = new int[count];
-            Array.Clear(_mountainDepth);
-
-            var queue = new Queue<int>();
+            var heights = new List<float>();
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
                 {
                     var at = new Vector2I(x, y);
-                    if (_generator!.ReliefAt(at) < 2)
-                        continue;
-
-                    // A rim cell is one with a non-mountain beside it.
-                    for (int side = 0; side < 4; side++)
-                    {
-                        int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                        int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                        if (nx < 0 || ny < 0 || nx >= size.X || ny >= size.Y
-                            || _generator.ReliefAt(new Vector2I(nx, ny)) < 2)
-                        {
-                            _mountainDepth[(y * size.X) + x] = 1;
-                            queue.Enqueue((y * size.X) + x);
-                            break;
-                        }
-                    }
+                    if (_generator!.ReliefAt(at) >= 2)
+                        heights.Add(_generator.ElevationAt(at));
                 }
             }
 
-            while (queue.Count > 0)
+            if (heights.Count == 0)
             {
-                int index = queue.Dequeue();
-                int cx = index % size.X;
-                int cy = index / size.X;
-                for (int side = 0; side < 4; side++)
-                {
-                    int nx = cx + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                    int ny = cy + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                    if (nx < 0 || ny < 0 || nx >= size.X || ny >= size.Y)
-                        continue;
-
-                    int next = (ny * size.X) + nx;
-                    if (_mountainDepth[next] != 0)
-                        continue;
-                    if (_generator!.ReliefAt(new Vector2I(nx, ny)) < 2)
-                        continue;
-
-                    _mountainDepth[next] = _mountainDepth[index] + 1;
-                    queue.Enqueue(next);
-                }
+                // Nothing is a summit when nothing is a mountain. Above every
+                // possible height rather than below, so the test cannot pass.
+                _summitFloor = float.MaxValue;
+                return;
             }
+
+            heights.Sort();
+            int index = Mathf.Clamp(
+                Mathf.RoundToInt(heights.Count * (1.0f - SummitShare)), 0, heights.Count - 1);
+            _summitFloor = heights[index];
         }
 
         private void MeasureWaterDepth(Vector2I size)

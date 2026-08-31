@@ -416,6 +416,17 @@ namespace Beep.ECS
             => (int)FieldFor(CurrentSettings()).ReliefAtCell(localCell);
 
         /// <summary>
+        /// Land height at a tile, 0 to 1, with water at 0.
+        ///
+        /// Relief says which BAND a tile is in - flat, hills, mountains - and
+        /// every tile of a range shares one band, so a renderer working from
+        /// relief alone can only draw a range flat-topped. Height is what says
+        /// which part of that range is its crest.
+        /// </summary>
+        public float ElevationAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).ElevationAtCell(localCell);
+
+        /// <summary>
         /// Base colour at a position, interpolated between neighbouring terrain
         /// samples so biome boundaries are not drawn as field-sized blocks. The
         /// caller supplies the terrain-kind to colour mapping, which stays the

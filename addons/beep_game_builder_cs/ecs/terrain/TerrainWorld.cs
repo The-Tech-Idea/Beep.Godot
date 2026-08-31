@@ -50,6 +50,7 @@ namespace Beep.ECS
             Array.Fill(CellTerrain, "grass");
             CellWater = new WaterBody[cells];
             CellRelief = new TerrainRelief[cells];
+            CellElevation = new float[cells];
             CellShade = new float[cells];
             Array.Fill(CellShade, 1.0f);
             CellContinent = new int[cells];
@@ -132,6 +133,17 @@ namespace Beep.ECS
         public TerrainRelief[] CellRelief { get; }
 
         /// <summary>Averaged hillshade per gameplay tile.</summary>
+        /// <summary>
+        /// Land height per tile, 0 to 1, reduced from the sample grid.
+        ///
+        /// Relief only says flat, hills or mountains, which is enough to decide
+        /// what a tile IS and not enough to decide how it looks against its
+        /// neighbours: every tile of a range shares one band, so anything drawn
+        /// from relief alone is flat-topped. Height is the field that says which
+        /// part of a range is its crest.
+        /// </summary>
+        public float[] CellElevation { get; }
+
         public float[] CellShade { get; }
 
         /// <summary>Landmass id per gameplay tile; 0 is water.</summary>

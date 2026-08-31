@@ -61,6 +61,7 @@ namespace Beep.ECS
                     int lake = 0;
                     int river = 0;
                     float shade = 0.0f;
+                    float elevation = 0.0f;
                     var relief = new int[3];
 
                     for (int offsetY = 0; offsetY < world.SamplesPerCell; offsetY++)
@@ -78,6 +79,7 @@ namespace Beep.ECS
                             if (world.Land[sample])
                             {
                                 land++;
+                                elevation += world.Elevation[sample];
                                 int band = (int)world.Relief[sample];
                                 relief[band]++;
                                 string kind = world.Terrain[sample];
@@ -109,6 +111,7 @@ namespace Beep.ECS
 
                     int cell = (cellY * wide) + cellX;
                     world.CellShade[cell] = perTile > 0 ? shade / perTile : 1.0f;
+                    world.CellElevation[cell] = land > 0 ? elevation / land : 0.0f;
 
                     bool mostlyWater = (ocean + lake + river) > land;
                     bool riverTile = !mostlyWater && river >= Mathf.Max(1, Mathf.RoundToInt(perTile * RiverTileFraction));

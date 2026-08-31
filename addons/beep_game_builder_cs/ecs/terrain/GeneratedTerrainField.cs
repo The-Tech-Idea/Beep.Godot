@@ -34,6 +34,7 @@ namespace Beep.ECS
         private readonly int[] _continent;
         private readonly string[] _resource;
         private readonly TerrainRelief[] _relief;
+        private readonly float[] _elevation;
         private readonly string[] _feature;
 
         // Sub-tile sample resolution, for painting.
@@ -54,6 +55,7 @@ namespace Beep.ECS
             _continent = world.CellContinent;
             _resource = world.Resource;
             _relief = world.CellRelief;
+            _elevation = world.CellElevation;
             _feature = world.Feature;
 
             _sampleTerrain = world.Terrain;
@@ -90,6 +92,9 @@ namespace Beep.ECS
 
         /// <summary>Flat, hills or mountains, per tile.</summary>
         public TerrainRelief ReliefAtCell(Vector2I cell) => _relief[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>Land height at a tile, 0 to 1. Water is 0.</summary>
+        public float ElevationAtCell(Vector2I cell) => _elevation[CellIndex(cell.X, cell.Y)];
 
         /// <summary>The feature on a tile, or empty where there is none.</summary>
         public string FeatureAtCell(Vector2I cell) => _feature[CellIndex(cell.X, cell.Y)];

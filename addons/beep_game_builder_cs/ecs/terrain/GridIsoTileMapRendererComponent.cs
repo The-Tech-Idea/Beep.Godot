@@ -728,8 +728,7 @@ namespace Beep.ECS
             {
                 _water = new Sprite2D { Name = "IsoWater" };
                 AddChild(_water);
-                if (Engine.IsEditorHint() && Owner is not null)
-                    _water.Owner = Owner;
+                TerrainAuthoring.Adopt(_water, this);
             }
 
             // A single white texel stretched over the map. The shader never
@@ -856,8 +855,7 @@ namespace Beep.ECS
             {
                 layer = new TileMapLayer { Name = name };
                 AddChild(layer);
-                if (Engine.IsEditorHint() && Owner is not null)
-                    layer.Owner = Owner;
+                TerrainAuthoring.Adopt(layer, this);
             }
 
             // Within a level, Y sorting puts nearer tiles in front.

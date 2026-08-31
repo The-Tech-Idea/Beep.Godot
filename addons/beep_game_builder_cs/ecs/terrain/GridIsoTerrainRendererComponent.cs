@@ -148,8 +148,7 @@ namespace Beep.ECS
             {
                 _layer = new TileMapLayer { Name = "IsoTerrain" };
                 AddChild(_layer);
-                if (Engine.IsEditorHint() && Owner is not null)
-                    _layer.Owner = Owner;
+                TerrainAuthoring.Adopt(_layer, this);
             }
 
             // Without Y sorting a tile drawn later covers one that should be in

@@ -169,8 +169,7 @@ namespace Beep.ECS
             {
                 _water = new Sprite2D { Name = "TileWater" };
                 AddChild(_water);
-                if (Engine.IsEditorHint() && Owner is not null)
-                    _water.Owner = Owner;
+                TerrainAuthoring.Adopt(_water, this);
             }
 
             // One white texel stretched over the map. The shader never samples
@@ -443,6 +442,7 @@ namespace Beep.ECS
                 Position = new Vector2(AtlasTileSize.X * -0.5f, AtlasTileSize.Y * -0.5f),
             };
             AddChild(display);
+            TerrainAuthoring.Adopt(display, this);
 
             var component = new GridTerrainTransitionLayerComponent
             {
@@ -465,6 +465,7 @@ namespace Beep.ECS
             };
 
             display.AddChild(component);
+            TerrainAuthoring.Adopt(component, this);
 
             // Paths must be assigned AFTER the node is in the tree and relative
             // to the component itself: it is a grandchild of this renderer, so a

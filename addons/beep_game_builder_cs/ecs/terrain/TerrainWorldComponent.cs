@@ -85,6 +85,24 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool BuildOnReady { get; set; } = true;
 
+        /// <summary>
+        /// Generates the map IN THE EDITOR, and saves it with the scene.
+        ///
+        /// This is what makes the addon a map-authoring tool rather than only a
+        /// runtime one: press it and the renderers build their layers as
+        /// children of this scene, owned by it, so they persist. A developer can
+        /// then hand-edit the result - move a tile, place a building - and keep
+        /// it.
+        ///
+        /// BuildOnReady is deliberately NOT honoured in the editor: regenerating
+        /// every time a scene is opened would be slow and would overwrite an
+        /// authored map with a fresh one. This button is the design-time trigger,
+        /// and until it existed every component was [Tool] and inert - loaded in
+        /// the editor, showing settings that could not be applied to anything.
+        /// </summary>
+        [ExportToolButton("Generate map")]
+        public Callable GenerateMap => Callable.From(Build);
+
         private GridTerrainGeneratorComponent? _generator;
         private GridSplatTerrainRendererComponent? _splat;
         private GridBiomeTileMapRendererComponent? _tiles;

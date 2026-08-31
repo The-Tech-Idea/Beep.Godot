@@ -255,8 +255,7 @@ namespace Beep.ECS
 			{
 				_surface = new Sprite2D { Name = "SplatSurface", Centered = false };
 				AddChild(_surface);
-				if (Engine.IsEditorHint())
-					_surface.Owner = GetTree()?.EditedSceneRoot;
+				TerrainAuthoring.Adopt(_surface, this);
 			}
 
 			// A single white pixel stretched over the map: the shader paints it,

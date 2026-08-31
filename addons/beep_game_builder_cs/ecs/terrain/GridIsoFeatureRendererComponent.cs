@@ -233,8 +233,7 @@ namespace Beep.ECS
                 {
                     node = new LevelProps { Name = name };
                     AddChild(node);
-                    if (Engine.IsEditorHint() && Owner is not null)
-                        node.Owner = Owner;
+                    TerrainAuthoring.Adopt(node, this);
                 }
                 // Above ALL terrain, ordered among themselves by level. The
                 // renderer owns this rule - a single shared z for every prop is

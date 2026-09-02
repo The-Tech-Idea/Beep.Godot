@@ -2,13 +2,13 @@
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/MountainPrefabGeneratorComponent.cs" id="1_mountain_prefab_generator"]
 
-[node name="LowPolyMountainPrefabCreator" type="Node2D"]
+[node name="Front25DMountainPrefabCreator" type="Node2D"]
 script = ExtResource("1_mountain_prefab_generator")
-PrefabManifestPath = "res://addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/three_level_mountain_prefab_manifest.json"
+PrefabManifestPath = "res://addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/front_2_5d/front_2_5d_three_level_switchback_prefab_manifest.json"
 GenerateOnReady = true
 SourceMode = 0
 LayoutPreset = 0
 CreateWalkableAreas = true
 CreateAnchorNodes = true
 CreateRouteConnectorAreas = true
-SaveGeneratedScenePath = "res://generated/low_poly_sandstone_mountain_prefab.tscn"
+SaveGeneratedScenePath = "res://generated/front_2_5d_sandstone_mountain_prefab.tscn"

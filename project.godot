@@ -24,7 +24,6 @@ GodotMcpRuntime="*uid://b8aiovcqlot8i"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/stretch/mode="disabled"
 window/stretch/aspect="expand"
 
 [dotnet]

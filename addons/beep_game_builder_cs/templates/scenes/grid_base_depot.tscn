@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs" id="grid_object"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs" id="grid_object"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorkerSpawnerComponent.cs" id="worker_spawner"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/settlers/reference_objects.png" id="objects_sheet"]
 
 [sub_resource type="Shader" id="shader_chroma_key"]

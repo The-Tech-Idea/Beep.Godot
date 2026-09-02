@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -234,19 +235,56 @@ namespace Beep.ECS
             return _field?.TerrainAtCell(cell);
         }
 
+        /// <summary>
+        /// The kinds this layer paints - the transition kind plus its aliases -
+        /// built once per TransitionTerrainKind value. Normalizing both sides
+        /// per probe allocated three strings per call, and DualGridMaskAt
+        /// probes four cells per display cell across the whole map.
+        /// </summary>
+        private readonly HashSet<string> _transitionMatches = new(StringComparer.Ordinal);
+        private string? _matchesBuiltFor;
+
+        private void RebuildTransitionMatches()
+        {
+            if (_matchesBuiltFor == TransitionTerrainKind)
+                return;
+
+            _matchesBuiltFor = TransitionTerrainKind;
+            _transitionMatches.Clear();
+            string transition = Normalize(TransitionTerrainKind);
+            _transitionMatches.Add(transition);
+            switch (transition)
+            {
+                case "water":
+                    _transitionMatches.Add("deep_water");
+                    _transitionMatches.Add("shallow_water");
+                    break;
+                case "grass":
+                    _transitionMatches.Add("grassland");
+                    _transitionMatches.Add("dry_grass");
+                    break;
+                case "desert":
+                    _transitionMatches.Add("sand");
+                    break;
+                case "mud":
+                    _transitionMatches.Add("swamp");
+                    _transitionMatches.Add("earth");
+                    _transitionMatches.Add("dirt");
+                    _transitionMatches.Add("soil");
+                    break;
+            }
+        }
+
         private bool IsTransitionTerrain(Vector2I cell)
         {
+            RebuildTransitionMatches();
             string? kind = TerrainKindAt(cell);
             if (kind is null)
                 return false;
 
-            string terrain = Normalize(kind);
-            string transition = Normalize(TransitionTerrainKind);
-            return terrain == transition
-                || (transition == "water" && terrain is "deep_water" or "shallow_water")
-                || (transition == "grass" && terrain is "grassland" or "dry_grass")
-                || (transition == "desert" && terrain == "sand")
-                || (transition == "mud" && terrain is "swamp" or "earth" or "dirt" or "soil");
+            // The field's kinds are already canonical lowercase, so the set
+            // lookup matches exactly what normalizing both sides used to.
+            return _transitionMatches.Contains(kind);
         }
 
         private void ResolveReferences()

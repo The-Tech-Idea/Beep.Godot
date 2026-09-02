@@ -65,13 +65,11 @@ namespace Beep.ECS
 
         public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
         {
-            // The world buffer is REUSED between generations, so the land has
-            // to be cleared before any is placed. The version this replaced
-            // assigned every cell from its threshold test, so it cleared as a
-            // side effect; this one only ever sets land, and without the clear
-            // each generation was laid on top of the last. That is what made the
-            // landmass count wrong: the previous run's mass was still there,
-            // welding this run's separate masses into one.
+            // Cleared defensively, even though TerrainFieldBuilder constructs a
+            // fresh TerrainWorld per build today: this stage only ever SETS
+            // land, so any future caller that does reuse a world - the reason
+            // this clear was first added - would weld the previous run's masses
+            // into this one and come back with the wrong landmass count.
             Array.Fill(world.Land, false);
 
             if (settings.Preset == TerrainPreset.Sea)

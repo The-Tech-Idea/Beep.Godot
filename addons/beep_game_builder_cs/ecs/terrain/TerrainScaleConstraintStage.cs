@@ -361,15 +361,15 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// The land terrain bordering a cell, whichever borders it most. What a
-        /// removed feature's tile becomes: the honest answer is its surroundings.
-        /// </summary>
-        /// <summary>
         /// Terrain that belongs to a PEAK. Never a replacement for one that has
         /// just been levelled.
         /// </summary>
         private static readonly HashSet<string> PeakKinds = new() { "rock", "snow", "gravel" };
 
+        /// <summary>
+        /// The land terrain bordering a cell, whichever borders it most. What a
+        /// removed feature's tile becomes: the honest answer is its surroundings.
+        /// </summary>
         private static string? NeighbourLand(TerrainWorld world, int index, HashSet<string>? exclude = null)
         {
             int wide = world.CellsWide;

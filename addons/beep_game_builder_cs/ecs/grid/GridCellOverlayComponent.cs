@@ -36,6 +36,11 @@ namespace Beep.ECS
             UpdateConfigurationWarnings();
         }
 
+        public override void _ExitTree()
+        {
+            DisconnectCells();
+        }
+
         public override void _Process(double delta)
         {
             if (Engine.IsEditorHint())
@@ -60,17 +65,12 @@ namespace Beep.ECS
             if (_grid == null || _cells == null)
                 return;
 
-            foreach (Godot.Collections.Dictionary cellData in _cells.GetCells())
+            // The typed view: GetCells marshals one Godot Dictionary per cell,
+            // which this draw used to pay every frame in the editor and on
+            // every runtime repaint.
+            foreach ((Vector2I cell, GridCellDataComponent.CellFlags flags) in _cells.EnumerateFlags())
             {
-                if (!cellData.ContainsKey("cell"))
-                    continue;
-
-                Vector2I cell = GridVariantReader.Vector2I(cellData, "cell", new Vector2I(int.MinValue, int.MinValue));
-                if (cell.X == int.MinValue || cell.Y == int.MinValue)
-                    continue;
-
-                int flags = GridVariantReader.Int(cellData, "flags", 0);
-                Color fill = ColorForFlags(flags);
+                Color fill = ColorForFlags((int)flags);
                 if (fill.A <= 0f && !DrawOutlines)
                     continue;
 
@@ -85,10 +85,9 @@ namespace Beep.ECS
                 return 0;
 
             int count = 0;
-            foreach (Godot.Collections.Dictionary cellData in _cells.GetCells())
+            foreach ((Vector2I _, GridCellDataComponent.CellFlags flags) in _cells.EnumerateFlags())
             {
-                int flags = GridVariantReader.Int(cellData, "flags", 0);
-                if (ColorForFlags(flags).A > 0f)
+                if (ColorForFlags((int)flags).A > 0f)
                     count++;
             }
             return count;
@@ -140,6 +139,43 @@ namespace Beep.ECS
                 _cells = !CellDataPath.IsEmpty
                     ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
+
+            ConnectCells();
         }
+
+        private GridCellDataComponent? _connectedCells;
+
+        /// <summary>
+        /// At runtime the overlay redraws when the CELLS say so. It used to
+        /// repaint only from the editor's per-frame loop, so tilled and watered
+        /// state drawn at startup silently went stale during play.
+        /// </summary>
+        private void ConnectCells()
+        {
+            if (Engine.IsEditorHint() || _cells == _connectedCells)
+                return;
+
+            DisconnectCells();
+            if (_cells != null)
+            {
+                _cells.CellChanged += OnCellChanged;
+                _cells.CellsChanged += OnCellsChanged;
+            }
+            _connectedCells = _cells;
+            QueueRedraw();
+        }
+
+        private void DisconnectCells()
+        {
+            if (_connectedCells != null && GodotObject.IsInstanceValid(_connectedCells))
+            {
+                _connectedCells.CellChanged -= OnCellChanged;
+                _connectedCells.CellsChanged -= OnCellsChanged;
+            }
+            _connectedCells = null;
+        }
+
+        private void OnCellChanged(int x, int y) => QueueRedraw();
+        private void OnCellsChanged() => QueueRedraw();
     }
 }

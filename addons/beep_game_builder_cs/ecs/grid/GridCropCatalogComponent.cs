@@ -42,6 +42,20 @@ namespace Beep.ECS
             return crop == null ? Mathf.Max(0, fallback) : crop.EffectiveDaysToMature;
         }
 
+        /// <summary>-1 means the crop does not regrow after harvest.</summary>
+        public int RegrowDays(string cropId)
+        {
+            GridCropDefinition? crop = FindCrop(cropId);
+            return crop == null ? -1 : crop.EffectiveRegrowDays;
+        }
+
+        /// <summary>Empty means planting the crop costs no seed item.</summary>
+        public string SeedItem(string cropId)
+        {
+            GridCropDefinition? crop = FindCrop(cropId);
+            return crop == null || string.IsNullOrWhiteSpace(crop.SeedItemId) ? "" : crop.SeedItemId.Trim();
+        }
+
         public string YieldItem(string cropId)
         {
             GridCropDefinition? crop = FindCrop(cropId);

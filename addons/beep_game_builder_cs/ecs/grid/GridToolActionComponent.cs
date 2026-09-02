@@ -28,6 +28,12 @@ namespace Beep.ECS
 
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
+        /// <summary>
+        /// Optional bridge to the terrain engine: when set, terrain kinds come
+        /// from the TerrainDataLayersComponent's generated map, with cell data
+        /// as the fallback where the layers have no tile. Explicit wire only.
+        /// </summary>
+        [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath SelectionPath { get; set; } = new("");
         [Export] public NodePath JobQueuePath { get; set; } = new("");
         [Export] public NodePath RoadPath { get; set; } = new("");
@@ -46,17 +52,12 @@ namespace Beep.ECS
         [Export] public bool ApplyToSelectionWhenPresent { get; set; } = true;
         [Export] public bool UseMouseInput { get; set; } = false;
         [Export] public bool AddHarvestYieldToWallet { get; set; } = true;
+        [Export] public bool ConsumeSeedsFromWallet { get; set; } = true;
         [Export] public bool UseNavigationBounds { get; set; } = true;
         [Export] public bool RejectNavigationBlockedCellsForJobs { get; set; } = false;
         [Export] public bool TreatBlockedTerrainKindsAsUnworkable { get; set; } = true;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
 
         private static readonly Vector2I InvalidCell = new(int.MinValue, int.MinValue);
@@ -69,6 +70,7 @@ namespace Beep.ECS
         private GridCropCatalogComponent? _cropCatalog;
         private GridCalendarComponent? _calendar;
         private GridResourceWalletComponent? _resourceWallet;
+        private TerrainDataLayersComponent? _dataLayers;
 
         public float EffectiveRoadCostMultiplier => Mathf.Clamp(float.IsFinite(RoadCostMultiplier) ? RoadCostMultiplier : 0.55f, 0.05f, 1f);
         public int EffectiveCropDaysToMature => Mathf.Max(0, CropDaysToMature);
@@ -133,7 +135,7 @@ namespace Beep.ECS
             int count = 0;
             foreach (Variant value in cells)
             {
-                if (!TryReadCell(value, out Vector2I cell))
+                if (!GridVariantReader.TryReadCell(value, out Vector2I cell))
                     continue;
 
                 if (ApplyToCell(cell, action))
@@ -221,9 +223,30 @@ namespace Beep.ECS
             if (_cropCatalog != null && _calendar != null && !_cropCatalog.CanPlant(cropId, _calendar.Season))
                 return Reject(ToolAction.Plant, cell, "wrong_season");
 
-            int daysToMature = _cropCatalog?.DaysToMature(cropId, EffectiveCropDaysToMature) ?? EffectiveCropDaysToMature;
-            if (!_cells.PlantCrop(cell, cropId, daysToMature))
+            if (!_cells.HasFlag(cell, GridCellDataComponent.CellFlags.Tilled))
                 return Reject(ToolAction.Plant, cell, "not_tilled_or_missing_crop");
+
+            // The seed cost is authored on the crop definition (SeedItemId);
+            // it is charged before the cell mutates so a failed spend leaves
+            // the field untouched. Without a wallet anywhere in the scene the
+            // spend is skipped - a farm demo with no economy still plants.
+            string seedId = ConsumeSeedsFromWallet ? _cropCatalog?.SeedItem(cropId) ?? "" : "";
+            if (!string.IsNullOrEmpty(seedId))
+            {
+                if (_resourceWallet == null && !ResourceWalletPath.IsEmpty)
+                    return Reject(ToolAction.Plant, cell, "missing_resource_wallet");
+                if (_resourceWallet != null && !_resourceWallet.TrySpendAmount(seedId, 1))
+                    return Reject(ToolAction.Plant, cell, "missing_seeds");
+            }
+
+            int daysToMature = _cropCatalog?.DaysToMature(cropId, EffectiveCropDaysToMature) ?? EffectiveCropDaysToMature;
+            int regrowDays = _cropCatalog?.RegrowDays(cropId) ?? -1;
+            if (!_cells.PlantCrop(cell, cropId, daysToMature, regrowDays))
+            {
+                if (!string.IsNullOrEmpty(seedId))
+                    _resourceWallet?.AddAmount(seedId, 1);
+                return Reject(ToolAction.Plant, cell, "not_tilled_or_missing_crop");
+            }
 
             return true;
         }
@@ -342,6 +365,20 @@ namespace Beep.ECS
                 _resourceWallet = !ResourceWalletPath.IsEmpty
                     ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
+
+            // Explicit wire only, never found scene-wide - see DataLayersPath.
+            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
+                _dataLayers = !DataLayersPath.IsEmpty
+                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
+                    : null;
+        }
+
+        private string TerrainKindAt(Vector2I cell)
+        {
+            string kind = _dataLayers is null ? "" : GridTerrainRules.Normalize(_dataLayers.TerrainAt(cell));
+            if (kind.Length == 0 && _cells is not null)
+                kind = GridTerrainRules.Normalize(_cells.GetTerrainKind(cell));
+            return kind;
         }
 
         private bool CanWorkTerrain(Vector2I cell)
@@ -349,31 +386,15 @@ namespace Beep.ECS
             if (_navigation != null && UseNavigationBounds && !_navigation.IsInBounds(cell))
                 return false;
 
-            if (_cells == null)
+            if (_cells == null && _dataLayers == null)
                 return true;
 
-            string terrainKind = NormalizeTerrainKind(_cells.GetTerrainKind(cell));
-            if (AllowedTerrainKinds.Count > 0)
-            {
-                bool allowed = false;
-                foreach (string allowedKind in AllowedTerrainKinds)
-                {
-                    if (NormalizeTerrainKind(allowedKind) == terrainKind)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
+            string terrainKind = TerrainKindAt(cell);
+            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
+                return false;
 
-                if (!allowed)
-                    return false;
-            }
-
-            if (TreatBlockedTerrainKindsAsUnworkable)
-            {
-                if (IsBlockedTerrainKind(terrainKind))
-                    return false;
-            }
+            if (TreatBlockedTerrainKindsAsUnworkable && IsBlockedTerrainKind(terrainKind))
+                return false;
 
             return true;
         }
@@ -392,84 +413,12 @@ namespace Beep.ECS
             return CanWorkTerrain(cell) ? null : "unworkable_terrain";
         }
 
-        private static bool TryReadCell(Variant value, out Vector2I cell)
-        {
-            cell = default;
-            if (value.VariantType == Variant.Type.Vector2I)
-            {
-                cell = value.AsVector2I();
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Vector2)
-            {
-                Vector2 point = value.AsVector2();
-                if (!float.IsFinite(point.X) || !float.IsFinite(point.Y))
-                    return false;
-
-                cell = new Vector2I(Mathf.RoundToInt(point.X), Mathf.RoundToInt(point.Y));
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Dictionary)
-            {
-                var data = value.AsGodotDictionary();
-                if (data.ContainsKey("cell"))
-                    return TryReadCell(data["cell"], out cell);
-
-                Variant x = ReadVariant(data, "x", "X");
-                Variant y = ReadVariant(data, "y", "Y");
-                if (TryReadInt(x, out int ix) && TryReadInt(y, out int iy))
-                {
-                    cell = new Vector2I(ix, iy);
-                    return cell.X != int.MinValue && cell.Y != int.MinValue;
-                }
-            }
-
-            return false;
-        }
-
-        private static Variant ReadVariant(Godot.Collections.Dictionary data, string lower, string upper)
-        {
-            if (data.ContainsKey(lower)) return data[lower];
-            if (data.ContainsKey(upper)) return data[upper];
-            return default;
-        }
-
-        private static bool TryReadInt(Variant value, out int result)
-        {
-            result = 0;
-            if (value.VariantType == Variant.Type.Int)
-            {
-                result = value.AsInt32();
-                return true;
-            }
-            if (value.VariantType == Variant.Type.Float)
-            {
-                double raw = value.AsDouble();
-                if (!double.IsFinite(raw))
-                    return false;
-                result = Mathf.RoundToInt((float)raw);
-                return true;
-            }
-            if (value.VariantType == Variant.Type.String)
-                return int.TryParse(value.AsString(), out result);
-            return false;
-        }
-
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
-
         private bool IsBlockedTerrainKind(string normalizedTerrainKind)
         {
             if (BlockedTerrainKinds.Count == 0)
-                return normalizedTerrainKind is "water" or "sea" or "ocean" or "deep_water" or "lava";
+                return normalizedTerrainKind is "water" or "sea" or "ocean" or "deep_water" or "shallow_water" or "lava";
 
-            foreach (string blockedKind in BlockedTerrainKinds)
-                if (NormalizeTerrainKind(blockedKind) == normalizedTerrainKind)
-                    return true;
-
-            return false;
+            return GridTerrainRules.MatchesAny(normalizedTerrainKind, BlockedTerrainKinds);
         }
     }
 }

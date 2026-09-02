@@ -1,4 +1,5 @@
 using Godot;
+using static Beep.ECS.GridDefinitionReader;
 
 namespace Beep.ECS
 {
@@ -86,89 +87,7 @@ namespace Beep.ECS
             return !string.IsNullOrWhiteSpace(definition.BuildId);
         }
 
-        private static string ReadString(Godot.Collections.Dictionary data, string pascal, string snake, string fallback)
-        {
-            Variant value = ReadVariant(data, pascal, snake);
-            return value.VariantType == Variant.Type.Nil ? fallback : value.AsString();
-        }
-
-        private static string ReadString(Resource resource, string pascal, string snake, string fallback)
-        {
-            Variant value = ReadVariant(resource, pascal, snake);
-            return value.VariantType == Variant.Type.Nil ? fallback : value.AsString();
-        }
-
-        private static bool ReadBool(Godot.Collections.Dictionary data, string pascal, string snake, bool fallback)
-        {
-            Variant value = ReadVariant(data, pascal, snake);
-            return GridVariantReader.Bool(value, fallback);
-        }
-
-        private static bool ReadBool(Resource resource, string pascal, string snake, bool fallback)
-        {
-            Variant value = ReadVariant(resource, pascal, snake);
-            return GridVariantReader.Bool(value, fallback);
-        }
-
-        private static float ReadFloat(Godot.Collections.Dictionary data, string pascal, string snake, float fallback)
-            => ReadFiniteFloat(ReadVariant(data, pascal, snake), fallback);
-
-        private static float ReadFloat(Resource resource, string pascal, string snake, float fallback)
-            => ReadFiniteFloat(ReadVariant(resource, pascal, snake), fallback);
-
-        private static float ReadFiniteFloat(Variant value, float fallback)
-        {
-            return GridVariantReader.Float(value, fallback);
-        }
-
-        private static Vector2I ReadVector2I(Godot.Collections.Dictionary data, string pascal, string snake, Vector2I fallback)
-            => ReadVector2I(ReadVariant(data, pascal, snake), fallback);
-
-        private static Vector2I ReadVector2I(Resource resource, string pascal, string snake, Vector2I fallback)
-            => ReadVector2I(ReadVariant(resource, pascal, snake), fallback);
-
-        private static Vector2I ReadVector2I(Variant value, Vector2I fallback)
-        {
-            return GridVariantReader.Vector2I(value, fallback);
-        }
-
-        private static T? ReadObject<T>(Godot.Collections.Dictionary data, string pascal, string snake) where T : GodotObject
-        {
-            Variant value = ReadVariant(data, pascal, snake);
-            return value.VariantType == Variant.Type.Object ? value.AsGodotObject() as T : null;
-        }
-
-        private static T? ReadObject<T>(Resource resource, string pascal, string snake) where T : GodotObject
-        {
-            Variant value = ReadVariant(resource, pascal, snake);
-            return value.VariantType == Variant.Type.Object ? value.AsGodotObject() as T : null;
-        }
-
-        private static Godot.Collections.Array ReadArray(Godot.Collections.Dictionary data, string pascal, string snake)
-        {
-            Variant value = ReadVariant(data, pascal, snake);
-            return value.VariantType == Variant.Type.Array ? value.AsGodotArray() : new Godot.Collections.Array();
-        }
-
-        private static Godot.Collections.Array ReadArray(Resource resource, string pascal, string snake)
-        {
-            Variant value = ReadVariant(resource, pascal, snake);
-            return value.VariantType == Variant.Type.Array ? value.AsGodotArray() : new Godot.Collections.Array();
-        }
-
-        private static Variant ReadVariant(Godot.Collections.Dictionary data, string pascal, string snake)
-        {
-            if (data.ContainsKey(pascal))
-                return data[pascal];
-            return data.ContainsKey(snake) ? data[snake] : default;
-        }
-
-        private static Variant ReadVariant(Resource resource, string pascal, string snake)
-        {
-            Variant value = resource.Get(pascal);
-            if (value.VariantType != Variant.Type.Nil)
-                return value;
-            return resource.Get(snake);
-        }
+        // Reading is delegated to GridDefinitionReader - the shared dual-key
+        // (PascalCase / snake_case) reader all definition resources use.
     }
 }

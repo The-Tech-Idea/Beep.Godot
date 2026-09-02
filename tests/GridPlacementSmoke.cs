@@ -4644,6 +4644,36 @@ public partial class GridPlacementSmoke : Node
         bool dictionaryCropOk = catalog.CanPlant("wildflower", GridCalendarComponent.GridSeason.Spring)
             && catalog.DaysToMature("wildflower", 99) == 0
             && catalog.YieldCount("wildflower") == 1;
+
+        // Seed costs and regrowth: an authored SeedItemId is charged on plant,
+        // and a regrow interval re-arms the crop on harvest instead of
+        // clearing it. Added after the seasonal lookups so the extra crop does
+        // not disturb their expected counts.
+        catalog.Crops.Add(new GridCropDefinition
+        {
+            CropId = "berry",
+            DisplayName = "Berry",
+            DaysToMature = 1,
+            RegrowDays = 2,
+            SeedItemId = "berry_seed",
+            YieldItemId = "berry",
+            YieldCount = 1,
+            Spring = true
+        });
+        tools.CropId = "berry";
+        cells.Till(new Vector2I(2, 2));
+        bool rejectedWithoutSeeds = !tools.ApplyToCell(new Vector2I(2, 2), GridToolActionComponent.ToolAction.Plant);
+        wallet.AddAmount("berry_seed", 1);
+        bool plantedWithSeed = tools.ApplyToCell(new Vector2I(2, 2), GridToolActionComponent.ToolAction.Plant)
+            && wallet.GetAmount("berry_seed") == 0;
+        cells.AdvanceDay();
+        bool regrowFirstHarvest = tools.ApplyToCell(new Vector2I(2, 2), GridToolActionComponent.ToolAction.Harvest)
+            && wallet.GetAmount("berry") == 1
+            && cells.GetCropId(new Vector2I(2, 2)) == "berry";
+        cells.AdvanceDay();
+        cells.AdvanceDay();
+        bool regrowSecondHarvest = tools.ApplyToCell(new Vector2I(2, 2), GridToolActionComponent.ToolAction.Harvest)
+            && wallet.GetAmount("berry") == 2;
         root.QueueFree();
 
         if (!Expect(rejectedWrongSeason, "GridCropCatalog did not reject a crop in the wrong season."))
@@ -4662,6 +4692,18 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(dictionaryCropOk, "GridCropCatalog did not read dictionary-authored crop definitions safely."))
+            return false;
+
+        if (!Expect(rejectedWithoutSeeds, "GridToolAction planted an authored seed crop with no seeds in the wallet."))
+            return false;
+
+        if (!Expect(plantedWithSeed, "GridToolAction did not spend the authored seed item when planting."))
+            return false;
+
+        if (!Expect(regrowFirstHarvest, "Harvesting a regrow crop did not pay yield and keep the crop planted."))
+            return false;
+
+        if (!Expect(regrowSecondHarvest, "A regrown crop did not mature again after its regrow interval."))
             return false;
 
         return true;

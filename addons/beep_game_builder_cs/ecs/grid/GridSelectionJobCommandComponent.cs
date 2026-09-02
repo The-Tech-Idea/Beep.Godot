@@ -28,14 +28,8 @@ namespace Beep.ECS
         [Export] public bool RejectNavigationBlockedCells { get; set; } = false;
         [Export] public bool TreatCellDataBlockedAsUnqueueable { get; set; } = false;
         [Export] public bool TreatBlockedTerrainKindsAsUnqueueable { get; set; } = true;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
 
         private GridSelectionComponent? _selection;
@@ -110,7 +104,7 @@ namespace Beep.ECS
 
             foreach (Variant value in cells)
             {
-                if (!TryReadCell(value, out Vector2I cell))
+                if (!GridVariantReader.TryReadCell(value, out Vector2I cell))
                     continue;
 
                 if (cell.X == int.MinValue || cell.Y == int.MinValue)
@@ -200,99 +194,15 @@ namespace Beep.ECS
                 && _cellData.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return "blocked_cell";
 
-            string terrainKind = NormalizeTerrainKind(_cellData.GetTerrainKind(cell));
-            if (AllowedTerrainKinds.Count > 0)
-            {
-                bool allowed = false;
-                foreach (string allowedKind in AllowedTerrainKinds)
-                {
-                    if (NormalizeTerrainKind(allowedKind) == terrainKind)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
+            string terrainKind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
+            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
+                return "unqueueable_terrain";
 
-                if (!allowed)
-                    return "unqueueable_terrain";
-            }
-
-            if (TreatBlockedTerrainKindsAsUnqueueable)
-            {
-                foreach (string blockedKind in BlockedTerrainKinds)
-                    if (NormalizeTerrainKind(blockedKind) == terrainKind)
-                        return "unqueueable_terrain";
-            }
+            if (TreatBlockedTerrainKindsAsUnqueueable
+                && GridTerrainRules.MatchesAny(terrainKind, BlockedTerrainKinds))
+                return "unqueueable_terrain";
 
             return null;
         }
-
-        private static bool TryReadCell(Variant value, out Vector2I cell)
-        {
-            cell = default;
-            if (value.VariantType == Variant.Type.Vector2I)
-            {
-                cell = value.AsVector2I();
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Vector2)
-            {
-                Vector2 point = value.AsVector2();
-                if (!float.IsFinite(point.X) || !float.IsFinite(point.Y))
-                    return false;
-
-                cell = new Vector2I(Mathf.RoundToInt(point.X), Mathf.RoundToInt(point.Y));
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Dictionary)
-            {
-                var data = value.AsGodotDictionary();
-                if (data.ContainsKey("cell"))
-                    return TryReadCell(data["cell"], out cell);
-
-                Variant x = ReadVariant(data, "x", "X");
-                Variant y = ReadVariant(data, "y", "Y");
-                if (TryReadInt(x, out int ix) && TryReadInt(y, out int iy))
-                {
-                    cell = new Vector2I(ix, iy);
-                    return cell.X != int.MinValue && cell.Y != int.MinValue;
-                }
-            }
-
-            return false;
-        }
-
-        private static Variant ReadVariant(Godot.Collections.Dictionary data, string lower, string upper)
-        {
-            if (data.ContainsKey(lower)) return data[lower];
-            if (data.ContainsKey(upper)) return data[upper];
-            return default;
-        }
-
-        private static bool TryReadInt(Variant value, out int result)
-        {
-            result = 0;
-            if (value.VariantType == Variant.Type.Int)
-            {
-                result = value.AsInt32();
-                return true;
-            }
-            if (value.VariantType == Variant.Type.Float)
-            {
-                double raw = value.AsDouble();
-                if (!double.IsFinite(raw))
-                    return false;
-                result = Mathf.RoundToInt((float)raw);
-                return true;
-            }
-            if (value.VariantType == Variant.Type.String)
-                return int.TryParse(value.AsString(), out result);
-            return false;
-        }
-
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
     }
 }

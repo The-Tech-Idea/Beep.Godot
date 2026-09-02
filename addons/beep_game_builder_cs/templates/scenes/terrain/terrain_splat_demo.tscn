@@ -3,13 +3,13 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world_builder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldStatusComponent.cs" id="world_status"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs" id="features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainReliefRendererComponent.cs" id="relief"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs" id="resources"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs" id="camera_controller"]
 
 [node name="TerrainSplatDemo" type="Node2D"]
 

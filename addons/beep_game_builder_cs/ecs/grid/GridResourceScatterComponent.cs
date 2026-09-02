@@ -50,14 +50,8 @@ namespace Beep.ECS
         [Export] public bool AvoidCellDataBlocked { get; set; } = true;
         [Export] public bool AvoidBlockedTerrainKinds { get; set; } = true;
         [Export] public bool MarkGeneratedCellsOccupied { get; set; } = false;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
         [Export] public int Seed { get; set; } = 12345;
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
@@ -260,13 +254,22 @@ namespace Beep.ECS
             resource.UseExplicitCell = true;
             resource.Cell = cell;
             resource.ResourceId = resourceId;
-            // The node reads its own rules from the catalog, so what a deposit is
-            // worth is answered in one place rather than copied here.
+            // ONE owner for what a deposit is worth. When the catalog defines
+            // this id, the node's own ApplyCatalogDefinition takes Amount,
+            // AmountPerGather, GatherSeconds and GatherJobKind from it on
+            // _Ready - so writing this component's Min/MaxAmount and gather
+            // exports onto the node first was values being accepted, stored,
+            // and silently overwritten one frame later. They are now written
+            // only for an id the catalog does not define, which is the case
+            // they were always the real answer for.
             resource.Catalog = Catalog;
-            resource.Amount = RandomAmount(cell, index);
-            resource.AmountPerGather = EffectiveAmountPerGather;
-            resource.GatherJobKind = EffectiveGatherJobKind;
-            resource.GatherSeconds = EffectiveGatherSeconds;
+            if (Catalog?.Find(resourceId) is null)
+            {
+                resource.Amount = RandomAmount(cell, index);
+                resource.AmountPerGather = EffectiveAmountPerGather;
+                resource.GatherJobKind = EffectiveGatherJobKind;
+                resource.GatherSeconds = EffectiveGatherSeconds;
+            }
             resource.GatherPriority = GatherPriority;
             resource.MarkCellOccupiedOnReady = MarkGeneratedCellsOccupied;
             return node;
@@ -354,29 +357,13 @@ namespace Beep.ECS
             if (AvoidCellDataBlocked && _cellData.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return false;
 
-            string terrainKind = NormalizeTerrainKind(_cellData.GetTerrainKind(cell));
-            if (AllowedTerrainKinds.Count > 0)
-            {
-                bool allowed = false;
-                foreach (string allowedKind in AllowedTerrainKinds)
-                {
-                    if (NormalizeTerrainKind(allowedKind) == terrainKind)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
+            string terrainKind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
+            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
+                return false;
 
-                if (!allowed)
-                    return false;
-            }
-
-            if (AvoidBlockedTerrainKinds)
-            {
-                foreach (string blockedKind in BlockedTerrainKinds)
-                    if (NormalizeTerrainKind(blockedKind) == terrainKind)
-                        return false;
-            }
+            if (AvoidBlockedTerrainKinds
+                && GridTerrainRules.MatchesAny(terrainKind, BlockedTerrainKinds))
+                return false;
 
             return true;
         }
@@ -388,7 +375,17 @@ namespace Beep.ECS
 
             _placement.SetOccupied(cell, true);
             if (ResourceFrom(node) is { } resource)
-                resource.Depleted += () => _placement?.SetOccupied(cell, false);
+            {
+                // Captured locally with a validity check: the deposit can
+                // outlive this scatter component's placement reference, and a
+                // freed node must not be called back into.
+                GridPlacementComponent placement = _placement;
+                resource.Depleted += () =>
+                {
+                    if (GodotObject.IsInstanceValid(placement))
+                        placement.SetOccupied(cell, false);
+                };
+            }
         }
 
         private Node? NodeFromPath(NodePath path)
@@ -419,8 +416,5 @@ namespace Beep.ECS
         private static GridResourceNodeComponent? ResourceFrom(Node node)
             => node as GridResourceNodeComponent
                 ?? EntityComponent.FindComponent<GridResourceNodeComponent>(node, recursive: true);
-
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
     }
 }

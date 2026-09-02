@@ -608,17 +608,6 @@ namespace Beep.ECS
             return source;
         }
 
-        private Color ScenarioTopTint(Color colour) => Scenario switch
-        {
-            ElevationScenario.Dune => Blend(colour, new Color(0.77f, 0.62f, 0.34f), 0.28f),
-            ElevationScenario.Canyon => Blend(colour, new Color(0.62f, 0.37f, 0.19f), 0.24f),
-            ElevationScenario.Snow => Blend(AdjustBrightness(colour, 0.20f), new Color(0.86f, 0.92f, 0.94f), 0.46f),
-            ElevationScenario.Volcano => Blend(AdjustBrightness(colour, -0.22f), new Color(0.16f, 0.13f, 0.11f), 0.38f),
-            ElevationScenario.Swamp => Blend(AdjustBrightness(colour, -0.08f), new Color(0.13f, 0.28f, 0.12f), 0.28f),
-            ElevationScenario.Mountain => AdjustSaturation(colour, 0.82f),
-            _ => colour
-        };
-
         private Color ScenarioGeneratedCliffColour(Color topColour) => Scenario switch
         {
             ElevationScenario.Dune => Blend(AdjustBrightness(topColour, -0.24f), new Color(0.60f, 0.47f, 0.28f), 0.46f),
@@ -890,8 +879,6 @@ namespace Beep.ECS
 
         private Color SampleDirectTexture(Image source, Vector2I sourceOrigin, Vector2I sourceSize, float u, float v, int salt, bool preferTopSurface)
         {
-            int width = source.GetWidth();
-            int height = source.GetHeight();
             Rect2I rect = SourceRectFor(source, sourceOrigin, sourceSize);
             float repeats = Mathf.Max(0.25f, TextureRepeatsPerTile);
             float su = Fract((u * repeats) + TerrainGeometry.Hash01(salt, 0, Seed + 2101) * 0.17f);
@@ -1044,9 +1031,6 @@ namespace Beep.ECS
             float t = Mathf.Clamp((value - edge0) / (edge1 - edge0), 0.0f, 1.0f);
             return Smooth(t);
         }
-
-        private static int Wrap(int value, int size)
-            => size <= 0 ? 0 : ((value % size) + size) % size;
 
         private static float Fract(float value)
             => value - Mathf.Floor(value);

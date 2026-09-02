@@ -1072,7 +1072,7 @@ foreach ($entry in @(
     @{ Path = "addons/beep_game_builder_cs/ecs/TopDownController.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
     @{ Path = "addons/beep_game_builder_cs/ecs/WallJumpComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
     @{ Path = "addons/beep_game_builder_cs/ecs/WindFieldComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| !IsActive \|\| _area == null \|\| !GodotObject\.IsInstanceValid\(_area\)' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/terrain/GridPathFollowerComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| !IsActive' }
+    @{ Path = "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| !IsActive' }
 )) {
     $source = Read $entry.Path
     if ($source -notmatch $entry.Pattern) {
@@ -1136,7 +1136,7 @@ $runtimeSmoke = Read "tests/runtime_smoke.ps1"
 if ($runtimeSmoke -notmatch 'SCRIPT ERROR\|ERROR:\|Exception\|C# backtrace') { Fail "runtime_smoke.ps1 does not scan Godot output for script/runtime errors." }
 $headlessSmoke = Read "tests/headless_runtime_smoke.gd"
 if ($headlessSmoke -notmatch 'GridPlacementSmoke\.cs') { Fail "headless runtime smoke does not run GridPlacementSmoke." }
-$gridVariantReader = Read "addons/beep_game_builder_cs/ecs/terrain/GridVariantReader.cs"
+$gridVariantReader = Read "addons/beep_game_builder_cs/ecs/grid/GridVariantReader.cs"
 foreach ($required in @(
     "TryDictionary(Variant value",
     "Array(Godot.Collections.Dictionary data, string key)",
@@ -1153,7 +1153,21 @@ foreach ($required in @(
         Fail "GridVariantReader must provide tolerant shared parsing for malformed grid authored/save data: $required."
     }
 }
-$gridProjection = Read "addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs"
+$gridDefinitionReader = Read "addons/beep_game_builder_cs/ecs/grid/GridDefinitionReader.cs"
+foreach ($required in @(
+    "ReadString(Godot.Collections.Dictionary data, string pascal, string snake, string fallback)",
+    "ReadString(Resource resource, string pascal, string snake, string fallback)",
+    "GridVariantReader.Int(ReadVariant(data, pascal, snake), fallback)",
+    "GridVariantReader.Float(ReadVariant(resource, pascal, snake), fallback)",
+    "GridVariantReader.Bool(ReadVariant(data, pascal, snake), fallback)",
+    "data.ContainsKey(snake)",
+    "resource.Get(snake)"
+)) {
+    if ($gridDefinitionReader -notmatch [regex]::Escape($required)) {
+        Fail "GridDefinitionReader must read dual pascal/snake keys from dictionaries and duck-typed Resources through GridVariantReader: $required."
+    }
+}
+$gridProjection = Read "addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs"
 if ($gridProjection -notmatch 'class\s+GridProjectionComponent' -or $gridProjection -notmatch 'CellToWorld' -or $gridProjection -notmatch 'WorldToCell' -or $gridProjection -notmatch 'CellCorners') {
     Fail "GridProjectionComponent is missing the expected reusable grid math surface."
 }
@@ -1162,8 +1176,8 @@ foreach ($required in @("EffectiveTileSize", "EffectiveOrigin", "float.IsFinite(
         Fail "GridProjectionComponent must bound invalid grid tile/origin values before map math uses them: $required."
     }
 }
-$gridObject = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectComponent.cs"
-if ($gridObject -notmatch 'class\s+GridObjectComponent' -or $gridObject -notmatch 'Configure' -or $gridObject -notmatch 'CaptureState' -or $gridObject -notmatch 'ApplyParentMetadata' -or $gridObject -notmatch 'EntityComponent') {
+$gridObject = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs"
+if ($gridObject -notmatch 'class\s+GridObjectComponent' -or $gridObject -notmatch 'Configure' -or $gridObject -notmatch 'CaptureState' -or $gridObject -notmatch 'ApplyParentMetadata' -or $gridObject -notmatch 'GameplayComponent') {
     Fail "GridObjectComponent is missing the expected inspectable grid object surface."
 }
 foreach ($required in @("ObjectKind", "Description", "EffectiveCategory", "PlacementPath", "NavigationPath", "ReserveFootprintOnReady", "ReservePlacementFootprint", "ReserveNavigationFootprint", "ReleaseReservedFootprintOnExit", "ReserveFootprint", "ReleaseFootprint", "FootprintCells", "grid_object_blocks_navigation", "grid_object_description")) {
@@ -1171,7 +1185,7 @@ foreach ($required in @("ObjectKind", "Description", "EffectiveCategory", "Place
         Fail "GridObjectComponent must optionally reserve authored object footprints in placement and navigation: $required."
     }
 }
-$gridObjectInspector = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectInspectorComponent.cs"
+$gridObjectInspector = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridObjectInspectorComponent.cs"
 if ($gridObjectInspector -notmatch 'class\s+GridObjectInspectorComponent' -or $gridObjectInspector -notmatch 'RebuildInspector' -or $gridObjectInspector -notmatch 'SelectedObject' -or $gridObjectInspector -notmatch 'GridSelectionComponent' -or $gridObjectInspector -notmatch 'GridObjectComponent') {
     Fail "GridObjectInspectorComponent is missing the expected selection-to-HUD inspection surface."
 }
@@ -1188,7 +1202,7 @@ foreach ($required in @("FindPanel", "FindTitleLabel", "FindDetailsLabel", 'Find
         Fail "GridObjectInspectorComponent must auto-bind conventional Panel/Title/Details controls before generated fallback: $required."
     }
 }
-$gridMinimap = Read "addons/beep_game_builder_cs/ecs/terrain/GridMinimapComponent.cs"
+$gridMinimap = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridMinimapComponent.cs"
 if ($gridMinimap -notmatch 'class\s+GridMinimapComponent' -or $gridMinimap -notmatch 'RebuildMinimap' -or $gridMinimap -notmatch 'CellToMinimap' -or $gridMinimap -notmatch 'GridRoadComponent' -or $gridMinimap -notmatch 'GridJobQueueComponent') {
     Fail "GridMinimapComponent is missing the expected grid overview HUD surface."
 }
@@ -1197,7 +1211,7 @@ foreach ($required in @("EffectiveBoundsSize", "EffectiveCameraZoom", "float.IsF
         Fail "GridMinimapComponent must bound invalid bounds, camera zoom, and layout values before drawing: $required."
     }
 }
-$gridNavigation = Read "addons/beep_game_builder_cs/ecs/terrain/GridNavigationComponent.cs"
+$gridNavigation = Read "addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs"
 if ($gridNavigation -notmatch 'class\s+GridNavigationComponent' -or $gridNavigation -notmatch 'FindCellPath' -or $gridNavigation -notmatch 'PriorityQueue' -or $gridNavigation -notmatch 'RoadPath' -or $gridNavigation -notmatch 'CellDataPath' -or $gridNavigation -notmatch 'TraversalCost') {
     Fail "GridNavigationComponent is missing the expected reusable A* pathfinding surface."
 }
@@ -1206,7 +1220,12 @@ foreach ($required in @("!GodotObject.IsInstanceValid(_placement)", "!GodotObjec
         Fail "GridNavigationComponent must integrate placement, roads, and cell terrain data: $required."
     }
 }
-$gridRoad = Read "addons/beep_game_builder_cs/ecs/terrain/GridRoadComponent.cs"
+foreach ($required in @("DataLayersPath", "DataLayers.TerrainAt(cell)")) {
+    if ($gridNavigation -notmatch [regex]::Escape($required)) {
+        Fail "GridNavigationComponent must optionally read terrain kinds from TerrainDataLayersComponent when DataLayersPath is wired: $required."
+    }
+}
+$gridRoad = Read "addons/beep_game_builder_cs/ecs/grid/GridRoadComponent.cs"
 if ($gridRoad -notmatch 'class\s+GridRoadComponent' -or $gridRoad -notmatch 'SetRoad' -or $gridRoad -notmatch 'TrySetRoad' -or $gridRoad -notmatch 'CanBuildRoad' -or $gridRoad -notmatch 'GetTraversalCostMultiplier' -or $gridRoad -notmatch 'CaptureState' -or $gridRoad -notmatch 'ISaveable') {
     Fail "GridRoadComponent is missing the expected reusable road/path surface."
 }
@@ -1215,7 +1234,7 @@ foreach ($required in @("EffectiveDefaultRoadCostMultiplier", "EffectiveRoadWidt
         Fail "GridRoadComponent must bound invalid road cost and draw tuning values: $required."
     }
 }
-$gridFollower = Read "addons/beep_game_builder_cs/ecs/terrain/GridPathFollowerComponent.cs"
+$gridFollower = Read "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs"
 if ($gridFollower -notmatch 'class\s+GridPathFollowerComponent' -or $gridFollower -notmatch 'MoveToCell' -or $gridFollower -notmatch 'AdvancePath') {
     Fail "GridPathFollowerComponent is missing the expected reusable grid movement surface."
 }
@@ -1234,18 +1253,18 @@ foreach ($required in @(
     "SetWorldPath(Godot.Collections.Array points)",
     "foreach (Variant value in cells)",
     "foreach (Variant value in points)",
-    "TryReadCell(Variant value",
-    "TryReadWorldPoint(Variant value"
+    "GridVariantReader.TryReadCell(value",
+    "GridVariantReader.TryReadWorldPoint(value"
 )) {
     if ($gridFollower -notmatch [regex]::Escape($required)) {
         Fail "GridPathFollowerComponent must accept loose authored/GDScript path arrays without typed-array casts: $required."
     }
 }
-$gridSelection = Read "addons/beep_game_builder_cs/ecs/terrain/GridSelectionComponent.cs"
+$gridSelection = Read "addons/beep_game_builder_cs/ecs/grid/GridSelectionComponent.cs"
 if ($gridSelection -notmatch 'class\s+GridSelectionComponent' -or $gridSelection -notmatch 'SelectCell' -or $gridSelection -notmatch 'FinishDrag' -or $gridSelection -notmatch 'CellsInRect') {
     Fail "GridSelectionComponent is missing the expected reusable grid selection surface."
 }
-$gridCamera = Read "addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs"
+$gridCamera = Read "addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs"
 if ($gridCamera -notmatch 'class\s+GridCameraControllerComponent' -or $gridCamera -notmatch 'FocusWorld' -or $gridCamera -notmatch 'ZoomAtWorldPoint' -or $gridCamera -notmatch 'ClampPosition') {
     Fail "GridCameraControllerComponent is missing the expected reusable map camera surface."
 }
@@ -1254,7 +1273,7 @@ foreach ($required in @("EffectivePanSpeed", "EffectiveZoomStep", "EffectivePosi
         Fail "GridCameraControllerComponent must bound invalid camera speed, zoom, smoothing, bounds, vectors, and frame deltas: $required."
     }
 }
-$gridJobQueue = Read "addons/beep_game_builder_cs/ecs/terrain/GridJobQueueComponent.cs"
+$gridJobQueue = Read "addons/beep_game_builder_cs/ecs/grid/GridJobQueueComponent.cs"
 if ($gridJobQueue -notmatch 'class\s+GridJobQueueComponent' -or $gridJobQueue -notmatch 'AddJob' -or $gridJobQueue -notmatch 'ClaimNextJob' -or $gridJobQueue -notmatch 'CompleteJob' -or $gridJobQueue -notmatch 'LoadJobs') {
     Fail "GridJobQueueComponent is missing the expected reusable cell-job queue surface."
 }
@@ -1271,7 +1290,7 @@ foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantRea
         Fail "GridJobQueueComponent must parse loose/malformed saved jobs through GridVariantReader: $required."
     }
 }
-$gridJobBoard = Read "addons/beep_game_builder_cs/ecs/terrain/GridJobBoardComponent.cs"
+$gridJobBoard = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridJobBoardComponent.cs"
 if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent' -or $gridJobBoard -notmatch 'RebuildBoard' -or $gridJobBoard -notmatch 'RefreshBoard' -or $gridJobBoard -notmatch 'CancelJob' -or $gridJobBoard -notmatch 'GridJobQueueComponent') {
     Fail "GridJobBoardComponent is missing the expected reusable job HUD surface."
 }
@@ -1283,7 +1302,7 @@ foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLab
         Fail "GridJobBoardComponent must auto-bind conventional design-time children before generated fallback: $required."
     }
 }
-$gridJobEffect = Read "addons/beep_game_builder_cs/ecs/terrain/GridJobEffectComponent.cs"
+$gridJobEffect = Read "addons/beep_game_builder_cs/ecs/grid/GridJobEffectComponent.cs"
 if ($gridJobEffect -notmatch 'class\s+GridJobEffectComponent' -or $gridJobEffect -notmatch 'ApplyJobEffect' -or $gridJobEffect -notmatch 'JobEffectApplied' -or $gridJobEffect -notmatch 'clear_land' -or $gridJobEffect -notmatch 'harvest' -or $gridJobEffect -notmatch 'ResourceNodesRootPath' -or $gridJobEffect -notmatch 'ApplyGather') {
     Fail "GridJobEffectComponent is missing the expected job-to-cell-effect surface."
 }
@@ -1292,7 +1311,7 @@ foreach ($required in @("_connectedQueue", "_resolvedJobQueuePath", "explicitQue
         Fail "GridJobEffectComponent must reconnect cleanly when the authored job queue changes: $required."
     }
 }
-$gridWorker = Read "addons/beep_game_builder_cs/ecs/terrain/GridWorkerComponent.cs"
+$gridWorker = Read "addons/beep_game_builder_cs/ecs/grid/GridWorkerComponent.cs"
 if ($gridWorker -notmatch 'class\s+GridWorkerComponent' -or $gridWorker -notmatch 'ClaimNextJob' -or $gridWorker -notmatch 'GridPathFollowerComponent' -or $gridWorker -notmatch 'CompleteCurrentJob') {
     Fail "GridWorkerComponent is missing the expected reusable worker/job execution surface."
 }
@@ -1322,7 +1341,7 @@ foreach ($required in @("VerifyPathFollowerBoundsInvalidTuning", "VerifyGridJobQ
         Fail "GridPlacementSmoke must cover invalid job, worker, and path tuning regression cases: $required."
     }
 }
-$gridWorkerStatusPanel = Read "addons/beep_game_builder_cs/ecs/terrain/GridWorkerStatusPanelComponent.cs"
+$gridWorkerStatusPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridWorkerStatusPanelComponent.cs"
 if ($gridWorkerStatusPanel -notmatch 'class\s+GridWorkerStatusPanelComponent' -or $gridWorkerStatusPanel -notmatch 'RebuildPanel' -or $gridWorkerStatusPanel -notmatch 'RefreshPanel' -or $gridWorkerStatusPanel -notmatch 'CancelWorkerJob' -or $gridWorkerStatusPanel -notmatch 'GridWorkerComponent') {
     Fail "GridWorkerStatusPanelComponent is missing the expected reusable worker status HUD surface."
 }
@@ -1334,7 +1353,7 @@ foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLab
         Fail "GridWorkerStatusPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
     }
 }
-$gridWorkerSpawner = Read "addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs"
+$gridWorkerSpawner = Read "addons/beep_game_builder_cs/ecs/grid/GridWorkerSpawnerComponent.cs"
 if ($gridWorkerSpawner -notmatch 'class\s+GridWorkerSpawnerComponent' -or $gridWorkerSpawner -notmatch 'SpawnWorker' -or $gridWorkerSpawner -notmatch 'UnitSpawned' -or $gridWorkerSpawner -notmatch 'GridPathFollowerComponent' -or $gridWorkerSpawner -notmatch 'GridWorkerComponent') {
     Fail "GridWorkerSpawnerComponent is missing the expected base-to-worker spawning surface."
 }
@@ -1353,7 +1372,7 @@ foreach ($required in @("CellDataPath", "PlacementPath", "CanSpawnAt", "SpawnBlo
         Fail "GridWorkerSpawnerComponent must validate spawn cells against terrain/cell data and placement occupancy: $required."
     }
 }
-$gridWorkerSpawnerPanel = Read "addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs"
+$gridWorkerSpawnerPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridWorkerSpawnerPanelComponent.cs"
 if ($gridWorkerSpawnerPanel -notmatch 'class\s+GridWorkerSpawnerPanelComponent' -or $gridWorkerSpawnerPanel -notmatch 'RequestSpawn' -or $gridWorkerSpawnerPanel -notmatch 'RefreshPanel' -or $gridWorkerSpawnerPanel -notmatch 'GridWorkerSpawnerComponent' -or $gridWorkerSpawnerPanel -notmatch 'TitleLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'CountLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'SpawnButtonPath' -or $gridWorkerSpawnerPanel -notmatch 'GenerateControlsWhenPathsEmpty') {
     Fail "GridWorkerSpawnerPanelComponent is missing the expected base spawn HUD surface."
 }
@@ -1365,7 +1384,7 @@ foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindCountLabel
         Fail "GridWorkerSpawnerPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
     }
 }
-$gridSelectionJobCommand = Read "addons/beep_game_builder_cs/ecs/terrain/GridSelectionJobCommandComponent.cs"
+$gridSelectionJobCommand = Read "addons/beep_game_builder_cs/ecs/grid/GridSelectionJobCommandComponent.cs"
 if ($gridSelectionJobCommand -notmatch 'class\s+GridSelectionJobCommandComponent' -or $gridSelectionJobCommand -notmatch 'QueueSelectedCells' -or $gridSelectionJobCommand -notmatch 'QueueRectangle' -or $gridSelectionJobCommand -notmatch 'GridJobQueueComponent') {
     Fail "GridSelectionJobCommandComponent is missing the expected selection-to-job command surface."
 }
@@ -1377,7 +1396,7 @@ foreach ($required in @("EffectiveWorkSeconds", "float.IsFinite(WorkSeconds)", "
 foreach ($required in @(
     "QueueCells(Godot.Collections.Array cells",
     "foreach (Variant value in cells)",
-    "TryReadCell(Variant value"
+    "GridVariantReader.TryReadCell(value"
 )) {
     if ($gridSelectionJobCommand -notmatch [regex]::Escape($required)) {
         Fail "GridSelectionJobCommandComponent must accept loose authored/GDScript cell arrays without typed-array casts: $required."
@@ -1388,7 +1407,7 @@ foreach ($required in @("CellDataPath", "NavigationPath", "CanQueueJobAt", "Queu
         Fail "GridSelectionJobCommandComponent must validate queued work against terrain/cell data and navigation bounds: $required."
     }
 }
-$gridCellData = Read "addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs"
+$gridCellData = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs"
 if ($gridCellData -notmatch 'class\s+GridCellDataComponent' -or $gridCellData -notmatch 'PlantCrop' -or $gridCellData -notmatch 'AdvanceDay' -or $gridCellData -notmatch 'HarvestReady' -or $gridCellData -notmatch 'LoadCells') {
     Fail "GridCellDataComponent is missing the expected Stardew-style cell state surface."
 }
@@ -1397,7 +1416,12 @@ foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantRea
         Fail "GridCellDataComponent must parse loose/malformed saved cells through GridVariantReader: $required."
     }
 }
-$gridToolAction = Read "addons/beep_game_builder_cs/ecs/terrain/GridToolActionComponent.cs"
+foreach ($required in @("int regrowDays = -1", "CropRegrowDays", "crop_regrow_days", "RemoveCrop")) {
+    if ($gridCellData -notmatch [regex]::Escape($required)) {
+        Fail "GridCellDataComponent must support regrowing crops (harvest re-arms the growth clock, interval survives saves, RemoveCrop uproots): $required."
+    }
+}
+$gridToolAction = Read "addons/beep_game_builder_cs/ecs/grid/GridToolActionComponent.cs"
 if ($gridToolAction -notmatch 'class\s+GridToolActionComponent' -or $gridToolAction -notmatch 'ToolAction' -or $gridToolAction -notmatch 'ApplyToCell' -or $gridToolAction -notmatch 'Plant' -or $gridToolAction -notmatch 'Harvest' -or $gridToolAction -notmatch 'QueueJob' -or $gridToolAction -notmatch 'RoadPath' -or $gridToolAction -notmatch 'RemoveRoad' -or $gridToolAction -notmatch 'GridRoadComponent' -or $gridToolAction -notmatch 'CropCatalogPath' -or $gridToolAction -notmatch 'CalendarPath' -or $gridToolAction -notmatch 'ResourceWalletPath' -or $gridToolAction -notmatch 'AddHarvestYieldToWallet') {
     Fail "GridToolActionComponent is missing the expected Stardew-style tool action surface."
 }
@@ -1409,7 +1433,7 @@ foreach ($required in @("EffectiveRoadCostMultiplier", "EffectiveCropDaysToMatur
 foreach ($required in @(
     "ApplyToCells(Godot.Collections.Array cells",
     "foreach (Variant value in cells)",
-    "TryReadCell(Variant value"
+    "GridVariantReader.TryReadCell(value"
 )) {
     if ($gridToolAction -notmatch [regex]::Escape($required)) {
         Fail "GridToolActionComponent must accept loose authored/GDScript cell arrays without typed-array casts: $required."
@@ -1420,7 +1444,12 @@ foreach ($required in @("NavigationPath", "UseNavigationBounds", "RejectNavigati
         Fail "GridToolActionComponent must reject direct tools/jobs on unworkable terrain and out-of-bounds cells: $required."
     }
 }
-$gridToolPalette = Read "addons/beep_game_builder_cs/ecs/terrain/GridToolPaletteComponent.cs"
+foreach ($required in @("ConsumeSeedsFromWallet", "missing_seeds", "TrySpendAmount(seedId, 1)", "RegrowDays(cropId)", "DataLayersPath")) {
+    if ($gridToolAction -notmatch [regex]::Escape($required)) {
+        Fail "GridToolActionComponent must charge authored seed costs on plant and pass crop regrowth through to cell data: $required."
+    }
+}
+$gridToolPalette = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridToolPaletteComponent.cs"
 if ($gridToolPalette -notmatch 'class\s+GridToolPaletteComponent' -or $gridToolPalette -notmatch 'SelectTool' -or $gridToolPalette -notmatch 'ApplySelectedTool' -or $gridToolPalette -notmatch 'VisibleToolButtonCount' -or $gridToolPalette -notmatch 'SelectedActionName' -or $gridToolPalette -notmatch 'ShowRoad' -or $gridToolPalette -notmatch 'ShowRemoveRoad' -or $gridToolPalette -notmatch 'InteractionModePath' -or $gridToolPalette -notmatch 'AutoSwitchInteractionMode' -or $gridToolPalette -notmatch 'BoundActionNames' -or $gridToolPalette -notmatch 'BoundButtonPaths' -or $gridToolPalette -notmatch 'GenerateControlsWhenPathsEmpty') {
     Fail "GridToolPaletteComponent is missing the expected reusable tool palette surface."
 }
@@ -1432,7 +1461,7 @@ foreach ($required in @("HasConventionalToolButtons", "FindToolButton", "BindToo
         Fail "GridToolPaletteComponent must auto-bind conventional Tool_* buttons before generated fallback: $required."
     }
 }
-$gridCropDefinition = Read "addons/beep_game_builder_cs/ecs/terrain/GridCropDefinition.cs"
+$gridCropDefinition = Read "addons/beep_game_builder_cs/ecs/grid/GridCropDefinition.cs"
 if ($gridCropDefinition -notmatch 'class\s+GridCropDefinition' -or $gridCropDefinition -notmatch 'DaysToMature' -or $gridCropDefinition -notmatch 'RegrowDays' -or $gridCropDefinition -notmatch 'CanPlantIn') {
     Fail "GridCropDefinition is missing the expected reusable crop data surface."
 }
@@ -1441,12 +1470,12 @@ if ($gridCropDefinition -notmatch 'EffectiveDaysToMature' -or
     $gridCropDefinition -notmatch 'TryRead\(Variant entry') {
     Fail "GridCropDefinition must expose bounded values and tolerant authored-data parsing."
 }
-foreach ($required in @("GridVariantReader.TryDictionary(entry", "GridVariantReader.Int(value, fallback)", "GridVariantReader.Bool(value, fallback)")) {
+foreach ($required in @("GridVariantReader.TryDictionary(entry", "using static Beep.ECS.GridDefinitionReader;", 'ReadInt(data, "DaysToMature", "days_to_mature"', 'ReadBool(resource, "Spring", "spring"')) {
     if ($gridCropDefinition -notmatch [regex]::Escape($required)) {
-        Fail "GridCropDefinition must parse loose/malformed authored data through GridVariantReader: $required."
+        Fail "GridCropDefinition must parse loose/malformed authored data through the shared GridDefinitionReader: $required."
     }
 }
-$gridCropCatalog = Read "addons/beep_game_builder_cs/ecs/terrain/GridCropCatalogComponent.cs"
+$gridCropCatalog = Read "addons/beep_game_builder_cs/ecs/grid/GridCropCatalogComponent.cs"
 if ($gridCropCatalog -notmatch 'class\s+GridCropCatalogComponent' -or $gridCropCatalog -notmatch 'FindCrop' -or $gridCropCatalog -notmatch 'CanPlant' -or $gridCropCatalog -notmatch 'CropIdsForSeason' -or $gridCropCatalog -notmatch 'YieldItem') {
     Fail "GridCropCatalogComponent is missing the expected seasonal crop lookup surface."
 }
@@ -1455,18 +1484,20 @@ if ($gridCropCatalog -match 'Array\s*<\s*GridCropDefinition\s*>' -or
     $gridCropCatalog -notmatch 'GridCropDefinition\.Enumerate\(Crops\)') {
     Fail "GridCropCatalogComponent must use untyped crop definitions to avoid managed cast failures."
 }
-$gridCellOverlay = Read "addons/beep_game_builder_cs/ecs/terrain/GridCellOverlayComponent.cs"
+$gridCellOverlay = Read "addons/beep_game_builder_cs/ecs/grid/GridCellOverlayComponent.cs"
 if ($gridCellOverlay -notmatch 'class\s+GridCellOverlayComponent' -or $gridCellOverlay -notmatch 'ColorForCell' -or $gridCellOverlay -notmatch 'VisibleCellCount' -or $gridCellOverlay -notmatch 'DrawColoredPolygon') {
     Fail "GridCellOverlayComponent is missing the expected reusable cell visual feedback surface."
 }
 if ($gridCellOverlay -notmatch 'EffectiveOutlineWidth' -or $gridCellOverlay -notmatch 'float\.IsFinite\(OutlineWidth\)') {
     Fail "GridCellOverlayComponent must bound invalid outline width before drawing."
 }
-if ($gridCellOverlay -notmatch 'GridVariantReader.Vector2I\(cellData, "cell"' -or
-    $gridCellOverlay -notmatch 'GridVariantReader.Int\(cellData, "flags"') {
-    Fail "GridCellOverlayComponent must read cell snapshots through GridVariantReader instead of direct Variant casts."
+# The overlay reads the typed EnumerateFlags view now - no Variant snapshot is
+# marshalled at all, which supersedes the old "go through GridVariantReader"
+# requirement this check used to enforce.
+if ($gridCellOverlay -notmatch 'EnumerateFlags\(\)') {
+    Fail "GridCellOverlayComponent must read cells through GridCellDataComponent.EnumerateFlags, not per-cell Variant snapshots."
 }
-$gridTileMapBridge = Read "addons/beep_game_builder_cs/ecs/terrain/GridTileMapLayerBridgeComponent.cs"
+$gridTileMapBridge = Read "addons/beep_game_builder_cs/ecs/grid/GridTileMapLayerBridgeComponent.cs"
 if ($gridTileMapBridge -notmatch 'class\s+GridTileMapLayerBridgeComponent' -or $gridTileMapBridge -notmatch 'TileMapLayerPath' -or $gridTileMapBridge -notmatch 'GridCellDataComponent' -or $gridTileMapBridge -notmatch 'GridRoadComponent' -or $gridTileMapBridge -notmatch 'AtlasForCell' -or $gridTileMapBridge -notmatch 'SetCell') {
     Fail "GridTileMapLayerBridgeComponent is missing the expected Godot TileMapLayer sync surface."
 }
@@ -1505,7 +1536,7 @@ $gridTerrainGenerator = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGen
 if ($gridTerrainGenerator -notmatch 'class\s+TerrainGeneratorComponent' -or
     $gridTerrainGenerator -notmatch 'GenerateTerrain' -or
     $gridTerrainGenerator -notmatch 'GridCellDataComponent' -or
-    $gridTerrainGenerator -notmatch 'LoadCells') {
+    $gridTerrainGenerator -notmatch 'LoadGeneratedCells|LoadCells') {
     Fail "TerrainGeneratorComponent must generate seeded terrain kinds into GridCellDataComponent."
 }
 # ONE field per settings, written in one pass. The failure this replaced was a
@@ -1514,6 +1545,12 @@ if ($gridTerrainGenerator -notmatch 'class\s+TerrainGeneratorComponent' -or
 foreach ($required in @("TerrainGenerationSettings settings = CurrentSettings()", "GeneratedTerrainField field = FieldFor(settings)", "field.TerrainAtCell(", "GetGenerationDiagnostics()", "ApplyMapSetup(")) {
     if ($gridTerrainGenerator -notmatch [regex]::Escape($required)) {
         Fail "TerrainGeneratorComponent must build one terrain field per settings and write it in a single pass: $required."
+    }
+}
+$terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
+foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart")) {
+    if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
+        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, and start-position data layers: $required."
     }
 }
 # One noise set per run, each channel on its own seed offset, so changing one
@@ -1567,7 +1604,7 @@ if ($terrainNoiseSet -notmatch 'internal sealed class TerrainNoiseSet' -or
     $terrainNoiseSet -notmatch 'FastNoiseLite Temperature') {
     Fail "TerrainNoiseSet must own every noise channel a generation run needs, rather than each stage allocating its own."
 }
-$gridCalendar = Read "addons/beep_game_builder_cs/ecs/terrain/GridCalendarComponent.cs"
+$gridCalendar = Read "addons/beep_game_builder_cs/ecs/grid/GridCalendarComponent.cs"
 if ($gridCalendar -notmatch 'class\s+GridCalendarComponent' -or $gridCalendar -notmatch 'AdvanceDay' -or $gridCalendar -notmatch 'GridSeason' -or $gridCalendar -notmatch 'CaptureState' -or $gridCalendar -notmatch 'GridCellDataComponent') {
     Fail "GridCalendarComponent is missing the expected Stardew-style calendar/crop advancement surface."
 }
@@ -1581,7 +1618,7 @@ foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantRea
         Fail "GridCalendarComponent must parse loose/malformed saved calendar state through GridVariantReader: $required."
     }
 }
-$gridCalendarHud = Read "addons/beep_game_builder_cs/ecs/terrain/GridCalendarHudComponent.cs"
+$gridCalendarHud = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridCalendarHudComponent.cs"
 if ($gridCalendarHud -notmatch 'class\s+GridCalendarHudComponent' -or $gridCalendarHud -notmatch 'RebuildHud' -or $gridCalendarHud -notmatch 'RefreshHud' -or $gridCalendarHud -notmatch 'RequestAdvanceDay' -or $gridCalendarHud -notmatch 'GridCalendarComponent') {
     Fail "GridCalendarHudComponent is missing the expected reusable calendar HUD surface."
 }
@@ -1593,7 +1630,7 @@ foreach ($required in @("HasAuthoredControls", "FindDateLabel", "FindDayProgress
         Fail "GridCalendarHudComponent must auto-bind conventional design-time children before generated fallback: $required."
     }
 }
-$gridWorldState = Read "addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs"
+$gridWorldState = Read "addons/beep_game_builder_cs/ecs/grid/GridWorldStateComponent.cs"
 if ($gridWorldState -notmatch 'class\s+GridWorldStateComponent' -or $gridWorldState -notmatch 'CaptureState' -or $gridWorldState -notmatch 'RestoreState' -or $gridWorldState -notmatch 'ISaveable' -or $gridWorldState -notmatch 'SaveableHelper\.Group' -or $gridWorldState -notmatch 'cell_data') {
     Fail "GridWorldStateComponent is missing the expected grid snapshot/save surface."
 }
@@ -1607,7 +1644,7 @@ foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantRea
         Fail "GridWorldStateComponent must restore loose/malformed saved arrays through GridVariantReader: $required."
     }
 }
-$gridPlacement = Read "addons/beep_game_builder_cs/ecs/terrain/GridPlacementComponent.cs"
+$gridPlacement = Read "addons/beep_game_builder_cs/ecs/grid/GridPlacementComponent.cs"
 if ($gridPlacement -notmatch 'bool\s+IsOccupied\(Vector2I cell\)') { Fail "GridPlacementComponent does not expose IsOccupied for navigation integration." }
 if ($gridPlacement -notmatch 'BeginPlacement\(GridBuildDefinition' -or $gridPlacement -notmatch 'ResourceWalletPath' -or $gridPlacement -notmatch 'MovePreviewToCell' -or $gridPlacement -notmatch 'ConfigurePlacedObject' -or $gridPlacement -notmatch 'GridObjectComponent' -or $gridPlacement -notmatch 'NavigationPath') {
     Fail "GridPlacementComponent is missing catalog-driven build placement support."
@@ -1617,11 +1654,11 @@ foreach ($required in @("!GodotObject.IsInstanceValid(_grid)", "!GodotObject.IsI
         Fail "GridPlacementComponent must refresh cached references safely without clobbering valid nodes: $required."
     }
 }
-$gridInteractionMode = Read "addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeComponent.cs"
+$gridInteractionMode = Read "addons/beep_game_builder_cs/ecs/grid/GridInteractionModeComponent.cs"
 if ($gridInteractionMode -notmatch 'class\s+GridInteractionModeComponent' -or $gridInteractionMode -notmatch 'InteractionMode' -or $gridInteractionMode -notmatch 'HandlePrimaryCell' -or $gridInteractionMode -notmatch 'ApplyToolAtCell' -or $gridInteractionMode -notmatch 'ConfirmBuildAtCell' -or $gridInteractionMode -notmatch 'ManageChildMouseInput') {
     Fail "GridInteractionModeComponent is missing the expected map input coordination surface."
 }
-$gridInteractionModeBar = Read "addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeBarComponent.cs"
+$gridInteractionModeBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionModeBarComponent.cs"
 if ($gridInteractionModeBar -notmatch 'class\s+GridInteractionModeBarComponent' -or $gridInteractionModeBar -notmatch 'RebuildBar' -or $gridInteractionModeBar -notmatch 'SelectMode' -or $gridInteractionModeBar -notmatch 'VisibleModeButtonCount' -or $gridInteractionModeBar -notmatch 'GridInteractionModeComponent') {
     Fail "GridInteractionModeBarComponent is missing the expected mode-switching HUD surface."
 }
@@ -1633,7 +1670,7 @@ foreach ($required in @("HasConventionalModeButtons", "FindModeButton", "BindMod
         Fail "GridInteractionModeBarComponent must auto-bind conventional Mode_* buttons before generated fallback: $required."
     }
 }
-$gridInteractionStatus = Read "addons/beep_game_builder_cs/ecs/terrain/GridInteractionStatusComponent.cs"
+$gridInteractionStatus = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionStatusComponent.cs"
 if ($gridInteractionStatus -notmatch 'class\s+GridInteractionStatusComponent' -or $gridInteractionStatus -notmatch 'RebuildStatus' -or $gridInteractionStatus -notmatch 'StatusText' -or $gridInteractionStatus -notmatch 'LastFeedback' -or $gridInteractionStatus -notmatch 'GridInteractionModeComponent') {
     Fail "GridInteractionStatusComponent is missing the expected interaction status HUD surface."
 }
@@ -1645,23 +1682,23 @@ foreach ($required in @("FindStatusLabel", 'FindChild\("Status"')) {
         Fail "GridInteractionStatusComponent must auto-bind a conventional design-time Status label before generated fallback: $required."
     }
 }
-$gridInteractionCursor = Read "addons/beep_game_builder_cs/ecs/terrain/GridInteractionCursorComponent.cs"
+$gridInteractionCursor = Read "addons/beep_game_builder_cs/ecs/grid/GridInteractionCursorComponent.cs"
 if ($gridInteractionCursor -notmatch 'class\s+GridInteractionCursorComponent' -or $gridInteractionCursor -notmatch 'CurrentCell' -or $gridInteractionCursor -notmatch 'CurrentOutlineColor' -or $gridInteractionCursor -notmatch 'CellCorners' -or $gridInteractionCursor -notmatch 'BuildInvalidColor') {
     Fail "GridInteractionCursorComponent is missing the expected interaction cursor drawing surface."
 }
-$gridResourceAmount = Read "addons/beep_game_builder_cs/ecs/terrain/GridResourceAmount.cs"
+$gridResourceAmount = Read "addons/beep_game_builder_cs/ecs/grid/GridResourceAmount.cs"
 if ($gridResourceAmount -notmatch 'class\s+GridResourceAmount' -or $gridResourceAmount -notmatch 'ResourceId' -or $gridResourceAmount -notmatch 'Amount') {
     Fail "GridResourceAmount is missing the expected reusable resource amount surface."
 }
 if ($gridResourceAmount -notmatch '\[Tool\]' -or $gridResourceAmount -notmatch '\[GlobalClass\]') {
     Fail "GridResourceAmount must be a Tool GlobalClass so editor-authored build costs do not deserialize as plain Resource."
 }
-foreach ($required in @("Enumerate(Godot.Collections.Array amounts)", "TryRead(Variant entry", "Variant.Type.Dictionary", "ResourceString", "ResourceInt", "GridVariantReader.TryDictionary(entry", "GridVariantReader.Int(value, 0)")) {
+foreach ($required in @("Enumerate(Godot.Collections.Array amounts)", "TryRead(Variant entry", "Variant.Type.Dictionary", "GridVariantReader.TryDictionary(entry", 'GridDefinitionReader.ReadString(dictionary, "ResourceId", "resource_id"', 'GridDefinitionReader.ReadInt(resource, "Amount", "amount"')) {
     if ($gridResourceAmount -notmatch [regex]::Escape($required)) {
         Fail "GridResourceAmount must parse typed resources, dictionaries, and plain Resource-like entries without forcing typed-array casts: $required."
     }
 }
-$gridResourceWallet = Read "addons/beep_game_builder_cs/ecs/terrain/GridResourceWalletComponent.cs"
+$gridResourceWallet = Read "addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs"
 if ($gridResourceWallet -notmatch 'class\s+GridResourceWalletComponent' -or $gridResourceWallet -notmatch 'CanAfford' -or $gridResourceWallet -notmatch 'Spend' -or $gridResourceWallet -notmatch 'Refund' -or $gridResourceWallet -notmatch 'CaptureState') {
     Fail "GridResourceWalletComponent is missing the expected saveable settlement resource surface."
 }
@@ -1675,6 +1712,11 @@ if ($gridResourceWallet -match '(CanAfford|Spend|Refund)\s*\(\s*Godot\.Collectio
     $gridResourceWallet -match 'foreach\s*\(\s*GridResourceAmount') {
     Fail "GridResourceWalletComponent affordability/spend/refund must use untyped arrays plus GridResourceAmount parsing to avoid managed cast failures."
 }
+foreach ($required in @("TrySpendAmount(string resourceId, int amount)", "EmitSignal(SignalName.ResourceSpendRejected, id, required, available)")) {
+    if ($gridResourceWallet -notmatch [regex]::Escape($required)) {
+        Fail "GridResourceWalletComponent must offer a single-resource spend that keeps the ResourceSpendRejected contract: $required."
+    }
+}
 foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(value, 0)")) {
     if ($gridResourceWallet -notmatch [regex]::Escape($required)) {
         Fail "GridResourceWalletComponent must parse loose/malformed saved wallet state through GridVariantReader: $required."
@@ -1684,7 +1726,7 @@ $gridWorldTemplate = Read "addons/beep_game_builder_cs/templates/scenes/grid_wor
 if ($gridWorldTemplate -notmatch 'StartingResourceAmounts\s*=\s*\{' -or $gridWorldTemplate -match 'InitialAmounts' -or $gridWorldTemplate -match 'GridResourceAmount') {
     Fail "grid_world_2d_iso.tscn must author wallet starting balances as a primitive dictionary, not GridResourceAmount subresources."
 }
-$gridResourceNode = Read "addons/beep_game_builder_cs/ecs/terrain/GridResourceNodeComponent.cs"
+$gridResourceNode = Read "addons/beep_game_builder_cs/ecs/grid/GridResourceNodeComponent.cs"
 if ($gridResourceNode -notmatch 'class\s+GridResourceNodeComponent' -or $gridResourceNode -notmatch 'QueueGatherJob' -or $gridResourceNode -notmatch 'Gather' -or $gridResourceNode -notmatch 'ResourceWalletPath' -or $gridResourceNode -notmatch 'PlacementPath' -or $gridResourceNode -notmatch 'GatherJobKind') {
     Fail "GridResourceNodeComponent is missing the expected gatherable map resource surface."
 }
@@ -1701,13 +1743,13 @@ foreach ($required in @("GridVariantReader.Vector2I(state, `"cell`"", "GridVaria
         Fail "GridResourceNodeComponent must parse loose/malformed saved node state through GridVariantReader: $required."
     }
 }
-$gridJobEffect = Read "addons/beep_game_builder_cs/ecs/terrain/GridJobEffectComponent.cs"
+$gridJobEffect = Read "addons/beep_game_builder_cs/ecs/grid/GridJobEffectComponent.cs"
 if ($gridJobEffect -notmatch 'resource\.GatherForJob\(jobId\)' -or
     $gridJobEffect -notmatch 'ClearLandGathersResourceNode' -or
     $gridJobEffect -notmatch 'resource\.GatherAllForJob\(jobId\)') {
     Fail "GridJobEffectComponent must tell resource nodes which gather/clear job completed."
 }
-$gridResourceScatter = Read "addons/beep_game_builder_cs/ecs/terrain/GridResourceScatterComponent.cs"
+$gridResourceScatter = Read "addons/beep_game_builder_cs/ecs/grid/GridResourceScatterComponent.cs"
 if ($gridResourceScatter -notmatch 'class\s+GridResourceScatterComponent' -or $gridResourceScatter -notmatch 'RebuildScatter' -or $gridResourceScatter -notmatch 'PreviewCells' -or $gridResourceScatter -notmatch 'AvoidOccupiedCells' -or $gridResourceScatter -notmatch 'CellDataPath' -or $gridResourceScatter -notmatch 'GridResourceNodeComponent') {
     Fail "GridResourceScatterComponent is missing the expected seeded resource population surface."
 }
@@ -1716,7 +1758,7 @@ foreach ($required in @("EffectiveBoundsSize", "EffectiveDensity", "EffectiveMax
         Fail "GridResourceScatterComponent must bound invalid scatter tuning before generating resource nodes: $required."
     }
 }
-$gridProductionRecipe = Read "addons/beep_game_builder_cs/ecs/terrain/GridProductionRecipe.cs"
+$gridProductionRecipe = Read "addons/beep_game_builder_cs/ecs/grid/GridProductionRecipe.cs"
 if ($gridProductionRecipe -notmatch 'class\s+GridProductionRecipe' -or $gridProductionRecipe -notmatch 'RecipeId' -or $gridProductionRecipe -notmatch 'Inputs' -or $gridProductionRecipe -notmatch 'Outputs' -or $gridProductionRecipe -notmatch 'DurationSeconds') {
     Fail "GridProductionRecipe is missing the expected reusable production recipe surface."
 }
@@ -1727,10 +1769,11 @@ if ($gridProductionRecipe -notmatch '\[Tool\]' -or
     Fail "GridProductionRecipe must be a Tool GlobalClass and expose untyped Inputs/Outputs parsed through GridResourceAmount."
 }
 if ($gridProductionRecipe -notmatch [regex]::Escape('GridVariantReader.TryDictionary(entry') -or
-    $gridProductionRecipe -notmatch [regex]::Escape('GridVariantReader.Float(value, fallback)')) {
-    Fail "GridProductionRecipe must parse loose/malformed authored recipe data through GridVariantReader."
+    $gridProductionRecipe -notmatch [regex]::Escape('using static Beep.ECS.GridDefinitionReader;') -or
+    $gridProductionRecipe -notmatch [regex]::Escape('ReadFloat(data, "DurationSeconds", "duration_seconds"')) {
+    Fail "GridProductionRecipe must parse loose/malformed authored recipe data through the shared GridDefinitionReader."
 }
-$gridProduction = Read "addons/beep_game_builder_cs/ecs/terrain/GridProductionComponent.cs"
+$gridProduction = Read "addons/beep_game_builder_cs/ecs/grid/GridProductionComponent.cs"
 if ($gridProduction -notmatch 'class\s+GridProductionComponent' -or $gridProduction -notmatch 'StartProduction' -or $gridProduction -notmatch 'CompleteProduction' -or $gridProduction -notmatch 'ProductionCompleted' -or $gridProduction -notmatch 'GridResourceWalletComponent') {
     Fail "GridProductionComponent is missing the expected reusable production building surface."
 }
@@ -1749,7 +1792,7 @@ foreach ($required in @("EffectiveRemainingSeconds", "DeltaSeconds(double delta)
         Fail "GridProductionComponent must ignore invalid frame deltas and keep remaining production time finite: $required."
     }
 }
-$gridProductionPanel = Read "addons/beep_game_builder_cs/ecs/terrain/GridProductionPanelComponent.cs"
+$gridProductionPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridProductionPanelComponent.cs"
 if ($gridProductionPanel -notmatch 'class\s+GridProductionPanelComponent' -or $gridProductionPanel -notmatch 'RebuildPanel' -or $gridProductionPanel -notmatch 'StartMachine' -or $gridProductionPanel -notmatch 'PauseMachine' -or $gridProductionPanel -notmatch 'GridProductionComponent') {
     Fail "GridProductionPanelComponent is missing the expected reusable production HUD surface."
 }
@@ -1761,16 +1804,16 @@ foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLab
         Fail "GridProductionPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
     }
 }
-$gridObjectiveDefinition = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectiveDefinition.cs"
+$gridObjectiveDefinition = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectiveDefinition.cs"
 if ($gridObjectiveDefinition -notmatch 'class\s+GridObjectiveDefinition' -or $gridObjectiveDefinition -notmatch 'ObjectiveId' -or $gridObjectiveDefinition -notmatch 'TargetCount' -or $gridObjectiveDefinition -notmatch 'ActiveOnStart') {
     Fail "GridObjectiveDefinition is missing the expected reusable objective data surface."
 }
-foreach ($required in @("GridVariantReader.TryDictionary(entry", "GridVariantReader.Int(value, fallback)", "GridVariantReader.Bool(value, fallback)")) {
+foreach ($required in @("GridVariantReader.TryDictionary(entry", "using static Beep.ECS.GridDefinitionReader;", 'ReadInt(data, "TargetCount", "target_count"', 'ReadBool(resource, "ActiveOnStart", "active_on_start"')) {
     if ($gridObjectiveDefinition -notmatch [regex]::Escape($required)) {
-        Fail "GridObjectiveDefinition must parse loose/malformed authored objective data through GridVariantReader: $required."
+        Fail "GridObjectiveDefinition must parse loose/malformed authored objective data through the shared GridDefinitionReader: $required."
     }
 }
-$gridObjectiveTracker = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectiveTrackerComponent.cs"
+$gridObjectiveTracker = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectiveTrackerComponent.cs"
 if ($gridObjectiveTracker -notmatch 'class\s+GridObjectiveTrackerComponent' -or $gridObjectiveTracker -notmatch 'AddProgress' -or $gridObjectiveTracker -notmatch 'CompleteObjective' -or $gridObjectiveTracker -notmatch 'CaptureState' -or $gridObjectiveTracker -notmatch 'ISaveable') {
     Fail "GridObjectiveTrackerComponent is missing the expected objective tracking/save surface."
 }
@@ -1785,7 +1828,7 @@ foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantRea
         Fail "GridObjectiveTrackerComponent must parse loose/malformed saved objective state through GridVariantReader: $required."
     }
 }
-$gridObjectivePanel = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectivePanelComponent.cs"
+$gridObjectivePanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridObjectivePanelComponent.cs"
 if ($gridObjectivePanel -notmatch 'class\s+GridObjectivePanelComponent' -or $gridObjectivePanel -notmatch 'RebuildPanel' -or $gridObjectivePanel -notmatch 'TextForObjective' -or $gridObjectivePanel -notmatch 'GridObjectiveTrackerComponent') {
     Fail "GridObjectivePanelComponent is missing the expected reusable objective HUD surface."
 }
@@ -1811,7 +1854,7 @@ foreach ($entry in $parentAwareTerrainFinders.GetEnumerator()) {
         Fail "$($entry.Key) conventional control lookup must search parent/sibling authored controls, not only component children."
     }
 }
-$gridObjectiveEventBinder = Read "addons/beep_game_builder_cs/ecs/terrain/GridObjectiveEventBinderComponent.cs"
+$gridObjectiveEventBinder = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectiveEventBinderComponent.cs"
 if ($gridObjectiveEventBinder -notmatch 'class\s+GridObjectiveEventBinderComponent' -or $gridObjectiveEventBinder -notmatch 'ConnectSystems' -or $gridObjectiveEventBinder -notmatch 'ObjectiveIdForJob' -or $gridObjectiveEventBinder -notmatch 'ObjectiveIdForBuild' -or $gridObjectiveEventBinder -notmatch 'ObjectiveIdForResource' -or $gridObjectiveEventBinder -notmatch 'ObjectiveIdForProduction') {
     Fail "GridObjectiveEventBinderComponent is missing the expected gameplay-to-objective event bridge."
 }
@@ -1822,7 +1865,7 @@ if ($gridObjectiveEventBinder -notmatch 'PruneInvalidTrackedNodes' -or
     $gridObjectiveEventBinder -notmatch '_productionNodes\.RemoveWhere') {
     Fail "GridObjectiveEventBinderComponent must recover cleanly when connected gameplay nodes are freed or replaced."
 }
-$gridResourceBar = Read "addons/beep_game_builder_cs/ecs/terrain/GridResourceBarComponent.cs"
+$gridResourceBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridResourceBarComponent.cs"
 if ($gridResourceBar -notmatch 'class\s+GridResourceBarComponent' -or $gridResourceBar -notmatch 'RebuildBar' -or $gridResourceBar -notmatch 'VisibleResourceCount' -or $gridResourceBar -notmatch 'TextForResource' -or $gridResourceBar -notmatch 'BoundResourceIds' -or $gridResourceBar -notmatch 'BoundLabelPaths') {
     Fail "GridResourceBarComponent is missing the expected reusable resource HUD surface."
 }
@@ -1834,7 +1877,7 @@ foreach ($required in @("FindResourceRow", "FindResourceLabel", 'FindChild\("Res
         Fail "GridResourceBarComponent must auto-bind conventional ResourceBar/Resource_* controls before generated fallback: $required."
     }
 }
-$gridBuildDefinition = Read "addons/beep_game_builder_cs/ecs/terrain/GridBuildDefinition.cs"
+$gridBuildDefinition = Read "addons/beep_game_builder_cs/ecs/grid/GridBuildDefinition.cs"
 if ($gridBuildDefinition -notmatch 'class\s+GridBuildDefinition' -or $gridBuildDefinition -notmatch 'BuildId' -or $gridBuildDefinition -notmatch 'Footprint' -or $gridBuildDefinition -notmatch 'Costs' -or $gridBuildDefinition -notmatch 'BlocksNavigation') {
     Fail "GridBuildDefinition is missing the expected reusable placeable build data surface."
 }
@@ -1845,7 +1888,7 @@ if ($gridBuildDefinition -notmatch '\[Tool\]' -or
     $gridBuildDefinition -notmatch 'EffectiveBuildSeconds') {
     Fail "GridBuildDefinition must be a Tool GlobalClass and expose untyped Costs so scene-authored costs cannot crash on managed casts."
 }
-$gridBuildCatalog = Read "addons/beep_game_builder_cs/ecs/terrain/GridBuildCatalogComponent.cs"
+$gridBuildCatalog = Read "addons/beep_game_builder_cs/ecs/grid/GridBuildCatalogComponent.cs"
 if ($gridBuildCatalog -notmatch 'class\s+GridBuildCatalogComponent' -or $gridBuildCatalog -notmatch 'FindBuild' -or $gridBuildCatalog -notmatch 'BeginPlacement' -or $gridBuildCatalog -notmatch 'BuildIdsForCategory' -or $gridBuildCatalog -notmatch 'CostSummary') {
     Fail "GridBuildCatalogComponent is missing the expected build menu/catalog surface."
 }
@@ -1855,7 +1898,7 @@ if ($gridBuildCatalog -match 'foreach\s*\(\s*GridResourceAmount' -or
     $gridBuildCatalog -notmatch 'GridBuildDefinition\.Enumerate\(Builds\)') {
     Fail "GridBuildCatalogComponent must summarize costs through GridResourceAmount.Enumerate instead of typed foreach casts."
 }
-$gridBuildToolbar = Read "addons/beep_game_builder_cs/ecs/terrain/GridBuildToolbarComponent.cs"
+$gridBuildToolbar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridBuildToolbarComponent.cs"
 if ($gridBuildToolbar -notmatch 'class\s+GridBuildToolbarComponent' -or $gridBuildToolbar -notmatch 'RebuildToolbar' -or $gridBuildToolbar -notmatch 'SelectBuild' -or $gridBuildToolbar -notmatch 'SelectCategory' -or $gridBuildToolbar -notmatch 'VisibleBuildButtonCount' -or $gridBuildToolbar -notmatch 'InteractionModePath' -or $gridBuildToolbar -notmatch 'AutoSwitchInteractionMode') {
     Fail "GridBuildToolbarComponent is missing the expected reusable build toolbar surface."
 }
@@ -1873,7 +1916,7 @@ foreach ($required in @("FindCategoryRow", "FindBuildGrid", 'Name = "Categories"
         Fail "GridBuildToolbarComponent must auto-bind conventional Categories/Builds controls before generated fallback: $required."
     }
 }
-$gridBuildSite = Read "addons/beep_game_builder_cs/ecs/terrain/GridBuildSiteComponent.cs"
+$gridBuildSite = Read "addons/beep_game_builder_cs/ecs/grid/GridBuildSiteComponent.cs"
 if ($gridBuildSite -notmatch 'class\s+GridBuildSiteComponent' -or $gridBuildSite -notmatch 'RegisterPlacedBuild' -or $gridBuildSite -notmatch 'BuildSiteCreated' -or $gridBuildSite -notmatch 'BuildSiteCompleted' -or $gridBuildSite -notmatch 'JobCompleted') {
     Fail "GridBuildSiteComponent is missing the expected blueprint/build-job lifecycle surface."
 }
@@ -2120,6 +2163,11 @@ foreach ($required in @(
 )) {
     if ($gridGuide -notmatch $required) { Fail "2D_ISO_TOOLKIT.md is missing $required." }
 }
+foreach ($required in @("Who owns which spatial fact", "MarkPlacedCellsBlockedInNavigation", "SetFootprintNavigationBlocked", "TreatPlacementOccupiedAsBlocked")) {
+    if ($gridGuide -notmatch [regex]::Escape($required)) {
+        Fail "2D_ISO_TOOLKIT.md must document the occupancy-ownership matrix (who owns blocked/occupied facts and how placement links them to navigation): $required."
+    }
+}
 $gridHelpHtml = Read "docs/2d-iso-toolkit.html"
 if ($gridHelpHtml -notmatch 'Beep 2D And Isometric Toolkit' -or
     $gridHelpHtml -notmatch 'GridSelectionComponent' -or
@@ -2354,8 +2402,8 @@ if ($gridWorldExample -match 'StartingResources\s*=|resource_amount|SubResource\
 # The showcase's behaviour is a data-driven component now, not a controller script
 # sitting beside the scene: a switch over button names, with screen coordinates as
 # literals in its cases, became a board of task definitions.
-$dispatchBoard = Read "addons/beep_game_builder_cs/ecs/terrain/GridDispatchBoardComponent.cs"
-$dispatchTask = Read "addons/beep_game_builder_cs/ecs/terrain/GridDispatchTaskDefinition.cs"
+$dispatchBoard = Read "addons/beep_game_builder_cs/ecs/grid/GridDispatchBoardComponent.cs"
+$dispatchTask = Read "addons/beep_game_builder_cs/ecs/grid/GridDispatchTaskDefinition.cs"
 if ($dispatchBoard -notmatch 'class\s+GridDispatchBoardComponent' -or
     $dispatchBoard -notmatch 'Array<GridDispatchTaskDefinition> Tasks') {
     Fail "GridDispatchBoardComponent must carry the showcase's dispatch tasks as data rather than as cases in a switch."
@@ -2768,18 +2816,18 @@ foreach ($relativePath in @(
     "addons/beep_game_builder_cs/ecs/ui/WeatherForecastUI.cs",
     "addons/beep_game_builder_cs/ecs/ui/WeatherHUDComponent.cs",
     "addons/beep_game_builder_cs/ecs/ui/hud/GenreHudComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridBuildToolbarComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridCalendarHudComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeBarComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridInteractionStatusComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridJobBoardComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridObjectivePanelComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridObjectInspectorComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridProductionPanelComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridResourceBarComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridToolPaletteComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs",
-    "addons/beep_game_builder_cs/ecs/terrain/GridWorkerStatusPanelComponent.cs"
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridBuildToolbarComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridCalendarHudComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionModeBarComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionStatusComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridJobBoardComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridObjectivePanelComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridObjectInspectorComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridProductionPanelComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridResourceBarComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridToolPaletteComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridWorkerSpawnerPanelComponent.cs",
+    "addons/beep_game_builder_cs/ecs/grid/ui/GridWorkerStatusPanelComponent.cs"
 )) {
     $source = Read $relativePath
     if ($source -match '(Add|Remove)Theme(Stylebox|Icon|Color|FontSize|Constant|Font)Override\s*\(') {

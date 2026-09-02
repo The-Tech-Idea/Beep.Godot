@@ -247,21 +247,29 @@ namespace Beep.ECS
 
         private void Resolve()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = GeneratorPath.IsEmpty ? null : GetNodeOrNull<TerrainGeneratorComponent>(GeneratorPath);
-
-            _painted ??= GetNodeOrNull<TerrainPaintedRendererComponent>(PaintedRendererPath);
-            _paintedNode ??= GetNodeOrNull<Node2D>(PaintedRendererPath);
-            _tiles ??= GetNodeOrNull<TerrainTileRendererComponent>(TileRendererPath);
-            _iso ??= GetNodeOrNull<TerrainIsometricRendererComponent>(IsometricRendererPath);
-            _isometricAutotile ??= GetNodeOrNull<TerrainIsometricAutotileRendererComponent>(IsometricAutotileRendererPath);
-            _features ??= GetNodeOrNull<TerrainFeatureRendererComponent>(FeaturesPath);
-            _isometricFeatures ??= GetNodeOrNull<TerrainIsometricFeatureRendererComponent>(IsometricFeaturesPath);
-            _overlay ??= GetNodeOrNull<TerrainMapOverlayComponent>(MapOverlayPath);
-            _relief ??= GetNodeOrNull<TerrainReliefRendererComponent>(ReliefRendererPath);
-            _resources ??= GetNodeOrNull<TerrainResourceRendererComponent>(ResourceRendererPath);
-            _dataLayers ??= GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath);
-            _overlayNode ??= GetNodeOrNull<Node2D>(MapOverlayPath);
+            // Every cached reference gets the same IsInstanceValid re-check the
+            // generator always had. `??=` alone kept a freed or replaced
+            // renderer node as a stale reference forever - the exact staleness
+            // bug each individual renderer's own ResolveGenerator was fixed for.
+            _generator = Refresh(_generator, GeneratorPath);
+            _painted = Refresh(_painted, PaintedRendererPath);
+            _paintedNode = Refresh(_paintedNode, PaintedRendererPath);
+            _tiles = Refresh(_tiles, TileRendererPath);
+            _iso = Refresh(_iso, IsometricRendererPath);
+            _isometricAutotile = Refresh(_isometricAutotile, IsometricAutotileRendererPath);
+            _features = Refresh(_features, FeaturesPath);
+            _isometricFeatures = Refresh(_isometricFeatures, IsometricFeaturesPath);
+            _overlay = Refresh(_overlay, MapOverlayPath);
+            _relief = Refresh(_relief, ReliefRendererPath);
+            _resources = Refresh(_resources, ResourceRendererPath);
+            _dataLayers = Refresh(_dataLayers, DataLayersPath);
+            _overlayNode = Refresh(_overlayNode, MapOverlayPath);
         }
+
+        /// <summary>The cached node if it is still alive, else a fresh resolve.</summary>
+        private T? Refresh<T>(T? cached, NodePath path) where T : Node
+            => cached is not null && GodotObject.IsInstanceValid(cached)
+                ? cached
+                : path.IsEmpty ? null : GetNodeOrNull<T>(path);
     }
 }

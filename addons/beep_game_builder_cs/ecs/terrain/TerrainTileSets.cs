@@ -48,6 +48,12 @@ namespace Beep.ECS
 
             /// <summary>Whether a unit can ordinarily enter. Water and rock cannot.</summary>
             public const string Passable = "passable";
+
+            /// <summary>Landmass index the cell belongs to. 0 is water/no continent; land counts from 1.</summary>
+            public const string Continent = "continent";
+
+            /// <summary>True on a generator-recommended player start cell.</summary>
+            public const string StartPosition = "start_position";
         }
 
         private static readonly (string Name, Variant.Type Type)[] Layers =
@@ -58,6 +64,8 @@ namespace Beep.ECS
             (Cell.Relief, Variant.Type.Int),
             (Cell.IsWater, Variant.Type.Bool),
             (Cell.Passable, Variant.Type.Bool),
+            (Cell.Continent, Variant.Type.Int),
+            (Cell.StartPosition, Variant.Type.Bool),
         };
 
         /// <summary>
@@ -119,7 +127,11 @@ namespace Beep.ECS
             data.SetCustomData(Cell.Feature, feature ?? string.Empty);
             data.SetCustomData(Cell.Relief, TerrainLayers.LevelForKind(kind));
             data.SetCustomData(Cell.IsWater, water);
-            data.SetCustomData(Cell.Passable, !water && kind != "rock");
+            // Passability follows GroundOf, so the flag and the physics layer a
+            // cell's body lands on can never disagree - the hand-written
+            // `kind != "rock"` version said lava was walkable while its body
+            // said Steep.
+            data.SetCustomData(Cell.Passable, GroundOf(kind) == Ground.Land);
         }
 
         /// <summary>
@@ -138,6 +150,27 @@ namespace Beep.ECS
                 return;
 
             data.SetCustomData(Cell.Relief, relief);
+        }
+
+        /// <summary>
+        /// Writes the continent id onto a tile that stands for one landmass -
+        /// the dedicated continent layer's tiles, one per id the map has.
+        /// </summary>
+        public static void DescribeContinent(TileData? data, int continent)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.Continent, continent);
+        }
+
+        /// <summary>Marks a tile as standing on a recommended start cell.</summary>
+        public static void DescribeStart(TileData? data)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.StartPosition, true);
         }
 
         public static bool IsWaterKind(string terrainKind)
@@ -219,7 +252,7 @@ namespace Beep.ECS
         /// <summary>Which ground a terrain kind is, and so which layers it uses.</summary>
         public static Ground GroundOf(string terrainKind)
             => IsWaterKind(terrainKind) ? Ground.Water
-                : terrainKind == "rock" ? Ground.Steep
+                : terrainKind is "rock" or "lava" ? Ground.Steep
                 : Ground.Land;
 
         /// <summary>
@@ -268,6 +301,11 @@ namespace Beep.ECS
         {
             "deep_water", "shallow_water", "grass", "dry_grass", "desert", "sand",
             "tundra", "snow", "ice", "jungle", "swamp", "mud", "gravel", "rock",
+            // Appended, never inserted: a kind's position is its tile index in a
+            // saved TileSet. The Lava preset produced this kind while nothing
+            // listed it, so a lava map fell back to grass in the painted view
+            // and was skipped entirely by the block view.
+            "lava",
         };
 
         /// <summary>

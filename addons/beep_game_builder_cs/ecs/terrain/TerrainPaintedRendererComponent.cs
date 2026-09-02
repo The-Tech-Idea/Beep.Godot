@@ -45,6 +45,10 @@ namespace Beep.ECS
 			["mud"] = 8,
 			["gravel"] = 9,
 			["rock"] = 10,
+			// The splat shader has no lava material slot; rock is the honest
+			// stand-in until one exists. Unmapped, lava fell through to id 0
+			// and a lava field painted as grass.
+			["lava"] = 10,
 			["shallow_water"] = 11,
 			["deep_water"] = 12,
 		};

@@ -1,6 +1,6 @@
 extends SceneTree
 
-const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
+const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs")
 const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const SCATTER_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs")
 
@@ -49,7 +49,9 @@ func _run() -> void:
 	scatter.set("RockCoverage", 0.35)
 	scatter.set("AllowShallowWaterProps", false)
 	scatter.set("GrassPrimaryPath", "res://addons/beep_game_builder_cs/textures/plants/grasses01.png")
-	scatter.set("GrassSecondaryPath", "C:/Users/f_ald/source/repos/The-Tech-Idea/Art/Plants/plantpack/isometric tiles/bush01.png")
+	# Bundled asset, like every other palette entry: the probe once pointed at
+	# an absolute path outside the repo and failed on any machine without it.
+	scatter.set("GrassSecondaryPath", "res://addons/beep_game_builder_cs/textures/plants/weed01.png")
 	scatter.set("DesertPrimaryPath", "res://addons/beep_game_builder_cs/textures/plants/cactus01.png")
 	scatter.set("DesertAccentPath", "res://addons/beep_game_builder_cs/textures/rocks/rock1.png")
 	scatter.set("RockPrimaryPath", "res://addons/beep_game_builder_cs/textures/rocks/rock2.png")

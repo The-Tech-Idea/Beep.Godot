@@ -153,6 +153,10 @@ namespace Beep.ECS
                         TextureFilter = TextureFilterEnum.LinearWithMipmaps,
                     };
                     AddChild(stamp);
+                    // Adopted, or a GenerateInEditor map's props silently
+                    // vanish on the next scene reload - the exact failure
+                    // TerrainAuthoring exists to stop.
+                    TerrainAuthoring.Adopt(stamp, this);
                     placedTiles.Add(tilePosition);
                     placed++;
                 }
@@ -219,10 +223,16 @@ namespace Beep.ECS
 
         private void RemoveGeneratedStamps()
         {
+            // RemoveChild before QueueFree: a queued-free stamp is still in the
+            // tree until end of frame, so the same-named stamp the rebuild is
+            // about to add would collide and get auto-renamed by Godot.
             foreach (Node child in GetChildren())
             {
-                if (child.Name.ToString().StartsWith("GeneratedTerrainStamp_", StringComparison.Ordinal))
-                    child.QueueFree();
+                if (!child.Name.ToString().StartsWith("GeneratedTerrainStamp_", StringComparison.Ordinal))
+                    continue;
+
+                RemoveChild(child);
+                child.QueueFree();
             }
         }
 

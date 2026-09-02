@@ -1,6 +1,6 @@
 extends SceneTree
 
-const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
+const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs")
 const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const SIZE := Vector2i(48, 30)
 

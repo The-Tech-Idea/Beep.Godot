@@ -62,8 +62,20 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (ShowProgress)
-                RefreshHud();
+            // The only thing that changes continuously is the day-progress
+            // fill, and only while the calendar advances on real time. Date
+            // changes arrive through the calendar's signals; running the full
+            // RefreshHud (labels, button wiring) every frame was waste.
+            if (!ShowProgress || _progress == null)
+                return;
+
+            if (_calendar == null || !GodotObject.IsInstanceValid(_calendar))
+                return;
+
+            if (!_calendar.AutoAdvance && !Engine.IsEditorHint())
+                return;
+
+            _progress.Value = Mathf.RoundToInt(_calendar.DayProgress * 100f);
         }
 
         public override string[] _GetConfigurationWarnings()

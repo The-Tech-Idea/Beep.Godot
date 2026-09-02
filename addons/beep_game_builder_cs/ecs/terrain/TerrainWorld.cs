@@ -132,7 +132,6 @@ namespace Beep.ECS
         /// <summary>Relief per gameplay tile.</summary>
         public TerrainRelief[] CellRelief { get; }
 
-        /// <summary>Averaged hillshade per gameplay tile.</summary>
         /// <summary>
         /// Land height per tile, 0 to 1, reduced from the sample grid.
         ///
@@ -144,6 +143,7 @@ namespace Beep.ECS
         /// </summary>
         public float[] CellElevation { get; }
 
+        /// <summary>Averaged hillshade per gameplay tile.</summary>
         public float[] CellShade { get; }
 
         /// <summary>Landmass id per gameplay tile; 0 is water.</summary>

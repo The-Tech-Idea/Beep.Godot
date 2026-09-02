@@ -20,6 +20,13 @@ namespace Beep.ECS
         [Export] public bool BuildInEditor { get; set; } = true;
         [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoRefresh { get; set; } = true;
+
+        /// <summary>
+        /// How often AutoRefresh repaints. Objective changes arrive through the
+        /// tracker's signals anyway; this timer is only the safety net, so it
+        /// runs slow rather than every frame.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.05,5,0.05")] public float RefreshIntervalSeconds { get; set; } = 0.5f;
         [Export] public bool HideCompleted { get; set; } = false;
         [Export(PropertyHint.Range, "1,24,1")] public int MaxVisibleObjectives { get; set; } = 6;
         [Export] public string TitleText { get; set; } = "Objectives";
@@ -49,9 +56,18 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (AutoRefresh || Engine.IsEditorHint())
-                RefreshPanel();
+            if (!AutoRefresh && !Engine.IsEditorHint())
+                return;
+
+            _refreshAccumulator += (float)delta;
+            if (_refreshAccumulator < Mathf.Max(0.05f, RefreshIntervalSeconds))
+                return;
+
+            _refreshAccumulator = 0f;
+            RefreshPanel();
         }
+
+        private float _refreshAccumulator;
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -138,10 +154,6 @@ namespace Beep.ECS
             if (_title != null)
                 _title.Text = TitleText;
 
-            foreach (Node child in _rows.GetChildren())
-                child.QueueFree();
-            _rowLabels.Clear();
-
             List<GridObjectiveDefinition> objectives = VisibleObjectives();
             int completed = 0;
             foreach (GridObjectiveDefinition objective in objectives)
@@ -150,27 +162,55 @@ namespace Beep.ECS
 
             _summary.Text = $"Goals {objectives.Count} | Done {completed}";
 
+            // Rows updated IN PLACE; added or removed only when the goal set
+            // changes. Recreating every Label per refresh was pure node churn.
+            var seen = new HashSet<string>();
             int shown = 0;
             foreach (GridObjectiveDefinition objective in objectives)
             {
-                string id = objective.NormalizedId();
-                var row = new Label
-                {
-                    Name = $"Objective_{SafeName(id)}",
-                    Text = TextForObjective(objective),
-                    TooltipText = string.IsNullOrWhiteSpace(objective.Description) ? objective.DisplayName : objective.Description,
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    CustomMinimumSize = new Vector2(0, 22)
-                };
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForObjective(objective));
-                _rows.AddChild(row);
-                SetEditedOwner(row);
-                _rowLabels[id] = row;
-
-                shown++;
                 if (shown >= MaxVisibleObjectives)
                     break;
+
+                string id = objective.NormalizedId();
+                if (!seen.Add(id))
+                    continue;
+
+                if (!_rowLabels.TryGetValue(id, out Label? row) || !GodotObject.IsInstanceValid(row))
+                {
+                    row = new Label
+                    {
+                        Name = $"Objective_{SafeName(id)}",
+                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                        CustomMinimumSize = new Vector2(0, 22)
+                    };
+                    _rows.AddChild(row);
+                    SetEditedOwner(row);
+                    _rowLabels[id] = row;
+                }
+
+                row.Text = TextForObjective(objective);
+                row.TooltipText = string.IsNullOrWhiteSpace(objective.Description) ? objective.DisplayName : objective.Description;
+                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForObjective(objective));
+                // Reused rows still follow the tracker's listed order.
+                _rows.MoveChild(row, shown);
+                shown++;
             }
+
+            var stale = new List<string>();
+            foreach ((string id, Label row) in _rowLabels)
+            {
+                if (seen.Contains(id))
+                    continue;
+
+                if (GodotObject.IsInstanceValid(row))
+                {
+                    _rows.RemoveChild(row);
+                    row.QueueFree();
+                }
+                stale.Add(id);
+            }
+            foreach (string id in stale)
+                _rowLabels.Remove(id);
         }
 
         public string SummaryText()

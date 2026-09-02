@@ -30,6 +30,12 @@ namespace Beep.ECS
         [Export] public NodePath PlacementRootPath { get; set; } = new("");
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
+        /// <summary>
+        /// Optional bridge to the terrain engine: when set, terrain kinds come
+        /// from the TerrainDataLayersComponent's generated map, with cell data
+        /// as the fallback where the layers have no tile. Explicit wire only.
+        /// </summary>
+        [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath NavigationPath { get; set; } = new("");
         [Export] public PackedScene? PlacementScene { get; set; }
         [Export] public Texture2D? PreviewTexture { get; set; }
@@ -42,14 +48,8 @@ namespace Beep.ECS
         [Export] public bool MarkPlacedCellsBlockedInNavigation { get; set; } = true;
         [Export] public bool TreatCellDataBlockedAsUnplaceable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnplaceable { get; set; } = true;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
         [Export] public bool SetZIndexFromY { get; set; } = true;
         [Export] public int ZIndexOffset { get; set; } = 0;
@@ -67,6 +67,7 @@ namespace Beep.ECS
         private Node? _placementRoot;
         private GridResourceWalletComponent? _resourceWallet;
         private GridCellDataComponent? _cellData;
+        private TerrainDataLayersComponent? _dataLayers;
         private GridNavigationComponent? _navigation;
         private Node2D? _preview;
         private PackedScene? _activeScene;
@@ -353,40 +354,39 @@ namespace Beep.ECS
                 _navigation = !NavigationPath.IsEmpty
                     ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
+
+            // Explicit wire only, never found scene-wide - see DataLayersPath.
+            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
+                _dataLayers = !DataLayersPath.IsEmpty
+                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
+                    : null;
+        }
+
+        private string TerrainKindAt(Vector2I cell)
+        {
+            string kind = _dataLayers is null ? "" : GridTerrainRules.Normalize(_dataLayers.TerrainAt(cell));
+            if (kind.Length == 0 && _cellData is not null)
+                kind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
+            return kind;
         }
 
         private bool CanPlaceOnCellData(Vector2I cell)
         {
-            if (_cellData == null)
+            if (_cellData == null && _dataLayers == null)
                 return true;
 
             if (TreatCellDataBlockedAsUnplaceable
+                && _cellData != null
                 && _cellData.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return false;
 
-            string terrainKind = NormalizeTerrainKind(_cellData.GetTerrainKind(cell));
-            if (AllowedTerrainKinds.Count > 0)
-            {
-                bool allowed = false;
-                foreach (string allowedKind in AllowedTerrainKinds)
-                {
-                    if (NormalizeTerrainKind(allowedKind) == terrainKind)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
+            string terrainKind = TerrainKindAt(cell);
+            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
+                return false;
 
-                if (!allowed)
-                    return false;
-            }
-
-            if (TreatBlockedTerrainKindsAsUnplaceable)
-            {
-                foreach (string blockedKind in BlockedTerrainKinds)
-                    if (NormalizeTerrainKind(blockedKind) == terrainKind)
-                        return false;
-            }
+            if (TreatBlockedTerrainKindsAsUnplaceable
+                && GridTerrainRules.MatchesAny(terrainKind, BlockedTerrainKinds))
+                return false;
 
             return true;
         }
@@ -515,8 +515,5 @@ namespace Beep.ECS
                 : zIndex > (int)RenderingServer.CanvasItemZMax
                     ? (int)RenderingServer.CanvasItemZMax
                     : zIndex;
-
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
     }
 }

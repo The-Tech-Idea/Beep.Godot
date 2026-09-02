@@ -24,14 +24,8 @@ namespace Beep.ECS
         [Export] public string DefaultRoadKind { get; set; } = "dirt_path";
         [Export] public bool TreatCellDataBlockedAsUnroadable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnroadable { get; set; } = true;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export(PropertyHint.Range, "0.05,1,0.01")] public float DefaultRoadCostMultiplier { get; set; } = 0.55f;
         [Export] public bool DrawRoads { get; set; } = true;
         [Export] public Color RoadColor { get; set; } = new(0.58f, 0.43f, 0.25f, 0.7f);
@@ -116,6 +110,7 @@ namespace Beep.ECS
 
             float multiplier = costMultiplier > 0f && float.IsFinite(costMultiplier) ? costMultiplier : EffectiveDefaultRoadCostMultiplier;
             _roads[cell] = new RoadRecord(roadKind, Mathf.Clamp(multiplier, 0.05f, 1f));
+            _minimumCostDirty = true;
             EmitSignal(SignalName.RoadChanged, cell.X, cell.Y, roadKind, true);
             QueueRedraw();
             return true;
@@ -134,12 +129,8 @@ namespace Beep.ECS
             if (!TreatBlockedTerrainKindsAsUnroadable)
                 return true;
 
-            string terrainKind = NormalizeTerrainKind(_cells.GetTerrainKind(cell));
-            foreach (string blockedKind in BlockedTerrainKinds)
-                if (NormalizeTerrainKind(blockedKind) == terrainKind)
-                    return false;
-
-            return true;
+            return !GridTerrainRules.MatchesAny(
+                GridTerrainRules.Normalize(_cells.GetTerrainKind(cell)), BlockedTerrainKinds);
         }
 
         public void ClearRoad(Vector2I cell)
@@ -147,6 +138,7 @@ namespace Beep.ECS
             if (!_roads.Remove(cell))
                 return;
 
+            _minimumCostDirty = true;
             EmitSignal(SignalName.RoadChanged, cell.X, cell.Y, "", false);
             QueueRedraw();
         }
@@ -157,6 +149,7 @@ namespace Beep.ECS
                 return;
 
             _roads.Clear();
+            _minimumCostDirty = true;
             EmitSignal(SignalName.RoadsChanged);
             QueueRedraw();
         }
@@ -171,16 +164,30 @@ namespace Beep.ECS
 
         public int RoadCount => _roads.Count;
 
+        /// <summary>
+        /// Cached and recomputed only when the road set changes: navigation
+        /// reads this inside its A* heuristic, once per visited cell, and
+        /// walking every road there made pathfinding cost scale with the road
+        /// network instead of the search.
+        /// </summary>
         public float MinimumCostMultiplier
         {
             get
             {
-                float min = 1f;
-                foreach (RoadRecord road in _roads.Values)
-                    min = Mathf.Min(min, road.CostMultiplier);
-                return Mathf.Clamp(min, 0.05f, 1f);
+                if (_minimumCostDirty)
+                {
+                    float min = 1f;
+                    foreach (RoadRecord road in _roads.Values)
+                        min = Mathf.Min(min, road.CostMultiplier);
+                    _minimumCostCache = Mathf.Clamp(min, 0.05f, 1f);
+                    _minimumCostDirty = false;
+                }
+                return _minimumCostCache;
             }
         }
+
+        private float _minimumCostCache = 1f;
+        private bool _minimumCostDirty = true;
 
         public Godot.Collections.Array<Vector2I> GetRoadCells()
         {
@@ -219,6 +226,7 @@ namespace Beep.ECS
 
         public void LoadRoads(Godot.Collections.Array roads, bool clearExisting = true)
         {
+            _minimumCostDirty = true;
             bool changed = false;
             if (clearExisting)
             {
@@ -327,9 +335,6 @@ namespace Beep.ECS
         {
             EmitSignal(SignalName.RoadRejected, cell.X, cell.Y, kind, reason);
         }
-
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
 
         private sealed record RoadRecord(string Kind, float CostMultiplier);
     }

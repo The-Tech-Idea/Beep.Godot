@@ -137,12 +137,11 @@ namespace Beep.ECS
             if (_title != null)
                 _title.Text = TitleText;
 
-            foreach (Node child in _jobRows.GetChildren())
-                child.QueueFree();
-            _rowLabels.Clear();
-
             if (_queue == null)
             {
+                foreach (Node child in _jobRows.GetChildren())
+                    child.QueueFree();
+                _rowLabels.Clear();
                 _summary.Text = "Job queue missing";
                 Visible = !HideWhenEmpty;
                 return;
@@ -151,30 +150,57 @@ namespace Beep.ECS
             _summary.Text = SummaryText();
             Visible = !HideWhenEmpty || _queue.QueuedCount + _queue.ClaimedCount + _queue.CompletedCount > 0;
 
+            // Rows updated IN PLACE; added or removed only when the job set
+            // changes. QueueChanged fires on every claim and completion, so
+            // recreating every Label per refresh was constant node churn.
+            var seen = new HashSet<string>();
             int shown = 0;
             foreach (Godot.Collections.Dictionary job in VisibleJobs())
             {
-                string id = DictString(job, "id", "");
-                if (string.IsNullOrEmpty(id))
-                    continue;
-
-                var row = new Label
-                {
-                    Name = $"Job_{SafeName(id)}",
-                    Text = TextForJob(job),
-                    TooltipText = id,
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    CustomMinimumSize = new Vector2(0, 22)
-                };
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(DictString(job, "state", "")));
-                _jobRows.AddChild(row);
-                SetEditedOwner(row);
-                _rowLabels[id] = row;
-
-                shown++;
                 if (shown >= MaxVisibleJobs)
                     break;
+
+                string id = DictString(job, "id", "");
+                if (string.IsNullOrEmpty(id) || !seen.Add(id))
+                    continue;
+
+                if (!_rowLabels.TryGetValue(id, out Label? row) || !GodotObject.IsInstanceValid(row))
+                {
+                    row = new Label
+                    {
+                        Name = $"Job_{SafeName(id)}",
+                        TooltipText = id,
+                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                        CustomMinimumSize = new Vector2(0, 22)
+                    };
+                    _jobRows.AddChild(row);
+                    SetEditedOwner(row);
+                    _rowLabels[id] = row;
+                }
+
+                row.Text = TextForJob(job);
+                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(DictString(job, "state", "")));
+                // Reused rows still follow the sorted order (claimed first,
+                // then priority) instead of keeping their old position.
+                _jobRows.MoveChild(row, shown);
+                shown++;
             }
+
+            var stale = new List<string>();
+            foreach ((string id, Label row) in _rowLabels)
+            {
+                if (seen.Contains(id))
+                    continue;
+
+                if (GodotObject.IsInstanceValid(row))
+                {
+                    _jobRows.RemoveChild(row);
+                    row.QueueFree();
+                }
+                stale.Add(id);
+            }
+            foreach (string id in stale)
+                _rowLabels.Remove(id);
         }
 
         public string SummaryText()

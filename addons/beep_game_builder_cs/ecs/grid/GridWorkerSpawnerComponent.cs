@@ -33,14 +33,8 @@ namespace Beep.ECS
         [Export] public bool TreatCellDataBlockedAsUnspawnable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnspawnable { get; set; } = true;
         [Export] public bool TreatPlacementOccupiedAsUnspawnable { get; set; } = true;
-        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; } = new()
-        {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "lava"
-        };
+        [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
+            = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
 
         private readonly List<Node2D> _spawnedUnits = new();
@@ -271,29 +265,17 @@ namespace Beep.ECS
                 && _cellData.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return "blocked_spawn_cell";
 
-            string terrainKind = NormalizeTerrainKind(_cellData.GetTerrainKind(cell));
-            if (AllowedTerrainKinds.Count > 0)
-            {
-                bool allowed = false;
-                foreach (string allowedKind in AllowedTerrainKinds)
-                {
-                    if (NormalizeTerrainKind(allowedKind) == terrainKind)
-                    {
-                        allowed = true;
-                        break;
-                    }
-                }
+            // GridTerrainRules.Normalize also replaces spaces and dashes - the
+            // private normalizer this replaced had quietly forgotten that, so
+            // this component alone treated "Deep Water" and "deep_water" as
+            // different kinds.
+            string terrainKind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
+            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
+                return "unspawnable_terrain";
 
-                if (!allowed)
-                    return "unspawnable_terrain";
-            }
-
-            if (TreatBlockedTerrainKindsAsUnspawnable)
-            {
-                foreach (string blockedKind in BlockedTerrainKinds)
-                    if (NormalizeTerrainKind(blockedKind) == terrainKind)
-                        return "unspawnable_terrain";
-            }
+            if (TreatBlockedTerrainKindsAsUnspawnable
+                && GridTerrainRules.MatchesAny(terrainKind, BlockedTerrainKinds))
+                return "unspawnable_terrain";
 
             return null;
         }
@@ -340,7 +322,5 @@ namespace Beep.ECS
                     : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
         }
 
-        private static string NormalizeTerrainKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant();
     }
 }

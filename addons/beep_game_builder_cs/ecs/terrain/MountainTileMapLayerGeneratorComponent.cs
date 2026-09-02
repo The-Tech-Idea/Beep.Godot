@@ -579,15 +579,7 @@ namespace Beep.ECS
             => string.IsNullOrWhiteSpace(value) ? "misc" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
 
         private static int HashInt(int x, int y, int seed)
-        {
-            unchecked
-            {
-                uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
-                value = (value ^ (value >> 13)) * 1274126177u;
-                value ^= value >> 16;
-                return (int)value;
-            }
-        }
+            => TerrainGeometry.HashInt(x, y, seed);
 
         private sealed class MountainAsset
         {

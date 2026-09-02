@@ -40,7 +40,10 @@ namespace Beep.ECS
             if (!Engine.IsEditorHint() || BuildInEditor)
                 CallDeferred(nameof(RebuildStatus));
 
-            SetProcess(AutoRefresh || Engine.IsEditorHint());
+            // At runtime every change this readout shows arrives through a
+            // signal (mode, hover, tool, placement), so per-frame polling is
+            // editor preview only. AutoRefresh keeps gating that preview.
+            SetProcess(Engine.IsEditorHint() && AutoRefresh);
             UpdateConfigurationWarnings();
         }
 
@@ -51,7 +54,7 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (AutoRefresh || Engine.IsEditorHint())
+            if (Engine.IsEditorHint())
                 RefreshStatus();
         }
 

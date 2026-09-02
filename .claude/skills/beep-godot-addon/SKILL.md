@@ -32,6 +32,8 @@ There is no test suite. Verify changes by opening a scene and running it (F5); c
 
 `EffectComponent` is the one category that is **not** in `ecs/categories/` and **not** a direct child of `EntityComponent` — it extends `UIComponent`.
 
+**Category policy for the terrain/grid systems** (`ecs/terrain/` = terrain engine, `ecs/grid/` = grid builder systems, `ecs/grid/ui/` = builder panels): these *system* components — cell models, catalogs, queues, projections, renderers, panels — are plain `Node`/`Node2D`/`Control` subclasses **by design**, not category-base subclasses. They are data/services a scene queries, not per-entity attachments, and migrating ~100 of them onto category bases would be churn without benefit. Only agent-like grid components use category bases (e.g. `GridObjectComponent : GameplayComponent`). Follow the surrounding pattern when adding to these directories.
+
 ### Adding a component
 1. New `.cs` under `ecs/` (gameplay/world/controller) or `ecs/ui/` (UI).
 2. Inherit the right category base.

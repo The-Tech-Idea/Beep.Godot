@@ -23,6 +23,13 @@ namespace Beep.ECS
         [Export] public bool BuildInEditor { get; set; } = true;
         [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoRefresh { get; set; } = true;
+
+        /// <summary>
+        /// How often AutoRefresh repaints. Progress percentages read fine at a
+        /// few updates per second; refreshing every frame used to rebuild every
+        /// row Label and rescan the production root 60 times a second.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.05,5,0.05")] public float RefreshIntervalSeconds { get; set; } = 0.25f;
         [Export(PropertyHint.Range, "1,24,1")] public int MaxVisibleMachines { get; set; } = 6;
         [Export] public string TitleText { get; set; } = "Production";
         [Export] public Vector2 PanelMinimumSize { get; set; } = new(246, 142);
@@ -45,9 +52,18 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (AutoRefresh || Engine.IsEditorHint())
-                RefreshPanel();
+            if (!AutoRefresh && !Engine.IsEditorHint())
+                return;
+
+            _refreshAccumulator += (float)delta;
+            if (_refreshAccumulator < Mathf.Max(0.05f, RefreshIntervalSeconds))
+                return;
+
+            _refreshAccumulator = 0f;
+            RefreshPanel();
         }
+
+        private float _refreshAccumulator;
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -134,10 +150,6 @@ namespace Beep.ECS
             if (_title != null)
                 _title.Text = TitleText;
 
-            foreach (Node child in _rows.GetChildren())
-                child.QueueFree();
-            _rowLabels.Clear();
-
             var machines = Machines();
             int active = 0;
             foreach (GridProductionComponent machine in machines)
@@ -146,27 +158,55 @@ namespace Beep.ECS
 
             _summary.Text = $"Machines {machines.Count} | Active {active}";
 
+            // Rows updated IN PLACE; added or removed only when the machine set
+            // changes. Recreating every Label per refresh was pure node churn.
+            var seen = new HashSet<string>();
             int shown = 0;
             foreach (GridProductionComponent machine in machines)
             {
-                string key = MachineKey(machine);
-                var row = new Label
-                {
-                    Name = $"Production_{SafeName(key)}",
-                    Text = TextForMachine(machine),
-                    TooltipText = key,
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    CustomMinimumSize = new Vector2(0, 22)
-                };
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(machine.State));
-                _rows.AddChild(row);
-                SetEditedOwner(row);
-                _rowLabels[key] = row;
-
-                shown++;
                 if (shown >= MaxVisibleMachines)
                     break;
+
+                string key = MachineKey(machine);
+                if (!seen.Add(key))
+                    continue;
+
+                if (!_rowLabels.TryGetValue(key, out Label? row) || !GodotObject.IsInstanceValid(row))
+                {
+                    row = new Label
+                    {
+                        Name = $"Production_{SafeName(key)}",
+                        TooltipText = key,
+                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                        CustomMinimumSize = new Vector2(0, 22)
+                    };
+                    _rows.AddChild(row);
+                    SetEditedOwner(row);
+                    _rowLabels[key] = row;
+                }
+
+                row.Text = TextForMachine(machine);
+                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(machine.State));
+                // Reused rows still follow the sorted key order.
+                _rows.MoveChild(row, shown);
+                shown++;
             }
+
+            var stale = new List<string>();
+            foreach ((string key, Label row) in _rowLabels)
+            {
+                if (seen.Contains(key))
+                    continue;
+
+                if (GodotObject.IsInstanceValid(row))
+                {
+                    _rows.RemoveChild(row);
+                    row.QueueFree();
+                }
+                stale.Add(key);
+            }
+            foreach (string key in stale)
+                _rowLabels.Remove(key);
         }
 
         public string SummaryText()

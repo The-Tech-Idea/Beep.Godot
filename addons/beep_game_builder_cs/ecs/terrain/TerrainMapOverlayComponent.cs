@@ -93,6 +93,11 @@ namespace Beep.ECS
 
             if (_generator is null)
             {
+                // Reported HERE, once per rebuild. _Draw used to carry this
+                // warning, and _Draw runs on every canvas redraw - a window
+                // resize, an unrelated sibling invalidating the frame - so an
+                // unwired overlay spammed the same warning every frame.
+                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; the map overlay was not drawn.");
                 QueueRedraw();
                 return;
             }
@@ -137,10 +142,7 @@ namespace Beep.ECS
         public override void _Draw()
         {
             if (_generator == null)
-            {
-                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; the map overlay was not drawn.");
                 return;
-            }
 
             DrawResources();
             DrawStartPositions();

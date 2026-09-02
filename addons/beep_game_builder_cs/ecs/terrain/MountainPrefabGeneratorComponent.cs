@@ -65,7 +65,13 @@ namespace Beep.ECS
         [Export] public int BaseZIndex { get; set; } = 0;
         [Export] public bool UseHeightForZIndex { get; set; } = true;
         [Export(PropertyHint.Range, "0,100,1")] public int HeightZIndexStep { get; set; } = 10;
-        [Export] public CanvasItem.TextureFilterEnum TextureFilter { get; set; } = CanvasItem.TextureFilterEnum.Linear;
+        /// <summary>
+        /// Filter applied to each generated part sprite. Named PartTextureFilter
+        /// because this node is itself a CanvasItem: an export called
+        /// TextureFilter shadowed the inherited property and put two rows of
+        /// the same name in the Inspector.
+        /// </summary>
+        [Export] public CanvasItem.TextureFilterEnum PartTextureFilter { get; set; } = CanvasItem.TextureFilterEnum.Linear;
 
         private string _lastManifestPath = "";
         private int _lastPartCount;
@@ -799,7 +805,7 @@ namespace Beep.ECS
                 Position = PrefabOffset + position * Mathf.Max(0.01f, PrefabScale),
                 Scale = new Vector2(scale, scale),
                 ZIndex = zIndex,
-                TextureFilter = TextureFilter
+                TextureFilter = PartTextureFilter
             };
             if (!string.IsNullOrWhiteSpace(GeneratedPartGroup))
                 sprite.AddToGroup(GeneratedPartGroup);

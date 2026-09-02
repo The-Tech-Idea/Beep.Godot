@@ -84,17 +84,9 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Cutoffs taken from the rainfall a map ACTUALLY has, so a named
-        /// fraction of the land comes out desert whatever the map's size or
-        /// noise settings.
-        ///
-        /// This is how Civilization does it - its climate generator works in
-        /// "percent of land below the rainfall threshold" rather than in
-        /// absolute rainfall - and the reason is the failure this replaces.
-        /// Fixed cutoffs read a noise field whose spread changes with map size,
-        /// frequency and octave count, so the same numbers gave 33% desert on
-        /// one setting and 6% on another. Nothing in the parameters says
-        /// "desert", so nobody can tell which they will get.
+        /// Water split into shallow and deep. Lakes and rivers are always
+        /// shallow fresh water; open sea is deep only clear of the shelf, so
+        /// the painter gets a real continental shelf instead of one flat blue.
         /// </summary>
         private static string WaterKind(TerrainWorld world, int x, int y)
         {

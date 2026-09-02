@@ -9,7 +9,7 @@ extends SceneTree
 # map instead of building them: a mask over open water must be solid, a mask well
 # inland must be empty, and the atlas mapping is pure and checked directly.
 
-const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
+const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs")
 const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const TRANSITION_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainTransitionLayerComponent.cs")
 const SIZE := Vector2i(64, 40)

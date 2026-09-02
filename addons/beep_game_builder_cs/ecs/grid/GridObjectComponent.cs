@@ -11,7 +11,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridObjectComponent : EntityComponent
+    public partial class GridObjectComponent : GameplayComponent
     {
         public const string ComponentGroupName = "grid_objects";
 

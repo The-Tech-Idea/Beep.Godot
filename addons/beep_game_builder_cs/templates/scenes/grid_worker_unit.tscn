@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridPathFollowerComponent.cs" id="path_follower"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridWorkerComponent.cs" id="worker"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs" id="path_follower"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorkerComponent.cs" id="worker"]
 [ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/settlers/reference_trucks.png" id="trucks_sheet"]
 
 [sub_resource type="Shader" id="shader_chroma_key"]

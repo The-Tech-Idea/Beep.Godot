@@ -617,10 +617,23 @@ namespace Beep.ECS
             if (_generator is null || _layers.Count == 0)
                 return Vector2.Zero;
 
+            return SurfacePosition(_generator.ResolveField(), cell);
+        }
+
+        /// <summary>
+        /// The hot-path overload: a caller looping many cells resolves the
+        /// field once and passes it, instead of each call paying the
+        /// generator's settings rebuild through the public per-cell wrappers.
+        /// </summary>
+        internal Vector2 SurfacePosition(GeneratedTerrainField field, Vector2I cell)
+        {
+            if (_layers.Count == 0)
+                return Vector2.Zero;
+
             // Every layer shares one grid, so the projection comes from any of
             // them and the height comes from the level. That is also what lets
             // the sea answer without owning a layer of its own.
-            int level = LevelFor(_generator.TerrainKindAt(cell), _generator.ReliefAt(cell));
+            int level = LevelFor(field.TerrainAtCell(cell), (int)field.ReliefAtCell(cell));
             return _layers[0].MapToLocal(cell) + new Vector2(0.0f, -level * LevelHeight);
         }
 
@@ -690,9 +703,12 @@ namespace Beep.ECS
         public bool IsLandCell(Vector2I cell)
         {
             ResolveGenerator();
-            string terrain = _generator?.TerrainKindAt(cell) ?? string.Empty;
-            return TerrainTileSets.IsLandKind(terrain);
+            return _generator is not null && IsLandCell(_generator.ResolveField(), cell);
         }
+
+        /// <summary>Hot-path overload; see SurfacePosition(field, cell).</summary>
+        internal static bool IsLandCell(GeneratedTerrainField field, Vector2I cell)
+            => TerrainTileSets.IsLandKind(field.TerrainAtCell(cell));
 
         /// <summary>Which level a tile is drawn at. Owned by TerrainLayers.</summary>
         public static int LevelFor(string terrain, int relief)
@@ -752,13 +768,11 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(WaterShaderPath))
                 return;
 
-            _water ??= GetNodeOrNull<TileMapLayer>("IsoWater");
+            // EnsureLayer finds the existing layer or creates, parents and
+            // adopts a new one. A second AddChild here used to fire Godot's
+            // "already has a parent" error on every first build.
             if (_water is null || !GodotObject.IsInstanceValid(_water))
-            {
                 _water = TerrainAuthoring.EnsureLayer(this, "IsoWater");
-                AddChild(_water);
-                TerrainAuthoring.Adopt(_water, this);
-            }
 
             _water.ZIndex = ZIndexForLevel(SeaLevel);
             _water.ZAsRelative = false;
@@ -1041,6 +1055,9 @@ namespace Beep.ECS
             yield return ("mud", SwampFrame);
             yield return ("gravel", GravelFrame);
             yield return ("rock", RockFrame);
+            // No lava block art ships; the rock block stands in. Unregistered,
+            // a lava cell was skipped entirely and left a hole in the map.
+            yield return ("lava", RockFrame);
             yield return ("shallow_water", ShallowWaterFrame);
             yield return ("deep_water", DeepWaterFrame);
         }

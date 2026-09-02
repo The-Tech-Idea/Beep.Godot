@@ -12,11 +12,11 @@ extends SceneTree
 # are the MAP's resources, and that what each one is worth came from the shared
 # catalog rather than from a copy on the node.
 
-const CELL_DATA := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
+const CELL_DATA := preload("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs")
 const GENERATOR := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const DATA_LAYERS := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs")
-const PROJECTION := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridProjectionComponent.cs")
-const SCATTER := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridResourceScatterComponent.cs")
+const PROJECTION := preload("res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs")
+const SCATTER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridResourceScatterComponent.cs")
 const CATALOG := preload("res://addons/beep_game_builder_cs/ecs/terrain/ResourceCatalog.cs")
 const DEFINITION := preload("res://addons/beep_game_builder_cs/ecs/terrain/ResourceDefinition.cs")
 

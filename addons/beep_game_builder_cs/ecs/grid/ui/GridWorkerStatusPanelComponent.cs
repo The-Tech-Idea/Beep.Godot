@@ -24,6 +24,13 @@ namespace Beep.ECS
         [Export] public bool BuildInEditor { get; set; } = true;
         [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoRefresh { get; set; } = true;
+
+        /// <summary>
+        /// How often AutoRefresh repaints. A readout of worker states does not
+        /// need frame rate; refreshing every frame used to rebuild every row
+        /// Label and rescan the units tree 60 times a second.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.05,5,0.05")] public float RefreshIntervalSeconds { get; set; } = 0.25f;
         [Export(PropertyHint.Range, "1,24,1")] public int MaxVisibleWorkers { get; set; } = 8;
         [Export] public string TitleText { get; set; } = "Workers";
         [Export] public Vector2 PanelMinimumSize { get; set; } = new(220, 126);
@@ -47,9 +54,18 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (AutoRefresh || Engine.IsEditorHint())
-                RefreshPanel();
+            if (!AutoRefresh && !Engine.IsEditorHint())
+                return;
+
+            _refreshAccumulator += (float)delta;
+            if (_refreshAccumulator < Mathf.Max(0.05f, RefreshIntervalSeconds))
+                return;
+
+            _refreshAccumulator = 0f;
+            RefreshPanel();
         }
+
+        private float _refreshAccumulator;
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -136,10 +152,6 @@ namespace Beep.ECS
             if (_title != null)
                 _title.Text = TitleText;
 
-            foreach (Node child in _rows.GetChildren())
-                child.QueueFree();
-            _rowLabels.Clear();
-
             var workers = Workers();
             int idle = 0;
             int active = 0;
@@ -153,26 +165,57 @@ namespace Beep.ECS
 
             _summary.Text = $"Total {workers.Count} | Idle {idle} | Active {active}";
 
+            // Rows are updated IN PLACE and only added or removed when the
+            // worker set actually changes. Freeing and recreating every Label
+            // per refresh was UI node churn for a panel whose set of rows is
+            // almost always identical to the last refresh.
+            var seen = new HashSet<string>();
             int shown = 0;
             foreach (GridWorkerComponent worker in workers)
             {
-                var row = new Label
-                {
-                    Name = $"Worker_{SafeName(worker.WorkerId)}",
-                    Text = TextForWorker(worker),
-                    TooltipText = worker.WorkerId,
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    CustomMinimumSize = new Vector2(0, 22)
-                };
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(worker.State));
-                _rows.AddChild(row);
-                SetEditedOwner(row);
-                _rowLabels[worker.WorkerId] = row;
-
-                shown++;
                 if (shown >= MaxVisibleWorkers)
                     break;
+
+                string id = worker.WorkerId;
+                if (!seen.Add(id))
+                    continue;
+
+                if (!_rowLabels.TryGetValue(id, out Label? row) || !GodotObject.IsInstanceValid(row))
+                {
+                    row = new Label
+                    {
+                        Name = $"Worker_{SafeName(id)}",
+                        TooltipText = id,
+                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                        CustomMinimumSize = new Vector2(0, 22)
+                    };
+                    _rows.AddChild(row);
+                    SetEditedOwner(row);
+                    _rowLabels[id] = row;
+                }
+
+                row.Text = TextForWorker(worker);
+                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(worker.State));
+                // Reused rows still follow the sorted id order.
+                _rows.MoveChild(row, shown);
+                shown++;
             }
+
+            var stale = new List<string>();
+            foreach ((string id, Label row) in _rowLabels)
+            {
+                if (seen.Contains(id))
+                    continue;
+
+                if (GodotObject.IsInstanceValid(row))
+                {
+                    _rows.RemoveChild(row);
+                    row.QueueFree();
+                }
+                stale.Add(id);
+            }
+            foreach (string id in stale)
+                _rowLabels.Remove(id);
         }
 
         public string SummaryText()

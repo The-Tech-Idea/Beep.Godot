@@ -159,7 +159,10 @@ namespace Beep.ECS
                 {
                     var cell = new Vector2I(x, y);
                     string feature = field.FeatureAtCell(cell);
-                    if (feature.Length == 0 || !_iso.IsLandCell(cell))
+                    // The field-taking overloads: the public per-cell wrappers
+                    // would pay the generator's settings rebuild once per call,
+                    // per wooded tile, per stamp.
+                    if (feature.Length == 0 || !TerrainIsometricRendererComponent.IsLandCell(field, cell))
                         continue;
 
                     if (!TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows) || sheet is null)
@@ -171,7 +174,7 @@ namespace Beep.ECS
                         ? FramesFor(field.TerrainAtCell(cell), columns * rows)
                         : null;
 
-                    Vector2 top = _iso.SurfacePosition(cell);
+                    Vector2 top = _iso.SurfacePosition(field, cell);
                     // A prop belongs to the level it stands on, so the terrain
                     // above can cover it.
                     int level = Mathf.Clamp(

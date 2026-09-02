@@ -392,8 +392,21 @@ namespace Beep.ECS
             }
             _builtSignature = signature;
 
+            // Tear down only the biome display layers THIS renderer builds - the
+            // "*Tiles" TileMapLayers. Freeing every child took the shader sea
+            // ("TileWater") and anything a user authored under this node with
+            // them. RemoveChild before QueueFree, because a queued-free node is
+            // still in the tree and still valid, so EnsureLayer would find it by
+            // name, hand it back, and the freshly configured layer would die at
+            // the end of the frame - one blank build after every atlas change.
             foreach (Node child in GetChildren())
+            {
+                if (child is not TileMapLayer || !child.Name.ToString().EndsWith("Tiles", StringComparison.Ordinal))
+                    continue;
+
+                RemoveChild(child);
                 child.QueueFree();
+            }
             _layers.Clear();
 
             // A filled base at the floor of the stack, so a gap between biome

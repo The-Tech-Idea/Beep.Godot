@@ -127,5 +127,130 @@ namespace Beep.ECS
                     return fallback;
             }
         }
+
+        // ---- cell and point parsing -----------------------------------------
+        //
+        // These were pasted, byte for byte, into GridPathFollowerComponent,
+        // GridToolActionComponent, and GridSelectionJobCommandComponent - the
+        // same three-way duplication Hash01 had on the terrain side before it
+        // was pulled into TerrainGeometry.
+
+        /// <summary>
+        /// A cell from a Vector2I, a rounded Vector2, or a dictionary carrying
+        /// "cell" / x,y / X,Y. False for anything else, and for the sentinel
+        /// int.MinValue coordinates that mean "no cell".
+        /// </summary>
+        public static bool TryReadCell(Variant value, out Vector2I cell)
+        {
+            cell = default;
+            if (value.VariantType == Variant.Type.Vector2I)
+            {
+                cell = value.AsVector2I();
+                return cell.X != int.MinValue && cell.Y != int.MinValue;
+            }
+
+            if (value.VariantType == Variant.Type.Vector2)
+            {
+                Vector2 point = value.AsVector2();
+                if (!float.IsFinite(point.X) || !float.IsFinite(point.Y))
+                    return false;
+
+                cell = new Vector2I(Mathf.RoundToInt(point.X), Mathf.RoundToInt(point.Y));
+                return cell.X != int.MinValue && cell.Y != int.MinValue;
+            }
+
+            if (value.VariantType == Variant.Type.Dictionary)
+            {
+                Godot.Collections.Dictionary data = value.AsGodotDictionary();
+                if (data.ContainsKey("cell"))
+                    return TryReadCell(data["cell"], out cell);
+
+                Variant x = ReadEither(data, "x", "X");
+                Variant y = ReadEither(data, "y", "Y");
+                if (TryReadInt(x, out int ix) && TryReadInt(y, out int iy))
+                {
+                    cell = new Vector2I(ix, iy);
+                    return cell.X != int.MinValue && cell.Y != int.MinValue;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>A world point from a Vector2, a Vector2I, or an x/y dictionary.</summary>
+        public static bool TryReadWorldPoint(Variant value, out Vector2 point)
+        {
+            point = default;
+            if (value.VariantType == Variant.Type.Vector2)
+            {
+                point = value.AsVector2();
+                return float.IsFinite(point.X) && float.IsFinite(point.Y);
+            }
+
+            if (value.VariantType == Variant.Type.Vector2I)
+            {
+                Vector2I cell = value.AsVector2I();
+                point = new Vector2(cell.X, cell.Y);
+                return true;
+            }
+
+            if (value.VariantType == Variant.Type.Dictionary)
+            {
+                Godot.Collections.Dictionary data = value.AsGodotDictionary();
+                Variant x = ReadEither(data, "x", "X");
+                Variant y = ReadEither(data, "y", "Y");
+                if (TryReadFloat(x, out float fx) && TryReadFloat(y, out float fy))
+                {
+                    point = new Vector2(fx, fy);
+                    return float.IsFinite(point.X) && float.IsFinite(point.Y);
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TryReadInt(Variant value, out int result)
+        {
+            result = 0;
+            if (value.VariantType == Variant.Type.Int)
+            {
+                result = value.AsInt32();
+                return true;
+            }
+            if (value.VariantType == Variant.Type.Float)
+            {
+                double raw = value.AsDouble();
+                if (!double.IsFinite(raw))
+                    return false;
+                result = Mathf.RoundToInt((float)raw);
+                return true;
+            }
+            if (value.VariantType == Variant.Type.String)
+                return int.TryParse(value.AsString(), out result);
+            return false;
+        }
+
+        public static bool TryReadFloat(Variant value, out float result)
+        {
+            result = 0f;
+            if (value.VariantType == Variant.Type.Float || value.VariantType == Variant.Type.Int)
+            {
+                double raw = value.AsDouble();
+                if (!double.IsFinite(raw))
+                    return false;
+                result = (float)raw;
+                return true;
+            }
+            if (value.VariantType == Variant.Type.String)
+                return float.TryParse(value.AsString(), out result) && float.IsFinite(result);
+            return false;
+        }
+
+        private static Variant ReadEither(Godot.Collections.Dictionary data, string first, string second)
+        {
+            if (data.ContainsKey(first)) return data[first];
+            if (data.ContainsKey(second)) return data[second];
+            return default;
+        }
     }
 }

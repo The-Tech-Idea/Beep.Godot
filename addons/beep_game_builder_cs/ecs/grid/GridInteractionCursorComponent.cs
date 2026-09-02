@@ -41,8 +41,25 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            // Redraw only when what the cursor SHOWS changed - the hovered or
+            // placement cell, the outline colour, or whether it draws at all.
+            // Unconditional QueueRedraw here repainted an unmoving cursor every
+            // frame.
+            Vector2I cell = CurrentCell();
+            Color colour = CurrentOutlineColor();
+            bool draws = DrawCursor && ShouldDrawForMode();
+            if (cell == _lastCell && colour == _lastColour && draws == _lastDraws)
+                return;
+
+            _lastCell = cell;
+            _lastColour = colour;
+            _lastDraws = draws;
             QueueRedraw();
         }
+
+        private Vector2I _lastCell = InvalidCell;
+        private Color _lastColour;
+        private bool _lastDraws;
 
         public override string[] _GetConfigurationWarnings()
         {

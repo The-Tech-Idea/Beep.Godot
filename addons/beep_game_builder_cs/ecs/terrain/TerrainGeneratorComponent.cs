@@ -112,17 +112,6 @@ namespace Beep.ECS
         [Export] public bool UseClimateBiomeMaps { get; set; } = false;
 
         /// <summary>
-        /// Assign the rainfall biomes by QUOTA - a named fraction of the land
-        /// each - instead of by fixed rainfall cutoffs.
-        ///
-        /// Fixed cutoffs read a noise field whose spread moves with map size,
-        /// frequency and octaves, so the same numbers produce wildly different
-        /// maps. Quotas are what Civilization uses and they hold their
-        /// proportions on any map. Off by default so existing scenes keep the
-        /// distribution they were tuned against.
-        /// </summary>
-
-        /// <summary>
         /// Smoothing passes that pull the rainfall biomes into coherent regions.
         ///
         /// The biome table classifies each sample on its own, so wherever
@@ -165,12 +154,6 @@ namespace Beep.ECS
         /// keep it. Higher smooths harder.
         /// </summary>
         [Export(PropertyHint.Range, "1,8,1")] public int BiomeCoherenceKeep { get; set; } = 3;
-
-        /// <summary>Driest fraction of the land that becomes desert.</summary>
-
-        /// <summary>The next-driest fraction, which becomes dry grassland.</summary>
-
-        /// <summary>Wettest fraction of the land that becomes swamp.</summary>
 
         /// <summary>
         /// Guaranteed ocean ring at the map edge, in tiles.
@@ -254,22 +237,23 @@ namespace Beep.ECS
 
             TerrainGenerationSettings settings = CurrentSettings();
             GeneratedTerrainField field = FieldFor(settings);
-            var generated = new Godot.Collections.Array();
+
+            // The typed handoff. Building one marshalled Godot Dictionary per
+            // cell just to hand a whole map to the cell model allocated ten
+            // thousand Variants per build on a standard map.
+            var generated = new List<(Vector2I Cell, string Terrain)>(settings.Size.X * settings.Size.Y);
             for (int y = 0; y < settings.Size.Y; y++)
             {
                 for (int x = 0; x < settings.Size.X; x++)
                 {
-                    generated.Add(new Godot.Collections.Dictionary
-                    {
-                        ["cell"] = settings.Origin + new Vector2I(x, y),
-                        ["terrain"] = field.TerrainAtCell(new Vector2I(x, y)),
-                        ["flags"] = 0
-                    });
+                    generated.Add((
+                        settings.Origin + new Vector2I(x, y),
+                        field.TerrainAtCell(new Vector2I(x, y))));
                 }
             }
 
             _cells.DefaultTerrainKind = NormalizeKind(DefaultTerrainKind);
-            _cells.LoadCells(generated, ClearExistingCells);
+            _cells.LoadGeneratedCells(generated, ClearExistingCells);
             EmitSignal(SignalName.TerrainGenerated, generated.Count);
             return generated.Count;
         }

@@ -107,7 +107,7 @@ namespace Beep.ECS
             Vector2I lastCell = new(int.MinValue, int.MinValue);
             foreach (Variant value in cells)
             {
-                if (!TryReadCell(value, out Vector2I cell))
+                if (!GridVariantReader.TryReadCell(value, out Vector2I cell))
                     continue;
 
                 points.Add(_grid.CellToWorld(cell));
@@ -139,7 +139,7 @@ namespace Beep.ECS
             _worldPath.Clear();
             foreach (Variant value in points)
             {
-                if (!TryReadWorldPoint(value, out Vector2 point))
+                if (!GridVariantReader.TryReadWorldPoint(value, out Vector2 point))
                     continue;
 
                 if (float.IsFinite(point.X) && float.IsFinite(point.Y))
@@ -295,125 +295,8 @@ namespace Beep.ECS
             return index;
         }
 
-        private static bool TryReadCell(Variant value, out Vector2I cell)
-        {
-            cell = default;
-            if (value.VariantType == Variant.Type.Vector2I)
-            {
-                cell = value.AsVector2I();
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Vector2)
-            {
-                Vector2 point = value.AsVector2();
-                if (!float.IsFinite(point.X) || !float.IsFinite(point.Y))
-                    return false;
-
-                cell = new Vector2I(Mathf.RoundToInt(point.X), Mathf.RoundToInt(point.Y));
-                return cell.X != int.MinValue && cell.Y != int.MinValue;
-            }
-
-            if (value.VariantType == Variant.Type.Dictionary)
-            {
-                var data = value.AsGodotDictionary();
-                if (TryReadCellField(data, "cell", out cell))
-                    return true;
-
-                Variant x = ReadVariant(data, "x", "X");
-                Variant y = ReadVariant(data, "y", "Y");
-                if (TryReadInt(x, out int ix) && TryReadInt(y, out int iy))
-                {
-                    cell = new Vector2I(ix, iy);
-                    return cell.X != int.MinValue && cell.Y != int.MinValue;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool TryReadWorldPoint(Variant value, out Vector2 point)
-        {
-            point = default;
-            if (value.VariantType == Variant.Type.Vector2)
-            {
-                point = value.AsVector2();
-                return float.IsFinite(point.X) && float.IsFinite(point.Y);
-            }
-
-            if (value.VariantType == Variant.Type.Vector2I)
-            {
-                Vector2I cell = value.AsVector2I();
-                point = new Vector2(cell.X, cell.Y);
-                return true;
-            }
-
-            if (value.VariantType == Variant.Type.Dictionary)
-            {
-                var data = value.AsGodotDictionary();
-                Variant x = ReadVariant(data, "x", "X");
-                Variant y = ReadVariant(data, "y", "Y");
-                if (TryReadFloat(x, out float fx) && TryReadFloat(y, out float fy))
-                {
-                    point = new Vector2(fx, fy);
-                    return float.IsFinite(point.X) && float.IsFinite(point.Y);
-                }
-            }
-
-            return false;
-        }
-
-        private static bool TryReadCellField(Godot.Collections.Dictionary data, string key, out Vector2I cell)
-        {
-            cell = default;
-            if (!data.ContainsKey(key))
-                return false;
-
-            return TryReadCell(data[key], out cell);
-        }
-
-        private static Variant ReadVariant(Godot.Collections.Dictionary data, string lower, string upper)
-        {
-            if (data.ContainsKey(lower)) return data[lower];
-            if (data.ContainsKey(upper)) return data[upper];
-            return default;
-        }
-
-        private static bool TryReadInt(Variant value, out int result)
-        {
-            result = 0;
-            if (value.VariantType == Variant.Type.Int)
-            {
-                result = value.AsInt32();
-                return true;
-            }
-            if (value.VariantType == Variant.Type.Float)
-            {
-                double raw = value.AsDouble();
-                if (!double.IsFinite(raw))
-                    return false;
-                result = Mathf.RoundToInt((float)raw);
-                return true;
-            }
-            if (value.VariantType == Variant.Type.String)
-                return int.TryParse(value.AsString(), out result);
-            return false;
-        }
-
-        private static bool TryReadFloat(Variant value, out float result)
-        {
-            result = 0f;
-            if (value.VariantType == Variant.Type.Float || value.VariantType == Variant.Type.Int)
-            {
-                double raw = value.AsDouble();
-                if (!double.IsFinite(raw))
-                    return false;
-                result = (float)raw;
-                return true;
-            }
-            if (value.VariantType == Variant.Type.String)
-                return float.TryParse(value.AsString(), out result) && float.IsFinite(result);
-            return false;
-        }
+        // Cell and point parsing is delegated to GridVariantReader.TryReadCell
+        // and TryReadWorldPoint - the shared readers this file used to carry
+        // its own copies of.
     }
 }

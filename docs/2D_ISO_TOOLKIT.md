@@ -1,156 +1,238 @@
 # Beep 2D And Isometric Toolkit
 
-Generated for the current addon source tree on 2026-08-25. This guide focuses on the reusable grid, top-down, isometric, painterly terrain, and HUD components used by builder, farming, settlement, and tactical scenes.
+Developer guide for the gameplay-grid system in `addons/beep_game_builder_cs/ecs/grid/` (builder panels under `ecs/grid/ui/`) — the `Grid*` components that builder, farming, settlement, and tactical scenes are assembled from. Refreshed by hand against the source tree on 2026-09-02, after the `Terrain*`/`Grid*` rename and the directory split: `Terrain*` classes are the map/terrain engine in `ecs/terrain/` (documented in `docs/terrain-engine/`), `Grid*` classes are this toolkit, and the two meet through the shared `ResourceCatalog` and the terrain data layers.
 
 ## Design Rules
 
 1. Author the visible scene in Godot first. Use `Node2D`, `TileMapLayer`, `CanvasLayer`, `Control`, `Button`, and `Label` nodes that are visible at design time.
-2. Attach Beep components as behavior nodes. Set exported `NodePath` fields in the inspector instead of creating whole HUD panels at runtime.
-3. Keep generated UI as an explicit fallback only. Components such as `GridToolPaletteComponent` and `GridWorkerSpawnerPanelComponent` bind authored controls by default.
-4. Use `PainterlyTerrainComponent` as the broad visual base, then use TileMap/overlays only for collision, roads, crops, placement, and tactical feedback.
-5. Keep grid state cell-based. Isometric projection changes how cells are drawn, not how jobs, resources, workers, or saves are modeled.
+2. Attach Beep components as behavior nodes. Set exported `NodePath` fields in the Inspector instead of creating whole HUD panels at runtime.
+3. Keep generated UI as an explicit fallback only. HUD components such as `GridToolPaletteComponent` and `GridWorkerSpawnerPanelComponent` bind authored controls by default and only build their own when `GenerateControlsWhenPathsEmpty` is enabled.
+4. Keep grid state cell-based. Isometric projection changes how cells are drawn, not how jobs, resources, workers, or saves are modeled.
+5. One owner per fact. Where a resource occurs and what gathering it pays lives in the shared `ResourceCatalog`; which cell holds a deposit lives on the node standing there. A component that also stored someone else's fact would drift from it.
+6. Every component resolves its collaborators the same way: an exported `NodePath` when set, otherwise a scene-wide search for the first matching component. Wire the paths in real scenes; rely on the search only in prototypes.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Terrain["Terrain engine (Terrain* — docs/terrain-engine/)"]
+        TWC[TerrainWorldComponent]
+        TGC[TerrainGeneratorComponent]
+        TPR[TerrainPaintedRendererComponent]
+        TDL[TerrainDataLayersComponent]
+        TWC --> TGC --> TPR
+        TGC --> TDL
+    end
+
+    subgraph Model["Grid model"]
+        PROJ[GridProjectionComponent]
+        CELLS[GridCellDataComponent]
+        ROADS[GridRoadComponent]
+        NAV[GridNavigationComponent]
+        PLACE[GridPlacementComponent]
+    end
+
+    subgraph Economy["Economy and work"]
+        WALLET[GridResourceWalletComponent]
+        NODES[GridResourceNodeComponent]
+        SCATTER[GridResourceScatterComponent]
+        JOBS[GridJobQueueComponent]
+        EFFECTS[GridJobEffectComponent]
+        WORKERS[GridWorkerComponent]
+        PROD[GridProductionComponent]
+    end
+
+    subgraph Player["Player intent"]
+        SEL[GridSelectionComponent]
+        MODE[GridInteractionModeComponent]
+        TOOLS[GridToolActionComponent]
+        BUILDS[GridBuildCatalogComponent]
+    end
+
+    TGC -- "writes cells at build time" --> CELLS
+    TDL -- "published map (resources, terrain)" --> SCATTER
+    CELLS --> NAV
+    ROADS --> NAV
+    PLACE --> NAV
+    MODE --> SEL & TOOLS & PLACE
+    SEL --> TOOLS
+    TOOLS --> CELLS & ROADS & JOBS
+    BUILDS --> PLACE
+    JOBS --> WORKERS --> EFFECTS
+    EFFECTS --> CELLS & NODES
+    NODES --> WALLET
+    PROD --> WALLET
+```
+
+The model layer holds facts about cells; the economy layer changes them through jobs; the player layer only expresses intent. HUD panels observe and command — they never own state.
 
 ## Starter Scene Layout
 
-Use this structure for a small settlement/builder scene:
+The addon template `addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn` is the reference assembly:
 
 ```text
 GridWorld2DIso : Node2D
-  Terrain : Node                     (PainterlyTerrainComponent)
-  TerrainBridge : Node               (GridPainterlyTerrainBridgeComponent)
-  VisualTileLayer : TileMapLayer      (optional detail/collision sync)
+  Splat : Node2D                      (TerrainPaintedRendererComponent — painted terrain base)
+  VisualTileLayer : TileMapLayer      (optional detail/collision sync target)
+  TileMapBridge : Node                (GridTileMapLayerBridgeComponent)
   Grid : Node2D                       (GridProjectionComponent)
   Cells : Node                        (GridCellDataComponent)
-  TerrainGenerator : Node             (GridTerrainGeneratorComponent)
+  TerrainGenerator : Node             (TerrainGeneratorComponent — fills Cells at build time)
   Roads : Node2D                      (GridRoadComponent)
   Selection : Node2D                  (GridSelectionComponent)
   Placement : Node2D                  (GridPlacementComponent)
   Navigation : Node                   (GridNavigationComponent)
-  Jobs : Node                         (GridJobQueueComponent)
-  Units : Node2D
+  Jobs : Node                        (GridJobQueueComponent)
+  JobEffects : Node                   (GridJobEffectComponent)
+  Calendar : Node                     (GridCalendarComponent)
+  Crops : Node                        (GridCropCatalogComponent)
+  Objectives : Node                   (GridObjectiveTrackerComponent)
+    ObjectiveEvents : Node            (GridObjectiveEventBinderComponent)
+  Commands : Node
+    InteractionMode : Node            (GridInteractionModeComponent)
+    Tools : Node                      (GridToolActionComponent)
+    ClearLandCommand : Node           (GridSelectionJobCommandComponent)
+  Buildings / ProductionBuildings : Node2D   (placed objects; each carries GridObjectComponent)
+  ResourceNodes : Node2D              (GridResourceScatterComponent + authored GridResourceNodeComponent props)
   Base : Node2D
     WorkerSpawner : Node              (GridWorkerSpawnerComponent)
-  HUD : CanvasLayer
-    ResourceBar : Control             (GridResourceBarComponent)
-    ToolPalette : Control             (GridToolPaletteComponent)
-    BasePanel : Control               (GridWorkerSpawnerPanelComponent)
+  State : Node                        (GridWorldStateComponent)
+  Units : Node2D                      (spawned workers: GridPathFollowerComponent + GridWorkerComponent)
+  Camera2D
+    GridCameraController : Node       (GridCameraControllerComponent)
+  HUD : CanvasLayer                   (authored panels, see HUD section)
 ```
 
-The addon template `addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn` follows this pattern.
+For a scene that builds a full procedural world rather than filling flat cells, put a `TerrainWorldComponent` in front: it drives `TerrainGeneratorComponent` from the map-setup axes, rebuilds the renderers, and `TerrainDataLayersComponent` publishes the result as queryable tile data. See `docs/terrain-engine/DEVELOPER_GUIDE.md`.
 
 ## Terrain And Projection
 
-`PainterlyTerrainComponent` renders `PainterlyTerrainSprite` as a saturated plain biome base and renders `PainterlyTerrainDetailSprite` above it for overlays. Biome detail is off by default; when enabled, `BiomeDetailCoverage`, `BiomeDetailPatchScale`, and `BiomeDetailPatchSoftness` restrict it to seeded local patches instead of painting the whole scene. Desert/sand patches add dune ridges, dust, and pebbles; grass/forest patches add clumps and sparse flower flecks; earth/swamp adds damp patches; rock adds cracks and stone marks; snow/ice adds scratches and soft drifts. Bundled material textures are opt-in through `UseBundledMaterialTextures`; leave them off when the base should stay clean instead of noisy or pale.
+`TerrainGeneratorComponent` builds the deterministic terrain field and, through `CellDataPath`, writes one terrain kind per cell into `GridCellDataComponent` at build time. The grid system then works from the cells; it never reaches back into generation.
 
-Use the painter behind grid overlays to avoid thousands of visible terrain tiles. `RenderOffset` positions the generated child `Sprite2D` when the painter component itself is authored as a plain `Node`. The default painter resolution matches a 64px tile before any safety cap is applied, which avoids the old low-resolution upscale blur on normal maps. Check `LastGenerationWasCapped`, `LastGeneratedPixelsPerTile`, and `LastAppliedTerrainScale` when a very large map still looks soft; that means `MaxGeneratedPixels` reduced the output resolution.
+`TerrainPaintedRendererComponent` draws the terrain as one continuous shader-blended surface (the template's `Splat` node). It is the broad-map visual base; tile layers above it stay free for collision, roads, crops, and feedback.
 
-`GridPainterlyTerrainBridgeComponent` connects the grid model to that painterly base. Point it at `PainterlyTerrainComponent`, `GridCellDataComponent`, and optionally `GridRoadComponent`; it samples terrain kinds, crop/land flags, water effects, and road cells into one generated terrain image. The bridge passes each cell's terrain kind through to the painter, so a desert cell receives desert detail while grass, rock, snow, and swamp cells receive their own layer treatment. This is the recommended broad-map visual path when you want a non-tiled terrain look.
+`TerrainDataLayersComponent` publishes the generated map as invisible `TileMapLayer`s carrying custom tile data (terrain, resource, feature, relief, is_water, passable, continent, start_position), plus native per-ground collision and navigation polygons. Point `GridResourceScatterComponent.DataLayersPath` at it and deposits are placed where the map actually put resources. Navigation, placement, and tools also accept a `DataLayersPath`: when wired, they read terrain kinds from the generated map, falling back to cell data where the layers have no tile. `ContinentAt` returns the landmass id (0 means water or off-map), `IsStartPositionAt`/`StartCells` expose the generator's recommended starts.
 
-`GridTerrainGeneratorComponent` fills `GridCellDataComponent` with seeded terrain kinds. It can copy size, seed, noise, and preset settings from `PainterlyTerrainComponent`, then write grass, dirt, sand, water, deep water, rock, swamp, mud, snow, ice, lava, and related terrain kinds into the grid model. A generation pass reuses its noise samplers across all cells, so startup cost scales with map cells rather than repeated noise setup. Use it before the painterly bridge rebuilds when the map should be procedural but still pathable and saveable as cells.
+`TerrainWorldComponent` is the map/world creation front door: shape, size, age, temperature, rainfall, sea level, and resource axes in, a generated and drawn world out.
 
-`GridPainterlyTerrainBridgeComponent` can own the first procedural pass by setting `TerrainGeneratorPath` and `GenerateBeforeFirstRebuild`. In that setup, keep `PainterlyTerrainComponent.GenerateOnReady` and `GridTerrainGeneratorComponent.GenerateOnReady` disabled; the bridge generates cell data once, suppresses the duplicate change-triggered rebuild, then renders the shared grid state.
+`GridProjectionComponent` owns the conversion between world positions and cells. Set `Projection` to top-down or isometric and set `TileSize`; placement, selection, cursor, pathing, minimap, and workers all share the same projection. It can also draw a debug grid and track the hovered cell.
 
-`GridProjectionComponent` owns the conversion between world positions and cells. Set `Projection` to top-down or isometric, set `TileSize`, and let placement, selection, cursor, pathing, minimap, and workers share the same projection.
+`GridNavigationComponent` is cell-based A*. It reads four sources when finding a path: its own blocked set (buildings write into it), `GridCellDataComponent` blocked flags and `BlockedTerrainKinds`, `GridPlacementComponent` occupancy, and `GridRoadComponent` cost multipliers. `TerrainCostMultipliers` price sand, mud, snow, ice, rock, and shallow water; `shallow_water` is deliberately absent from its blocked list — units wade at 2.5x cost while nothing may be *built* there (the build-side components block it by default).
 
-`GridNavigationComponent` should point to `GridCellDataComponent` through `CellDataPath` when terrain affects movement. It can treat `CellFlags.Blocked` and exported `BlockedTerrainKinds` such as water, ocean, deep water, and lava as impassable, and it applies `TerrainCostMultipliers` for terrain such as sand, mud, snow, ice, rock, and shallow water. Road cost from `GridRoadComponent` is multiplied with terrain cost, so a dirt path over slow terrain still improves movement without replacing the terrain model.
+`GridTileMapLayerBridgeComponent` mirrors cell state and road state into a real Godot `TileMapLayer` when a project wants authored tiles to show map state. It listens to cell and road change signals; bulk loads repaint once through `CellsChanged`.
 
-`GridTileMapLayerBridgeComponent` mirrors cell state and road state into a Godot `TileMapLayer` when a project still needs TileMap collision/detail data. Keep this as a bridge, not the primary world model.
+`GridCellOverlayComponent` draws cleared/tilled/watered/planted/harvest-ready/blocked cell fills before a project has TileMap art for every state.
 
-`GridCellOverlayComponent` draws visual feedback for cleared, watered, selected, blocked, and special-purpose cell states without changing the terrain base.
+`GridMinimapComponent` renders a compact overview of roads, jobs, selection, units, and the camera view rectangle, over an optional baked terrain background (`ShowTerrain`, colored per terrain kind from cell data).
 
-`GridMinimapComponent` renders a compact overview of cells, roads, jobs, workers, and placed objects for HUD use.
-
-`GridCameraControllerComponent` provides map panning, drag movement, zoom-at-cursor, keyboard movement, bounds clamping, and focus helpers for large top-down/isometric maps.
+`GridCameraControllerComponent` gives a `Camera2D` drag pan, wheel zoom at cursor, keyboard/edge pan, world bounds clamping, and focus helpers.
 
 ## Cells, Crops, Roads, And Calendar
 
-`GridCellDataComponent` stores terrain kind, flags, crops, watered state, cleared state, and occupancy data.
+`GridCellDataComponent` is the per-cell model: terrain kind, `CellFlags` (Blocked, Cleared, Tilled, Watered, Planted, HarvestReady), crop id, growth age, regrow interval, and small metadata — no TileMap required. Single edits emit `CellChanged`; bulk loads emit one `CellsChanged`. Harvesting a crop planted with a regrow interval resets its growth clock instead of clearing it (`RemoveCrop` uproots it regardless); the interval round-trips through saves as `crop_regrow_days`.
 
-`GridCropDefinition` describes a crop's growth timing, allowed seasons, regrow behavior, and yield data. `GridCropCatalogComponent` looks those up for tools and planting.
+`GridCropDefinition` describes a crop: maturity days, allowed seasons, regrow behavior, seed and yield items. `GridCropCatalogComponent` looks crops up for the plant tool and season checks and exposes `RegrowDays`/`SeedItem` alongside `DaysToMature`/`YieldItem`.
 
-`GridCalendarComponent` advances days/seasons and can tick crop growth. `GridCalendarHudComponent` displays date/progress and can optionally expose a next-day button.
+`GridCalendarComponent` advances days, seasons, and years — from real seconds or an end-day button — and ticks crop growth in the cell data. `GridCalendarHudComponent` shows the date, day progress, and an optional next-day button.
 
-`GridRoadComponent` stores road cells and traversal cost multipliers. Point `CellDataPath` at the same `GridCellDataComponent` to reject roads on blocked cells or impassable terrain such as water, ocean, deep water, and lava. `GridNavigationComponent` reads roads, occupied cells, cell-data blocked flags, blocked terrain kinds, and terrain movement costs when finding paths.
+`GridRoadComponent` stores player-built road cells with traversal cost multipliers and draws them. It rejects roads on blocked cells or blocked terrain, and navigation multiplies road cost with terrain cost, so a dirt path over slow ground still helps.
 
 ## Selection, Interaction, And Placement
 
-`GridSelectionComponent` handles hover, click, drag rectangle selection, and selected-cell state.
+`GridInteractionModeComponent` coordinates who consumes a map click: Select, Inspect, Tool, Build, or Disabled. It takes over mouse input from the child systems (`ManageChildMouseInput`) so one click has one meaning.
 
-`GridInteractionModeComponent` coordinates player clicks across select, inspect, tool, build, and disabled modes.
+`GridSelectionComponent` handles hover, click, and drag-rectangle cell selection.
 
-`GridInteractionModeBarComponent` exposes authored mode buttons for the current interaction mode.
+`GridInteractionModeBarComponent` is the authored mode button bar; `GridInteractionStatusComponent` shows the active mode, hovered or placement cell, and the latest applied/rejected feedback; `GridInteractionCursorComponent` draws the mode-colored cell cursor, green/red during placement.
 
-`GridInteractionStatusComponent` displays the active mode, hovered cell, selected tool/build, and recent feedback.
+`GridToolActionComponent` applies the selected tool — Clear, Hoe, Water, Plant, Harvest, QueueJob, Road, RemoveRoad — to a clicked cell or the whole selection. It checks blocked flags, blocked/allowed terrain, season (through the crop catalog and calendar), and pays harvest yield into the wallet. Planting charges the crop's `SeedItemId` from the wallet (one seed per cell; `missing_seeds` when short; `ConsumeSeedsFromWallet` opts out; no wallet in the scene means no charge) and passes the crop's regrow interval through to the cell data.
 
-`GridInteractionCursorComponent` draws valid/invalid hover outlines for top-down and isometric cells.
+`GridPlacementComponent` runs build placement: preview under the mouse, footprint validity, click to confirm, right-click or Escape to cancel. On confirm it can charge the wallet, stamps a `GridObjectComponent` onto the placed scene, marks footprint cells occupied, and blocks them in navigation.
 
-`GridToolActionComponent` applies the selected land/crop/road/resource tool to one cell or the current selection. It can use `CellDataPath` and `NavigationPath` to reject direct clear/hoe/plant/queue-job actions on water, lava, disallowed terrain, or out-of-bounds cells before mutating the grid.
+### Who owns which spatial fact
 
-`GridPlacementComponent` previews and confirms placeable builds. It reserves footprints, can spend resources, configures placed `GridObjectComponent` metadata, can read `GridCellDataComponent` so blocked flags, water/lava terrain, or an explicit `AllowedTerrainKinds` list control where buildings may be placed, and can write blocking build footprints into `GridNavigationComponent` through `NavigationPath`.
+Several components can each say "you cannot be here." They are not redundant: each owns one fact, and the others read it. When placement or pathing behaves unexpectedly, find the fact's owner below — and never write the same fact into two owners.
+
+| Fact | Owner | Written by | Read by |
+| --- | --- | --- | --- |
+| Terrain kind of a cell | `GridCellDataComponent` (`TerrainDataLayersComponent` overrides where wired) | terrain generator at build time | navigation (blocked kinds, cost), placement, roads, tools, job commands, scatter, spawner |
+| Cell `Blocked` flag | `GridCellDataComponent` | game logic, saves | navigation, placement, tools, job commands |
+| Building occupancy | `GridPlacementComponent` | placement confirm; `GridObjectComponent` footprint reserve/release | navigation (`TreatPlacementOccupiedAsBlocked`), placement validity, resource nodes |
+| Navigation blocked set | `GridNavigationComponent` (`SetCellBlocked`) | placement (`MarkPlacedCellsBlockedInNavigation` → `SetFootprintNavigationBlocked`); game logic | pathfinding only |
+| Road cells and cost | `GridRoadComponent` | road tool | navigation step cost, TileMap bridge, minimap |
+
+The chain on a confirmed build: placement marks its own occupancy and — with `MarkPlacedCellsBlockedInNavigation` on — pushes the footprint into navigation's blocked set; the placed `GridObjectComponent` re-reserves that footprint on ready in authored scenes and releases it on exit. Occupancy and the navigation blocked set are two views of one event, kept in sync by placement; do not write one without the other.
 
 ## Objects, Builds, And Production
 
-`GridObjectComponent` marks placed buildings, resources, props, or units as selectable grid objects with id, display name, kind/category, description, cell, footprint, completion state, and metadata. Authored scene objects can opt into `ReserveFootprintOnReady` and wire `PlacementPath`/`NavigationPath` so bases, depots, rocks, and buildings reserve their footprint without project-specific code.
+`GridObjectComponent` is the identity component for anything placed on the grid: id, display name, kind/category, description, cell, footprint, completion state, metadata. It reserves its footprint in placement and navigation (`ReserveFootprintOnReady` for authored objects) and releases it on exit.
 
-`GridObjectInspectorComponent` binds selection to an authored inspector panel.
+`GridObjectInspectorComponent` binds the current selection to an inspector panel: title, description, cell, footprint, completion, metadata.
 
-`GridBuildDefinition` is the data resource for a placeable object: id, display name, category, footprint, cost, preview texture, and optional scene.
+`GridBuildDefinition` is the data resource for one placeable: id, display name, category, scene, preview, footprint, costs, build seconds, job kind. `GridBuildCatalogComponent` holds the set, answers affordability, and starts placement. `GridBuildToolbarComponent` presents categories and builds. `GridBuildSiteComponent` turns a placed build with `BuildSeconds > 0` into a construction job — tinted while under construction, completed when a worker finishes the job.
 
-`GridBuildCatalogComponent` stores available builds and starts placement.
+`GridProductionRecipe` describes inputs, outputs, and duration. `GridProductionComponent` runs the cycle on a building: spend inputs from the wallet, wait, pay outputs, optionally loop. `GridProductionPanelComponent` lists machines with state and progress and exposes start/pause/resume/cancel.
 
-`GridBuildToolbarComponent` presents build categories and build choices.
-
-`GridBuildSiteComponent` creates build-site jobs and completes placed builds.
-
-`GridProductionRecipe` describes production inputs, outputs, and duration.
-
-`GridProductionComponent` runs production on a building and spends/refunds resources through the wallet.
-
-`GridProductionPanelComponent` displays machines and production state.
+`GridDispatchBoardComponent` is the lighter, tween-driven work loop for showcase scenes: a button dispatches a vehicle to a `GridDispatchTaskDefinition` target, the world changes on arrival, the vehicle returns.
 
 ## Resources And Jobs
 
-`GridResourceAmount` is the reusable resource id plus quantity data resource for build costs and production recipes.
+`ResourceDefinition` / `ResourceCatalog` (shared with the terrain engine) define what a resource *is* — where it occurs on the map and what gathering it yields. Assign the same catalog to the generator, the scatter, and the nodes, and the map cannot generate a resource the economy has never heard of.
 
-`GridResourceWalletComponent` stores settlement resources. Startup balances should be authored with primitive dictionary data through `StartingResourceAmounts`, not C# resource subresources.
+`GridResourceAmount` is the id-plus-quantity data resource used by build costs, production recipes, and starting balances.
 
-`GridResourceBarComponent` binds resource ids to authored labels.
+`GridResourceWalletComponent` stores settlement resources with afford/spend/refund and change signals (`TrySpendAmount` spends a single resource with the same rejection signal as the array form). Author starting balances as a plain dictionary through `StartingResourceAmounts`.
 
-`GridResourceNodeComponent` represents gatherable resources on the map. Point `PlacementPath` at `GridPlacementComponent` and enable `MarkCellOccupiedOnReady` when authored trees, rocks, crates, or props should block building placement until they are gathered, depleted, or removed.
+`GridResourceBarComponent` shows every non-zero wallet entry, binding authored labels by id or generating a fallback row.
 
-`GridResourceScatterComponent` places resource nodes from a seeded scatter pass. Point it at `GridCellDataComponent` to avoid water/lava/blocked terrain or to require an `AllowedTerrainKinds` list, and enable `MarkGeneratedCellsOccupied` when generated trees, rocks, or props should reserve placement cells until cleared or depleted.
+`GridResourceNodeComponent` is a gatherable deposit — tree, rock, crate. With a catalog assigned it takes its rules (full amount, yield per gather, gather time, job kind, cell occupancy) from the definition for its `ResourceId`; its own exports apply only to ids the catalog does not define. Gathered amounts go to the wallet; depletion hides, disables, or frees the node and releases its cell.
 
-`GridJobQueueComponent` stores queued, claimed, completed, cancelled, and failed jobs.
+`GridResourceScatterComponent` populates deposits. Pointed at `TerrainDataLayersComponent` it places them exactly where the generated map put resources (filtered by the catalog); without data layers it falls back to a seeded random scatter over allowed terrain.
 
-`GridJobBoardComponent` shows current job queue status.
+`GridJobQueueComponent` stores cell jobs — Queued, Claimed, Completed, Cancelled — with priority and work seconds. `GridJobBoardComponent` shows the queue. `GridSelectionJobCommandComponent` turns selected cells into jobs, skipping water, blocked, or out-of-bounds cells. `GridJobEffectComponent` applies completed jobs to the world: clear, till, water, harvest, and gather effects, including gathering the resource node standing on a cleared cell.
 
-`GridJobEffectComponent` applies job completion effects such as clear land, gather, road work, plant, water, and harvest. With `ClearLandGathersResourceNode` enabled, a clear-land job gathers/depletes the resource node on that cell and releases its placement reservation.
+### The job loop
 
-`GridSelectionJobCommandComponent` turns selected cells into queued jobs. Wire `CellDataPath` and `NavigationPath` when command buttons should skip water/lava/out-of-bounds cells before jobs reach workers.
+```mermaid
+sequenceDiagram
+    participant P as Player (tool / command)
+    participant Q as GridJobQueueComponent
+    participant W as GridWorkerComponent
+    participant F as GridPathFollowerComponent
+    participant E as GridJobEffectComponent
+    participant C as GridCellDataComponent / GridResourceNodeComponent
+
+    P->>Q: AddJob(cell, kind, seconds, priority)
+    W->>Q: ClaimNextJob(workerId, myCell)
+    Q-->>W: jobId (best by priority, then distance)
+    W->>F: MoveToCell(job cell)
+    F-->>W: DestinationReached
+    W->>W: work for WorkSeconds
+    W->>Q: CompleteJob(jobId)
+    Q-->>E: JobCompleted signal
+    E->>C: apply effect (clear / till / water / harvest / gather)
+```
 
 ## Workers And Movement
 
-`GridPathFollowerComponent` moves a `Node2D` or `CharacterBody2D` along a cell path.
+`GridPathFollowerComponent` moves a `Node2D` or `CharacterBody2D` along a cell path from navigation, with waypoint and arrival signals, optional rotation, and Y-sorted z.
 
-`GridWorkerComponent` claims jobs, asks for paths, moves to target cells, works for a duration, and completes or releases jobs.
+`GridWorkerComponent` is the agent loop: idle, claim a job, move, work for the job's duration, complete, repeat. `WorkSpeedMultiplier` scales work time; failures release the job back to the queue.
 
-`GridWorkerSpawnerComponent` spawns workers or trucks from a base/depot and wires movement/job components. Set `CellDataPath` and `PlacementPath` so spawn cells reject blocked flags, impassable terrain kinds such as water/deep_water/lava, optional allowed terrain filters, navigation bounds, and occupied placement cells before a unit is created.
-
-`GridWorkerSpawnerPanelComponent` binds a base HUD panel to a spawner. By default it expects `TitleLabelPath`, `CountLabelPath`, and `SpawnButtonPath` to point to authored controls.
-
-`GridWorkerStatusPanelComponent` scans worker units and displays idle/active/job state.
+`GridWorkerSpawnerComponent` spawns worker/truck units from a base, wires their follower and worker components to the scene's grid, navigation, and job queue, and refuses blocked, occupied, or out-of-bounds spawn cells. `GridWorkerSpawnerPanelComponent` is its HUD (count + spawn button); `GridWorkerStatusPanelComponent` lists every worker with state and current job.
 
 ## Goals And Save State
 
-`GridObjectiveDefinition` describes an objective id, title, target count, starting state, and display behavior.
+`GridObjectiveDefinition` describes an objective: id, title, description, target count, auto-complete, starting state. `GridObjectiveTrackerComponent` tracks activation, progress, and completion. `GridObjectivePanelComponent` lists goals with progress. `GridObjectiveEventBinderComponent` advances objectives from gameplay signals — completed jobs, finished builds, gathered resources, production cycles — through id conventions like `build_<id>` and `gather_<id>`.
 
-`GridObjectiveTrackerComponent` tracks active objectives and progress.
+`GridWorldStateComponent` captures and restores the whole toolkit as one snapshot dictionary: cell data, roads, placement occupancy, navigation blocks, selection, jobs, and every `GridObjectComponent`'s state and footprint reservations. It participates in the addon save system (`ISaveable`), as do the wallet, roads, calendar, and objective tracker individually.
 
-`GridObjectivePanelComponent` binds objectives to an authored HUD panel.
-
-`GridObjectiveEventBinderComponent` connects job, build, resource, and production events to objective progress.
-
-`GridWorldStateComponent` captures and restores cells, roads, jobs, selection, placement, navigation blocks, and authored `GridObjectComponent` state. When `ObjectsRootPath` is set, it releases old object footprint reservations before restore and reapplies the saved object cell, metadata, and reservations so stale occupied or blocked cells do not survive save/load.
+```mermaid
+flowchart LR
+    S[GridWorldStateComponent] -->|captures| A[cells + roads + occupancy + blocks + selection + jobs + objects]
+    A -->|one Dictionary| G[GameStateData / JSON / custom save]
+    G -->|RestoreState| S
+```
 
 ## HUD And UI Kit Practice
 
@@ -158,11 +240,11 @@ Use Beep kit controls for authored HUDs:
 
 - `KitPanelContainer` for compact HUD frames.
 - `KitPushButton` for authored tool/build/action buttons.
-- `KitLabel` for themed labels.
-- `KitLabelValue` for dense readouts.
+- `KitLabel` for themed labels, `KitLabelValue` for dense readouts.
+- `ResourceBadgeComponent` for game-styled resource readouts (icon frame + capsule plate) instead of label pairs.
 - `KitToast`, `KitTooltip`, and `KitSpeechBubble` for message surfaces that resize from content.
 
-Avoid runtime construction for normal game HUDs. Runtime fallback generation should be used for quick prototypes, debug tools, and smoke tests only.
+Avoid runtime construction for normal game HUDs. Runtime fallback generation (`GenerateControlsWhenPathsEmpty`) exists for quick prototypes, debug tools, and smoke tests only.
 
 ## Verification
 
@@ -170,6 +252,9 @@ Run these after changing the toolkit:
 
 ```powershell
 dotnet build Beep.Godot.csproj --no-restore
-powershell -ExecutionPolicy Bypass -File tests/runtime_smoke.ps1 -GodotCommand 'H:\dev\Godot\Godot_v4.7-stable_mono_win64.exe'
-powershell -ExecutionPolicy Bypass -File tests/render_scene_capture.ps1 -GodotCommand 'H:\dev\Godot\Godot_v4.7-stable_mono_win64.exe' -ScenePath 'res://addons/beep_game_builder_cs/templates/scenes/kit_browser.tscn' -OutputPath 'res://tmp/kit_browser.png' -Width 1280 -Height 720 -TimeoutSeconds 120
+powershell -ExecutionPolicy Bypass -File tests/addon_contract_scan.ps1
+powershell -ExecutionPolicy Bypass -File tests/runtime_smoke.ps1 -GodotCommand '<path-to-Godot_v4.7-stable_mono_win64.exe>'
+powershell -ExecutionPolicy Bypass -File tests/terrain_guards.ps1 -GodotCommand '<path-to-Godot_v4.7-stable_mono_win64.exe>'
 ```
+
+`tests/GridPlacementSmoke.cs` covers placement, wallet spend, navigation blocking, and `GridWorldStateComponent` snapshot round-tripping; the `grid_terrain_*_probe.ps1` scripts cover the terrain-to-grid seams.

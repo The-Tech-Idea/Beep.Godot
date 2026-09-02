@@ -193,5 +193,21 @@ namespace Beep.ECS
             value ^= value >> 16;
             return (value & 0x00ffffffu) / 16777215.0f;
         }
+
+        /// <summary>
+        /// The same mix as Hash01, kept as a raw int for callers that index by
+        /// modulo rather than by a unit float. One private copy of this
+        /// survived the Hash01 consolidation, in the mountain tile painter.
+        /// </summary>
+        public static int HashInt(int x, int y, int seed)
+        {
+            unchecked
+            {
+                uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
+                value = (value ^ (value >> 13)) * 1274126177u;
+                value ^= value >> 16;
+                return (int)value;
+            }
+        }
     }
 }

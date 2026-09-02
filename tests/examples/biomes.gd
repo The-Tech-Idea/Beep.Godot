@@ -14,7 +14,7 @@ extends SceneTree
 # the normal case. Nothing caught it, because nothing asserted that the climate
 # axis reaches the ground.
 
-const CELL_DATA := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
+const CELL_DATA := preload("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs")
 const GENERATOR := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const SIZE := Vector2i(64, 40)
 

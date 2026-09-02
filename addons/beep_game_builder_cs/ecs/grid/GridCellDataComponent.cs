@@ -109,7 +109,7 @@ namespace Beep.ECS
             EmitSignal(SignalName.CellChanged, cell.X, cell.Y);
         }
 
-        public bool PlantCrop(Vector2I cell, string cropId, int daysToMature)
+        public bool PlantCrop(Vector2I cell, string cropId, int daysToMature, int regrowDays = -1)
         {
             if (string.IsNullOrWhiteSpace(cropId))
                 return false;
@@ -121,6 +121,7 @@ namespace Beep.ECS
             record.CropId = cropId.Trim();
             record.CropAgeDays = 0;
             record.CropDaysToMature = Mathf.Max(0, daysToMature);
+            record.CropRegrowDays = Mathf.Max(-1, regrowDays);
             record.Flags |= CellFlags.Planted;
             record.Flags &= ~CellFlags.HarvestReady;
             EmitSignal(SignalName.CellChanged, cell.X, cell.Y);
@@ -132,9 +133,24 @@ namespace Beep.ECS
             if (!_cells.TryGetValue(cell, out CellRecord? record) || string.IsNullOrEmpty(record.CropId))
                 return false;
 
+            if (record.CropRegrowDays >= 0)
+            {
+                // A regrowing crop stays in the ground: the harvest resets its
+                // growth clock instead of clearing it, and clearTilled is
+                // ignored because the plant still occupies the tilled cell.
+                // The same regrow interval of 0 means "ready again after the
+                // next AdvanceDay", matching daysToMature = 0 on first growth.
+                record.CropAgeDays = 0;
+                record.CropDaysToMature = record.CropRegrowDays;
+                record.Flags &= ~(CellFlags.HarvestReady | CellFlags.Watered);
+                EmitSignal(SignalName.CellChanged, cell.X, cell.Y);
+                return true;
+            }
+
             record.CropId = "";
             record.CropAgeDays = 0;
             record.CropDaysToMature = 0;
+            record.CropRegrowDays = -1;
             record.Flags &= ~(CellFlags.Planted | CellFlags.HarvestReady | CellFlags.Watered);
             if (clearTilled)
                 record.Flags &= ~CellFlags.Tilled;
@@ -142,11 +158,27 @@ namespace Beep.ECS
             return true;
         }
 
+        /// <summary>
+        /// Removes a crop outright even if it would regrow - the scythe/undo
+        /// path, as opposed to HarvestCrop which honors the regrow cycle.
+        /// </summary>
+        public bool RemoveCrop(Vector2I cell, bool clearTilled = false)
+        {
+            if (!_cells.TryGetValue(cell, out CellRecord? record) || string.IsNullOrEmpty(record.CropId))
+                return false;
+
+            record.CropRegrowDays = -1;
+            return HarvestCrop(cell, clearTilled);
+        }
+
         public string GetCropId(Vector2I cell)
             => _cells.TryGetValue(cell, out CellRecord? record) ? record.CropId : "";
 
         public int GetCropAgeDays(Vector2I cell)
             => _cells.TryGetValue(cell, out CellRecord? record) ? record.CropAgeDays : 0;
+
+        public int GetCropRegrowDays(Vector2I cell)
+            => _cells.TryGetValue(cell, out CellRecord? record) ? record.CropRegrowDays : -1;
 
         public void SetMetadata(Vector2I cell, string key, Variant value)
         {
@@ -187,6 +219,18 @@ namespace Beep.ECS
             EmitSignal(SignalName.DayAdvanced, advance);
         }
 
+        /// <summary>
+        /// Lean typed view of every stored cell's flags, for same-assembly
+        /// drawers. GetCells marshals a full Godot Dictionary per cell, which
+        /// is the right shape for GDScript and saves and the wrong one for a
+        /// per-frame overlay draw.
+        /// </summary>
+        internal IEnumerable<(Vector2I Cell, CellFlags Flags)> EnumerateFlags()
+        {
+            foreach ((Vector2I cell, CellRecord record) in _cells)
+                yield return (cell, record.Flags);
+        }
+
         public Godot.Collections.Dictionary GetCell(Vector2I cell)
             => _cells.TryGetValue(cell, out CellRecord? record) ? record.ToDictionary(cell) : EmptyCell(cell);
 
@@ -198,6 +242,15 @@ namespace Beep.ECS
             return result;
         }
 
+        /// <summary>
+        /// Bulk load emits ONE CellsChanged at the end, never per-cell
+        /// CellChanged. A generated map is ten thousand cells, and every
+        /// per-cell emission used to make GridTileMapLayerBridgeComponent run a
+        /// full TileMapLayer internals update - ten thousand of them - before
+        /// the CellsChanged rebuild repainted the same map once more. A
+        /// listener that needs per-cell granularity gets it from the editing
+        /// API (Till, Water, SetFlags, ...), which is where single edits happen.
+        /// </summary>
         public void LoadCells(Godot.Collections.Array cells, bool clearExisting = true)
         {
             bool changed = false;
@@ -218,7 +271,6 @@ namespace Beep.ECS
 
                 _cells[cell] = CellRecord.FromDictionary(dict, DefaultTerrainKind);
                 changed = true;
-                EmitSignal(SignalName.CellChanged, cell.X, cell.Y);
             }
 
             if (changed)
@@ -231,6 +283,33 @@ namespace Beep.ECS
             foreach (Godot.Collections.Dictionary cell in cells)
                 untyped.Add(cell);
             LoadCells(untyped, clearExisting);
+        }
+
+        /// <summary>
+        /// The typed bulk-load fast path for same-assembly writers - the
+        /// terrain generator hands a whole map over here. The Variant overloads
+        /// above stay for GDScript and saved data; this one skips marshalling
+        /// one Godot Dictionary per cell, which for a generated map was the
+        /// single biggest allocation in a world build. Same signal contract as
+        /// the Variant path: one CellsChanged for the whole batch.
+        /// </summary>
+        internal void LoadGeneratedCells(IReadOnlyList<(Vector2I Cell, string Terrain)> cells, bool clearExisting = true)
+        {
+            bool changed = false;
+            if (clearExisting)
+            {
+                changed = _cells.Count > 0;
+                _cells.Clear();
+            }
+
+            foreach ((Vector2I cell, string terrain) in cells)
+            {
+                _cells[cell] = new CellRecord(string.IsNullOrWhiteSpace(terrain) ? DefaultTerrainKind : terrain);
+                changed = true;
+            }
+
+            if (changed)
+                EmitSignal(SignalName.CellsChanged);
         }
 
         private CellRecord GetOrCreate(Vector2I cell)
@@ -252,6 +331,7 @@ namespace Beep.ECS
                 ["crop_id"] = "",
                 ["crop_age_days"] = 0,
                 ["crop_days_to_mature"] = 0,
+                ["crop_regrow_days"] = -1,
                 ["metadata"] = new Godot.Collections.Dictionary()
             };
 
@@ -276,6 +356,7 @@ namespace Beep.ECS
             public string CropId { get; set; } = "";
             public int CropAgeDays { get; set; }
             public int CropDaysToMature { get; set; }
+            public int CropRegrowDays { get; set; } = -1;
             public Godot.Collections.Dictionary Metadata { get; private set; } = new();
 
             public Godot.Collections.Dictionary ToDictionary(Vector2I cell)
@@ -287,6 +368,7 @@ namespace Beep.ECS
                     ["crop_id"] = CropId,
                     ["crop_age_days"] = CropAgeDays,
                     ["crop_days_to_mature"] = CropDaysToMature,
+                    ["crop_regrow_days"] = CropRegrowDays,
                     ["metadata"] = Metadata.Duplicate(deep: true)
                 };
 
@@ -297,7 +379,9 @@ namespace Beep.ECS
                     Flags = (CellFlags)DictInt(dict, "flags", 0),
                     CropId = DictString(dict, "crop_id", ""),
                     CropAgeDays = DictInt(dict, "crop_age_days", 0),
-                    CropDaysToMature = DictInt(dict, "crop_days_to_mature", 0)
+                    CropDaysToMature = DictInt(dict, "crop_days_to_mature", 0),
+                    // Saves from before regrow existed load as non-regrowing.
+                    CropRegrowDays = DictInt(dict, "crop_regrow_days", -1)
                 };
 
                 if (dict.ContainsKey("metadata") && dict["metadata"].VariantType == Variant.Type.Dictionary)

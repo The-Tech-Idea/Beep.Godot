@@ -20,11 +20,12 @@ namespace Beep.ECS
     /// per-tile data, so a developer uses get_cell_tile_data and the TileSet
     /// editor rather than an API peculiar to this addon.
     ///
-    /// FOUR layers, not one, because the facts vary independently: a cell's
-    /// terrain, the resource on it, the feature standing on it and its relief
-    /// band are separate choices, and one tile can only carry one set of
-    /// values. Split this way each layer holds one tile per distinct value;
-    /// combined, it would need a tile per combination.
+    /// SIX layers, not one, because the facts vary independently: a cell's
+    /// terrain, the resource on it, the feature standing on it, its relief
+    /// band, the continent it belongs to and whether it is a recommended start
+    /// are separate choices, and one tile can only carry one set of values.
+    /// Split this way each layer holds one tile per distinct value; combined,
+    /// it would need a tile per combination.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -69,12 +70,16 @@ namespace Beep.ECS
         private TileMapLayer? _resources;
         private TileMapLayer? _features;
         private TileMapLayer? _relief;
+        private TileMapLayer? _continents;
+        private TileMapLayer? _starts;
 
         /// <summary>Value to tile column, per layer, so a fill is a lookup.</summary>
         private readonly Dictionary<string, int> _terrainTiles = new();
         private readonly Dictionary<string, int> _resourceTiles = new();
         private readonly Dictionary<string, int> _featureTiles = new();
         private readonly Dictionary<string, int> _reliefTiles = new();
+        private readonly Dictionary<string, int> _continentTiles = new();
+        private readonly Dictionary<string, int> _startTiles = new();
 
         public override void _Ready()
         {
@@ -114,6 +119,8 @@ namespace Beep.ECS
             var resources = new SortedSet<string>();
             var features = new SortedSet<string>();
             var reliefs = new SortedSet<string>();
+            // Numeric so 2 sorts before 10; painted as strings like the rest.
+            var continentIds = new SortedSet<int>();
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
@@ -128,8 +135,17 @@ namespace Beep.ECS
                         features.Add(feature);
 
                     reliefs.Add(((int)field.ReliefAtCell(at)).ToString());
+
+                    // 0 is water/no continent; those cells simply get no tile,
+                    // so ContinentAt reads 0 there without a tile existing.
+                    int continent = field.ContinentAtCell(at);
+                    if (continent > 0)
+                        continentIds.Add(continent);
                 }
             }
+            var continents = new List<string>();
+            foreach (int id in continentIds)
+                continents.Add(id.ToString());
 
             // The kinds this map HAS, from the engine - not every kind the
             // catalogue knows. A tile per absent biome is a tile nothing ever
@@ -148,11 +164,17 @@ namespace Beep.ECS
                 (data, value) => TerrainTileSets.Describe(data, string.Empty, feature: value));
             _relief = EnsureLayer("ReliefData", _relief, cell, new List<string>(reliefs), _reliefTiles,
                 (data, value) => TerrainTileSets.DescribeRelief(data, int.Parse(value)));
+            _continents = EnsureLayer("ContinentData", _continents, cell, continents, _continentTiles,
+                (data, value) => TerrainTileSets.DescribeContinent(data, int.Parse(value)));
+            _starts = EnsureLayer("StartData", _starts, cell, new List<string> { "start" }, _startTiles,
+                (data, _) => TerrainTileSets.DescribeStart(data));
 
             _terrain.Clear();
             _resources.Clear();
             _features.Clear();
             _relief.Clear();
+            _continents.Clear();
+            _starts.Clear();
 
             for (int y = 0; y < size.Y; y++)
             {
@@ -163,7 +185,17 @@ namespace Beep.ECS
                     Paint(_resources, _resourceTiles, at, field.ResourceAtCell(at));
                     Paint(_features, _featureTiles, at, field.FeatureAtCell(at));
                     Paint(_relief, _reliefTiles, at, ((int)field.ReliefAtCell(at)).ToString());
+
+                    int continent = field.ContinentAtCell(at);
+                    if (continent > 0)
+                        Paint(_continents, _continentTiles, at, continent.ToString());
                 }
+            }
+
+            foreach (Vector2I start in field.StartPositions)
+            {
+                if (start.X >= 0 && start.Y >= 0 && start.X < size.X && start.Y < size.Y)
+                    Paint(_starts, _startTiles, start, "start");
             }
         }
 
@@ -278,6 +310,25 @@ namespace Beep.ECS
         /// </summary>
         public bool PassableAt(Vector2I cell) => Read(_terrain, cell, TerrainTileSets.Cell.Passable).AsBool();
 
+        /// <summary>
+        /// Landmass index the cell belongs to. 0 for water, off-map, and
+        /// unbuilt layers alike - land continents count from 1, so 0 always
+        /// means "no continent" rather than a real id.
+        /// </summary>
+        public int ContinentAt(Vector2I cell) => Read(_continents, cell, TerrainTileSets.Cell.Continent).AsInt32();
+
+        /// <summary>Whether the generator recommended this cell as a player start.</summary>
+        public bool IsStartPositionAt(Vector2I cell) => Read(_starts, cell, TerrainTileSets.Cell.StartPosition).AsBool();
+
+        /// <summary>
+        /// Every recommended start cell, read off the painted start layer so it
+        /// answers from the same data a get_used_cells caller would see.
+        /// </summary>
+        public Godot.Collections.Array<Vector2I> StartCells()
+            => _starts is not null && GodotObject.IsInstanceValid(_starts)
+                ? _starts.GetUsedCells()
+                : new Godot.Collections.Array<Vector2I>();
+
         private static Variant Read(TileMapLayer? layer, Vector2I cell, string field)
         {
             TileData? data = layer?.GetCellTileData(cell);
@@ -295,5 +346,11 @@ namespace Beep.ECS
 
         /// <summary>Relief band - Flat, Hills, Mountains - per TerrainRelief.</summary>
         public TileMapLayer? ReliefLayer => _relief;
+
+        /// <summary>Continent ids, on land cells only.</summary>
+        public TileMapLayer? ContinentLayer => _continents;
+
+        /// <summary>Recommended start cells, and nothing else.</summary>
+        public TileMapLayer? StartLayer => _starts;
     }
 }

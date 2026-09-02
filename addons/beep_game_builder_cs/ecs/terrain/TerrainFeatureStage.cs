@@ -307,7 +307,6 @@ namespace Beep.ECS
         {
             string terrain = world.CellTerrain[cell];
             int sample = world.CellCentreIndex(cellX, cellY);
-            float moisture = world.Moisture[sample];
             float temperature = world.Temperature[sample];
             float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
             float density = Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);

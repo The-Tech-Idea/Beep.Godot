@@ -22,19 +22,6 @@ namespace Beep.ECS
     public static class TerrainAuthoring
     {
         /// <summary>
-        /// Gives a just-created node an owner, so it is saved with the scene.
-        ///
-        /// Call it AFTER AddChild: a node must already be in the tree, and an
-        /// owner must be one of its ancestors.
-        ///
-        /// This deliberately does NOT check Engine.IsEditorHint. Ownership is
-        /// only strictly needed at design time, but applying the same rule at
-        /// runtime costs nothing, keeps one code path instead of two, and is
-        /// what lets a guard prove the layers really would be saved - by packing
-        /// a generated map and reading the result back, without needing to drive
-        /// the editor.
-        /// </summary>
-        /// <summary>
         /// The one way a terrain view gets a TileMapLayer: reuse the one already
         /// there under that name, or make it, parent it, and adopt it so it is
         /// saved with the scene.
@@ -57,6 +44,19 @@ namespace Beep.ECS
             return layer;
         }
 
+        /// <summary>
+        /// Gives a just-created node an owner, so it is saved with the scene.
+        ///
+        /// Call it AFTER AddChild: a node must already be in the tree, and an
+        /// owner must be one of its ancestors.
+        ///
+        /// This deliberately does NOT check Engine.IsEditorHint. Ownership is
+        /// only strictly needed at design time, but applying the same rule at
+        /// runtime costs nothing, keeps one code path instead of two, and is
+        /// what lets a guard prove the layers really would be saved - by packing
+        /// a generated map and reading the result back, without needing to drive
+        /// the editor.
+        /// </summary>
         public static void Adopt(Node generated, Node creator)
         {
             if (!generated.IsInsideTree())

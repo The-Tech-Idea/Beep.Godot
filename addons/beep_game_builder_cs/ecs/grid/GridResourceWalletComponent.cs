@@ -122,6 +122,29 @@ namespace Beep.ECS
             return true;
         }
 
+        /// <summary>
+        /// Single-resource spend with the same rejection contract as Spend:
+        /// a short balance emits ResourceSpendRejected and changes nothing, so
+        /// HUDs listening for failed purchases also see failed seed spends.
+        /// </summary>
+        public bool TrySpendAmount(string resourceId, int amount)
+        {
+            string id = Normalize(resourceId);
+            int required = Mathf.Max(0, amount);
+            if (string.IsNullOrEmpty(id) || required == 0)
+                return true;
+
+            int available = GetAmount(id);
+            if (available < required)
+            {
+                EmitSignal(SignalName.ResourceSpendRejected, id, required, available);
+                return false;
+            }
+
+            AddAmount(id, -required);
+            return true;
+        }
+
         public void Refund(Godot.Collections.Array costs)
         {
             foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(costs))

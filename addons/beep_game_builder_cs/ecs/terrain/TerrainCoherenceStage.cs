@@ -56,6 +56,12 @@ namespace Beep.ECS
         };
 
         /// <summary>
+        /// What a peak is made of. Valid for a region that sits on high ground,
+        /// never for one that does not - stone at sea level is not a biome.
+        /// </summary>
+        private static readonly HashSet<string> PeakMaterials = new() { "rock", "gravel", "snow" };
+
+        /// <summary>
         /// What an absorbed region may become. Rock and gravel are included so a
         /// dissolved snow cap has somewhere to go - a peak surrounded only by
         /// rock would otherwise have no candidate and survive by default.
@@ -64,12 +70,6 @@ namespace Beep.ECS
         /// placed by where the coast is, so letting an inland region become sand
         /// would put a beach in the middle of the map.
         /// </summary>
-        /// <summary>
-        /// What a peak is made of. Valid for a region that sits on high ground,
-        /// never for one that does not - stone at sea level is not a biome.
-        /// </summary>
-        private static readonly HashSet<string> PeakMaterials = new() { "rock", "gravel", "snow" };
-
         private static readonly HashSet<string> AbsorbTargets = new()
         {
             "desert", "dry_grass", "grass", "swamp", "jungle", "snow", "tundra", "rock", "gravel",

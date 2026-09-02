@@ -185,9 +185,29 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,8,0.25")] public float WaterOverscan { get; set; } = 2.5f;
 
         [Export(PropertyHint.Range, "0,2,0.05")] public float WaveIntensity { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.40f;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.50f;
         [Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 4.5f;
         [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
+
+        // The same five foam-sheet dials the painted renderer exposes, feeding
+        // the same shader uniforms. The two views deliberately share one water
+        // shader so one map has one sea; leaving these authorable in only one
+        // view was the same drift, one layer up - a foam sheet tuned in the
+        // painted view silently reverted to defaults here.
+        /// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
+        [Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
+        /// <summary>Tiles covered by one repeat ACROSS the shore - short on purpose; see the painted renderer.</summary>
+        [Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
+        /// <summary>How fast the authored crests advance onto the beach.</summary>
+        [Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
+        /// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
+        [Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
+        /// <summary>How fast arriving crests follow one another.</summary>
+        [Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
+        /// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
+        [Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
+        /// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
 
         /// <summary>
         /// The stack this renderer draws into lives in TerrainLayers, shared
@@ -820,7 +840,13 @@ namespace Beep.ECS
         /// </summary>
         private ShaderMaterial? BuildWaterMaterial()
         {
-            ShaderMaterial material = _waterMaterial ?? new ShaderMaterial();
+            // Adopt the material saved with the scene before building a fresh
+            // one: replacing it wiped every uniform hand-tuned in the
+            // Inspector on each reload. Exported dials are still written below
+            // and win; only the uniforms no export covers survive by this.
+            ShaderMaterial material = _waterMaterial
+                ?? _water?.Material as ShaderMaterial
+                ?? new ShaderMaterial();
             if (material.Shader is null)
             {
                 var shader = GD.Load<Shader>(WaterShaderPath);
@@ -865,6 +891,14 @@ namespace Beep.ECS
             material.SetShaderParameter("foam_strength", FoamStrength);
             material.SetShaderParameter("deep_tiles", DeepTiles);
             material.SetShaderParameter("shallow_tiles", ShallowTiles);
+
+            material.SetShaderParameter("foam_tiles_along", Mathf.Max(1.0f, FoamTilesAlong));
+            material.SetShaderParameter("foam_tiles_across", Mathf.Max(0.3f, FoamTilesAcross));
+            material.SetShaderParameter("foam_scroll", Mathf.Max(0.0f, FoamScroll));
+            material.SetShaderParameter("foam_pulse", Mathf.Clamp(FoamPulse, 0.0f, 1.0f));
+            material.SetShaderParameter("foam_arrival_rate", Mathf.Max(0.0f, FoamArrivalRate));
+            material.SetShaderParameter("swell_direction_degrees", SwellDirectionDegrees);
+            material.SetShaderParameter("swell_directionality", Mathf.Clamp(SwellDirectionality, 0.0f, 1.0f));
 
             SetTexture(material, "tex_shallow", ShallowTexturePath);
             SetTexture(material, "tex_deep", DeepTexturePath);

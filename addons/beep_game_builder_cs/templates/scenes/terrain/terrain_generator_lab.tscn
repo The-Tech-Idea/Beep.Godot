@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs" id="controller"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="kit_button"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="kit_option"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="theme"]
 
 [node name="TerrainGeneratorLab" type="Node2D"]
 script = ExtResource("controller")
@@ -89,6 +90,8 @@ BlendWidth = 0.42
 EdgeNoise = 0.55
 NoiseScale = 5.0
 ShadeStrength = 1.0
+WaveIntensity = 0.6
+FoamSheetPath = "res://addons/beep_game_builder_cs/textures/terrain/foam_sheet.png"
 GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
 DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
@@ -220,6 +223,8 @@ TopLift = 0
 LevelHeight = 32
 SeabedDepth = 5
 SeabedStep = 10
+WaveIntensity = 0.6
+FoamSheetPath = "res://addons/beep_game_builder_cs/textures/terrain/foam_sheet.png"
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
 ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
 DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
@@ -428,3 +433,12 @@ grow_horizontal = 2
 grow_vertical = 0
 text = "Generating..."
 theme_override_colors/font_color = Color(0.80, 0.88, 0.77, 1)
+
+[node name="Theme" type="Node" parent="HUD/Settings"]
+script = ExtResource("theme")
+PresetName = "oilfield_days"
+GenreName = "citybuilder"
+ThemePageBackground = false
+EnableAnimations = false
+EnableRippleOnClick = false
+HudMode = true

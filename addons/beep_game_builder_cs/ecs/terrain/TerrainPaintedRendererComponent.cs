@@ -105,10 +105,11 @@ namespace Beep.ECS
 
 		/// <summary>
 		/// Tiles covered by one repeat ACROSS the shore. Short: the surf band is
-		/// about a tile deep, so scaling both axes alike leaves one stretched
-		/// ribbon rather than crests sitting inside the band.
+		/// under a tile deep, and a repeat spread over many tiles parks the
+		/// sheet's crest bands outside it - the old default of 7 left the beach
+		/// with no foam at all for most of each scroll cycle.
 		/// </summary>
-		[Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 7.0f;
+		[Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
 
 		/// <summary>How fast the authored crests advance onto the beach.</summary>
 		[Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
@@ -118,6 +119,21 @@ namespace Beep.ECS
 
 		/// <summary>How fast arriving crests follow one another.</summary>
 		[Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
+
+		// The three water dials the isometric renderer exposes, feeding the same
+		// shader uniforms. The two views share one water on purpose; each view
+		// exposing a different half of its dials was the drift the shared shader
+		// exists to prevent, moved up into the components.
+		/// <summary>How bright the surf paints, 0 for none.</summary>
+		[Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.50f;
+		/// <summary>Tiles from the shore at which the water reaches full depth colour.</summary>
+		[Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 4.5f;
+		/// <summary>Tiles from the shore over which the sandy bottom shows through.</summary>
+		[Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
+		/// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
+		[Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
+		/// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
+		[Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
 
 
 		[ExportGroup("Material Textures")]
@@ -218,6 +234,11 @@ namespace Beep.ECS
 			_material.SetShaderParameter("foam_scroll", Mathf.Max(0.0f, FoamScroll));
 			_material.SetShaderParameter("foam_pulse", Mathf.Clamp(FoamPulse, 0.0f, 1.0f));
 			_material.SetShaderParameter("foam_arrival_rate", Mathf.Max(0.0f, FoamArrivalRate));
+			_material.SetShaderParameter("foam_strength", Mathf.Clamp(FoamStrength, 0.0f, 1.0f));
+			_material.SetShaderParameter("deep_tiles", Mathf.Max(0.5f, DeepTiles));
+			_material.SetShaderParameter("shallow_tiles", Mathf.Max(0.0f, ShallowTiles));
+			_material.SetShaderParameter("swell_direction_degrees", SwellDirectionDegrees);
+			_material.SetShaderParameter("swell_directionality", Mathf.Clamp(SwellDirectionality, 0.0f, 1.0f));
 		}
 
 		/// <summary>
@@ -289,6 +310,17 @@ namespace Beep.ECS
 
 			if (_material is null)
 			{
+				// Adopt the material saved with the scene before building a
+				// fresh one: replacing it wiped every uniform hand-tuned in
+				// the Inspector on each reload. Exported dials are rewritten
+				// by Rebuild and win; only the uniforms no export covers
+				// survive by this.
+				_material = _surface.Material as ShaderMaterial;
+				if (_material is not null && _material.Shader is null)
+					_material.Shader = GD.Load<Shader>(ShaderPath);
+			}
+			if (_material is null)
+			{
 				var shader = GD.Load<Shader>(ShaderPath);
 				if (shader is null)
 				{
@@ -297,8 +329,8 @@ namespace Beep.ECS
 				}
 				_material = new ShaderMaterial { Shader = shader };
 				_surface.Material = _material;
-				AssignMaterialTextures();
 			}
+			AssignMaterialTextures();
 		}
 
 		private void AssignMaterialTextures()

@@ -42,7 +42,7 @@ uniform vec3 tint_shallow = vec3(0.62, 0.80, 0.88);
 uniform vec3 tint_deep = vec3(0.44, 0.58, 0.78);
 
 uniform float shore_blend_tiles : hint_range(0.05, 1.5) = 0.28;
-uniform float foam_strength : hint_range(0.0, 1.0) = 0.40;
+uniform float foam_strength : hint_range(0.0, 1.0) = 0.50;
 uniform float wave_intensity : hint_range(0.0, 2.0) = 1.0;
 uniform float foam_tiles : hint_range(0.1, 6.0) = 0.95;
 uniform float wave_speed : hint_range(0.0, 4.0) = 1.0;
@@ -54,11 +54,17 @@ uniform float deep_tiles : hint_range(0.5, 12.0) = 4.5;
 uniform sampler2D foam_sheet : repeat_enable, filter_linear_mipmap;
 uniform bool use_foam_sheet = false;
 uniform float foam_tiles_along : hint_range(1.0, 48.0) = 11.0;
-uniform float foam_tiles_across : hint_range(0.3, 8.0) = 7.0;
+// SHORT on purpose; see terrain_splat.gdshader.
+uniform float foam_tiles_across : hint_range(0.3, 8.0) = 1.6;
 uniform float foam_scroll : hint_range(0.0, 4.0) = 0.055;
 uniform float foam_pulse : hint_range(0.0, 1.0) = 0.34;
 uniform float foam_arrival_rate : hint_range(0.0, 4.0) = 0.9;
 uniform float foam_lines : hint_range(1.0, 8.0) = 2.3;
+
+// Swell travel direction and how strongly surf favours the coasts facing
+// it; see terrain_splat.gdshader.
+uniform float swell_direction_degrees : hint_range(0.0, 360.0) = 210.0;
+uniform float swell_directionality : hint_range(0.0, 1.0) = 0.65;
 
 // ADDITION 1 - the projection. Half the diamond a tile occupies, which is what
 // turns a world position back into a tile coordinate.
@@ -204,6 +210,12 @@ void fragment() {
 	vec2 seaward = shore_glen > 1e-6 ? shore_grad / shore_glen : vec2(0.0, 1.0);
 	vec2 along_shore = vec2(-seaward.y, seaward.x);
 
+	// Windward/leeward exposure to the swell; see terrain_splat.gdshader.
+	float swell_rad = radians(swell_direction_degrees);
+	vec2 swell_travel = vec2(cos(swell_rad), sin(swell_rad));
+	float exposure = clamp(-dot(seaward, swell_travel), 0.0, 1.0);
+	float facing = mix(1.0, 0.20 + (0.80 * exposure), swell_directionality);
+
 	// Sampled in WORLD space, on world axes. Translating these coordinates by a
 	// shore-relative vector was a mistake: that direction points at the nearest
 	// coast, so inside a lake it converges from every side, and translating UVs
@@ -246,37 +258,77 @@ void fragment() {
 	float shallow = 1.0 - smoothstep(0.0, max(0.001, shallow_tiles), sd);
 	water_col = mix(water_col, texture(tex_sand, world_uv).rgb * tint_sand, shallow * shallow_sand);
 
-	// Moving swell on open water, so the sea is never a flat sheet.
-	float swell = value_noise((tile * 1.4) + vec2(t * 0.20, t * -0.13));
-	water_col *= 0.94 + (0.12 * swell);
+	// Swell in two parts - shore-arriving roll near the coast, driftless
+	// shimmer in open water; see terrain_splat.gdshader for the reasoning.
+	float shimmer = mix(
+		value_noise((tile * 1.4) + vec2(3.1, 7.7)),
+		value_noise((tile * 1.4) + vec2(9.2, 1.3)),
+		0.5 + (0.5 * sin(t * 0.5)));
+	float roll = sin((sd * 2.6) + (t * 1.1) + (value_noise(tile * 0.9) * 2.2));
+	// Confined to the surf zone; see terrain_splat.gdshader on why rings
+	// around a shore read as radiating out of it.
+	float nearing = (1.0 - smoothstep(0.3, 1.6, sd)) * open_sea * facing;
+	water_col *= (0.95 + (0.10 * shimmer)) + (0.035 * roll * nearing);
 
 	// Surf, as a band measured out from the waterline rather than around a tile.
 	float reach = foam_tiles * (0.45 + (0.55 * wave_intensity));
 	float from_shore = clamp(sd / max(0.001, reach), 0.0, 1.0);
-	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80,
-		value_noise((tile * 1.5) + vec2(t * 0.10, t * 0.06))));
+	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80, mix(
+		value_noise((tile * 1.5) + vec2(3.7, 8.2)),
+		value_noise((tile * 1.5) + vec2(11.4, 2.9)),
+		0.5 + (0.5 * sin(t * 0.35)))));
 
 	float lines;
 	if (use_foam_sheet) {
 		float along_coord = dot(tile, along_shore);
+		// PLUS t: V grows out to sea, so adding time moves the authored
+		// crests onto the beach; see terrain_splat.gdshader.
 		lines = texture(foam_sheet, vec2(
 			along_coord / max(0.001, foam_tiles_along),
-			(sd / max(0.001, foam_tiles_across)) - (t * foam_scroll))).a;
+			(sd / max(0.001, foam_tiles_across)) + (t * foam_scroll))).a;
 
 		float arrival = sin((from_shore * foam_lines * 6.28318)
 			+ (t * foam_arrival_rate)
 			+ (value_noise(vec2(along_coord * 0.09, 0.0)) * 6.28318));
 		lines *= mix(1.0, smoothstep(-0.35, 0.85, arrival), foam_pulse);
 	} else {
-		float surf = value_noise((tile * 2.2) + vec2(t * 0.18, t * 0.11));
-		// PLUS t, not minus. Swell runs onto a beach, not off it.
-		float crest = sin((from_shore * foam_lines * 6.28318) + (t * 2.4) + (surf * 3.0));
+		// The flat renderer's generated breaker train, copied exactly - see
+		// terrain_splat.gdshader for the reasoning. Phase counts crests out
+		// from the shore, time marches them in, and its integer part is WHICH
+		// wave, so each one arrives in its own segments at its own moment.
+		float along_coord = dot(tile, along_shore);
+		float bend = (value_noise(vec2(along_coord * 0.13, 11.7)) - 0.5) * 0.9;
+		float phase = (from_shore * foam_lines) + (t * 0.42) + bend;
+		float wave_id = floor(phase);
+		float off_crest = abs(fract(phase) - 0.5) * 2.0;
+
 		float heavy = clamp(wave_intensity * 0.5, 0.0, 1.0);
-		lines = smoothstep(mix(0.55, -0.05, heavy), mix(0.99, 0.70, heavy), crest);
+		float crest_line = 1.0 - smoothstep(0.0, mix(0.16, 0.42, heavy), off_crest);
+
+		float seg = smoothstep(0.30, 0.62,
+			value_noise(vec2(along_coord * 0.45, wave_id * 7.31)));
+
+		float shoal = from_shore - 0.22;
+		float breaker = exp(-(shoal * shoal) / 0.045);
+
+		float lace = 0.55 + (0.45 * value_noise((tile * 7.0) + vec2(t * 0.3, wave_id * 3.7)));
+
+		float wash_pulse = 0.55 + (0.45 * sin(((t * 0.42) + bend) * 6.28318));
+		float wash = (1.0 - smoothstep(0.0, 0.30, from_shore))
+			* (0.30 + (0.70 * value_noise(tile * 4.5)))
+			* wash_pulse;
+
+		lines = clamp((crest_line * seg * breaker * lace * 1.7) + (wash * 0.45), 0.0, 1.0);
 	}
 
+	// Waterline shorebreak fringe; see terrain_splat.gdshader.
+	float fringe = (1.0 - smoothstep(0.02, 0.30, abs(sd)))
+		* (0.40 + (0.60 * value_noise(tile * 6.3)))
+		* (0.70 + (0.30 * sin((t * 0.9) + (value_noise(vec2(dot(tile, along_shore) * 0.2, 4.7)) * 6.28318))));
+	lines = max(lines, fringe);
+
 	float falloff = 1.0 - smoothstep(0.0, 1.0, from_shore);
-	float foam = clamp(lines * falloff * patch * foam_strength * open_sea
+	float foam = clamp(lines * falloff * patch * foam_strength * open_sea * facing
 		* clamp(wave_intensity, 0.0, 1.4) * smoothstep(-0.12, 0.06, sd), 0.0, 1.0);
 	water_col = mix(water_col, vec3(0.96, 0.99, 1.0), foam);
 

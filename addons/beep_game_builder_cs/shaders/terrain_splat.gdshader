@@ -61,7 +61,7 @@ uniform float shade_strength : hint_range(0.0, 2.0) = 1.0;
 // Small: this is a shore, not a fade. The BAND that makes a coast read as a
 // coast is the sand and surf sequence below, not a wide blur here.
 uniform float shore_blend_tiles : hint_range(0.05, 1.5) = 0.28;
-uniform float foam_strength : hint_range(0.0, 1.0) = 0.40;
+uniform float foam_strength : hint_range(0.0, 1.0) = 0.50;
 
 // How heavy the sea is. ONE dial, because big waves are not simply brighter
 // foam: they reach further up the beach, their crests are broader, and the
@@ -113,7 +113,11 @@ uniform float foam_tiles_along : hint_range(1.0, 48.0) = 11.0;
 // deep: scale both axes together and only a fraction of the texture's height
 // lands inside the band, so a single ribbon is stretched along the whole coast
 // instead of several crests sitting in it.
-uniform float foam_tiles_across : hint_range(0.3, 8.0) = 7.0;
+// SHORT on purpose: the surf band is under a tile deep, and a repeat spread
+// over many tiles parks the sheet's crest bands outside it - the visible
+// strip then shows the empty texture between bands, and the beach has no
+// foam at all for most of each scroll cycle.
+uniform float foam_tiles_across : hint_range(0.3, 8.0) = 1.6;
 // How fast the authored crests advance onto the beach.
 uniform float foam_scroll : hint_range(0.0, 4.0) = 0.055;
 
@@ -136,6 +140,14 @@ uniform float foam_lines : hint_range(1.0, 8.0) = 2.3;
 // jitters within a fraction of a tile and cannot do this on its own.
 uniform float coast_wander : hint_range(0.0, 2.0) = 0.9;
 uniform float coast_wander_scale : hint_range(0.1, 4.0) = 0.85;
+
+// The direction the swell TRAVELS, in degrees, y-down screen space. Waves
+// come from somewhere: surf belongs to the shores facing them, and a lee
+// shore keeps only what refraction wraps around. Without this every island
+// wore its surf as a closed ring, which no real sea draws.
+uniform float swell_direction_degrees : hint_range(0.0, 360.0) = 210.0;
+// 0 restores surf on every shore alike; 1 leaves lee shores nearly flat.
+uniform float swell_directionality : hint_range(0.0, 1.0) = 0.65;
 
 uniform sampler2D tex_grass : repeat_enable, filter_linear_mipmap;
 uniform sampler2D tex_dry_grass : repeat_enable, filter_linear_mipmap;
@@ -250,13 +262,13 @@ void fragment() {
 	vec2 seaward = shore_glen > 1e-6 ? shore_grad / shore_glen : vec2(0.0, 1.0);
 	vec2 along_shore = vec2(-seaward.y, seaward.x);
 
-	// How far this frame can be trusted. Out at sea the distance field saturates
-	// against coast_range, its gradient goes flat, and the direction taken from
-	// it is whatever the fallback says - so a "shoreward" drift out there is an
-	// arbitrary fixed direction, and on open water that is exactly what reads as
-	// the sea sliding the wrong way. Directed motion fades out with the gradient
-	// and leaves undirected ripple behind.
-	float shore_authority = clamp(shore_glen * 60.0, 0.0, 1.0);
+	// How exposed this stretch of coast is to the incoming swell: 1 facing
+	// it head on, falling toward the lee. Everything the sea throws at the
+	// shore - surf, swash, the arriving roll - scales by this.
+	float swell_rad = radians(swell_direction_degrees);
+	vec2 swell_travel = vec2(cos(swell_rad), sin(swell_rad));
+	float exposure = clamp(-dot(seaward, swell_travel), 0.0, 1.0);
+	float facing = mix(1.0, 0.20 + (0.80 * exposure), swell_directionality);
 
 	// Sampled in WORLD space, on world axes. Translating these coordinates by a
 	// shore-relative vector was a mistake: that direction points at the nearest
@@ -348,8 +360,10 @@ void fragment() {
 		* (0.5 + (0.5 * cos(t * swash_speed)));
 
 	// Damp sand: the strip the last wave actually reached, so the waterline
-	// leaves a wet mark behind it instead of a fixed band.
-	float wet = clamp(1.0 - (inland / max(0.001, max(wet_tiles, swash_reach))), 0.0, 1.0);
+	// leaves a wet mark behind it instead of a fixed band. The swash term is
+	// ocean-only, like the swash itself: without the gate a heavy sea made
+	// every LAKE's margin breathe in time with surf the lake does not have.
+	float wet = clamp(1.0 - (inland / max(0.001, max(wet_tiles, swash_reach * open_sea))), 0.0, 1.0);
 	land_col *= mix(1.0, 1.0 - shore_wet, wet);
 
 	// Shallow water is water OVER that same sand, so the bottom shows through
@@ -365,27 +379,50 @@ void fragment() {
 	float shade = mix(1.0, texture(shade_map, map_uv).r * 2.0, shade_strength);
 	land_col *= shade;
 
-	// Moving swell on open water, so the sea is never a flat sheet. It rolls
-	// SHOREWARD rather than along a fixed world vector: this is the largest
-	// moving thing in view, so when it drifts the wrong way the whole sea reads
-	// as running backwards no matter what the surf does.
-	float swell = value_noise((tile * 1.4) + vec2(t * 0.20, t * -0.13));
-	water_col *= 0.94 + (0.12 * swell);
+	// Swell, in two parts, because "which way is the sea moving" has two
+	// honest answers. Near the coast it moves TOWARD the beach: a luminance
+	// wave travelling down the distance field, so its fronts lie along the
+	// shore and always arrive, never depart. The previous version scrolled
+	// one noise along a fixed world vector while its comment claimed it
+	// rolled shoreward - on every coast facing against that vector the sea
+	// visibly ran out to sea. Where the field saturates there is no "toward"
+	// left to express, so the roll hands over to a driftless shimmer: two
+	// static patterns crossfaded, movement with no net direction.
+	float shimmer = mix(
+		value_noise((tile * 1.4) + vec2(3.1, 7.7)),
+		value_noise((tile * 1.4) + vec2(9.2, 1.3)),
+		0.5 + (0.5 * sin(t * 0.5)));
+	float roll = sin((sd * 2.6) + (t * 1.1) + (value_noise(tile * 0.9) * 2.2));
+	// Confined to the surf zone, and only on water with a fetch. Let out to
+	// several tiles it drew faint concentric rings around every island -
+	// and rings pulsing around a shore read as radiating OUT of it, the
+	// stone-in-a-pond look, whichever way their phase actually runs.
+	float nearing = (1.0 - smoothstep(0.3, 1.6, sd)) * open_sea * facing;
+	water_col *= (0.95 + (0.10 * shimmer)) + (0.035 * roll * nearing);
 
 	// Surf, as a band measured out from the waterline rather than around a tile.
 	// A heavier sea throws its surf further out.
 	float reach = foam_tiles * (0.45 + (0.55 * wave_intensity));
 	float from_shore = clamp(sd / max(0.001, reach), 0.0, 1.0);
-	// Broken up along the shore so the band is never an even ribbon.
-	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80,
-		value_noise((tile * 1.5) + vec2(t * 0.10, t * 0.06))));
+	// Broken up along the shore so the band is never an even ribbon. The
+	// pattern shifts without travelling - two static noises crossfaded -
+	// because scrolling a noise here was one more thing quietly sliding
+	// beach-to-sea on whichever coasts face against the scroll vector.
+	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80, mix(
+		value_noise((tile * 1.5) + vec2(3.7, 8.2)),
+		value_noise((tile * 1.5) + vec2(11.4, 2.9)),
+		0.5 + (0.5 * sin(t * 0.35)))));
 
 	float lines;
 	if (use_foam_sheet) {
 		float along_coord = dot(tile, along_shore);
+		// PLUS t on the across coordinate. V grows OUT to sea, so adding
+		// time moves a fixed texture feature to smaller sd - onto the beach.
+		// The original minus scrolled every authored crest out to sea, and
+		// was invisible only because no shipped scene assigned a sheet.
 		lines = texture(foam_sheet, vec2(
 			along_coord / max(0.001, foam_tiles_along),
-			(sd / max(0.001, foam_tiles_across)) - (t * foam_scroll))).a;
+			(sd / max(0.001, foam_tiles_across)) + (t * foam_scroll))).a;
 
 		// The texture supplies foam SHAPE; this supplies its ARRIVAL. Real shore
 		// break pulses - a crest sweeps in, breaks and drains - and a band of
@@ -400,35 +437,89 @@ void fragment() {
 			+ (value_noise(vec2(along_coord * 0.09, 0.0)) * 6.28318));
 		lines *= mix(1.0, smoothstep(-0.35, 0.85, arrival), foam_pulse);
 	} else {
-		// No sheet assigned: a generated crest train. Deliberate, not a stand-in
-		// for missing configuration - a scene may legitimately want no art here.
-		float surf = value_noise((tile * 2.2) + vec2(t * 0.18, t * 0.11));
-		// PLUS t, not minus. A crest sits where the phase is constant, so with
-		// a minus the distance from shore has to grow as time does and the whole
-		// train marches out to sea. Swell runs onto a beach, not off it.
-		float crest = sin((from_shore * foam_lines * 6.28318) + (t * 2.4) + (surf * 3.0));
-		// Heavier seas have broader, bolder crests; a calm one leaves thin
-		// threads. Widening the accepted band of the sine is what thickens a
-		// crest without making it merely brighter.
+		// No sheet assigned: a generated breaker train. Deliberate, not a
+		// stand-in for missing configuration - a scene may legitimately want
+		// no art here.
+		//
+		// A real wave is not a band of constant white sliding in: it BUILDS
+		// as the bottom shoals, breaks brightest at one depth, and dissolves
+		// into lacy wash. Phase counts crests out from the shore and time
+		// marches them in - PLUS t, not minus: a crest sits where the phase
+		// is constant, so with a minus the whole train runs out to sea. The
+		// integer part of the phase is WHICH wave, and the shaping below keys
+		// off it so each wave arrives in its own segments at its own moment
+		// instead of the coast pulsing as concentric rings.
+		float along_coord = dot(tile, along_shore);
+		// Bent per shore position, so no two crests stay parallel.
+		float bend = (value_noise(vec2(along_coord * 0.13, 11.7)) - 0.5) * 0.9;
+		float phase = (from_shore * foam_lines) + (t * 0.42) + bend;
+		float wave_id = floor(phase);
+		// 0 on a crest's centre line, 1 midway to the next crest.
+		float off_crest = abs(fract(phase) - 0.5) * 2.0;
+
+		// Heavier seas throw broader crests.
 		float heavy = clamp(wave_intensity * 0.5, 0.0, 1.0);
-		lines = smoothstep(mix(0.55, -0.05, heavy), mix(0.99, 0.70, heavy), crest);
+		float crest_line = 1.0 - smoothstep(0.0, mix(0.16, 0.42, heavy), off_crest);
+
+		// Each wave whitens in SEGMENTS of its own, gated by noise keyed on
+		// the shore position AND the wave's index - the next wave breaks
+		// somewhere else along the coast, which is most of what stops the
+		// train reading as drawn rings. The seam where the key changes sits
+		// exactly between crests, where crest_line is zero and hides it.
+		float seg = smoothstep(0.30, 0.62,
+			value_noise(vec2(along_coord * 0.45, wave_id * 7.31)));
+
+		// The break itself: brightest where the water has just shoaled, dim
+		// seaward of it (unbroken swell) and spent shoreward. The band's
+		// overall fade stays with the falloff below; this only moves the PEAK
+		// off the waterline and out to the break depth.
+		float shoal = from_shore - 0.22;
+		float breaker = exp(-(shoal * shoal) / 0.045);
+
+		// Lace, so the white is broken foam and never a solid stripe.
+		float lace = 0.55 + (0.45 * value_noise((tile * 7.0) + vec2(t * 0.3, wave_id * 3.7)));
+
+		// Spent water running on to the sand after the break. Its texture
+		// stands still and its BRIGHTNESS surges in step with the crests
+		// arriving - scrolling this noise along a world vector was one more
+		// thing quietly sliding beach-to-sea on half the coasts.
+		float wash_pulse = 0.55 + (0.45 * sin(((t * 0.42) + bend) * 6.28318));
+		float wash = (1.0 - smoothstep(0.0, 0.30, from_shore))
+			* (0.30 + (0.70 * value_noise(tile * 4.5)))
+			* wash_pulse;
+
+		lines = clamp((crest_line * seg * breaker * lace * 1.7) + (wash * 0.45), 0.0, 1.0);
 	}
+
+	// The shorebreak: a thin lacy fringe pinned to the waterline itself, so
+	// the beach is never bare while the crests are still out in the band.
+	// Its texture stands still; only its brightness breathes, out of step
+	// along the shore.
+	float fringe = (1.0 - smoothstep(0.02, 0.30, abs(sd)))
+		* (0.40 + (0.60 * value_noise(tile * 6.3)))
+		* (0.70 + (0.30 * sin((t * 0.9) + (value_noise(vec2(dot(tile, along_shore) * 0.2, 4.7)) * 6.28318))));
+	lines = max(lines, fringe);
 
 	float falloff = 1.0 - smoothstep(0.0, 1.0, from_shore);
 	// Surf goes into the WATER, not over the finished pixel, so the shore is
 	// composited on top of it. Painted afterwards it washed across the beach,
 	// putting foam on dry sand.
 	water_col = mix(water_col, vec3(0.96, 0.99, 1.0),
-		clamp(lines * falloff * patch * foam_strength * open_sea
+		clamp(lines * falloff * patch * foam_strength * open_sea * facing
 			* clamp(wave_intensity, 0.0, 1.4) * smoothstep(-0.12, 0.06, sd), 0.0, 1.0));
 
-	// The leading edge of the wash, drawn on the sand itself. This is the part
-	// that reads as a wave arriving: a bright line that runs up the beach and
-	// retreats, rather than surf that only ever sits out on the water.
+	// The leading edge of the wash, drawn on the sand itself - and bright
+	// ONLY while it runs UP the beach. Water does not retreat as a white
+	// line: the uprush carries the foam edge, then the sheet drains and the
+	// foam dies where it stands. The old symmetric version slid the same
+	// bright line back down the sand every cycle - a ripple visibly leaving
+	// the beach for the sea, the most artificial motion on the map.
+	float run_up = smoothstep(-0.1, 0.6, -sin(t * swash_speed));
 	float front_width = 0.06 + (0.10 * wave_intensity);
 	float front = 1.0 - smoothstep(0.0, front_width, abs(inland - swash_reach));
 	land_col = mix(land_col, vec3(0.96, 0.99, 1.0),
-		clamp(front * patch * foam_strength * open_sea * step(0.02, swash_reach), 0.0, 1.0));
+		clamp(front * run_up * patch * foam_strength * open_sea * facing
+			* step(0.02, swash_reach), 0.0, 1.0));
 
 	// Land over water, along the one waterline.
 	vec3 col = mix(land_col, water_col, shore);

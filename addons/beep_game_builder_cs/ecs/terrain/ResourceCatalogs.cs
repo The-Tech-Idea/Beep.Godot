@@ -29,7 +29,7 @@ namespace Beep.ECS
         };
 
         /// <summary>Food, luxuries and strategics, as a historical 4X uses them.</summary>
-        public static ResourceCatalog Historical => _historical ??= Stratify(Build("Historical", new[]
+        public static ResourceCatalog Historical => _historical ??= Describe(Stratify(Build("Historical", new[]
         {
             // Bonus - food and early production.
             ("wheat", "Wheat", ResourceCategory.Bonus, new[] { "grass", "dry_grass" }, 1.0f),
@@ -65,13 +65,21 @@ namespace Beep.ECS
             ("oil", ResourceDepth.Mid),
             ("aluminium", ResourceDepth.Mid),
             ("uranium", ResourceDepth.Deep),
-        });
+        }),
+            fluids: new[] { "oil" },
+            gases: System.Array.Empty<string>(),
+            tags: new[]
+            {
+                ("food", new[] { "wheat", "cattle", "banana", "deer", "fish", "whale" }),
+                ("metal", new[] { "iron", "silver", "aluminium" }),
+                ("fuel", new[] { "coal", "oil", "uranium" }),
+            });
 
         /// <summary>
         /// Hydrocarbons follow the geology that traps them: sands and evaporite
         /// basins onshore, continental shelf offshore, heavy oil in cold bogs.
         /// </summary>
-        public static ResourceCatalog OilAndGas => _oilAndGas ??= Stratify(Build("Oil And Gas", new[]
+        public static ResourceCatalog OilAndGas => _oilAndGas ??= Describe(Stratify(Build("Oil And Gas", new[]
         {
             ("crude_oil", "Crude Oil", ResourceCategory.Strategic, new[] { "desert", "dry_grass", "swamp" }, 1.2f),
             ("offshore_oil", "Offshore Oil", ResourceCategory.Strategic, new[] { "deep_water" }, 0.9f),
@@ -99,14 +107,20 @@ namespace Beep.ECS
             ("offshore_gas", ResourceDepth.Deep),
             ("offshore_oil", ResourceDepth.Deep),
             ("helium", ResourceDepth.Deep),
-        });
+        }),
+            fluids: new[] { "crude_oil", "offshore_oil", "condensate", "brine" },
+            gases: new[] { "natural_gas", "offshore_gas", "coalbed_methane", "helium" },
+            tags: new[]
+            {
+                ("hydrocarbon", new[] { "crude_oil", "offshore_oil", "natural_gas", "offshore_gas", "shale", "oil_sands", "condensate", "coalbed_methane" }),
+            });
 
         /// <summary>
         /// Off-world prospecting. Volatiles sit where it is cold enough to keep
         /// them, metals in exposed rock and regolith. Water ice leads because on
         /// any real mission it is the resource the others depend on.
         /// </summary>
-        public static ResourceCatalog Space => _space ??= Stratify(Build("Space Exploration", new[]
+        public static ResourceCatalog Space => _space ??= Describe(Stratify(Build("Space Exploration", new[]
         {
             ("water_ice", "Water Ice", ResourceCategory.Strategic, new[] { "snow", "ice", "tundra" }, 1.3f),
             ("ammonia_ice", "Ammonia Ice", ResourceCategory.Bonus, new[] { "snow", "ice" }, 0.7f),
@@ -132,7 +146,14 @@ namespace Beep.ECS
             ("rare_earths", ResourceDepth.Mid),
             ("thorium", ResourceDepth.Deep),
             ("platinum", ResourceDepth.Deep),
-        });
+        }),
+            fluids: System.Array.Empty<string>(),
+            gases: new[] { "helium3" },
+            tags: new[]
+            {
+                ("ice", new[] { "water_ice", "ammonia_ice", "methane_ice" }),
+                ("metal", new[] { "iron_ore", "titanium", "platinum" }),
+            });
 
         /// <summary>Every shipped resource, for resolving an id off a saved map.</summary>
         public static ResourceDefinition? FindAnywhere(string id)
@@ -160,6 +181,40 @@ namespace Beep.ECS
                 definition.Stratum = ResourceStratum.Underground;
                 definition.Depth = depth;
                 definition.Extraction = ResourceExtraction.Extractor;
+            }
+
+            return catalog;
+        }
+
+        /// <summary>
+        /// Physical forms and free-form tags, assigned the same way. A Fluid
+        /// or Gas underground deposit drains as one connected reservoir.
+        /// </summary>
+        private static ResourceCatalog Describe(
+            ResourceCatalog catalog,
+            string[] fluids,
+            string[] gases,
+            (string Tag, string[] Ids)[] tags)
+        {
+            foreach (string id in fluids)
+            {
+                if (catalog.Find(id) is { } definition)
+                    definition.Form = ResourceForm.Fluid;
+            }
+
+            foreach (string id in gases)
+            {
+                if (catalog.Find(id) is { } definition)
+                    definition.Form = ResourceForm.Gas;
+            }
+
+            foreach ((string tag, string[] ids) in tags)
+            {
+                foreach (string id in ids)
+                {
+                    if (catalog.Find(id) is { } definition && !definition.HasTag(tag))
+                        definition.Tags.Add(tag);
+                }
             }
 
             return catalog;

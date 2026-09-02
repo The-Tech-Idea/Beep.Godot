@@ -5,18 +5,28 @@ using System.Collections.Generic;
 namespace Beep.ECS
 {
     /// <summary>
-    /// A placed building that works the deposit UNDER it: the derrick, the
-    /// mine shaft, the offshore platform, the colony ice extractor.
+    /// The DEFAULT extractor: a placed building that works the deposit UNDER
+    /// it - a derrick, a mine shaft, an offshore platform, a colony ice
+    /// extractor. Attach under a building scene alongside its
+    /// GridObjectComponent; once the building is complete it binds to the
+    /// deposit beneath its footprint, validates that it can work it, and
+    /// draws it down cycle by cycle into the wallet until it is worked out.
     ///
-    /// Attach under a building scene alongside its GridObjectComponent. Once
-    /// the building is complete it binds to the underground deposit beneath
-    /// its footprint, validates that it can work it, then draws it down cycle
-    /// by cycle into the wallet - GatherSeconds per AmountPerGather, from the
-    /// resource's own definition - until the deposit is worked out.
+    /// DEFAULT, not doctrine. How extraction FEELS is the game's decision,
+    /// and the system's real contract is GridSubsurfaceStoreComponent's three
+    /// methods - ResourceIdAt, RemainingAt, Draw - which any script can call.
+    /// A game replaces this component entirely, writes its own in GDScript,
+    /// or subclasses it and overrides the hooks: DeliverYield to change where
+    /// the yield goes (a local buffer, a truck to be collected, a silo), and
+    /// DepositBlockReason to change what may be worked (tech trees, permits,
+    /// licence blocks). Several extractor TYPES are just several build
+    /// definitions, each with its own scene carrying its own configured (or
+    /// subclassed) extractor - ReachDepth is the shipped tech ladder, and a
+    /// resource's ExtractorBuildId optionally binds it to one of them.
     ///
-    /// What lies below and how much is left are not this component's to own:
-    /// the data layers answer the first and GridSubsurfaceStoreComponent the
-    /// second. This node is only the pump.
+    /// What lies below and how much is left are never this component's to
+    /// own: the data layers answer the first and the subsurface store the
+    /// second. This node is only a pump.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -152,25 +162,16 @@ namespace Beep.ECS
                 return Stop("no_deposit");
 
             ResourceDefinition? definition = Catalog?.Find(id);
-            if (definition != null)
-            {
-                if (definition.Depth > ReachDepth)
-                    return Stop("too_deep");
+            string blocked = DepositBlockReason(definition);
+            if (blocked.Length > 0)
+                return Stop(blocked);
 
-                string required = definition.ExtractorBuildId?.Trim() ?? "";
-                string ownId = ResolveGridObject()?.ObjectId ?? "";
-                if (required.Length > 0 && !string.Equals(required, ownId, StringComparison.OrdinalIgnoreCase))
-                    return Stop("wrong_extractor");
-            }
-            else if (_dataLayers != null)
-            {
-                // No catalog to consult: the published depth band still gates.
-                foreach (Vector2I cell in _depositCells)
-                {
-                    if (_dataLayers.UndergroundDepthAt(cell) > (int)ReachDepth)
-                        return Stop("too_deep");
-                }
-            }
+            // A Fluid or Gas deposit is one connected RESERVOIR: the pump on
+            // this footprint drains the whole contiguous field, the way an
+            // oil well actually behaves. Solid stays cell-local - a mine only
+            // gets what is under it.
+            if (definition != null && definition.Form != ResourceForm.Solid)
+                ExpandToReservoir(id);
 
             ActiveResourceId = id;
             IsExtracting = true;
@@ -181,6 +182,86 @@ namespace Beep.ECS
 
         public void StopExtraction(string reason = "stopped")
             => Stop(reason);
+
+        /// <summary>The cells this extractor is currently working, for subclasses.</summary>
+        protected IReadOnlyList<Vector2I> DepositCells => _depositCells;
+
+        /// <summary>The bound store, for subclasses running their own cycles.</summary>
+        protected GridSubsurfaceStoreComponent? BoundStore => _store;
+
+        /// <summary>
+        /// HOOK: whether this extractor may work the deposit; empty string
+        /// means yes, anything else is the ExtractionStopped reason. The
+        /// default enforces the depth ladder and the resource's authored
+        /// ExtractorBuildId. Override for tech trees, permits, licence blocks.
+        /// </summary>
+        protected virtual string DepositBlockReason(ResourceDefinition? definition)
+        {
+            if (definition != null)
+            {
+                if (definition.Depth > ReachDepth)
+                    return "too_deep";
+
+                string required = definition.ExtractorBuildId?.Trim() ?? "";
+                string ownId = ResolveGridObject()?.ObjectId ?? "";
+                if (required.Length > 0 && !string.Equals(required, ownId, StringComparison.OrdinalIgnoreCase))
+                    return "wrong_extractor";
+                return "";
+            }
+
+            if (_dataLayers != null)
+            {
+                // No catalog to consult: the published depth band still gates.
+                foreach (Vector2I cell in _depositCells)
+                {
+                    if (_dataLayers.UndergroundDepthAt(cell) > (int)ReachDepth)
+                        return "too_deep";
+                }
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// HOOK: where a cycle's yield goes. The default pays the wallet;
+        /// override to fill a local buffer, spawn a pallet a truck collects,
+        /// feed a silo, or anything else the game means by "extracted".
+        /// </summary>
+        protected virtual void DeliverYield(string resourceId, int amount)
+            => _wallet?.AddAmount(resourceId, amount);
+
+        /// <summary>
+        /// Grows the working set from the footprint through every 4-connected
+        /// cell holding the same resource. Cells outside the deposit read as
+        /// empty from the store, so the field's own rim is the boundary; the
+        /// cap is a runaway guard far above any real basin.
+        /// </summary>
+        private void ExpandToReservoir(string id)
+        {
+            const int MaxReservoirCells = 4096;
+            if (_store == null || _depositCells.Count == 0)
+                return;
+
+            var seen = new HashSet<Vector2I>(_depositCells);
+            var frontier = new Queue<Vector2I>(_depositCells);
+            while (frontier.Count > 0 && seen.Count < MaxReservoirCells)
+            {
+                Vector2I cell = frontier.Dequeue();
+                foreach (Vector2I next in new[]
+                {
+                    new Vector2I(cell.X + 1, cell.Y),
+                    new Vector2I(cell.X - 1, cell.Y),
+                    new Vector2I(cell.X, cell.Y + 1),
+                    new Vector2I(cell.X, cell.Y - 1),
+                })
+                {
+                    if (seen.Contains(next) || _store.ResourceIdAt(next) != id)
+                        continue;
+                    seen.Add(next);
+                    frontier.Enqueue(next);
+                    _depositCells.Add(next);
+                }
+            }
+        }
 
         private void RunCycle()
         {
@@ -202,7 +283,7 @@ namespace Beep.ECS
 
             if (drawn > 0)
             {
-                _wallet?.AddAmount(ActiveResourceId, drawn);
+                DeliverYield(ActiveResourceId, drawn);
                 EmitSignal(SignalName.ExtractionCycle, ActiveResourceId, drawn, remaining);
             }
 

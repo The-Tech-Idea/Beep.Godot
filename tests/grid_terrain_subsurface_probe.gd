@@ -7,6 +7,8 @@ extends SceneTree
 const GENERATOR := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const DATA_LAYERS := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs")
 const STORE := preload("res://addons/beep_game_builder_cs/ecs/grid/GridSubsurfaceStoreComponent.cs")
+const CATALOG := preload("res://addons/beep_game_builder_cs/ecs/terrain/ResourceCatalog.cs")
+const DEFINITION := preload("res://addons/beep_game_builder_cs/ecs/terrain/ResourceDefinition.cs")
 const EXTRACTOR := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtractorComponent.cs")
 const WALLET := preload("res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs")
 const GRID_OBJECT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs")
@@ -229,6 +231,117 @@ func _run() -> void:
 	check(pumped == remaining0, "the extractor pumped the whole deposit into the wallet (%d of %d)" % [pumped, remaining0])
 	check(int(store.call("RemainingAt", deposit_cell)) == 0, "the deposit is worked out")
 	check(bool(extractor.get("IsExtracting")) == false, "the extractor stopped on depletion")
+
+	# A FLUID deposit is one connected reservoir: a pump on one cell drains
+	# the whole contiguous field, not just what it stands over.
+	var fluid_def: Resource = DEFINITION.new()
+	fluid_def.set("Id", "probe_oil")
+	fluid_def.set("DisplayName", "Probe Oil")
+	fluid_def.set("Stratum", 2)        # Underground
+	fluid_def.set("Form", 1)           # Fluid
+	fluid_def.set("Depth", 0)          # Shallow
+	fluid_def.set("DepositScale", 0.9)
+	fluid_def.set("Amount", 4)
+	fluid_def.set("AmountPerGather", 3)
+	fluid_def.set("GatherSeconds", 0.5)
+	var kinds: Array[String] = ["grass", "dry_grass", "desert", "sand", "tundra", "gravel", "rock", "swamp"]
+	fluid_def.set("TerrainKinds", kinds)
+	var probe_catalog: Resource = CATALOG.new()
+	var defs: Array[Resource] = [fluid_def]
+	probe_catalog.set("Resources", defs)
+
+	var fluid_generator: Node = GENERATOR.new()
+	fluid_generator.set("BoundsSize", SIZE)
+	fluid_generator.set("Seed", SEED)
+	fluid_generator.set("Resources", probe_catalog)
+	fluid_generator.set("ResourceDensity", 1.0)
+	root.add_child(fluid_generator)
+	await process_frame
+
+	var fluid_layers: Node = DATA_LAYERS.new()
+	fluid_layers.name = "FluidLayers"
+	fluid_layers.set("TerrainGeneratorPath", NodePath("../" + str(fluid_generator.name)))
+	fluid_layers.set("BoundsSize", SIZE)
+	fluid_layers.set("RefreshOnReady", false)
+	root.add_child(fluid_layers)
+	await process_frame
+	fluid_layers.call("Rebuild")
+
+	var fluid_store: Node = STORE.new()
+	fluid_store.name = "FluidStore"
+	fluid_store.set("DataLayersPath", NodePath("../FluidLayers"))
+	fluid_store.set("Catalog", probe_catalog)
+	root.add_child(fluid_store)
+
+	# Group every probe_oil cell into connected fields and take the LARGEST -
+	# a field's rim can be a lone cell, and one cell cannot prove a reservoir.
+	var assigned := {}
+	var best_component: Array[Vector2i] = []
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var origin := Vector2i(x, y)
+			if assigned.has(origin):
+				continue
+			if str(fluid_layers.call("UndergroundResourceAt", origin)) != "probe_oil":
+				continue
+			var component: Array[Vector2i] = []
+			var frontier: Array[Vector2i] = [origin]
+			assigned[origin] = true
+			while frontier.size() > 0:
+				var cell: Vector2i = frontier.pop_back()
+				component.append(cell)
+				for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var next: Vector2i = cell + offset
+					if assigned.has(next):
+						continue
+					if str(fluid_layers.call("UndergroundResourceAt", next)) == "probe_oil":
+						assigned[next] = true
+						frontier.append(next)
+			if component.size() > best_component.size():
+				best_component = component
+	check(best_component.size() >= 3,
+		"the fluid catalog generated a multi-cell probe_oil field (largest: %d cells)" % best_component.size())
+	if best_component.size() == 0:
+		print("\nRESULT: %d FAILED" % failures.size())
+		quit(1)
+		return
+
+	var start: Vector2i = best_component[0]
+	var reservoir_total := 0
+	for cell in best_component:
+		reservoir_total += int(fluid_store.call("RemainingAt", cell))
+	var start_remaining: int = int(fluid_store.call("RemainingAt", start))
+
+	var fluid_wallet: Node = WALLET.new()
+	fluid_wallet.name = "FluidWallet"
+	fluid_wallet.set("ApplyStartingResourcesOnReady", false)
+	root.add_child(fluid_wallet)
+
+	var pump := Node2D.new()
+	pump.name = "Pumpjack"
+	root.add_child(pump)
+	var pump_object: Node = GRID_OBJECT.new()
+	pump_object.set("Cell", start)
+	pump_object.set("Footprint", Vector2i.ONE)
+	pump_object.set("BlocksNavigation", false)
+	pump.add_child(pump_object)
+	var pumpjack: Node = EXTRACTOR.new()
+	pumpjack.set("SubsurfaceStorePath", NodePath("../../FluidStore"))
+	pumpjack.set("ResourceWalletPath", NodePath("../../FluidWallet"))
+	pumpjack.set("Catalog", probe_catalog)
+	pump.add_child(pumpjack)
+	await process_frame
+
+	var cycles: int = int(ceil(reservoir_total / 3.0)) + 4
+	for i in cycles:
+		pumpjack.call("Tick", 0.6)
+	var reservoir_pumped: int = int(fluid_wallet.call("GetAmount", "probe_oil"))
+	check(reservoir_pumped == reservoir_total,
+		"one pump drained the whole connected reservoir (%d of %d from %d cells)"
+			% [reservoir_pumped, reservoir_total, best_component.size()])
+	check(reservoir_pumped > start_remaining,
+		"the pump drew more than its own cell held (%d pumped, cell held %d) - the field is one reservoir"
+			% [reservoir_pumped, start_remaining])
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)

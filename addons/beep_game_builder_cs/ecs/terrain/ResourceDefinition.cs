@@ -50,6 +50,21 @@ namespace Beep.ECS
     }
 
     /// <summary>
+    /// The resource's physical form. One consumer, and a strong one: a Fluid
+    /// or Gas deposit is a connected RESERVOIR - one pump drains the whole
+    /// contiguous field, the way an oil well actually behaves - while a Solid
+    /// deposit is cell-local and a mine only gets what is under it. Named
+    /// Fluid, not Liquid, so it never collides with the Liquid STRATUM (where
+    /// a resource is) - form is what it is made of.
+    /// </summary>
+    public enum ResourceForm : byte
+    {
+        Solid = 0,
+        Fluid = 1,
+        Gas = 2,
+    }
+
+    /// <summary>
     /// ONE definition of a resource, for the map and for the game alike.
     ///
     /// It used to be two. The generator had a private record struct listing where
@@ -78,6 +93,32 @@ namespace Beep.ECS
 
         [Export] public string DisplayName { get; set; } = "Iron";
         [Export] public ResourceCategory Category { get; set; } = ResourceCategory.Strategic;
+
+        /// <summary>Solid, Fluid or Gas; see ResourceForm for what it changes.</summary>
+        [Export] public ResourceForm Form { get; set; } = ResourceForm.Solid;
+
+        /// <summary>
+        /// Free-form labels for a game's own grouping - "food", "fuel",
+        /// "construction" - consumed by HUD filters and game logic. Category
+        /// above is the fixed gameplay class; tags are the open end, so adding
+        /// a grouping never means editing the addon's enums.
+        /// </summary>
+        [Export] public Godot.Collections.Array<string> Tags { get; set; } = new();
+
+        /// <summary>Whether the definition carries the given tag (trimmed, case-insensitive).</summary>
+        public bool HasTag(string tag)
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+                return false;
+
+            string wanted = tag.Trim();
+            foreach (string candidate in Tags)
+            {
+                if (string.Equals(candidate?.Trim(), wanted, System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
 
         [ExportGroup("Where it occurs")]
         /// <summary>

@@ -191,6 +191,18 @@ Two policies that follow from this ownership: a cancelled build job tears its si
 
 `GridResourceScatterComponent` populates deposits. Pointed at `TerrainDataLayersComponent` it places them exactly where the generated map put resources (filtered by the catalog); without data layers it falls back to a seeded random scatter over allowed terrain.
 
+### Extending the resource system
+
+The resource system is data-first: the addon owns the *facts* (what exists, where, how much is left) and ships *default machinery*; what extraction feels like belongs to your game. The extension points, in order of how often you'll use them:
+
+1. **Add a resource — no code.** Create a `ResourceDefinition` in the Inspector (or in script), set its identity, `Category`, `Tags`, occurrence (`TerrainKinds`, `Stratum`, `Depth`, `DepositScale`), form (`Form`: Solid/Fluid/Gas — Fluid and Gas deposits drain as one connected reservoir), and gather rules, then add it to the `ResourceCatalog` you assign to the generator, scatter, and subsurface store. A new food is `Stratum=Surface` on grass with a berry-bush `NodeScene`; a new ore is `Stratum=Underground, Extraction=Extractor`. It flows through generation → data layers → nodes/store → wallet → HUD automatically, because every system keys off the id and the shared definition. Extra data? Subclass `ResourceDefinition` and add exports — catalogs hold base-type references, so everything still works.
+
+2. **Give a resource behavior — `NodeScene` and signals.** A scattered deposit instantiates the definition's own scene: an animated fish school, a bubbling tar pit, a script that explodes. Listen to `Gathered`, `Depleted`, `DepositChanged`, `ExtractionCycle` for game reactions.
+
+3. **Change how extraction works — the store is the contract.** `GridSubsurfaceStoreComponent` is the engine-level API for the underground: `ResourceIdAt(cell)`, `RemainingAt(cell)`, `Draw(cell, amount)` plus signals. The shipped `GridExtractorComponent` is the *default* consumer, not the only one: replace it with your own node (GDScript or C#) that calls `Draw`, or subclass it and override its two hooks — `DeliverYield` (where a cycle's yield goes: wallet, local buffer, a pallet a truck collects) and `DepositBlockReason` (what may be worked: tech trees, permits, licence blocks).
+
+4. **Multiple extractor types — one build definition each.** A basic mine, a drilling rig, and an offshore platform are three `GridBuildDefinition`s, each with its own scene carrying its own configured (or subclassed) extractor: `ReachDepth` per type is the shipped tech ladder, `AllowedTerrainKinds` puts the platform on water, and a resource's `ExtractorBuildId` optionally binds it to one specific building.
+
 `GridJobQueueComponent` stores cell jobs — Queued, Claimed, Completed, Cancelled — with priority and work seconds. `GridJobBoardComponent` shows the queue. `GridSelectionJobCommandComponent` turns selected cells into jobs, skipping water, blocked, or out-of-bounds cells. `GridJobEffectComponent` applies completed jobs to the world: clear, till, water, harvest, and gather effects, including gathering the resource node standing on a cleared cell.
 
 ### The job loop

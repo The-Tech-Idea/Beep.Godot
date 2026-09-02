@@ -36,6 +36,15 @@ namespace Beep.ECS
         [Export] public NodePath DataLayersPath { get; set; } = new("");
 
         /// <summary>
+        /// Whether the map's LIQUID-stratum resources - fish and kin - also get
+        /// walk-up nodes, on their water cells. They are gathered by boat
+        /// workers: a worker whose path follower points at a navigation
+        /// component authored inverse (land blocked, water allowed).
+        /// Underground deposits never get nodes; they are building-extracted.
+        /// </summary>
+        [Export] public bool IncludeLiquidResources { get; set; } = true;
+
+        /// <summary>
         /// The shared resource catalog - the same one the generator places from.
         /// It decides which generated resources are worth a deposit, and each
         /// placed node takes its rules from it.
@@ -174,20 +183,25 @@ namespace Beep.ECS
                         yield break;
 
                     var cell = new Vector2I(x, y);
-                    if (!CanSpawnResourceAt(cell))
-                        continue;
 
                     // The map decides, when there is one. A cell holds a deposit
                     // because the generator put a resource there, not because a
-                    // second random roll happened to agree.
+                    // second random roll happened to agree. A LIQUID resource
+                    // skips the terrain veto: water is blocked terrain for a
+                    // land deposit and exactly the right place for a fish node.
                     if (_dataLayers is not null)
                     {
-                        if (MapResourceAt(cell).Length == 0)
+                        if (MapResourceAt(cell, out bool liquid).Length == 0)
+                            continue;
+                        if (!CanSpawnResourceAt(cell, skipTerrainRules: liquid))
                             continue;
                         yielded++;
                         yield return cell;
                         continue;
                     }
+
+                    if (!CanSpawnResourceAt(cell))
+                        continue;
 
                     if (rng.Randf() <= density)
                     {
@@ -204,11 +218,20 @@ namespace Beep.ECS
         /// it - shown on the map, not gathered - so no deposit is made.
         /// </summary>
         private string MapResourceAt(Vector2I cell)
+            => MapResourceAt(cell, out _);
+
+        private string MapResourceAt(Vector2I cell, out bool liquid)
         {
+            liquid = false;
             if (_dataLayers is null)
                 return string.Empty;
 
             string id = _dataLayers.ResourceAt(cell);
+            if (id.Length == 0 && IncludeLiquidResources)
+            {
+                id = _dataLayers.LiquidResourceAt(cell);
+                liquid = id.Length > 0;
+            }
             if (id.Length == 0)
                 return string.Empty;
 
@@ -346,7 +369,7 @@ namespace Beep.ECS
                     : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
         }
 
-        private bool CanSpawnResourceAt(Vector2I cell)
+        private bool CanSpawnResourceAt(Vector2I cell, bool skipTerrainRules = false)
         {
             if (AvoidOccupiedCells && _placement?.IsOccupied(cell) == true)
                 return false;
@@ -356,6 +379,11 @@ namespace Beep.ECS
 
             if (AvoidCellDataBlocked && _cellData.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return false;
+
+            // Skipped for liquid-stratum spawns: the terrain rules exist to
+            // keep LAND deposits off water, and a fish node belongs there.
+            if (skipTerrainRules)
+                return true;
 
             string terrainKind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
             if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))

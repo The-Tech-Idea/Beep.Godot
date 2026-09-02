@@ -6,6 +6,10 @@ extends SceneTree
 
 const GENERATOR := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const DATA_LAYERS := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs")
+const STORE := preload("res://addons/beep_game_builder_cs/ecs/grid/GridSubsurfaceStoreComponent.cs")
+const EXTRACTOR := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtractorComponent.cs")
+const WALLET := preload("res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs")
+const GRID_OBJECT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs")
 const SIZE := Vector2i(64, 40)
 const SEED := 424242
 
@@ -177,6 +181,54 @@ func _run() -> void:
 			if str(liquid_layers.call("LiquidResourceAt", cell)) != str(historical.call("LiquidResourceAt", cell)):
 				liquid_published_wrong += 1
 	check(liquid_published_wrong == 0, "the liquid layer publishes the generator's water column (%d wrong)" % liquid_published_wrong)
+
+	# Extraction: the store owns the drawdown, the extractor is only the pump.
+	var deposit_cell := Vector2i(-1, -1)
+	for y in SIZE.y:
+		for x in SIZE.x:
+			if str(layers.call("UndergroundResourceAt", Vector2i(x, y))) != "":
+				deposit_cell = Vector2i(x, y)
+				break
+		if deposit_cell.x >= 0:
+			break
+	check(deposit_cell.x >= 0, "a deposit cell exists to extract from")
+
+	var store: Node = STORE.new()
+	store.name = "Subsurface"
+	store.set("DataLayersPath", NodePath("../" + str(layers.name)))
+	root.add_child(store)
+
+	var deposit_id: String = str(store.call("ResourceIdAt", deposit_cell))
+	var remaining0: int = int(store.call("RemainingAt", deposit_cell))
+	check(deposit_id != "", "the store reads the deposit id from the layers (%s)" % deposit_id)
+	check(remaining0 > 0, "the store seeds remaining amount from richness (%d units)" % remaining0)
+
+	var wallet: Node = WALLET.new()
+	wallet.name = "Wallet"
+	wallet.set("ApplyStartingResourcesOnReady", false)
+	root.add_child(wallet)
+
+	var rig := Node2D.new()
+	rig.name = "Derrick"
+	root.add_child(rig)
+	var rig_object: Node = GRID_OBJECT.new()
+	rig_object.set("Cell", deposit_cell)
+	rig_object.set("Footprint", Vector2i.ONE)
+	rig_object.set("BlocksNavigation", false)
+	rig.add_child(rig_object)
+	var extractor: Node = EXTRACTOR.new()
+	extractor.set("SubsurfaceStorePath", NodePath("../../Subsurface"))
+	extractor.set("ResourceWalletPath", NodePath("../../Wallet"))
+	rig.add_child(extractor)
+	await process_frame
+
+	# Default cycle is 1.5s with no catalog; each 1.6s tick is one cycle.
+	for i in remaining0 + 4:
+		extractor.call("Tick", 1.6)
+	var pumped: int = int(wallet.call("GetAmount", deposit_id))
+	check(pumped == remaining0, "the extractor pumped the whole deposit into the wallet (%d of %d)" % [pumped, remaining0])
+	check(int(store.call("RemainingAt", deposit_cell)) == 0, "the deposit is worked out")
+	check(bool(extractor.get("IsExtracting")) == false, "the extractor stopped on depletion")
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)

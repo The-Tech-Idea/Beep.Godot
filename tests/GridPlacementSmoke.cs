@@ -230,10 +230,14 @@ public partial class GridPlacementSmoke : Node
         var buildings = new Node2D { Name = "Buildings" };
         root.AddChild(buildings);
 
+        var cells = new GridCellDataComponent { Name = "Cells" };
+        root.AddChild(cells);
+
         var navigation = new GridNavigationComponent
         {
             Name = "Navigation",
             GridPath = new NodePath("../Grid"),
+            CellDataPath = new NodePath("../Cells"),
             BoundsSize = new Vector2I(12, 12),
             TreatPlacementOccupiedAsBlocked = false
         };
@@ -245,6 +249,7 @@ public partial class GridPlacementSmoke : Node
             GridPath = new NodePath("../Grid"),
             PlacementRootPath = new NodePath("../Buildings"),
             NavigationPath = new NodePath("../Navigation"),
+            CellDataPath = new NodePath("../Cells"),
             UseMouseInput = false,
             KeepPlacingAfterConfirm = false
         };
@@ -317,6 +322,33 @@ public partial class GridPlacementSmoke : Node
             && placement.IsOccupied(new Vector2I(7, 5))
             && !navigation.IsBlocked(new Vector2I(7, 5));
 
+        // A definition that authors its own ground beats the scene policy:
+        // the offshore platform stands in the very shallow water the scene
+        // blocks for everything else - and NOWHERE else.
+        cells.SetTerrainKind(new Vector2I(9, 5), "shallow_water");
+        var offshoreBuild = new GridBuildDefinition
+        {
+            BuildId = "offshore_platform",
+            DisplayName = "Offshore Platform",
+            Scene = scene,
+            Footprint = Vector2I.One,
+            BlocksNavigation = true
+        };
+        offshoreBuild.AllowedTerrainKinds.Add("shallow_water");
+
+        placement.BeginPlacement(offshoreBuild, chargeCostOnConfirm: false);
+        placement.MovePreviewToCell(new Vector2I(9, 5));
+        Node2D? offshorePlaced = placement.ConfirmPlacement();
+
+        placement.BeginPlacement(offshoreBuild, chargeCostOnConfirm: false);
+        placement.MovePreviewToCell(new Vector2I(10, 8));
+        bool offshoreRefusedLand = placement.ConfirmPlacement() == null;
+        placement.CancelPlacement();
+
+        bool offshoreOk = offshorePlaced != null
+            && placement.IsOccupied(new Vector2I(9, 5))
+            && offshoreRefusedLand;
+
         root.QueueFree();
 
         if (!Expect(blockingMarked, "GridPlacement did not mark every blocking build footprint cell in placement and navigation."))
@@ -326,6 +358,9 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(walkableOccupies, "GridPlacement must occupy cells for a walkable build without blocking navigation."))
+            return false;
+
+        if (!Expect(offshoreOk, "A build definition's own AllowedTerrainKinds must beat the scene policy on water and refuse land."))
             return false;
 
         return true;

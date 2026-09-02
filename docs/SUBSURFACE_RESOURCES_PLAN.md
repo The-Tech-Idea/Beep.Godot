@@ -222,10 +222,22 @@ machinery:
   `UndergroundDepthAt`, contract-scan guards, and probe checks that the
   published layers answer identically to the generator. Lab status-line
   counts deferred to Phase D.
-- **Phase C — extraction.** Subsurface store, extractor component, build-def
-  `AllowedTerrainKinds`, scatter stratum split, boat navigation template +
-  fishing example, smoke coverage (extractor draw-down + depletion, requeue of
-  fishing jobs, offshore placement).
+- **Phase C — extraction. CORE DONE (2026-09-02); boat template pending.**
+  `GridSubsurfaceStoreComponent` owns the drawdown (lazy-seeded from
+  richness x catalogue Amount, `ISaveable`, deposit signals);
+  `GridExtractorComponent` binds to the deposit under its building's
+  footprint, validates depth reach (`ReachDepth`) and `ExtractorBuildId`,
+  waits for build completion, and pumps `AmountPerGather` per
+  `GatherSeconds` into the wallet until depletion.
+  `GridBuildDefinition.AllowedTerrainKinds` lets an offshore platform
+  authorize shallow water for itself (exclusive allow beats the scene's
+  blocked list). The scatter spawns LIQUID nodes on their water cells
+  (skipping the land-terrain veto exactly there) so fish are gatherable the
+  moment a water-authored navigation exists; underground deposits get no
+  walk-up nodes. Probe covers store seeding, full pump-to-depletion and
+  stop; the placement smoke covers offshore-allow/land-refuse.
+  **Still to do in C:** `grid_worker_boat.tscn` + water-navigation wiring in
+  the kit HUD example, so fishing ships working out of the box.
 - **Phase D — discovery & polish.** Prospecting, overlay/minimap/inspector,
   saves round-trip, catalogue authoring for the three sets, docs
   (2D_ISO_TOOLKIT matrix + terrain guide + this doc's status updates).

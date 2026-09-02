@@ -30,6 +30,13 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool OccupiesCells { get; set; } = true;
         [Export] public bool SetZIndexFromY { get; set; } = true;
+        /// <summary>
+        /// Terrain kinds THIS build may stand on. Non-empty overrides the
+        /// placement component's scene policy entirely - an offshore platform
+        /// authorizes shallow_water for itself without opening water placement
+        /// to every build. Empty defers to the scene's allowed/blocked lists.
+        /// </summary>
+        [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
         [Export] public Godot.Collections.Array Costs { get; set; } = new();
 
         public Vector2I EffectiveFootprint => new(Mathf.Max(1, Footprint.X), Mathf.Max(1, Footprint.Y));
@@ -66,6 +73,7 @@ namespace Beep.ECS
                     BlocksNavigation = ReadBool(data, "BlocksNavigation", "blocks_navigation", true),
                     OccupiesCells = ReadBool(data, "OccupiesCells", "occupies_cells", true),
                     SetZIndexFromY = ReadBool(data, "SetZIndexFromY", "set_z_index_from_y", true),
+                    AllowedTerrainKinds = Strings(ReadArray(data, "AllowedTerrainKinds", "allowed_terrain_kinds")),
                     Costs = ReadArray(data, "Costs", "costs")
                 };
                 return !string.IsNullOrWhiteSpace(definition.BuildId);
@@ -93,9 +101,22 @@ namespace Beep.ECS
                 BlocksNavigation = ReadBool(resource, "BlocksNavigation", "blocks_navigation", true),
                 OccupiesCells = ReadBool(resource, "OccupiesCells", "occupies_cells", true),
                 SetZIndexFromY = ReadBool(resource, "SetZIndexFromY", "set_z_index_from_y", true),
+                AllowedTerrainKinds = Strings(ReadArray(resource, "AllowedTerrainKinds", "allowed_terrain_kinds")),
                 Costs = ReadArray(resource, "Costs", "costs")
             };
             return !string.IsNullOrWhiteSpace(definition.BuildId);
+        }
+
+        private static Godot.Collections.Array<string> Strings(Godot.Collections.Array source)
+        {
+            var result = new Godot.Collections.Array<string>();
+            foreach (Variant value in source)
+            {
+                string s = value.AsString();
+                if (!string.IsNullOrWhiteSpace(s))
+                    result.Add(s);
+            }
+            return result;
         }
 
         // Reading is delegated to GridDefinitionReader - the shared dual-key

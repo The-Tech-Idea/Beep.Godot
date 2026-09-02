@@ -82,6 +82,10 @@ namespace Beep.ECS
         // buildable-over - and folding this into MarkPlacedCellsOccupied was
         // how every walkable build also became infinitely stackable.
         private bool _activeBlocksNavigation = true;
+        // The ACTIVE build's own ground rules, when its definition authors
+        // them. Non-empty replaces the scene policy entirely, which is how an
+        // offshore platform stands in the very kinds the scene blocks.
+        private Godot.Collections.Array<string> _activeAllowedTerrain = new();
 
         public override void _Ready()
         {
@@ -156,6 +160,7 @@ namespace Beep.ECS
             Footprint = definition.EffectiveFootprint;
             MarkPlacedCellsOccupied = definition.OccupiesCells;
             _activeBlocksNavigation = definition.BlocksNavigation;
+            _activeAllowedTerrain = definition.AllowedTerrainKinds ?? new Godot.Collections.Array<string>();
             SetZIndexFromY = definition.SetZIndexFromY;
             _activeDisplayName = definition.DisplayName;
             _activeCategory = definition.Category;
@@ -174,6 +179,7 @@ namespace Beep.ECS
                 _activeCosts = new Godot.Collections.Array();
                 _activeChargeCostOnConfirm = false;
                 _activeBlocksNavigation = true;
+                _activeAllowedTerrain = new Godot.Collections.Array<string>();
             }
 
             ResolveReferences();
@@ -214,6 +220,8 @@ namespace Beep.ECS
             _activeCategory = "";
             _activeCosts = new Godot.Collections.Array();
             _activeChargeCostOnConfirm = false;
+            _activeBlocksNavigation = true;
+            _activeAllowedTerrain = new Godot.Collections.Array<string>();
             CurrentCell = new Vector2I(int.MinValue, int.MinValue);
             CurrentCellValid = false;
             ClearPreview();
@@ -395,6 +403,14 @@ namespace Beep.ECS
                 return false;
 
             string terrainKind = TerrainKindAt(cell);
+
+            // A definition that authors its own ground takes full
+            // responsibility for it: exclusive allow-list, and the scene's
+            // blocked list does not apply - an offshore platform stands in
+            // the very shallow water the scene blocks for everything else.
+            if (_activeAllowedTerrain.Count > 0)
+                return GridTerrainRules.IsAllowed(terrainKind, _activeAllowedTerrain);
+
             if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
                 return false;
 
@@ -450,6 +466,8 @@ namespace Beep.ECS
             _activeCategory = "";
             _activeCosts = new Godot.Collections.Array();
             _activeChargeCostOnConfirm = false;
+            _activeBlocksNavigation = true;
+            _activeAllowedTerrain = new Godot.Collections.Array<string>();
             CurrentCell = new Vector2I(int.MinValue, int.MinValue);
             CurrentCellValid = false;
             ClearPreview();

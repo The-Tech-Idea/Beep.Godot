@@ -1,79 +1,47 @@
 shader_type canvas_item;
 render_mode blend_mix;
 
-// The SAME sea as the flat renderer, drawn in the isometric projection.
+// The SAME sea as the flat renderer, drawn in the isometric (or top-down)
+// projection.
 //
-// The water body of this file is copied from terrain_splat.gdshader, expression
-// for expression and uniform for uniform, on purpose. That sea was tuned until
-// it was right; a second implementation of it would be a second thing to tune,
-// and the two would drift until the same map had two different oceans.
+// The water itself - depth, swell, surf, foam - lives in
+// water_common.gdshaderinc, included by this shader and by
+// terrain_splat.gdshader alike. It used to be a copy kept identical by hand;
+// the include is the same contract enforced by the compiler, so the two views
+// can never again drift into two different oceans.
 //
-// EXACTLY THREE things are added, and none touches the water maths:
+// EXACTLY THREE things are added here, and none touches the water maths:
 //
-//   1. The projection, chosen by flat_projection. The flat shader is a full-map
-//      quad, so its UV already IS the map. Drawn isometrically the surface is a
-//      diamond, so the fragment's world position is run back through the inverse
-//      isometric transform to recover which tile it is over; drawn top-down the
-//      position simply divides by the cell size. Everything downstream then
-//      works in tiles, unchanged, whichever way it got there.
+//   1. The projection, chosen by flat_projection. The flat shader's surface
+//      covers the map one-to-one, so its local position IS the map. Drawn
+//      isometrically the surface is a diamond, so the fragment's local
+//      position is run back through the inverse isometric transform to
+//      recover which tile it is over; drawn top-down it simply divides by
+//      the cell size. Everything downstream then works in tiles, unchanged,
+//      whichever way it got there.
 //
 //   2. Alpha from depth. The flat shader is opaque - it composites the sand
 //      itself, in the same pass, and never needs to be seen through. Here the
-//      seabed is real geometry on its own layers underneath, so the surface has
-//      to actually be transparent for any of it to show. Shallow water is clear
-//      and deep water is opaque, which is the standard model (Age of Empires IV
-//      calls the distance at which water goes opaque "Deep Water Depth") and is
-//      also simply what water does: the same depth value already driving the
-//      colour ramp and the surf drives clarity too.
+//      seabed is real geometry on its own layers underneath, so the surface
+//      has to actually be transparent for any of it to show. Shallow water is
+//      clear and deep water is opaque, which is the standard model (Age of
+//      Empires IV calls the distance at which water goes opaque "Deep Water
+//      Depth") and is also simply what water does.
 //
-// Everything else - the shore frame, the depth ramp, the swell, the surf train,
-// the foam arrival - is the flat renderer's, untouched.
+//   3. The sea running on under coastal land, for the isometric projection
+//      only - an isometric block overhangs the cell below it, and a sea
+//      masked off at the waterline leaves that strip undrawn.
 
-uniform sampler2D coast_map : filter_linear, repeat_disable;
-uniform float coast_range = 5.0;
-uniform vec2 map_size = vec2(96.0, 60.0);
-uniform float texture_tiles = 6.0;
-
-uniform sampler2D tex_sand : repeat_enable, filter_linear_mipmap;
-uniform sampler2D tex_shallow : repeat_enable, filter_linear_mipmap;
-uniform sampler2D tex_deep : repeat_enable, filter_linear_mipmap;
-uniform vec3 tint_sand = vec3(0.98, 0.94, 0.82);
-uniform vec3 tint_shallow = vec3(0.62, 0.80, 0.88);
-uniform vec3 tint_deep = vec3(0.44, 0.58, 0.78);
-
-uniform float shore_blend_tiles : hint_range(0.05, 1.5) = 0.28;
-uniform float foam_strength : hint_range(0.0, 1.0) = 0.50;
-uniform float wave_intensity : hint_range(0.0, 2.0) = 1.0;
-uniform float foam_tiles : hint_range(0.1, 6.0) = 0.95;
-uniform float wave_speed : hint_range(0.0, 4.0) = 1.0;
-uniform float wave_amount : hint_range(0.0, 0.06) = 0.022;
-uniform float shallow_tiles : hint_range(0.0, 8.0) = 1.8;
-uniform float shallow_sand : hint_range(0.0, 1.0) = 0.34;
-uniform float deep_tiles : hint_range(0.5, 12.0) = 4.5;
-
-uniform sampler2D foam_sheet : repeat_enable, filter_linear_mipmap;
-uniform bool use_foam_sheet = false;
-uniform float foam_tiles_along : hint_range(1.0, 48.0) = 11.0;
-// SHORT on purpose; see terrain_splat.gdshader.
-uniform float foam_tiles_across : hint_range(0.3, 8.0) = 1.6;
-uniform float foam_scroll : hint_range(0.0, 4.0) = 0.055;
-uniform float foam_pulse : hint_range(0.0, 1.0) = 0.34;
-uniform float foam_arrival_rate : hint_range(0.0, 4.0) = 0.9;
-uniform float foam_lines : hint_range(1.0, 8.0) = 2.3;
-
-// Swell travel direction and how strongly surf favours the coasts facing
-// it; see terrain_splat.gdshader.
-uniform float swell_direction_degrees : hint_range(0.0, 360.0) = 210.0;
-uniform float swell_directionality : hint_range(0.0, 1.0) = 0.65;
+#include "res://addons/beep_game_builder_cs/shaders/water_common.gdshaderinc"
 
 // ADDITION 1 - the projection. Half the diamond a tile occupies, which is what
-// turns a world position back into a tile coordinate.
+// turns a local position back into a tile coordinate.
 uniform vec2 cell_size = vec2(111.0, 64.0);
 
 // Which projection the surface is drawn in: 0 isometric, 1 top-down. The water
-// maths below is identical either way - only the step that recovers which tile
-// a fragment is over differs - so both views share this file rather than each
-// keeping a sea of its own to tune.
+// is identical either way - only the step that recovers which tile a fragment
+// is over differs - so both views share this file rather than each keeping a
+// sea of its own to tune.
 uniform float flat_projection = 0.0;
 
 // How far the surface was shifted, in TILES, when it was filled.
@@ -99,11 +67,6 @@ uniform vec2 tile_offset = vec2(0.0);
 // node's origin, which is precisely the quantity wanted, and it is unaffected
 // by any parent transform. In fragment() the same name means something else
 // entirely - screen space - so it has to travel as a varying.
-//
-// This replaces a quad_origin/quad_size pair that existed only because the
-// surface used to be a Sprite2D with a one-pixel texture, where VERTEX spans
-// 0..1 rather than the map. On a TileMapLayer it spans the map in pixels, so
-// the workaround is not needed and the surface can be real tiles.
 varying vec2 surface_local;
 
 // ADDITION 2 - clarity. How opaque the water gets once it is deep, and how far
@@ -132,35 +95,12 @@ uniform float lake_opacity : hint_range(0.0, 1.0) = 0.42;
 // own overhang leaves behind.
 uniform float shore_opacity : hint_range(0.0, 1.0) = 0.55;
 
-float hash(vec2 p) {
-	// NOT fract(sin(dot(p, ...)) * 43758.0). That loses precision once the
-	// coordinate is large - and the coordinate here is tile position times a
-	// frequency, so it reaches the hundreds - which makes neighbouring lattice
-	// cells hash to near-identical values and shows up as flat rectangular
-	// patches in the open water, exactly the tile-grid look this shader exists
-	// to avoid.
-	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.x + p3.y) * p3.z);
-}
-
-float value_noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-			   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-}
-
 void vertex() {
 	// The surface's own pixel position, for the fragment stage. There is exactly
 	// one vertex() in a shader: adding a second one beside this compiled to
 	// "Redefinition of 'vertex'", and a shader that fails to compile is not
 	// skipped - the item draws UNSHADED, so the sea came out as a flat white
 	// field of blank tiles rather than as nothing at all.
-	//
-	// This used to also carry a world_pos varying that nothing read; it was the
-	// last trace of sampling by world position, which a scaling parent breaks.
 	surface_local = VERTEX;
 }
 
@@ -195,155 +135,32 @@ void fragment() {
 	tile -= tile_offset;
 	vec2 UVm = tile / map_size;
 
-	vec2 world_uv = tile / texture_tiles;
 	float t = TIME * wave_speed;
 
-	// The shore frame, from the gradient of the distance field: which way is out
-	// to sea, and which way the coast runs. Everything that MOVES on the water
-	// is expressed in this frame, because a drift written in world axes runs
-	// out to sea on whichever coasts happen to face that way.
-	vec2 shore_texel = 1.0 / map_size;
-	vec2 shore_grad = vec2(
-		texture(coast_map, UVm + vec2(shore_texel.x, 0.0)).r - texture(coast_map, UVm - vec2(shore_texel.x, 0.0)).r,
-		texture(coast_map, UVm + vec2(0.0, shore_texel.y)).r - texture(coast_map, UVm - vec2(0.0, shore_texel.y)).r);
-	float shore_glen = length(shore_grad);
-	vec2 seaward = shore_glen > 1e-6 ? shore_grad / shore_glen : vec2(0.0, 1.0);
-	vec2 along_shore = vec2(-seaward.y, seaward.x);
-
-	// Windward/leeward exposure to the swell; see terrain_splat.gdshader.
-	float swell_rad = radians(swell_direction_degrees);
-	vec2 swell_travel = vec2(cos(swell_rad), sin(swell_rad));
-	float exposure = clamp(-dot(seaward, swell_travel), 0.0, 1.0);
-	float facing = mix(1.0, 0.20 + (0.80 * exposure), swell_directionality);
-
-	// Sampled in WORLD space, on world axes. Translating these coordinates by a
-	// shore-relative vector was a mistake: that direction points at the nearest
-	// coast, so inside a lake it converges from every side, and translating UVs
-	// by a field that varies per pixel SHEARS the texture.
-	vec2 water_uv = world_uv + vec2(
-		sin((world_uv.y * 7.0) + (t * 0.7)),
-		cos((world_uv.x * 6.0) + (t * 0.5))) * wave_amount;
-
-	// Past the edge of the map there is no coastline, only open sea. This has to
-	// be said explicitly: the coast map is repeat_disable, so sampling outside
-	// 0..1 CLAMPS to its border texels and smears them outward - which drew four
-	// pale streaks running off the map's four edges in a great X across the sea.
+	// Past the edge of the map there is no coastline, only open sea. This has
+	// to be said explicitly: the coast map is repeat_disable, so sampling
+	// outside 0..1 CLAMPS to its border texels and smears them outward - which
+	// drew four pale streaks running off the map's four edges in a great X
+	// across the sea. sea_state() takes it from here.
 	vec2 inside = step(vec2(0.0), tile) * step(tile, map_size);
 	float in_map = inside.x * inside.y;
 
-	// Signed distance to the waterline, in tiles: positive out to sea.
-	vec4 coast = texture(coast_map, UVm);
-	float sd = mix(coast_range, (coast.r - 0.5) * 2.0 * coast_range, in_map);
-	// Green marks open sea. Surf needs a fetch behind it, so a lake or a river
-	// stays flat however close to the shore it is. Outside the map it is all
-	// open sea - and safely so, because sd is saturated there, which puts the
-	// surf band's falloff at zero.
-	float open_sea = mix(1.0, smoothstep(0.35, 0.75, coast.g), in_map);
-	// The field is one value per sub-tile, so its contours are still faceted
-	// and surf drawn on them looks like survey lines. Two octaves of wobble
-	// break that up.
-	sd += (value_noise(tile * 1.1) - 0.5) * 0.30;
-	sd += (value_noise((tile * 3.4) + vec2(5.3, 9.1)) - 0.5) * 0.18;
-
-	// Depth from the same distance field: shallow against the shore, shelving to
-	// deep offshore.
-	vec3 water_col = mix(
-		texture(tex_shallow, water_uv).rgb * tint_shallow,
-		texture(tex_deep, water_uv).rgb * tint_deep,
-		smoothstep(0.0, max(0.001, deep_tiles), sd));
-
-	// Shallow water is water OVER sand, so the bottom shows through near the
-	// shore. Sampled on world_uv, not the drifting water_uv: a seabed that swims
-	// with the surface reads as fog, not as depth.
-	float shallow = 1.0 - smoothstep(0.0, max(0.001, shallow_tiles), sd);
-	water_col = mix(water_col, texture(tex_sand, world_uv).rgb * tint_sand, shallow * shallow_sand);
-
-	// Swell in two parts - shore-arriving roll near the coast, driftless
-	// shimmer in open water; see terrain_splat.gdshader for the reasoning.
-	float shimmer = mix(
-		value_noise((tile * 1.4) + vec2(3.1, 7.7)),
-		value_noise((tile * 1.4) + vec2(9.2, 1.3)),
-		0.5 + (0.5 * sin(t * 0.5)));
-	float roll = sin((sd * 2.6) + (t * 1.1) + (value_noise(tile * 0.9) * 2.2));
-	// Confined to the surf zone; see terrain_splat.gdshader on why rings
-	// around a shore read as radiating out of it.
-	float nearing = (1.0 - smoothstep(0.3, 1.6, sd)) * open_sea * facing;
-	water_col *= (0.95 + (0.10 * shimmer)) + (0.035 * roll * nearing);
-
-	// Surf, as a band measured out from the waterline rather than around a tile.
-	float reach = foam_tiles * (0.45 + (0.55 * wave_intensity));
-	float from_shore = clamp(sd / max(0.001, reach), 0.0, 1.0);
-	float patch = 0.72 + (0.28 * smoothstep(0.25, 0.80, mix(
-		value_noise((tile * 1.5) + vec2(3.7, 8.2)),
-		value_noise((tile * 1.5) + vec2(11.4, 2.9)),
-		0.5 + (0.5 * sin(t * 0.35)))));
-
-	float lines;
-	if (use_foam_sheet) {
-		float along_coord = dot(tile, along_shore);
-		// PLUS t: V grows out to sea, so adding time moves the authored
-		// crests onto the beach; see terrain_splat.gdshader.
-		lines = texture(foam_sheet, vec2(
-			along_coord / max(0.001, foam_tiles_along),
-			(sd / max(0.001, foam_tiles_across)) + (t * foam_scroll))).a;
-
-		float arrival = sin((from_shore * foam_lines * 6.28318)
-			+ (t * foam_arrival_rate)
-			+ (value_noise(vec2(along_coord * 0.09, 0.0)) * 6.28318));
-		lines *= mix(1.0, smoothstep(-0.35, 0.85, arrival), foam_pulse);
-	} else {
-		// The flat renderer's generated breaker train, copied exactly - see
-		// terrain_splat.gdshader for the reasoning. Phase counts crests out
-		// from the shore, time marches them in, and its integer part is WHICH
-		// wave, so each one arrives in its own segments at its own moment.
-		float along_coord = dot(tile, along_shore);
-		float bend = (value_noise(vec2(along_coord * 0.13, 11.7)) - 0.5) * 0.9;
-		float phase = (from_shore * foam_lines) + (t * 0.42) + bend;
-		float wave_id = floor(phase);
-		float off_crest = abs(fract(phase) - 0.5) * 2.0;
-
-		float heavy = clamp(wave_intensity * 0.5, 0.0, 1.0);
-		float crest_line = 1.0 - smoothstep(0.0, mix(0.16, 0.42, heavy), off_crest);
-
-		float seg = smoothstep(0.30, 0.62,
-			value_noise(vec2(along_coord * 0.45, wave_id * 7.31)));
-
-		float shoal = from_shore - 0.22;
-		float breaker = exp(-(shoal * shoal) / 0.045);
-
-		float lace = 0.55 + (0.45 * value_noise((tile * 7.0) + vec2(t * 0.3, wave_id * 3.7)));
-
-		float wash_pulse = 0.55 + (0.45 * sin(((t * 0.42) + bend) * 6.28318));
-		float wash = (1.0 - smoothstep(0.0, 0.30, from_shore))
-			* (0.30 + (0.70 * value_noise(tile * 4.5)))
-			* wash_pulse;
-
-		lines = clamp((crest_line * seg * breaker * lace * 1.7) + (wash * 0.45), 0.0, 1.0);
-	}
-
-	// Waterline shorebreak fringe; see terrain_splat.gdshader.
-	float fringe = (1.0 - smoothstep(0.02, 0.30, abs(sd)))
-		* (0.40 + (0.60 * value_noise(tile * 6.3)))
-		* (0.70 + (0.30 * sin((t * 0.9) + (value_noise(vec2(dot(tile, along_shore) * 0.2, 4.7)) * 6.28318))));
-	lines = max(lines, fringe);
-
-	float falloff = 1.0 - smoothstep(0.0, 1.0, from_shore);
-	float foam = clamp(lines * falloff * patch * foam_strength * open_sea * facing
-		* clamp(wave_intensity, 0.0, 1.4) * smoothstep(-0.12, 0.06, sd), 0.0, 1.0);
-	water_col = mix(water_col, vec3(0.96, 0.99, 1.0), foam);
+	// The whole sea - depth, swell, surf, foam - in one shared pass.
+	SeaState sea = sea_state(tile, UVm, in_map, t);
+	vec3 water_col = mix(sea.colour, vec3(0.96, 0.99, 1.0), sea.foam);
 
 	// ADDITION 2. Clear in the shallows so the bed shows, closing to opaque as
 	// it deepens. Foam is surface, so it stays visible whatever is beneath.
-	float body_opacity = mix(lake_opacity, max_opacity, open_sea);
+	float body_opacity = mix(lake_opacity, max_opacity, sea.open_sea);
 	float depth_alpha = mix(
-		shore_opacity, body_opacity, smoothstep(0.0, max(0.001, clarity_tiles), sd));
+		shore_opacity, body_opacity, smoothstep(0.0, max(0.001, clarity_tiles), sea.sd));
 
 	// ADDITION 3. Drawn TOP-DOWN the sea shares one plane with the land, so it
 	// has to stop at the shore. Isometrically it deliberately does not: there
 	// the land is opaque geometry drawn above the water, and letting the sea run
 	// on underneath is what fills the strip a coastal block would otherwise
 	// leave bare. Same field, same shoreline, different compositing.
-	float on_water = mix(1.0, smoothstep(-0.35, 0.15, sd), flat_projection);
+	float on_water = mix(1.0, smoothstep(-0.35, 0.15, sea.sd), flat_projection);
 
-	COLOR = vec4(water_col, max(depth_alpha, foam) * on_water);
+	COLOR = vec4(water_col, max(depth_alpha, sea.foam) * on_water);
 }

@@ -13,6 +13,42 @@ const EXTRACTOR := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtra
 const WALLET := preload("res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs")
 const GRID_OBJECT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs")
 const PROSPECTING := preload("res://addons/beep_game_builder_cs/ecs/grid/GridProspectingComponent.cs")
+const TRANSPORT_MANAGER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridTransportManagerComponent.cs")
+const EXTRACTION_MANAGER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtractionManagerComponent.cs")
+const STORAGE := preload("res://addons/beep_game_builder_cs/ecs/grid/GridStorageComponent.cs")
+
+# A transporter written in PURE GDSCRIPT: no interface, no C# - just the
+# contract's members by name. If this participates, the managers are truly
+# open to both languages.
+class GdTransporter extends Node:
+	var IsBusy := false
+	var hauls: Array = []
+	var stored := {}
+	var capacity := 999
+
+	func CanAccept(_id: String) -> bool:
+		return true
+
+	func Load(id: String, amount: int) -> int:
+		var total := 0
+		for value in stored.values():
+			total += int(value)
+		var taken: int = min(capacity - total, amount)
+		if taken <= 0:
+			return 0
+		stored[id] = int(stored.get(id, 0)) + taken
+		return taken
+
+	func Unload(id: String, amount: int) -> int:
+		var held: int = int(stored.get(id, 0))
+		var released: int = min(held, amount)
+		stored[id] = held - released
+		return released
+
+	func RequestHaul(from_cell: Vector2i, id: String, amount: int) -> bool:
+		hauls.append([from_cell, id, amount])
+		Load(id, amount)
+		return true
 const SIZE := Vector2i(64, 40)
 const SEED := 424242
 
@@ -370,6 +406,166 @@ func _run() -> void:
 	root.add_child(restored)
 	restored.call("RestoreState", snapshot)
 	check(bool(restored.call("IsDiscovered", start)), "discovery survives a save round-trip")
+
+	# The managers: expandable by registration, open to GDScript, and the
+	# cargo-hold contract connects anything to anything.
+	var transport: Node = TRANSPORT_MANAGER.new()
+	transport.name = "Transport"
+	root.add_child(transport)
+
+	var bare := Node.new()
+	bare.name = "NotATransporter"
+	root.add_child(bare)
+	transport.call("Register", bare)
+	check(int(transport.get("TransporterCount")) == 0,
+		"a node that does not answer the contract is refused registration")
+
+	var gd_truck := GdTransporter.new()
+	gd_truck.name = "GdTruck"
+	root.add_child(gd_truck)
+	transport.call("Register", gd_truck)
+	check(int(transport.get("TransporterCount")) == 1,
+		"a pure GDScript transporter registers - the contract is duck-typed, not C#-only")
+
+	# The extractor delivers THROUGH the manager: yield reaches the GDScript
+	# truck, not the wallet - and falls back to the wallet when no
+	# transporter is free, so nothing is ever lost.
+	var transport_store: Node = STORE.new()
+	transport_store.name = "TransportStore"
+	transport_store.set("DataLayersPath", NodePath("../FluidLayers"))
+	transport_store.set("Catalog", probe_catalog)
+	root.add_child(transport_store)
+
+	var transport_wallet: Node = WALLET.new()
+	transport_wallet.name = "TransportWallet"
+	transport_wallet.set("ApplyStartingResourcesOnReady", false)
+	root.add_child(transport_wallet)
+
+	var rig2 := Node2D.new()
+	rig2.name = "TransportRig"
+	root.add_child(rig2)
+	var rig2_object: Node = GRID_OBJECT.new()
+	rig2_object.set("Cell", start)
+	rig2_object.set("Footprint", Vector2i.ONE)
+	rig2_object.set("BlocksNavigation", false)
+	rig2.add_child(rig2_object)
+	var rig2_extractor: Node = EXTRACTOR.new()
+	rig2_extractor.set("SubsurfaceStorePath", NodePath("../../TransportStore"))
+	rig2_extractor.set("ResourceWalletPath", NodePath("../../TransportWallet"))
+	rig2_extractor.set("TransportManagerPath", NodePath("../../Transport"))
+	rig2_extractor.set("Catalog", probe_catalog)
+	rig2_extractor.set("DeliverVia", 1)
+	rig2.add_child(rig2_extractor)
+	await process_frame
+
+	for i in 3:
+		rig2_extractor.call("Tick", 0.6)
+	var hauled_count: int = gd_truck.hauls.size()
+	check(hauled_count > 0 and int(transport_wallet.call("GetAmount", "probe_oil")) == 0,
+		"extractor yield routed through the transport manager to the GDScript truck (%d hauls)" % hauled_count)
+
+	gd_truck.IsBusy = true
+	for i in 3:
+		rig2_extractor.call("Tick", 0.6)
+	check(int(transport_wallet.call("GetAmount", "probe_oil")) > 0,
+		"with every transporter busy the yield falls back to the wallet - never lost")
+	gd_truck.IsBusy = false
+
+	# Hand-offs: a tank fills, hands to a truck, the truck hands to a small
+	# tank that cannot take it all - and the remainder returns to the truck.
+	var tank: Node = STORAGE.new()
+	tank.name = "Tank"
+	root.add_child(tank)
+	check(int(tank.call("Load", "crude_oil", 8)) == 8 and int(tank.call("Stored", "crude_oil")) == 8,
+		"a storage tank loads material and reports it")
+
+	var moved: int = int(transport.call("Transfer", tank, gd_truck, "crude_oil", 5))
+	check(moved == 5 and int(tank.call("Stored", "crude_oil")) == 3 and int(gd_truck.Unload("crude_oil", 0)) == 0
+		and int(gd_truck.stored.get("crude_oil", 0)) == 5,
+		"Transfer hands cargo from a tank to a GDScript truck (%d moved)" % moved)
+
+	var small_tank: Node = STORAGE.new()
+	small_tank.name = "SmallTank"
+	small_tank.set("Capacity", 4)
+	root.add_child(small_tank)
+	var second: int = int(transport.call("Transfer", gd_truck, small_tank, "crude_oil", 5))
+	check(second == 4
+		and int(small_tank.call("Stored", "crude_oil")) == 4
+		and int(gd_truck.stored.get("crude_oil", 0)) == 1,
+		"a full receiver takes what fits and the remainder returns to the giver (%d moved)" % second)
+	check(int(small_tank.get("CurrentLoad")) == 4, "CurrentLoad reports the held total")
+
+	# The extraction manager: the shipped extractor registers itself and
+	# reports its rate; freeing the rig removes it.
+	var extraction: Node = EXTRACTION_MANAGER.new()
+	extraction.name = "ExtractionManager"
+	root.add_child(extraction)
+	var rig3 := Node2D.new()
+	rig3.name = "ManagedRig"
+	root.add_child(rig3)
+	var rig3_object: Node = GRID_OBJECT.new()
+	rig3_object.set("Cell", start)
+	rig3_object.set("Footprint", Vector2i.ONE)
+	rig3_object.set("BlocksNavigation", false)
+	rig3.add_child(rig3_object)
+	var rig3_extractor: Node = EXTRACTOR.new()
+	rig3_extractor.set("SubsurfaceStorePath", NodePath("../../TransportStore"))
+	rig3_extractor.set("ExtractionManagerPath", NodePath("../../ExtractionManager"))
+	rig3_extractor.set("Catalog", probe_catalog)
+	rig3.add_child(rig3_extractor)
+	await process_frame
+	rig3_extractor.call("Tick", 0.1)
+	check(int(extraction.get("ExtractorCount")) == 1, "the shipped extractor registers with the extraction manager")
+	check(float(extraction.call("EstimatedRatePerSecond", "probe_oil")) > 0.0,
+		"the manager reports the fleet's extraction rate")
+	rig3.free()
+	check(int(extraction.get("ExtractorCount")) == 0, "a freed extractor leaves the registry")
+
+	# The pipeline hookup: the extractor is BOTH PORTS. With DeliverVia =
+	# Buffer its yield fills its own unload port, Transfer draws it into a
+	# tank like any other hand-off, and a too-small buffer overflows to the
+	# wallet so nothing is lost.
+	var buffer_store: Node = STORE.new()
+	buffer_store.name = "BufferStore"
+	buffer_store.set("DataLayersPath", NodePath("../FluidLayers"))
+	buffer_store.set("Catalog", probe_catalog)
+	root.add_child(buffer_store)
+
+	var buffer_wallet: Node = WALLET.new()
+	buffer_wallet.name = "BufferWallet"
+	buffer_wallet.set("ApplyStartingResourcesOnReady", false)
+	root.add_child(buffer_wallet)
+
+	var rig4 := Node2D.new()
+	rig4.name = "BufferedRig"
+	root.add_child(rig4)
+	var rig4_object: Node = GRID_OBJECT.new()
+	rig4_object.set("Cell", start)
+	rig4_object.set("Footprint", Vector2i.ONE)
+	rig4_object.set("BlocksNavigation", false)
+	rig4.add_child(rig4_object)
+	var rig4_extractor: Node = EXTRACTOR.new()
+	rig4_extractor.set("SubsurfaceStorePath", NodePath("../../BufferStore"))
+	rig4_extractor.set("ResourceWalletPath", NodePath("../../BufferWallet"))
+	rig4_extractor.set("Catalog", probe_catalog)
+	rig4_extractor.set("DeliverVia", 2)
+	rig4_extractor.set("BufferCapacity", 2)
+	rig4.add_child(rig4_extractor)
+	await process_frame
+
+	# One cycle yields 3: 2 fit the buffer, 1 overflows to the wallet.
+	rig4_extractor.call("Tick", 0.6)
+	check(int(rig4_extractor.call("Stored", "probe_oil")) == 2
+		and int(rig4_extractor.get("CurrentLoad")) == 2,
+		"a buffered extractor fills its own unload port (%d held)" % int(rig4_extractor.get("CurrentLoad")))
+	check(int(buffer_wallet.call("GetAmount", "probe_oil")) == 1,
+		"buffer overflow goes to the wallet - yield is never lost")
+
+	var piped: int = int(transport.call("Transfer", rig4_extractor, tank, "probe_oil", 99))
+	check(piped == 2
+		and int(tank.call("Stored", "probe_oil")) == 2
+		and int(rig4_extractor.get("CurrentLoad")) == 0,
+		"Transfer pipes the extractor's buffer into a tank - extractor to storage, port to port (%d moved)" % piped)
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)

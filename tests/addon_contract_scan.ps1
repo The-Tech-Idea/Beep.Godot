@@ -1559,6 +1559,34 @@ foreach ($required in @("ResourceIdAt(", "RemainingAt(", "Draw(", "DepositDeplet
         Fail "GridSubsurfaceStoreComponent must own the underground drawdown behind its three-method contract: $required."
     }
 }
+# The port taxonomy: two atomic connectors, and every logistics role
+# implements both - that is what lets a developer clip anything to anything.
+$loadPort = Read "addons/beep_game_builder_cs/ecs/grid/ILoadPort.cs"
+$unloadPort = Read "addons/beep_game_builder_cs/ecs/grid/IUnloadPort.cs"
+foreach ($required in @("int Capacity", "int CurrentLoad", "bool CanAccept(string resourceId)", "int Load(string resourceId, int amount)")) {
+    if ($loadPort -notmatch [regex]::Escape($required)) {
+        Fail "ILoadPort must carry the receiving-port contract: $required."
+    }
+}
+foreach ($required in @("int Stored(string resourceId)", "int Unload(string resourceId, int amount)")) {
+    if ($unloadPort -notmatch [regex]::Escape($required)) {
+        Fail "IUnloadPort must carry the giving-port contract: $required."
+    }
+}
+foreach ($pair in @(
+    @("addons/beep_game_builder_cs/ecs/grid/IExtractor.cs", "interface IExtractor : ILoadPort, IUnloadPort"),
+    @("addons/beep_game_builder_cs/ecs/grid/IStorage.cs", "interface IStorage : ILoadPort, IUnloadPort"),
+    @("addons/beep_game_builder_cs/ecs/grid/ITransporter.cs", "interface ITransporter : ILoadPort, IUnloadPort"))) {
+    if ((Read $pair[0]) -notmatch [regex]::Escape($pair[1])) {
+        Fail "Every logistics role must implement both ports: $($pair[1])."
+    }
+}
+$gridTransportManager = Read "addons/beep_game_builder_cs/ecs/grid/GridTransportManagerComponent.cs"
+foreach ($required in @("Register(", "RequestHaul(", "Transfer(", "HasMethod(`"Load`")", "HasMethod(`"Unload`")")) {
+    if ($gridTransportManager -notmatch [regex]::Escape($required)) {
+        Fail "GridTransportManagerComponent must be an open registry with the safe hand-off primitive: $required."
+    }
+}
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
 foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
@@ -2174,6 +2202,10 @@ foreach ($required in @(
     "GridSubsurfaceStoreComponent",
     "GridExtractorComponent",
     "GridProspectingComponent",
+    "GridTransportManagerComponent",
+    "GridExtractionManagerComponent",
+    "GridHaulerComponent",
+    "GridStorageComponent",
     "TerrainPaintedRendererComponent"
 )) {
     if ($gridGuide -notmatch $required) { Fail "2D_ISO_TOOLKIT.md is missing $required." }

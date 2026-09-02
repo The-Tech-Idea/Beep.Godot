@@ -260,6 +260,31 @@ machinery:
 Every phase lands with the standing gate: `dotnet build` clean, contract scan,
 15 terrain guards, probes, runtime smoke against Godot 4.7.1 mono.
 
+## The logistics layer (added by direction, 2026-09-02). **Status: Done.**
+
+The user-directed expansion after Phase D: managers and a port taxonomy so
+the whole chain is developer-extendable.
+
+- **Two atomic connectors**: `ILoadPort` (`Capacity`, `CurrentLoad`,
+  `CanAccept`, `Load`) and `IUnloadPort` (`Stored`, `Unload`).
+- **Three roles, all implementing both ports**: `IExtractor` (adds
+  `ActiveResourceId`/`IsExtracting`; the shipped extractor gained an output
+  buffer and a `DeliverVia = Buffer` pull mode), `IStorage`
+  (`GridStorageComponent` - a save-able tank/silo), `ITransporter` (adds
+  `IsBusy`/`RequestHaul`; `GridHaulerComponent` drives to pickup, then to
+  its `DepotCell`, then pays the wallet).
+- **Two managers, expandable by registration**:
+  `GridTransportManagerComponent` (dispatches hauls to whichever registered
+  transporter accepts; `Transfer` is the safe hand-off primitive - unload,
+  load, remainder back - from which pipelines are chained) and
+  `GridExtractionManagerComponent` (the registry of everything extracting,
+  with fleet-rate queries). Both accept ANY Node answering the contract by
+  name, because GDScript can implement neither a C# interface nor subclass
+  a C# class - proven in the probe by a pure-GDScript transporter.
+- The probe grew to 41 checks, the sharpest being the pipeline hookup:
+  a buffered extractor's own unload port Transfer-piped into a tank, with
+  buffer overflow falling back to the wallet so yield is never lost.
+
 ## Decisions to approve (recommendations first)
 
 1. **Extractor as a dedicated component** (recommended) rather than forcing

@@ -28,9 +28,30 @@ namespace Beep.ECS
     /// own: the data layers answer the first and the subsurface store the
     /// second. This node is only a pump.
     /// </summary>
+    /// <summary>Where the shipped extractor's yield goes each cycle.</summary>
+    public enum ExtractorDelivery
+    {
+        /// <summary>Straight into the wallet - extraction with no logistics.</summary>
+        Wallet = 0,
+
+        /// <summary>
+        /// Offered to GridTransportManagerComponent: a registered transporter
+        /// hauls it, and only an unassignable load falls back to the wallet so
+        /// yield is never lost.
+        /// </summary>
+        TransportManager = 1,
+
+        /// <summary>
+        /// Into the extractor's OWN buffer - its unload port - for a pipeline
+        /// or hauler to draw from (pull logistics). A full buffer overflows
+        /// to the wallet so yield is never lost.
+        /// </summary>
+        Buffer = 2,
+    }
+
     [Tool]
     [GlobalClass]
-    public partial class GridExtractorComponent : GameplayComponent
+    public partial class GridExtractorComponent : GameplayComponent, IExtractor
     {
         [Signal] public delegate void ExtractionStartedEventHandler(string resourceId);
         [Signal] public delegate void ExtractionCycleEventHandler(string resourceId, int amount, int remaining);
@@ -40,6 +61,12 @@ namespace Beep.ECS
         [Export] public NodePath SubsurfaceStorePath { get; set; } = new("");
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
+        [Export] public NodePath TransportManagerPath { get; set; } = new("");
+        [Export] public NodePath ExtractionManagerPath { get; set; } = new("");
+        [Export] public ExtractorDelivery DeliverVia { get; set; } = ExtractorDelivery.Wallet;
+
+        /// <summary>Units the output buffer holds when DeliverVia is Buffer.</summary>
+        [Export(PropertyHint.Range, "1,99999,1")] public int BufferCapacity { get; set; } = 100;
 
         /// <summary>
         /// The deepest band this extractor reaches; see ResourceDepth. The
@@ -70,21 +97,81 @@ namespace Beep.ECS
         public bool IsExtracting { get; private set; }
         public string ActiveResourceId { get; private set; } = "";
 
+        // ---- The extractor's own ports ---------------------------------------
+        //
+        // The output buffer is what the rest of a chain CONNECTS to: a
+        // pipeline segment or hauler Unloads from it (pull), and Load exists
+        // for the rare thing pushed back down a well. Both ports, like every
+        // IStorage and ITransporter, so anything clips to anything.
+
+        private string _bufferId = "";
+        private int _bufferAmount;
+
+        public int CurrentLoad => _bufferAmount;
+
+        int ILoadPort.Capacity => Mathf.Max(1, BufferCapacity);
+
+        public bool CanAccept(string resourceId)
+            => !string.IsNullOrWhiteSpace(resourceId)
+                && (_bufferId.Length == 0 || _bufferId == resourceId);
+
+        public int Load(string resourceId, int amount)
+        {
+            if (amount <= 0 || !CanAccept(resourceId))
+                return 0;
+
+            int space = Mathf.Max(0, Mathf.Max(1, BufferCapacity) - _bufferAmount);
+            int taken = Mathf.Min(space, amount);
+            if (taken <= 0)
+                return 0;
+
+            _bufferId = resourceId;
+            _bufferAmount += taken;
+            return taken;
+        }
+
+        public int Unload(string resourceId, int amount)
+        {
+            if (amount <= 0 || _bufferId.Length == 0 || _bufferId != resourceId)
+                return 0;
+
+            int released = Mathf.Min(amount, _bufferAmount);
+            _bufferAmount -= released;
+            if (_bufferAmount <= 0)
+                _bufferId = "";
+            return released;
+        }
+
+        public int Stored(string resourceId)
+            => _bufferId.Length > 0 && _bufferId == resourceId ? _bufferAmount : 0;
+
         private TerrainDataLayersComponent? _dataLayers;
         private GridSubsurfaceStoreComponent? _store;
         private GridResourceWalletComponent? _wallet;
         private GridProjectionComponent? _grid;
         private GridObjectComponent? _gridObject;
+        private GridTransportManagerComponent? _transport;
+        private GridExtractionManagerComponent? _extractionManager;
         private readonly List<Vector2I> _depositCells = new();
         private float _cycleClock;
         private bool _bound;
+        private bool _registered;
 
         public override void _Ready()
         {
             base._Ready();
             ResolveReferences();
+            if (!Engine.IsEditorHint())
+                TryRegisterWithManager();
             SetProcess(!Engine.IsEditorHint());
             UpdateConfigurationWarnings();
+        }
+
+        public override void _ExitTree()
+        {
+            if (_registered && _extractionManager != null && GodotObject.IsInstanceValid(_extractionManager))
+                _extractionManager.Unregister(this);
+            _registered = false;
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -104,6 +191,9 @@ namespace Beep.ECS
 
         public void Tick(double delta)
         {
+            if (!_registered)
+                TryRegisterWithManager();
+
             if (!_bound)
             {
                 if (!AutoStart)
@@ -222,12 +312,53 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// HOOK: where a cycle's yield goes. The default pays the wallet;
-        /// override to fill a local buffer, spawn a pallet a truck collects,
-        /// feed a silo, or anything else the game means by "extracted".
+        /// HOOK: where a cycle's yield goes. The default pays the wallet, or
+        /// offers the load to the transport manager when DeliverVia says so -
+        /// falling back to the wallet if no transporter takes it, so yield is
+        /// never lost. Override to fill a local buffer, spawn a pallet, feed
+        /// a silo, or anything else the game means by "extracted".
         /// </summary>
         protected virtual void DeliverYield(string resourceId, int amount)
-            => _wallet?.AddAmount(resourceId, amount);
+        {
+            if (DeliverVia == ExtractorDelivery.Buffer)
+            {
+                // Pull logistics: the yield sits in this extractor's own
+                // unload port until a pipeline or hauler draws it. Overflow
+                // goes to the wallet so yield is never lost.
+                int buffered = Load(resourceId, amount);
+                if (buffered < amount)
+                    _wallet?.AddAmount(resourceId, amount - buffered);
+                return;
+            }
+
+            if (DeliverVia == ExtractorDelivery.TransportManager
+                && _transport != null
+                && GodotObject.IsInstanceValid(_transport))
+            {
+                Vector2I from = ResolveGridObject()?.Cell
+                    ?? (_depositCells.Count > 0 ? _depositCells[0] : Vector2I.Zero);
+                if (_transport.RequestHaul(from, resourceId, amount))
+                    return;
+            }
+
+            _wallet?.AddAmount(resourceId, amount);
+        }
+
+        /// <summary>Seconds per extraction cycle right now, for rate displays.</summary>
+        public float CurrentCycleSeconds() => CycleSeconds();
+
+        /// <summary>Units per extraction cycle right now, for rate displays.</summary>
+        public int CurrentAmountPerCycle() => AmountPerCycle();
+
+        private void TryRegisterWithManager()
+        {
+            ResolveReferences();
+            if (_extractionManager == null || _registered)
+                return;
+
+            _extractionManager.Register(this);
+            _registered = true;
+        }
 
         /// <summary>
         /// Grows the working set from the footprint through every 4-connected
@@ -365,6 +496,16 @@ namespace Beep.ECS
                 _grid = !GridPath.IsEmpty
                     ? GetNodeOrNull<GridProjectionComponent>(GridPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
+
+            if (_transport == null || !GodotObject.IsInstanceValid(_transport))
+                _transport = !TransportManagerPath.IsEmpty
+                    ? GetNodeOrNull<GridTransportManagerComponent>(TransportManagerPath)
+                    : IsInsideTree() ? EntityComponent.FindComponent<GridTransportManagerComponent>(GetTree()?.CurrentScene) : null;
+
+            if (_extractionManager == null || !GodotObject.IsInstanceValid(_extractionManager))
+                _extractionManager = !ExtractionManagerPath.IsEmpty
+                    ? GetNodeOrNull<GridExtractionManagerComponent>(ExtractionManagerPath)
+                    : IsInsideTree() ? EntityComponent.FindComponent<GridExtractionManagerComponent>(GetTree()?.CurrentScene) : null;
         }
     }
 }

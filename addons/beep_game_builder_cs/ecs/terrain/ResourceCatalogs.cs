@@ -29,7 +29,7 @@ namespace Beep.ECS
         };
 
         /// <summary>Food, luxuries and strategics, as a historical 4X uses them.</summary>
-        public static ResourceCatalog Historical => _historical ??= Build("Historical", new[]
+        public static ResourceCatalog Historical => _historical ??= Stratify(Build("Historical", new[]
         {
             // Bonus - food and early production.
             ("wheat", "Wheat", ResourceCategory.Bonus, new[] { "grass", "dry_grass" }, 1.0f),
@@ -56,13 +56,22 @@ namespace Beep.ECS
             ("oil", "Oil", ResourceCategory.Strategic, new[] { "desert", "swamp", "deep_water" }, 0.45f),
             ("aluminium", "Aluminium", ResourceCategory.Strategic, new[] { "desert", "tundra" }, 0.6f),
             ("uranium", "Uranium", ResourceCategory.Strategic, new[] { "gravel", "rock", "desert", "tundra" }, 0.35f),
+        }), liquid: new[] { "fish", "whale" }, underground: new[]
+        {
+            ("iron", ResourceDepth.Shallow),
+            ("coal", ResourceDepth.Shallow),
+            ("gems", ResourceDepth.Mid),
+            ("silver", ResourceDepth.Mid),
+            ("oil", ResourceDepth.Mid),
+            ("aluminium", ResourceDepth.Mid),
+            ("uranium", ResourceDepth.Deep),
         });
 
         /// <summary>
         /// Hydrocarbons follow the geology that traps them: sands and evaporite
         /// basins onshore, continental shelf offshore, heavy oil in cold bogs.
         /// </summary>
-        public static ResourceCatalog OilAndGas => _oilAndGas ??= Build("Oil And Gas", new[]
+        public static ResourceCatalog OilAndGas => _oilAndGas ??= Stratify(Build("Oil And Gas", new[]
         {
             ("crude_oil", "Crude Oil", ResourceCategory.Strategic, new[] { "desert", "dry_grass", "swamp" }, 1.2f),
             ("offshore_oil", "Offshore Oil", ResourceCategory.Strategic, new[] { "deep_water" }, 0.9f),
@@ -76,6 +85,20 @@ namespace Beep.ECS
             ("salt_dome", "Salt Dome", ResourceCategory.Bonus, new[] { "desert", "shallow_water" }, 0.5f),
             ("brine", "Brine", ResourceCategory.Bonus, new[] { "shallow_water", "desert" }, 0.5f),
             ("coalbed_methane", "Coalbed Methane", ResourceCategory.Strategic, new[] { "gravel", "rock" }, 0.7f),
+        }), liquid: System.Array.Empty<string>(), underground: new[]
+        {
+            // The whole point of a licence block: what is UNDER it. Depth is
+            // the tech ladder - sands and shale first, conventional fields
+            // next, offshore deepest.
+            ("oil_sands", ResourceDepth.Shallow),
+            ("shale", ResourceDepth.Shallow),
+            ("coalbed_methane", ResourceDepth.Shallow),
+            ("crude_oil", ResourceDepth.Mid),
+            ("natural_gas", ResourceDepth.Mid),
+            ("condensate", ResourceDepth.Mid),
+            ("offshore_gas", ResourceDepth.Deep),
+            ("offshore_oil", ResourceDepth.Deep),
+            ("helium", ResourceDepth.Deep),
         });
 
         /// <summary>
@@ -83,7 +106,7 @@ namespace Beep.ECS
         /// them, metals in exposed rock and regolith. Water ice leads because on
         /// any real mission it is the resource the others depend on.
         /// </summary>
-        public static ResourceCatalog Space => _space ??= Build("Space Exploration", new[]
+        public static ResourceCatalog Space => _space ??= Stratify(Build("Space Exploration", new[]
         {
             ("water_ice", "Water Ice", ResourceCategory.Strategic, new[] { "snow", "ice", "tundra" }, 1.3f),
             ("ammonia_ice", "Ammonia Ice", ResourceCategory.Bonus, new[] { "snow", "ice" }, 0.7f),
@@ -97,11 +120,50 @@ namespace Beep.ECS
             ("platinum", "Platinum", ResourceCategory.Luxury, new[] { "rock" }, 0.45f),
             ("thorium", "Thorium", ResourceCategory.Strategic, new[] { "rock", "desert" }, 0.4f),
             ("deuterium", "Deuterium", ResourceCategory.Strategic, new[] { "deep_water", "shallow_water" }, 0.6f),
+        }), liquid: new[] { "deuterium" }, underground: new[]
+        {
+            // The colony loop: near-surface ices the base lives on, metals
+            // below them, the precious stuff deep.
+            ("water_ice", ResourceDepth.Shallow),
+            ("ammonia_ice", ResourceDepth.Shallow),
+            ("methane_ice", ResourceDepth.Shallow),
+            ("iron_ore", ResourceDepth.Shallow),
+            ("titanium", ResourceDepth.Mid),
+            ("rare_earths", ResourceDepth.Mid),
+            ("thorium", ResourceDepth.Deep),
+            ("platinum", ResourceDepth.Deep),
         });
 
         /// <summary>Every shipped resource, for resolving an id off a saved map.</summary>
         public static ResourceDefinition? FindAnywhere(string id)
             => Historical.Find(id) ?? OilAndGas.Find(id) ?? Space.Find(id);
+
+        /// <summary>
+        /// Assigns strata after Build so the tables above stay readable. Liquid
+        /// ids float in the water column and are worked by boats; underground
+        /// ids become invisible fields at their depth band, extracted by
+        /// buildings. Everything unnamed stays a surface walk-up resource.
+        /// </summary>
+        private static ResourceCatalog Stratify(
+            ResourceCatalog catalog, string[] liquid, (string Id, ResourceDepth Depth)[] underground)
+        {
+            foreach (string id in liquid)
+            {
+                if (catalog.Find(id) is { } definition)
+                    definition.Stratum = ResourceStratum.Liquid;
+            }
+
+            foreach ((string id, ResourceDepth depth) in underground)
+            {
+                if (catalog.Find(id) is not { } definition)
+                    continue;
+                definition.Stratum = ResourceStratum.Underground;
+                definition.Depth = depth;
+                definition.Extraction = ResourceExtraction.Extractor;
+            }
+
+            return catalog;
+        }
 
         private static ResourceCatalog Build(
             string name,

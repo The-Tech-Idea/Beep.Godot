@@ -1,0 +1,182 @@
+extends SceneTree
+
+# The underground and liquid strata: deposits exist, lie under the terrain
+# their definitions name, carry sane richness and depth, land in the right
+# stratum, and repeat exactly for a seed.
+
+const GENERATOR := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
+const DATA_LAYERS := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs")
+const SIZE := Vector2i(64, 40)
+const SEED := 424242
+
+# ResourceSet enum values, mirroring ResourceCatalogs.
+const SET_HISTORICAL := 0
+const SET_OIL_AND_GAS := 1
+
+# Surface kinds each underground id may lie beneath (from ResourceCatalogs).
+const OIL_UNDER := {
+	"crude_oil": ["desert", "dry_grass", "swamp"],
+	"offshore_oil": ["deep_water"],
+	"natural_gas": ["desert", "tundra", "dry_grass"],
+	"offshore_gas": ["shallow_water", "deep_water"],
+	"shale": ["gravel", "rock", "dry_grass"],
+	"oil_sands": ["tundra", "swamp"],
+	"condensate": ["desert", "shallow_water"],
+	"helium": ["desert", "rock"],
+	"coalbed_methane": ["gravel", "rock"],
+}
+
+# ResourceDepth bands for a few known ids.
+const OIL_DEPTH := { "oil_sands": 0, "crude_oil": 1, "offshore_oil": 2 }
+
+const WATER_KINDS := ["shallow_water", "deep_water", "water"]
+
+var failures: Array[String] = []
+
+func check(ok: bool, message: String) -> void:
+	if ok:
+		print("  ok    %s" % message)
+	else:
+		print("  FAIL  %s" % message)
+		failures.append(message)
+
+func make_generator(seed_value: int, set_value: int) -> Node:
+	var generator: Node = GENERATOR.new()
+	generator.set("BoundsSize", SIZE)
+	generator.set("Seed", seed_value)
+	generator.set("ResourceSet", set_value)
+	generator.set("ResourceDensity", 1.5)
+	root.add_child(generator)
+	return generator
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var generator := make_generator(SEED, SET_OIL_AND_GAS)
+	await process_frame
+
+	var underground_cells := 0
+	var wrong_ground := 0
+	var bad_richness := 0
+	var wrong_depth := 0
+	var ids := {}
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var cell := Vector2i(x, y)
+			var id: String = str(generator.call("UndergroundResourceAt", cell))
+			var richness: float = float(generator.call("UndergroundRichnessAt", cell))
+			if id == "":
+				if richness != 0.0:
+					bad_richness += 1
+				continue
+			underground_cells += 1
+			ids[id] = int(ids.get(id, 0)) + 1
+			if richness <= 0.0 or richness > 1.0:
+				bad_richness += 1
+			var kind: String = str(generator.call("TerrainKindAt", cell))
+			if OIL_UNDER.has(id) and not (kind in OIL_UNDER[id]):
+				wrong_ground += 1
+			if OIL_DEPTH.has(id) and int(generator.call("UndergroundDepthAt", cell)) != int(OIL_DEPTH[id]):
+				wrong_depth += 1
+
+	check(underground_cells > 0, "the map holds underground deposits (%d cells: %s)" % [underground_cells, str(ids)])
+	check(ids.size() >= 2, "more than one underground resource generated (%s)" % str(ids))
+	check(wrong_ground == 0, "every underground cell lies beneath a terrain its definition names (%d wrong)" % wrong_ground)
+	check(bad_richness == 0, "richness is in (0,1] on deposits and 0 elsewhere (%d bad)" % bad_richness)
+	check(wrong_depth == 0, "depth bands match the authored resource depths (%d wrong)" % wrong_depth)
+
+	# Deposits are FIELDS: at least one deposit cell touches another cell of
+	# the same id, which a sprinkle of independent markers would fail.
+	var adjacent := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var id: String = str(generator.call("UndergroundResourceAt", Vector2i(x, y)))
+			if id == "":
+				continue
+			if x + 1 < SIZE.x and str(generator.call("UndergroundResourceAt", Vector2i(x + 1, y))) == id:
+				adjacent += 1
+	check(adjacent > 0, "deposits form contiguous fields, not lone markers (%d adjacent pairs)" % adjacent)
+
+	# Same seed, same strata - byte for byte.
+	var twin := make_generator(SEED, SET_OIL_AND_GAS)
+	await process_frame
+	var diverged := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var cell := Vector2i(x, y)
+			if str(generator.call("UndergroundResourceAt", cell)) != str(twin.call("UndergroundResourceAt", cell)):
+				diverged += 1
+			if str(generator.call("LiquidResourceAt", cell)) != str(twin.call("LiquidResourceAt", cell)):
+				diverged += 1
+	check(diverged == 0, "the same seed lays the same strata (%d diverged)" % diverged)
+
+	# The liquid stratum: Historical fish live on water cells, and the surface
+	# array holds land resources only.
+	var historical := make_generator(SEED, SET_HISTORICAL)
+	await process_frame
+	var liquid_cells := 0
+	var liquid_on_land := 0
+	var surface_on_water := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var cell := Vector2i(x, y)
+			var kind: String = str(historical.call("TerrainKindAt", cell))
+			var is_water: bool = kind in WATER_KINDS
+			if str(historical.call("LiquidResourceAt", cell)) != "":
+				liquid_cells += 1
+				if not is_water:
+					liquid_on_land += 1
+			if str(historical.call("ResourceAt", cell)) != "" and is_water:
+				surface_on_water += 1
+	check(liquid_cells > 0, "the liquid stratum holds resources - fish exist (%d cells)" % liquid_cells)
+	check(liquid_on_land == 0, "liquid resources sit only on water (%d on land)" % liquid_on_land)
+	check(surface_on_water == 0, "the surface array holds no water placements any more (%d on water)" % surface_on_water)
+
+	# Publication: the data layers answer the same strata as the generator, so
+	# a saved map needs no generator at runtime. Richness is banded on the
+	# layer, so it is compared as "non-zero where the field is non-zero".
+	var layers: Node = DATA_LAYERS.new()
+	layers.set("TerrainGeneratorPath", NodePath("../" + str(generator.name)))
+	layers.set("BoundsSize", SIZE)
+	layers.set("RefreshOnReady", false)
+	root.add_child(layers)
+	await process_frame
+	layers.call("Rebuild")
+
+	var published_wrong := 0
+	var richness_wrong := 0
+	var depth_wrong := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var cell := Vector2i(x, y)
+			var id: String = str(generator.call("UndergroundResourceAt", cell))
+			if str(layers.call("UndergroundResourceAt", cell)) != id:
+				published_wrong += 1
+			if id != "":
+				if float(layers.call("UndergroundRichnessAt", cell)) <= 0.0:
+					richness_wrong += 1
+				if int(layers.call("UndergroundDepthAt", cell)) != int(generator.call("UndergroundDepthAt", cell)):
+					depth_wrong += 1
+	check(published_wrong == 0, "the underground layer publishes the generator's deposits (%d wrong)" % published_wrong)
+	check(richness_wrong == 0, "published richness is non-zero on every deposit (%d wrong)" % richness_wrong)
+	check(depth_wrong == 0, "published depth bands match the generator (%d wrong)" % depth_wrong)
+
+	var liquid_layers: Node = DATA_LAYERS.new()
+	liquid_layers.set("TerrainGeneratorPath", NodePath("../" + str(historical.name)))
+	liquid_layers.set("BoundsSize", SIZE)
+	liquid_layers.set("RefreshOnReady", false)
+	root.add_child(liquid_layers)
+	await process_frame
+	liquid_layers.call("Rebuild")
+
+	var liquid_published_wrong := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var cell := Vector2i(x, y)
+			if str(liquid_layers.call("LiquidResourceAt", cell)) != str(historical.call("LiquidResourceAt", cell)):
+				liquid_published_wrong += 1
+	check(liquid_published_wrong == 0, "the liquid layer publishes the generator's water column (%d wrong)" % liquid_published_wrong)
+
+	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
+	quit(1 if failures.size() > 0 else 0)

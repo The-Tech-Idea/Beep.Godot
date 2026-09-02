@@ -58,12 +58,26 @@ is in catalogues and saves.
 // noise threshold (0 = rare pockets, 1 = broad basins).
 [Export(PropertyHint.Range, "0,1,0.01")] public float DepositScale { get; set; } = 0.35f;
 
+// Underground only: how deep the deposit lies. Depth is a fact of the
+// RESOURCE (ore is shallow, oil is deeper, rare metals are deep), authored
+// as a band so an extractor can declare how far it reaches. Liquid depth
+// needs no field - the water terrain kinds already encode it (shallow
+// versus deep water) - and surface "height" is the existing
+// elevation/relief occurrence rules.
+[Export] public ResourceDepth Depth { get; set; } = ResourceDepth.Shallow;
+
 [ExportGroup("How it is gathered")]
 [Export] public ResourceExtraction Extraction { get; set; } = ResourceExtraction.WalkUpGather;
 // Extractor mode: which GridBuildDefinition works this deposit. Used by the
 // extractor to validate, by the UI to hint, never to hard-code gameplay.
 [Export] public string ExtractorBuildId { get; set; } = "";
 ```
+
+`ResourceDepth { Shallow, Mid, Deep }`. In Phase C the extractor declares the
+deepest band it reaches (`ReachDepth`), so a basic mine works shallow ore but
+a deep deposit demands the drilling rig - the tech-ladder hook space colony
+and oil games both want. The band is published with the deposit in the data
+layer, so pure tile readers get it without a catalogue lookup.
 
 `Stratum = Surface` + `Extraction = WalkUpGather` are the defaults, so every
 existing catalogue behaves exactly as before until authored otherwise. For
@@ -190,11 +204,24 @@ machinery:
 
 ## Implementation phases
 
-- **Phase A — model & generation.** ResourceDefinition axes, TerrainWorld
-  arrays, `TerrainSubsurfaceStage`, field accessors, diagnostics; a
-  determinism probe (same seed, same strata twice).
-- **Phase B — publication.** Data layers + Cell names + Describe helpers +
-  accessors, scan guards, lab status-line counts.
+- **Phase A — model & generation. DONE (2026-09-02).** ResourceDefinition
+  gained `Stratum`/`Depth`/`DepositScale`/`Extraction`/`ExtractorBuildId`;
+  TerrainWorld carries the three new cell arrays; `TerrainSubsurfaceStage`
+  lays contiguous richness fields per underground definition;
+  `TerrainResourceStage` is stratum-aware with the same hashes (a seed lays
+  the surface out unchanged); field + generator accessors; diagnostics count
+  the strata; the shipped catalogues are stratified (OilAndGas underground
+  with a depth ladder, Historical fish/whale liquid + metals underground,
+  Space colony ices/metals underground + deuterium liquid).
+  `tests/grid_terrain_subsurface_probe.gd` asserts existence, ground rules,
+  richness, depth bands, field contiguity, stratum placement and determinism.
+- **Phase B — publication. DONE (2026-09-02).** `LiquidData` and
+  `UndergroundData` layers (id + banded richness + depth as custom tile
+  data), `TerrainTileSets.Cell` names + `DescribeLiquid`/`DescribeUnderground`,
+  accessors `LiquidResourceAt`/`UndergroundResourceAt`/`UndergroundRichnessAt`/
+  `UndergroundDepthAt`, contract-scan guards, and probe checks that the
+  published layers answer identically to the generator. Lab status-line
+  counts deferred to Phase D.
 - **Phase C — extraction.** Subsurface store, extractor component, build-def
   `AllowedTerrainKinds`, scatter stratum split, boat navigation template +
   fishing example, smoke coverage (extractor draw-down + depletion, requeue of

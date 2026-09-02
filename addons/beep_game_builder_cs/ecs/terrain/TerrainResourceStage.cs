@@ -79,14 +79,23 @@ namespace Beep.ECS
                     if (TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 63601) > density)
                         continue;
 
-                    string chosen = Choose(catalogue, terrain, world.CellRelief[cell], settings.Seed, cellX, cellY);
+                    // Land cells choose among SURFACE resources, water cells
+                    // among LIQUID ones - two strata, one loop, the same
+                    // hashes as before so a seed lays the map out unchanged.
+                    // Underground fields are a different shape entirely and
+                    // have their own stage.
+                    ResourceStratum stratum = isLand ? ResourceStratum.Surface : ResourceStratum.Liquid;
+                    string chosen = Choose(catalogue, terrain, world.CellRelief[cell], stratum, settings.Seed, cellX, cellY);
                     if (chosen.Length == 0)
                         continue;
 
                     if (!FarEnough(placed, cellX, cellY, chosen))
                         continue;
 
-                    world.Resource[cell] = chosen;
+                    if (isLand)
+                        world.Resource[cell] = chosen;
+                    else
+                        world.CellLiquidResource[cell] = chosen;
                     placed.Add((new Vector2I(cellX, cellY), chosen));
                 }
             }
@@ -97,12 +106,12 @@ namespace Beep.ECS
         /// so the choice is stable for a seed.
         /// </summary>
         private static string Choose(
-            ResourceCatalog catalogue, string terrain, TerrainRelief relief, int seed, int cellX, int cellY)
+            ResourceCatalog catalogue, string terrain, TerrainRelief relief, ResourceStratum stratum, int seed, int cellX, int cellY)
         {
             float total = 0.0f;
             foreach (ResourceDefinition definition in catalogue.Resources)
             {
-                if (Supports(definition, terrain, relief))
+                if (definition.Stratum == stratum && Supports(definition, terrain, relief))
                     total += definition.Weight;
             }
             if (total <= 0.0f)
@@ -111,7 +120,7 @@ namespace Beep.ECS
             float roll = TerrainGeometry.Hash01(cellX, cellY, seed + 63611) * total;
             foreach (ResourceDefinition definition in catalogue.Resources)
             {
-                if (!Supports(definition, terrain, relief))
+                if (definition.Stratum != stratum || !Supports(definition, terrain, relief))
                     continue;
                 roll -= definition.Weight;
                 if (roll <= 0.0f)
@@ -120,7 +129,7 @@ namespace Beep.ECS
             return string.Empty;
         }
 
-        private static bool Supports(ResourceDefinition definition, string terrain, TerrainRelief relief)
+        internal static bool Supports(ResourceDefinition definition, string terrain, TerrainRelief relief)
         {
             if (definition.RequiresRelief && relief != (TerrainRelief)definition.RequiredRelief)
                 return false;
@@ -132,6 +141,10 @@ namespace Beep.ECS
             }
             return false;
         }
+
+        /// <summary>The catalog for these settings, for the sibling stages.</summary>
+        internal static ResourceCatalog ActiveCatalogue(TerrainGenerationSettings settings)
+            => CatalogueFor(settings);
 
         /// <summary>
         /// Keeps copies of one resource apart, so a map does not end up with all

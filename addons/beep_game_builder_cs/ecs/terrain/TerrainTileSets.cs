@@ -54,6 +54,18 @@ namespace Beep.ECS
 
             /// <summary>True on a generator-recommended player start cell.</summary>
             public const string StartPosition = "start_position";
+
+            /// <summary>Liquid-stratum resource id in the water column, or empty.</summary>
+            public const string LiquidResource = "liquid_resource";
+
+            /// <summary>Underground-stratum resource id beneath the cell, or empty.</summary>
+            public const string UndergroundResource = "underground_resource";
+
+            /// <summary>Underground richness 0..1 (banded), 0 where no deposit.</summary>
+            public const string UndergroundRichness = "underground_richness";
+
+            /// <summary>Underground depth band, as (int)ResourceDepth.</summary>
+            public const string UndergroundDepth = "underground_depth";
         }
 
         private static readonly (string Name, Variant.Type Type)[] Layers =
@@ -66,6 +78,10 @@ namespace Beep.ECS
             (Cell.Passable, Variant.Type.Bool),
             (Cell.Continent, Variant.Type.Int),
             (Cell.StartPosition, Variant.Type.Bool),
+            (Cell.LiquidResource, Variant.Type.String),
+            (Cell.UndergroundResource, Variant.Type.String),
+            (Cell.UndergroundRichness, Variant.Type.Float),
+            (Cell.UndergroundDepth, Variant.Type.Int),
         };
 
         /// <summary>
@@ -171,6 +187,30 @@ namespace Beep.ECS
                 return;
 
             data.SetCustomData(Cell.StartPosition, true);
+        }
+
+        /// <summary>Writes a liquid-stratum resource id onto its tile.</summary>
+        public static void DescribeLiquid(TileData? data, string id)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.LiquidResource, id ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Writes an underground deposit onto its tile: id, banded richness
+        /// and the resource's authored depth band, so a published map answers
+        /// without a catalogue lookup.
+        /// </summary>
+        public static void DescribeUnderground(TileData? data, string id, float richness, int depth)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.UndergroundResource, id ?? string.Empty);
+            data.SetCustomData(Cell.UndergroundRichness, Mathf.Clamp(richness, 0.0f, 1.0f));
+            data.SetCustomData(Cell.UndergroundDepth, depth);
         }
 
         public static bool IsWaterKind(string terrainKind)

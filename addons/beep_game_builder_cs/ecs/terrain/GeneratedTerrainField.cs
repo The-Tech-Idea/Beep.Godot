@@ -33,6 +33,10 @@ namespace Beep.ECS
         private readonly WaterBody[] _water;
         private readonly int[] _continent;
         private readonly string[] _resource;
+        private readonly string[] _liquidResource;
+        private readonly string[] _undergroundResource;
+        private readonly float[] _undergroundRichness;
+        private readonly byte[] _undergroundDepth;
         private readonly TerrainRelief[] _relief;
         private readonly float[] _elevation;
         private readonly string[] _feature;
@@ -54,6 +58,10 @@ namespace Beep.ECS
             _water = world.CellWater;
             _continent = world.CellContinent;
             _resource = world.Resource;
+            _liquidResource = world.CellLiquidResource;
+            _undergroundResource = world.CellUndergroundResource;
+            _undergroundRichness = world.CellUndergroundRichness;
+            _undergroundDepth = world.CellUndergroundDepth;
             _relief = world.CellRelief;
             _elevation = world.CellElevation;
             _feature = world.Feature;
@@ -87,8 +95,20 @@ namespace Beep.ECS
         /// <summary>Landmass id per tile; 0 is water.</summary>
         public int ContinentAtCell(Vector2I cell) => _continent[CellIndex(cell.X, cell.Y)];
 
-        /// <summary>The resource on a tile, or empty where there is none.</summary>
+        /// <summary>The SURFACE resource on a tile, or empty where there is none.</summary>
         public string ResourceAtCell(Vector2I cell) => _resource[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>The LIQUID-stratum resource in a water tile - fish and kin - or empty.</summary>
+        public string LiquidResourceAtCell(Vector2I cell) => _liquidResource[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>The UNDERGROUND resource beneath a tile, or empty. Invisible on the map.</summary>
+        public string UndergroundResourceAtCell(Vector2I cell) => _undergroundResource[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>Underground richness 0..1 where a deposit exists, else 0.</summary>
+        public float UndergroundRichnessAtCell(Vector2I cell) => _undergroundRichness[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>Underground depth band, as (int)ResourceDepth; 0 where empty too - check the id.</summary>
+        public int UndergroundDepthAtCell(Vector2I cell) => _undergroundDepth[CellIndex(cell.X, cell.Y)];
 
         /// <summary>Flat, hills or mountains, per tile.</summary>
         public TerrainRelief ReliefAtCell(Vector2I cell) => _relief[CellIndex(cell.X, cell.Y)];

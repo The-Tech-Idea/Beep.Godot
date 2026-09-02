@@ -85,6 +85,7 @@ namespace Beep.ECS
             // becomes ground, and ground grows things.
             TerrainScaleConstraintStage.ApplyTerrain(world, settings);
             TerrainResourceStage.Apply(world, settings);
+            TerrainSubsurfaceStage.Apply(world, settings);
             TerrainFeatureStage.Apply(world, noise, settings);
             // Last, and on the reduced tile grid: a feature has to reach a size
             // in TILES to exist, which is only meaningful once tiles exist. It
@@ -170,6 +171,20 @@ namespace Beep.ECS
                     resources++;
             }
 
+            int liquidResources = 0;
+            foreach (string resource in world.CellLiquidResource)
+            {
+                if (resource.Length > 0)
+                    liquidResources++;
+            }
+
+            int undergroundCells = 0;
+            foreach (string resource in world.CellUndergroundResource)
+            {
+                if (resource.Length > 0)
+                    undergroundCells++;
+            }
+
             int features = 0;
             foreach (string feature in world.Feature)
             {
@@ -189,6 +204,8 @@ namespace Beep.ECS
                 TerrainGeometry.CountComponents(world.Footprint, world.Width, world.Height),
                 continents,
                 resources,
+                liquidResources,
+                undergroundCells,
                 settings.RequestedStartPositionCount,
                 world.StartPositions.Count,
                 features,

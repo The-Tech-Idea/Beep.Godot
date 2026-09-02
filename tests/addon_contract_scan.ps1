@@ -1548,9 +1548,9 @@ foreach ($required in @("TerrainGenerationSettings settings = CurrentSettings()"
     }
 }
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
-foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart")) {
+foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
-        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, and start-position data layers: $required."
+        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, liquid, and underground data layers: $required."
     }
 }
 # One noise set per run, each channel on its own seed offset, so changing one

@@ -56,6 +56,13 @@ namespace Beep.ECS
             CellContinent = new int[cells];
             Feature = new string[cells];
             Array.Fill(Feature, string.Empty);
+
+            CellLiquidResource = new string[cells];
+            Array.Fill(CellLiquidResource, string.Empty);
+            CellUndergroundResource = new string[cells];
+            Array.Fill(CellUndergroundResource, string.Empty);
+            CellUndergroundRichness = new float[cells];
+            CellUndergroundDepth = new byte[cells];
         }
 
         public int Width { get; }
@@ -155,6 +162,26 @@ namespace Beep.ECS
         /// grassland tile is still grassland underneath.
         /// </summary>
         public string[] Feature { get; }
+
+        /// <summary>
+        /// Resource in the LIQUID stratum per tile - fish in the water column,
+        /// whatever the water kinds are skinned as - or empty. Separate from
+        /// Resource so each array keeps one meaning: Resource is the surface
+        /// stratum on land.
+        /// </summary>
+        public string[] CellLiquidResource { get; }
+
+        /// <summary>
+        /// Resource in the UNDERGROUND stratum per tile - beneath land or
+        /// seabed - or empty. Deposits are multi-cell fields, not markers.
+        /// </summary>
+        public string[] CellUndergroundResource { get; }
+
+        /// <summary>Underground richness 0..1 where a deposit exists, else 0.</summary>
+        public float[] CellUndergroundRichness { get; }
+
+        /// <summary>Underground depth band per tile, as (byte)ResourceDepth.</summary>
+        public byte[] CellUndergroundDepth { get; }
 
         public int CellIndex(int cellX, int cellY) => (cellY * CellsWide) + cellX;
 

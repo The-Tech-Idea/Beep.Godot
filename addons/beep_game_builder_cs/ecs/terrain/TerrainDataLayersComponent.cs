@@ -20,12 +20,13 @@ namespace Beep.ECS
     /// per-tile data, so a developer uses get_cell_tile_data and the TileSet
     /// editor rather than an API peculiar to this addon.
     ///
-    /// SIX layers, not one, because the facts vary independently: a cell's
-    /// terrain, the resource on it, the feature standing on it, its relief
-    /// band, the continent it belongs to and whether it is a recommended start
-    /// are separate choices, and one tile can only carry one set of values.
-    /// Split this way each layer holds one tile per distinct value; combined,
-    /// it would need a tile per combination.
+    /// EIGHT layers, not one, because the facts vary independently: a cell's
+    /// terrain, the resource on it, what swims in its water, what lies under
+    /// it, the feature standing on it, its relief band, the continent it
+    /// belongs to and whether it is a recommended start are separate choices,
+    /// and one tile can only carry one set of values. Split this way each
+    /// layer holds one tile per distinct value; combined, it would need a
+    /// tile per combination.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -72,6 +73,8 @@ namespace Beep.ECS
         private TileMapLayer? _relief;
         private TileMapLayer? _continents;
         private TileMapLayer? _starts;
+        private TileMapLayer? _liquid;
+        private TileMapLayer? _underground;
 
         /// <summary>Value to tile column, per layer, so a fill is a lookup.</summary>
         private readonly Dictionary<string, int> _terrainTiles = new();
@@ -80,6 +83,8 @@ namespace Beep.ECS
         private readonly Dictionary<string, int> _reliefTiles = new();
         private readonly Dictionary<string, int> _continentTiles = new();
         private readonly Dictionary<string, int> _startTiles = new();
+        private readonly Dictionary<string, int> _liquidTiles = new();
+        private readonly Dictionary<string, int> _undergroundTiles = new();
 
         public override void _Ready()
         {
@@ -119,6 +124,8 @@ namespace Beep.ECS
             var resources = new SortedSet<string>();
             var features = new SortedSet<string>();
             var reliefs = new SortedSet<string>();
+            var liquids = new SortedSet<string>();
+            var undergrounds = new SortedSet<string>();
             // Numeric so 2 sorts before 10; painted as strings like the rest.
             var continentIds = new SortedSet<int>();
             for (int y = 0; y < size.Y; y++)
@@ -141,6 +148,21 @@ namespace Beep.ECS
                     int continent = field.ContinentAtCell(at);
                     if (continent > 0)
                         continentIds.Add(continent);
+
+                    string liquid = field.LiquidResourceAtCell(at);
+                    if (liquid.Length > 0)
+                        liquids.Add(liquid);
+
+                    // Underground tiles carry (id, richness band, depth) as
+                    // one value, because a tile holds one set of custom data:
+                    // richness is banded so a continuous field does not need
+                    // a tile per distinct float.
+                    string undergroundId = field.UndergroundResourceAtCell(at);
+                    if (undergroundId.Length > 0)
+                        undergrounds.Add(UndergroundKey(
+                            undergroundId,
+                            RichnessBand(field.UndergroundRichnessAtCell(at)),
+                            field.UndergroundDepthAtCell(at)));
                 }
             }
             var continents = new List<string>();
@@ -168,6 +190,14 @@ namespace Beep.ECS
                 (data, value) => TerrainTileSets.DescribeContinent(data, int.Parse(value)));
             _starts = EnsureLayer("StartData", _starts, cell, new List<string> { "start" }, _startTiles,
                 (data, _) => TerrainTileSets.DescribeStart(data));
+            _liquid = EnsureLayer("LiquidData", _liquid, cell, new List<string>(liquids), _liquidTiles,
+                (data, value) => TerrainTileSets.DescribeLiquid(data, value));
+            _underground = EnsureLayer("UndergroundData", _underground, cell, new List<string>(undergrounds), _undergroundTiles,
+                (data, value) =>
+                {
+                    (string id, int band, int depth) = ParseUndergroundKey(value);
+                    TerrainTileSets.DescribeUnderground(data, id, RichnessOfBand(band), depth);
+                });
 
             _terrain.Clear();
             _resources.Clear();
@@ -175,6 +205,8 @@ namespace Beep.ECS
             _relief.Clear();
             _continents.Clear();
             _starts.Clear();
+            _liquid.Clear();
+            _underground.Clear();
 
             for (int y = 0; y < size.Y; y++)
             {
@@ -189,6 +221,15 @@ namespace Beep.ECS
                     int continent = field.ContinentAtCell(at);
                     if (continent > 0)
                         Paint(_continents, _continentTiles, at, continent.ToString());
+
+                    Paint(_liquid, _liquidTiles, at, field.LiquidResourceAtCell(at));
+
+                    string undergroundId = field.UndergroundResourceAtCell(at);
+                    if (undergroundId.Length > 0)
+                        Paint(_underground, _undergroundTiles, at, UndergroundKey(
+                            undergroundId,
+                            RichnessBand(field.UndergroundRichnessAtCell(at)),
+                            field.UndergroundDepthAtCell(at)));
                 }
             }
 
@@ -329,6 +370,35 @@ namespace Beep.ECS
                 ? _starts.GetUsedCells()
                 : new Godot.Collections.Array<Vector2I>();
 
+        /// <summary>The liquid-stratum resource in a water cell - fish and kin - or empty.</summary>
+        public string LiquidResourceAt(Vector2I cell) => Read(_liquid, cell, TerrainTileSets.Cell.LiquidResource).AsString();
+
+        /// <summary>The underground resource beneath a cell, or empty. Invisible on the map.</summary>
+        public string UndergroundResourceAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundResource).AsString();
+
+        /// <summary>Underground richness 0..1 (banded) where a deposit exists, else 0.</summary>
+        public float UndergroundRichnessAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundRichness).AsSingle();
+
+        /// <summary>Underground depth band, as (int)ResourceDepth; check the id first.</summary>
+        public int UndergroundDepthAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundDepth).AsInt32();
+
+        /// <summary>Richness banded to four steps, so a field needs four tiles per id, not one per float.</summary>
+        private static int RichnessBand(float richness)
+            => Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp(richness, 0.0f, 1.0f) * 4.0f), 0, 3);
+
+        private static float RichnessOfBand(int band) => (band + 0.5f) / 4.0f;
+
+        private static string UndergroundKey(string id, int band, int depth) => $"{id}|{band}|{depth}";
+
+        private static (string Id, int Band, int Depth) ParseUndergroundKey(string key)
+        {
+            string[] parts = key.Split('|');
+            string id = parts.Length > 0 ? parts[0] : "";
+            int band = parts.Length > 1 && int.TryParse(parts[1], out int b) ? b : 0;
+            int depth = parts.Length > 2 && int.TryParse(parts[2], out int d) ? d : 0;
+            return (id, band, depth);
+        }
+
         private static Variant Read(TileMapLayer? layer, Vector2I cell, string field)
         {
             TileData? data = layer?.GetCellTileData(cell);
@@ -352,5 +422,11 @@ namespace Beep.ECS
 
         /// <summary>Recommended start cells, and nothing else.</summary>
         public TileMapLayer? StartLayer => _starts;
+
+        /// <summary>Liquid-stratum resources, on the water cells that hold one.</summary>
+        public TileMapLayer? LiquidLayer => _liquid;
+
+        /// <summary>Underground deposits - id, richness band, depth - on the cells above one.</summary>
+        public TileMapLayer? UndergroundLayer => _underground;
     }
 }

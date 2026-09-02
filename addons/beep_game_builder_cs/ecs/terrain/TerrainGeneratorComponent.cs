@@ -264,6 +264,22 @@ namespace Beep.ECS
         public string TerrainKindAt(Vector2I localCell)
             => FieldFor(CurrentSettings()).TerrainAtCell(localCell);
 
+        /// <summary>The LIQUID-stratum resource in a water tile, or empty.</summary>
+        public string LiquidResourceAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).LiquidResourceAtCell(localCell);
+
+        /// <summary>The UNDERGROUND resource beneath a tile, or empty.</summary>
+        public string UndergroundResourceAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).UndergroundResourceAtCell(localCell);
+
+        /// <summary>Underground richness 0..1 where a deposit exists, else 0.</summary>
+        public float UndergroundRichnessAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).UndergroundRichnessAtCell(localCell);
+
+        /// <summary>Underground depth band, as (int)ResourceDepth.</summary>
+        public int UndergroundDepthAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).UndergroundDepthAtCell(localCell);
+
         public string TerrainKindAtPosition(Vector2 localPosition)
             => FieldFor(CurrentSettings()).TerrainAtPosition(localPosition);
 

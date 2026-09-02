@@ -80,7 +80,13 @@ namespace Beep.ECS
             return true;
         }
 
-        public string ClaimNextJob(string workerId, Vector2I workerCell)
+        /// <summary>
+        /// Claims the best queued job - highest priority, then nearest. A
+        /// non-empty <paramref name="allowedKinds"/> restricts the claim to
+        /// those kinds: a boat claims "fish" jobs, a truck everything else,
+        /// and neither churns on work it can never reach.
+        /// </summary>
+        public string ClaimNextJob(string workerId, Vector2I workerCell, Godot.Collections.Array<string>? allowedKinds = null)
         {
             workerId = NormalizeWorker(workerId);
             GridJob? best = null;
@@ -89,6 +95,9 @@ namespace Beep.ECS
             foreach (GridJob job in _jobs.Values)
             {
                 if (job.State != GridJobState.Queued)
+                    continue;
+
+                if (allowedKinds is { Count: > 0 } && !KindAllowed(job.Kind, allowedKinds))
                     continue;
 
                 int distance = Mathf.Abs(job.Cell.X - workerCell.X) + Mathf.Abs(job.Cell.Y - workerCell.Y);
@@ -259,6 +268,16 @@ namespace Beep.ECS
 
         private static string NormalizeKind(string kind)
             => string.IsNullOrWhiteSpace(kind) ? "work" : kind.Trim().ToLowerInvariant().Replace(' ', '_');
+
+        private static bool KindAllowed(string kind, Godot.Collections.Array<string> allowedKinds)
+        {
+            foreach (string allowed in allowedKinds)
+            {
+                if (NormalizeKind(allowed) == kind)
+                    return true;
+            }
+            return false;
+        }
 
         private static string NormalizeWorker(string workerId)
             => string.IsNullOrWhiteSpace(workerId) ? Guid.NewGuid().ToString("N") : workerId.Trim();

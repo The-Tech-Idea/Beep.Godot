@@ -4333,6 +4333,18 @@ public partial class GridPlacementSmoke : Node
             && requeueJobs.GetJobClaimedBy("job_9") == ""
             && requeueJobs.QueuedCount == 1;
 
+        // A worker's AllowedJobKinds keeps a mixed workforce sane: the boat
+        // claims the far fish job over the adjacent till job, and an
+        // unfiltered claim still takes the nearest work.
+        var kindJobs = new GridJobQueueComponent { Name = "KindJobs" };
+        root.AddChild(kindJobs);
+        string fishJob = kindJobs.AddJob(new Vector2I(9, 9), "fish");
+        string tillJob = kindJobs.AddJob(new Vector2I(0, 1), "till");
+        var fishOnly = new Godot.Collections.Array<string> { "fish" };
+        bool kindFilterOk = kindJobs.ClaimNextJob("boat", Vector2I.Zero, fishOnly) == fishJob
+            && kindJobs.ClaimNextJob("truck", Vector2I.Zero) == tillJob
+            && kindJobs.ClaimNextJob("idle", Vector2I.Zero, fishOnly) == "";
+
         var roads = new GridRoadComponent { Name = "Roads", DefaultRoadKind = "dirt" };
         root.AddChild(roads);
         roads.LoadRoads(new Godot.Collections.Array
@@ -4427,6 +4439,9 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(requeuedOk, "GridJobQueue must requeue claimed jobs on load by default - a loaded claim always belongs to a ghost worker."))
+            return false;
+
+        if (!Expect(kindFilterOk, "ClaimNextJob must honor a worker's allowed job kinds."))
             return false;
 
         if (!Expect(jobsOk, "GridJobQueue did not ignore malformed grid saved state values."))

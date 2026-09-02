@@ -25,6 +25,15 @@ namespace Beep.ECS
         [ExportGroup("Display")]
         [Export] public bool ShowResources { get; set; } = true;
         [Export] public bool ShowStartPositions { get; set; } = true;
+
+        /// <summary>
+        /// The survey view: underground deposits drawn as translucent patches,
+        /// one hue per resource, denser where the field is richer. Gated by
+        /// GridProspectingComponent when ProspectingPath is wired, so an
+        /// unsurveyed basin stays a secret.
+        /// </summary>
+        [Export] public bool ShowUndergroundResources { get; set; } = true;
+        [Export] public NodePath ProspectingPath { get; set; } = new("");
         [Export(PropertyHint.Range, "0.05,0.5,0.01")] public float ResourceRadiusTiles { get; set; } = 0.16f;
         [Export(PropertyHint.Range, "0.1,1.0,0.01")] public float StartRadiusTiles { get; set; } = 0.42f;
 
@@ -44,7 +53,11 @@ namespace Beep.ECS
         /// <summary>One baked resource marker: where, how big, what colour.</summary>
         private readonly record struct ResourceMarker(Vector2 Centre, float Radius, float RimRadius, Color Colour);
 
+        /// <summary>One baked underground patch: which tile, what colour.</summary>
+        private readonly record struct UndergroundPatch(Rect2 Rect, Color Colour);
+
         private TerrainGeneratorComponent? _generator;
+        private GridProspectingComponent? _prospecting;
 
         /// <summary>
         /// Built once per Rebuild rather than read from the generator on every
@@ -54,6 +67,7 @@ namespace Beep.ECS
         /// per cell there paid the cost of a full rebuild for free, repeatedly.
         /// </summary>
         private readonly List<ResourceMarker> _resourceMarkers = new();
+        private readonly List<UndergroundPatch> _undergroundPatches = new();
         private readonly List<Vector2> _startMarkers = new();
         private float _startRadius;
         private float _startThickness;
@@ -89,6 +103,7 @@ namespace Beep.ECS
                     : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
 
             _resourceMarkers.Clear();
+            _undergroundPatches.Clear();
             _startMarkers.Clear();
 
             if (_generator is null)
@@ -107,23 +122,50 @@ namespace Beep.ECS
             float tile = Mathf.Max(1, TileSize);
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
 
-            if (ShowResources)
+            if (ShowResources || ShowUndergroundResources)
             {
                 // Resolved ONCE for the whole scan rather than once per cell;
                 // see TerrainGeneratorComponent.ResolveField.
                 GeneratedTerrainField field = _generator.ResolveField();
                 float radius = Mathf.Max(1.0f, ResourceRadiusTiles * tile);
                 float rim = radius + Mathf.Max(1.0f, tile * 0.03f);
+
+                if (_prospecting == null || !GodotObject.IsInstanceValid(_prospecting))
+                    _prospecting = ProspectingPath.IsEmpty
+                        ? null
+                        : GetNodeOrNull<GridProspectingComponent>(ProspectingPath);
+
                 for (int y = 0; y < size.Y; y++)
                 {
                     for (int x = 0; x < size.X; x++)
                     {
-                        string resource = field.ResourceAtCell(new Vector2I(x, y));
-                        if (resource.Length == 0)
-                            continue;
+                        var cell = new Vector2I(x, y);
+                        if (ShowResources)
+                        {
+                            // Surface and liquid alike: a marker means "there
+                            // is something here", whichever stratum holds it.
+                            string resource = field.ResourceAtCell(cell);
+                            if (resource.Length == 0)
+                                resource = field.LiquidResourceAtCell(cell);
+                            if (resource.Length > 0)
+                            {
+                                Vector2 centre = new((x + 0.5f) * tile, (y + 0.5f) * tile);
+                                _resourceMarkers.Add(new ResourceMarker(centre, radius, rim, ColourFor(resource)));
+                            }
+                        }
 
-                        Vector2 centre = new((x + 0.5f) * tile, (y + 0.5f) * tile);
-                        _resourceMarkers.Add(new ResourceMarker(centre, radius, rim, ColourFor(resource)));
+                        if (ShowUndergroundResources
+                            && (_prospecting == null || _prospecting.IsDiscovered(cell)))
+                        {
+                            string underground = field.UndergroundResourceAtCell(cell);
+                            if (underground.Length > 0)
+                            {
+                                float richness = field.UndergroundRichnessAtCell(cell);
+                                _undergroundPatches.Add(new UndergroundPatch(
+                                    new Rect2(x * tile, y * tile, tile, tile),
+                                    UndergroundColourFor(underground, richness)));
+                            }
+                        }
                     }
                 }
             }
@@ -144,8 +186,27 @@ namespace Beep.ECS
             if (_generator == null)
                 return;
 
+            // Underground first: it is the ground the markers sit over.
+            foreach (UndergroundPatch patch in _undergroundPatches)
+                DrawRect(patch.Rect, patch.Colour);
+
             DrawResources();
             DrawStartPositions();
+        }
+
+        /// <summary>
+        /// One stable hue per underground id (from its characters, so it never
+        /// changes between runs), translucent, denser where the field is
+        /// richer - a basin reads as a shaded body with a bright core.
+        /// </summary>
+        private static Color UndergroundColourFor(string id, float richness)
+        {
+            int sum = 0;
+            foreach (char c in id)
+                sum = (sum * 31) + c;
+            float hue = Mathf.PosMod(sum * 0.6180339887f, 1.0f);
+            float alpha = 0.16f + (0.22f * Mathf.Clamp(richness, 0.0f, 1.0f));
+            return Color.FromHsv(hue, 0.65f, 0.95f, alpha);
         }
 
         private void DrawResources()

@@ -12,6 +12,7 @@ const DEFINITION := preload("res://addons/beep_game_builder_cs/ecs/terrain/Resou
 const EXTRACTOR := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtractorComponent.cs")
 const WALLET := preload("res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs")
 const GRID_OBJECT := preload("res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs")
+const PROSPECTING := preload("res://addons/beep_game_builder_cs/ecs/grid/GridProspectingComponent.cs")
 const SIZE := Vector2i(64, 40)
 const SEED := 424242
 
@@ -342,6 +343,33 @@ func _run() -> void:
 	check(reservoir_pumped > start_remaining,
 		"the pump drew more than its own cell held (%d pumped, cell held %d) - the field is one reservoir"
 			% [reservoir_pumped, start_remaining])
+
+	# Prospecting: with RevealAll off, the underground is hidden until a
+	# survey reveals it, the find is announced, and discovery survives saves.
+	var prospecting: Node = PROSPECTING.new()
+	prospecting.name = "Prospecting"
+	prospecting.set("RevealAll", false)
+	prospecting.set("DataLayersPath", NodePath("../FluidLayers"))
+	prospecting.set("AutoConnect", false)
+	root.add_child(prospecting)
+	await process_frame
+
+	var hidden_before: bool = not bool(prospecting.call("IsDiscovered", start))
+	var found_ids: Array = []
+	prospecting.connect("DepositDiscovered", func(_x, _y, id): found_ids.append(str(id)))
+	prospecting.call("Survey", start)
+	check(hidden_before and bool(prospecting.call("IsDiscovered", start)),
+		"a cell is hidden until surveyed, then discovered")
+	check(found_ids.has("probe_oil"),
+		"surveying over a deposit announces the find (%s)" % str(found_ids))
+
+	var snapshot: Dictionary = prospecting.call("CaptureState")
+	var restored: Node = PROSPECTING.new()
+	restored.set("RevealAll", false)
+	restored.set("AutoConnect", false)
+	root.add_child(restored)
+	restored.call("RestoreState", snapshot)
+	check(bool(restored.call("IsDiscovered", start)), "discovery survives a save round-trip")
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)

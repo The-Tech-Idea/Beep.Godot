@@ -30,6 +30,15 @@ namespace Beep.ECS
         [Export] public NodePath PathFollowerPath { get; set; } = new("");
         [Export] public string WorkerId { get; set; } = "";
         [Export] public bool AutoClaimJobs { get; set; } = true;
+
+        /// <summary>
+        /// Job kinds this worker will claim; empty claims everything. This is
+        /// what keeps a mixed workforce sane: a boat lists "fish", a survey
+        /// crew "survey", and the truck lists the land kinds - otherwise a
+        /// land worker keeps claiming water jobs it can never path to and
+        /// churns claim/release forever.
+        /// </summary>
+        [Export] public Godot.Collections.Array<string> AllowedJobKinds { get; set; } = new();
         [Export(PropertyHint.Range, "0.05,5,0.05")] public float ClaimIntervalSeconds { get; set; } = 0.25f;
         [Export(PropertyHint.Range, "0.01,20,0.01")] public float WorkSpeedMultiplier { get; set; } = 1f;
 
@@ -114,7 +123,7 @@ namespace Beep.ECS
                 return false;
 
             Vector2I workerCell = _grid.WorldToCell(_body.GlobalPosition);
-            string jobId = _queue.ClaimNextJob(WorkerId, workerCell);
+            string jobId = _queue.ClaimNextJob(WorkerId, workerCell, AllowedJobKinds);
             if (string.IsNullOrEmpty(jobId))
                 return false;
 

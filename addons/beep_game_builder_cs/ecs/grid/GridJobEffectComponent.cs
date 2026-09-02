@@ -92,7 +92,7 @@ namespace Beep.ECS
                 return Reject(jobId, kind, cell, "invalid_cell");
 
             string normalized = NormalizeKind(kind);
-            if (normalized is "gather" or "collect" or "forage" or "chop" or "mine")
+            if (normalized is "gather" or "collect" or "forage" or "chop" or "mine" or "fish")
                 return ApplyGather(jobId, kind, cell);
 
             if (_cells == null)

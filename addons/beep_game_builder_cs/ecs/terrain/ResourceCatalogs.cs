@@ -170,8 +170,13 @@ namespace Beep.ECS
         {
             foreach (string id in liquid)
             {
-                if (catalog.Find(id) is { } definition)
-                    definition.Stratum = ResourceStratum.Liquid;
+                if (catalog.Find(id) is not { } definition)
+                    continue;
+                definition.Stratum = ResourceStratum.Liquid;
+                // Water work is its own trade: fish jobs get their own kind,
+                // so boats claim them (AllowedJobKinds = ["fish"]) and land
+                // workers can be kept off water they cannot path to.
+                definition.GatherJobKind = "fish";
             }
 
             foreach ((string id, ResourceDepth depth) in underground)

@@ -1547,6 +1547,18 @@ foreach ($required in @("TerrainGenerationSettings settings = CurrentSettings()"
         Fail "TerrainGeneratorComponent must build one terrain field per settings and write it in a single pass: $required."
     }
 }
+$gridProspecting = Read "addons/beep_game_builder_cs/ecs/grid/GridProspectingComponent.cs"
+foreach ($required in @("RevealAll", "IsDiscovered(", "Survey(", "DepositDiscovered", "ISaveable")) {
+    if ($gridProspecting -notmatch [regex]::Escape($required)) {
+        Fail "GridProspectingComponent must gate the underground stratum behind surveys, off by default: $required."
+    }
+}
+$gridSubsurfaceStore = Read "addons/beep_game_builder_cs/ecs/grid/GridSubsurfaceStoreComponent.cs"
+foreach ($required in @("ResourceIdAt(", "RemainingAt(", "Draw(", "DepositDepleted", "ISaveable")) {
+    if ($gridSubsurfaceStore -notmatch [regex]::Escape($required)) {
+        Fail "GridSubsurfaceStoreComponent must own the underground drawdown behind its three-method contract: $required."
+    }
+}
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
 foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
@@ -2159,6 +2171,9 @@ foreach ($required in @(
     "GridCalendarComponent",
     "GridCalendarHudComponent",
     "GridWorldStateComponent",
+    "GridSubsurfaceStoreComponent",
+    "GridExtractorComponent",
+    "GridProspectingComponent",
     "TerrainPaintedRendererComponent"
 )) {
     if ($gridGuide -notmatch $required) { Fail "2D_ISO_TOOLKIT.md is missing $required." }

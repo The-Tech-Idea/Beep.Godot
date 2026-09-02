@@ -1,0 +1,49 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs" id="path_follower"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorkerComponent.cs" id="worker"]
+
+[sub_resource type="RectangleShape2D" id="collision_shape"]
+size = Vector2(30, 16)
+
+[node name="GridWorkerBoat" type="CharacterBody2D"]
+z_as_relative = false
+
+[node name="Wake" type="Polygon2D" parent="."]
+position = Vector2(0, 2)
+polygon = PackedVector2Array(-26, 0, -14, -5, -14, 5)
+color = Color(0.92, 0.97, 1, 0.55)
+
+[node name="Hull" type="Polygon2D" parent="."]
+position = Vector2(0, -2)
+polygon = PackedVector2Array(-18, -6, 14, -6, 22, 0, 14, 6, -18, 6, -22, 0)
+color = Color(0.55, 0.34, 0.2, 1)
+
+[node name="Deck" type="Polygon2D" parent="."]
+position = Vector2(0, -2)
+polygon = PackedVector2Array(-14, -4, 12, -4, 17, 0, 12, 4, -14, 4, -17, 0)
+color = Color(0.78, 0.6, 0.38, 1)
+
+[node name="Cabin" type="Polygon2D" parent="."]
+position = Vector2(-4, -6)
+polygon = PackedVector2Array(-6, 0, 6, 0, 6, -7, -6, -7)
+color = Color(0.93, 0.9, 0.82, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -2)
+shape = SubResource("collision_shape")
+
+[node name="JobTarget" type="Marker2D" parent="."]
+position = Vector2(0, -4)
+
+[node name="PathFollower" type="Node" parent="."]
+script = ExtResource("path_follower")
+Speed = 120.0
+DriveCharacterBody = true
+SetZIndexFromY = true
+
+[node name="GridWorker" type="Node" parent="."]
+script = ExtResource("worker")
+PathFollowerPath = NodePath("../PathFollower")
+AutoClaimJobs = true
+AllowedJobKinds = Array[String](["fish"])

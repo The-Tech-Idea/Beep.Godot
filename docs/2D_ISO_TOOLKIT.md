@@ -203,6 +203,10 @@ The resource system is data-first: the addon owns the *facts* (what exists, wher
 
 4. **Multiple extractor types — one build definition each.** A basic mine, a drilling rig, and an offshore platform are three `GridBuildDefinition`s, each with its own scene carrying its own configured (or subclassed) extractor: `ReachDepth` per type is the shipped tech ladder, `AllowedTerrainKinds` puts the platform on water, and a resource's `ExtractorBuildId` optionally binds it to one specific building.
 
+5. **Boats and fishing — a second navigation, a filtered worker.** `grid_worker_boat.tscn` is the shipped boat: a worker whose `AllowedJobKinds` is `["fish"]` (liquid resources author `GatherJobKind = "fish"`, so their nodes queue that kind). Wire it by adding a second `GridNavigationComponent` to the scene with every LAND kind in `BlockedTerrainKinds` (water stays open), and pointing the boat instance's `PathFollower.NavigationPath` at it. Give land workers their own `AllowedJobKinds` in fishing scenes, or they will claim water jobs they can never path to.
+
+6. **Prospecting — hidden until surveyed, off by default.** `GridProspectingComponent` with `RevealAll` off hides the underground stratum until `survey` jobs reveal it (radius per survey, `DepositDiscovered` when something turns up, discovery saved). The survey overlay (`TerrainMapOverlayComponent.ShowUndergroundResources` + `ProspectingPath`) draws discovered deposits as translucent per-resource patches, denser where the field is richer. Leave `RevealAll` on and none of this exists for your game.
+
 `GridJobQueueComponent` stores cell jobs — Queued, Claimed, Completed, Cancelled — with priority and work seconds. `GridJobBoardComponent` shows the queue. `GridSelectionJobCommandComponent` turns selected cells into jobs, skipping water, blocked, or out-of-bounds cells. `GridJobEffectComponent` applies completed jobs to the world: clear, till, water, harvest, and gather effects, including gathering the resource node standing on a cleared cell.
 
 ### The job loop

@@ -236,11 +236,26 @@ machinery:
   moment a water-authored navigation exists; underground deposits get no
   walk-up nodes. Probe covers store seeding, full pump-to-depletion and
   stop; the placement smoke covers offshore-allow/land-refuse.
-  **Still to do in C:** `grid_worker_boat.tscn` + water-navigation wiring in
-  the kit HUD example, so fishing ships working out of the box.
-- **Phase D — discovery & polish.** Prospecting, overlay/minimap/inspector,
-  saves round-trip, catalogue authoring for the three sets, docs
-  (2D_ISO_TOOLKIT matrix + terrain guide + this doc's status updates).
+  **C completed (2026-09-02, later chunk):** `grid_worker_boat.tscn` ships
+  (polygon boat, `AllowedJobKinds = ["fish"]`), workers gained
+  `AllowedJobKinds` with a queue-side claim filter so a mixed workforce
+  never churns on unreachable jobs, liquid resources author
+  `GatherJobKind = "fish"`, and the job effect gathers "fish" jobs. The
+  wiring recipe (second land-blocked navigation + the boat's follower) is
+  documented in 2D_ISO_TOOLKIT.md; a live fishing demo scene needs
+  spawn-on-water logic and is deferred with the inspector work below.
+- **Phase D — discovery & polish. DONE (2026-09-02), two items deferred.**
+  `GridProspectingComponent`: `RevealAll` on by default (the mechanic is
+  invisible unless wanted); off, the underground hides until `survey` jobs
+  reveal it (radius, `DepositDiscovered` announcements, `ISaveable`
+  round-trip). The map overlay draws discovered underground deposits as
+  translucent per-resource patches (stable hue per id, denser with
+  richness) gated by `ProspectingPath`, and restored the liquid dots the
+  stratum split had removed. The lab/world status line counts liquid and
+  underground alongside surface resources. Catalogue authoring for the
+  three sets landed in Phases A and the properties chunk (strata, depths,
+  forms, tags, fish job kind). Deferred: a live fishing demo scene
+  (needs spawn-on-water) and cell-strata display in the object inspector.
 
 Every phase lands with the standing gate: `dotnet build` clean, contract scan,
 15 terrain guards, probes, runtime smoke against Godot 4.7.1 mono.

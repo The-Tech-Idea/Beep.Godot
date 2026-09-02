@@ -222,7 +222,8 @@ namespace Beep.ECS
             Godot.Collections.Dictionary d = _generator.GetGenerationDiagnostics();
             return string.Format(
                 "{0} x {1}  |  {2}  |  land {3:P0}  ocean {4:P0}  lakes {5:P0}  rivers {6:P1}"
-                + "  |  {7} of {8} landmasses  |  {9} resources  {10} of {11} starts  |  {12} ms",
+                + "  |  {7} of {8} landmasses  |  {9} resources  {10} in water  {11} cells underground"
+                + "  {12} of {13} starts  |  {14} ms",
                 BuiltSize.X, BuiltSize.Y,
                 LandformName(_generator.Landform),
                 d["land_footprint_coverage"].AsSingle(),
@@ -232,6 +233,8 @@ namespace Beep.ECS
                 d["land_component_count"].AsInt32(),
                 d["requested_landmass_count"].AsInt32(),
                 d["resource_count"].AsInt32(),
+                d["liquid_resource_count"].AsInt32(),
+                d["underground_cell_count"].AsInt32(),
                 d["start_position_count"].AsInt32(),
                 d["requested_start_position_count"].AsInt32(),
                 d["generation_milliseconds"].AsInt64());

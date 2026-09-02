@@ -161,7 +161,9 @@ Several components can each say "you cannot be here." They are not redundant: ea
 | Navigation blocked set | `GridNavigationComponent` (`SetCellBlocked`) | placement (`MarkPlacedCellsBlockedInNavigation` → `SetFootprintNavigationBlocked`); game logic | pathfinding only |
 | Road cells and cost | `GridRoadComponent` | road tool | navigation step cost, TileMap bridge, minimap |
 
-The chain on a confirmed build: placement marks its own occupancy and — with `MarkPlacedCellsBlockedInNavigation` on — pushes the footprint into navigation's blocked set; the placed `GridObjectComponent` re-reserves that footprint on ready in authored scenes and releases it on exit. Occupancy and the navigation blocked set are two views of one event, kept in sync by placement; do not write one without the other.
+The chain on a confirmed build: placement marks occupancy (per the definition's `OccupiesCells`) and pushes the footprint into navigation's blocked set (per `BlocksNavigation`, with `MarkPlacedCellsBlockedInNavigation` on); it also stamps the placed `GridObjectComponent` to *reserve* those same cells, which makes the object the releasing owner — freeing the placed node (demolition, or a cancelled build job tearing its site down) releases the occupancy and navigation blocks on exit. Occupancy and the navigation blocked set are two views of one event, kept in sync by placement; do not write one without the other.
+
+Two policies that follow from this ownership: a cancelled build job tears its site down (`GridBuildSiteComponent` removes the placed node and refunds what placement recorded as charged — before this, cancelling left a paid, tinted ghost standing on blocked cells), and jobs saved as Claimed load back as Queued (`RequeueClaimedJobsOnLoad` — worker ids embed instance ids no reload reproduces, so a loaded claim always belongs to a ghost).
 
 ## Objects, Builds, And Production
 
@@ -169,7 +171,7 @@ The chain on a confirmed build: placement marks its own occupancy and — with `
 
 `GridObjectInspectorComponent` binds the current selection to an inspector panel: title, description, cell, footprint, completion, metadata.
 
-`GridBuildDefinition` is the data resource for one placeable: id, display name, category, scene, preview, footprint, costs, build seconds, job kind. `GridBuildCatalogComponent` holds the set, answers affordability, and starts placement. `GridBuildToolbarComponent` presents categories and builds. `GridBuildSiteComponent` turns a placed build with `BuildSeconds > 0` into a construction job — tinted while under construction, completed when a worker finishes the job.
+`GridBuildDefinition` is the data resource for one placeable: id, display name, category, scene, preview, footprint, costs, build seconds, job kind. `OccupiesCells` and `BlocksNavigation` are separate dials because they are separate facts — a garden is walkable but not buildable-over; only a rare truly stackable decoration sets `OccupiesCells` false. `GridBuildCatalogComponent` holds the set, answers affordability, and starts placement. `GridBuildToolbarComponent` presents categories and builds. `GridBuildSiteComponent` turns a placed build with `BuildSeconds > 0` into a construction job — tinted while under construction, completed when a worker finishes the job.
 
 `GridProductionRecipe` describes inputs, outputs, and duration. `GridProductionComponent` runs the cycle on a building: spend inputs from the wallet, wait, pay outputs, optionally loop. `GridProductionPanelComponent` lists machines with state and progress and exposes start/pause/resume/cancel.
 

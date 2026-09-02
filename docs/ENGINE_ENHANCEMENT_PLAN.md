@@ -152,6 +152,20 @@ Do this phase **after** Phase 2/3 diffs land, or before them — but not interle
 
 Every phase lands with: `dotnet build` clean → `addon_contract_scan.ps1` → `terrain_guards.ps1` + `renderer_reporting_probe.ps1` + the four `grid_terrain_*_probe.ps1` + `runtime_smoke.ps1` against Godot 4.7 mono. New behavior gets a falsifiable guard first (make it fail once, then fix): batch-load signal-count probe (2.x), a nav-search timing smoke, a scatter-catalog contract example, and a template-scene load check for Phase 4's moves.
 
+## Grid gameplay review (second pass, 2026-09-02). **Status: Fixed.**
+
+A fresh correctness pass over the gameplay loop after the five phases landed — jobs, workers, builds, production, economy, calendar, saves. Five defects fixed, three noted:
+
+1. **Cancelled build jobs stranded paid ghost buildings.** `GridBuildSiteComponent` only forgot the site; the placed node stayed tinted, incomplete, and footprint-blocking forever, with the wallet already charged. Cancelling now tears the site down (`CancelBuildSite`): removes the placed node and refunds what placement recorded as charged (`grid_build_cost_charged` meta), behind `RemovePlacedOnJobCancelled`/`RefundOnJobCancelled` exports and a `BuildSiteCancelled` signal.
+2. **Occupancy was conflated with navigation blocking.** `BlocksNavigation=false` on a build definition disabled *occupancy* too (placement line copied one into the other; `GridObjectComponent.ReserveFootprint` gated both halves on it), so every walkable build could be stacked without limit on one cell. `GridBuildDefinition.OccupiesCells` (default true) now owns the occupancy half; placement marks the two separately, and the object component's gate covers only navigation. Bonus from the same fix: placement now stamps the object to *reserve* the marked cells, so demolishing a placed building finally releases its occupancy and navigation blocks (they used to leak forever).
+3. **Jobs saved as Claimed loaded as permanently stuck.** Worker ids embed instance ids no reload reproduces, and workers do not persist their current job — a loaded claim always belonged to a ghost. `GridJobQueueComponent.RequeueClaimedJobsOnLoad` (default true) requeues them.
+4. **The calendar HUD showed a stale date after a load.** The HUD refreshes labels only on `DayAdvanced`, and `RestoreState`/`SetDate` emitted nothing. Both now emit.
+5. **A worker walked to a cancelled job and worked it anyway** (visible when the queue keeps cancelled jobs), then failed with a misleading `complete_rejected`. `StartWorkOrFail` now verifies the job is still Claimed by this worker and fails fast with `job_no_longer_claimed`.
+
+Noted, not changed: `GridObjectiveTrackerComponent.RestoreState` emits no signals (the objective panel self-heals by polling; event binders would stale); footprint release is boolean, so two objects sharing a cell free it when the first leaves (no refcount — known limitation); a gather with no wallet anywhere in the scene silently drops the yield (consistent with seed spending's wallet-optional convention).
+
+New smoke coverage: walkable-build-occupies, claimed-job requeue on load, and build-site cancel teardown (refund + node removal). Verified: build 0/0, contract scan, runtime smoke, 15/15 terrain guards.
+
 ## Final verification (all phases landed)
 
 Run after Phase 4, against `Godot_v4.7.1-stable_mono_win64`:

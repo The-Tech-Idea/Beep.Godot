@@ -20,6 +20,15 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,600,0.01")] public float BuildSeconds { get; set; } = 0f;
         [Export] public string JobKind { get; set; } = "build";
         [Export] public bool BlocksNavigation { get; set; } = true;
+        /// <summary>
+        /// Whether the placed build occupies its footprint cells in placement.
+        /// Separate from BlocksNavigation because they are different facts: a
+        /// garden is walkable but you cannot build a second one on top of it.
+        /// The old code used BlocksNavigation for both, so every walkable
+        /// build could be stacked without limit on one cell. False is for the
+        /// rare truly stackable decoration.
+        /// </summary>
+        [Export] public bool OccupiesCells { get; set; } = true;
         [Export] public bool SetZIndexFromY { get; set; } = true;
         [Export] public Godot.Collections.Array Costs { get; set; } = new();
 
@@ -55,6 +64,7 @@ namespace Beep.ECS
                     BuildSeconds = ReadFloat(data, "BuildSeconds", "build_seconds", 0f),
                     JobKind = ReadString(data, "JobKind", "job_kind", "build"),
                     BlocksNavigation = ReadBool(data, "BlocksNavigation", "blocks_navigation", true),
+                    OccupiesCells = ReadBool(data, "OccupiesCells", "occupies_cells", true),
                     SetZIndexFromY = ReadBool(data, "SetZIndexFromY", "set_z_index_from_y", true),
                     Costs = ReadArray(data, "Costs", "costs")
                 };
@@ -81,6 +91,7 @@ namespace Beep.ECS
                 BuildSeconds = ReadFloat(resource, "BuildSeconds", "build_seconds", 0f),
                 JobKind = ReadString(resource, "JobKind", "job_kind", "build"),
                 BlocksNavigation = ReadBool(resource, "BlocksNavigation", "blocks_navigation", true),
+                OccupiesCells = ReadBool(resource, "OccupiesCells", "occupies_cells", true),
                 SetZIndexFromY = ReadBool(resource, "SetZIndexFromY", "set_z_index_from_y", true),
                 Costs = ReadArray(resource, "Costs", "costs")
             };

@@ -101,9 +101,6 @@ namespace Beep.ECS
 
         public void ReserveFootprint()
         {
-            if (!BlocksNavigation)
-                return;
-
             ResolveReferences();
             foreach (Vector2I cell in FootprintCells())
             {
@@ -113,7 +110,11 @@ namespace Beep.ECS
                     _reservedPlacementCells.Add(cell);
                 }
 
-                if (ReserveNavigationFootprint && _navigation != null)
+                // BlocksNavigation gates ONLY the navigation half. It used to
+                // gate the whole method, so a walkable object reserved no
+                // placement occupancy either - and anything could be built on
+                // top of it.
+                if (BlocksNavigation && ReserveNavigationFootprint && _navigation != null)
                 {
                     _navigation.SetBlocked(cell, true);
                     _reservedNavigationCells.Add(cell);

@@ -107,6 +107,10 @@ namespace Beep.ECS
             DayOfSeason = Mathf.Clamp(dayOfSeason, 1, seasonLength);
             AbsoluteDay = ((Year - 1) * seasonLength * 4) + ((int)Season * seasonLength) + DayOfSeason;
             _dayClock = 0f;
+            // The date changed even though no day "passed": the HUD refreshes
+            // its labels only on this signal, and without it a jumped or
+            // loaded date stayed on screen as the old one until the next tick.
+            EmitSignal(SignalName.DayAdvanced, DayOfSeason, (int)Season, Year);
         }
 
         public Godot.Collections.Dictionary CaptureState()
@@ -129,6 +133,8 @@ namespace Beep.ECS
             DayOfSeason = Mathf.Clamp(DictInt(state, "day_of_season", 1), 1, EffectiveDaysPerSeason);
             AbsoluteDay = Mathf.Max(1, DictInt(state, "absolute_day", AbsoluteDayFromDate()));
             _dayClock = NonNegativeFinite(DictFloat(state, "day_clock", 0f));
+            // See SetDate: the restored date has to reach the HUD's labels.
+            EmitSignal(SignalName.DayAdvanced, DayOfSeason, (int)Season, Year);
         }
 
         public string DisplayDate()

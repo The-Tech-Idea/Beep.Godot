@@ -286,7 +286,8 @@ public partial class GridPlacementSmoke : Node
             DisplayName = "Decor Flag",
             Scene = scene,
             Footprint = Vector2I.One,
-            BlocksNavigation = false
+            BlocksNavigation = false,
+            OccupiesCells = false
         };
 
         placement.BeginPlacement(decorationBuild, chargeCostOnConfirm: false);
@@ -297,12 +298,34 @@ public partial class GridPlacementSmoke : Node
             && !placement.IsOccupied(new Vector2I(5, 5))
             && !navigation.IsBlocked(new Vector2I(5, 5));
 
+        // Occupancy and navigation are separate facts: a garden is walkable
+        // but you cannot build a second one on top of it.
+        var walkableBuild = new GridBuildDefinition
+        {
+            BuildId = "garden",
+            DisplayName = "Garden",
+            Scene = scene,
+            Footprint = Vector2I.One,
+            BlocksNavigation = false
+        };
+
+        placement.BeginPlacement(walkableBuild, chargeCostOnConfirm: false);
+        placement.MovePreviewToCell(new Vector2I(7, 5));
+        Node2D? walkablePlaced = placement.ConfirmPlacement();
+
+        bool walkableOccupies = walkablePlaced != null
+            && placement.IsOccupied(new Vector2I(7, 5))
+            && !navigation.IsBlocked(new Vector2I(7, 5));
+
         root.QueueFree();
 
         if (!Expect(blockingMarked, "GridPlacement did not mark every blocking build footprint cell in placement and navigation."))
             return false;
 
-        if (!Expect(decorationOpen, "GridPlacement incorrectly blocked placement/navigation for a non-blocking build definition."))
+        if (!Expect(decorationOpen, "GridPlacement incorrectly blocked placement/navigation for a stackable decoration definition."))
+            return false;
+
+        if (!Expect(walkableOccupies, "GridPlacement must occupy cells for a walkable build without blocking navigation."))
             return false;
 
         return true;
@@ -1117,6 +1140,40 @@ public partial class GridPlacementSmoke : Node
         root.AddChild(instant);
         bool instantIgnored = !buildSites.RegisterPlacedBuild("instant_path", instant, new Vector2I(1, 1))
             && buildSites.ActiveBuildSiteCount == 0;
+
+        // A cancelled build job must tear its site down: remove the placed
+        // node and refund what placement recorded as charged. The old code
+        // just forgot the site and left a paid, tinted ghost standing.
+        catalog.Builds.Add(new GridBuildDefinition
+        {
+            BuildId = "paid_hut",
+            DisplayName = "Paid Hut",
+            BuildSeconds = 3f,
+            JobKind = "build",
+            Costs = new Godot.Collections.Array
+            {
+                new Godot.Collections.Dictionary { ["resource_id"] = "wood", ["amount"] = 5 }
+            }
+        });
+        var wallet = new GridResourceWalletComponent
+        {
+            Name = "Resources",
+            ApplyStartingResourcesOnReady = false
+        };
+        root.AddChild(wallet);
+        buildSites.ResourceWalletPath = new NodePath("../Resources");
+
+        var cancelledHut = new Node2D { Name = "PaidHut" };
+        root.AddChild(cancelledHut);
+        cancelledHut.SetMeta("grid_build_cost_charged", true);
+        bool cancelRegistered = buildSites.RegisterPlacedBuild("paid_hut", cancelledHut, new Vector2I(3, 3));
+        string cancelJobId = cancelledHut.GetMeta("grid_build_site_job_id", "").AsString();
+        bool cancelledDown = cancelRegistered
+            && buildSites.CancelBuildSite(cancelJobId)
+            && buildSites.ActiveBuildSiteCount == 0
+            && cancelledHut.IsQueuedForDeletion()
+            && wallet.GetAmount("wood") == 5;
+
         root.QueueFree();
 
         if (!Expect(queued, "GridBuildSite did not create a build job and under-construction site for a timed build."))
@@ -1126,6 +1183,9 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(instantIgnored, "GridBuildSite should ignore build definitions with BuildSeconds <= 0."))
+            return false;
+
+        if (!Expect(cancelledDown, "GridBuildSite must remove the placed node and refund charged costs when its build job is cancelled."))
             return false;
 
         return true;
@@ -4189,7 +4249,9 @@ public partial class GridPlacementSmoke : Node
             && cellData.GetFlags(new Vector2I(6, 7)) == 6
             && cellData.GetCell(new Vector2I(6, 7))["crop_age_days"].AsInt32() == 0;
 
-        var jobs = new GridJobQueueComponent { Name = "Jobs", RemoveCompletedJobs = false };
+        // Requeue-on-load is off here because this test asserts PARSE
+        // fidelity of the claimed state; the default policy is asserted below.
+        var jobs = new GridJobQueueComponent { Name = "Jobs", RemoveCompletedJobs = false, RequeueClaimedJobsOnLoad = false };
         root.AddChild(jobs);
         jobs.LoadJobs(new Godot.Collections.Array
         {
@@ -4215,6 +4277,26 @@ public partial class GridPlacementSmoke : Node
             && Mathf.IsEqualApprox(jobs.GetJobWorkSeconds("job_1"), 3.5f)
             && jobs.ClaimedCount == 1
             && !jobs.HasJob("bad_job");
+
+        // Default policy: a claim never survives a load - worker ids embed
+        // instance ids no reload reproduces, so a loaded claimed job would
+        // belong to a ghost forever.
+        var requeueJobs = new GridJobQueueComponent { Name = "RequeueJobs" };
+        root.AddChild(requeueJobs);
+        requeueJobs.LoadJobs(new Godot.Collections.Array
+        {
+            new Godot.Collections.Dictionary
+            {
+                ["id"] = "job_9",
+                ["kind"] = "harvest",
+                ["cell"] = new Godot.Collections.Dictionary { ["x"] = "1", ["y"] = "2" },
+                ["state"] = "claimed",
+                ["claimed_by"] = "ghost_worker_123"
+            }
+        });
+        bool requeuedOk = requeueJobs.GetJobState("job_9") == GridJobQueueComponent.GridJobState.Queued
+            && requeueJobs.GetJobClaimedBy("job_9") == ""
+            && requeueJobs.QueuedCount == 1;
 
         var roads = new GridRoadComponent { Name = "Roads", DefaultRoadKind = "dirt" };
         root.AddChild(roads);
@@ -4307,6 +4389,9 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(cellsOk, "GridCellData did not ignore malformed grid saved state values."))
+            return false;
+
+        if (!Expect(requeuedOk, "GridJobQueue must requeue claimed jobs on load by default - a loaded claim always belongs to a ghost worker."))
             return false;
 
         if (!Expect(jobsOk, "GridJobQueue did not ignore malformed grid saved state values."))

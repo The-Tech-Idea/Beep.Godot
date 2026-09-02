@@ -33,6 +33,13 @@ namespace Beep.ECS
         [Export] public bool UniqueCellKind { get; set; } = true;
         [Export] public bool RemoveCompletedJobs { get; set; } = true;
         [Export] public bool RemoveCancelledJobs { get; set; } = true;
+        /// <summary>
+        /// Whether jobs saved as Claimed load back as Queued. On by default:
+        /// worker ids include the instance id, which no reload reproduces, and
+        /// workers do not persist their current job - so a loaded claim always
+        /// belongs to a ghost, and the job would sit claimed forever.
+        /// </summary>
+        [Export] public bool RequeueClaimedJobsOnLoad { get; set; } = true;
         [Export(PropertyHint.Range, "0.01,600,0.01")] public float DefaultWorkSeconds { get; set; } = 1.5f;
 
         private readonly Dictionary<string, GridJob> _jobs = new();
@@ -216,6 +223,12 @@ namespace Beep.ECS
                     State = ParseState(DictString(dict, "state", nameof(GridJobState.Queued))),
                     ClaimedBy = DictString(dict, "claimed_by", "")
                 };
+
+                if (RequeueClaimedJobsOnLoad && job.State == GridJobState.Claimed)
+                {
+                    job.State = GridJobState.Queued;
+                    job.ClaimedBy = "";
+                }
 
                 _jobs[id] = job;
                 TrackNextJobNumber(id);

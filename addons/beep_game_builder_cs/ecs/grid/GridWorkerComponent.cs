@@ -200,6 +200,20 @@ namespace Beep.ECS
                 return;
             }
 
+            // The job may have been cancelled or reassigned while this worker
+            // walked to it (visible when the queue keeps cancelled jobs).
+            // Working through it anyway wasted the whole duration and then
+            // failed at CompleteJob with a misleading reason.
+            if (_queue.GetJobState(CurrentJobId) != GridJobQueueComponent.GridJobState.Claimed
+                || _queue.GetJobClaimedBy(CurrentJobId) != WorkerId)
+            {
+                string failedJob = CurrentJobId;
+                CurrentJobId = "";
+                SetState(WorkerState.Idle);
+                EmitSignal(SignalName.WorkerFailedJob, WorkerId, failedJob, "job_no_longer_claimed");
+                return;
+            }
+
             WorkRemainingSeconds = Mathf.Max(0.01f, _queue.GetJobWorkSeconds(CurrentJobId));
             SetState(WorkerState.Working);
             EmitSignal(SignalName.WorkerStartedJob, WorkerId, CurrentJobId);

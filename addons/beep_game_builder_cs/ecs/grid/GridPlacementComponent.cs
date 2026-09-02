@@ -77,6 +77,11 @@ namespace Beep.ECS
         private Godot.Collections.Array _activeCosts = new();
         private bool _activeChargeCostOnConfirm;
         private bool _pendingDefinitionPlacement;
+        // Whether the ACTIVE build blocks navigation. Occupancy and navigation
+        // blocking are different facts - a garden is walkable but not
+        // buildable-over - and folding this into MarkPlacedCellsOccupied was
+        // how every walkable build also became infinitely stackable.
+        private bool _activeBlocksNavigation = true;
 
         public override void _Ready()
         {
@@ -149,7 +154,8 @@ namespace Beep.ECS
             PreviewTexture = definition.PreviewTexture;
             PlacementId = definition.BuildId;
             Footprint = definition.EffectiveFootprint;
-            MarkPlacedCellsOccupied = definition.BlocksNavigation;
+            MarkPlacedCellsOccupied = definition.OccupiesCells;
+            _activeBlocksNavigation = definition.BlocksNavigation;
             SetZIndexFromY = definition.SetZIndexFromY;
             _activeDisplayName = definition.DisplayName;
             _activeCategory = definition.Category;
@@ -167,6 +173,7 @@ namespace Beep.ECS
             {
                 _activeCosts = new Godot.Collections.Array();
                 _activeChargeCostOnConfirm = false;
+                _activeBlocksNavigation = true;
             }
 
             ResolveReferences();
@@ -262,13 +269,20 @@ namespace Beep.ECS
             if (SetZIndexFromY)
                 placed.ZIndex = ClampZ(ZIndexOffset + Mathf.RoundToInt(placed.GlobalPosition.Y));
 
+            // Whether the wallet was actually charged travels with the node,
+            // so a later teardown (a cancelled build job) knows whether a
+            // refund is owed rather than guessing.
+            placed.SetMeta("grid_build_cost_charged", chargeCost);
+
             ConfigurePlacedObject(placed, CurrentCell);
 
+            // Occupancy and navigation are marked SEPARATELY: a walkable
+            // build still occupies its cells, and a rare stackable decoration
+            // (OccupiesCells false) can still block navigation if authored so.
             if (MarkPlacedCellsOccupied)
-            {
                 SetFootprintOccupied(CurrentCell, true);
+            if (_activeBlocksNavigation)
                 SetFootprintNavigationBlocked(CurrentCell, true);
-            }
 
             EmitSignal(SignalName.PlacementPlaced, _activeId, placed, CurrentCell.X, CurrentCell.Y);
 
@@ -472,7 +486,16 @@ namespace Beep.ECS
             }
 
             string displayName = string.IsNullOrWhiteSpace(_activeDisplayName) ? _activeId : _activeDisplayName;
-            gridObject.Configure(_activeId, displayName, _activeCategory, cell, Footprint, MarkPlacedCellsOccupied);
+            // The object mirrors the marks placement makes and RESERVES them
+            // itself, so freeing the placed node (demolition, a cancelled
+            // build job) releases exactly those cells on exit. Before this,
+            // placement marked directly and the object's reserved sets stayed
+            // empty - deleting a placed building leaked its occupancy and
+            // navigation blocks forever.
+            gridObject.ReservePlacementFootprint = MarkPlacedCellsOccupied;
+            gridObject.ReserveNavigationFootprint = _activeBlocksNavigation && MarkPlacedCellsBlockedInNavigation;
+            gridObject.ReserveFootprintOnReady = true;
+            gridObject.Configure(_activeId, displayName, _activeCategory, cell, Footprint, _activeBlocksNavigation);
         }
 
         private void SetFootprintNavigationBlocked(Vector2I anchorCell, bool blocked)

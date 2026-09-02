@@ -15,12 +15,25 @@ namespace Beep.ECS
     {
         [Signal] public delegate void BuildSiteCreatedEventHandler(string buildId, string jobId, Node2D placed, int x, int y);
         [Signal] public delegate void BuildSiteCompletedEventHandler(string buildId, string jobId, Node2D placed, int x, int y);
+        [Signal] public delegate void BuildSiteCancelledEventHandler(string buildId, string jobId, int x, int y);
         [Signal] public delegate void BuildSiteRejectedEventHandler(string buildId, int x, int y, string reason);
 
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public NodePath BuildCatalogPath { get; set; } = new("");
         [Export] public NodePath JobQueuePath { get; set; } = new("");
+        [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public bool AutoConnect { get; set; } = true;
+        /// <summary>
+        /// Whether cancelling a build job also removes the placed node. On by
+        /// default: before it, a cancelled job just forgot the site and left a
+        /// tinted, incomplete, footprint-blocking building standing forever.
+        /// </summary>
+        [Export] public bool RemovePlacedOnJobCancelled { get; set; } = true;
+        /// <summary>
+        /// Whether cancelling refunds the build's costs - only when placement
+        /// recorded that the wallet was actually charged for this node.
+        /// </summary>
+        [Export] public bool RefundOnJobCancelled { get; set; } = true;
         [Export] public bool HidePlacedUntilBuilt { get; set; } = false;
         [Export] public Color UnderConstructionModulate { get; set; } = new(1f, 0.88f, 0.46f, 0.72f);
         [Export] public Color CompletedModulate { get; set; } = Colors.White;
@@ -29,6 +42,7 @@ namespace Beep.ECS
         private GridPlacementComponent? _placement;
         private GridBuildCatalogComponent? _catalog;
         private GridJobQueueComponent? _jobs;
+        private GridResourceWalletComponent? _wallet;
         private bool _placementConnected;
         private bool _jobsConnected;
 
@@ -167,7 +181,45 @@ namespace Beep.ECS
 
         private void OnJobCancelled(string jobId, string reason)
         {
+            CancelBuildSite(jobId);
+        }
+
+        /// <summary>
+        /// Tears a site down after its build job is cancelled. Just forgetting
+        /// the site - the old behaviour - left a paid, tinted, incomplete
+        /// building standing on blocked cells with no job that could ever
+        /// finish it.
+        /// </summary>
+        public bool CancelBuildSite(string jobId)
+        {
+            if (!_sitesByJobId.TryGetValue(jobId, out BuildSite? site))
+                return false;
+
             _sitesByJobId.Remove(jobId);
+            ResolveReferences();
+
+            bool placedValid = GodotObject.IsInstanceValid(site.Placed);
+
+            // Refund only what placement says was actually charged - a build
+            // begun with chargeCostOnConfirm false owes nothing back.
+            if (RefundOnJobCancelled
+                && placedValid
+                && site.Placed.HasMeta("grid_build_cost_charged")
+                && site.Placed.GetMeta("grid_build_cost_charged").AsBool()
+                && _catalog?.FindBuild(site.BuildId) is { } build)
+            {
+                _wallet?.Refund(build.Costs);
+            }
+
+            if (RemovePlacedOnJobCancelled && placedValid)
+            {
+                // The stamped GridObjectComponent releases the reserved
+                // footprint (occupancy and navigation blocks) on exit.
+                site.Placed.QueueFree();
+            }
+
+            EmitSignal(SignalName.BuildSiteCancelled, site.BuildId, jobId, site.Cell.X, site.Cell.Y);
+            return true;
         }
 
         private bool Reject(string buildId, Vector2I cell, string reason)
@@ -213,6 +265,11 @@ namespace Beep.ECS
                 _jobs = !JobQueuePath.IsEmpty
                     ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
+
+            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
+                _wallet = !ResourceWalletPath.IsEmpty
+                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
+                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
         }
 
         private sealed record BuildSite(string BuildId, Node2D Placed, Vector2I Cell);

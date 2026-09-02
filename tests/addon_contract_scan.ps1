@@ -120,61 +120,49 @@ if ($coreSmoke -notmatch 'VerifyLevelLoaderLooseLevelEntries' -or
     $coreSmoke -notmatch 'failedReason == "invalid level scene"') {
     Fail "CoreGameplaySmoke must cover invalid loose LevelLoader entries."
 }
-$painterlyTerrain = Read "addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs"
-if ($painterlyTerrain -notmatch 'GenerateInEditor\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or
-    $painterlyTerrain -notmatch 'CallDeferred\(nameof\(Rebuild\)\)') {
-    Fail "PainterlyTerrainComponent must not generate heavy terrain previews while opening editor scenes by default, and runtime ready generation must be deferred."
+# The painted view is no longer a CPU image compositor (PainterlyTerrainComponent,
+# removed in 70ab70ca) but a shader surface fed by the generator. What survives is
+# the contract that mattered: a world is not rebuilt just because a scene was
+# opened, there is a design-time trigger, and what that trigger generates is kept.
+$terrainWorld = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs"
+if ($terrainWorld -notmatch 'BuildOnReady && !Engine\.IsEditorHint\(\)' -or
+    $terrainWorld -notmatch 'CallDeferred\(nameof\(Build\)\)') {
+    Fail "TerrainWorldComponent must not build a world while opening editor scenes, and runtime ready generation must be deferred."
 }
-if ($painterlyTerrain -notmatch 'PixelsPerTile\s*\{\s*get;\s*set;\s*\}\s*=\s*64' -or
-    $painterlyTerrain -notmatch 'MaxGeneratedPixels\s*\{\s*get;\s*set;\s*\}\s*=\s*16777216' -or
-    $painterlyTerrain -notmatch 'GrainStrength\s*\{\s*get;\s*set;\s*\}\s*=\s*0\.0f' -or
-    $painterlyTerrain -notmatch 'EnableBiomeDetailLayers\s*\{\s*get;\s*set;\s*\}\s*=\s*true' -or
-    $painterlyTerrain -notmatch 'UseBundledMaterialTextures\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or
-    $painterlyTerrain -notmatch 'PostSharpenStrength' -or
-    $painterlyTerrain -notmatch 'LastGeneratedPixelsPerTile' -or
-    $painterlyTerrain -notmatch 'LastGeneratedPixelCount' -or
-    $painterlyTerrain -notmatch 'LastGenerationWasCapped' -or
-    $painterlyTerrain -notmatch 'RenderDetailAsOverlay' -or
-    $painterlyTerrain -notmatch 'PainterlyTerrainDetailSprite' -or
-    $painterlyTerrain -notmatch 'bool separateDetailLayer = RenderDetailAsOverlay' -or
-    $painterlyTerrain -notmatch 'DetailOverlayPixel' -or
-    $painterlyTerrain -notmatch 'LastGeneratedSeparateDetailLayer' -or
-    $painterlyTerrain -notmatch 'LastAppliedTerrainScale' -or
-    $painterlyTerrain -notmatch 'ApplySharpen\(image\)' -or
-    $painterlyTerrain -notmatch 'SharpenImage') {
-    Fail "PainterlyTerrainComponent must default to non-blurry generated terrain with a plain base layer, separate detail overlay, and bounded inspectable resolution."
+if ($terrainWorld -notmatch '\[ExportToolButton\("Generate map"\)\]' -or
+    $terrainWorld -notmatch 'Callable\.From\(Build\)') {
+    Fail "TerrainWorldComponent must expose the design-time Generate map trigger, or every component is [Tool] and inert in the editor."
 }
-foreach ($required in @("RenderOffset", "EnableBiomeDetailLayers", "BiomeDetailStrength", "BiomeDetailDensity", "DuneLayerStrength", "PebbleLayerStrength", "VegetationLayerStrength", "FlowerLayerStrength", "TerrainKindFor", "ApplyBiomeDetail", "SpotMask", "ValueNoise", "TerrainKind")) {
-    if ($painterlyTerrain -notmatch $required) {
-        Fail "PainterlyTerrainComponent must keep seeded layered biome details available for realistic broad terrain: $required."
+foreach ($required in @("PaintedRendererPath", "TileRendererPath", "IsometricRendererPath", "DataLayersPath", "BuiltSize", "Diagnostics()", "StatusLine()")) {
+    if ($terrainWorld -notmatch [regex]::Escape($required)) {
+        Fail "TerrainWorldComponent must own the whole world-creation surface, so a demo is a configured node and not another controller script: $required."
     }
 }
-foreach ($required in @("BiomeDetailCoverage", "BiomeDetailPatchScale", "BiomeDetailPatchSoftness", "BiomeDetailPatchMask", "TerrainKindSeedOffset")) {
-    if ($painterlyTerrain -notmatch $required) {
-        Fail "PainterlyTerrainComponent must keep biome detail limited to seeded local patches, not a whole-scene filter: $required."
-    }
+
+# A node added with AddChild belongs to the tree but not to the scene FILE, so a
+# generated map without an owner looks right in the viewport and vanishes on
+# reload - with no error and nothing to notice until the work is gone.
+$terrainAuthoring = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainAuthoring.cs"
+if ($terrainAuthoring -notmatch 'generated\.Owner = root' -or
+    $terrainAuthoring -notmatch 'EditedSceneRoot' -or
+    $terrainAuthoring -notmatch 'IsAncestorOf\(generated\)') {
+    Fail "TerrainAuthoring.Adopt must give a generated node the edited scene root as owner, guarded by the ancestor rule Godot enforces."
 }
-$painterlyBridge = Read "addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs"
-if ($painterlyBridge -notmatch 'new PainterlyTerrainComponent\.PaintSample\([\s\S]*terrainKind') {
-    Fail "GridPainterlyTerrainBridgeComponent must pass terrain kind into PainterlyTerrainComponent so biome detail layers match grid cells."
+foreach ($creator in @(
+    "TerrainPaintedRendererComponent.cs",
+    "TerrainTileRendererComponent.cs",
+    "TerrainIsometricRendererComponent.cs",
+    "TerrainIsometricFeatureRendererComponent.cs",
+    "TerrainIsometricAutotileRendererComponent.cs",
+    "TerrainDataLayersComponent.cs")) {
+    $creatorSource = Read "addons/beep_game_builder_cs/ecs/terrain/$creator"
+    if ($creatorSource -notmatch 'TerrainAuthoring\.(Adopt|EnsureLayer)\(') {
+        Fail "$creator creates map nodes and must adopt them through TerrainAuthoring (directly, or via EnsureLayer which adopts internally), or a generated map is lost when the scene is reloaded."
+    }
 }
 $runAddonChecks = Read "tests/run_addon_checks.ps1"
-if ($runAddonChecks -notmatch 'painterly_terrain_probe\.ps1') {
-    Fail "run_addon_checks.ps1 must include the painterly terrain probe."
-}
-$renderProbe = Read "tests/render_scene_probe.gd"
-if ($renderProbe -notmatch 'painterly_terrain_biome_gallery\.tscn' -or $renderProbe -notmatch '_check_biome_gallery') {
-    Fail "render_scene_probe.gd must keep the painterly terrain biome gallery covered."
-}
-$painterlyDemoScene = Read "tests/examples/grid_world_painterly_demo.tscn"
-if ($painterlyDemoScene -notmatch 'MapPackDetails' -or $painterlyDemoScene -notmatch 'textures/kenney/map_pack/mapTile_040\.png' -or $painterlyDemoScene -notmatch 'textures/kenney/map_pack/mapTile_119\.png') {
-    Fail "grid_world_painterly_demo.tscn must keep authored Kenney Map Pack detail props layered over painterly terrain."
-}
-if ($painterlyDemoScene -notmatch 'UseBundledMaterialTextures = false' -or
-    $painterlyDemoScene -notmatch 'GrainStrength = 0\.0' -or
-    $painterlyDemoScene -notmatch 'EnableBiomeDetailLayers = true' -or
-    $painterlyDemoScene -notmatch 'BiomeDetailCoverage = 0\.30') {
-    Fail "grid_world_painterly_demo.tscn must keep the broad terrain base plain and green with patch-limited detail/props."
+if ($runAddonChecks -notmatch 'terrain_guards\.ps1') {
+    Fail "run_addon_checks.ps1 must run the terrain guards."
 }
 $audioComponent = Read "addons/beep_game_builder_cs/ecs/AudioComponent.cs"
 if ($audioComponent -notmatch '_Ready\(\)[\s\S]*base\._Ready\(\);[\s\S]*if \(Engine\.IsEditorHint\(\)\) return;[\s\S]*SetupAudioPlayer' -or
@@ -1485,41 +1473,99 @@ if ($gridTileMapBridge -notmatch 'class\s+GridTileMapLayerBridgeComponent' -or $
 if ($gridTileMapBridge -notmatch 'GridVariantReader.Vector2I\(cellData, "cell"') {
     Fail "GridTileMapLayerBridgeComponent must read cell snapshots through GridVariantReader instead of direct Variant casts."
 }
-$gridPainterlyBridge = Read "addons/beep_game_builder_cs/ecs/terrain/GridPainterlyTerrainBridgeComponent.cs"
-if ($gridPainterlyBridge -notmatch 'class\s+GridPainterlyTerrainBridgeComponent' -or
-    $gridPainterlyBridge -notmatch 'PainterlyTerrainPath' -or
-    $gridPainterlyBridge -notmatch 'CellDataPath' -or
-    $gridPainterlyBridge -notmatch 'RoadPath' -or
-    $gridPainterlyBridge -notmatch 'TerrainGeneratorPath' -or
-    $gridPainterlyBridge -notmatch 'GenerateBeforeFirstRebuild' -or
-    $gridPainterlyBridge -notmatch 'RenderFromPaintSampler' -or
-    $gridPainterlyBridge -notmatch 'SampleCell' -or
-    $gridPainterlyBridge -notmatch 'GridCellDataComponent\.CellFlags' -or
-    $gridPainterlyBridge -notmatch 'GridRoadComponent') {
-    Fail "GridPainterlyTerrainBridgeComponent must connect GridCellData/GridRoad state to PainterlyTerrainComponent."
+# The painted view's bridge is gone with the painter it fed: the surface is now
+# drawn by a shader that reads the generated grid directly, so there is no second
+# component translating cells into paint samples.
+$gridSplatRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs"
+if ($gridSplatRenderer -notmatch 'class\s+TerrainPaintedRendererComponent' -or
+    $gridSplatRenderer -notmatch 'TerrainGeneratorPath' -or
+    $gridSplatRenderer -notmatch 'public void Rebuild\(\)' -or
+    $gridSplatRenderer -notmatch 'BuildIdMap\(field, size, out ImageTexture shadeMap, out ImageTexture coastMap\)') {
+    Fail "TerrainPaintedRendererComponent must draw the generated grid as one shader surface fed by an uploaded id map."
 }
-foreach ($required in @("AutoRebuildOnChanges", "ChangeDebounceSeconds", "ConnectSignals", "CellChanged += OnCellChanged", "RoadChanged += OnRoadChanged", "double.IsFinite(delta)", "UsePainterDimensions")) {
-    if ($gridPainterlyBridge -notmatch [regex]::Escape($required)) {
-        Fail "GridPainterlyTerrainBridgeComponent must integrate with grid changes without expensive per-frame rebuilds: $required."
+# A fragment shader cannot read a TileMapLayer, so the grid is uploaded as a
+# texture; neighbour lookups are then one-texel samples, which is what makes edge
+# blending possible at all.
+foreach ($required in @("id_map", "shade_map", "coast_map", "map_size", "blend_width", "beach_tiles")) {
+    if ($gridSplatRenderer -notmatch [regex]::Escape($required)) {
+        Fail "TerrainPaintedRendererComponent must upload the terrain grid and its blending inputs to the shader: $required."
     }
 }
-foreach ($required in @("GridTerrainGeneratorComponent", "TerrainGenerated += OnTerrainGenerated", "GenerateInitialTerrainIfNeeded", "_suppressRebuildRequests", "_attemptedInitialGeneration")) {
-    if ($gridPainterlyBridge -notmatch [regex]::Escape($required)) {
-        Fail "GridPainterlyTerrainBridgeComponent must support one-owner first terrain generation through GridTerrainGeneratorComponent: $required."
-    }
+if ($gridSplatRenderer -notmatch 'RefreshOnReady && !Engine\.IsEditorHint\(\)' -or
+    $gridSplatRenderer -notmatch 'CallDeferred\(nameof\(Rebuild\)\)') {
+    Fail "TerrainPaintedRendererComponent must not repaint while opening editor scenes, and runtime ready rebuild must be deferred."
 }
-$gridTerrainGenerator = Read "addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs"
-if ($gridTerrainGenerator -notmatch 'class\s+GridTerrainGeneratorComponent' -or
+# Where a view sits in the stack belongs to TerrainLayers. A per-renderer z dial
+# beside it is a second owner of one fact, and the views then disagree.
+if ($gridSplatRenderer -notmatch '_surface\.ZIndex = TerrainLayers\.ZForFloor\(\)' -or
+    $gridSplatRenderer -match '\[Export\][^\r\n]*ZIndex') {
+    Fail "TerrainPaintedRendererComponent must take its z index from TerrainLayers rather than exporting a second one."
+}
+$gridTerrainGenerator = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs"
+if ($gridTerrainGenerator -notmatch 'class\s+TerrainGeneratorComponent' -or
     $gridTerrainGenerator -notmatch 'GenerateTerrain' -or
     $gridTerrainGenerator -notmatch 'GridCellDataComponent' -or
-    $gridTerrainGenerator -notmatch 'PainterlyTerrainComponent' -or
     $gridTerrainGenerator -notmatch 'LoadCells') {
-    Fail "GridTerrainGeneratorComponent must generate seeded terrain kinds into GridCellDataComponent."
+    Fail "TerrainGeneratorComponent must generate seeded terrain kinds into GridCellDataComponent."
 }
-foreach ($required in @("TerrainNoiseSampler sampler = CreateSampler(settings)", "TerrainKindAt(localCell, settings, sampler)", "CreateSampler(Settings settings)", "TerrainNoiseSampler(FastNoiseLite Height, FastNoiseLite Moisture)")) {
+# ONE field per settings, written in one pass. The failure this replaced was a
+# terrain kind decided by an isolated secondary mask, which is how an island came
+# to contain arbitrary water cuts.
+foreach ($required in @("TerrainGenerationSettings settings = CurrentSettings()", "GeneratedTerrainField field = FieldFor(settings)", "field.TerrainAtCell(", "GetGenerationDiagnostics()", "ApplyMapSetup(")) {
     if ($gridTerrainGenerator -notmatch [regex]::Escape($required)) {
-        Fail "GridTerrainGeneratorComponent must reuse noise samplers across a generation pass instead of allocating per cell: $required."
+        Fail "TerrainGeneratorComponent must build one terrain field per settings and write it in a single pass: $required."
     }
+}
+# One noise set per run, each channel on its own seed offset, so changing one
+# stage's frequency cannot shift another stage's pattern.
+# ApplyMapSetup OVERWRITES exported generator settings, so a value typed into the
+# Inspector for any of them is discarded before it is read. That is only
+# acceptable while it is written down: the doc comment names all eleven, and this
+# keeps the two in step, so a twelfth derived write cannot be added silently.
+$applyMapSetup = [regex]::Match($gridTerrainGenerator, 'public void ApplyMapSetup\([\s\S]*?
+        \}')
+if (-not $applyMapSetup.Success) { Fail "TerrainGeneratorComponent.ApplyMapSetup not found." }
+$assigned = [regex]::Matches($applyMapSetup.Value, '(?m)^\s{12}([A-Z][A-Za-z]*)\s*=') |
+    ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+$documented = @(
+    "ArchipelagoIslandCount", "ClimateLatitudeCentre", "FeatureDensity", "HillsFraction",
+    "LakeCoverage", "LandmassScale", "Landform", "MountainsFraction", "ResourceDensity",
+    "RiverDensity", "StartPositionCount"
+) | Sort-Object
+$undocumented = @($assigned | Where-Object { $_ -notin $documented })
+if ($undocumented.Count -gt 0) {
+    Fail "ApplyMapSetup overwrites $($undocumented -join ', ') without naming them as derived; a setting silently discarded is worse than one rejected."
+}
+foreach ($name in $documented) {
+    if ($gridTerrainGenerator -notmatch [regex]::Escape($name)) {
+        Fail "TerrainGeneratorComponent no longer has the derived setting $name; update the ApplyMapSetup contract."
+    }
+}
+
+# TerrainWorldComponent.Build overwrites five MORE generator settings outside
+# ApplyMapSetup entirely (BoundsSize, Seed, ResourceSet, and the two booleans
+# that matter: UseClimateBiomeMaps and UseScaleRules, forced true
+# unconditionally). Same rule as above, same reason: undocumented here means
+# ClimateLatitudeSpan/MinBiomeRegionFraction can be typed into the Inspector
+# and silently discarded for every TerrainWorldComponent-built world.
+$terrainWorldForBuild = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs"
+$buildMethod = [regex]::Match($terrainWorldForBuild, 'public void Build\(\)[\s\S]*?
+        \}')
+if (-not $buildMethod.Success) { Fail "TerrainWorldComponent.Build not found." }
+$buildAssigned = [regex]::Matches($buildMethod.Value, '(?m)^\s{12}_generator\.([A-Z][A-Za-z]*)\s*=') |
+    ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+$buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules") | Sort-Object
+$buildUndocumented = @($buildAssigned | Where-Object { $_ -notin $buildDocumented })
+if ($buildUndocumented.Count -gt 0) {
+    Fail "TerrainWorldComponent.Build overwrites $($buildUndocumented -join ', ') on the generator without naming them as derived in Build's doc comment."
+}
+
+$terrainNoiseSet = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainNoiseSet.cs"
+if ($terrainNoiseSet -notmatch 'internal sealed class TerrainNoiseSet' -or
+    $terrainNoiseSet -notmatch 'FastNoiseLite Shape' -or
+    $terrainNoiseSet -notmatch 'FastNoiseLite Moisture' -or
+    $terrainNoiseSet -notmatch 'FastNoiseLite Temperature') {
+    Fail "TerrainNoiseSet must own every noise channel a generation run needs, rather than each stage allocating its own."
 }
 $gridCalendar = Read "addons/beep_game_builder_cs/ecs/terrain/GridCalendarComponent.cs"
 if ($gridCalendar -notmatch 'class\s+GridCalendarComponent' -or $gridCalendar -notmatch 'AdvanceDay' -or $gridCalendar -notmatch 'GridSeason' -or $gridCalendar -notmatch 'CaptureState' -or $gridCalendar -notmatch 'GridCellDataComponent') {
@@ -2006,9 +2052,6 @@ if ($gridSmoke -notmatch 'VerifyNavigationUsesCellDataTerrain') {
 if ($gridSmoke -notmatch 'VerifyGridTerrainGenerator') {
     Fail "GridPlacementSmoke does not verify GridTerrainGenerator output into GridCellData."
 }
-if ($gridSmoke -notmatch 'VerifyGridPainterlyTerrainBridge') {
-    Fail "GridPlacementSmoke does not verify GridPainterlyTerrainBridge behavior."
-}
 if ($gridSmoke -notmatch 'VerifyGridCalendar') {
     Fail "GridPlacementSmoke does not verify GridCalendar date/crop advancement behavior."
 }
@@ -2067,26 +2110,27 @@ foreach ($required in @(
     "GridCropCatalogComponent",
     "GridCellOverlayComponent",
     "GridTileMapLayerBridgeComponent",
-    "GridPainterlyTerrainBridgeComponent",
-    "GridTerrainGeneratorComponent",
+    "TerrainGeneratorComponent",
+    "TerrainDataLayersComponent",
+    "TerrainWorldComponent",
     "GridCalendarComponent",
     "GridCalendarHudComponent",
     "GridWorldStateComponent",
-    "PainterlyTerrainComponent"
+    "TerrainPaintedRendererComponent"
 )) {
     if ($gridGuide -notmatch $required) { Fail "2D_ISO_TOOLKIT.md is missing $required." }
 }
 $gridHelpHtml = Read "docs/2d-iso-toolkit.html"
 if ($gridHelpHtml -notmatch 'Beep 2D And Isometric Toolkit' -or
     $gridHelpHtml -notmatch 'GridSelectionComponent' -or
-    $gridHelpHtml -notmatch 'GridPainterlyTerrainBridgeComponent') {
+    $gridHelpHtml -notmatch 'TerrainPaintedRendererComponent') {
     Fail "2d-iso-toolkit.html does not document the 2D/isometric toolkit."
 }
 $gridTemplate = Read "addons/beep_game_builder_cs/templates/scenes/grid_world_2d_iso.tscn"
 $gridWorkerTemplate = Read "addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn"
 $gridBaseTemplate = Read "addons/beep_game_builder_cs/templates/scenes/grid_base_depot.tscn"
 foreach ($required in @(
-    "PainterlyTerrainComponent.cs",
+    "TerrainPaintedRendererComponent.cs",
     "GridProjectionComponent.cs",
     "GridMinimapComponent.cs",
     "GridObjectComponent.cs",
@@ -2127,8 +2171,7 @@ foreach ($required in @(
     "GridCropCatalogComponent.cs",
     "GridCellOverlayComponent.cs",
     "GridTileMapLayerBridgeComponent.cs",
-    "GridPainterlyTerrainBridgeComponent.cs",
-    "GridTerrainGeneratorComponent.cs",
+    "TerrainGeneratorComponent.cs",
     "GridCalendarComponent.cs",
     "GridCalendarHudComponent.cs",
     "GridWorldStateComponent.cs"
@@ -2144,17 +2187,31 @@ foreach ($required in @("Sprite2D", "Marker2D", "GridObjectComponent.cs", "GridW
 foreach ($required in @("PlaceholderTexture2D", "Sprite2D", "grid_worker_unit.tscn")) {
     if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn is missing $required." }
 }
-foreach ($required in @("TerrainBridge", "PainterlyTerrainPath = NodePath(`"../Terrain`")", "CellDataPath = NodePath(`"../Cells`")", "RoadPath = NodePath(`"../Roads`")", "ClearBeforeRebuild = true")) {
-    if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn is missing integrated grid/painterly terrain wiring $required." }
+# The painted terrain reads the generated grid straight from the generator, so
+# the wiring to check is the renderer's generator path - not a bridge translating
+# cells into paint, which no longer exists. Cell and road state still reach the
+# visible TileMapLayer through the tilemap bridge.
+foreach ($required in @("Splat", "TerrainGeneratorPath = NodePath(`"../TerrainGenerator`")", "TileMapBridge", "CellDataPath = NodePath(`"../Cells`")", "RoadPath = NodePath(`"../Roads`")", "ClearBeforeRebuild = true")) {
+    if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn is missing integrated grid/terrain wiring $required." }
 }
-foreach ($required in @("GenerateOnReady = false", "TerrainGeneratorPath = NodePath(`"../TerrainGenerator`")", "GenerateBeforeFirstRebuild = true")) {
-    if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn must use bridge-owned painterly terrain startup $required." }
+# One owner for the first pass. The generator writes the cells that gameplay
+# reads; the painted renderer samples the generator's own field rather than the
+# cells, so it cannot draw a half-generated world whichever _Ready runs first.
+foreach ($required in @("GenerateOnReady = true", "GenerateInEditor = false", "TerrainGeneratorPath = NodePath(`"../TerrainGenerator`")")) {
+    if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn must let TerrainGeneratorComponent own the first terrain pass: $required." }
 }
 foreach ($required in @("RoadPath = NodePath(`"../Roads`")", "ObjectsRootPath = NodePath(`".`")")) {
     if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn must wire GridWorldState to roads and authored grid objects $required." }
 }
-foreach ($required in @("TerrainGenerator", "GridTerrainGeneratorComponent.cs", "UsePainterSettings = true", "PixelsPerTile = 64", "MaxGeneratedPixels = 16777216")) {
+foreach ($required in @("TerrainGenerator", "TerrainGeneratorComponent.cs", "ClearExistingCells = true", "BoundsSize = Vector2i(64, 64)")) {
     if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn is missing design-time terrain generator wiring $required." }
+}
+# The generator's inputs are the generator's. They were once read off the
+# renderer whenever UsePainterSettings was set, which made a RENDERER the owner
+# of the generator's settings - two owners for one fact, with a flag deciding
+# which won, and a pipeline that could not run without a renderer present.
+if ($gridTemplate -match 'UsePainterSettings' -or $gridTerrainGenerator -match 'UsePainterSettings\s*\{\s*get;') {
+    Fail "A renderer must not own TerrainGeneratorComponent's settings; UsePainterSettings is the two-owner flag that was removed."
 }
 foreach ($required in @("CellDataPath = NodePath(`"../Cells`")", "NavigationPath = NodePath(`"../Navigation`")", "TreatPlacementOccupiedAsBlocked = true", "MarkPlacedCellsOccupied = true", "MarkPlacedCellsBlockedInNavigation = true")) {
     if ($gridTemplate -notmatch [regex]::Escape($required)) { Fail "grid_world_2d_iso.tscn must wire terrain/grid placement and navigation integration $required." }
@@ -2272,38 +2329,49 @@ if ($gameInfoBinder -notmatch 'WarnMissingGameInfo \{ get; set; \} = false' -or
     Fail "GameInfoBinder must keep missing GameInfo quiet by default for standalone templates, with an explicit warning opt-in."
 }
 
+# The example SCENES ship WITH the addon now, in templates/scenes/terrain, so a
+# consumer who copies the addon gets working wiring instead of scenes left behind
+# in tests/. tests/examples holds the guards that drive them.
 $examplesReadme = Read "tests/examples/README.md"
-$gridWorldExample = Read "tests/examples/grid_world_kit_hud_example.tscn"
-$gridPainterlyDemo = Read "tests/examples/grid_world_painterly_demo.tscn"
-$baseWorkerExample = Read "tests/examples/base_worker_templates_example.tscn"
-if ($examplesReadme -notmatch 'grid_world_kit_hud_example\.tscn' -or $examplesReadme -notmatch 'grid_world_painterly_demo\.tscn' -or $examplesReadme -notmatch 'base_worker_templates_example\.tscn') {
-    Fail "tests/examples/README.md does not document the test examples."
+$gridWorldExample = Read "addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn"
+$baseWorkerExample = Read "addons/beep_game_builder_cs/templates/scenes/terrain/base_worker_templates_example.tscn"
+if ($examplesReadme -notmatch 'grid_world_kit_hud_example\.tscn' -or
+    $examplesReadme -notmatch 'base_worker_templates_example\.tscn' -or
+    $examplesReadme -notmatch 'terrain_generator_lab\.tscn' -or
+    $examplesReadme -notmatch 'terrain_guards\.ps1') {
+    Fail "tests/examples/README.md must document the shipped example scenes and the guards that drive them."
 }
-foreach ($required in @("OilfieldSettlersShowcase", "WorldArt", "ClearedYard", "RoadMain", "PreparedPlots", "DepotRoof", "Truck_Clear", "Camera2D", "StartingResourceAmounts", "HideZeroAmounts = false", "SettlersShowcaseController.cs", "StatusLabelPath", "KitPanelContainer.cs", "KitPushButton.cs", "KitLabel.cs", "GenerateControlsWhenPathsEmpty = false")) {
+foreach ($required in @("OilfieldSettlersShowcase", "WorldArt", "ClearedYard", "RoadMain", "PreparedPlots", "DepotRoof", "Truck_Clear", "Camera2D", "StartingResourceAmounts", "HideZeroAmounts = false", "GridDispatchBoardComponent.cs", "StatusLabelPath", "KitPanelContainer.cs", "KitPushButton.cs", "KitLabel.cs", "GenerateControlsWhenPathsEmpty = false")) {
     if ($gridWorldExample -notmatch [regex]::Escape($required)) { Fail "grid_world_kit_hud_example.tscn is missing authored showcase element $required." }
 }
-if ($gridWorldExample -match 'StartingResources\s*=|Array\[Resource\]|resource_amount|SubResource\("resource_') {
+# The wallet's startup amounts are a plain dictionary, not authored C# Resource
+# subresources. Deliberately NOT a bare Array[Resource] match: the dispatch board
+# carries its tasks as exactly that, and legitimately - it is the
+# Definition : Resource pattern this folder uses.
+if ($gridWorldExample -match 'StartingResources\s*=|resource_amount|SubResource\("resource_') {
     Fail "grid_world_kit_hud_example.tscn must not create startup wallet entries as C# Resource subresources."
 }
-$demoController = Read "tests/examples/GridWorldPainterlyDemoController.cs"
-foreach ($required in @("GridWorldPainterlyDemoController", "InitializeDemo", "RoundTripState", "LastSnapshotRestored", "SpawnWorker")) {
-    if ($demoController -notmatch [regex]::Escape($required)) { Fail "GridWorldPainterlyDemoController.cs is missing terrain/grid demo behavior $required." }
+# The showcase's behaviour is a data-driven component now, not a controller script
+# sitting beside the scene: a switch over button names, with screen coordinates as
+# literals in its cases, became a board of task definitions.
+$dispatchBoard = Read "addons/beep_game_builder_cs/ecs/terrain/GridDispatchBoardComponent.cs"
+$dispatchTask = Read "addons/beep_game_builder_cs/ecs/terrain/GridDispatchTaskDefinition.cs"
+if ($dispatchBoard -notmatch 'class\s+GridDispatchBoardComponent' -or
+    $dispatchBoard -notmatch 'Array<GridDispatchTaskDefinition> Tasks') {
+    Fail "GridDispatchBoardComponent must carry the showcase's dispatch tasks as data rather than as cases in a switch."
 }
-foreach ($required in @("GridWorldPainterlyDemo", "PainterlyTerrainComponent.cs", "GridTerrainGeneratorComponent.cs", "GridPainterlyTerrainBridgeComponent.cs", "TerrainGeneratorPath = NodePath(`"../TerrainGenerator`")", "GenerateBeforeFirstRebuild = true", "GenerateOnReady = false", "GridWorldStateComponent.cs", "Objects/BaseDepot", "WorkerSpawner", "grid_worker_unit.tscn")) {
-    if ($gridPainterlyDemo -notmatch [regex]::Escape($required)) { Fail "grid_world_painterly_demo.tscn is missing focused terrain/grid demo element $required." }
-}
-$showcaseController = Read "tests/examples/SettlersShowcaseController.cs"
-foreach ($required in @("SettlersShowcaseController", "ToolButtonPaths", "AnimateTruck", "UnitSpawned", "SpawnRejected")) {
-    if ($showcaseController -notmatch [regex]::Escape($required)) { Fail "SettlersShowcaseController.cs is missing showcase behavior $required." }
+if ($dispatchTask -notmatch 'class\s+GridDispatchTaskDefinition\s*:\s*Resource') {
+    Fail "GridDispatchTaskDefinition must follow the Definition : Resource pattern this folder already uses."
 }
 if ($baseWorkerExample -notmatch 'grid_base_depot\.tscn' -or $baseWorkerExample -notmatch 'grid_worker_unit\.tscn') {
     Fail "base_worker_templates_example.tscn does not instance the base and worker templates."
 }
-if ($headlessSmoke -notmatch 'grid_world_kit_hud_example\.tscn' -or $headlessSmoke -notmatch 'grid_world_painterly_demo\.tscn' -or $headlessSmoke -notmatch 'base_worker_templates_example\.tscn' -or $headlessSmoke -notmatch 'LastSnapshotRestored') {
-    Fail "headless runtime smoke does not load the test example scenes."
+if ($headlessSmoke -notmatch 'terrain/grid_world_kit_hud_example\.tscn' -or
+    $headlessSmoke -notmatch 'terrain/base_worker_templates_example\.tscn') {
+    Fail "headless runtime smoke must load the example scenes from where the addon ships them."
 }
 $renderProbe = Read "tests/render_scene_probe.gd"
-if ($renderProbe -notmatch 'grid_world_kit_hud_example\.tscn' -or $renderProbe -notmatch 'grid_world_painterly_demo\.tscn' -or $renderProbe -notmatch 'save_png' -or $renderProbe -notmatch 'non_empty_pixels') {
+if ($renderProbe -notmatch 'terrain/grid_world_kit_hud_example\.tscn' -or $renderProbe -notmatch 'save_png' -or $renderProbe -notmatch 'non_empty_pixels') {
     Fail "render_scene_probe.gd does not verify that the showcase renders visible content."
 }
 $renderProbeRunner = Read "tests/render_scene_probe.ps1"

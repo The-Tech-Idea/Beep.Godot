@@ -19,8 +19,22 @@ namespace Beep.ECS
         /// <summary>Rainfall cutoffs between desert, dry grass, grass and swamp.</summary>
         private readonly record struct MoistureBands(float Desert, float DryGrass, float Swamp);
 
-        /// <summary>The fixed cutoffs, used when quotas are off.</summary>
-        private static readonly MoistureBands Fixed = new(0.20f, 0.38f, 0.78f);
+        /// <summary>
+        /// The rainfall cutoffs. A Whittaker diagram is a LOOKUP - a pair of
+        /// temperature and moisture names a biome - so the cutoffs are fixed
+        /// points on that diagram, the same way Dwarf Fortress and Minecraft use
+        /// it.
+        ///
+        /// A quota pass used to replace these with percentiles of the map's own
+        /// moisture, to guarantee each biome a share. It did the opposite:
+        /// measured on a 64x40 map it collapsed every land biome into grass -
+        /// hot maps lost desert entirely (108 tiles to 0) and temperate maps lost
+        /// dry grass (538 to 0). It was also a second owner of a decision this
+        /// table already makes, and TerrainWorldComponent turned it on for every
+        /// world it built, so the collapse was the normal case rather than an
+        /// opt-in.
+        /// </summary>
+        private static readonly MoistureBands Bands = new(0.20f, 0.38f, 0.78f);
 
         public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
         {
@@ -55,9 +69,7 @@ namespace Beep.ECS
 
             // After the beach field, because the quota counts only the cells the
             // rainfall table decides - and a beach is decided before it.
-            MoistureBands bands = settings.UseBiomeQuotas
-                ? Quotas(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples)
-                : Fixed;
+            MoistureBands bands = Bands;
 
             for (int y = 0; y < world.Height; y++)
             {
@@ -84,44 +96,6 @@ namespace Beep.ECS
         /// one setting and 6% on another. Nothing in the parameters says
         /// "desert", so nobody can tell which they will get.
         /// </summary>
-        private static MoistureBands Quotas(
-            TerrainWorld world, TerrainGenerationSettings settings,
-            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples)
-        {
-            // Only the cells the rainfall table actually decides.
-            var moisture = new List<float>();
-            for (int y = 0; y < world.Height; y++)
-            {
-                for (int x = 0; x < world.Width; x++)
-                {
-                    int index = world.Index(x, y);
-                    if (world.Land[index] && EarlyKind(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y) is null)
-                        moisture.Add(world.Moisture[index]);
-                }
-            }
-
-            if (moisture.Count == 0)
-                return Fixed;
-
-            moisture.Sort();
-
-            float desert = Mathf.Clamp(settings.DesertFraction, 0.0f, 1.0f);
-            float dry = Mathf.Clamp(settings.DryGrassFraction, 0.0f, 1.0f - desert);
-            float swamp = Mathf.Clamp(settings.SwampFraction, 0.0f, 1.0f - desert - dry);
-
-            return new MoistureBands(
-                At(moisture, desert),
-                At(moisture, desert + dry),
-                At(moisture, 1.0f - swamp));
-
-            static float At(List<float> sorted, float fraction)
-            {
-                int at = Mathf.Clamp(
-                    Mathf.RoundToInt(fraction * (sorted.Count - 1)), 0, sorted.Count - 1);
-                return sorted[at];
-            }
-        }
-
         private static string WaterKind(TerrainWorld world, int x, int y)
         {
             WaterBody body = world.Water[world.Index(x, y)];

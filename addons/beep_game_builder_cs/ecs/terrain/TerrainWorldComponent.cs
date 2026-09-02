@@ -11,6 +11,14 @@ namespace Beep.ECS
         Painted = 0,
         Tiles = 1,
         Isometric = 2,
+
+        /// <summary>
+        /// Isometric drawn from an authored TileSet. Same projection as
+        /// Isometric, different art and different borders: the block renderer
+        /// stacks voxels and meets terrains hard, this hands runs of cells to
+        /// Godot's SetCellsTerrainConnect so the joins are transition tiles.
+        /// </summary>
+        IsometricAutotile = 3,
     }
 
     /// <summary>
@@ -31,7 +39,7 @@ namespace Beep.ECS
     ///
     /// The axes are exported, so a scene configures a world the way it
     /// configures anything else. TerrainMapSetup owns what each axis means and
-    /// GridTerrainGeneratorComponent.ApplyMapSetup owns how it reaches the
+    /// TerrainGeneratorComponent.ApplyMapSetup owns how it reaches the
     /// generator; this component owns neither, it just carries the choice.
     /// </summary>
     [Tool]
@@ -51,11 +59,12 @@ namespace Beep.ECS
         /// being half-drawn, which is what a shared "draw everything" path does
         /// when a renderer is absent.
         /// </summary>
-        [Export] public NodePath SplatRendererPath { get; set; } = new("");
+        [Export] public NodePath PaintedRendererPath { get; set; } = new("");
         [Export] public NodePath TileRendererPath { get; set; } = new("");
-        [Export] public NodePath IsoRendererPath { get; set; } = new("");
+        [Export] public NodePath IsometricRendererPath { get; set; } = new("");
+        [Export] public NodePath IsometricAutotileRendererPath { get; set; } = new("");
         [Export] public NodePath FeaturesPath { get; set; } = new("");
-        [Export] public NodePath IsoFeaturesPath { get; set; } = new("");
+        [Export] public NodePath IsometricFeaturesPath { get; set; } = new("");
         [Export] public NodePath MapOverlayPath { get; set; } = new("");
 
         /// <summary>
@@ -70,7 +79,7 @@ namespace Beep.ECS
         /// which projection is on screen, so a game reading the map keeps working
         /// when the player switches view.
         /// </summary>
-        [Export] public NodePath CellDataPath { get; set; } = new("");
+        [Export] public NodePath DataLayersPath { get; set; } = new("");
 
         [ExportGroup("World")]
         [Export] public TerrainShape MapType { get; set; } = TerrainShape.Continents;
@@ -110,17 +119,18 @@ namespace Beep.ECS
         [ExportToolButton("Generate map")]
         public Callable GenerateMap => Callable.From(Build);
 
-        private GridTerrainGeneratorComponent? _generator;
-        private GridSplatTerrainRendererComponent? _splat;
-        private GridBiomeTileMapRendererComponent? _tiles;
-        private GridIsoTileMapRendererComponent? _iso;
-        private GridTerrainFeatureRendererComponent? _features;
-        private GridIsoFeatureRendererComponent? _isoFeatures;
-        private GridTerrainMapOverlayComponent? _overlay;
-        private GridTerrainReliefRendererComponent? _relief;
-        private GridTerrainResourceRendererComponent? _resources;
-        private GridTerrainCellDataComponent? _cellData;
-        private Node2D? _splatNode;
+        private TerrainGeneratorComponent? _generator;
+        private TerrainPaintedRendererComponent? _painted;
+        private TerrainTileRendererComponent? _tiles;
+        private TerrainIsometricRendererComponent? _iso;
+        private TerrainIsometricAutotileRendererComponent? _isometricAutotile;
+        private TerrainFeatureRendererComponent? _features;
+        private TerrainIsometricFeatureRendererComponent? _isometricFeatures;
+        private TerrainMapOverlayComponent? _overlay;
+        private TerrainReliefRendererComponent? _relief;
+        private TerrainResourceRendererComponent? _resources;
+        private TerrainDataLayersComponent? _dataLayers;
+        private Node2D? _paintedNode;
         private Node2D? _overlayNode;
 
         /// <summary>The size of the world last built, in tiles.</summary>
@@ -134,7 +144,7 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
             => GeneratorPath.IsEmpty
-                ? new[] { "GeneratorPath should point to a GridTerrainGeneratorComponent." }
+                ? new[] { "GeneratorPath should point to a TerrainGeneratorComponent." }
                 : System.Array.Empty<string>();
 
         /// <summary>
@@ -144,13 +154,26 @@ namespace Beep.ECS
         /// The size comes from the size AXIS rather than from a renderer's own
         /// bounds, and is then pushed to every renderer - so the projections
         /// cannot end up drawing different extents of the same world.
+        ///
+        /// FIVE MORE GENERATOR SETTINGS ARE OVERWRITTEN HERE, beyond the eleven
+        /// ApplyMapSetup names on TerrainGeneratorComponent: BoundsSize, Seed,
+        /// ResourceSet, and - the two that matter - UseClimateBiomeMaps and
+        /// UseScaleRules are both forced to true unconditionally. Both carry
+        /// their own doc comments describing them as an Inspector switch; both
+        /// are, in fact, always on for any scene that builds its world through
+        /// this component. Because of that, ClimateLatitudeSpan and
+        /// MinBiomeRegionFraction - the two exports UseScaleRules gates - can
+        /// never take effect on a TerrainWorldComponent-built world: a value
+        /// typed into either is accepted, stored, and silently discarded, the
+        /// same failure the ApplyMapSetup contract exists to prevent, one
+        /// method away from where that contract looks.
         /// </summary>
         public void Build()
         {
             Resolve();
             if (_generator is null)
             {
-                GD.PushWarning($"[{Name}] no GridTerrainGeneratorComponent at GeneratorPath; no world was created.");
+                GD.PushWarning($"[{Name}] no TerrainGeneratorComponent at GeneratorPath; no world was created.");
                 return;
             }
 
@@ -164,12 +187,12 @@ namespace Beep.ECS
                 (int)Rainfall, (int)SeaLevel, (int)ResourceLevel);
             _generator.ResourceSet = Resources;
 
-            // The climate model, the scale rules and the biome quotas are what
-            // make the axes mean what TerrainMapSetup says they mean; a world
-            // built without them would answer to the same dials differently.
+            // The climate model and the scale rules are what make the axes mean
+            // what TerrainMapSetup says they mean; a world built without them
+            // would answer to the same dials differently. See the class-level
+            // doc comment above: this is a documented, unconditional override.
             _generator.UseClimateBiomeMaps = true;
             _generator.UseScaleRules = true;
-            _generator.UseBiomeQuotas = true;
 
             _generator.GenerateTerrain();
             Draw(size);
@@ -199,7 +222,7 @@ namespace Beep.ECS
             Godot.Collections.Dictionary d = _generator.GetGenerationDiagnostics();
             return string.Format(
                 "{0} x {1}  |  {2}  |  land {3:P0}  ocean {4:P0}  lakes {5:P0}  rivers {6:P1}"
-                + "  |  {7} of {8} landmasses  |  {9} resources  {10} starts  |  {11} ms",
+                + "  |  {7} of {8} landmasses  |  {9} resources  {10} of {11} starts  |  {12} ms",
                 BuiltSize.X, BuiltSize.Y,
                 LandformName(_generator.Landform),
                 d["land_footprint_coverage"].AsSingle(),
@@ -210,32 +233,34 @@ namespace Beep.ECS
                 d["requested_landmass_count"].AsInt32(),
                 d["resource_count"].AsInt32(),
                 d["start_position_count"].AsInt32(),
+                d["requested_start_position_count"].AsInt32(),
                 d["generation_milliseconds"].AsInt64());
         }
 
-        private static string LandformName(GridTerrainGeneratorComponent.LandformMode landform)
+        private static string LandformName(TerrainGeneratorComponent.LandformMode landform)
             => landform switch
             {
-                GridTerrainGeneratorComponent.LandformMode.Island => "island",
-                GridTerrainGeneratorComponent.LandformMode.Archipelago => "archipelago",
+                TerrainGeneratorComponent.LandformMode.Island => "island",
+                TerrainGeneratorComponent.LandformMode.Archipelago => "archipelago",
                 _ => "mainland",
             };
 
         private void Resolve()
         {
             if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = GeneratorPath.IsEmpty ? null : GetNodeOrNull<GridTerrainGeneratorComponent>(GeneratorPath);
+                _generator = GeneratorPath.IsEmpty ? null : GetNodeOrNull<TerrainGeneratorComponent>(GeneratorPath);
 
-            _splat ??= GetNodeOrNull<GridSplatTerrainRendererComponent>(SplatRendererPath);
-            _splatNode ??= GetNodeOrNull<Node2D>(SplatRendererPath);
-            _tiles ??= GetNodeOrNull<GridBiomeTileMapRendererComponent>(TileRendererPath);
-            _iso ??= GetNodeOrNull<GridIsoTileMapRendererComponent>(IsoRendererPath);
-            _features ??= GetNodeOrNull<GridTerrainFeatureRendererComponent>(FeaturesPath);
-            _isoFeatures ??= GetNodeOrNull<GridIsoFeatureRendererComponent>(IsoFeaturesPath);
-            _overlay ??= GetNodeOrNull<GridTerrainMapOverlayComponent>(MapOverlayPath);
-            _relief ??= GetNodeOrNull<GridTerrainReliefRendererComponent>(ReliefRendererPath);
-            _resources ??= GetNodeOrNull<GridTerrainResourceRendererComponent>(ResourceRendererPath);
-            _cellData ??= GetNodeOrNull<GridTerrainCellDataComponent>(CellDataPath);
+            _painted ??= GetNodeOrNull<TerrainPaintedRendererComponent>(PaintedRendererPath);
+            _paintedNode ??= GetNodeOrNull<Node2D>(PaintedRendererPath);
+            _tiles ??= GetNodeOrNull<TerrainTileRendererComponent>(TileRendererPath);
+            _iso ??= GetNodeOrNull<TerrainIsometricRendererComponent>(IsometricRendererPath);
+            _isometricAutotile ??= GetNodeOrNull<TerrainIsometricAutotileRendererComponent>(IsometricAutotileRendererPath);
+            _features ??= GetNodeOrNull<TerrainFeatureRendererComponent>(FeaturesPath);
+            _isometricFeatures ??= GetNodeOrNull<TerrainIsometricFeatureRendererComponent>(IsometricFeaturesPath);
+            _overlay ??= GetNodeOrNull<TerrainMapOverlayComponent>(MapOverlayPath);
+            _relief ??= GetNodeOrNull<TerrainReliefRendererComponent>(ReliefRendererPath);
+            _resources ??= GetNodeOrNull<TerrainResourceRendererComponent>(ResourceRendererPath);
+            _dataLayers ??= GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath);
             _overlayNode ??= GetNodeOrNull<Node2D>(MapOverlayPath);
         }
     }

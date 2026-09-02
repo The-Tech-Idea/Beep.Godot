@@ -44,13 +44,12 @@ namespace Beep.ECS
         int Octaves,
         float Lacunarity,
         float Gain,
-        GridTerrainGeneratorComponent.LandformMode Landform,
+        TerrainGeneratorComponent.LandformMode Landform,
         float LandmassScale,
         int ArchipelagoIslandCount,
         int TopologySamplesPerCell,
         float ErosionStrength,
         float BeachWidth,
-        float Dryness,
         float FeatureFrequencyMultiplier,
         float LakeCoverage,
         float LakeFrequencyMultiplier,
@@ -59,27 +58,25 @@ namespace Beep.ECS
         int StartPositionCount,
         float ResourceDensity,
         ResourceSet ResourceSet,
+        // The authored catalog, when a game supplies one. Null means the
+        // ResourceSet axis picks a shipped catalog instead.
+        ResourceCatalog? ResourceCatalog,
         float HillsFraction,
         float MountainsFraction,
         float HillshadeStrength,
         float FeatureDensity,
         bool UseClimateBiomeMaps,
         bool UseScaleRules,
-        bool UseBiomeQuotas,
         int BiomeCoherencePasses,
         float MinBiomeRegionFraction,
         int BiomeCoherenceKeep,
-        float DesertFraction,
-        float DryGrassFraction,
-        float SwampFraction,
         float OceanMarginTiles,
         float CoastlineRaggedness,
         float AltitudeCooling,
         float ClimateLatitudeSpan,
         float ClimateLatitudeCentre,
         float TemperatureFrequencyMultiplier,
-        float MoistureFrequencyMultiplier,
-        float FertilityFrequencyMultiplier)
+        float MoistureFrequencyMultiplier)
     {
         /// <summary>
         /// Fraction of the map that must end up as land.
@@ -101,16 +98,29 @@ namespace Beep.ECS
         /// </summary>
         public int RequestedLandmassCount => Landform switch
         {
-            GridTerrainGeneratorComponent.LandformMode.Island => 1,
-            GridTerrainGeneratorComponent.LandformMode.Archipelago => Mathf.Max(2, ArchipelagoIslandCount),
+            TerrainGeneratorComponent.LandformMode.Island => 1,
+            TerrainGeneratorComponent.LandformMode.Archipelago => Mathf.Max(2, ArchipelagoIslandCount),
 
             // Mainland means a few CONTINENTS, not one - the word is plural, and
             // a single mass filling the map is the thing this generator was
-            // rewritten to stop producing. It takes the requested count like any
-            // other mode; continents are simply fewer and larger, which is the
-            // land coverage talking, not a separate rule.
-            _ => Mathf.Clamp(ArchipelagoIslandCount, 2, 6),
+            // rewritten to stop producing. It takes half the Archipelago count,
+            // rounded up: fewer, larger masses than an archipelago of the same
+            // island count, rather than the same number of them - which is what
+            // reading ArchipelagoIslandCount unscaled produced, so a Mainland
+            // map and an Archipelago map at the same setting came back with the
+            // same landmass count and only their land coverage told them apart.
+            _ => Mathf.Clamp((ArchipelagoIslandCount + 1) / 2, 2, 6),
         };
+
+        /// <summary>
+        /// How many start positions the map should have. The one place that
+        /// clamps it, for the same reason RequestedLandmassCount is the one
+        /// place that decides a landmass count: TerrainStartPositionStage reads
+        /// this rather than re-clamping StartPositionCount itself, so the
+        /// number a diagnostic reports as "requested" can never drift from the
+        /// number the stage actually aimed for.
+        /// </summary>
+        public int RequestedStartPositionCount => Mathf.Clamp(StartPositionCount, 0, 24);
     }
 
     /// <summary>
@@ -135,6 +145,7 @@ namespace Beep.ECS
         int LandComponentCount,
         int ContinentCount,
         int ResourceCount,
+        int RequestedStartPositionCount,
         int StartPositionCount,
         int FeatureCount,
         int SamplesPerCell,
@@ -154,6 +165,7 @@ namespace Beep.ECS
             ["land_component_count"] = LandComponentCount,
             ["continent_count"] = ContinentCount,
             ["resource_count"] = ResourceCount,
+            ["requested_start_position_count"] = RequestedStartPositionCount,
             ["start_position_count"] = StartPositionCount,
             ["feature_count"] = FeatureCount,
             ["samples_per_cell"] = SamplesPerCell,

@@ -101,10 +101,40 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot weather lifecycle probe failed."
 }
 
-Write-Host "[addon-checks] Godot painterly terrain probe"
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\painterly_terrain_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+Write-Host "[addon-checks] Godot terrain guards"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_guards.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 180
 if ($LASTEXITCODE -ne 0) {
-    throw "Godot painterly terrain probe failed."
+    throw "Godot terrain guards failed."
+}
+
+Write-Host "[addon-checks] Godot renderer reporting probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\renderer_reporting_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot renderer reporting probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain topology probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_topology_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain topology probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain feature probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_feature_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain feature probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain lake scatter probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_lake_scatter_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain lake scatter probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain transition probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_transition_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain transition probe failed."
 }
 
 Write-Host "[addon-checks] Godot kit label role probe"

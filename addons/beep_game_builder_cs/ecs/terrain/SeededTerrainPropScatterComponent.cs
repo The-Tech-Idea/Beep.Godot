@@ -65,7 +65,7 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string WaterEdgePrimaryPath { get; set; } = "";
         [Export(PropertyHint.File, "*.png,*.webp")] public string WaterEdgeSecondaryPath { get; set; } = "";
 
-        private GridTerrainGeneratorComponent? _generator;
+        private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
 
         public override void _Ready()
@@ -99,6 +99,14 @@ namespace Beep.ECS
             if (palettes.Count == 0)
                 return;
 
+            // Resolved ONCE per rebuild rather than once per candidate cell:
+            // FootprintMatchesPalette alone calls PaletteAt six times, each of
+            // which read the generator twice, so a scanned cell could pay the
+            // generator's settings-rebuild cost up to fourteen times before a
+            // single prop was placed. Null when this component runs off
+            // GridCellDataComponent instead, which PaletteAt already handles.
+            GeneratedTerrainField? field = _generator?.ResolveField();
+
             int targetCount = Mathf.Clamp(MaxProps, 0, 256);
             int placed = 0;
             Vector2I area = new(Mathf.Max(1, SizeInTiles.X), Mathf.Max(1, SizeInTiles.Y));
@@ -113,19 +121,19 @@ namespace Beep.ECS
                 for (int x = 0; x < area.X && placed < targetCount; x++)
                 {
                     Vector2 cellCenter = new(x + 0.5f, y + 0.5f);
-                    string paletteKey = PaletteAt(cellCenter);
+                    string paletteKey = PaletteAt(field, cellCenter);
                     if (string.IsNullOrEmpty(paletteKey) || !palettes.TryGetValue(paletteKey, out List<Texture2D>? textures) || textures.Count == 0)
                         continue;
 
                     float coverage = CoverageFor(paletteKey);
-                    if (coverage <= 0.0f || Hash01(x, y, Seed + 7103) > coverage)
+                    if (coverage <= 0.0f || TerrainGeometry.Hash01(x, y, Seed + 7103) > coverage)
                         continue;
 
                     Vector2 offset = new(
-                        (Hash01(x, y, Seed + 7207) - 0.5f) * jitter,
-                        (Hash01(x, y, Seed + 7309) - 0.5f) * jitter);
+                        (TerrainGeometry.Hash01(x, y, Seed + 7207) - 0.5f) * jitter,
+                        (TerrainGeometry.Hash01(x, y, Seed + 7309) - 0.5f) * jitter);
                     Vector2 tilePosition = cellCenter + offset;
-                    if (!FootprintMatchesPalette(tilePosition, paletteKey))
+                    if (!FootprintMatchesPalette(field, tilePosition, paletteKey))
                         continue;
 
                     if (!IsFarEnough(tilePosition, placedTiles, minDistanceSquared))
@@ -134,11 +142,11 @@ namespace Beep.ECS
                     var stamp = new Sprite2D
                     {
                         Name = $"GeneratedTerrainStamp_{placed:000}",
-                        Texture = textures[Mathf.FloorToInt(Hash01(x, y, Seed + 7411) * textures.Count) % textures.Count],
+                        Texture = textures[Mathf.FloorToInt(TerrainGeometry.Hash01(x, y, Seed + 7411) * textures.Count) % textures.Count],
                         Centered = true,
                         Position = tilePosition * tile,
-                        Scale = Vector2.One * Mathf.Lerp(Mathf.Min(MinScale, MaxScale), Mathf.Max(MinScale, MaxScale), Hash01(x, y, Seed + 7523)),
-                        Rotation = Mathf.Lerp(-0.10f, 0.10f, Hash01(x, y, Seed + 7639)),
+                        Scale = Vector2.One * Mathf.Lerp(Mathf.Min(MinScale, MaxScale), Mathf.Max(MinScale, MaxScale), TerrainGeometry.Hash01(x, y, Seed + 7523)),
+                        Rotation = Mathf.Lerp(-0.10f, 0.10f, TerrainGeometry.Hash01(x, y, Seed + 7639)),
                         ZIndex = TerrainLayers.ZForProps(TerrainLayers.Ground),
                         ZAsRelative = false,
                         // Linear alone cannot use a mip chain for minification.
@@ -155,7 +163,7 @@ namespace Beep.ECS
         {
             if (_generator == null || !GodotObject.IsInstanceValid(_generator))
                 _generator = !TerrainGeneratorPath.IsEmpty
-                    ? GetNodeOrNull<GridTerrainGeneratorComponent>(TerrainGeneratorPath)
+                    ? GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath)
                     : null;
 
             if (_cells == null || !GodotObject.IsInstanceValid(_cells))
@@ -168,8 +176,8 @@ namespace Beep.ECS
             => _cells?.GetTerrainKind(new Vector2I(Mathf.FloorToInt(tilePosition.X), Mathf.FloorToInt(tilePosition.Y)))
                 ?? string.Empty;
 
-        private string GeneratorTerrainKindAt(Vector2 tilePosition)
-            => _generator?.TerrainKindAtPosition(tilePosition) ?? string.Empty;
+        private static string GeneratorTerrainKindAt(GeneratedTerrainField? field, Vector2 tilePosition)
+            => field?.TerrainAtPosition(tilePosition) ?? string.Empty;
 
         private Dictionary<string, List<Texture2D>> LoadPalettes()
         {
@@ -231,29 +239,29 @@ namespace Beep.ECS
             _ => 0.0f,
         };
 
-        private bool FootprintMatchesPalette(Vector2 tilePosition, string paletteKey)
+        private bool FootprintMatchesPalette(GeneratedTerrainField? field, Vector2 tilePosition, string paletteKey)
         {
             Vector2 containingCellCenter = new(
                 Mathf.Floor(tilePosition.X) + 0.5f,
                 Mathf.Floor(tilePosition.Y) + 0.5f);
 
-            return PaletteAt(tilePosition) == paletteKey
-                && PaletteAt(containingCellCenter) == paletteKey
-                && PaletteAt(tilePosition + new Vector2(0.25f, 0.0f)) == paletteKey
-                && PaletteAt(tilePosition + new Vector2(-0.25f, 0.0f)) == paletteKey
-                && PaletteAt(tilePosition + new Vector2(0.0f, 0.25f)) == paletteKey
-                && PaletteAt(tilePosition + new Vector2(0.0f, -0.25f)) == paletteKey;
+            return PaletteAt(field, tilePosition) == paletteKey
+                && PaletteAt(field, containingCellCenter) == paletteKey
+                && PaletteAt(field, tilePosition + new Vector2(0.25f, 0.0f)) == paletteKey
+                && PaletteAt(field, tilePosition + new Vector2(-0.25f, 0.0f)) == paletteKey
+                && PaletteAt(field, tilePosition + new Vector2(0.0f, 0.25f)) == paletteKey
+                && PaletteAt(field, tilePosition + new Vector2(0.0f, -0.25f)) == paletteKey;
         }
 
-        private string PaletteAt(Vector2 tilePosition)
+        private string PaletteAt(GeneratedTerrainField? field, Vector2 tilePosition)
         {
             // Authoritative water test, ahead of any terrain-kind mapping: a
             // prop must never end up standing in the sea or in a lake.
-            if (_generator is not null && _generator.IsWaterAtPosition(tilePosition) && !AllowShallowWaterProps)
+            if (field is not null && field.IsWaterAtPosition(tilePosition) && !AllowShallowWaterProps)
                 return string.Empty;
 
             string cellKey = _cells is null ? string.Empty : PaletteKeyFor(Normalize(CellTerrainKindAt(tilePosition)));
-            string generatorKey = _generator is null ? string.Empty : PaletteKeyFor(Normalize(GeneratorTerrainKindAt(tilePosition)));
+            string generatorKey = _generator is null ? string.Empty : PaletteKeyFor(Normalize(GeneratorTerrainKindAt(field, tilePosition)));
 
             if (_cells is not null && string.IsNullOrEmpty(cellKey))
                 return string.Empty;
@@ -277,14 +285,6 @@ namespace Beep.ECS
             }
 
             return true;
-        }
-
-        private static float Hash01(int x, int y, int seed)
-        {
-            uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
-            value = (value ^ (value >> 13)) * 1274126177u;
-            value ^= value >> 16;
-            return (value & 0x00ffffffu) / 16777215.0f;
         }
 
         private bool HasAnyConfiguredPath()

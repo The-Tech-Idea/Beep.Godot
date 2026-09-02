@@ -4,11 +4,11 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldStatusComponent.cs" id="world_status"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainFeatureRendererComponent.cs" id="features"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainReliefRendererComponent.cs" id="relief"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainResourceRendererComponent.cs" id="resources"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs" id="features"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainReliefRendererComponent.cs" id="relief"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs" id="resources"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
 
 [node name="TerrainSplatDemo" type="Node2D"]
@@ -156,7 +156,7 @@ text = "Mouse wheel: zoom  |  Middle-drag: pan  |  WASD / arrows: pan  |  R: res
 [node name="WorldBuilder" type="Node" parent="."]
 script = ExtResource("world_builder")
 GeneratorPath = NodePath("../World/TerrainGenerator")
-SplatRendererPath = NodePath("../World/Splat")
+PaintedRendererPath = NodePath("../World/Splat")
 FeaturesPath = NodePath("../World/Features")
 ReliefRendererPath = NodePath("../World/Relief")
 ResourceRendererPath = NodePath("../World/Resources")

@@ -1,16 +1,18 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs" id="controller"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainCellDataComponent.cs" id="cell_data"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs" id="cell_data"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainFeatureRendererComponent.cs" id="features"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainMapOverlayComponent.cs" id="map_overlay"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridBiomeTileMapRendererComponent.cs" id="tile_renderer"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridIsoTileMapRendererComponent.cs" id="iso"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridIsoFeatureRendererComponent.cs" id="iso_features"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs" id="features"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapOverlayComponent.cs" id="map_overlay"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs" id="tile_renderer"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs" id="iso"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricAutotileRendererComponent.cs" id="iso_autotile"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/textures/iso/grassland_tileset.tres" id="iso_tileset"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs" id="iso_features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="kit_button"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="kit_option"]
@@ -37,13 +39,14 @@ StatusPath = NodePath("HUD/Status")
 [node name="World" type="Node" parent="."]
 script = ExtResource("world")
 GeneratorPath = NodePath("../Preview/TerrainGenerator")
-SplatRendererPath = NodePath("../Preview/Splat")
+PaintedRendererPath = NodePath("../Preview/Splat")
 TileRendererPath = NodePath("../Preview/TileRenderer")
-IsoRendererPath = NodePath("../Preview/Iso")
+IsometricRendererPath = NodePath("../Preview/Iso")
+IsometricAutotileRendererPath = NodePath("../Preview/IsoAutotile")
 FeaturesPath = NodePath("../Preview/Features")
-IsoFeaturesPath = NodePath("../Preview/IsoFeatures")
+IsometricFeaturesPath = NodePath("../Preview/IsoFeatures")
 MapOverlayPath = NodePath("../Preview/MapOverlay")
-CellDataPath = NodePath("../Preview/CellData")
+DataLayersPath = NodePath("../Preview/CellData")
 BuildOnReady = false
 
 [node name="PreviewBackdrop" type="ColorRect" parent="."]
@@ -108,7 +111,6 @@ script = ExtResource("generator")
 Lacunarity = 2.05
 Gain = 0.5
 BeachWidth = 1.0
-Dryness = 0.0
 CellDataPath = NodePath("../Cells")
 GenerateOnReady = false
 ClearExistingCells = true
@@ -122,7 +124,6 @@ LakeShoreWidth = 1.0
 [node name="TileRenderer" type="Node2D" parent="Preview"]
 visible = false
 script = ExtResource("tile_renderer")
-CellDataPath = NodePath("../Cells")
 BoundsSize = Vector2i(96, 60)
 AtlasTileSize = Vector2i(64, 64)
 AtlasColumns = 4
@@ -144,7 +145,7 @@ SnowAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/snow_15piece.p
 IceAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/ice_15piece.png"
 WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
 WaterDetailAtlasPath = ""
-GeneratorPath = NodePath("../TerrainGenerator")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
 ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
 DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
@@ -171,6 +172,7 @@ BoundsSize = Vector2i(96, 60)
 TileSize = 64
 ShowResources = true
 ShowStartPositions = true
+RefreshOnReady = false
 
 [node name="Features" type="Node2D" parent="Preview"]
 script = ExtResource("features")
@@ -193,6 +195,15 @@ OasisColumns = 4
 OasisRows = 4
 SpriteScale = 0.62
 SpritesPerTile = 5
+
+[node name="IsoAutotile" type="Node2D" parent="Preview"]
+script = ExtResource("iso_autotile")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+RefreshOnReady = false
+BoundsSize = Vector2i(48, 48)
+Tiles = ExtResource("iso_tileset")
+TerrainSet = 0
+TerrainBindings = PackedStringArray("grass,dry_grass=0", "jungle,swamp=1")
 
 [node name="Iso" type="Node2D" parent="Preview"]
 script = ExtResource("iso")
@@ -242,7 +253,7 @@ TerrainVariants = PackedStringArray("grass=54,54,54,9", "dry_grass=2,2,4,22", "g
 [node name="IsoFeatures" type="Node2D" parent="Preview"]
 script = ExtResource("iso_features")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
-IsoRendererPath = NodePath("../Iso")
+IsometricRendererPath = NodePath("../Iso")
 RefreshOnReady = false
 BoundsSize = Vector2i(48, 48)
 WoodsSheetPath = "res://addons/beep_game_builder_cs/textures/iso/iso_trees_8x1.png"

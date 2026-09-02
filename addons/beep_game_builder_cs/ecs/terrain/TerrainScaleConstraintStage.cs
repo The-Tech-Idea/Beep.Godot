@@ -230,7 +230,7 @@ namespace Beep.ECS
             if (world.CellWater[at] != WaterBody.None)
                 return false;
 
-            return world.CellTerrain[at] is not ("" or "deep_water" or "shallow_water");
+            return TerrainTileSets.IsLandKind(world.CellTerrain[at]);
         }
 
         /// <summary>
@@ -254,7 +254,7 @@ namespace Beep.ECS
                     continue;
 
                 string kind = world.CellTerrain[index];
-                if (kind is "" or "deep_water" or "shallow_water")
+                if (!TerrainTileSets.IsLandKind(kind))
                     continue;
                 if (exclude is not null && exclude.Contains(kind))
                     continue;
@@ -389,7 +389,7 @@ namespace Beep.ECS
                     continue;
 
                 string kind = world.CellTerrain[at];
-                if (kind is "" or "deep_water" or "shallow_water")
+                if (!TerrainTileSets.IsLandKind(kind))
                     continue;
                 if (exclude is not null && exclude.Contains(kind))
                     continue;

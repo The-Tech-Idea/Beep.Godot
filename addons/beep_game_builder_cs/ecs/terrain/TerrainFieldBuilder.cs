@@ -56,7 +56,7 @@ namespace Beep.ECS
             // Freeze the landmass outline before lakes are carved out of it.
             world.Land.CopyTo(world.Footprint, 0);
             TerrainWaterStage.Apply(world, noise, settings);
-            TerrainElevationStage.Apply(world, noise, settings);
+            TerrainElevationStage.Apply(world, noise);
 
             // Water shapes the land before the land is named. Erosion carves the
             // valleys, and only then is the height cut into hills and mountains,
@@ -106,15 +106,28 @@ namespace Beep.ECS
             Stopwatch stopwatch)
         {
             string kind = PlainKind(settings.Preset);
-            bool water = kind is "deep_water" or "shallow_water";
+            bool water = TerrainTileSets.IsWaterKind(kind);
 
+            // BOTH resolutions. The stages work on the per-sample arrays and the
+            // reduction stage turns those into the per-tile ones a game reads;
+            // this path has no stages to run, so it must fill the per-tile arrays
+            // itself. Filling only the samples left CellTerrain at its
+            // constructor value, so every Plain map came back as the cell data's
+            // DefaultTerrainKind and Preset decided nothing.
             Array.Fill(world.Terrain, kind);
+            Array.Fill(world.CellTerrain, kind);
             if (water)
+            {
                 Array.Fill(world.Water, WaterBody.Ocean);
+                Array.Fill(world.CellWater, WaterBody.Ocean);
+            }
             else
             {
                 Array.Fill(world.Land, true);
                 Array.Fill(world.Footprint, true);
+                // One flat landmass, so a plain map answers ContinentAtCell the
+                // same way a generated one does rather than reading as water.
+                Array.Fill(world.CellContinent, 1);
             }
 
             stopwatch.Stop();
@@ -176,6 +189,7 @@ namespace Beep.ECS
                 TerrainGeometry.CountComponents(world.Footprint, world.Width, world.Height),
                 continents,
                 resources,
+                settings.RequestedStartPositionCount,
                 world.StartPositions.Count,
                 features,
                 world.SamplesPerCell,

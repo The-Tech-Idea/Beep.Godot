@@ -1,9 +1,9 @@
 [gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridSplatTerrainRendererComponent.cs" id="splat"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainTransitionLayerComponent.cs" id="transitions"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainTransitionLayerComponent.cs" id="transitions"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs" id="scatter"]
 
 [node name="TerrainGenerationLayersDemo" type="Node2D"]
@@ -45,7 +45,6 @@ Octaves = 5
 Lacunarity = 2.05
 Gain = 0.5
 BeachWidth = 1.0
-Dryness = 0.0
 CellDataPath = NodePath("../Cells")
 GenerateOnReady = true
 ClearExistingCells = true
@@ -55,7 +54,7 @@ visible = false
 
 [node name="TerrainTransitionConnector" type="Node" parent="."]
 script = ExtResource("transitions")
-CellDataPath = NodePath("../Cells")
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
 DisplayLayerPath = NodePath("../TerrainTransitions")
 BoundsSize = Vector2i(20, 12)
 TransitionTerrainKind = "water"

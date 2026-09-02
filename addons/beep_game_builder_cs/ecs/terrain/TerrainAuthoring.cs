@@ -34,6 +34,29 @@ namespace Beep.ECS
         /// a generated map and reading the result back, without needing to drive
         /// the editor.
         /// </summary>
+        /// <summary>
+        /// The one way a terrain view gets a TileMapLayer: reuse the one already
+        /// there under that name, or make it, parent it, and adopt it so it is
+        /// saved with the scene.
+        ///
+        /// This block was copied into eight places - every renderer, the data
+        /// layers, the mountain generator - each free to forget the adopt and
+        /// silently produce a map that vanishes on reload. Layers are the
+        /// engine's to create; a renderer says which it wants, not how one is
+        /// made.
+        /// </summary>
+        public static TileMapLayer EnsureLayer(Node owner, string name)
+        {
+            TileMapLayer? layer = owner.GetNodeOrNull<TileMapLayer>(name);
+            if (layer is null || !GodotObject.IsInstanceValid(layer))
+            {
+                layer = new TileMapLayer { Name = name };
+                owner.AddChild(layer);
+                Adopt(layer, owner);
+            }
+            return layer;
+        }
+
         public static void Adopt(Node generated, Node creator)
         {
             if (!generated.IsInsideTree())

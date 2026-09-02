@@ -25,7 +25,7 @@ namespace Beep.ECS
     /// <summary>How the land of a world is laid out. Nothing here decides weather.</summary>
     public readonly record struct TerrainShapeDefinition(
         string DisplayName,
-        GridTerrainGeneratorComponent.LandformMode Landform,
+        TerrainGeneratorComponent.LandformMode Landform,
         float LandCoverage,
         int IslandCount,
         float SeaCoverage,
@@ -39,24 +39,24 @@ namespace Beep.ECS
         {
             // The default 4X arrangement: several landmasses, moderate relief.
             [TerrainShape.Continents] = new(
-                "Continents", GridTerrainGeneratorComponent.LandformMode.Mainland,
+                "Continents", TerrainGeneratorComponent.LandformMode.Mainland,
                 0.42f, 4, 0.12f, 0.16f, 0.07f, 6),
 
             [TerrainShape.Pangaea] = new(
-                "Pangaea", GridTerrainGeneratorComponent.LandformMode.Island,
+                "Pangaea", TerrainGeneratorComponent.LandformMode.Island,
                 0.66f, 1, 0.10f, 0.18f, 0.09f, 8),
 
             [TerrainShape.Archipelago] = new(
-                "Archipelago", GridTerrainGeneratorComponent.LandformMode.Archipelago,
+                "Archipelago", TerrainGeneratorComponent.LandformMode.Archipelago,
                 0.30f, 7, 0.14f, 0.14f, 0.05f, 6),
 
             [TerrainShape.IslandChain] = new(
-                "Island Chain", GridTerrainGeneratorComponent.LandformMode.Archipelago,
+                "Island Chain", TerrainGeneratorComponent.LandformMode.Archipelago,
                 0.22f, 9, 0.16f, 0.12f, 0.04f, 5),
 
             // Mostly sea. Start positions drop because there is little to stand on.
             [TerrainShape.OceanWorld] = new(
-                "Ocean World", GridTerrainGeneratorComponent.LandformMode.Archipelago,
+                "Ocean World", TerrainGeneratorComponent.LandformMode.Archipelago,
                 0.14f, 11, 0.20f, 0.10f, 0.03f, 4),
 
         };

@@ -1,7 +1,7 @@
 extends SceneTree
 
 const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
-const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs")
+const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 const SCATTER_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs")
 
 func _initialize() -> void:

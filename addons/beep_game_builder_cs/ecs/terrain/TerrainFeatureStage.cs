@@ -123,7 +123,9 @@ namespace Beep.ECS
                     if (kind is not ("grass" or "dry_grass" or "tundra"))
                         continue;
 
-                    // Dryness is not re-tested here. Whether ground is too dry
+                    // Dryness is not re-tested here - and the generator export
+                    // that once carried it is gone, because nothing read it.
+                    // Whether ground is too dry
                     // for trees is already decided, by the biome - and with
                     // quotas on, the biome bands are PERCENTILES of the map's own
                     // moisture while this test was a fixed 0.26. On a dry map the
@@ -280,7 +282,7 @@ namespace Beep.ECS
                     continue;
 
                 string kind = world.CellTerrain[cell];
-                if (kind is "" or "deep_water" or "shallow_water")
+                if (!TerrainTileSets.IsLandKind(kind))
                     continue;
 
                 int sample = world.CellCentreIndex(cell % world.CellsWide, cell / world.CellsWide);
@@ -307,7 +309,7 @@ namespace Beep.ECS
             int sample = world.CellCentreIndex(cellX, cellY);
             float moisture = world.Moisture[sample];
             float temperature = world.Temperature[sample];
-            float roll = Hash01(settings.Seed + 55001, cellX, cellY);
+            float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
             float density = Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
 
             // Terrain that already means dense vegetation always carries the
@@ -354,18 +356,11 @@ namespace Beep.ECS
         {
             int sample = world.CellCentreIndex(cellX, cellY);
             float moisture = world.Moisture[sample];
-            float roll = Hash01(settings.Seed + 55001, cellX, cellY);
+            float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
 
             float bias = ((moisture - 0.45f) * 0.10f) + ((roll - 0.5f) * 0.02f);
             return terrain == "tundra" ? bias - 0.05f : bias;
         }
 
-        private static float Hash01(int seed, int x, int y)
-        {
-            uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
-            value = (value ^ (value >> 13)) * 1274126177u;
-            value ^= value >> 16;
-            return (value & 0x00ffffffu) / 16777215.0f;
-        }
     }
 }

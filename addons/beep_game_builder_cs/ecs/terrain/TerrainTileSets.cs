@@ -122,8 +122,35 @@ namespace Beep.ECS
             data.SetCustomData(Cell.Passable, !water && kind != "rock");
         }
 
+        /// <summary>
+        /// Writes the real relief band onto a tile that stands for one - the
+        /// dedicated relief layer's tiles, one per TerrainRelief value.
+        ///
+        /// Kept separate from Describe, which still derives Cell.Relief from the
+        /// terrain KIND via TerrainLayers.LevelForKind - a different unit
+        /// (drawing z-order, not TerrainRelief's Flat/Hills/Mountains band) that
+        /// existing callers already depend on. A cell's real relief band is read
+        /// off THIS layer's tiles, sourced straight from the generator.
+        /// </summary>
+        public static void DescribeRelief(TileData? data, int relief)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.Relief, relief);
+        }
+
         public static bool IsWaterKind(string terrainKind)
             => terrainKind is "deep_water" or "shallow_water" or "water";
+
+        /// <summary>
+        /// Dry ground: a real terrain kind that is not water. The empty string is
+        /// not land - it means no terrain was assigned - and writing that test by
+        /// hand is how it came to be spelled twelve different ways across the
+        /// engine, each free to disagree the next time a water kind is added.
+        /// </summary>
+        public static bool IsLandKind(string terrainKind)
+            => terrainKind.Length > 0 && !IsWaterKind(terrainKind);
 
         /// <summary>Physics and navigation layer indices, by what the ground IS.</summary>
         public enum Ground

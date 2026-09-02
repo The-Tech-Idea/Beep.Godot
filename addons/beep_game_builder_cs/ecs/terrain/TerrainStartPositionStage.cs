@@ -23,7 +23,10 @@ namespace Beep.ECS
 
         public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
         {
-            int wanted = Mathf.Clamp(settings.StartPositionCount, 0, 24);
+            // The SAME clamp TerrainGenerationSettings.RequestedStartPositionCount
+            // reports, so what this stage aims for and what a diagnostic calls
+            // "requested" can never be two different numbers.
+            int wanted = settings.RequestedStartPositionCount;
             if (wanted == 0)
                 return;
 
@@ -66,6 +69,19 @@ namespace Beep.ECS
             // a second; the second pass fills whatever is left by score.
             Take(world, candidates, score, continent, minimumSeparation, wanted, used, oncePerContinent: true);
             Take(world, candidates, score, continent, minimumSeparation, wanted, used, oncePerContinent: false);
+
+            // Unlike a landmass shortfall - which the diagnostics report by
+            // pairing RequestedLandmassCount beside LandComponentCount - a start
+            // shortfall had nothing saying it happened at all. A small or
+            // water-heavy map can genuinely run out of separated, land-locked
+            // candidates before it reaches `wanted`.
+            if (world.StartPositions.Count < wanted)
+            {
+                GD.PushWarning(
+                    $"Only placed {world.StartPositions.Count} of {wanted} requested start "
+                    + "positions - the map is too small or too fragmented to fit the rest at "
+                    + "the required separation.");
+            }
         }
 
         private static void Take(

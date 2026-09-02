@@ -19,6 +19,28 @@ namespace Beep.ECS
         [Export] public NodePath ResourceRootPath { get; set; } = new("");
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
+
+        /// <summary>
+        /// The generated map's published resources. Point this at a
+        /// TerrainDataLayersComponent and the deposits go WHERE THE MAP SAYS -
+        /// iron in the hills it generated, fish in its shallows - instead of one
+        /// resource id scattered at random over anything not blocked.
+        ///
+        /// Reading the published layers rather than the generator is deliberate:
+        /// the generator is a build-time object, and a saved map has only its tile
+        /// layers, so a game loading a level still finds its resources.
+        ///
+        /// Left empty, the seeded random scatter below is used, which is what an
+        /// authored map with no generated terrain needs.
+        /// </summary>
+        [Export] public NodePath DataLayersPath { get; set; } = new("");
+
+        /// <summary>
+        /// The shared resource catalog - the same one the generator places from.
+        /// It decides which generated resources are worth a deposit, and each
+        /// placed node takes its rules from it.
+        /// </summary>
+        [Export] public ResourceCatalog? Catalog { get; set; }
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath JobQueuePath { get; set; } = new("");
         [Export] public PackedScene? ResourceScene { get; set; }
@@ -53,6 +75,7 @@ namespace Beep.ECS
 
         private const string GeneratedMeta = "grid_resource_scatter_generated";
         private GridProjectionComponent? _grid;
+        private TerrainDataLayersComponent? _dataLayers;
         private Node? _resourceRoot;
         private GridPlacementComponent? _placement;
         private GridCellDataComponent? _cellData;
@@ -159,6 +182,19 @@ namespace Beep.ECS
                     var cell = new Vector2I(x, y);
                     if (!CanSpawnResourceAt(cell))
                         continue;
+
+                    // The map decides, when there is one. A cell holds a deposit
+                    // because the generator put a resource there, not because a
+                    // second random roll happened to agree.
+                    if (_dataLayers is not null)
+                    {
+                        if (MapResourceAt(cell).Length == 0)
+                            continue;
+                        yielded++;
+                        yield return cell;
+                        continue;
+                    }
+
                     if (rng.Randf() <= density)
                     {
                         yielded++;
@@ -168,9 +204,39 @@ namespace Beep.ECS
             }
         }
 
+        /// <summary>
+        /// The map's resource at a cell, once the catalog agrees it is one worth
+        /// placing. A catalog that does not list it means the game has no use for
+        /// it - shown on the map, not gathered - so no deposit is made.
+        /// </summary>
+        private string MapResourceAt(Vector2I cell)
+        {
+            if (_dataLayers is null)
+                return string.Empty;
+
+            string id = _dataLayers.ResourceAt(cell);
+            if (id.Length == 0)
+                return string.Empty;
+
+            return Catalog is null || Catalog.Contains(id) ? id : string.Empty;
+        }
+
+        private string ResourceIdFor(Vector2I cell)
+        {
+            string mapped = MapResourceAt(cell);
+            return mapped.Length > 0 ? mapped : EffectiveResourceId;
+        }
+
         private Node2D? CreateResourceNode(Vector2I cell, int index)
         {
-            Node2D? node = ResourceScene?.Instantiate() as Node2D;
+            string resourceId = ResourceIdFor(cell);
+
+            // The catalog's own scene for this resource, when it has one - a
+            // tree scene for wood, a rock scene for stone - takes precedence
+            // over the one blanket ResourceScene every deposit would otherwise
+            // share regardless of what it actually is.
+            PackedScene? scene = Catalog?.Find(resourceId)?.NodeScene ?? ResourceScene;
+            Node2D? node = scene?.Instantiate() as Node2D;
             if (node == null)
             {
                 node = new GridResourceNodeComponent
@@ -193,7 +259,10 @@ namespace Beep.ECS
 
             resource.UseExplicitCell = true;
             resource.Cell = cell;
-            resource.ResourceId = EffectiveResourceId;
+            resource.ResourceId = resourceId;
+            // The node reads its own rules from the catalog, so what a deposit is
+            // worth is answered in one place rather than copied here.
+            resource.Catalog = Catalog;
             resource.Amount = RandomAmount(cell, index);
             resource.AmountPerGather = EffectiveAmountPerGather;
             resource.GatherJobKind = EffectiveGatherJobKind;
@@ -254,6 +323,11 @@ namespace Beep.ECS
                 _grid = !GridPath.IsEmpty
                     ? GetNodeOrNull<GridProjectionComponent>(GridPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
+
+            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
+                _dataLayers = !DataLayersPath.IsEmpty
+                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
+                    : null;
 
             if (_resourceRoot == null || !GodotObject.IsInstanceValid(_resourceRoot))
                 _resourceRoot = !ResourceRootPath.IsEmpty ? GetNodeOrNull<Node>(ResourceRootPath) : GetParent();

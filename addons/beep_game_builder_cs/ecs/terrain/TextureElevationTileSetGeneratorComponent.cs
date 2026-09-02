@@ -693,12 +693,12 @@ namespace Beep.ECS
         {
             for (int i = 0; i < 7; i++)
             {
-                float seedX = Hash01(i, salt, Seed + 811);
+                float seedX = TerrainGeometry.Hash01(i, salt, Seed + 811);
                 int x = ox + Mathf.RoundToInt(Mathf.Lerp(width * 0.15f, width * 0.85f, seedX));
-                int y0 = oy + Mathf.RoundToInt(Mathf.Lerp(height * 0.04f, height * 0.28f, Hash01(i, salt, Seed + 823)));
-                int y1 = oy + Mathf.RoundToInt(Mathf.Lerp(height * 0.58f, height * 0.92f, Hash01(i, salt, Seed + 839)));
+                int y0 = oy + Mathf.RoundToInt(Mathf.Lerp(height * 0.04f, height * 0.28f, TerrainGeometry.Hash01(i, salt, Seed + 823)));
+                int y1 = oy + Mathf.RoundToInt(Mathf.Lerp(height * 0.58f, height * 0.92f, TerrainGeometry.Hash01(i, salt, Seed + 839)));
                 Color crack = new Color(0.05f, 0.08f, 0.08f, stacked ? 0.08f : 0.05f);
-                DrawLineOnOpaque(image, x, y0, x + Mathf.RoundToInt(Mathf.Lerp(-6, 6, Hash01(i, salt, Seed + 853))), y1, crack);
+                DrawLineOnOpaque(image, x, y0, x + Mathf.RoundToInt(Mathf.Lerp(-6, 6, TerrainGeometry.Hash01(i, salt, Seed + 853))), y1, crack);
             }
         }
 
@@ -894,8 +894,8 @@ namespace Beep.ECS
             int height = source.GetHeight();
             Rect2I rect = SourceRectFor(source, sourceOrigin, sourceSize);
             float repeats = Mathf.Max(0.25f, TextureRepeatsPerTile);
-            float su = Fract((u * repeats) + Hash01(salt, 0, Seed + 2101) * 0.17f);
-            float sv = Fract((v * repeats) + Hash01(0, salt, Seed + 2113) * 0.17f);
+            float su = Fract((u * repeats) + TerrainGeometry.Hash01(salt, 0, Seed + 2101) * 0.17f);
+            float sv = Fract((v * repeats) + TerrainGeometry.Hash01(0, salt, Seed + 2113) * 0.17f);
             Color direct = source.GetPixel(
                 rect.Position.X + Mathf.Clamp(Mathf.FloorToInt(su * rect.Size.X), 0, rect.Size.X - 1),
                 rect.Position.Y + Mathf.Clamp(Mathf.FloorToInt(sv * rect.Size.Y), 0, rect.Size.Y - 1));
@@ -928,8 +928,8 @@ namespace Beep.ECS
             // material tile. Skip transparent sheet gaps and reuse real pixels.
             for (int i = 0; i < 48; i++)
             {
-                float su = Fract(u + Hash01(i, salt, Seed + 1901) * 0.93f + (i * 0.037f));
-                float sv = Fract(v + Hash01(i, salt, Seed + 1913) * 0.89f + (i * 0.053f));
+                float su = Fract(u + TerrainGeometry.Hash01(i, salt, Seed + 1901) * 0.93f + (i * 0.037f));
+                float sv = Fract(v + TerrainGeometry.Hash01(i, salt, Seed + 1913) * 0.89f + (i * 0.053f));
                 TryCandidate(source, rect, su, sv, preferTopSurface, ref best, ref bestScore);
             }
 
@@ -1028,17 +1028,9 @@ namespace Beep.ECS
             int y0 = Mathf.FloorToInt(y);
             float tx = Smooth(x - x0);
             float ty = Smooth(y - y0);
-            float top = Mathf.Lerp(Hash01(x0, y0, seed), Hash01(x0 + 1, y0, seed), tx);
-            float bottom = Mathf.Lerp(Hash01(x0, y0 + 1, seed), Hash01(x0 + 1, y0 + 1, seed), tx);
+            float top = Mathf.Lerp(TerrainGeometry.Hash01(x0, y0, seed), TerrainGeometry.Hash01(x0 + 1, y0, seed), tx);
+            float bottom = Mathf.Lerp(TerrainGeometry.Hash01(x0, y0 + 1, seed), TerrainGeometry.Hash01(x0 + 1, y0 + 1, seed), tx);
             return Mathf.Lerp(top, bottom, ty);
-        }
-
-        private static float Hash01(int x, int y, int seed)
-        {
-            uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
-            value = (value ^ (value >> 13)) * 1274126177u;
-            value ^= value >> 16;
-            return (value & 0x00ffffffu) / 16777215.0f;
         }
 
         private static float Smooth(float value)

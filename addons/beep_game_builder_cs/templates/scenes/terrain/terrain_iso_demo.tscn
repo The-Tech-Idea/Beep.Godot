@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldStatusComponent.cs" id="world_status"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs" id="cells"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs" id="generator"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridIsoTileMapRendererComponent.cs" id="iso"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridIsoFeatureRendererComponent.cs" id="iso_features"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs" id="iso"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs" id="iso_features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/GridCameraControllerComponent.cs" id="camera_controller"]
 
 [node name="TerrainIsoDemo" type="Node2D"]
@@ -38,13 +38,9 @@ Preset = 0
 Seed = 31415
 UseClimateBiomeMaps = true
 AltitudeCooling = 0.32
-UseBiomeQuotas = true
 UseScaleRules = true
 BiomeCoherencePasses = 2
 BiomeCoherenceKeep = 3
-DesertFraction = 0.08
-DryGrassFraction = 0.3
-SwampFraction = 0.04
 ClimateLatitudeCentre = 0.52
 TemperatureFrequencyMultiplier = 0.35
 MoistureFrequencyMultiplier = 0.45
@@ -109,7 +105,7 @@ TerrainVariants = PackedStringArray("grass=54,54,54,9", "dry_grass=2,2,4,22", "g
 [node name="IsoFeatures" type="Node2D" parent="World"]
 script = ExtResource("iso_features")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
-IsoRendererPath = NodePath("../Iso")
+IsometricRendererPath = NodePath("../Iso")
 RefreshOnReady = false
 BoundsSize = Vector2i(48, 48)
 WoodsSheetPath = "res://addons/beep_game_builder_cs/textures/iso/iso_trees_8x1.png"
@@ -163,8 +159,8 @@ LabelPath = NodePath("../HUD/Status")
 [node name="WorldBuilder" type="Node" parent="."]
 script = ExtResource("world_builder")
 GeneratorPath = NodePath("../World/TerrainGenerator")
-IsoRendererPath = NodePath("../World/Iso")
-IsoFeaturesPath = NodePath("../World/IsoFeatures")
+IsometricRendererPath = NodePath("../World/Iso")
+IsometricFeaturesPath = NodePath("../World/IsoFeatures")
 MapType = 0
 MapSize = 1
 Seed = 31415

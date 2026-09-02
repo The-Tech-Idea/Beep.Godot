@@ -28,29 +28,42 @@ namespace Beep.ECS
         /// </summary>
         private void Draw(Vector2I size)
         {
-            bool flat = Projection != TerrainProjection.Isometric;
+            bool flat = Projection is not (TerrainProjection.Isometric or TerrainProjection.IsometricAutotile);
+
+            // The tile size of whichever FLAT renderer is actually visible right
+            // now, not always the painted one. Gating this on _painted alone left
+            // a Tiles- or Isometric-only scene - one that never wires a painted
+            // renderer - with its data-layer and overlay TileSize stuck on
+            // whatever default they started at, unchecked against the renderer
+            // actually on screen.
+            int? flatTileSize = Projection switch
+            {
+                TerrainProjection.Painted => _painted?.TileSize,
+                TerrainProjection.Tiles => _tiles is not null ? Mathf.Max(1, _tiles.AtlasTileSize.X) : null,
+                _ => null,
+            };
 
             // Cell data first, and for EVERY projection. It is what a game reads,
             // so it must not depend on which view happens to be drawn - that is
             // the whole reason it is not taken from the drawing layers.
-            if (_cellData is not null)
+            if (_dataLayers is not null)
             {
-                _cellData.BoundsSize = size;
-                if (_splat is not null)
-                    _cellData.TileSize = _splat.TileSize;
-                _cellData.Rebuild();
+                _dataLayers.BoundsSize = size;
+                if (flatTileSize is { } dataTileSize)
+                    _dataLayers.TileSize = dataTileSize;
+                _dataLayers.Rebuild();
             }
 
             // The painted renderer's C# type derives from Node while the scene
             // node it is attached to is a Node2D, so visibility is toggled
             // through the node rather than the component type.
-            if (_splatNode is not null)
-                _splatNode.Visible = Projection == TerrainProjection.Painted;
+            if (_paintedNode is not null)
+                _paintedNode.Visible = Projection == TerrainProjection.Painted;
 
-            if (_splat is not null && Projection == TerrainProjection.Painted)
+            if (_painted is not null && Projection == TerrainProjection.Painted)
             {
-                _splat.BoundsSize = size;
-                _splat.Rebuild();
+                _painted.BoundsSize = size;
+                _painted.Rebuild();
             }
 
             // Vegetation is whatever the GENERATOR decided, drawn - not a second
@@ -86,13 +99,26 @@ namespace Beep.ECS
                 }
             }
 
-            if (_isoFeatures is not null)
+            if (_isometricAutotile is not null)
             {
-                _isoFeatures.Visible = Projection == TerrainProjection.Isometric;
+                _isometricAutotile.Visible = Projection == TerrainProjection.IsometricAutotile;
+                if (Projection == TerrainProjection.IsometricAutotile)
+                {
+                    _isometricAutotile.BoundsSize = size;
+                    _isometricAutotile.Rebuild();
+                }
+            }
+
+            // The isometric feature renderer is placed against the BLOCK
+            // renderer's geometry - its cell size and lifts - so it stays with
+            // that projection rather than being reused here.
+            if (_isometricFeatures is not null)
+            {
+                _isometricFeatures.Visible = Projection == TerrainProjection.Isometric;
                 if (Projection == TerrainProjection.Isometric)
                 {
-                    _isoFeatures.BoundsSize = size;
-                    _isoFeatures.Rebuild();
+                    _isometricFeatures.BoundsSize = size;
+                    _isometricFeatures.Rebuild();
                 }
             }
 
@@ -129,9 +155,9 @@ namespace Beep.ECS
             if (_overlay is not null && flat)
             {
                 _overlay.BoundsSize = size;
-                if (_splat is not null)
-                    _overlay.TileSize = _splat.TileSize;
-                _overlay.Refresh();
+                if (flatTileSize is { } overlayTileSize)
+                    _overlay.TileSize = overlayTileSize;
+                _overlay.Rebuild();
             }
         }
 
@@ -158,7 +184,7 @@ namespace Beep.ECS
             if (Projection == TerrainProjection.Isometric && _iso is not null)
                 return _iso.SurfacePosition(cell);
 
-            int tile = _splat?.TileSize ?? 64;
+            int tile = _painted?.TileSize ?? 64;
             return new Vector2((cell.X + 0.5f) * tile, (cell.Y + 0.5f) * tile);
         }
 
@@ -190,7 +216,7 @@ namespace Beep.ECS
                         Mathf.Max(1.0f, ((size.X + size.Y) * halfHigh) + (_iso.LevelHeight * 2))));
             }
 
-            int tile = _splat?.TileSize ?? 64;
+            int tile = _painted?.TileSize ?? 64;
             return new Rect2(
                 Vector2.Zero,
                 new Vector2(Mathf.Max(1, size.X * tile), Mathf.Max(1, size.Y * tile)));

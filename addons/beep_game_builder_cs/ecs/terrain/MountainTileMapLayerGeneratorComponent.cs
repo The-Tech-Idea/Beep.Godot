@@ -17,7 +17,7 @@ namespace Beep.ECS
     /// queries - cannot see anything it paints.
     ///
     /// Where mountains are on a generated map is already decided by
-    /// GridTerrainGeneratorComponent, which owns TerrainRelief (Flat, Hills,
+    /// TerrainGeneratorComponent, which owns TerrainRelief (Flat, Hills,
     /// Mountains) and writes it to the cell data. Use this for an authored
     /// set-piece placed on top of that, never as a second way to make terrain.
     ///
@@ -243,10 +243,10 @@ namespace Beep.ECS
                     if (distance > 0.84f || distance < 0.24f)
                         continue;
 
-                    if (Hash01(x, y, Seed + 7001) > density)
+                    if (TerrainGeometry.Hash01(x, y, Seed + 7001) > density)
                         continue;
 
-                    string role = Hash01(x, y, Seed + 7013) < 0.55f ? "prop_boulder" : "prop_vegetation";
+                    string role = TerrainGeometry.Hash01(x, y, Seed + 7013) < 0.55f ? "prop_boulder" : "prop_vegetation";
                     MountainAsset? asset = PickRoleAsset(role, local);
                     if (asset == null)
                         continue;
@@ -486,19 +486,14 @@ namespace Beep.ECS
             if (_tileMapLayer != null || !CreateLayerIfMissing)
                 return;
 
-            _tileMapLayer = new TileMapLayer
-            {
-                Name = string.IsNullOrWhiteSpace(CreatedLayerName) ? "GeneratedMountainTileMapLayer" : CreatedLayerName,
-                // Mountains are relief standing on the ground, so they take the
-                // stack's mountain level rather than Node2D's default of 0 -
-                // which is the sea's slot.
-                ZIndex = TerrainLayers.ZFor(TerrainLayers.Mountains),
-                ZAsRelative = false,
-                TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps,
-            };
-            AddChild(_tileMapLayer);
-            if (Engine.IsEditorHint())
-                _tileMapLayer.Owner = Owner;
+            _tileMapLayer = TerrainAuthoring.EnsureLayer(
+                this, string.IsNullOrWhiteSpace(CreatedLayerName) ? "GeneratedMountainTileMapLayer" : CreatedLayerName);
+            // Mountains are relief standing on the ground, so they take the
+            // stack's mountain level rather than Node2D's default of 0 - which
+            // is the sea's slot.
+            _tileMapLayer.ZIndex = TerrainLayers.ZFor(TerrainLayers.Mountains);
+            _tileMapLayer.ZAsRelative = false;
+            _tileMapLayer.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
         }
 
         private bool HasRole(string role)
@@ -582,9 +577,6 @@ namespace Beep.ECS
 
         private static string Normalize(string value)
             => string.IsNullOrWhiteSpace(value) ? "misc" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
-
-        private static float Hash01(int x, int y, int seed)
-            => (HashInt(x, y, seed) & 0x00ffffff) / 16777215.0f;
 
         private static int HashInt(int x, int y, int seed)
         {

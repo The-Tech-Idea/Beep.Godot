@@ -1,0 +1,30 @@
+# TerrainWaterStage
+
+Generation stage: carves inland lake basins into the fine sample field, then classifies every water sample as ocean or lake by flood-reachability from the map border.
+
+This stage runs early in the generation pipeline — before `TerrainElevationStage`, because carving a lake changes the coastline and elevation must be measured from the *final* coast, not a pre-lake one. It has two jobs, run in sequence: first it sinks selected inland, low-relief land into new lake basins by flood-growing outward from noise-scored seed points until a requested lake-coverage fraction is met (bounded away from the coast so a growing lake can never breach the shoreline and become a bay); second, it defines "ocean" purely operationally — any water reachable by a flood fill starting from the map's outer border — with every other body of water (including the basins it just carved, and any other enclosed water) classified as a lake. This definition means a lake can never silently become an ocean inlet and a bay can never be misclassified as a lake, regardless of how either patch of water was created.
+
+## Public API
+
+- `internal static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the only entry point; runs `CarveLakeBasins` then `ClassifyWaterBodies` in order.
+- `private static void CarveLakeBasins(...)` — computes a requested lake-tile count from `settings.LakeCoverage` (clamped to 0–0.35 of total sample count, further capped to at most 35% of current land-sample count), then for every land sample at least `max(3, SamplesPerCell * 2)` tiles from existing water, scores it by a weighted blend of lake-noise value (55%), inverse ridge/mountain-noise "flatness" (30%), and distance-from-water up to a cap (15%). Candidates are sorted best-first; from each unclaimed best seed, a priority-flood (best-score-first `PriorityQueue`) grows the basin outward, converting `world.Land[index] = false` for each claimed sample, stopping once the per-seed growth budget (remaining requested total) or reachable frontier is exhausted, and skipping any sample that has since become too close to water or is no longer land.
+- `private static void ClassifyWaterBodies(TerrainWorld world)` — seeds a BFS queue from every border sample that is water and not yet marked ocean, floods inward across all connected water (`EnqueueIfOpenWater`), marking every reached sample `WaterBody.Ocean`; afterward, sweeps the whole field and sets any remaining non-land sample that is still `WaterBody.None`/unset to `WaterBody.Lake`.
+- `private static void EnqueueIfOpenWater(TerrainWorld world, int index, Queue<int> queue)` — the flood-fill primitive: skips land and already-ocean samples, otherwise marks the sample `Ocean` and enqueues it.
+- `private static bool[] Negate(bool[] values)` / `private static int CountTrue(bool[] values)` — small array helpers used to build the "is water" mask for the distance transform and to count current land samples.
+
+## Dependencies
+
+- Reads/writes `TerrainWorld`'s fine-resolution arrays: reads `Land`, `Width`, `Height`, `Count`, `SamplesPerCell`, `Index`, `TileCentre`; writes `Land[index] = false` (basin carving) and `Water[index] = WaterBody.Ocean`/`WaterBody.Lake` (classification).
+- Reads `TerrainNoiseSet.Lake` and `TerrainNoiseSet.Ridge` (`GetNoise2D`) for basin scoring.
+- Reads `TerrainGenerationSettings.LakeCoverage`.
+- Calls `TerrainGeometry.DistanceTo` (distance-transform from a boolean mask) and `TerrainGeometry.Neighbours` (4-neighbour iteration) and `TerrainGeometry.Normalized` / `TerrainGeometry.Ridged` (noise-value shaping) — all from `TerrainGeometry.cs`.
+- Uses the `WaterBody` enum (`None`/`Ocean`/`Lake`/`River`, defined alongside `TerrainWorld`/`GeneratedTerrainField`).
+- Called by `TerrainFieldBuilder.cs` (`TerrainWaterStage.Apply(world, noise, settings)`) before `TerrainElevationStage`, per the class's own doc comment — this is the pipeline orchestrator, not visible from this file itself.
+- Does not touch `TerrainTileReductionStage`'s tile-resolution `Cell*` arrays, nor rivers (`WaterBody.River` is read in the reduction-stage tallies but never written here — rivers are assigned by a separate stage not in this batch).
+
+## Notes
+
+- `ClassifyWaterBodies`'s final sweep condition is `!world.Land[index] && world.Water[index] != WaterBody.Ocean` — this also silently reclassifies any non-land sample that a later/earlier stage had already marked `WaterBody.River` (rivers are not land) back to `WaterBody.Lake`, *if* this stage runs after river assignment. Given the class doc comment states this stage runs before `TerrainElevationStage` and rivers are typically carved from elevation/flow data, this is very likely safe in the actual pipeline order (rivers not yet assigned when this runs), but the code itself contains no explicit guard or comment protecting that ordering assumption — a future pipeline reordering that moved river assignment earlier would silently overwrite rivers as lakes with no warning.
+- `CarveLakeBasins`'s budget accounting (`budget = Mathf.Max(1, requested - carved)` recomputed per seed, checked with `grown < budget` inside the frontier loop) can overshoot `requested` by up to one sample per basin's last growth step is not possible here since the while-loop condition is checked before each dequeue — actual carved count is bounded correctly by `carved >= requested` in the outer loop, but a single basin can still slightly overshoot its own per-seed budget by one because `grown < budget` is checked before, not after, each claim. Minor, self-correcting on the next seed's budget check, no gameplay-visible effect beyond a possible off-by-one basin size.
+- No exported/tunable settings on this static class itself — `LakeCoverage` lives on `TerrainGenerationSettings`, so there is nothing here for the "accepted but unread" check; `LakeCoverage` is read and clearly acted on.
+- Class and method doc comments are accurate and match the code; no stale comments found.

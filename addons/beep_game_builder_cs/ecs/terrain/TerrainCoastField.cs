@@ -42,7 +42,7 @@ namespace Beep.ECS
         /// encoding, so bands wider than it cannot be expressed.
         /// </summary>
         public static ImageTexture Build(
-            GridTerrainGeneratorComponent generator, Vector2I size, int detail, float rangeTiles)
+            TerrainGeneratorComponent generator, Vector2I size, int detail, float rangeTiles)
         {
             ArgumentNullException.ThrowIfNull(generator);
 
@@ -95,7 +95,7 @@ namespace Beep.ECS
         /// tile reads as "not sea" and the surf is cut off exactly where it
         /// should be strongest.
         /// </summary>
-        private static bool[] OceanCells(GridTerrainGeneratorComponent generator, Vector2I size)
+        private static bool[] OceanCells(TerrainGeneratorComponent generator, Vector2I size)
         {
             GeneratedTerrainField field = generator.ResolveField();
             int width = Mathf.Max(1, size.X);

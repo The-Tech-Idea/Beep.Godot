@@ -95,7 +95,7 @@ namespace Beep.ECS
         /// mapping can drift from it.
         /// </summary>
         public static readonly string[] ProjectionNames =
-            { "Painted", "Game tiles", "Isometric" };
+            { "Painted", "Game tiles", "Isometric", "Isometric tiles" };
 
         public static readonly string[] MapSizeNames =
         {
@@ -136,11 +136,20 @@ namespace Beep.ECS
             _ => 0.52f,
         };
 
-        /// <summary>Land multiplier. Higher seas leave less of it.</summary>
+        /// <summary>
+        /// Land multiplier. Higher seas leave less of it.
+        ///
+        /// Sea level is a TRIM, not a different map. Civilization moves the
+        /// land/water ratio by roughly 7-12% across its three settings, and that
+        /// is the useful range: enough that a high-seas world feels tighter,
+        /// little enough that the map type still decides the shape. At the 1.30
+        /// and 0.70 this used to carry, the measured swing was +33%/-28% - sea
+        /// level was overpowering the map type it is supposed to modify.
+        /// </summary>
         public static float LandScaleFor(TerrainSeaLevel level) => level switch
         {
-            TerrainSeaLevel.Low => 1.30f,
-            TerrainSeaLevel.High => 0.70f,
+            TerrainSeaLevel.Low => 1.12f,
+            TerrainSeaLevel.High => 0.88f,
             _ => 1.0f,
         };
 
@@ -152,16 +161,6 @@ namespace Beep.ECS
             _ => 1.0f,
         };
 
-        /// <summary>
-        /// Aridity, which the biome table reads directly rather than as a
-        /// multiplier: it is a position on the dry-to-wet scale, not an amount.
-        /// </summary>
-        public static float DrynessFor(TerrainRainfall rainfall) => rainfall switch
-        {
-            TerrainRainfall.Arid => 0.80f,
-            TerrainRainfall.Wet => 0.08f,
-            _ => 0.25f,
-        };
 
         public static float ResourceScaleFor(TerrainResourceLevel level) => level switch
         {

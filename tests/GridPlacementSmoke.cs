@@ -3874,7 +3874,7 @@ public partial class GridPlacementSmoke : Node
         };
         root.AddChild(cells);
 
-        var generator = new GridTerrainGeneratorComponent
+        var generator = new TerrainGeneratorComponent
         {
             Name = "TerrainGenerator",
             CellDataPath = new NodePath("../Cells"),
@@ -3885,9 +3885,11 @@ public partial class GridPlacementSmoke : Node
         root.AddChild(generator);
 
         int generated = generator.GenerateTerrain();
+        int generatedCellCount = cells.CellCount;
+        string generatedKind = cells.GetTerrainKind(new Vector2I(2, 1));
         bool generatedCellData = generated == 6
-            && cells.CellCount == 6
-            && cells.GetTerrainKind(new Vector2I(2, 1)) == "water";
+            && generatedCellCount == 6
+            && generatedKind == "deep_water";
 
         var nav = new GridNavigationComponent
         {
@@ -3911,7 +3913,12 @@ public partial class GridPlacementSmoke : Node
 
         root.QueueFree();
 
-        if (!Expect(generatedCellData, "GridTerrainGenerator did not write painter-derived terrain kinds into GridCellData."))
+        // Report what was actually seen: a bare false here cost a whole debugging
+        // pass, because three different facts share one bool.
+        if (!Expect(generatedCellData,
+                $"TerrainGeneratorComponent did not write generated terrain kinds into GridCellData "
+                + $"(generated={generated} expected 6, cellCount={generatedCellCount} expected 6, "
+                + $"kind at (2,1)='{generatedKind}' expected 'deep_water')."))
             return false;
 
         if (!Expect(navigationUsesGeneratedTerrain, "GridNavigation did not consume terrain generated into GridCellData."))

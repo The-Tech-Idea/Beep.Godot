@@ -173,5 +173,25 @@ namespace Beep.ECS
         /// makes mountain ranges read as ranges rather than round blobs.
         /// </summary>
         public static float Ridged(float signedNoise) => 1.0f - Mathf.Abs(signedNoise);
+
+        /// <summary>
+        /// Deterministic per-cell hash in [0, 1). One seed plus a cell decides
+        /// the same value every time, which is what lets jitter/selection be
+        /// reproduced from a seed instead of stored.
+        ///
+        /// This was copy-pasted, byte-for-byte, into eight separate files
+        /// before being pulled here - the same Wang-style mix each time
+        /// (multiply-XOR-shift-multiply-XOR-shift, masked to 24 bits), two of
+        /// the eight even with the seed and cell arguments in a different
+        /// order, which is itself the evidence they were pasted rather than
+        /// shared.
+        /// </summary>
+        public static float Hash01(int x, int y, int seed)
+        {
+            uint value = (uint)(x * 374761393) + (uint)(y * 668265263) + (uint)seed;
+            value = (value ^ (value >> 13)) * 1274126177u;
+            value ^= value >> 16;
+            return (value & 0x00ffffffu) / 16777215.0f;
+        }
     }
 }

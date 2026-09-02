@@ -103,5 +103,35 @@ func _initialize() -> void:
 			print("%s asked %2d -> %2d masses, worst fill %d%%%s  %s"
 				% [size, want, m.size(), int(worst * 100.0), note, "ok" if ok else "FAIL"])
 
+	# The Mainland/Archipelago overlap: Mainland must never ask for MORE
+	# landmasses than Archipelago at the same ArchipelagoIslandCount - continents
+	# are meant to be few and large, islands many and small. Reading the axis
+	# unscaled gave both modes the SAME requested count, and only the land
+	# coverage told them apart. Only the REQUESTED count is checked here - it
+	# is a pure function of the settings, not of what the geometry manages to
+	# fit - so the map stays small and LandmassScale is not tuned per count.
+	#
+	# The two floor at the same minimum of 2, so at ArchipelagoIslandCount's
+	# own minimum they tie there and nowhere else: Archipelago cannot ask for
+	# fewer than 2 either, and Mainland asking for fewer would reintroduce the
+	# single-mass-filling-the-map failure this generator was rewritten to stop
+	# producing. So the general check is "never more", and strict "fewer" is
+	# asserted at the shipped default (4) - the concrete case this fix targets.
+	gen.BoundsSize = Vector2i(32, 32)
+	gen.LandmassScale = 0.5
+	for count in [2, 4, 6, 8, 10, 12]:
+		gen.ArchipelagoIslandCount = count
+		gen.Landform = 0
+		gen.GenerateTerrain()
+		var mainland_requested: int = gen.GetGenerationDiagnostics().get("requested_landmass_count", -1)
+		gen.Landform = 2
+		gen.GenerateTerrain()
+		var archipelago_requested: int = gen.GetGenerationDiagnostics().get("requested_landmass_count", -1)
+		var overlap_ok: bool = mainland_requested <= archipelago_requested
+		if count == 4: overlap_ok = overlap_ok and mainland_requested < archipelago_requested
+		if not overlap_ok: failed += 1
+		print("island count %2d -> mainland asks %d, archipelago asks %d  %s"
+			% [count, mainland_requested, archipelago_requested, "ok" if overlap_ok else "FAIL"])
+
 	print("RESULT: ", "all checks passed" if failed == 0 else "%d FAILED" % failed)
 	quit(1 if failed > 0 else 0)

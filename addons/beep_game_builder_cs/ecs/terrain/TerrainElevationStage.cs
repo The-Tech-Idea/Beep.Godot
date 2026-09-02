@@ -18,7 +18,7 @@ namespace Beep.ECS
     internal static class TerrainElevationStage
     {
 
-        public static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
+        public static void Apply(TerrainWorld world, TerrainNoiseSet noise)
         {
             int[] fromWater = TerrainGeometry.DistanceTo(Negate(world.Land), world.Width, world.Height);
             fromWater.CopyTo(world.CoastDistance, 0);

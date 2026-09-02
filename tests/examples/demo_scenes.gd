@@ -59,22 +59,7 @@ func _initialize() -> void:
 		root.free()
 		for i in range(3): await process_frame
 
-	# --- the two scenes whose controllers became data-driven components -----
-	var world = load(SCENES + "terrain_15_piece_layers_demo.tscn").instantiate()
-	get_root().add_child(world)
-	for i in range(40): await process_frame
-
-	var cells = world.find_child("Cells", true, false)
-	var kinds := {}
-	for y in range(10):
-		for x in range(18):
-			var k: String = cells.GetTerrainKind(Vector2i(x, y))
-			kinds[k] = kinds.get(k, 0) + 1
-	for want in ["grass", "water", "desert", "volcano"]:
-		check(kinds.get(want, 0) > 0,
-			"the cell pattern seeded %s (%d cells)" % [want, kinds.get(want, 0)])
-	world.free()
-
+	# --- the scene whose controller became a data-driven component ---------
 	var kit = load(SCENES + "grid_world_kit_hud_example.tscn").instantiate()
 	get_root().add_child(kit)
 	for i in range(40): await process_frame

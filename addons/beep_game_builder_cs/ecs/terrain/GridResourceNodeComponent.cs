@@ -26,6 +26,20 @@ namespace Beep.ECS
         [Export] public bool UseExplicitCell { get; set; } = false;
         [Export] public Vector2I Cell { get; set; } = Vector2I.Zero;
         [Export] public string ResourceId { get; set; } = "wood";
+
+        /// <summary>
+        /// The shared resource catalog - the SAME one the generator uses to decide
+        /// what the map holds. Assign it and this deposit takes its rules from the
+        /// definition for ResourceId: how much a deposit of that resource holds,
+        /// what a gather yields, how long it takes.
+        ///
+        /// The split is deliberate. The catalog owns what a resource IS, the same
+        /// answer everywhere it appears; this node owns THIS deposit - which cell
+        /// it is on and how much is left in it. Without a catalog the exports
+        /// below are the answer, which is the case for a game that places a few
+        /// nodes by hand and has no resource system.
+        /// </summary>
+        [Export] public ResourceCatalog? Catalog { get; set; }
         [Export(PropertyHint.Range, "0,9999,1")] public int Amount { get; set; } = 5;
         [Export(PropertyHint.Range, "1,9999,1")] public int AmountPerGather { get; set; } = 1;
         [Export] public string GatherJobKind { get; set; } = "gather";
@@ -50,11 +64,31 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            ApplyCatalogDefinition();
             ResolveReferences();
             AddToGroup(ResourceNodeGroup);
             if (MarkCellOccupiedOnReady && !IsDepleted)
                 ReserveCurrentCell();
             UpdateConfigurationWarnings();
+        }
+
+        /// <summary>
+        /// Takes this deposit's rules from the shared catalog. Amount is seeded
+        /// rather than clamped, because it is this deposit's remaining stock from
+        /// here on - the catalog says what a full one holds, not what is left in
+        /// this one after it has been worked.
+        /// </summary>
+        private void ApplyCatalogDefinition()
+        {
+            ResourceDefinition? definition = Catalog?.Find(Normalize(ResourceId));
+            if (definition is null)
+                return;
+
+            Amount = definition.Amount;
+            AmountPerGather = definition.AmountPerGather;
+            GatherSeconds = definition.GatherSeconds;
+            GatherJobKind = definition.GatherJobKind;
+            MarkCellOccupiedOnReady = definition.OccupiesCell;
         }
 
         public override void _ExitTree()

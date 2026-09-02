@@ -1,7 +1,7 @@
 extends SceneTree
 
 const CELL_DATA_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridCellDataComponent.cs")
-const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/GridTerrainGeneratorComponent.cs")
+const GENERATOR_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -14,14 +14,18 @@ func _run() -> void:
 	var generator := GENERATOR_SCRIPT.new()
 	generator.name = "Generator"
 	generator.set("CellDataPath", NodePath("../Cells"))
-	generator.set("UsePainterSettings", false)
 	generator.set("BoundsSize", Vector2i(64, 40))
 	generator.set("Seed", 31415)
 	generator.set("LakeCoverage", 0.18)
 	generator.set("LakeFrequencyMultiplier", 0.11)
-	generator.set("SwampCoverage", 0.45)
-	generator.set("SnowCoverage", 0.45)
-	generator.set("IceCoverage", 0.45)
+	# Which biomes appear is decided by the climate axes and the biome quotas now,
+	# not by per-biome coverage dials. SwampCoverage/SnowCoverage/IceCoverage were
+	# removed with the old biome model; setting them here asserted against three
+	# properties that no longer exist, and Godot's set() on a missing property is a
+	# silent no-op - so the check was reading defaults and calling them a request.
+	# Biome selection is covered by vegetation.gd and views.gd. What is unique here
+	# is the TOPOLOGY below, which rivers would confound the same way.
+	generator.set("RiverDensity", 0.0)
 	root.add_child(generator)
 	await process_frame
 	generator.call("GenerateTerrain")
@@ -33,9 +37,6 @@ func _run() -> void:
 			if counts.has(terrain):
 				counts[terrain] += 1
 
-	if counts["swamp"] == 0 or counts["snow"] == 0 or counts["ice"] == 0:
-		_fail("Feature coverage did not produce all requested feature biomes: %s" % counts)
-		return
 	if counts["deep_water"] + counts["shallow_water"] == 0:
 		_fail("Water coverage did not produce the unified water family.")
 		return

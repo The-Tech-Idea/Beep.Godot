@@ -1,17 +1,17 @@
 # Beep.Godot Full Addon Guide
 
-Generated from the addon source tree on 2026-08-28 01:16:35 +03:00. Regenerate with powershell -ExecutionPolicy Bypass -File tools/Generate-AddonGuide.ps1.
+Generated from the addon source tree on 2026-09-02 06:43:43 +03:00. Regenerate with powershell -ExecutionPolicy Bypass -File tools/Generate-AddonGuide.ps1.
 
 ## Inventory
 
 | Item | Count |
 | --- | ---: |
-| Addon C# source files | 426 |
-| Public C# classes | 417 |
-| Godot [GlobalClass] editor-addable types | 353 |
+| Addon C# source files | 486 |
+| Public C# classes | 443 |
+| Godot [GlobalClass] editor-addable types | 377 |
 | GDScript files across addons | 29 |
-| Template scenes | 87 |
-| Texture assets | 392 |
+| Template scenes | 97 |
+| Texture assets | 532 |
 | Audio assets | 75 |
 | Skin genres | 10 |
 
@@ -20,7 +20,7 @@ Generated from the addon source tree on 2026-08-28 01:16:35 +03:00. Regenerate w
 1. Add a normal Godot scene root first: Node2D for world scenes, Control for HUD/menu scenes, or Resource files for data.
 2. Add Beep components from Godot's Add Node dialog. The editor-addable column below means the class is marked with [GlobalClass].
 3. Build UI and HUD layout at design time. Attach kit/runtime UI scripts to authored Control nodes instead of creating whole panels in code.
-4. For grid games, use PainterlyTerrainComponent plus GridProjectionComponent, GridCellDataComponent, GridPlacementComponent, GridNavigationComponent, GridJobQueueComponent, and GridWorkerSpawnerComponent as separate nodes.
+4. For grid games, use TerrainWorldComponent plus GridProjectionComponent, GridCellDataComponent, GridPlacementComponent, GridNavigationComponent, GridJobQueueComponent, and GridWorkerSpawnerComponent as separate nodes.
 5. Use templates as starter scenes, not as black boxes. Preserve expected node names when a template controller depends on them.
 
 ## Core Builder Services
@@ -318,15 +318,15 @@ Types in this section: 36
 
 ## 2D Grid, Terrain, Builder Systems
 
-Painterly terrain, grid projection, tilemap bridging, selection, placement, roads, navigation, path following, job queues, resources, workers, spawners, and builder HUD/resource panels.
+A seeded terrain engine with painted, tile and isometric views, plus grid projection, tilemap bridging, selection, placement, roads, navigation, path following, job queues, resources, workers, spawners, and builder HUD/resource panels.
 
 Use when: Use this for top-down, isometric, city-builder, RTS, farming, survival, and Settlers-style workflows.
 
-Scene pattern: Build the world at design time with authored Node2D/Control nodes, then attach grid components. Prefer painterly terrain or sparse visual TileMap layers over huge fully painted maps.
+Scene pattern: Build the world at design time with authored Node2D/Control nodes, then attach grid components. Let TerrainWorldComponent create and draw the map - its Generate map button does so in the editor and the result is saved with the scene.
 
 Source areas: ecs/terrain
 
-Types in this section: 49
+Types in this section: 75
 
 | Type | Base | Editor-addable | Summary | Source |
 | --- | --- | --- | --- | --- |
@@ -341,6 +341,8 @@ Types in this section: 49
 | GridCellOverlayComponent | Node2D | Yes | Lightweight visual overlay for GridCellDataComponent. It draws cell-state fills/outline cues for farming and builder workflows before a project has custom TileMap art for every state. | addons/beep_game_builder_cs/ecs/terrain/GridCellOverlayComponent.cs |
 | GridCropCatalogComponent | Node | Yes | Lookup table for farming crop definitions. Pair with GridToolActionComponent so the plant tool can read maturity days and season restrictions from data. | addons/beep_game_builder_cs/ecs/terrain/GridCropCatalogComponent.cs |
 | GridCropDefinition | Resource | Yes | Crop data for GridCropCatalogComponent. Use one resource per crop so farming games can configure maturity, valid seasons, regrowth, and harvest yield in the Inspector instead of hard-coding tool behavior. | addons/beep_game_builder_cs/ecs/terrain/GridCropDefinition.cs |
+| GridDispatchBoardComponent | Node | Yes | Runs a set of dispatchable tasks: a button asks for one, a vehicle drives out, the world changes when it arrives, and the vehicle returns. This is the settlers-style work loop with the tasks taken out of it. The controller it replaces hardcoded eight of them as a switch over button names, with screen coordinates as ... | addons/beep_game_builder_cs/ecs/terrain/GridDispatchBoardComponent.cs |
+| GridDispatchTaskDefinition | Resource | Yes | One dispatchable job: send a vehicle somewhere, and change the world when it arrives. This is the shape every task in a settlers-style loop shares - clear the brush, hoe the plots, water them, plant, harvest, lay a road. They differ only in where the vehicle goes, what becomes visible or hidden, and what the wallet ... | addons/beep_game_builder_cs/ecs/terrain/GridDispatchTaskDefinition.cs |
 | GridInteractionCursorComponent | Node2D | Yes | Draws a lightweight cell cursor for the active grid interaction. It uses GridProjectionComponent.CellCorners, so the same node works for top-down square cells and isometric diamond cells. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionCursorComponent.cs |
 | GridInteractionModeBarComponent | Control | Yes | HUD button bar for GridInteractionModeComponent. It lets players switch between select, inspect, tool, build, and disabled map interaction modes. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeBarComponent.cs |
 | GridInteractionModeComponent | Node | Yes | Coordinates map interaction modes so selection, tools, and placement do not all consume the same click. Attach one scene-level node and point it at the existing grid components. | addons/beep_game_builder_cs/ecs/terrain/GridInteractionModeComponent.cs |
@@ -377,8 +379,32 @@ Types in this section: 49
 | GridWorkerSpawnerComponent | Node | Yes | Spawns worker, truck, or NPC units from a base/building and wires them to the reusable grid navigation and job systems. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerComponent.cs |
 | GridWorkerSpawnerPanelComponent | Control | Yes | Simple HUD panel for a base, depot, garage, or barracks that spawns worker/truck/NPC units through GridWorkerSpawnerComponent. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerSpawnerPanelComponent.cs |
 | GridWorkerStatusPanelComponent | Control | Yes | Compact HUD panel for worker/truck status. It scans a units root for GridWorkerComponent instances and shows whether each worker is idle, moving, or working. | addons/beep_game_builder_cs/ecs/terrain/GridWorkerStatusPanelComponent.cs |
-| GridWorldStateComponent | Node, ISaveable | Yes | Captures and restores the reusable grid toolkit state: cell data, placement occupancy, navigation blocked cells, selected cells, and jobs. The snapshot is a Godot Dictionary, so it can be stored in GameStateData, JSON, config files, or custom save systems. | addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs |
-| PainterlyTerrainComponent | WorldComponent | Yes | Renders PainterlyTerrainSprite as a saturated plain biome base and PainterlyTerrainDetailSprite above it for overlays. Biome detail is off by default; when enabled, BiomeDetailCoverage, BiomeDetailPatchScale, and BiomeDetailPatchSoftness keep grass clumps, flowers, dunes, pebbles, damp earth, rock cracks, and snow scratches in local regions instead of washing the whole scene. Bundled material textures are opt-in; leave them off when the base should stay clean green or clean sand. Use RenderOffset to place generated sprites from an authored plain Node. | addons/beep_game_builder_cs/ecs/terrain/PainterlyTerrainComponent.cs |
+| GridWorldStateComponent | Node, ISaveable | Yes | Captures and restores the reusable grid toolkit state: cell data, roads, placement occupancy, navigation blocked cells, grid objects, selection, and jobs. The snapshot is a Godot Dictionary, so it can be stored in GameStateData, JSON, config files, or custom save systems. | addons/beep_game_builder_cs/ecs/terrain/GridWorldStateComponent.cs |
+| ModularMountainPrefabComponent | Node2D | Yes | Builds a front-facing mountain from one ramp-free authored base and independently selectable socket-aligned ramp modules. | addons/beep_game_builder_cs/ecs/terrain/ModularMountainPrefabComponent.cs |
+| MountainPrefabGeneratorComponent | Node2D | Yes | Instantiates a complete mountain/island object from a generated prefab manifest. Use this for the reference-style atlas/prefab mountain output: layered Sprite2D pieces for the art, Area2D regions for walkable levels, and anchor markers for castle/player placement. | addons/beep_game_builder_cs/ecs/terrain/MountainPrefabGeneratorComponent.cs |
+| MountainTileMapLayerGeneratorComponent | Node | Yes | Loads one generated mountain/hill asset-pack manifest, builds a runtime TileSetAtlasSource from its atlas, creates or reuses a TileMapLayer, and paints a deterministic top-down mountain footprint. NOT A MAP GENERATOR, and not the source of a map's mountains. This paints VISUALS ONLY from an authored asset pack: it w... | addons/beep_game_builder_cs/ecs/terrain/MountainTileMapLayerGeneratorComponent.cs |
+| ResourceCatalog | Resource | Yes | THE set of resources a world uses - read by the generator to decide what the map holds, and by the economy to know what those things are worth. One catalog, both systems. The generator asks it which resources belong on a terrain kind; a resource node asks it how much a deposit holds and what gathering pays; a HUD as... | addons/beep_game_builder_cs/ecs/terrain/ResourceCatalog.cs |
+| ResourceDefinition | Resource | Yes | What a resource is for, in the Civilization sense. public enum ResourceCategory : byte { Bonus = 0, Luxury = 1, Strategic = 2, } ONE definition of a resource, for the map and for the game alike. It used to be two. The generator had a private record struct listing where each resource occurs, and the economy had bare ... | addons/beep_game_builder_cs/ecs/terrain/ResourceDefinition.cs |
+| SeededTerrainPropScatterComponent | Node2D | Yes | Places a small deterministic set of transparent prop stamps above a generated terrain. Each logical terrain kind has its own optional palette, so desert cells do not receive grass and swamp cells do not receive cactus. This component deliberately accepts individual sprites, not whole sprite sheets. | addons/beep_game_builder_cs/ecs/terrain/SeededTerrainPropScatterComponent.cs |
+| TerrainDataLayersComponent | Node2D | Yes | What each cell of the generated map IS, as real tile data a game can ask about: terrain, resource, feature, relief, water and passability. WHY A LAYER OF ITS OWN rather than reading the layers that draw the map. The tile view spreads its ground across fourteen biome layers, so finding a cell means trying each until ... | addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs |
+| TerrainFeatureRendererComponent | Node2D | Yes | Draws terrain features - woods, jungle, marsh, oasis - as sprites standing on the ground, the way Civilization shows them. This is the difference between a tile that *is* dark green and a tile that has a canopy on it. Colouring the ground cannot read as forest at any zoom; an object can. Sprites come from a sheet, a... | addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs |
+| TerrainGeneratorComponent | Node | Yes | Builds one deterministic terrain field shared by gameplay and rendering. | addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs |
+| TerrainIsometricAutotileRendererComponent | Node2D | Yes | Renders the generated map isometrically using an AUTHORED TileSet whose terrain peering bits do the transition matching. Hard terrain borders are what make an isometric map read as a checkerboard; transition tiles are what make it look finished. This does not choose those tiles itself - it hands whole runs of cells ... | addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricAutotileRendererComponent.cs |
+| TerrainIsometricFeatureRendererComponent | Node2D | Yes | Draws terrain FEATURES - woods, forest, jungle, marsh, oasis - standing on an isometric map. The same features the flat renderer draws, in the other projection. It asks TerrainIsometricRendererComponent where a cell's top face is rather than recomputing the isometric transform: that component owns the projection, th... | addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs |
+| TerrainIsometricRendererComponent | Node2D | Yes | Renders the generated map as an ISOMETRIC TileMapLayer of stacked blocks. Same generator, same cell data, a different projection: this is a third view of the world the pipeline already decided, alongside the flat splat surface and the orthogonal tile map. Nothing here decides terrain - it draws what TerrainGenerator... | addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs |
+| TerrainLabComponent | - | No | Moving and framing the preview: pan, zoom, and fit-to-panel. | addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.Navigation.cs |
+| TerrainLabComponent | Node | Yes | The terrain lab's UI: binds a panel of controls to a and reports what it built. THIS IS ONLY UI. It knows about OptionButtons, a status label and a preview node to pan and zoom. It does not know what a splat renderer is, which projections exist, how a world is generated or how a map is drawn - all of that belongs to... | addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs |
+| TerrainMapOverlayComponent | Node2D | Yes | Draws the generator's gameplay layers over the painted terrain: resource markers and player start positions. This draws with the primitive canvas API rather than sprites so it needs no art, and it lives on its own node so the painted terrain layers are untouched. It reads the generator directly, which is the one own... | addons/beep_game_builder_cs/ecs/terrain/TerrainMapOverlayComponent.cs |
+| TerrainPaintedRendererComponent | Node2D | Yes | Renders terrain as one continuous surface, blended in a shader, rather than as one sprite per tile. This follows how Factorio draws ground (FFF-214): a large seamless material texture is sampled in WORLD space and terrain shapes are cut out of it, so a field of grass is one continuous texture instead of the same sta... | addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs |
+| TerrainReliefRendererComponent | Node2D | Yes | Draws terrain RELIEF - hills and mountains - as objects standing on the ground, the way the feature renderer draws woods. The generator already decides relief per tile and writes it to the cell data, but until now the only trace of it in a rendered map was the ground material turning grey. Height cannot read as heig... | addons/beep_game_builder_cs/ecs/terrain/TerrainReliefRendererComponent.cs |
+| TerrainResourceRendererComponent | Node2D | Yes | - | addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs |
+| TerrainTileRendererComponent | Node2D | Yes | Renders generated terrain as real Godot tiles, one autotiled layer per biome, stacked in a fixed order. This is the renderer to use when a game has tileset art. Borders come from 15-piece TRANSITION TILES, which is how a 2D game gets a smooth coastline while every tile stays a discrete gameplay tile - as opposed to ... | addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs |
+| TerrainTransitionLayerComponent | Node | Yes | Maintains a display TileMapLayer for one logical terrain kind. By default it delegates connection selection to Godot TileSet terrains; the legacy manual dual-grid mapping is available only for authored atlases with a verified mask-to-tile layout. | addons/beep_game_builder_cs/ecs/terrain/TerrainTransitionLayerComponent.cs |
+| TerrainWorldCameraComponent | Node | Yes | Frames a through a camera. This was written three times, once per demo controller, and the copies disagreed. The tile demo framed a flat rectangle for every projection, so an isometric map - a diamond extending to the LEFT of its own origin - fell half off the screen. The isometric demo got that right and had its ow... | addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs |
+| TerrainWorldComponent | - | No | Drawing the built world: which renderers a projection uses, and how big the result is on screen. | addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.Drawing.cs |
+| TerrainWorldComponent | Node | Yes | Creates a world and draws it. THE map/world creation component. Everything a game needs to make a map is here and nothing a lab needs is: no controls, no panel, no camera. A developer builds their own creation screen by dropping this in, setting the axes, and calling Build - or by setting BuildOnReady and writing no... | addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs |
+| TerrainWorldStatusComponent | Node | Yes | Shows a built world's own report in a Label. Each demo formatted this itself, and the copies disagreed about the same field: one printed "continents", another "landmasses", a third omitted lakes entirely. None of them was wrong about the map - they were wrong about each other, which is what a status line assembled p... | addons/beep_game_builder_cs/ecs/terrain/TerrainWorldStatusComponent.cs |
+| TextureElevationTileSetGeneratorComponent | Node | Yes | Generates a reference-style elevated 2D terrain atlas from one top texture and an optional cliff texture. The generated atlas is not a flat autotile mask: each tile region reserves space for a walkable top surface plus cliffs, stacked walls, ramps, stairs, and shadows. | addons/beep_game_builder_cs/ecs/terrain/TextureElevationTileSetGeneratorComponent.cs |
 
 ## Runtime UI Components
 
@@ -439,7 +465,7 @@ Types in this section: 94
 | MeterBarComponent | UIComponent | Yes | A labelled value meter - the widget that replaces `"Health: 72"` text across the genre HUDs. Shared by survival (health/hunger/thirst/stamina), rpg (health/mana), shooter (health/shield) and citybuilder (power/water). Three things a bare does not do, and the reason this exists: * **Thresholds.** Crossing or recolour... | addons/beep_game_builder_cs/ecs/ui/MeterBarComponent.cs |
 | MinimapComponent | Godot.Control | Yes | Circular minimap. Extends Control (one documented exception, matching the ProgressRingComponent precedent) because it needs _Draw to render blips. Place it as a child of a HUD CanvasLayer. Blips are nodes in a tracked group (default "minimap_blips"); each blip's global position is mapped into the minimap's world rad... | addons/beep_game_builder_cs/ecs/ui/MinimapComponent.cs |
 | ModalComponent | UIComponent | Yes | Modal dialog overlay component. Attach to any Control to make it a modal popup. Blind - works for dialogs, confirmations, settings, forms. Creates dark overlay behind the dialog, blocks input to background. The open/close pop animates the dialog's `scale`, which assumes the dialog is a free-positioned Control (an ov... | addons/beep_game_builder_cs/ecs/ui/ModalComponent.cs |
-| NinePatchFrameComponent | UIComponent | Yes | Paints an explicitly assigned 9-patch frame behind its parent Control. WHEN TO USE THIS - and when not to: This is not part of the UI kit skin pipeline. The kit uses procedural theme colors, geometry, and style tokens. Use this only for a deliberate scene-authored frame that needs a specific NinePatchRect texture as... | addons/beep_game_builder_cs/ecs/ui/NinePatchFrameComponent.cs |
+| NinePatchFrameComponent | UIComponent | Yes | Disables legacy 9-patch frame chrome on a parent Control. WHEN TO USE THIS - and when not to: This is not part of the UI kit skin pipeline. The kit uses procedural theme colors, geometry, and style tokens. The previous texture override path made kit screens drift back into atlas-backed chrome, so this component now ... | addons/beep_game_builder_cs/ecs/ui/NinePatchFrameComponent.cs |
 | PanelFrameComponent | Godot.Control | Yes | A game panel: outer frame, recessed inner well, and a title banner that OVERHANGS the top edge. This is the most repeated element across every kit in `Example_Art/gameui1..7.png`, and the one our UI got most consistently wrong. Not one of the seven puts a title inside the box - the header is always a separate piece ... | addons/beep_game_builder_cs/ecs/ui/PanelFrameComponent.cs |
 | PanelShape | - | No | Per-node-type shape/sizing overrides pulled from a genre's geometry.json "shapes" block. Parsed by and held on . Each nested type corresponds to one Godot UI node family (Panel, Input, Progress, ...) and contains the numeric "knobs" the theming engine uses instead of hardcoded literals. Defaults match the legacy hardc... | addons/beep_game_builder_cs/ecs/ui/ShapeOverrides.cs |
 | PauseComponent | UIComponent | Yes | Optional self-contained pause controller for a CUSTOM pause overlay. The framework's default pause needs none of this: shows the main menu over the frozen game and toggles it. Use this only when you build your own pause overlay scene and want it to pause/toggle itself. Attach it as a child of your overlay's root (a ... | addons/beep_game_builder_cs/ecs/ui/PauseComponent.cs |
@@ -668,6 +694,7 @@ Types in this section: 9
 | citybuilder_main | CityBuilderMain : Node2D | addons/beep_game_builder_cs/templates/scenes/citybuilder_main.tscn |
 | dialog_template | DialogTemplate : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/dialog_template.tscn |
 | enemy_template | Enemy : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/enemy_template.tscn |
+| front_2_5d_mountain_prefab_creator | Front25DMountainPrefabCreator : Node2D | addons/beep_game_builder_cs/templates/scenes/front_2_5d_mountain_prefab_creator.tscn |
 | game_over | GameOver : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/game_over.tscn |
 | grid_base_depot | GridBaseDepot : Node2D | addons/beep_game_builder_cs/templates/scenes/grid_base_depot.tscn |
 | grid_worker_unit | GridWorkerUnit : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn |
@@ -691,6 +718,7 @@ Types in this section: 9
 | load_game_menu | LoadGameMenu : Control | addons/beep_game_builder_cs/templates/scenes/load_game_menu.tscn |
 | main_game | MainGame : Node | addons/beep_game_builder_cs/templates/scenes/main_game.tscn |
 | main_menu | MainMenu : Control | addons/beep_game_builder_cs/templates/scenes/main_menu.tscn |
+| modular_front_2_5d_mountain_creator | ModularFront25DMountainCreator : Node2D | addons/beep_game_builder_cs/templates/scenes/modular_front_2_5d_mountain_creator.tscn |
 | pickup_template | PickupTemplate : Area2D | addons/beep_game_builder_cs/templates/scenes/pickup_template.tscn |
 | level_results | LevelResults : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/platformer/level_results.tscn |
 | level_select | LevelSelect : Control | addons/beep_game_builder_cs/templates/scenes/platformer/level_select.tscn |
@@ -706,6 +734,7 @@ Types in this section: 9
 | race_results | RaceResults : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/racing/race_results.tscn |
 | vehicle_select | VehicleSelect : Control | addons/beep_game_builder_cs/templates/scenes/racing/vehicle_select.tscn |
 | racing_main | RacingMain : Node2D | addons/beep_game_builder_cs/templates/scenes/racing_main.tscn |
+| reference_mountain_prefab_creator | LowPolyMountainPrefabCreator : Node2D | addons/beep_game_builder_cs/templates/scenes/reference_mountain_prefab_creator.tscn |
 | robot_npc_template | RobotNPC : CharacterBody2D | addons/beep_game_builder_cs/templates/scenes/robot_npc_template.tscn |
 | character | Character : Control | addons/beep_game_builder_cs/templates/scenes/rpg/character.tscn |
 | inventory | Inventory : Control | addons/beep_game_builder_cs/templates/scenes/rpg/inventory.tscn |
@@ -726,19 +755,24 @@ Types in this section: 9
 | crafting | Crafting : Control | addons/beep_game_builder_cs/templates/scenes/survival/crafting.tscn |
 | world_map | WorldMap : Control | addons/beep_game_builder_cs/templates/scenes/survival/world_map.tscn |
 | survival_main | SurvivalMain : Node2D | addons/beep_game_builder_cs/templates/scenes/survival_main.tscn |
+| base_worker_templates_example | BaseWorkerTemplatesExample : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/base_worker_templates_example.tscn |
+| grid_world_kit_hud_example | OilfieldSettlersShowcase : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn |
+| terrain_generation_layers_demo | TerrainGenerationLayersDemo : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generation_layers_demo.tscn |
+| terrain_generator_lab | TerrainGeneratorLab : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn |
+| terrain_iso_demo | TerrainIsoDemo : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/terrain_iso_demo.tscn |
+| terrain_splat_demo | TerrainSplatDemo : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/terrain_splat_demo.tscn |
+| terrain_tilemap_demo | TerrainTileMapDemo : Node2D | addons/beep_game_builder_cs/templates/scenes/terrain/terrain_tilemap_demo.tscn |
 | theme_gallery | ThemeGallery : Control | addons/beep_game_builder_cs/templates/scenes/theme_gallery.tscn |
 | pause_subscreen | PauseSubscreen : CanvasLayer | addons/beep_game_builder_cs/templates/scenes/topdown/pause_subscreen.tscn |
 | topdown_main | TopDownMain : Node2D | addons/beep_game_builder_cs/templates/scenes/topdown_main.tscn |
 
 ## Runnable Examples
 
-- tests/examples/grid_world_kit_hud_example.tscn: playable Settlers-style builder slice using terrain, resources, tools, workers, and kit HUD.
-- tests/examples/grid_world_painterly_demo.tscn: focused terrain/grid sample where the bridge runs terrain generation, renders the painterly base, layers authored Kenney Map Pack detail props, seeds roads/land, reserves a depot footprint, spawns a worker, and verifies save-state restore.
-- tests/examples/painterly_terrain_biome_gallery.tscn: side-by-side painterly terrain preset gallery showing base color plus biome detail layers for desert, grass, rock, swamp, snow/ice, and sea.
-- tests/examples/base_worker_templates_example.tscn: focused depot/worker template scene.
+- addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn: playable Settlers-style builder slice using terrain, resources, tools, workers, and kit HUD.
+- addons/beep_game_builder_cs/templates/scenes/terrain/base_worker_templates_example.tscn: focused depot/worker template scene.
 
 ## Verification
 
 - dotnet build Beep.Godot.csproj --no-restore
 - powershell -ExecutionPolicy Bypass -File tests/runtime_smoke.ps1 -GodotCommand H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe -TimeoutSeconds 90
-- powershell -ExecutionPolicy Bypass -File tests/render_scene_probe.ps1 -GodotCommand H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe -ScenePath res://tests/examples/grid_world_painterly_demo.tscn -TimeoutSeconds 90
+- powershell -ExecutionPolicy Bypass -File tests/render_scene_probe.ps1 -GodotCommand H:/dev/Godot/Godot_v4.7-stable_mono_win64.exe -ScenePath res://addons/beep_game_builder_cs/templates/scenes/terrain/grid_world_kit_hud_example.tscn -TimeoutSeconds 90

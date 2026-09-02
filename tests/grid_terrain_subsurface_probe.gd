@@ -16,12 +16,15 @@ const PROSPECTING := preload("res://addons/beep_game_builder_cs/ecs/grid/GridPro
 const TRANSPORT_MANAGER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridTransportManagerComponent.cs")
 const EXTRACTION_MANAGER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridExtractionManagerComponent.cs")
 const STORAGE := preload("res://addons/beep_game_builder_cs/ecs/grid/GridStorageComponent.cs")
+const PIPELINE := preload("res://addons/beep_game_builder_cs/ecs/grid/GridTransportChainComponent.cs")
+const HAULER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridHaulerComponent.cs")
 
 # A transporter written in PURE GDSCRIPT: no interface, no C# - just the
 # contract's members by name. If this participates, the managers are truly
 # open to both languages.
 class GdTransporter extends Node:
 	var IsBusy := false
+	var TransportRate := 1.0
 	var hauls: Array = []
 	var stored := {}
 	var capacity := 999
@@ -44,6 +47,16 @@ class GdTransporter extends Node:
 		var released: int = min(held, amount)
 		stored[id] = held - released
 		return released
+
+	func Stored(id: String) -> int:
+		return int(stored.get(id, 0))
+
+	func StoredIds() -> Array:
+		var ids: Array = []
+		for id in stored.keys():
+			if int(stored[id]) > 0:
+				ids.append(id)
+		return ids
 
 	func RequestHaul(from_cell: Vector2i, id: String, amount: int) -> bool:
 		hauls.append([from_cell, id, amount])
@@ -553,19 +566,152 @@ func _run() -> void:
 	rig4.add_child(rig4_extractor)
 	await process_frame
 
-	# One cycle yields 3: 2 fit the buffer, 1 overflows to the wallet.
+	# A cycle would yield 3, but only 2 fit: source backpressure draws only
+	# what the buffer holds - the rest stays IN THE DEPOSIT, and nothing
+	# leaks anywhere.
 	rig4_extractor.call("Tick", 0.6)
 	check(int(rig4_extractor.call("Stored", "probe_oil")) == 2
 		and int(rig4_extractor.get("CurrentLoad")) == 2,
 		"a buffered extractor fills its own unload port (%d held)" % int(rig4_extractor.get("CurrentLoad")))
-	check(int(buffer_wallet.call("GetAmount", "probe_oil")) == 1,
-		"buffer overflow goes to the wallet - yield is never lost")
+	check(int(buffer_wallet.call("GetAmount", "probe_oil")) == 0,
+		"source backpressure never leaks yield around the chain")
+	rig4_extractor.call("Tick", 0.6)
+	check(bool(rig4_extractor.get("IsStalled")) and int(rig4_extractor.get("CurrentLoad")) == 2,
+		"a full buffer shuts the pump in with the deposit intact")
 
 	var piped: int = int(transport.call("Transfer", rig4_extractor, tank, "probe_oil", 99))
 	check(piped == 2
 		and int(tank.call("Stored", "probe_oil")) == 2
 		and int(rig4_extractor.get("CurrentLoad")) == 0,
 		"Transfer pipes the extractor's buffer into a tank - extractor to storage, port to port (%d moved)" % piped)
+	rig4_extractor.call("Tick", 0.6)
+	check(not bool(rig4_extractor.get("IsStalled")) and int(rig4_extractor.get("CurrentLoad")) == 2,
+		"draining the buffer resumes the shut-in pump by itself")
+
+	# Dispatch prefers the FASTEST accepting transporter, whatever order they
+	# registered in - a pipeline outranks a truck outranks a mule.
+	var speed_manager: Node = TRANSPORT_MANAGER.new()
+	speed_manager.name = "SpeedManager"
+	root.add_child(speed_manager)
+	var mule := GdTransporter.new()
+	mule.name = "Mule"
+	mule.TransportRate = 1.0
+	root.add_child(mule)
+	var express := GdTransporter.new()
+	express.name = "Express"
+	express.TransportRate = 10.0
+	root.add_child(express)
+	speed_manager.call("Register", mule)
+	speed_manager.call("Register", express)
+	speed_manager.call("RequestHaul", Vector2i.ZERO, "probe_oil", 3)
+	check(express.hauls.size() == 1 and mule.hauls.size() == 0,
+		"the manager offers the haul to the fastest transporter first")
+
+	# The pipeline: extractor buffer -> mid tank -> small sink. Material
+	# moves sink-end first at the pipe's own flow rate; a full sink stalls
+	# the WHOLE chain (ChainBlocked), nothing is lost, and draining the sink
+	# resumes the flow (ChainUnblocked).
+	var pipe_store: Node = STORE.new()
+	pipe_store.name = "PipeStore"
+	pipe_store.set("DataLayersPath", NodePath("../FluidLayers"))
+	pipe_store.set("Catalog", probe_catalog)
+	root.add_child(pipe_store)
+
+	var rig5 := Node2D.new()
+	rig5.name = "PipeRig"
+	root.add_child(rig5)
+	var rig5_object: Node = GRID_OBJECT.new()
+	rig5_object.set("Cell", start)
+	rig5_object.set("Footprint", Vector2i.ONE)
+	rig5_object.set("BlocksNavigation", false)
+	rig5.add_child(rig5_object)
+	var rig5_extractor: Node = EXTRACTOR.new()
+	rig5_extractor.name = "PipeExtractor"
+	rig5_extractor.set("SubsurfaceStorePath", NodePath("../../PipeStore"))
+	rig5_extractor.set("Catalog", probe_catalog)
+	rig5_extractor.set("DeliverVia", 2)
+	rig5_extractor.set("BufferCapacity", 50)
+	rig5.add_child(rig5_extractor)
+	await process_frame
+
+	for i in 5:
+		rig5_extractor.call("Tick", 0.6)
+	var pumped_into_buffer: int = int(rig5_extractor.get("CurrentLoad"))
+	check(pumped_into_buffer >= 15, "the pipe's source buffer filled (%d units)" % pumped_into_buffer)
+
+	var mid_tank: Node = STORAGE.new()
+	mid_tank.name = "MidTank"
+	mid_tank.set("Capacity", 6)
+	root.add_child(mid_tank)
+	var sink_tank: Node = STORAGE.new()
+	sink_tank.name = "SinkTank"
+	sink_tank.set("Capacity", 4)
+	root.add_child(sink_tank)
+
+	# NO authored resource list: the chain asks its links what they hold.
+	var pipe: Node = PIPELINE.new()
+	pipe.name = "Pipe"
+	pipe.set("FlowRatePerSecond", 1000.0)
+	root.add_child(pipe)
+	pipe.set("Chain", [NodePath("../PipeRig/PipeExtractor"), NodePath("../MidTank"), NodePath("../SinkTank")])
+
+	var blocked_events: Array = []
+	var unblocked_events: Array = []
+	pipe.connect("ChainBlocked", func(id): blocked_events.append(str(id)))
+	pipe.connect("ChainUnblocked", func(id): unblocked_events.append(str(id)))
+
+	for i in 4:
+		pipe.call("Tick", 1.0)
+	var in_ext: int = int(rig5_extractor.get("CurrentLoad"))
+	var in_mid: int = int(mid_tank.call("Stored", "probe_oil"))
+	var in_sink: int = int(sink_tank.call("Stored", "probe_oil"))
+	check(in_sink == 4 and in_mid == 6,
+		"the chain filled sink-end first up to each capacity (sink %d, mid %d)" % [in_sink, in_mid])
+	check(in_ext + in_mid + in_sink == pumped_into_buffer,
+		"backpressure holds material in place - every unit accounted for (%d+%d+%d of %d)"
+			% [in_ext, in_mid, in_sink, pumped_into_buffer])
+	check(blocked_events.size() > 0 and bool(pipe.get("IsBlocked")),
+		"a full sink blocks the whole chain and says so")
+
+	sink_tank.call("Unload", "probe_oil", 4)
+	pipe.call("Tick", 1.0)
+	check(unblocked_events.size() > 0 and int(sink_tank.call("Stored", "probe_oil")) > 0,
+		"draining the sink resumes the flow (ChainUnblocked)")
+
+	# The SAME chain moves a second resource it was never told about - the
+	# links hold it, so it flows. No fixed contract, no authored list.
+	sink_tank.call("Unload", "probe_oil", 99)
+	mid_tank.call("Unload", "probe_oil", 99)
+	mid_tank.call("Load", "helium", 2)
+	pipe.call("Tick", 1.0)
+	check(int(sink_tank.call("Stored", "helium")) == 2,
+		"the chain carries whatever its links hold - a second resource flowed unasked")
+
+	# A hauler with a FULL depot keeps its cargo and retries - truck-level
+	# backpressure, never loss.
+	var depot: Node = STORAGE.new()
+	depot.name = "Depot"
+	depot.set("Capacity", 3)
+	root.add_child(depot)
+	depot.call("Load", "gravel", 3)
+
+	var truck_body := Node2D.new()
+	truck_body.name = "DepotTruck"
+	root.add_child(truck_body)
+	var truck_hauler: Node = HAULER.new()
+	truck_hauler.set("RegisterOnReady", false)
+	truck_hauler.set("DepotStoragePath", NodePath("../../Depot"))
+	truck_body.add_child(truck_hauler)
+	await process_frame
+
+	check(int(truck_hauler.call("Load", "probe_oil", 5)) == 5, "the hauler's own load port fills its hold")
+	var emptied: bool = bool(truck_hauler.call("TryDeliverCargo"))
+	check(not emptied and int(truck_hauler.get("CurrentLoad")) == 5,
+		"a full depot leaves the cargo in the hold - backpressure, not loss")
+	depot.call("Unload", "gravel", 3)
+	truck_hauler.call("TryDeliverCargo")
+	check(int(depot.call("Stored", "probe_oil")) == 3 and int(truck_hauler.get("CurrentLoad")) == 2,
+		"a partly freed depot takes what fits and the rest stays in the hold")
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)

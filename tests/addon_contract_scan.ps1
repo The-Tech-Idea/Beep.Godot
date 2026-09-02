@@ -1568,9 +1568,15 @@ foreach ($required in @("int Capacity", "int CurrentLoad", "bool CanAccept(strin
         Fail "ILoadPort must carry the receiving-port contract: $required."
     }
 }
-foreach ($required in @("int Stored(string resourceId)", "int Unload(string resourceId, int amount)")) {
+foreach ($required in @("int Stored(string resourceId)", "StoredIds()", "int Unload(string resourceId, int amount)")) {
     if ($unloadPort -notmatch [regex]::Escape($required)) {
         Fail "IUnloadPort must carry the giving-port contract: $required."
+    }
+}
+$gridTransportChain = Read "addons/beep_game_builder_cs/ecs/grid/GridTransportChainComponent.cs"
+foreach ($required in @("StoredIdsOf", "ChainBlocked", "ChainUnblocked", "FlowRatePerSecond", "protected virtual int MoveLink")) {
+    if ($gridTransportChain -notmatch [regex]::Escape($required)) {
+        Fail "GridTransportChainComponent must move what its links hold, at its own rate, with whole-chain backpressure and an overridable hop: $required."
     }
 }
 foreach ($pair in @(
@@ -2206,6 +2212,7 @@ foreach ($required in @(
     "GridExtractionManagerComponent",
     "GridHaulerComponent",
     "GridStorageComponent",
+    "GridTransportChainComponent",
     "TerrainPaintedRendererComponent"
 )) {
     if ($gridGuide -notmatch $required) { Fail "2D_ISO_TOOLKIT.md is missing $required." }

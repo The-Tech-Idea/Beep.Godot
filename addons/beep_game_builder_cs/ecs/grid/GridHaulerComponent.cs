@@ -45,6 +45,22 @@ namespace Beep.ECS
         /// <summary>Units of one resource the hold takes; a haul larger than this is refused.</summary>
         [Export(PropertyHint.Range, "1,99999,1")] public int Capacity { get; set; } = 50;
 
+        /// <summary>
+        /// Effective throughput in units per second - the dispatch pecking
+        /// order. The manager offers hauls to the fastest accepting
+        /// transporter first, so a pipeline (high rate) outranks this truck,
+        /// and this truck outranks a mule.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.1,999,0.1")] public float TransportRate { get; set; } = 5f;
+
+        /// <summary>
+        /// Optional: deliver into this storage's LOAD PORT instead of the
+        /// wallet. When the depot is FULL the hauler keeps its cargo and
+        /// retries every DeliveryRetrySeconds - backpressure, not loss.
+        /// </summary>
+        [Export] public NodePath DepotStoragePath { get; set; } = new("");
+        [Export(PropertyHint.Range, "0.1,60,0.1")] public float DeliveryRetrySeconds { get; set; } = 2f;
+
         public HaulerState State { get; private set; } = HaulerState.Idle;
         public bool IsBusy => State != HaulerState.Idle;
         public string CarryingResourceId => _cargoId;
@@ -59,8 +75,10 @@ namespace Beep.ECS
         private GridTransportManagerComponent? _manager;
         private GridPathFollowerComponent? _follower;
         private GridResourceWalletComponent? _wallet;
+        private Node? _depotStorage;
         private bool _wasMoving;
         private bool _registered;
+        private float _retryClock;
 
         public override void _Ready()
         {
@@ -99,7 +117,25 @@ namespace Beep.ECS
             if (!_registered && RegisterOnReady)
                 TryRegister();
 
-            if (State == HaulerState.Idle || _follower == null)
+            if (State == HaulerState.Idle)
+            {
+                // Blocked delivery: the depot was full, the cargo stayed in
+                // the hold. Keep knocking until space opens - backpressure
+                // holds the material, it never disappears.
+                if (_cargoAmount > 0 && !DepotStoragePath.IsEmpty)
+                {
+                    float step = double.IsFinite(delta) && delta > 0.0 ? (float)delta : 0f;
+                    _retryClock += step;
+                    if (_retryClock >= Mathf.Max(0.1f, DeliveryRetrySeconds))
+                    {
+                        _retryClock = 0f;
+                        TryDeliverCargo();
+                    }
+                }
+                return;
+            }
+
+            if (_follower == null)
                 return;
 
             if (_wasMoving && !_follower.IsMoving)
@@ -123,6 +159,14 @@ namespace Beep.ECS
         /// <summary>Units of the given resource in the hold.</summary>
         public int Stored(string resourceId)
             => _cargoId.Length > 0 && _cargoId == resourceId ? _cargoAmount : 0;
+
+        public Godot.Collections.Array<string> StoredIds()
+        {
+            var ids = new Godot.Collections.Array<string>();
+            if (_cargoId.Length > 0 && _cargoAmount > 0)
+                ids.Add(_cargoId);
+            return ids;
+        }
 
         /// <summary>
         /// Takes cargo into the hold, up to Capacity, one resource at a time.
@@ -209,17 +253,43 @@ namespace Beep.ECS
 
         private void Deliver(string failureReason)
         {
-            string id = _cargoId;
-            int amount = Unload(id, _cargoAmount);
             State = HaulerState.Idle;
+            _retryClock = 0f;
+            if (failureReason.Length > 0 && _cargoAmount > 0)
+                EmitSignal(SignalName.HaulFailed, _cargoId, _cargoAmount, failureReason);
 
+            TryDeliverCargo();
+        }
+
+        /// <summary>
+        /// Empties the hold at the destination: into the depot storage's load
+        /// port when one is wired (what does not fit STAYS in the hold and is
+        /// retried - a full depot means backpressure, never loss), else into
+        /// the wallet. Returns true when the hold is empty afterwards.
+        /// </summary>
+        public bool TryDeliverCargo()
+        {
+            if (_cargoAmount <= 0)
+                return true;
+
+            string id = _cargoId;
+            ResolveReferences();
+
+            if (_depotStorage != null && GodotObject.IsInstanceValid(_depotStorage))
+            {
+                int delivered = GridPorts.Transfer(this, _depotStorage, id, _cargoAmount);
+                if (delivered > 0)
+                    EmitSignal(SignalName.HaulDelivered, id, delivered);
+                return _cargoAmount <= 0;
+            }
+
+            int amount = Unload(id, _cargoAmount);
             if (amount <= 0)
-                return;
+                return true;
 
             _wallet?.AddAmount(id, amount);
-            if (failureReason.Length > 0)
-                EmitSignal(SignalName.HaulFailed, id, amount, failureReason);
             EmitSignal(SignalName.HaulDelivered, id, amount);
+            return true;
         }
 
         private void TryRegister()
@@ -248,6 +318,11 @@ namespace Beep.ECS
                 _wallet = !ResourceWalletPath.IsEmpty
                     ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
                     : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
+
+            if (_depotStorage == null || !GodotObject.IsInstanceValid(_depotStorage))
+                _depotStorage = !DepotStoragePath.IsEmpty
+                    ? GetNodeOrNull<Node>(DepotStoragePath)
+                    : null;
         }
     }
 }

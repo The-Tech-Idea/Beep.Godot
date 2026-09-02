@@ -63,20 +63,29 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Offers a haul to the registered transporters in registration order
-        /// and reports whether one took it. A false return means the load is
-        /// still the caller's problem - the shipped extractor falls back to
-        /// the wallet so yield is never lost.
+        /// Offers a haul to the registered transporters - FASTEST first, by
+        /// their TransportRate (a transporter that does not expose one counts
+        /// as 1) - and reports whether one took it. A false return means the
+        /// load is still the caller's problem - the shipped extractor falls
+        /// back to the wallet so yield is never lost.
         /// </summary>
         public bool RequestHaul(Vector2I fromCell, string resourceId, int amount)
         {
             Prune();
+
+            var candidates = new List<(Node Transporter, float Rate)>();
             foreach (Node transporter in _transporters)
             {
                 if (transporter.Get("IsBusy").AsBool())
                     continue;
                 if (!transporter.Call("CanAccept", resourceId).AsBool())
                     continue;
+                candidates.Add((transporter, RateOf(transporter)));
+            }
+            OrderCandidates(candidates);
+
+            foreach ((Node transporter, float _) in candidates)
+            {
                 if (!transporter.Call("RequestHaul", fromCell, resourceId, amount).AsBool())
                     continue;
 
@@ -88,6 +97,20 @@ namespace Beep.ECS
             return false;
         }
 
+        private static float RateOf(Node transporter)
+        {
+            Variant rate = transporter.Get("TransportRate");
+            return rate.VariantType == Variant.Type.Nil ? 1f : Mathf.Max(0f, rate.AsSingle());
+        }
+
+        /// <summary>
+        /// HOOK: the dispatch policy. The default offers hauls fastest-first
+        /// by TransportRate; override for nearest-first, round-robin, cost
+        /// models, or whatever the game means by "the right vehicle".
+        /// </summary>
+        protected virtual void OrderCandidates(List<(Node Transporter, float Rate)> candidates)
+            => candidates.Sort((a, b) => b.Rate.CompareTo(a.Rate));
+
         /// <summary>
         /// Hands cargo from one transporter to the next and returns how much
         /// moved. Unload from the giver, load into the receiver, and give any
@@ -96,25 +119,7 @@ namespace Beep.ECS
         /// a chain of stationary transporters transferring a load along.
         /// </summary>
         public int Transfer(Node from, Node to, string resourceId, int amount)
-        {
-            if (from == null || to == null || from == to || amount <= 0)
-                return 0;
-            if (!GodotObject.IsInstanceValid(from) || !GodotObject.IsInstanceValid(to))
-                return 0;
-            if (!to.HasMethod("Load") || !from.HasMethod("Unload") || !to.HasMethod("CanAccept"))
-                return 0;
-            if (!to.Call("CanAccept", resourceId).AsBool())
-                return 0;
-
-            int given = from.Call("Unload", resourceId, amount).AsInt32();
-            if (given <= 0)
-                return 0;
-
-            int taken = to.Call("Load", resourceId, given).AsInt32();
-            if (taken < given && from.HasMethod("Load"))
-                from.Call("Load", resourceId, given - taken);
-            return taken;
-        }
+            => GridPorts.Transfer(from, to, resourceId, amount);
 
         private void Prune()
         {

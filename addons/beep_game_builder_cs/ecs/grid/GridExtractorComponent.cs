@@ -56,6 +56,8 @@ namespace Beep.ECS
         [Signal] public delegate void ExtractionStartedEventHandler(string resourceId);
         [Signal] public delegate void ExtractionCycleEventHandler(string resourceId, int amount, int remaining);
         [Signal] public delegate void ExtractionStoppedEventHandler(string reason);
+        [Signal] public delegate void ExtractionStalledEventHandler(string resourceId);
+        [Signal] public delegate void ExtractionResumedEventHandler(string resourceId);
 
         [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath SubsurfaceStorePath { get; set; } = new("");
@@ -96,6 +98,13 @@ namespace Beep.ECS
 
         public bool IsExtracting { get; private set; }
         public string ActiveResourceId { get; private set; } = "";
+
+        /// <summary>
+        /// True while Buffer delivery is shut in by a full buffer - source
+        /// side backpressure. The deposit stays intact; extraction resumes by
+        /// itself when the chain drains the buffer.
+        /// </summary>
+        public bool IsStalled { get; private set; }
 
         // ---- The extractor's own ports ---------------------------------------
         //
@@ -144,6 +153,14 @@ namespace Beep.ECS
 
         public int Stored(string resourceId)
             => _bufferId.Length > 0 && _bufferId == resourceId ? _bufferAmount : 0;
+
+        public Godot.Collections.Array<string> StoredIds()
+        {
+            var ids = new Godot.Collections.Array<string>();
+            if (_bufferId.Length > 0 && _bufferAmount > 0)
+                ids.Add(_bufferId);
+            return ids;
+        }
 
         private TerrainDataLayersComponent? _dataLayers;
         private GridSubsurfaceStoreComponent? _store;
@@ -403,6 +420,32 @@ namespace Beep.ECS
             }
 
             int perCycle = AmountPerCycle();
+
+            // Source-side backpressure: in Buffer delivery, never draw more
+            // than the buffer can hold. A full buffer shuts the pump in with
+            // the DEPOSIT INTACT - like the whole chain, stopped, not lost -
+            // and it resumes by itself the moment the chain drains it.
+            if (DeliverVia == ExtractorDelivery.Buffer)
+            {
+                int space = Mathf.Max(0, Mathf.Max(1, BufferCapacity) - _bufferAmount);
+                perCycle = Mathf.Min(perCycle, space);
+                if (perCycle <= 0)
+                {
+                    if (!IsStalled)
+                    {
+                        IsStalled = true;
+                        EmitSignal(SignalName.ExtractionStalled, ActiveResourceId);
+                    }
+                    return;
+                }
+            }
+
+            if (IsStalled)
+            {
+                IsStalled = false;
+                EmitSignal(SignalName.ExtractionResumed, ActiveResourceId);
+            }
+
             int drawn = 0;
             int remaining = 0;
             foreach (Vector2I cell in _depositCells)

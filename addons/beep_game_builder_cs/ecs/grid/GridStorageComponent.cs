@@ -114,6 +114,14 @@ namespace Beep.ECS
                 ? amount
                 : 0;
 
+        public Godot.Collections.Array<string> StoredIds()
+        {
+            var ids = new Godot.Collections.Array<string>();
+            foreach (string id in _stored.Keys)
+                ids.Add(id);
+            return ids;
+        }
+
         public Godot.Collections.Dictionary CaptureState()
         {
             var contents = new Godot.Collections.Dictionary();

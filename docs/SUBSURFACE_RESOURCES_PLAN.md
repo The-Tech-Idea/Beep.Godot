@@ -282,8 +282,25 @@ the whole chain is developer-extendable.
   name, because GDScript can implement neither a C# interface nor subclass
   a C# class - proven in the probe by a pure-GDScript transporter.
 - The probe grew to 41 checks, the sharpest being the pipeline hookup:
-  a buffered extractor's own unload port Transfer-piped into a tank, with
-  buffer overflow falling back to the wallet so yield is never lost.
+  a buffered extractor's own unload port Transfer-piped into a tank.
+
+**Transport chains and whole-line backpressure (further direction, same
+day).** `GridTransportChainComponent`: the standing run built from the
+hand-off - a pipeline, a conveyor line, a train, a boat relay - an ordered
+Chain of ports moved sink-end first at its own `FlowRatePerSecond`. It
+carries whatever its links HOLD (`IUnloadPort.StoredIds` was added so a
+generic mover asks instead of being told; a single-resource pipe is the
+optional `ResourceIds` filter, authored, never imposed). `TransportRate`
+joined `ITransporter` and dispatch offers hauls fastest-first (policy
+overridable via `OrderCandidates`; chain hops via `MoveLink`).
+Backpressure runs the whole line: a full sink stalls the chain
+(`ChainBlocked`/`ChainUnblocked`), a full depot leaves a hauler's cargo in
+the hold with retries, and a full buffer shuts a `DeliverVia = Buffer`
+extractor in with the DEPOSIT INTACT (`ExtractionStalled`/
+`ExtractionResumed`) - stopped, never lost, at every level. The probe is
+at 52 checks, including unit-for-unit conservation across a blocked
+chain and a second resource flowing through a chain that was never told
+about it.
 
 ## Decisions to approve (recommendations first)
 

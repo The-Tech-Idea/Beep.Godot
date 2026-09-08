@@ -87,10 +87,8 @@ namespace Beep.ECS
         private bool _rebuildQueued;
         private bool _hasRebuildAttempt;
         public int StampCount => _stamps.Count;
-        private readonly Dictionary<string, Texture2D> _sheets = new();
-        private (string Woods, string Jungle, string Oasis, string Marsh)? _loadedSheetPaths;
+        private readonly TerrainFeatureSheets _sheets = new();
         private readonly List<Stamp> _stamps = new();
-        private readonly TerrainFeatureFrameBindings _woodsFrames = new();
 
 
 
@@ -208,8 +206,12 @@ namespace Beep.ECS
             if (_cells is null && _generator is not null)
                 TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
-            LoadSheets();
-            _woodsFrames.Load(WoodsFrameBindings, Mathf.Max(1, WoodsColumns) * Mathf.Max(1, WoodsRows), Name);
+            _sheets.Load(Name,
+                new TerrainFeatureSheets.Layout(WoodsSheetPath, WoodsColumns, WoodsRows),
+                new TerrainFeatureSheets.Layout(JungleSheetPath, JungleColumns, JungleRows),
+                new TerrainFeatureSheets.Layout(OasisSheetPath, OasisColumns, OasisRows),
+                new TerrainFeatureSheets.Layout(MarshSheetPath, MarshColumns, MarshRows),
+                WoodsFrameBindings);
             if (_sheets.Count == 0 && (MapArt is null ||
                 MapArt.Trees.Count + MapArt.Oasis.Count + MapArt.Marsh.Count == 0))
             {
@@ -262,10 +264,11 @@ namespace Beep.ECS
             if (feature.Length == 0) return;
             var art = MapArt?.FeatureTextures(feature);
             bool individual = art is { Count: > 0 };
-            bool hasSheet = TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows);
+            bool hasSheet = _sheets.TryGet(feature, out TerrainFeatureSheets.Sheet described);
+            Texture2D? sheet = hasSheet ? described.Texture : null;
             if (!individual && (!hasSheet || sheet is null)) return;
-            int[]? frames = _sheets.TryGetValue("woods", out var woods) && sheet == woods
-                ? _woodsFrames.For(source.TerrainAtCell(sourceOrigin + cell)) : null;
+            int columns = described.Columns, rows = described.Rows;
+            int[]? frames = _sheets.FramesFor(described, source.TerrainAtCell(sourceOrigin + cell));
             int clump = Mathf.Clamp(SpritesPerTile, 1, 8)
                 + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle ? Mathf.Clamp(ForestExtraSprites, 0, 8) : 0);
             System.Span<Vector2> offsets = stackalloc Vector2[TerrainFeatureScatter.MaximumCount];
@@ -279,40 +282,6 @@ namespace Beep.ECS
                 AddStamp(selected, individual ? 1 : columns, individual ? 1 : rows, individual ? null : frames,
                     x, y, tile, i, offsets[i], feature, stamps);
             }
-        }
-
-        private bool TryDescribe(string feature, out Texture2D? sheet, out int columns, out int rows)
-        {
-            columns = 4;
-            rows = 4;
-            sheet = null;
-
-            string key = feature switch
-            {
-                TerrainFeatureStage.Woods => "woods",
-                // Dense forest is the same art, drawn thicker.
-                TerrainFeatureStage.Forest => "woods",
-                // Jungle falls back to the woods sheet when none is assigned, so
-                // a missing sheet still shows vegetation rather than nothing.
-                TerrainFeatureStage.Jungle => _sheets.ContainsKey("jungle") ? "jungle" : "woods",
-                TerrainFeatureStage.Oasis => _sheets.ContainsKey("oasis") ? "oasis" : "woods",
-                // No fallback to woods: reeds are not trees, and standing a
-                // forest canopy in a bog would misdescribe the ground. Without a
-                // marsh sheet the feature is simply not drawn.
-                TerrainFeatureStage.Marsh => _sheets.ContainsKey("marsh") ? "marsh" : string.Empty,
-                _ => string.Empty,
-            };
-            if (key.Length == 0 || !_sheets.TryGetValue(key, out sheet))
-                return false;
-
-            (columns, rows) = key switch
-            {
-                "jungle" => (Mathf.Max(1, JungleColumns), Mathf.Max(1, JungleRows)),
-                "oasis" => (Mathf.Max(1, OasisColumns), Mathf.Max(1, OasisRows)),
-                "marsh" => (Mathf.Max(1, MarshColumns), Mathf.Max(1, MarshRows)),
-                _ => (Mathf.Max(1, WoodsColumns), Mathf.Max(1, WoodsRows)),
-            };
-            return true;
         }
 
         private void AddStamp(Texture2D sheet, int columns, int rows, int[]? frames, int x, int y, float tile, int slot,
@@ -360,35 +329,6 @@ namespace Beep.ECS
                 region,
                 new Rect2(centre - (drawn * SpriteAnchor), drawn),
                 centre.Y, centre));
-        }
-
-        private void LoadSheets()
-        {
-            var paths = (WoodsSheetPath, JungleSheetPath, OasisSheetPath, MarshSheetPath);
-            if (_loadedSheetPaths == paths) return;
-            _loadedSheetPaths = paths;
-            _sheets.Clear();
-
-            Add("woods", WoodsSheetPath);
-            Add("jungle", JungleSheetPath);
-            Add("oasis", OasisSheetPath);
-            Add("marsh", MarshSheetPath);
-        }
-
-        private void Add(string key, string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return;
-
-            // Mipmaps matter more here than anywhere else in the renderer: a
-            // tree frame is around 310 pixels and is drawn about ten across with
-            // the whole map in view, a minification of thirty to one. The shared
-            // loader is what guarantees the chain exists.
-            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {key} feature sheet");
-            if (texture is null)
-                return;
-
-            _sheets[key] = texture;
         }
 
         private void ResolveGenerator()

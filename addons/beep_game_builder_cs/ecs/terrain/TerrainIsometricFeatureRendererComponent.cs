@@ -53,9 +53,24 @@ namespace Beep.ECS
         /// data. Leave it empty to use the whole sheet.
         /// </summary>
         [Export] public string[] WoodsFrameBindings { get; set; } = Array.Empty<string>();
+        // Each sheet's own grid. This view used to cut ALL FOUR sheets on
+        // WoodsColumns/WoodsRows while exposing the other three paths and no layout
+        // for them, so a marsh or oasis sheet authored on a different grid was sliced
+        // correctly in the flat view and wrongly here, off the same map.
+        //
+        // Zero inherits the woods layout, which is exactly what every sheet used to
+        // get - so scenes that already cut their sheets on one grid, like
+        // terrain_iso_demo.tscn's 8x1 marsh against WoodsColumns = 8, keep working
+        // untouched.
         [Export(PropertyHint.File, "*.png,*.webp")] public string JungleSheetPath { get; set; } = "";
+        [Export(PropertyHint.Range, "0,16,1")] public int JungleColumns { get; set; }
+        [Export(PropertyHint.Range, "0,16,1")] public int JungleRows { get; set; }
         [Export(PropertyHint.File, "*.png,*.webp")] public string MarshSheetPath { get; set; } = "";
+        [Export(PropertyHint.Range, "0,16,1")] public int MarshColumns { get; set; }
+        [Export(PropertyHint.Range, "0,16,1")] public int MarshRows { get; set; }
         [Export(PropertyHint.File, "*.png,*.webp")] public string OasisSheetPath { get; set; } = "";
+        [Export(PropertyHint.Range, "0,16,1")] public int OasisColumns { get; set; }
+        [Export(PropertyHint.Range, "0,16,1")] public int OasisRows { get; set; }
 
         [ExportGroup("Look")]
         [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 2;
@@ -98,16 +113,14 @@ namespace Beep.ECS
         /// <summary>Prop nodes for levels FirstPropLevel upward.</summary>
         private readonly List<LevelProps> _levels = new();
 
-        /// <summary>Terrain kind to the frames of the woods sheet it may use.</summary>
-        private readonly TerrainFeatureFrameBindings _woodsFrames = new();
-
         private TerrainGeneratorComponent? _generator;
         private TerrainIsometricRendererComponent? _iso;
         private TerrainIsometricRendererComponent? _connectedIso;
         private bool _hasRebuildAttempt;
         private bool _rebuildQueued;
-        private readonly Dictionary<string, Texture2D> _sheets = new();
-        private (string, string, string, string)? _sheetPaths;
+
+        /// <summary>The sheets, their grids and the woods frame bindings; see TerrainFeatureSheets.</summary>
+        private readonly TerrainFeatureSheets _sheets = new();
 
         public override void _Ready()
         {
@@ -193,8 +206,12 @@ namespace Beep.ECS
                 return;
             }
 
-            LoadSheets();
-            _woodsFrames.Load(WoodsFrameBindings, Mathf.Max(1, WoodsColumns) * Mathf.Max(1, WoodsRows), Name);
+            _sheets.Load(Name,
+                new TerrainFeatureSheets.Layout(WoodsSheetPath, WoodsColumns, WoodsRows),
+                new TerrainFeatureSheets.Layout(JungleSheetPath, JungleColumns, JungleRows),
+                new TerrainFeatureSheets.Layout(OasisSheetPath, OasisColumns, OasisRows),
+                new TerrainFeatureSheets.Layout(MarshSheetPath, MarshColumns, MarshRows),
+                WoodsFrameBindings);
             if (_sheets.Count == 0)
             {
                 GD.PushWarning($"[{Name}] no feature sheets loaded, so no features were drawn.");
@@ -221,13 +238,12 @@ namespace Beep.ECS
                     if (feature.Length == 0 || !TerrainIsometricRendererComponent.IsLandCell(field, cell))
                         return;
 
-                    if (!TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows) || sheet is null)
+                    if (!_sheets.TryGet(feature, out TerrainFeatureSheets.Sheet described) || described.Texture is null)
                         return;
 
-                    // Only the woods sheet is a climate mix; the others are one
-                    // subject each, so they use every frame they have.
-                    int[]? frames = _sheets.TryGetValue("woods", out var woods) && sheet == woods
-                        ? _woodsFrames.For(field.TerrainAtCell(cell)) : null;
+                    Texture2D sheet = described.Texture;
+                    int columns = described.Columns, rows = described.Rows;
+                    int[]? frames = _sheets.FramesFor(described, field.TerrainAtCell(cell));
 
                     Vector2 top = ToLocal(_iso.ToGlobal(_iso.SurfacePosition(field, cell)));
                     var corners = _iso.SurfaceCorners(field, cell);
@@ -373,48 +389,6 @@ namespace Beep.ECS
             var target = new Rect2(
                 basePoint - new Vector2(drawn.X * 0.5f, drawn.Y * 0.92f), drawn);
             stamps.Add(new Stamp(sheet, region, target, basePoint, level));
-        }
-
-        private bool TryDescribe(string feature, out Texture2D? sheet, out int columns, out int rows)
-        {
-            columns = Mathf.Max(1, WoodsColumns);
-            rows = Mathf.Max(1, WoodsRows);
-            sheet = null;
-
-            string key = feature switch
-            {
-                TerrainFeatureStage.Woods or TerrainFeatureStage.Forest => "woods",
-                TerrainFeatureStage.Jungle => _sheets.ContainsKey("jungle") ? "jungle" : "woods",
-                TerrainFeatureStage.Oasis => _sheets.ContainsKey("oasis") ? "oasis" : "woods",
-                // No fallback to woods: reeds are not trees, and a canopy in a
-                // bog would misdescribe the ground.
-                TerrainFeatureStage.Marsh => _sheets.ContainsKey("marsh") ? "marsh" : string.Empty,
-                _ => string.Empty,
-            };
-            return key.Length > 0 && _sheets.TryGetValue(key, out sheet);
-        }
-
-        private void LoadSheets()
-        {
-            var paths = (WoodsSheetPath, JungleSheetPath, MarshSheetPath, OasisSheetPath);
-            if (_sheetPaths == paths) return;
-            _sheetPaths = paths;
-            _sheets.Clear();
-
-            Add("woods", WoodsSheetPath);
-            Add("jungle", JungleSheetPath);
-            Add("marsh", MarshSheetPath);
-            Add("oasis", OasisSheetPath);
-        }
-
-        private void Add(string key, string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return;
-
-            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {key} feature sheet");
-            if (texture is not null)
-                _sheets[key] = texture;
         }
 
         internal bool FollowsSurface(TerrainIsometricRendererComponent renderer)

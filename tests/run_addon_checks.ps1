@@ -203,6 +203,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot terrain water material probe failed."
 }
 
+Write-Host "[addon-checks] Godot terrain feature sheets probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_feature_sheets_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot terrain feature sheets probe failed."
+}
+
 Write-Host "[addon-checks] Godot grid resource catalog ports probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_resource_catalog_ports_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
 if ($LASTEXITCODE -ne 0) {

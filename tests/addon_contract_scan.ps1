@@ -1851,6 +1851,37 @@ $isoRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRen
 if ($isoRenderer -notmatch [regex]::Escape('SetShaderParameter("foam_strength", 0.0f)')) {
     Fail "The elevated-river material no longer silences foam on its duplicate; either restore it or drop the exception from the shared-water pin above."
 }
+# One loader for the feature sheets, and every sheet cut on its own grid.
+#
+# The two feature renderers each carried their own copy of the four-sheet loader,
+# and the copies disagreed in a way that was a defect: the flat view resolved each
+# sheet's columns and rows, the isometric copy cut every sheet on WoodsColumns and
+# WoodsRows and exposed no other layout to do otherwise. TerrainFeatureSheets is
+# the one owner now; a layout of zero inherits the woods grid, which is what keeps
+# scenes cut on one grid (terrain_iso_demo.tscn) working untouched.
+$featureSheets = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureSheets.cs"
+foreach ($required in @("record struct Layout(string Path, int Columns, int Rows)", "private static Layout Resolve(Layout layout, Layout fallback)", "layout.Columns > 0 ? layout.Columns : fallback.Columns")) {
+    if ($featureSheets -notmatch [regex]::Escape($required)) {
+        Fail "TerrainFeatureSheets must resolve each sheet's own layout with zero inheriting the woods grid: $required."
+    }
+}
+foreach ($view in @("TerrainFeatureRendererComponent.cs", "TerrainIsometricFeatureRendererComponent.cs")) {
+    $viewSource = Read "addons/beep_game_builder_cs/ecs/terrain/$view"
+    foreach ($copy in @("private bool TryDescribe(", "private void LoadSheets()", "Dictionary<string, Texture2D> _sheets")) {
+        if ($viewSource -match [regex]::Escape($copy)) {
+            Fail "$view has its own feature-sheet loader again ($copy); TerrainFeatureSheets owns the sheets and their grids."
+        }
+    }
+    if ($viewSource -notmatch [regex]::Escape("private readonly TerrainFeatureSheets _sheets")) {
+        Fail "$view no longer draws from TerrainFeatureSheets."
+    }
+}
+$isoFeatures = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs"
+foreach ($layoutExport in @("JungleColumns", "JungleRows", "MarshColumns", "MarshRows", "OasisColumns", "OasisRows")) {
+    if ($isoFeatures -notmatch [regex]::Escape("public int $layoutExport { get; set; }")) {
+        Fail "TerrainIsometricFeatureRendererComponent lost the $layoutExport export; without it every sheet is cut on the woods grid again."
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

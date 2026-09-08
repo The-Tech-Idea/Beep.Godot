@@ -11,7 +11,11 @@ exists** (duplication), **what would make it faster, safer or more correct** (en
 **what does a game of this genre need that the engine cannot yet say** (feature). One plan document
 per answer. Each document carries: the finding with evidence, why it matters, the design, steps,
 guards that must fail before the fix (mutation-tested), effort, dependencies, and what is out of
-scope. Status of every item is **proposed** — nothing here has been implemented.
+scope.
+
+**Progress.** Items are marked in the tables below as they land; each one's own document gains an
+"Outcome" section recording what actually differed from the plan and why. Implementation began
+2026-09-08 with the terrain-only, no-collision group.
 
 Standing rules these plans follow: one owner per fact; no stubs; every addition arrives with its
 consumer; nothing is deleted on "nothing reads it" grounds without the owner's call (DUP-11, the
@@ -20,21 +24,21 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 
 ## Duplication (13)
 
-| Id | Plan | Copies found | Effort |
-|---|---|---|---|
-| DUP-01 | [Terrain renderer lifecycle contract](DUP-01-terrain-renderer-lifecycle-contract.md) | `QueueRebuild` ×9, `DisconnectCells` ×7, `ResolveCells` ×4, `Draw()` hand-wires 9 renderers | M |
-| DUP-02 | [Shared water material](DUP-02-shared-water-material.md) | 3 water builders, `SetTexture` ×2 (10 sites); tile view lacks foam/swell | S |
-| DUP-03 | [Feature sheet loading](DUP-03-feature-sheet-loading.md) | flat vs iso loaders; iso ignores per-sheet columns/rows (bug) | S |
-| DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S |
-| DUP-05 | [One id normaliser](DUP-05-one-id-normaliser.md) | 18 normaliser/sanitiser copies, ≥4 rules; wallet vs catalog disagree | S |
-| DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS |
-| DUP-07 | [Prop residency façade](DUP-07-prop-residency-facade.md) | 3 `*.Streaming.cs` partials | S |
-| DUP-08 | [Grid geometry helpers](DUP-08-grid-geometry-helpers.md) | footprint ×4, `ClampZ` ×2, `ResolveCurrent<T>` ×2 | XS |
-| DUP-09 | [Chunk-pin helper](DUP-09-chunk-pin-helper.md) | `>> 5` ×52 in 12 files, pin-refresh pattern ×7, a Node per path request | M |
-| DUP-10 | [Arrival detection](DUP-10-arrival-detection.md) | `_wasMoving` edge detection ×2 with a one-frame hole | S |
-| DUP-11 | [Dispatch board showcase](DUP-11-dispatch-board-showcase.md) | a second dispatch loop in seconds (owner's call: relocate) | S |
-| DUP-12 | [HUD panel base](DUP-12-hud-panel-base.md) | 6/16 panels bypass the base; two ~300-line twin button bars; 3 button-binding copies; 2 roster caches | M |
-| DUP-13 | [Terrain-kind registry](DUP-13-terrain-kind-registry.md) | what a kind means is spelled out in 11+ tables (the `lava` incident) | L |
+| Id | Plan | Copies found | Effort | Status |
+|---|---|---|---|---|
+| DUP-01 | [Terrain renderer lifecycle contract](DUP-01-terrain-renderer-lifecycle-contract.md) | `QueueRebuild` ×9, `DisconnectCells` ×7, `ResolveCells` ×4, `Draw()` hand-wires 9 renderers | M | |
+| DUP-02 | [Shared water material](DUP-02-shared-water-material.md) | 3 water builders, `SetTexture` ×2 (10 sites); tile view lacks foam/swell | S | **done** |
+| DUP-03 | [Feature sheet loading](DUP-03-feature-sheet-loading.md) | flat vs iso loaders; iso ignores per-sheet columns/rows (bug) | S | |
+| DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S | |
+| DUP-05 | [One id normaliser](DUP-05-one-id-normaliser.md) | 18 normaliser/sanitiser copies, ≥4 rules; wallet vs catalog disagree | S | |
+| DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS | |
+| DUP-07 | [Prop residency façade](DUP-07-prop-residency-facade.md) | 3 `*.Streaming.cs` partials | S | |
+| DUP-08 | [Grid geometry helpers](DUP-08-grid-geometry-helpers.md) | footprint ×4, `ClampZ` ×2, `ResolveCurrent<T>` ×2 | XS | |
+| DUP-09 | [Chunk-pin helper](DUP-09-chunk-pin-helper.md) | `>> 5` ×52 in 12 files, pin-refresh pattern ×7, a Node per path request | M | |
+| DUP-10 | [Arrival detection](DUP-10-arrival-detection.md) | `_wasMoving` edge detection ×2 with a one-frame hole | S | |
+| DUP-11 | [Dispatch board showcase](DUP-11-dispatch-board-showcase.md) | a second dispatch loop in seconds (owner's call: relocate) | S | |
+| DUP-12 | [HUD panel base](DUP-12-hud-panel-base.md) | 6/16 panels bypass the base; two ~300-line twin button bars; 3 button-binding copies; 2 roster caches | M | |
+| DUP-13 | [Terrain-kind registry](DUP-13-terrain-kind-registry.md) | what a kind means is spelled out in 11+ tables (the `lava` incident) | L | |
 
 ## Enhancements (16)
 

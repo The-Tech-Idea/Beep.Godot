@@ -1812,6 +1812,56 @@ foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "Rel
 if ($terrainDataLayers -match 'public string TerrainAt\(') {
     Fail "TerrainDataLayersComponent.TerrainAt is back; the layers publish the recipe's kind and the method is GeneratedTerrainAt."
 }
+# One sea. shaders/water_common.gdshaderinc declares the uniforms every water
+# surface shares, and TerrainWaterMaterial is the one place C# writes them.
+#
+# Three renderers used to set them by hand and had drifted exactly as far as that
+# always does: the tile view wrote 13 of the 22, missing every foam-sheet dial and
+# both swell dials while still switching use_foam_sheet on from its own
+# FoamSheetPath. So one map's coastline surfed in the isometric view and ran the
+# same sheet on shader defaults in the tile view.
+$waterMaterial = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWaterMaterial.cs"
+$sharedWaterUniforms = @(
+    "coast_range", "map_size", "map_origin", "ground_texture_tiles", "water_texture_tiles",
+    "wave_intensity", "foam_strength", "shallow_tiles", "deep_tiles", "foam_tiles_along",
+    "foam_tiles_across", "foam_scroll", "foam_pulse", "foam_arrival_rate",
+    "swell_direction_degrees", "swell_directionality", "use_foam_sheet"
+)
+foreach ($uniform in $sharedWaterUniforms) {
+    if ($waterMaterial -notmatch [regex]::Escape('"' + $uniform + '"')) {
+        Fail "TerrainWaterMaterial must write the whole shared water block; $uniform is missing."
+    }
+}
+# foam_strength is absent from this list on purpose: elevated rivers duplicate the
+# finished material and silence foam on the COPY, which is a per-instance override
+# rather than a second writer of the block. The pin below keeps that honest.
+$viewOwnedWaterUniforms = $sharedWaterUniforms | Where-Object { $_ -ne "foam_strength" }
+foreach ($view in @("TerrainTileRendererComponent.cs", "TerrainIsometricRendererComponent.cs", "TerrainPaintedRendererComponent.cs")) {
+    $viewSource = Read "addons/beep_game_builder_cs/ecs/terrain/$view"
+    foreach ($uniform in $viewOwnedWaterUniforms) {
+        if ($viewSource -match [regex]::Escape('SetShaderParameter("' + $uniform + '"')) {
+            Fail "$view writes the shared water uniform $uniform itself; water_common.gdshaderinc's block belongs to TerrainWaterMaterial."
+        }
+    }
+    if ($viewSource -match 'private bool SetTexture\(ShaderMaterial') {
+        Fail "$view has its own material texture binder again; TerrainTextures.Bind is the one that reports what loaded."
+    }
+}
+$isoRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs"
+if ($isoRenderer -notmatch [regex]::Escape('SetShaderParameter("foam_strength", 0.0f)')) {
+    Fail "The elevated-river material no longer silences foam on its duplicate; either restore it or drop the exception from the shared-water pin above."
+}
+# The tile view must keep every dial, not just the ones it happened to have.
+$tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
+foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",
+        "SwellDirectionDegrees", "SwellDirectionality", "GroundTextureTiles", "WaterTextureTiles")) {
+    # The whole declaration, not just the name: "public float FoamTilesAlong" is a
+    # prefix of "public float FoamTilesAlongRemoved", so the loose form passed a
+    # mutation that renamed the export out of existence.
+    if ($tileRenderer -notmatch [regex]::Escape("public float $dial { get; set; }")) {
+        Fail "TerrainTileRendererComponent lost the $dial export; a view that exposes half the sea's dials is the drift TerrainWaterMaterial exists to stop."
+    }
+}
 # One noise set per run, each channel on its own seed offset, so changing one
 # stage's frequency cannot shift another stage's pattern.
 # ApplyMapSetup OVERWRITES exported generator settings, so a value typed into the

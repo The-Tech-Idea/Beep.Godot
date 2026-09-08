@@ -70,5 +70,33 @@ namespace Beep.ECS
             image.GenerateMipmaps();
             return ImageTexture.CreateFromImage(image);
         }
+
+        /// <summary>
+        /// Loads art and binds it to a shader uniform, reporting whether the art
+        /// actually arrived.
+        ///
+        /// The three renderers each had their own copy of these six lines - two
+        /// called it SetTexture and one Assign - and the bool matters rather than
+        /// being a convenience: <c>use_foam_sheet</c> switches the sea onto its
+        /// authored-surf path, and turning that on with no sheet behind it draws no
+        /// surf at all while every call reported success. A caller sets that flag
+        /// FROM this result, never from the path being non-empty.
+        ///
+        /// An empty path is not a failure to report. It is how a scene says it wants
+        /// the shader's own default for that slot, so it returns false silently while
+        /// a path that was set and did not load warns through <see cref="Load"/>.
+        /// </summary>
+        public static bool Bind(ShaderMaterial material, string parameter, string path, string owner)
+        {
+            if (material is null || string.IsNullOrWhiteSpace(path))
+                return false;
+
+            Texture2D? texture = Load(path, owner, $"the {parameter} material");
+            if (texture is null)
+                return false;
+
+            material.SetShaderParameter(parameter, texture);
+            return true;
+        }
     }
 }

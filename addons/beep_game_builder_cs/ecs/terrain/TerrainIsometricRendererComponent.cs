@@ -1127,9 +1127,9 @@ namespace Beep.ECS
             // The quad's rectangle in THIS renderer's space. The shader resolves
             // both projections from it and the fragment UV rather than from a
             // world position, which carries any parent scaling with it.
-            material.SetShaderParameter("coast_range", CoastRangeTiles);
-            material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
-            material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
+            // This surface's OWN uniforms, declared by iso_water.gdshader for a
+            // transparent sheet floating over seabed geometry. The painted view has
+            // no equivalent, so they stay here rather than in the shared block.
             material.SetShaderParameter("cell_size", new Vector2(CellSize.X, CellSize.Y));
             material.SetShaderParameter("tile_offset", Vector2.Zero);
             material.SetShaderParameter("tile_batch", false);
@@ -1138,46 +1138,29 @@ namespace Beep.ECS
             material.SetShaderParameter("clarity_tiles", ClarityTiles);
             material.SetShaderParameter("lake_opacity", LakeOpacity);
             material.SetShaderParameter("shore_opacity", ShoreOpacity);
-            material.SetShaderParameter("wave_intensity", WaveIntensity);
-            material.SetShaderParameter("foam_strength", FoamStrength);
-            material.SetShaderParameter("deep_tiles", DeepTiles);
-            material.SetShaderParameter("shallow_tiles", ShallowTiles);
-            material.SetShaderParameter("ground_texture_tiles", Mathf.Max(1.0f, GroundTextureTiles));
-            material.SetShaderParameter("water_texture_tiles", Mathf.Max(1.0f, WaterTextureTiles));
 
-            material.SetShaderParameter("foam_tiles_along", Mathf.Max(1.0f, FoamTilesAlong));
-            material.SetShaderParameter("foam_tiles_across", Mathf.Max(0.3f, FoamTilesAcross));
-            material.SetShaderParameter("foam_scroll", Mathf.Max(0.0f, FoamScroll));
-            material.SetShaderParameter("foam_pulse", Mathf.Clamp(FoamPulse, 0.0f, 1.0f));
-            material.SetShaderParameter("foam_arrival_rate", Mathf.Max(0.0f, FoamArrivalRate));
-            material.SetShaderParameter("swell_direction_degrees", SwellDirectionDegrees);
-            material.SetShaderParameter("swell_directionality", Mathf.Clamp(SwellDirectionality, 0.0f, 1.0f));
+            // Everything water_common.gdshaderinc declares, through its one writer.
+            TerrainWaterMaterial.Apply(material, new TerrainWaterMaterial.Settings(
+                Size: size,
+                Origin: BoundsOrigin,
+                CoastRange: CoastRangeTiles,
+                GroundTextureTiles: GroundTextureTiles,
+                WaterTextureTiles: WaterTextureTiles,
+                WaveIntensity: WaveIntensity,
+                FoamStrength: FoamStrength,
+                ShallowTiles: ShallowTiles,
+                DeepTiles: DeepTiles,
+                FoamTilesAlong: FoamTilesAlong,
+                FoamTilesAcross: FoamTilesAcross,
+                FoamScroll: FoamScroll,
+                FoamPulse: FoamPulse,
+                FoamArrivalRate: FoamArrivalRate,
+                SwellDirectionDegrees: SwellDirectionDegrees,
+                SwellDirectionality: SwellDirectionality));
 
-            SetTexture(material, "tex_shallow", ShallowTexturePath);
-            SetTexture(material, "tex_deep", DeepTexturePath);
-            SetTexture(material, "tex_sand", SandTexturePath);
-            // Only switch to the authored-surf path if the art actually loaded.
-            material.SetShaderParameter("use_foam_sheet", SetTexture(material, "foam_sheet", FoamSheetPath));
+            TerrainWaterMaterial.ApplyTextures(
+                material, Name, ShallowTexturePath, DeepTexturePath, SandTexturePath, FoamSheetPath);
             return material;
-        }
-
-        /// <summary>
-        /// Assigns a water material texture. Reports true so the caller can tell
-        /// a sheet that loaded from one that did not - the foam sheet decides
-        /// which surf path the shader takes, and turning that on without the art
-        /// behind it draws no surf at all.
-        /// </summary>
-        private bool SetTexture(ShaderMaterial material, string parameter, string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return false;
-
-            Texture2D? texture = LoadTexture(path, parameter);
-            if (texture is null)
-                return false;
-
-            material.SetShaderParameter(parameter, texture);
-            return true;
         }
 
         private TileMapLayer MakeLayer(string name)

@@ -201,7 +201,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | Id | Plan | Type | Effort | Status |
 |---|---|---|---|---|
 | DUP-01 | [Terrain renderer lifecycle contract](../plans/terrain-grid/DUP-01-terrain-renderer-lifecycle-contract.md) | duplication | M | Proposed |
-| DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | Proposed |
+| DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | **Implemented 2026-09-08** |
 | DUP-03 | [Feature sheet loading](../plans/terrain-grid/DUP-03-feature-sheet-loading.md) | duplication + bug | S | Proposed |
 | DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | Proposed |
 | DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | Proposed |

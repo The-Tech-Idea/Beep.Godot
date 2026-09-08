@@ -399,7 +399,6 @@ namespace Beep.ECS
 			_material.SetShaderParameter("lake_map", _renderLake.Resolve(_lakeMap!, size, _liveCoast.LakeRevision,
 				liveCoast ? _liveCoast.LakeField : null, liveCoast ? _liveCoast.LakeDirty : null));
 			_material.SetShaderParameter("lake_width_map", _lakeWidthMap!);
-			_material.SetShaderParameter("coast_range", Mathf.Max(5f, CoastRangeTiles));
 
 			// The beach is as wide as the GENERATOR says, not as wide as this
 			// shader happens to default to.
@@ -414,12 +413,8 @@ namespace Beep.ECS
 			// the truth about its coast.
 			// Live sand is explicit cell data; do not invent a generated beach over player edits.
 			// Width and underlying biome are carried in each live ID texel.
-			_material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
-			_material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
 			_material.SetShaderParameter(
 				"cell_size", new Vector2(Mathf.Max(1, TileSize), Mathf.Max(1, TileSize)));
-			_material.SetShaderParameter("ground_texture_tiles", Mathf.Max(1.0f, GroundTextureTiles));
-			_material.SetShaderParameter("water_texture_tiles", Mathf.Max(1.0f, WaterTextureTiles));
 			TerrainMaterialTiling.Apply(_material, MaterialTiling);
 			_material.SetShaderParameter("blend_width", BlendWidth);
 			_material.SetShaderParameter("blend_sharpness", Mathf.Clamp(BlendSharpness, 1.0f, 8.0f));
@@ -428,23 +423,27 @@ namespace Beep.ECS
 			_material.SetShaderParameter("noise_scale", NoiseScale);
 			_material.SetShaderParameter("shade_strength", ShadeStrength);
 
-			Texture2D? foam = TerrainTextures.Load(FoamSheetPath, Name, "foam sheet");
-			if (foam is null && !string.IsNullOrWhiteSpace(FoamSheetPath))
-				GD.PushWarning($"[{Name}] falling back to generated crests.");
-			_material.SetShaderParameter("use_foam_sheet", foam is not null);
-			if (foam is not null)
-				_material.SetShaderParameter("foam_sheet", foam);
-			_material.SetShaderParameter("wave_intensity", Mathf.Clamp(WaveIntensity, 0.0f, 2.0f));
-			_material.SetShaderParameter("foam_tiles_along", Mathf.Max(1.0f, FoamTilesAlong));
-			_material.SetShaderParameter("foam_tiles_across", Mathf.Max(0.3f, FoamTilesAcross));
-			_material.SetShaderParameter("foam_scroll", Mathf.Max(0.0f, FoamScroll));
-			_material.SetShaderParameter("foam_pulse", Mathf.Clamp(FoamPulse, 0.0f, 1.0f));
-			_material.SetShaderParameter("foam_arrival_rate", Mathf.Max(0.0f, FoamArrivalRate));
-			_material.SetShaderParameter("foam_strength", Mathf.Clamp(FoamStrength, 0.0f, 1.0f));
-			_material.SetShaderParameter("deep_tiles", Mathf.Max(0.5f, DeepTiles));
-			_material.SetShaderParameter("shallow_tiles", Mathf.Max(0.0f, ShallowTiles));
-			_material.SetShaderParameter("swell_direction_degrees", SwellDirectionDegrees);
-			_material.SetShaderParameter("swell_directionality", Mathf.Clamp(SwellDirectionality, 0.0f, 1.0f));
+			// Everything water_common.gdshaderinc declares, through its one writer.
+			// The coast range keeps this view's own floor: it must agree with the range
+			// TerrainPaintedCoastJob BUILT the field with, not with the export alone.
+			TerrainWaterMaterial.Apply(_material, new TerrainWaterMaterial.Settings(
+				Size: size,
+				Origin: BoundsOrigin,
+				CoastRange: Mathf.Max(5f, CoastRangeTiles),
+				GroundTextureTiles: GroundTextureTiles,
+				WaterTextureTiles: WaterTextureTiles,
+				WaveIntensity: WaveIntensity,
+				FoamStrength: FoamStrength,
+				ShallowTiles: ShallowTiles,
+				DeepTiles: DeepTiles,
+				FoamTilesAlong: FoamTilesAlong,
+				FoamTilesAcross: FoamTilesAcross,
+				FoamScroll: FoamScroll,
+				FoamPulse: FoamPulse,
+				FoamArrivalRate: FoamArrivalRate,
+				SwellDirectionDegrees: SwellDirectionDegrees,
+				SwellDirectionality: SwellDirectionality));
+			TerrainWaterMaterial.BindFoamSheet(_material, FoamSheetPath, Name);
 			_material.SetShaderParameter("art_style", 0);
 			MapArt?.ApplyGround(_material);
 		}
@@ -688,14 +687,10 @@ namespace Beep.ECS
 
 		private void Assign(string parameter, string path)
 		{
-			if (_material is null || string.IsNullOrWhiteSpace(path))
-				return;
-
-			Texture2D? texture = TerrainTextures.Load(path, Name, $"the {parameter} material");
-			if (texture is null)
-				return;
-
-			_material.SetShaderParameter(parameter, texture);
+			// One texture binder for every renderer, and it reports what loaded;
+			// see TerrainTextures.Bind.
+			if (_material is not null)
+				TerrainTextures.Bind(_material, parameter, path, Name);
 		}
 
 		private void ResolveGenerator()

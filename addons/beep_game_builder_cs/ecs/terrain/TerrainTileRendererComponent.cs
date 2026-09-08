@@ -108,10 +108,26 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,1,0.01")] public float ShoreOpacity { get; set; } = 0.55f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float LakeOpacity { get; set; } = 0.42f;
         [Export(PropertyHint.Range, "0.1,12,0.1")] public float ClarityTiles { get; set; } = 3.0f;
+        // Ranges match water_common.gdshaderinc's own hint_range, because
+        // TerrainWaterMaterial now holds these values to it. They used to be wider
+        // here than the shader accepts - DeepTiles ran to 64 against a shader
+        // declaring 0.5 to 12 - so the Inspector offered numbers that would now be
+        // silently clamped. No scene in the tree authors one; narrowing the slider
+        // is what keeps that true.
+        //
+        // The DEFAULTS below are still this view's own and differ from the
+        // isometric sea's (0.50 / 4.5 / 1.8). That is a real divergence - one map
+        // drawn twice with two different seas - but changing a default changes how
+        // terrain_tilemap_demo.tscn looks, which is an appearance decision rather
+        // than a consolidation, so it is left to the owner.
         [Export(PropertyHint.Range, "0,2,0.01")] public float WaveIntensity { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "0,2,0.01")] public float FoamStrength { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "1,64,0.5")] public float DeepTiles { get; set; } = 6.0f;
-        [Export(PropertyHint.Range, "1,64,0.5")] public float ShallowTiles { get; set; } = 6.0f;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 1.0f;
+        [Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 6.0f;
+        [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 6.0f;
+        /// <summary>Tiles per sandy-seabed texture repeat, under the shallows.</summary>
+        [Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
+        /// <summary>Tiles per animated water-texture repeat.</summary>
+        [Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
         [Export(PropertyHint.File, "*.png,*.webp")] public string ShallowTexturePath { get; set; } = "";
         [Export(PropertyHint.File, "*.png,*.webp")] public string DeepTexturePath { get; set; } = "";
         [Export(PropertyHint.File, "*.png,*.webp")] public string SandTexturePath { get; set; } = "";
@@ -122,6 +138,26 @@ namespace Beep.ECS
         /// one the other view draws off the same coastline.
         /// </summary>
         [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
+
+        // The dials that make the sheet above behave. This view set use_foam_sheet
+        // from FoamSheetPath and then set NONE of these, so an authored sheet ran on
+        // whatever the shader defaulted to while the isometric view of the same map
+        // ran the values its author tuned. The defaults here are the shader's own, so
+        // adding them changes nothing that draws today and gives this view the dial.
+        /// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
+        [Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
+        /// <summary>Tiles covered by one repeat ACROSS the shore - short on purpose; see the painted renderer.</summary>
+        [Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
+        /// <summary>How fast the authored crests advance onto the beach.</summary>
+        [Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
+        /// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
+        [Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
+        /// <summary>How fast arriving crests follow one another.</summary>
+        [Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
+        /// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
+        [Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
+        /// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
 
         private readonly List<TerrainTransitionLayerComponent> _layers = new();
         private const string BiomeDisplayMetadata = "_terrain_tile_biome_display";
@@ -395,47 +431,39 @@ namespace Beep.ECS
                 material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap, BoundsSize, _liveCoast.CoastRevision));
             }
 
-            material.SetShaderParameter("coast_range", CoastRangeTiles);
-            material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
-            material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
+            // This surface's OWN uniforms - the ones iso_water.gdshader declares for
+            // a transparent sheet of water floating over seabed. They mean nothing to
+            // the painted view's opaque composite, so they stay here rather than
+            // moving into the shared block below.
             material.SetShaderParameter(
                 "cell_size", new Vector2(AtlasTileSize.X, AtlasTileSize.Y));
             material.SetShaderParameter("max_opacity", MaxOpacity);
             material.SetShaderParameter("clarity_tiles", ClarityTiles);
             material.SetShaderParameter("lake_opacity", LakeOpacity);
             material.SetShaderParameter("shore_opacity", ShoreOpacity);
-            material.SetShaderParameter("wave_intensity", WaveIntensity);
-            material.SetShaderParameter("foam_strength", FoamStrength);
-            material.SetShaderParameter("deep_tiles", DeepTiles);
-            material.SetShaderParameter("shallow_tiles", ShallowTiles);
 
-            SetTexture(material, "tex_shallow", ShallowTexturePath);
-            SetTexture(material, "tex_deep", DeepTexturePath);
-            SetTexture(material, "tex_sand", SandTexturePath);
-            // Only take the authored-surf path if the art actually loaded;
-            // turning it on without the sheet draws no surf at all.
-            material.SetShaderParameter(
-                "use_foam_sheet", SetTexture(material, "foam_sheet", FoamSheetPath));
+            // Everything water_common.gdshaderinc declares, through its one writer.
+            TerrainWaterMaterial.Apply(material, new TerrainWaterMaterial.Settings(
+                Size: size,
+                Origin: BoundsOrigin,
+                CoastRange: CoastRangeTiles,
+                GroundTextureTiles: GroundTextureTiles,
+                WaterTextureTiles: WaterTextureTiles,
+                WaveIntensity: WaveIntensity,
+                FoamStrength: FoamStrength,
+                ShallowTiles: ShallowTiles,
+                DeepTiles: DeepTiles,
+                FoamTilesAlong: FoamTilesAlong,
+                FoamTilesAcross: FoamTilesAcross,
+                FoamScroll: FoamScroll,
+                FoamPulse: FoamPulse,
+                FoamArrivalRate: FoamArrivalRate,
+                SwellDirectionDegrees: SwellDirectionDegrees,
+                SwellDirectionality: SwellDirectionality));
+
+            TerrainWaterMaterial.ApplyTextures(
+                material, Name, ShallowTexturePath, DeepTexturePath, SandTexturePath, FoamSheetPath);
             return material;
-        }
-
-        /// <summary>
-        /// Assigns a water texture, reporting whether the art actually loaded.
-        /// </summary>
-        private bool SetTexture(ShaderMaterial material, string parameter, string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return false;
-
-            // Through the shared loader. A bare GD.Load here could only ever
-            // resolve res:// paths, so the same absolute path that works for the
-            // isometric sea failed silently for this one.
-            Texture2D? texture = TerrainTextures.Load(path, Name, $"the {parameter} material");
-            if (texture is null)
-                return false;
-
-            material.SetShaderParameter(parameter, texture);
-            return true;
         }
 
         /// <summary>

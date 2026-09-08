@@ -26,9 +26,27 @@ namespace Beep.ECS
         /// its own feature renderer drawing the same vegetation in its own
         /// projection.
         /// </summary>
-        private void Draw(Vector2I size)
+        private TerrainDataLayersComponent? _drawnDataLayers;
+        private TerrainGeneratorComponent? _drawnDataGenerator;
+
+        private void Draw(Vector2I size, bool rebuildRecipeData = true, bool queueCollision = false, bool preparedAutotile = false)
         {
+            bool propsFollowSurface = _iso is not null && _isometricFeatures?.FollowsSurface(_iso) == true;
             bool flat = Projection is not (TerrainProjection.Isometric or TerrainProjection.IsometricAutotile);
+            if (_features is not null) _features.PropSizing = PropSizing;
+            if (_relief is not null) _relief.PropSizing = PropSizing;
+            if (_isometricFeatures is not null) _isometricFeatures.PropSizing = PropSizing;
+            if (_painted is not null) _painted.MapArt = MapArt;
+            if (_features is not null) _features.MapArt = Projection == TerrainProjection.Painted ? MapArt : null;
+            if (_relief is not null) _relief.MapArt = Projection == TerrainProjection.Painted ? MapArt : null;
+
+            // Surface events rebuild visible props synchronously; set visibility before emitting them.
+            if (_isometricFeatures is not null)
+            {
+                _isometricFeatures.Seed = Mathf.Max(0, Seed);
+                _isometricFeatures.BoundsSize = size;
+                _isometricFeatures.Visible = Projection == TerrainProjection.Isometric;
+            }
 
             // The tile size of whichever FLAT renderer is actually visible right
             // now, not always the painted one. Gating this on _painted alone left
@@ -48,64 +66,77 @@ namespace Beep.ECS
             // the whole reason it is not taken from the drawing layers.
             if (_dataLayers is not null)
             {
+                NodePath dataGeneratorPath = _generator is null ? new NodePath("") : _dataLayers.GetPathTo(_generator);
+                bool dataChanged = rebuildRecipeData || _drawnDataLayers != _dataLayers
+                    || _drawnDataGenerator != _generator
+                    || _dataLayers.TerrainGeneratorPath.ToString() != dataGeneratorPath.ToString()
+                    || _dataLayers.BoundsOrigin != (_generator?.BoundsOrigin ?? Vector2I.Zero)
+                    || _dataLayers.BoundsSize != size
+                    || (flatTileSize.HasValue && _dataLayers.TileSize != flatTileSize.Value);
                 _dataLayers.BoundsSize = size;
+                _dataLayers.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _dataLayers.TerrainGeneratorPath = dataGeneratorPath;
                 if (flatTileSize is { } dataTileSize)
                     _dataLayers.TileSize = dataTileSize;
-                _dataLayers.Rebuild();
+                if (dataChanged)
+                {
+                    _dataLayers.Rebuild();
+                    _drawnDataLayers = _dataLayers;
+                    _drawnDataGenerator = _generator;
+                }
             }
 
-            // The painted renderer's C# type derives from Node while the scene
-            // node it is attached to is a Node2D, so visibility is toggled
-            // through the node rather than the component type.
-            if (_paintedNode is not null)
-                _paintedNode.Visible = Projection == TerrainProjection.Painted;
-
-            if (_painted is not null && Projection == TerrainProjection.Painted)
+            if (_painted is not null)
             {
                 _painted.BoundsSize = size;
-                _painted.Rebuild();
+                _painted.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _painted.Visible = Projection == TerrainProjection.Painted;
+                if (Projection == TerrainProjection.Painted) _painted.Rebuild();
             }
 
             // Vegetation is whatever the GENERATOR decided, drawn - not a second
             // scatter inventing its own placement from terrain kind. One owner.
             if (_features is not null)
             {
+                _features.Seed = Mathf.Max(0, Seed);
+                _features.BoundsSize = size;
+                _features.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _features.Visible = flat;
-                if (flat)
-                {
-                    _features.BoundsSize = size;
-                    _features.Seed = Mathf.Max(0, Seed);
-                    _features.Rebuild();
-                }
             }
 
             if (_tiles is not null)
             {
+                _tiles.BoundsSize = size;
+                _tiles.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _tiles.Visible = Projection == TerrainProjection.Tiles;
                 if (Projection == TerrainProjection.Tiles)
                 {
-                    _tiles.BoundsSize = size;
                     _tiles.Rebuild();
                 }
             }
 
             if (_iso is not null)
             {
+                // SurfaceRebuilt can immediately rebuild its attached props.
+                if (_isometricFeatures is not null) _isometricFeatures.BoundsSize = size;
+                _iso.BoundsSize = size;
+                _iso.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _iso.Visible = Projection == TerrainProjection.Isometric;
                 if (Projection == TerrainProjection.Isometric)
                 {
-                    _iso.BoundsSize = size;
                     _iso.Rebuild();
                 }
             }
 
             if (_isometricAutotile is not null)
             {
-                _isometricAutotile.Visible = Projection == TerrainProjection.IsometricAutotile;
+                _isometricAutotile.BoundsSize = size;
+                _isometricAutotile.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                if (preparedAutotile && Projection == TerrainProjection.IsometricAutotile) _isometricAutotile.ShowPrepared();
+                else _isometricAutotile.Visible = Projection == TerrainProjection.IsometricAutotile;
                 if (Projection == TerrainProjection.IsometricAutotile)
                 {
-                    _isometricAutotile.BoundsSize = size;
-                    _isometricAutotile.Rebuild();
+                    if (!preparedAutotile) _isometricAutotile.Rebuild();
                 }
             }
 
@@ -114,11 +145,10 @@ namespace Beep.ECS
             // that projection rather than being reused here.
             if (_isometricFeatures is not null)
             {
-                _isometricFeatures.Visible = Projection == TerrainProjection.Isometric;
                 if (Projection == TerrainProjection.Isometric)
                 {
                     _isometricFeatures.BoundsSize = size;
-                    _isometricFeatures.Rebuild();
+                    if (!propsFollowSurface) _isometricFeatures.Rebuild();
                 }
             }
 
@@ -127,38 +157,111 @@ namespace Beep.ECS
             // top-down feature renderer does.
             if (_relief is not null)
             {
+                _relief.BoundsSize = size;
+                _relief.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _relief.Visible = flat;
-                if (flat)
-                {
-                    _relief.BoundsSize = size;
-                    _relief.Seed = Mathf.Max(0, Seed);
-                    _relief.Rebuild();
-                }
             }
 
             if (_resources is not null)
             {
+                _resources.BoundsSize = size;
+                _resources.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _resources.Visible = flat;
-                if (flat)
-                {
-                    _resources.BoundsSize = size;
-                    _resources.Rebuild();
-                }
             }
 
             // The flat overlay is drawn on the square tile grid, so it lines up
             // with the flat projections only. Left on for the isometric view it
             // would sit over the map in the wrong projection.
-            if (_overlayNode is not null)
-                _overlayNode.Visible = flat;
+            if (_overlay is not null)
+            {
+                _overlay.BoundsSize = size;
+                _overlay.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _overlay.Visible = flat;
+            }
 
+            var grid = BindGameplayGrid(size);
+            // Preserve explicit missing wiring so views cannot fall back to a different grid.
+            NodePath GridPathFrom(Node view) => GridPath.IsEmpty ? new NodePath("")
+                : grid is null ? GetPath() : view.GetPathTo(grid);
+            if (!CollisionPath.IsEmpty && GetNodeOrNull<TerrainCollisionComponent>(CollisionPath) is { } collision)
+            {
+                collision.GridPath = GridPathFrom(collision);
+                collision.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                collision.BoundsSize = size;
+                if (queueCollision) collision.RequestRebuild();
+                else collision.Rebuild();
+            }
+            if (_features is not null && flat)
+            {
+                _features.BoundsSize = size;
+                _features.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _features.GridPath = GridPathFrom(_features);
+                if (flatTileSize is { } featureTileSize) _features.TileSize = featureTileSize;
+                _features.Rebuild();
+            }
+            if (_resources is not null && flat)
+            {
+                _resources.BoundsSize = size;
+                _resources.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _resources.GridPath = GridPathFrom(_resources);
+                if (flatTileSize is { } resourceTileSize) _resources.TileSize = resourceTileSize;
+                _resources.Rebuild();
+            }
             if (_overlay is not null && flat)
             {
                 _overlay.BoundsSize = size;
+                _overlay.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _overlay.GridPath = GridPathFrom(_overlay);
                 if (flatTileSize is { } overlayTileSize)
                     _overlay.TileSize = overlayTileSize;
                 _overlay.Rebuild();
             }
+            // Bind the new projection before relief queries gameplay cell positions.
+            if (_relief is not null && flat)
+            {
+                _relief.BoundsSize = size;
+                _relief.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                _relief.Seed = Mathf.Max(0, Seed);
+                _relief.GridPath = GridPathFrom(_relief);
+                if (flatTileSize is { } reliefTileSize) _relief.TileSize = reliefTileSize;
+                _relief.Rebuild();
+            }
+        }
+
+        private GridProjectionComponent? BindGameplayGrid(Vector2I size)
+        {
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            var navigation = NavigationPath.IsEmpty ? null : GetNodeOrNull<GridNavigationComponent>(NavigationPath);
+            if (navigation is not null)
+            {
+                navigation.UseBounds = true;
+                navigation.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+                navigation.BoundsSize = size;
+                if (!GridPath.IsEmpty)
+                    navigation.GridPath = grid is null ? GetPath() : navigation.GetPathTo(grid);
+            }
+            if (grid is null) return null;
+            grid.ElevatedTerrainPath = new NodePath("");
+            if (Projection == TerrainProjection.Isometric && _iso is not null)
+            {
+                grid.ElevatedTerrainPath = grid.GetPathTo(_iso);
+                grid.TileMapLayerPath = new NodePath("");
+            }
+            else
+            {
+                TileMapLayer? layer = Projection switch
+                {
+                    TerrainProjection.Painted => _painted?.GetTerrainLayer(),
+                    TerrainProjection.Tiles => _tiles?.GetTerrainLayer(),
+                    TerrainProjection.IsometricAutotile => _isometricAutotile?.GetTerrainLayer(),
+                    _ => null
+                };
+                // An explicitly unavailable view must not silently use the manual grid.
+                grid.TileMapLayerPath = layer is null ? GetPath() : grid.GetPathTo(layer);
+            }
+            grid.NotifyGeometryChanged();
+            grid.UpdateConfigurationWarnings();
+            return grid;
         }
 
         /// <summary>
@@ -182,10 +285,14 @@ namespace Beep.ECS
             Vector2I cell = starts.Count > 0 ? starts[0] : BuiltSize / 2;
 
             if (Projection == TerrainProjection.Isometric && _iso is not null)
-                return _iso.SurfacePosition(cell);
+                return _iso.Transform * _iso.SurfacePosition(_iso.BoundsOrigin + cell);
 
-            int tile = _painted?.TileSize ?? 64;
-            return new Vector2((cell.X + 0.5f) * tile, (cell.Y + 0.5f) * tile);
+            if (Projection == TerrainProjection.IsometricAutotile && _isometricAutotile is not null)
+                return _isometricAutotile.Transform * _isometricAutotile.CellPosition(_isometricAutotile.BoundsOrigin + cell);
+
+            Vector2 tile = FlatViewTileSize();
+            cell += _generator.BoundsOrigin;
+            return RendererTransform() * new Vector2((cell.X + 0.5f) * tile.X, (cell.Y + 0.5f) * tile.Y);
         }
 
         /// <summary>
@@ -205,21 +312,54 @@ namespace Beep.ECS
             Resolve();
             Vector2I size = BuiltSize.X > 0 ? BuiltSize : TerrainMapSetup.BoundsFor(MapSize);
 
+            if (Projection == TerrainProjection.IsometricAutotile && _isometricAutotile is not null)
+                return _isometricAutotile.Transform * _isometricAutotile.GridExtent(size);
+
             if (Projection == TerrainProjection.Isometric && _iso is not null)
             {
-                float halfWide = Mathf.Max(1, _iso.CellSize.X) * 0.5f;
-                float halfHigh = Mathf.Max(1, _iso.CellSize.Y) * 0.5f;
-                return new Rect2(
-                    new Vector2(-size.Y * halfWide, -_iso.LevelHeight * 2),
-                    new Vector2(
-                        Mathf.Max(1.0f, (size.X + size.Y) * halfWide),
-                        Mathf.Max(1.0f, ((size.X + size.Y) * halfHigh) + (_iso.LevelHeight * 2))));
+                return _iso.Transform * _iso.SurfaceExtent;
             }
 
-            int tile = _painted?.TileSize ?? 64;
-            return new Rect2(
-                Vector2.Zero,
-                new Vector2(Mathf.Max(1, size.X * tile), Mathf.Max(1, size.Y * tile)));
+            Vector2 tile = FlatViewTileSize();
+            return RendererTransform() * new Rect2(
+                new Vector2((_generator?.BoundsOrigin.X ?? 0) * tile.X, (_generator?.BoundsOrigin.Y ?? 0) * tile.Y),
+                new Vector2(Mathf.Max(1, size.X * tile.X), Mathf.Max(1, size.Y * tile.Y)));
+        }
+
+        private Vector2 FlatViewTileSize() => Projection == TerrainProjection.Tiles && _tiles is not null
+            ? new Vector2(Mathf.Max(1, _tiles.AtlasTileSize.X), Mathf.Max(1, _tiles.AtlasTileSize.Y))
+            : Vector2.One * Mathf.Max(1, _painted?.TileSize ?? 64);
+
+        private Node2D? ActiveRenderer() => Projection switch
+        {
+            TerrainProjection.Painted => _painted,
+            TerrainProjection.Tiles => _tiles,
+            TerrainProjection.Isometric => _iso,
+            TerrainProjection.IsometricAutotile => _isometricAutotile,
+            _ => null
+        };
+
+        private Transform2D RendererTransform() => ActiveRenderer()?.Transform ?? Transform2D.Identity;
+
+        // Preview queries are in the active renderer's parent coordinates; camera queries
+        // include that parent's canvas transform without applying the renderer twice.
+        private Transform2D ViewToGlobalTransform()
+        {
+            var renderer = ActiveRenderer();
+            return renderer is null ? Transform2D.Identity
+                : renderer.GlobalTransform * renderer.Transform.AffineInverse();
+        }
+
+        public Vector2 StartPositionGlobal()
+        {
+            Vector2 position = StartPositionView();
+            return ViewToGlobalTransform() * position;
+        }
+
+        public Rect2 WorldExtent()
+        {
+            Rect2 extent = PreviewExtent();
+            return ViewToGlobalTransform() * extent;
         }
     }
 }

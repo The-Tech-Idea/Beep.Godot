@@ -1024,12 +1024,10 @@ namespace Beep.ECS.UI
 			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "disabled", StampGeometry(Duplicate(preset.GetButtonDisabled())));
 			Kit.KitChrome.SetStyleboxOverrideIfChanged(btn, "focus", StampGeometry(Duplicate(preset.GetButtonFocus())));
 			Kit.KitChrome.SetColorOverrideIfChanged(btn, "font_color", preset.Colors.TextPrimary);
-			// > 0, not >= 0 — see the note on Fs in ThemePresetComponent.NodeTheming.cs. A 0 here
-			// is not a size, and it reaches the text server as one.
-			int fontSize = _geometry != null && _geometry.FontSize > 0
-				? _geometry.FontSize
-				: (_loadedThemeGeometry.FontSize > 0 ? _loadedThemeGeometry.FontSize : 14);
-			Kit.KitChrome.SetFontSizeOverrideIfChanged(btn, "font_size", fontSize);
+			// Fs, not a second copy of how Fs is derived. This restated the whole
+			// geometry.json -> theme.json -> 14 chain inline, so the base font size had two
+			// definitions that had to be edited together and would drift silently if they were not.
+			Kit.KitChrome.SetFontSizeOverrideIfChanged(btn, "font_size", Fs);
 			if (EnableAnimations) SetupButtonAnimations(btn);
 			if (EnableRippleOnClick) SetupRipple(btn);
 		}

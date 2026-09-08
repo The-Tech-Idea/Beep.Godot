@@ -228,8 +228,25 @@ public static class BeepGenreGenerator
         if (genre.Tuning.TryGetValue("time_axis", out var tax))
         {
             string axis = tax.AsString().ToLowerInvariant();
-            if (axis == "realtime" || axis == "turns") info.TimeAxis = axis;
+            if (axis == "realtime") info.TimeAxis = Beep.ECS.GameTimeAxis.Realtime;
+            else if (axis == "turns") info.TimeAxis = Beep.ECS.GameTimeAxis.Turns;
             else GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.time_axis = '{tax.AsString()}' is neither 'realtime' nor 'turns' — ignored, defaulting to realtime.");
+
+            // Declaring the axis re-declares the cascade with it: a turn IS a
+            // day on the turn axis, so the divisor is 1; a real-time genre
+            // gets GameInfo's own day length. Inside this block on purpose -
+            // it used to run for every genre with a tuning section, which
+            // clobbered an authored BeatsPerDay whether or not the genre said
+            // a word about time. beats_per_day below still overrides either.
+            info.BeatsPerDay = info.TimeAxis == Beep.ECS.GameTimeAxis.Turns
+                ? 1.0
+                : GameInfo.DefaultRealtimeBeatsPerDay;
+        }
+        if (genre.Tuning.TryGetValue("beats_per_day", out var bpd))
+        {
+            double beats = bpd.AsDouble();
+            if (double.IsFinite(beats) && beats > 0.0) info.BeatsPerDay = beats;
+            else GD.PushWarning($"[Beep Genre] '{genre.Id}': tuning.beats_per_day = '{bpd.AsString()}' is not a positive number — ignored.");
         }
 
         WarnUnknownTuning(genre);
@@ -245,7 +262,7 @@ public static class BeepGenreGenerator
         "enable_temperature", "ambient_temperature",
         "enable_forecast", "forecast_days",
         "enable_save_load", "max_save_slots", "autosave_enabled", "autosave_interval_seconds",
-        "time_axis",
+        "time_axis", "beats_per_day",
     };
 
     /// <summary>Report tuning keys nothing reads. Several genres ship blocks that look like
@@ -277,37 +294,30 @@ public static class BeepGenreGenerator
         BeepInputMapGenerator.SetupDefaultInput();
         log.Add("Input map configured.");
 
-        // 2) Register C# autoloads ONLY — no GDScript managers.
+        // 2) ONE autoload. GameApp is the game master and OWNS its subsystems -
+        //    clock, settings, locale, saves - constructing them as children in a
+        //    deterministic order (the shape Widelands' Game and Return to the
+        //    Roots' Game both use, where the master holds cmdqueue/em_/world_ and
+        //    hands them out by typed accessor).
+        //
+        //    They used to be four independent autoloads, two of them registered
+        //    conditionally, which made the SHAPE OF THE TREE carry configuration:
+        //    a component asked "is a TurnManager in the tree?" to decide whether
+        //    the game was turn-based. That inference is gone - GameInfo.TimeAxis
+        //    declares the axis and GameApp configures the clock with it - and so
+        //    are the conditional registrations. EnableGameStateManager now
+        //    disables the save manager instead of deleting it from the tree.
         EnsureAutoload("GameApp", "res://addons/beep_game_builder_cs/ecs/GameApp.cs");
-        EnsureAutoload("Settings", "res://addons/beep_game_builder_cs/ecs/ui/SettingsComponent.cs");
-        EnsureAutoload("Locale", "res://addons/beep_game_builder_cs/ecs/ui/LocalizationComponent.cs");
 
-        // GameStateManager must outlive scene changes: the save/load menus live in
-        // main_menu.tscn, while gameplay is a different scene. As a per-scene node it
-        // was never in the tree at the same time as the menus that call it, so
-        // SaveLoadManager could never find it ("GameStateManager not found").
-        // It discovers ISaveables from GetTree().Root, so an autoload works unchanged.
-        // Add-or-remove, not add-only: re-generating a genre where the flag is now false must strip a
-        // previously-registered autoload. EnsureAutoload alone left stale managers behind — worst for
-        // TurnManager, whose mere presence is how durational components detect the turn axis, so a
-        // real-time genre regenerated over an old turn-based project would silently run on the turn axis.
-        if (info.EnableGameStateManager)
-            EnsureAutoload("GameStateManager", "res://addons/beep_game_builder_cs/ecs/GameStateManagerComponent.cs");
-        else
+        // Strip the autoloads GameApp now owns, so a project stamped by an older
+        // build does not end up with two of each.
+        foreach (string owned in new[] { "Settings", "Locale", "GameStateManager", "TurnManager" })
         {
-            BeepProjectDefaults.RemoveAutoload("GameStateManager");
-            log.Add("GameStateManager autoload removed (EnableGameStateManager is false).");
-        }
-
-        // Turn-based genres get the TurnManager autoload; real-time ones must NOT (its presence
-        // in the tree is exactly how durational components detect the turn axis). Gated on the
-        // genre's time_axis, the same file-based principle as every other tuning flag.
-        if (info.TimeAxis == "turns")
-            EnsureAutoload("TurnManager", "res://addons/beep_game_builder_cs/ecs/TurnManager.cs");
-        else
-        {
-            BeepProjectDefaults.RemoveAutoload("TurnManager");
-            log.Add("TurnManager autoload removed (time axis is real-time, not turns).");
+            if (BeepProjectDefaults.HasAutoload(owned))
+            {
+                BeepProjectDefaults.RemoveAutoload(owned);
+                log.Add($"{owned} autoload removed — GameApp owns it now.");
+            }
         }
 
         WriteGameInfoTres(info);

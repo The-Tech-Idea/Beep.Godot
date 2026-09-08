@@ -42,6 +42,10 @@ namespace Beep.ECS
         [Export] public Godot.Collections.Array<NodePath> HiddenAtStart { get; set; } = new();
 
         [ExportGroup("Timing")]
+        // Real seconds, deliberately: these drive a showcase tween that animates a
+        // truck across the screen, not grid work on the work clock. They are the one
+        // place under ecs/grid that legitimately says "seconds", and the contract scan
+        // exempts this file by name.
         [Export(PropertyHint.Range, "0.05,5,0.05")] public float TravelSeconds { get; set; } = 0.85f;
         [Export(PropertyHint.Range, "0,5,0.05")] public float WorkSeconds { get; set; } = 0.45f;
 
@@ -52,6 +56,7 @@ namespace Beep.ECS
         private GridResourceWalletComponent? _wallet;
         private Label? _status;
         private Node2D? _workMarker;
+        private bool _spawnerConnected;
         private bool _isWorking;
 
         public override void _Ready()
@@ -59,10 +64,7 @@ namespace Beep.ECS
             if (Engine.IsEditorHint())
                 return;
 
-            _spawner = SpawnerPath.IsEmpty ? null : GetNodeOrNull<GridWorkerSpawnerComponent>(SpawnerPath);
-            _wallet = ResourceWalletPath.IsEmpty ? null : GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath);
-            _status = StatusLabelPath.IsEmpty ? null : GetNodeOrNull<Label>(StatusLabelPath);
-            _workMarker = WorkMarkerPath.IsEmpty ? null : GetNodeOrNull<Node2D>(WorkMarkerPath);
+            ResolveReferences();
 
             if (_workMarker is not null)
                 _workMarker.Visible = false;
@@ -71,12 +73,6 @@ namespace Beep.ECS
             {
                 if (GetNodeOrNull(path) is CanvasItem item)
                     item.Visible = false;
-            }
-
-            if (_spawner is not null)
-            {
-                _spawner.UnitSpawned += OnUnitSpawned;
-                _spawner.SpawnRejected += OnSpawnRejected;
             }
 
             foreach (NodePath path in ToolButtonPaths)
@@ -93,11 +89,53 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_spawner is not null && GodotObject.IsInstanceValid(_spawner))
+            DisconnectSpawner();
+        }
+
+        /// <summary>
+        /// Re-validates the four wired collaborators with IsInstanceValid and
+        /// re-resolves any that went stale (freed, or a NodePath assigned
+        /// after _Ready) - the same convention every other reviewed
+        /// Node-derived grid component follows. Called from _Ready and from
+        /// every public entry point.
+        /// </summary>
+        private void ResolveReferences()
+        {
+            if (_spawner == null || !GodotObject.IsInstanceValid(_spawner))
+            {
+                DisconnectSpawner();
+                _spawner = SpawnerPath.IsEmpty ? null : GetNodeOrNull<GridWorkerSpawnerComponent>(SpawnerPath);
+                ConnectSpawner();
+            }
+
+            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
+                _wallet = ResourceWalletPath.IsEmpty ? null : GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath);
+
+            if (_status == null || !GodotObject.IsInstanceValid(_status))
+                _status = StatusLabelPath.IsEmpty ? null : GetNodeOrNull<Label>(StatusLabelPath);
+
+            if (_workMarker == null || !GodotObject.IsInstanceValid(_workMarker))
+                _workMarker = WorkMarkerPath.IsEmpty ? null : GetNodeOrNull<Node2D>(WorkMarkerPath);
+        }
+
+        private void ConnectSpawner()
+        {
+            if (_spawner is null || _spawnerConnected)
+                return;
+
+            _spawner.UnitSpawned += OnUnitSpawned;
+            _spawner.SpawnRejected += OnSpawnRejected;
+            _spawnerConnected = true;
+        }
+
+        private void DisconnectSpawner()
+        {
+            if (_spawner is not null && GodotObject.IsInstanceValid(_spawner) && _spawnerConnected)
             {
                 _spawner.UnitSpawned -= OnUnitSpawned;
                 _spawner.SpawnRejected -= OnSpawnRejected;
             }
+            _spawnerConnected = false;
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -108,6 +146,8 @@ namespace Beep.ECS
         /// <summary>Starts the task whose Action matches, if nothing is running.</summary>
         public void Request(string action)
         {
+            ResolveReferences();
+
             if (_isWorking)
             {
                 SetStatus(BusyPrompt);

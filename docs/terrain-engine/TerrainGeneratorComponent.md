@@ -4,6 +4,11 @@ Generation-stage entry point and game-facing component: the single `[Tool][Globa
 
 `TerrainGeneratorComponent` is the one place a level designer or another system configures a world: roughly forty `[Export]` fields (map bounds, mode/preset/seed, landform, noise, erosion/beach, lake/river, gameplay density dials, relief fractions, climate-map and scale-rule options) are assembled each call into a `TerrainGenerationSettings` record, handed to `TerrainFieldBuilder.Build`, and the resulting `GeneratedTerrainField` is cached by settings-equality so repeated per-cell queries (which every renderer makes, potentially per pixel) don't re-run generation. `GenerateTerrain()` additionally writes the whole field into a linked `GridCellDataComponent` as the gameplay-facing grid of terrain kinds.
 
+With a positive `BeachWidth`, climate-driven maps now preserve at least one sand
+cell along ocean edges and corners after reduction. Width zero disables this
+minimum; themed ground and lake/river banks keep their separate rules. See
+[TerrainShorelineStage](TerrainShorelineStage.md).
+
 ## Public API
 
 - `enum LandformMode { Mainland, Island, Archipelago }` — the three landform shapes; consumed by `TerrainGenerationSettings.RequestedLandmassCount`.
@@ -42,7 +47,7 @@ Generation-stage entry point and game-facing component: the single `[Tool][Globa
 - `Vector2I EffectiveBoundsSize { get; }` — `BoundsSize` with both axes floored to 1.
 - `override void _Ready()` — resolves references, updates configuration warnings, and (if configured) defers a `GenerateTerrain()` call.
 - `override string[] _GetConfigurationWarnings()` — editor warnings when `CellDataPath` is empty or `BoundsSize` has a non-positive axis.
-- `int GenerateTerrain()` — builds the field for current settings, writes every cell (position + terrain kind, flags always 0) into the linked `GridCellDataComponent` via `LoadCells`, emits `TerrainGenerated`, and returns the cell count; returns 0 and logs a warning if no `GridCellDataComponent` is resolved.
+- `int GenerateTerrain()` — builds the field for current settings and, where a `GridCellDataComponent` is wired, loads it with every cell (position + terrain kind, flags always 0) via `LoadGeneratedCells` — the map loader's one write — then emits `TerrainGenerated` and returns the cell count. With no cells wired it generates the field, emits `TerrainGenerated(0)` and returns 0: a legitimate shape (a map viewer, a lab with no grid), not a failure, since every renderer draws from the field regardless. Restoring a saved world never comes through here — `TerrainWorldComponent.RestoreWorld` resolves the field without touching the cells.
 - `string TerrainKindAt(Vector2I localCell)` — terrain kind string at a cell.
 - `string TerrainKindAtPosition(Vector2 localPosition)` — terrain kind string at a continuous position.
 - `string WaterSourceAt(Vector2I localCell)` — the water-source classification (e.g. ocean/lake) at a cell.

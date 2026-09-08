@@ -51,7 +51,7 @@ namespace Beep.ECS
 
         public bool IsDashing => _dashTimer > 0;
         public bool IsOnCooldown => _cooldownTimer > 0;
-        public bool IsInvincible => GrantIFrames && _dashTimer > 0;
+        public bool IsInvincible => IsActive && GrantIFrames && _dashTimer > 0;
 
         public override void _Ready()
         {
@@ -59,37 +59,26 @@ namespace Beep.ECS
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _stamina = GetSiblingComponent<HungerStaminaComponent>();
+            ProcessPhysicsPriority = -10;
         }
 
         public override void _PhysicsProcess(double delta)
         {
+            if (!IsActive) { CancelDash(); return; }
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && (!actor.IsActive || actor.IsDead || actor.HasOrders))
+            { actor.ConsumeDash(); CancelDash(); return; }
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
             if (!IsFinite(_dashDirection)) _dashDirection = Vector2.Right;
 
             if (_dashTimer > 0)
             {
                 _dashTimer -= dt;
-                // Apply dash velocity. X always; Y only when the dash has vertical intent, so a
-                // platformer's horizontal dash still leaves gravity to control Y, while a
-                // top-down/fly vertical dash actually moves (the Y component used to be discarded).
-                float dashSpeed = EffectiveDashSpeed;
-                float vx = _dashDirection.X * dashSpeed;
-                float vy = _dashDirection.Y != 0f ? _dashDirection.Y * dashSpeed : _body.Velocity.Y;
-                _body.Velocity = new Vector2(vx, vy);
-                // Set-only: the sibling controller owns MoveAndSlide. Calling it here too
-                // integrated the body twice per frame (~2x dash distance) — the same fix
-                // SlideComponent carries.
-
-                // Apply invincibility effect during dash.
-                if (GrantIFrames && _statusEffects != null && !_statusEffects.HasEffect("invincible"))
-                    _statusEffects.ApplyEffect("invincible", EffectiveDashDuration, isBuff: true, stackBehavior: StatusEffectComponent.StackBehavior.Refresh);
-
+                // CharacterMotion applies this after the controller computes ordinary velocity.
                 if (_dashTimer <= 0)
                 {
-                    if (GrantIFrames && _statusEffects != null)
-                        _statusEffects.RemoveEffect("invincible");
                     EmitSignal(SignalName.DashEnded);
                 }
             }
@@ -100,32 +89,56 @@ namespace Beep.ECS
                 // Check for dash input (blocked while stunned). Gate the reads so absent actions
                 // don't spam a per-frame error before the input map is generated.
                 bool stunned = StunBlocksDash && _statusEffects != null && _statusEffects.HasEffect("stun");
-                if (InputActionsAvailable(DashAction, "move_left", "move_right", "move_up", "move_down")
-                    && Input.IsActionJustPressed(DashAction) && _cooldownTimer <= 0 && !stunned)
+                bool requested = actor is not null ? actor.ConsumeDash()
+                    : InputActionsAvailable(DashAction, "move_left", "move_right", "move_up", "move_down") && Input.IsActionJustPressed(DashAction);
+                if (requested && _cooldownTimer <= 0 && !stunned)
                 {
-                    if (EffectiveDashDuration <= 0f || EffectiveDashSpeed <= 0f)
-                        return;
-
-                    // Pay stamina if a HungerStaminaComponent is present — refuses when exhausted.
-                    if (_stamina != null && !_stamina.TryConsumeStamina(EffectiveStaminaCost))
-                        return;
-                    // Determine direction from input, fall back to facing.
-                    float x = Input.GetAxis("move_left", "move_right");
-                    float y = Input.GetAxis("move_up", "move_down");
-                    _dashDirection = new Vector2(x, y);
-                    if (!IsFinite(_dashDirection) || _dashDirection == Vector2.Zero)
-                        _dashDirection = new Vector2(_body.Velocity.X >= 0 ? 1f : -1f, 0f);
-                    _dashDirection = _dashDirection.Normalized();
-
-                    _dashTimer = EffectiveDashDuration;
-                    _cooldownTimer = EffectiveDashCooldown;
-                    EmitSignal(SignalName.DashStarted, _dashDirection);
+                    Vector2 direction = actor?.MoveIntent ?? Input.GetVector("move_left", "move_right", "move_up", "move_down");
+                    if (direction == Vector2.Zero) direction = actor?.AimIntent ?? new Vector2(_body.Velocity.X >= 0 ? 1f : -1f, 0f);
+                    TryDash(direction);
                 }
             }
         }
 
         /// <summary>Reset cooldown (e.g. on landing for "ground dash only" games).</summary>
         public void ResetCooldown() => _cooldownTimer = 0;
+
+        public bool TryDash(Vector2 direction)
+        {
+            if (!IsActive || !GodotObject.IsInstanceValid(_body) || !direction.IsFinite() || direction == Vector2.Zero
+                || IsDashing || IsOnCooldown || EffectiveDashDuration <= 0 || EffectiveDashSpeed <= 0) return false;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && (!actor.IsActive || actor.IsDead || actor.HasOrders)) return false;
+            if (GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }) return false;
+            if (StunBlocksDash && _statusEffects?.HasEffect("stun") == true) return false;
+            if (_stamina is not null && !_stamina.TryConsumeStamina(EffectiveStaminaCost)) return false;
+            _dashDirection = direction.Normalized();
+            _dashTimer = EffectiveDashDuration; _cooldownTimer = EffectiveDashCooldown;
+            EmitSignal(SignalName.DashStarted, _dashDirection);
+            return true;
+        }
+
+        internal Vector2 ApplyVelocity(Vector2 ordinary)
+        {
+            bool preserveGravity = _dashDirection.Y == 0 && GetSiblingComponent<PlatformerController>() is { IsActive: true };
+            return new(_dashDirection.X * EffectiveDashSpeed, preserveGravity ? ordinary.Y : _dashDirection.Y * EffectiveDashSpeed);
+        }
+
+        public void CancelDash()
+        {
+            if (!IsDashing) return;
+            _dashTimer = 0;
+            EmitSignal(SignalName.DashEnded);
+        }
+
+        public override void _ExitTree()
+        {
+            CancelDash();
+            _body = null; _statusEffects = null; _stamina = null;
+            _cooldownTimer = 0;
+            RequestReady();
+            base._ExitTree();
+        }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
 

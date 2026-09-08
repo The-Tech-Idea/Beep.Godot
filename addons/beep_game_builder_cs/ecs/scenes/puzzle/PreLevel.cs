@@ -29,10 +29,10 @@ namespace Beep.ECS.Scenes
 
             button.ToggleMode = true;
             // Reflect any previously-saved selection.
-            var manager = GameStateManagerComponent.Instance;
+            var manager = GameApp.Instance?.Saves;
             button.ButtonPressed = manager?.GetGameData(key, false).AsBool() ?? false;
 
-            button.Toggled += on => GameStateManagerComponent.Instance?.SetGameData(key, on);
+            button.Toggled += on => GameApp.Instance?.Saves?.SetGameData(key, on);
         }
 
         // Shared helper: this method was byte-identical in all 33 screen scripts.

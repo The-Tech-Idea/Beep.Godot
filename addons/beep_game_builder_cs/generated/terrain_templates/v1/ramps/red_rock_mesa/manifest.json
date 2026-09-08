@@ -1,0 +1,213 @@
+{
+  "theme": "red_rock_mesa",
+  "assets": [
+    {
+      "id": "ramp_quarter_left",
+      "png": "ramp_quarter_left.png",
+      "texture": "ramp_quarter_left.tres",
+      "region": [
+        49,
+        57,
+        429,
+        183
+      ],
+      "ground_pivot": [
+        214.5,
+        179
+      ],
+      "nominal_height_ratio": 0.25,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "left",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_quarter_left.tscn"
+    },
+    {
+      "id": "ramp_quarter_front",
+      "png": "ramp_quarter_front.png",
+      "texture": "ramp_quarter_front.tres",
+      "region": [
+        663,
+        21,
+        203,
+        223
+      ],
+      "ground_pivot": [
+        101.5,
+        219
+      ],
+      "nominal_height_ratio": 0.25,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "front",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_quarter_front.tscn"
+    },
+    {
+      "id": "ramp_quarter_right",
+      "png": "ramp_quarter_right.png",
+      "texture": "ramp_quarter_right.tres",
+      "region": [
+        1029,
+        69,
+        453,
+        171
+      ],
+      "ground_pivot": [
+        226.5,
+        167
+      ],
+      "nominal_height_ratio": 0.25,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "right",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_quarter_right.tscn"
+    },
+    {
+      "id": "ramp_half_left",
+      "png": "ramp_half_left.png",
+      "texture": "ramp_half_left.tres",
+      "region": [
+        42,
+        309,
+        437,
+        264
+      ],
+      "ground_pivot": [
+        218.5,
+        260
+      ],
+      "nominal_height_ratio": 0.5,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "left",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_half_left.tscn"
+    },
+    {
+      "id": "ramp_half_front",
+      "png": "ramp_half_front.png",
+      "texture": "ramp_half_front.tres",
+      "region": [
+        662,
+        301,
+        202,
+        280
+      ],
+      "ground_pivot": [
+        101.0,
+        276
+      ],
+      "nominal_height_ratio": 0.5,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "front",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_half_front.tscn"
+    },
+    {
+      "id": "ramp_half_right",
+      "png": "ramp_half_right.png",
+      "texture": "ramp_half_right.tres",
+      "region": [
+        1028,
+        312,
+        462,
+        262
+      ],
+      "ground_pivot": [
+        231.0,
+        258
+      ],
+      "nominal_height_ratio": 0.5,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "right",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_half_right.tscn"
+    },
+    {
+      "id": "ramp_full_left",
+      "png": "ramp_full_left.png",
+      "texture": "ramp_full_left.tres",
+      "region": [
+        28,
+        596,
+        457,
+        391
+      ],
+      "ground_pivot": [
+        228.5,
+        387
+      ],
+      "nominal_height_ratio": 1,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "left",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_full_left.tscn"
+    },
+    {
+      "id": "ramp_full_front",
+      "png": "ramp_full_front.png",
+      "texture": "ramp_full_front.tres",
+      "region": [
+        656,
+        590,
+        220,
+        402
+      ],
+      "ground_pivot": [
+        110.0,
+        398
+      ],
+      "nominal_height_ratio": 1,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "front",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_full_front.tscn"
+    },
+    {
+      "id": "ramp_full_right",
+      "png": "ramp_full_right.png",
+      "texture": "ramp_full_right.tres",
+      "region": [
+        1023,
+        596,
+        475,
+        391
+      ],
+      "ground_pivot": [
+        237.5,
+        387
+      ],
+      "nominal_height_ratio": 1,
+      "measured_cliff_height": null,
+      "family": "ramp",
+      "approach_direction": "right",
+      "placement": "manual",
+      "plate_fit_validated": false,
+      "default_scale": 0.2909090909090909,
+      "scene": "ramp_full_right.tscn"
+    }
+  ],
+  "heights_calibrated": false
+}

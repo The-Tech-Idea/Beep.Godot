@@ -1,0 +1,95 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate generated source sprites on green. Six-step design. Dimensions and camera matching are visual approximations, not calibrated geometry. Engine placement, scale and collision not configured.",
+  "directions": {
+    "front": "Foot toward bottom; ascends up image.",
+    "left": "Foot lower-left; ascends upper-right.",
+    "right": "Foot lower-right; ascends upper-left."
+  },
+  "assets": [
+    {
+      "material": "grey_granite",
+      "direction": "front",
+      "file": "grey_granite_stairs_front_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c592c69a-de57-4f63-b3de-24db3679d830.png",
+      "prompt": "Create ONE separate narrow stone staircase sprite for a front-view 2.5D top-down game. Reference image is MATERIAL AND PAINTERLY STYLE ONLY, do not create a bridge. Grey natural granite, irregular detailed fractures, not low poly. Front facing staircase: foot at bottom center, upper landing at top center, straight horizontal treads, orthographic elevated camera looking from south at 35 degrees. Exactly six modest even steps, compact run, one-character-wide, total rise about equal to its width, solid supporting rock wedge below. Small flush top landing no larger than one tread. Clearly visible step risers. Entire isolated object centered in square canvas with generous margins. Flat solid bright green #00FF00 background, no floor, no cast shadow outside object, no plants, rails, pillars, labels, water, or platform attached. Keep edges clean. This is a compact connector, not a monumental stairway."
+    },
+    {
+      "material": "grey_granite",
+      "direction": "left",
+      "file": "grey_granite_stairs_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-6ffef68c-bdcf-457b-8d00-3a61bbc1092b.png",
+      "prompt": "Create the left-facing version of this same compact six-step granite staircase for a 2.5D game. Rotate the OBJECT in world space, not the image plane: lowest tread at lower-left, stairs ascend toward upper-right. Keep fixed elevated orthographic camera and upper-left lighting. Show treads and the solid natural rocky supporting side wedge. Preserve six steps, narrow width, total physical rise and short run of reference. Do not make a bridge or ramp. Same detailed painterly granite, not low poly. One isolated staircase, centered in square image, full silhouette with margin. Flat bright green background. No ground, plants, railings, separate rocks, labels, shadows outside silhouette, or attached plateau."
+    },
+    {
+      "material": "grey_granite",
+      "direction": "right",
+      "file": "grey_granite_stairs_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-43b70bd8-3601-4777-86e6-5a0a42bfbe77.png",
+      "prompt": "Create the right-facing version of this same compact six-step granite staircase for a 2.5D game. Rotate the OBJECT in world space, not the image plane: lowest tread at lower-right, stairs ascend toward upper-left. Keep fixed elevated orthographic camera and upper-left lighting. Show treads and the solid natural rocky supporting side wedge. Preserve six steps, narrow width, total physical rise and short run of reference. Do not make a bridge or ramp. Same detailed painterly granite, not low poly. One isolated staircase, centered in square image, full silhouette with margin. Flat bright green background. No ground, plants, railings, separate rocks, labels, shadows outside silhouette, or attached plateau."
+    },
+    {
+      "material": "red_sandstone",
+      "direction": "front",
+      "file": "red_sandstone_stairs_front_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b882bfc7-bd4a-4a96-97a4-664d7b562a79.png",
+      "prompt": "Material-only edit of this front-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with warm red-orange sandstone, naturally chipped sedimentary rock and subtle horizontal strata, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "red_sandstone",
+      "direction": "left",
+      "file": "red_sandstone_stairs_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ecd400d5-70d6-4db0-a503-a3794392424d.png",
+      "prompt": "Material-only edit of this left-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with warm red-orange sandstone, naturally chipped sedimentary rock and subtle horizontal strata, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "red_sandstone",
+      "direction": "right",
+      "file": "red_sandstone_stairs_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5e5874f5-6160-40d4-b01b-8f6db68a978f.png",
+      "prompt": "Material-only edit of this right-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with warm red-orange sandstone, naturally chipped sedimentary rock and subtle horizontal strata, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "volcanic_basalt",
+      "direction": "front",
+      "file": "volcanic_basalt_stairs_front_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c86a6d38-5aeb-422b-b3f0-e2cf710b7a8a.png",
+      "prompt": "Material-only edit of this front-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with charcoal grey cooled basalt with irregular fractures and subtle pores, no lava or glow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "volcanic_basalt",
+      "direction": "left",
+      "file": "volcanic_basalt_stairs_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-077e9545-63bb-4113-88cc-930990d16de5.png",
+      "prompt": "Material-only edit of this left-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with charcoal grey cooled basalt with irregular fractures and subtle pores, no lava or glow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "volcanic_basalt",
+      "direction": "right",
+      "file": "volcanic_basalt_stairs_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-2c999c67-8e44-416a-906e-38046d4fb926.png",
+      "prompt": "Material-only edit of this right-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with charcoal grey cooled basalt with irregular fractures and subtle pores, no lava or glow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "pale_limestone",
+      "direction": "front",
+      "file": "pale_limestone_stairs_front_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ee413252-2470-4ebd-ac92-77ce3c3b796a.png",
+      "prompt": "Material-only edit of this front-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with pale warm ivory weathered limestone with natural fractures and tiny erosion pockets, not snow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "pale_limestone",
+      "direction": "left",
+      "file": "pale_limestone_stairs_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-966750c3-8879-4926-92a7-1d534661f84b.png",
+      "prompt": "Material-only edit of this left-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with pale warm ivory weathered limestone with natural fractures and tiny erosion pockets, not snow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    },
+    {
+      "material": "pale_limestone",
+      "direction": "right",
+      "file": "pale_limestone_stairs_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-57193e9d-9c0f-4692-9e8e-4275b8cc147b.png",
+      "prompt": "Material-only edit of this right-facing six-step stair sprite. Keep silhouette, six treads, width, height, camera, position and lighting unchanged. Replace granite everywhere with pale warm ivory weathered limestone with natural fractures and tiny erosion pockets, not snow, detailed painterly game art not low-poly. Same material on treads, risers and solid side support. Preserve flat bright green background. No plants ground shadow rails text or attached platforms."
+    }
+  ]
+}

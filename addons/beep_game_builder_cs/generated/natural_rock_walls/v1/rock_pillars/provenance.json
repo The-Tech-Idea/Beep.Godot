@@ -1,0 +1,90 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate terrain source sprites on opaque green backgrounds. No engine configuration. Relative shape proportions are visual, not calibrated dimensions.",
+  "assets": [
+    {
+      "material": "grey_granite",
+      "kind": "spire",
+      "file": "grey_granite_spire_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-0fd86888-0602-4f8e-bcc0-feee89f0b025.png",
+      "prompt": "Create ONE isolated grey granite terrain sprite: a tall narrow natural rock spire, tapering to an uneven pointed summit, height three times its base width. Reference is painterly MATERIAL STYLE only, do NOT draw an arch or hole. Detailed natural weathered rock with varied large fractures and smaller cracks, no identical stacked columns, no masonry, no low-poly look. Front-facing elevated orthographic 2.5D game camera, upper-left lighting, visible top and side depth. Single complete object centered, 10 percent margin, square canvas. OPAQUE UNIFORM VIVID GREEN RGB 0,255,0 background, NOT black or transparent. No attached ground, soil, plants, floor, cast shadows outside stone, text or other objects."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "pillar",
+      "file": "grey_granite_pillar_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-7b711bfc-26ac-4414-9c06-465d8a910953.png",
+      "prompt": "Create ONE isolated grey granite terrain sprite: a short broad natural rock pillar, blunt uneven crown, height approximately equal to width, substantial visible rocky side walls. Reference is painterly MATERIAL STYLE only, do NOT draw an arch or hole. Detailed natural weathered rock with varied large fractures and smaller cracks, no identical stacked columns, no masonry, no low-poly look. Front-facing elevated orthographic 2.5D game camera, upper-left lighting, visible top and side depth. Single complete object centered, 10 percent margin, square canvas. OPAQUE UNIFORM VIVID GREEN RGB 0,255,0 background, NOT black or transparent. No attached ground, soil, plants, floor, cast shadows outside stone, text or other objects."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "stump",
+      "file": "grey_granite_stump_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-9d232c6a-5445-4416-ac52-148e87d8f8df.png",
+      "prompt": "Create ONE isolated grey granite terrain sprite: a low broken rock stump, jagged fractured sloping crown with an obvious missing upper section, height half its width, no detached debris. Reference is painterly MATERIAL STYLE only, do NOT draw an arch or hole. Detailed natural weathered rock with varied large fractures and smaller cracks, no identical stacked columns, no masonry, no low-poly look. Front-facing elevated orthographic 2.5D game camera, upper-left lighting, visible top and side depth. Single complete object centered, 10 percent margin, square canvas. OPAQUE UNIFORM VIVID GREEN RGB 0,255,0 background, NOT black or transparent. No attached ground, soil, plants, floor, cast shadows outside stone, text or other objects."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "spire",
+      "file": "red_sandstone_spire_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ec8e17a0-86cf-46f3-9bd6-8968942f5282.png",
+      "prompt": "Material-only edit of this rock spire. Replace grey granite on ALL surfaces with warm red-orange natural sandstone, irregular sedimentary strata and weathered cracks. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "pillar",
+      "file": "red_sandstone_pillar_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-668767f0-6f4e-4725-843c-2e04c9036846.png",
+      "prompt": "Material-only edit of this rock pillar. Replace grey granite on ALL surfaces with warm red-orange natural sandstone, irregular sedimentary strata and weathered cracks. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "stump",
+      "file": "red_sandstone_stump_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-bce2dcc6-6e02-446f-a97c-ad2030a4bef6.png",
+      "prompt": "Material-only edit of this rock stump. Replace grey granite on ALL surfaces with warm red-orange natural sandstone, irregular sedimentary strata and weathered cracks. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "spire",
+      "file": "volcanic_basalt_spire_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-391cf60a-e476-4bc3-840f-14c2877684fc.png",
+      "prompt": "Material-only edit of this rock spire. Replace grey granite on ALL surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "pillar",
+      "file": "volcanic_basalt_pillar_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b620bebf-a4f1-48ca-ace8-35f2ea14dd4d.png",
+      "prompt": "Material-only edit of this rock pillar. Replace grey granite on ALL surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "stump",
+      "file": "volcanic_basalt_stump_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-05d00c44-99f9-44f2-8cb6-46f1fe9d41ab.png",
+      "prompt": "Material-only edit of this rock stump. Replace grey granite on ALL surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "spire",
+      "file": "pale_limestone_spire_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-cd42b289-95a1-4431-b85b-e1871ce2dd72.png",
+      "prompt": "Material-only edit of this rock spire. Replace grey granite on ALL surfaces with pale warm ivory natural limestone, weathered cracks and subtle erosion pockets, not snow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "pillar",
+      "file": "pale_limestone_pillar_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-9fdad746-c909-4ab1-b974-5bf7262ea2fd.png",
+      "prompt": "Material-only edit of this rock pillar. Replace grey granite on ALL surfaces with pale warm ivory natural limestone, weathered cracks and subtle erosion pockets, not snow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "stump",
+      "file": "pale_limestone_stump_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-07d62770-7c0c-4c15-a54c-6110e80324cd.png",
+      "prompt": "Material-only edit of this rock stump. Replace grey granite on ALL surfaces with pale warm ivory natural limestone, weathered cracks and subtle erosion pockets, not snow. Preserve exact silhouette, dimensions, position, camera and lighting. Detailed painterly game art, not low-poly or masonry. Preserve OPAQUE uniform bright green background. No green tint on rock, no plants ground soil props text or external shadows. One isolated object."
+    }
+  ]
+}

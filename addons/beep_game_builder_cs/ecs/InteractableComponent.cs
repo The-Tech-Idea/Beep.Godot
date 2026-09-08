@@ -95,5 +95,20 @@ namespace Beep.ECS
                 }
             }
         }
+
+        /// <summary>Input-neutral interaction, valid only while the initiator overlaps this area.</summary>
+        public bool TryInteract(Node2D initiator)
+        {
+            if (!IsActive || !GodotObject.IsInstanceValid(initiator) || GetParent() is not Area2D area
+                || !area.OverlapsBody(initiator)) return false;
+            EmitSignal(SignalName.Interacted);
+            _dialog?.Interact();
+            if (Toggleable)
+            {
+                IsToggled = !IsToggled;
+                EmitSignal(SignalName.Toggled, IsToggled);
+            }
+            return true;
+        }
     }
 }

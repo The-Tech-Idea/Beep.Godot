@@ -1,21 +1,32 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=25 format=3]
+
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_prop_sizing.tres" id="prop_sizing"]
+
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_art.tres" id="pixel_art"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres" id="cartoon"]
+
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/painted_ground_tiling.tres" id="material_tiling"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_rock_objects.tscn" id="rock_objects"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs" id="controller"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs" id="cell_data"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs" id="navigation"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs" id="features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapOverlayComponent.cs" id="map_overlay"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs" id="tile_renderer"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs" id="iso"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricAutotileRendererComponent.cs" id="iso_autotile"]
-[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/textures/iso/grassland_tileset.tres" id="iso_tileset"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/textures/iso/lab_terrain_tileset.tres" id="iso_tileset"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs" id="iso_features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="kit_panel"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="kit_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="kit_button"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs" id="kit_option"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs" id="kit_check"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="theme"]
 
 [node name="TerrainGeneratorLab" type="Node2D"]
@@ -30,21 +41,30 @@ RainfallPath = NodePath("HUD/Settings/Scroll/Controls/RainfallRow/Rainfall")
 SeaLevelPath = NodePath("HUD/Settings/Scroll/Controls/SeaLevelRow/SeaLevel")
 ResourceLevelPath = NodePath("HUD/Settings/Scroll/Controls/ResourceLevelRow/ResourceLevel")
 ViewPath = NodePath("HUD/Settings/Scroll/Controls/ViewRow/View")
+PixelArtProfile = ExtResource("pixel_art")
+CartoonProfile = ExtResource("cartoon")
 PreviewPath = NodePath("Preview")
 SeedPath = NodePath("HUD/Settings/Scroll/Controls/SeedRow/Seed")
 GenerateButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Generate")
 RandomSeedButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Randomize")
 ResetViewButtonPath = NodePath("HUD/Settings/Scroll/Controls/ResetView")
 StatusPath = NodePath("HUD/Status")
+DiagnosticsButtonPath = NodePath("HUD/Settings/Scroll/Controls/Diagnostics")
+CancelButtonPath = NodePath("HUD/Settings/Scroll/Controls/Generation/Cancel")
+GenerationProgressPath = NodePath("HUD/Settings/Scroll/Controls/Generation/Progress")
 
 [node name="World" type="Node" parent="."]
 script = ExtResource("world")
+PropSizing = ExtResource("prop_sizing")
 GeneratorPath = NodePath("../Preview/TerrainGenerator")
+GridPath = NodePath("../Preview/Grid")
+NavigationPath = NodePath("../Preview/Navigation")
 PaintedRendererPath = NodePath("../Preview/Splat")
 TileRendererPath = NodePath("../Preview/TileRenderer")
 IsometricRendererPath = NodePath("../Preview/Iso")
 IsometricAutotileRendererPath = NodePath("../Preview/IsoAutotile")
 FeaturesPath = NodePath("../Preview/Features")
+ReliefRendererPath = NodePath("../Preview/RockObjects")
 IsometricFeaturesPath = NodePath("../Preview/IsoFeatures")
 MapOverlayPath = NodePath("../Preview/MapOverlay")
 DataLayersPath = NodePath("../Preview/CellData")
@@ -79,31 +99,48 @@ mouse_filter = 2
 [node name="Preview" type="Node2D" parent="."]
 position = Vector2(390, 48)
 
+[node name="Grid" type="Node2D" parent="Preview"]
+script = ExtResource("grid")
+DrawGrid = false
+
+[node name="Navigation" type="Node" parent="Preview"]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+
 [node name="Splat" type="Node2D" parent="Preview"]
 script = ExtResource("splat")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 RefreshOnReady = false
 BoundsSize = Vector2i(96, 60)
 TileSize = 64
-TextureTiles = 6.0
+GroundTextureTiles = 12.0
+WaterTextureTiles = 6.0
 BlendWidth = 0.42
 EdgeNoise = 0.55
 NoiseScale = 5.0
-ShadeStrength = 1.0
+ShadeStrength = 0.35
 WaveIntensity = 0.6
 FoamSheetPath = "res://addons/beep_game_builder_cs/textures/terrain/foam_sheet.png"
-GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
-DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
+GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png"
+DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
 DirtTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dirt.png"
 SnowTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
 MudTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
 GravelTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/gravel.png"
-RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/rock.png"
+RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/bedrock_ground.png"
+MaterialTiling = ExtResource("material_tiling")
+LavaTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/lava_ground.png"
 ShallowWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_shallow.png"
 DeepWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_deep.png"
 FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
 WaveIntensity = 1.0
+
+[node name="RockObjects" parent="Preview" instance=ExtResource("rock_objects")]
+TerrainGeneratorPath = NodePath("../TerrainGenerator")
+CellDataPath = NodePath("../Cells")
+GridPath = NodePath("../Grid")
 
 [node name="Cells" type="Node" parent="Preview"]
 script = ExtResource("cells")
@@ -119,7 +156,7 @@ GenerateOnReady = false
 ClearExistingCells = true
 LandmassScale = 0.70
 ArchipelagoIslandCount = 4
-TopologySamplesPerCell = 8
+TopologySamplesPerCell = 12
 LakeCoverage = 0.05
 LakeFrequencyMultiplier = 0.10
 LakeShoreWidth = 1.0
@@ -131,6 +168,17 @@ BoundsSize = Vector2i(96, 60)
 AtlasTileSize = Vector2i(64, 64)
 AtlasColumns = 4
 AtlasTileRows = 4
+GroundTexturePaths = Dictionary[String, String]({
+"grass": "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png",
+"dry_grass": "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png",
+"sand": "res://addons/beep_game_builder_cs/textures/terrain/sand.png",
+"desert": "res://addons/beep_game_builder_cs/textures/terrain/sand.png",
+"jungle": "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png",
+"tundra": "res://addons/beep_game_builder_cs/textures/terrain/mud.png",
+"snow": "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
+})
+GroundDetailStrength = 0.65
+GroundRepeatCells = 6.0
 RefreshOnReady = false
 BaseAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
 GrassAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/grass_15piece.png"
@@ -173,8 +221,9 @@ script = ExtResource("map_overlay")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(96, 60)
 TileSize = 64
-ShowResources = true
-ShowStartPositions = true
+ShowResources = false
+ShowStartPositions = false
+ShowUndergroundResources = false
 RefreshOnReady = false
 
 [node name="Features" type="Node2D" parent="Preview"]
@@ -187,6 +236,7 @@ Seed = 31415
 WoodsSheetPath = "res://addons/beep_game_builder_cs/textures/plants/forest_trees.png"
 WoodsColumns = 4
 WoodsRows = 4
+WoodsFrameBindings = PackedStringArray("grass,dry_grass=0,1,4,7,8,11,14", "jungle,swamp=0,1,7,14", "desert,sand=8,15", "gravel,rock,tundra,snow,ice=2,9")
 JungleSheetPath = "res://addons/beep_game_builder_cs/textures/plants/jungle_canopy_4x4.png"
 JungleColumns = 4
 JungleRows = 4
@@ -196,8 +246,11 @@ MarshRows = 4
 OasisSheetPath = "res://addons/beep_game_builder_cs/textures/plants/oasis_trees.png"
 OasisColumns = 4
 OasisRows = 4
-SpriteScale = 0.62
-SpritesPerTile = 5
+SpriteAnchor = Vector2(0.5, 0.86)
+SpritesPerTile = 1
+ForestExtraSprites = 1
+ScaleJitter = 0.12
+PositionJitter = 0.85
 
 [node name="IsoAutotile" type="Node2D" parent="Preview"]
 script = ExtResource("iso_autotile")
@@ -206,7 +259,8 @@ RefreshOnReady = false
 BoundsSize = Vector2i(48, 48)
 Tiles = ExtResource("iso_tileset")
 TerrainSet = 0
-TerrainBindings = PackedStringArray("grass,dry_grass=0", "jungle,swamp=1")
+UseTerrainConnections = false
+TerrainBindings = PackedStringArray("grass=0", "dry_grass=1", "sand=2", "desert=3", "jungle=4", "swamp,mud,dirt=5", "tundra=6", "snow=7", "ice=8", "gravel=9", "rock=10", "water,shallow_water,sea,ocean=11", "deep_water=12")
 
 [node name="Iso" type="Node2D" parent="Preview"]
 script = ExtResource("iso")
@@ -230,7 +284,7 @@ ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_
 DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
 FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
-CoastDetail = 4
+CoastDetail = 12
 CoastRangeTiles = 5.0
 MaxOpacity = 1.0
 ClarityTiles = 3.0
@@ -251,9 +305,7 @@ JungleFrame = 53
 SwampFrame = 10
 GravelFrame = 28
 RockFrame = 49
-ShallowWaterFrame = 23
-DeepWaterFrame = 55
-TerrainVariants = PackedStringArray("grass=54,54,54,9", "dry_grass=2,2,4,22", "gravel=28,28,8,16", "rock=49,49,29", "sand=24,24,19", "snow=20,20,1,12", "swamp=10,10,52,27", "tundra=48,48,47", "ice=5,5,6")
+TerrainVariants = PackedStringArray("grass=54", "dry_grass=2,2,4,22", "gravel=28,28,8,16", "rock=49,49,29", "sand=24,24,19", "snow=20,20,1,12", "swamp=10,10,52,27", "tundra=48,48,47", "ice=5,5,6")
 
 [node name="IsoFeatures" type="Node2D" parent="Preview"]
 script = ExtResource("iso_features")
@@ -266,7 +318,6 @@ WoodsColumns = 8
 WoodsRows = 1
 WoodsFrameBindings = PackedStringArray("grass=0,1,2,3,4,0,2,4,5", "dry_grass=2,3,4,2,3,4,6", "jungle,swamp=0,1,2", "desert,sand=6", "gravel,rock=1,3,7", "tundra,snow,ice=7")
 MarshSheetPath = "res://addons/beep_game_builder_cs/textures/iso/iso_marsh_8x1.png"
-SpriteScale = 1.05
 SpritesPerTile = 2
 ForestExtraSprites = 2
 PositionJitter = 0.45
@@ -278,7 +329,7 @@ anchor_bottom = 1.0
 offset_left = 12.0
 offset_top = 12.0
 offset_right = 316.0
-offset_bottom = -12.0
+offset_bottom = -76.0
 grow_vertical = 2
 script = ExtResource("kit_panel")
 Title = "Terrain Lab"
@@ -291,6 +342,29 @@ horizontal_scroll_mode = 0
 
 [node name="Controls" type="VBoxContainer" parent="HUD/Settings/Scroll"]
 theme_override_constants/separation = 6
+
+[node name="ViewRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+
+[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/ViewRow"]
+custom_minimum_size = Vector2(110, 0)
+text = "View / style"
+
+[node name="View" type="OptionButton" parent="HUD/Settings/Scroll/Controls/ViewRow"]
+custom_minimum_size = Vector2(170, 0)
+script = ExtResource("kit_option")
+item_count = 6
+popup/item_0/text = "Original"
+popup/item_0/id = 0
+popup/item_1/text = "Game tiles"
+popup/item_1/id = 1
+popup/item_2/text = "Isometric"
+popup/item_2/id = 2
+popup/item_3/text = "Isometric tiles"
+popup/item_3/id = 3
+popup/item_4/text = "Pixel Art"
+popup/item_4/id = 4
+popup/item_5/text = "Cartoon"
+popup/item_5/id = 5
 
 [node name="MapTypeRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
 
@@ -383,16 +457,6 @@ custom_minimum_size = Vector2(180, 32)
 size_flags_horizontal = 3
 script = ExtResource("kit_option")
 
-[node name="ViewRow" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
-
-[node name="Label" type="Label" parent="HUD/Settings/Scroll/Controls/ViewRow"]
-custom_minimum_size = Vector2(120, 0)
-text = "View"
-
-[node name="View" type="OptionButton" parent="HUD/Settings/Scroll/Controls/ViewRow"]
-custom_minimum_size = Vector2(150, 0)
-script = ExtResource("kit_option")
-
 [node name="Actions" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
 theme_override_constants/separation = 8
 [node name="Generate" type="Button" parent="HUD/Settings/Scroll/Controls/Actions"]
@@ -406,10 +470,29 @@ size_flags_horizontal = 3
 text = "Random seed"
 script = ExtResource("kit_button")
 
+[node name="Generation" type="HBoxContainer" parent="HUD/Settings/Scroll/Controls"]
+theme_override_constants/separation = 8
+
+[node name="Progress" type="ProgressBar" parent="HUD/Settings/Scroll/Controls/Generation"]
+visible = false
+custom_minimum_size = Vector2(0, 30)
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Cancel" type="Button" parent="HUD/Settings/Scroll/Controls/Generation"]
+visible = false
+custom_minimum_size = Vector2(80, 30)
+text = "Cancel"
+script = ExtResource("kit_button")
+
 [node name="ResetView" type="Button" parent="HUD/Settings/Scroll/Controls"]
 custom_minimum_size = Vector2(0, 32)
 text = "Reset view"
 script = ExtResource("kit_button")
+
+[node name="Diagnostics" type="CheckBox" parent="HUD/Settings/Scroll/Controls"]
+text = "Map diagnostics"
+script = ExtResource("kit_check")
 
 [node name="Hint" type="Label" parent="HUD"]
 anchor_right = 1.0
@@ -426,11 +509,12 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 22.0
-offset_top = -20.0
+offset_top = -64.0
 offset_right = -40.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 0
+autowrap_mode = 3
 text = "Generating..."
 theme_override_colors/font_color = Color(0.80, 0.88, 0.77, 1)
 

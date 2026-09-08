@@ -18,6 +18,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitSegmentedIconGroup : KitControl
     {
+        /// <summary>A row of pressable segments in a track -- pressed, so Button, notwithstanding the recessed plate underneath them.
+        /// Stated explicitly rather than inherited from KitControl's default, so that every
+        /// widget's class is a decision on the record instead of whatever the base happens
+        /// to return.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Button;
+
         public sealed class Segment
         {
             public string Glyph = "";
@@ -281,43 +287,42 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(fs * 2.6f * Mathf.Max(1, Segments.Count), fs * 2.4f);
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            if (IsInsideTree())
-            {
-                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-                UpdateMinimumSize();
-            }
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private Rect2 SegRect(int i)
         {
             float w = Size.X / Mathf.Max(1, Segments.Count);
             return new Rect2(i * w, 0f, w, Size.Y);
         }
 
+        /// <summary>Move the active segment, reporting whether it moved. At either end the key is
+        /// released so focus leaves the group rather than stalling on its last segment.</summary>
+        private bool SelectByArrow(Vector2I dir)
+        {
+            if (Segments.Count <= 0) return false;
+
+            int wanted;
+            if (dir.X <= -KitChrome.Jump) wanted = 0;
+            else if (dir.X >= KitChrome.Jump) wanted = Segments.Count - 1;
+            else if (dir.X < 0) wanted = _current - 1;
+            else if (dir.X > 0) wanted = _current + 1;
+            else return false;
+
+            wanted = Mathf.Clamp(wanted, 0, Segments.Count - 1);
+            if (wanted == _current) return false;
+            Current = wanted;
+            return true;
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, SelectByArrow))
+                return;
+
+            if (KitChrome.IsConfirm(@event))
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.X <= -9999) { Current = 0; AcceptEvent(); }
-                else if (dir.X >= 9999) { Current = Segments.Count - 1; AcceptEvent(); }
-                else if (dir.X < 0) { Current = Mathf.Max(0, _current - 1); AcceptEvent(); }
-                else if (dir.X > 0) { Current = Mathf.Min(Segments.Count - 1, _current + 1); AcceptEvent(); }
-                else if (KitChrome.IsConfirmKey(key))
+                if (Segments.Count > 0 && _current >= 0 && _current < Segments.Count)
                 {
-                    if (Segments.Count > 0 && _current >= 0 && _current < Segments.Count)
-                    {
-                        EmitSignal(SignalName.SegmentChanged, _current);
-                        AcceptEvent();
-                    }
+                    EmitSignal(SignalName.SegmentChanged, _current);
+                    AcceptEvent();
                 }
                 return;
             }
@@ -351,6 +356,20 @@ namespace Beep.ECS.UI.Kit
             return -1;
         }
 
+        /// <summary>
+        /// The tip for whichever segment the pointer is over.
+        ///
+        /// <see cref="SegmentTips"/> has been an exported, authored array since this widget
+        /// shipped, and nothing ever read it: the strings were stored per segment and shown
+        /// nowhere. Godot asks this method for the text and then
+        /// <see cref="KitControl._MakeCustomTooltip"/> draws it in the kit's own chrome.
+        /// </summary>
+        public override string _GetTooltip(Vector2 atPosition)
+        {
+            int index = HitSegment(atPosition);
+            return index >= 0 && index < Segments.Count ? Segments[index].Tip : "";
+        }
+
         private void ClearHover()
         {
             if (_hover < 0) return;
@@ -363,7 +382,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 16f || Size.Y < 8f) return;
             if (Segments.Count == 0)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            ActiveShape, "Segments");
                 return;
             }
@@ -378,7 +397,7 @@ namespace Beep.ECS.UI.Kit
 
             // One plate under the whole strip, so the group reads as a single object.
             DrawShape(new Rect2(Vector2.Zero, Size), ActiveShape,
-                      new Color(face.R * g.WellShade, face.G * g.WellShade, face.B * g.WellShade, 1f),
+                      KitChrome.RecessFace(face, g.WellShade) with { A = 1f },
                       ink, rimPx);
 
             for (int i = 0; i < Segments.Count; i++)
@@ -437,7 +456,7 @@ namespace Beep.ECS.UI.Kit
                 }
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
         }
     }
 }

@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate intact and broken container artwork on green backgrounds. Visual pairing, not pixel-exact registered. No engine behavior configured.",
+  "assets": [
+    {
+      "file": "crate_intact_01_green.png",
+      "reference": null,
+      "prompt": "ONE intact wooden shipping crate sprite for a painterly 2D front-style 2.5D fantasy game. Compact square crate made of weathered medium oak planks with stout corner battens, diagonal front brace and small dark iron nails. Closed wooden lid. Elevated orthographic FRONT view, front face horizontal and dominant, visible top and slight right-side depth, not diamond isometric rotation. Detailed natural hand-painted wood grain, chipped worn edges, bold readable silhouette, not low-poly or photoreal. Upper-left lighting. Entire object centered with generous green margins, square canvas. OPAQUE SOLID vivid GREEN RGB 0,255,0 background. No floor, cast shadow, plants, labels, text, contents, debris or additional objects.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a69dd395-557b-4403-93ee-aa6079cd09ac.png"
+    },
+    {
+      "file": "crate_broken_01_green.png",
+      "reference": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a69dd395-557b-4403-93ee-aa6079cd09ac.png",
+      "prompt": "Edit this crate into ONE broken empty crate sprite. Preserve original square canvas framing, lower footprint, bottom contact, wood color, grain, iron nails, camera angle and lighting. Smash away lid and upper half of front panels and diagonal brace, leaving splintered attached short boards and an exposed dark wooden interior. Retain lower frame and recognizable right side. Clear destroyed silhouette, NOT merely an opened lid. All remnants attached or contained inside footprint; no scattered debris outside. Do not recenter or enlarge. Keep opaque solid vivid GREEN background including open-through holes, no ground or cast shadows, no plants, text, contents or extra objects. Same detailed painterly 2.5D style.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-6706d1e7-78ce-4208-b6d3-e6893ca76c1a.png"
+    },
+    {
+      "file": "barrel_intact_01_green.png",
+      "reference": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a69dd395-557b-4403-93ee-aa6079cd09ac.png",
+      "prompt": "Create ONE intact upright wooden barrel sprite, using reference CRATE only for painterly oak wood, iron material, upper-left light and front elevated 2.5D camera. Replace crate with a classic stout coopered barrel: curved oak staves, gently bulging body, three dark forged iron hoops with modest rivets, closed circular plank lid visible from above. Natural varied wood grain and worn edges, detailed hand-painted fantasy game style, not photoreal or low-poly. Symmetrical front-facing barrel, no diagonal isometric rotation. Entire object centered with ample margins on square canvas, solid opaque vivid GREEN RGB 0,255,0 background. No floor, cast shadow, plants, taps, labels, lettering, debris or other objects.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-93a200e9-bdeb-4380-a573-fd5e330ee361.png"
+    },
+    {
+      "file": "barrel_broken_01_green.png",
+      "reference": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-93a200e9-bdeb-4380-a573-fd5e330ee361.png",
+      "prompt": "Edit this wooden barrel into ONE broken empty barrel game sprite. Preserve same canvas size and framing, original lower base footprint and bottom position, oak wood color and grain, iron hoop design, front elevated orthographic camera and lighting. Remove the lid and upper third, break staves to visibly unequal jagged splintered heights revealing empty dark wooden interior. Retain lower two iron hoops holding remaining body together; uppermost hoop gone. Destroyed shortened silhouette, not just an open intact barrel. No detached pieces outside base, no spilled contents. Do not recenter or zoom. Opaque solid vivid GREEN background, no floor, cast shadows, plants, labels, text or extra objects. Same detailed painterly game style.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-28e49211-7fc2-4326-82f9-b181f39fcfe6.png"
+    }
+  ]
+}

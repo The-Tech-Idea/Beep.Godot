@@ -30,12 +30,6 @@ namespace Beep.ECS
         [Export] public NodePath PlacementRootPath { get; set; } = new("");
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
-        /// <summary>
-        /// Optional bridge to the terrain engine: when set, terrain kinds come
-        /// from the TerrainDataLayersComponent's generated map, with cell data
-        /// as the fallback where the layers have no tile. Explicit wire only.
-        /// </summary>
-        [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath NavigationPath { get; set; } = new("");
         [Export] public PackedScene? PlacementScene { get; set; }
         [Export] public Texture2D? PreviewTexture { get; set; }
@@ -48,6 +42,7 @@ namespace Beep.ECS
         [Export] public bool MarkPlacedCellsBlockedInNavigation { get; set; } = true;
         [Export] public bool TreatCellDataBlockedAsUnplaceable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnplaceable { get; set; } = true;
+        [Export] public bool RequireLevelFootprint { get; set; } = true;
         [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
             = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
@@ -67,7 +62,6 @@ namespace Beep.ECS
         private Node? _placementRoot;
         private GridResourceWalletComponent? _resourceWallet;
         private GridCellDataComponent? _cellData;
-        private TerrainDataLayersComponent? _dataLayers;
         private GridNavigationComponent? _navigation;
         private Node2D? _preview;
         private PackedScene? _activeScene;
@@ -86,6 +80,14 @@ namespace Beep.ECS
         // them. Non-empty replaces the scene policy entirely, which is how an
         // offshore platform stands in the very kinds the scene blocks.
         private Godot.Collections.Array<string> _activeAllowedTerrain = new();
+        // The ACTIVE build's occupancy and sorting policy. Shadowed for the
+        // same reason as the two above: a definition that sets OccupiesCells
+        // or SetZIndexFromY false used to write straight into the exported
+        // property, so the component's own inspector-configured default was
+        // gone for good and the NEXT, non-definition placement silently
+        // inherited the last selected build's policy.
+        private bool _activeMarkPlacedCellsOccupied = true;
+        private bool _activeSetZIndexFromY = true;
 
         public override void _Ready()
         {
@@ -99,6 +101,8 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            if (!UseMouseInput) return;
+            ResolveReferences();
             if (State != PlacementState.Placing || _grid == null) return;
             MovePreviewTo(_grid.MouseCell());
         }
@@ -158,10 +162,10 @@ namespace Beep.ECS
             PreviewTexture = definition.PreviewTexture;
             PlacementId = definition.BuildId;
             Footprint = definition.EffectiveFootprint;
-            MarkPlacedCellsOccupied = definition.OccupiesCells;
+            _activeMarkPlacedCellsOccupied = definition.OccupiesCells;
             _activeBlocksNavigation = definition.BlocksNavigation;
             _activeAllowedTerrain = definition.AllowedTerrainKinds ?? new Godot.Collections.Array<string>();
-            SetZIndexFromY = definition.SetZIndexFromY;
+            _activeSetZIndexFromY = definition.SetZIndexFromY;
             _activeDisplayName = definition.DisplayName;
             _activeCategory = definition.Category;
             _activeCosts = definition.Costs;
@@ -180,6 +184,10 @@ namespace Beep.ECS
                 _activeChargeCostOnConfirm = false;
                 _activeBlocksNavigation = true;
                 _activeAllowedTerrain = new Godot.Collections.Array<string>();
+                // Back to the component's OWN inspector defaults, not whatever
+                // the last placed definition wanted.
+                _activeMarkPlacedCellsOccupied = MarkPlacedCellsOccupied;
+                _activeSetZIndexFromY = SetZIndexFromY;
             }
 
             ResolveReferences();
@@ -230,10 +238,11 @@ namespace Beep.ECS
 
         public Node2D? ConfirmPlacement()
         {
-            if (State != PlacementState.Placing || _grid == null)
+            if (State != PlacementState.Placing)
                 return null;
 
-            if (!CurrentCellValid)
+            CurrentCellValid = CanPlace(CurrentCell);
+            if (!CurrentCellValid || _grid is null)
             {
                 EmitSignal(SignalName.PlacementRejected, _activeId, CurrentCell.X, CurrentCell.Y, "occupied");
                 return null;
@@ -274,7 +283,7 @@ namespace Beep.ECS
 
             (_placementRoot ?? GetParent() ?? this).AddChild(placed);
             placed.GlobalPosition = _grid.CellToWorld(CurrentCell);
-            if (SetZIndexFromY)
+            if (_activeSetZIndexFromY)
                 placed.ZIndex = ClampZ(ZIndexOffset + Mathf.RoundToInt(placed.GlobalPosition.Y));
 
             // Whether the wallet was actually charged travels with the node,
@@ -287,7 +296,7 @@ namespace Beep.ECS
             // Occupancy and navigation are marked SEPARATELY: a walkable
             // build still occupies its cells, and a rare stackable decoration
             // (OccupiesCells false) can still block navigation if authored so.
-            if (MarkPlacedCellsOccupied)
+            if (_activeMarkPlacedCellsOccupied)
                 SetFootprintOccupied(CurrentCell, true);
             if (_activeBlocksNavigation)
                 SetFootprintNavigationBlocked(CurrentCell, true);
@@ -320,21 +329,42 @@ namespace Beep.ECS
         public bool CanPlace(Vector2I anchorCell)
         {
             ResolveReferences();
+            if (_grid is null || anchorCell.X == int.MinValue || anchorCell.Y == int.MinValue
+                || (!CellDataPath.IsEmpty && _cellData is null)
+                || (!NavigationPath.IsEmpty && _navigation is null)
+                || (!PlacementRootPath.IsEmpty && _placementRoot is null))
+                return false;
+            int anchorLevel = ReliefAt(anchorCell);
             foreach (Vector2I cell in FootprintCells(anchorCell))
-                if (_occupied.Contains(cell) || !CanPlaceOnCellData(cell))
+                if ((_navigation is not null && !_navigation.IsInBounds(cell))
+                    || !_grid.CellToWorld(cell).IsFinite()
+                    || (RequireLevelFootprint && ReliefAt(cell) != anchorLevel)
+                    || _occupied.Contains(cell) || !CanPlaceOnCellData(cell))
                     return false;
             return true;
         }
 
+        private int ReliefAt(Vector2I cell)
+        {
+            Variant value = _cellData?.GetMetadata(cell, "terrain_relief") ?? default;
+            return value.VariantType == Variant.Type.Int ? Mathf.Clamp(value.AsInt32(), 0, 2) : 0;
+        }
+
         public void SetOccupied(Vector2I cell, bool occupied)
         {
-            if (occupied) _occupied.Add(cell);
-            else _occupied.Remove(cell);
+            if (occupied ? _occupied.Add(cell) : _occupied.Remove(cell)) OccupancyRevision++;
         }
+
+        internal ulong OccupancyRevision { get; private set; }
 
         public bool IsOccupied(Vector2I cell) => _occupied.Contains(cell);
 
-        public void ClearOccupied() => _occupied.Clear();
+        public void ClearOccupied()
+        {
+            if (_occupied.Count == 0) return;
+            _occupied.Clear();
+            OccupancyRevision++;
+        }
 
         public void SetFootprintOccupied(Vector2I anchorCell, bool occupied)
         {
@@ -352,50 +382,34 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
+            ResolveCurrent(GridPath, ref _grid);
 
-            if (_placementRoot == null || !GodotObject.IsInstanceValid(_placementRoot))
-                _placementRoot = !PlacementRootPath.IsEmpty
+            // Not the shared rule: placed nodes land under the parent when no
+            // root is wired, never under a component found scene-wide.
+            _placementRoot = !PlacementRootPath.IsEmpty
                     ? GetNodeOrNull<Node>(PlacementRootPath)
                     : GetParent();
 
-            if (_resourceWallet == null || !GodotObject.IsInstanceValid(_resourceWallet))
-                _resourceWallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
+            ResolveCurrent(ResourceWalletPath, ref _resourceWallet);
+            ResolveCurrent(CellDataPath, ref _cellData);
+            ResolveCurrent(NavigationPath, ref _navigation);
+        }
 
-            if (_cellData == null || !GodotObject.IsInstanceValid(_cellData))
-                _cellData = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty
-                    ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
-
-            // Explicit wire only, never found scene-wide - see DataLayersPath.
-            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
-                _dataLayers = !DataLayersPath.IsEmpty
-                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
-                    : null;
+        private void ResolveCurrent<T>(NodePath path, ref T? cached) where T : class
+        {
+            if (!path.IsEmpty) cached = GetNodeOrNull<Node>(path) as T;
+            else EntityComponent.Resolve(this, path, ref cached);
         }
 
         private string TerrainKindAt(Vector2I cell)
-        {
-            string kind = _dataLayers is null ? "" : GridTerrainRules.Normalize(_dataLayers.TerrainAt(cell));
-            if (kind.Length == 0 && _cellData is not null)
-                kind = GridTerrainRules.Normalize(_cellData.GetTerrainKind(cell));
-            return kind;
-        }
+            => GridCellRules.TerrainKindAt(_cellData, cell);
 
         private bool CanPlaceOnCellData(Vector2I cell)
         {
-            if (_cellData == null && _dataLayers == null)
+            if (_cellData == null)
                 return true;
+
+            if (!_cellData.IsCellAvailable(cell)) return false;
 
             if (TreatCellDataBlockedAsUnplaceable
                 && _cellData != null
@@ -486,7 +500,7 @@ namespace Beep.ECS
             {
                 _preview.GlobalPosition = _grid.CellToWorld(cell);
                 _preview.Modulate = valid ? ValidPreviewColor : InvalidPreviewColor;
-                if (SetZIndexFromY)
+                if (_activeSetZIndexFromY)
                     _preview.ZIndex = ClampZ(4000 + ZIndexOffset + Mathf.RoundToInt(_preview.GlobalPosition.Y));
             }
 
@@ -504,14 +518,15 @@ namespace Beep.ECS
             }
 
             string displayName = string.IsNullOrWhiteSpace(_activeDisplayName) ? _activeId : _activeDisplayName;
+            gridObject.BindPlacementContext(_grid!, this, _navigation, _cellData);
             // The object mirrors the marks placement makes and RESERVES them
             // itself, so freeing the placed node (demolition, a cancelled
             // build job) releases exactly those cells on exit. Before this,
             // placement marked directly and the object's reserved sets stayed
             // empty - deleting a placed building leaked its occupancy and
             // navigation blocks forever.
-            gridObject.ReservePlacementFootprint = MarkPlacedCellsOccupied;
-            gridObject.ReserveNavigationFootprint = _activeBlocksNavigation && MarkPlacedCellsBlockedInNavigation;
+            gridObject.ReservePlacementFootprint = _activeMarkPlacedCellsOccupied;
+            gridObject.ReserveNavigationFootprint = _navigation is not null && _activeBlocksNavigation && MarkPlacedCellsBlockedInNavigation;
             gridObject.ReserveFootprintOnReady = true;
             gridObject.Configure(_activeId, displayName, _activeCategory, cell, Footprint, _activeBlocksNavigation);
         }

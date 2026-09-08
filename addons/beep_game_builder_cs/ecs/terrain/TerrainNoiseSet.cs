@@ -6,8 +6,22 @@ namespace Beep.ECS
     /// Every noise channel one generation run needs, each on its own seed offset
     /// so changing one stage's frequency can never shift another stage's pattern.
     /// </summary>
-    internal sealed class TerrainNoiseSet
+    internal sealed class TerrainNoiseSet : System.IDisposable
     {
+        public void Dispose()
+        {
+            Shape.Dispose();
+            ShapeWarpX.Dispose();
+            ShapeWarpY.Dispose();
+            Ridge.Dispose();
+            Roughness.Dispose();
+            Moisture.Dispose();
+            Temperature.Dispose();
+            Lake.Dispose();
+            Detail.Dispose();
+            Vegetation.Dispose();
+        }
+
         private TerrainNoiseSet(
             FastNoiseLite shape,
             FastNoiseLite shapeWarpX,

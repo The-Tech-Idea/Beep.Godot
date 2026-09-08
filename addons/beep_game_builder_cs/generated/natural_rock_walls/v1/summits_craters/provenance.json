@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate summit/crater terrain artwork on green backgrounds. No engine behavior configured.",
+  "assets": [
+    {
+      "file": "broad_granite_summit_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/rocky_ridge_01_green.png",
+      "prompt": "ONE broad rugged mountain summit terrain sprite for front-style elevated orthographic 2.5D game. Reference for natural grey granite material, hand-painted detail and light only. Single substantial mountain mass with rugged uneven outward-facing slopes and a BROAD OPEN SOLID rocky summit surface, gently uneven but spacious and unobstructed. Not pointed peak, not hollow crater, no tiered cake. Summit supported by entire wider continuous rock base, left and right walls flare outward toward bottom. Natural irregular large fractured rock formations mixed with smaller fractures, no repeated identical columns. Grey granite on top and all walls. Upper-left light, visible top and front/side faces, no diamond isometric rotation, detailed painterly not low-poly. Whole mountain fully visible with ample margins, landscape 3:2. Opaque SOLID vivid GREEN RGB 0,255,0 background. No floor outside perimeter, external shadows, vegetation, water, lava, props, paths, ramps, stairs, text or buildings.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a02b75ce-f6ea-4155-baf1-1eff642aa96f.png"
+    },
+    {
+      "file": "granite_twin_peaks_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/rocky_ridge_01_green.png",
+      "prompt": "ONE twin-peaked grey granite mountain terrain sprite, detailed natural painterly 2.5D game art matching reference material and upper-left lighting. Exactly TWO unequal rugged summit peaks, taller left and shorter right, joined by a broad LOW NATURAL SADDLE of continuous rock. Peak slopes descend to one wide solid supporting base; saddle clearly lower than both peaks, no bridge or separate stacked platforms. Varied large irregular fractured crags, no repeating columns. Camera front elevated orthographic with visible upper surfaces and outward-facing side walls, not diagonal diamond isometric. All surfaces grey granite. Entire landform visible with generous margins on landscape 3:2 canvas. Opaque SOLID vivid GREEN RGB 0,255,0 background. No grass, plants, snow, lava, water, ground beyond footprint, external cast shadows, props, paths, ramps, stairs, caves or text.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-80e53b55-c323-4664-adf1-dc454871802a.png"
+    },
+    {
+      "file": "dormant_basalt_crater_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/material_variations/volcanic_basalt/rocky_ridge_01_green.png",
+      "prompt": "Create ONE dormant volcanic crater terrain sprite for a front-style elevated orthographic 2.5D game, matching the reference natural detailed rock rendering and upper-left light. Wide squat charcoal basalt mountain with an irregular continuous circular rim and a clearly visible LOWER inner basin floor. Back rim taller, front rim sufficiently low to see the broad dry inner floor and inward slopes. Entire outer mountain supported by outward flaring rocky slopes, visible left and right walls. Mid-grey highlights keep basalt readable, no pitch-black hole. Varied irregular crags, fissures and rubble, no repetitive columns or low-poly facets. Entire landform isolated with generous margins on landscape 3:2 canvas. Solid opaque vivid GREEN RGB 0,255,0 background. No lava, smoke, water, plants, props, paths, ramps, stairs, text, external ground or cast shadow on background. Only dry volcanic rock.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-d626e14e-e5eb-44d5-a0bf-699fe035f367.png"
+    },
+    {
+      "file": "broken_basalt_crater_01_green.png",
+      "reference": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-d626e14e-e5eb-44d5-a0bf-699fe035f367.png",
+      "prompt": "Edit this crater terrain sprite into its BROKEN OPEN-FRONT variant. Remove the central third of the FRONT rim completely down to the inner basin floor, leaving a broad visibly open breach with naturally fractured rock ends on its left and right. The inner dry basin continues through that breach to the front footprint edge. No smooth ramp, staircase, bridge or artificial road. Keep the back rim, side slopes, basalt material, natural detail, overall scale, camera and upper-left lighting unchanged. Keep entire landform in frame with margins. Background must remain opaque solid vivid green. No lava, smoke, plants, water, props, text or external cast shadows. One sprite only.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-48f582f0-0fdc-47e0-836a-c1a2f133c210.png"
+    }
+  ]
+}

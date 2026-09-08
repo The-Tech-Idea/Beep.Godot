@@ -37,6 +37,16 @@ namespace Beep.ECS
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 30);
 
+        /// <summary>Logical cells, not the half-cell-offset corner display grid.</summary>
+        public TileMapLayer GetTerrainLayer()
+        {
+            var layer = TerrainAuthoring.EnsureLayer(this, "LogicalGrid");
+            var size = new Vector2I(Mathf.Max(1, AtlasTileSize.X), Mathf.Max(1, AtlasTileSize.Y));
+            if (layer.TileSet is null || layer.TileSet.TileSize != size)
+                layer.TileSet = new TileSet { TileSize = size };
+            return layer;
+        }
+
         [ExportGroup("Atlas Layout")]
         [Export] public Vector2I AtlasTileSize { get; set; } = new(64, 64);
         [Export(PropertyHint.Range, "1,16,1")] public int AtlasColumns { get; set; } = 4;
@@ -64,6 +74,11 @@ namespace Beep.ECS
 
         [ExportGroup("Rendering")]
         [Export] public bool RefreshOnReady { get; set; } = true;
+        /// <summary>Optional repeating surface textures keyed by exact biome name.
+        /// The transition atlas continues to own coverage and borders.</summary>
+        [Export] public Godot.Collections.Dictionary<string, string> GroundTexturePaths { get; set; } = new();
+        [Export(PropertyHint.Range, "1,32,0.5")] public float GroundRepeatCells { get; set; } = 6f;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; } = 0.3f;
         /// <summary>
         /// The sea, drawn by the SAME shader the isometric view uses.
         ///
@@ -85,9 +100,10 @@ namespace Beep.ECS
         /// export.
         /// </summary>
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        [Export] public NodePath CellDataPath { get; set; } = new("");
         [Export(PropertyHint.File, "*.gdshader")] public string WaterShaderPath { get; set; } = "";
-        [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = 5.0f;
-        [Export(PropertyHint.Range, "1,8,1")] public int CoastDetail { get; set; } = 2;
+        [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
+        [Export(PropertyHint.Range, "1,16,1")] public int CoastDetail { get; set; } = TerrainCoastField.DefaultDetail;
         [Export(PropertyHint.Range, "0,1,0.01")] public float MaxOpacity { get; set; } = 1.0f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float ShoreOpacity { get; set; } = 0.55f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float LakeOpacity { get; set; } = 0.42f;
@@ -108,9 +124,16 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
 
         private readonly List<TerrainTransitionLayerComponent> _layers = new();
+        private const string BiomeDisplayMetadata = "_terrain_tile_biome_display";
         private TerrainGeneratorComponent? _generator;
+        private GridCellDataComponent? _cells;
+        private bool _coastQueued;
+        private bool _hasRebuildAttempt;
+        private bool _rebuildQueued;
         private TileMapLayer? _water;
         private ImageTexture? _coastMap;
+        private readonly TerrainCoastField.RenderCache _renderCoast = new();
+        private readonly TerrainCoastField.LiveCache _liveCoast = new();
         private ShaderMaterial? _waterMaterial;
         /// <summary>What the current layers were built from; see Signature.</summary>
         private string _builtSignature = string.Empty;
@@ -119,13 +142,69 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            ResolveCells();
             if (RefreshOnReady && !Engine.IsEditorHint())
                 CallDeferred(nameof(Rebuild));
         }
 
+        public override void _ExitTree() => DisconnectCells();
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && IsInsideTree() && IsVisibleInTree() && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
+        }
+
+        private void DisconnectCells()
+        {
+            if (_cells is not null && GodotObject.IsInstanceValid(_cells))
+            {
+                _cells.CellChanged -= OnCellChanged;
+                _cells.CellsChanged -= QueueCoast;
+            }
+            _cells = null;
+        }
+
+        private void ResolveCells()
+        {
+            var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+            if (cells == _cells) return;
+            DisconnectCells();
+            _cells = cells;
+            if (_cells is null || Engine.IsEditorHint()) return;
+            _cells.CellChanged += OnCellChanged;
+            _cells.CellsChanged += QueueCoast;
+        }
+
+        private void OnCellChanged(int x, int y) => QueueCoast();
+
+        private void QueueCoast()
+        {
+            if (_coastQueued || !IsInsideTree() || !IsVisibleInTree() || string.IsNullOrWhiteSpace(WaterShaderPath)) return;
+            _coastQueued = true;
+            Callable.From(() =>
+            {
+                if (!_coastQueued) return;
+                _coastQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) EnsureWaterSurface();
+            }).CallDeferred();
+        }
+
         public override string[] _GetConfigurationWarnings()
         {
-            if (TerrainGeneratorPath.IsEmpty)
+            if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
                 return new[] { "TerrainGeneratorPath should point to the TerrainGeneratorComponent this view draws." };
             if (ConfiguredLayers().Count == 0)
                 return new[] { "Assign at least one biome atlas, or nothing will be drawn." };
@@ -135,6 +214,9 @@ namespace Beep.ECS
         /// <summary>Rebuilds every biome layer from the current cell data.</summary>
         public void Rebuild()
         {
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
+            _coastQueued = false;
             // Checked FIRST, before anything else runs - the same shape every
             // sibling renderer uses. Without this, a scene with atlases
             // configured but TerrainGeneratorPath unwired drew nothing and said
@@ -143,12 +225,15 @@ namespace Beep.ECS
             // non-empty layer list and never reached the "no biome atlas"
             // warning below, which is the one case that warning exists for.
             ResolveGenerator();
-            if (_generator is null)
+            ResolveCells();
+            if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
+                ClearSurface();
                 GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no terrain tiles were drawn.");
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (_cells is null && _generator is not null)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             EnsureLayers();
 
@@ -162,26 +247,63 @@ namespace Beep.ECS
             }
 
             foreach (TerrainTransitionLayerComponent layer in _layers)
+            {
                 layer.RefreshTransitions();
+                ApplyGroundDetail(layer);
+            }
 
             EnsureWaterSurface();
         }
 
+        private void ApplyGroundDetail(TerrainTransitionLayerComponent layer)
+        {
+            var display = (TileMapLayer)layer.GetParent();
+            if (layer.RenderFilledBase || !GroundTexturePaths.TryGetValue(layer.TransitionTerrainKind, out string? path)
+                || string.IsNullOrWhiteSpace(path))
+            {
+                display.Material = null;
+                return;
+            }
+            Texture2D? texture = TerrainTextures.Load(path, Name, "repeating tile ground detail");
+            if (texture is null) { display.Material = null; return; }
+            var material = display.Material as ShaderMaterial ?? new ShaderMaterial
+            {
+                Shader = GD.Load<Shader>("res://addons/beep_game_builder_cs/shaders/terrain_tile_detail.gdshader")
+            };
+            material.SetShaderParameter("ground_texture", texture);
+            material.SetShaderParameter("cell_size", new Vector2(AtlasTileSize.X, AtlasTileSize.Y));
+            material.SetShaderParameter("repeat_cells", Mathf.Clamp(GroundRepeatCells, 1f, 32f));
+            material.SetShaderParameter("detail_strength", Mathf.Clamp(GroundDetailStrength, 0f, 1f));
+            display.Material = material;
+        }
+
         /// <summary>
-        /// The one place this renderer resolves its generator, matching the
-        /// pattern every sibling renderer uses - including the
-        /// IsInstanceValid re-check, so a freed or replaced generator node is
-        /// re-discovered rather than staying stuck on a stale reference
-        /// forever. This used to be two divergent inline snippets, one in
-        /// EnsureWaterSurface with no re-check at all and one in
-        /// ConfiguredLayers with an IsEmpty guard but still no re-check.
+        /// Resolve the current generator path, including replacement of a still-live node.
         /// </summary>
         private void ResolveGenerator()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _generator = TerrainGeneratorPath.IsEmpty ? null
+                : GetNodeOrNull<Node>(TerrainGeneratorPath) as TerrainGeneratorComponent;
+        }
+
+        private void ClearSurface()
+        {
+            ClearBiomeLayers();
+            _water?.Clear();
+            _coastMap = null;
+        }
+
+        private void ClearBiomeLayers()
+        {
+            // Metadata survives PackedScene serialization; the runtime component list does not.
+            foreach (Node child in GetChildren())
+                if (child is TileMapLayer display && display.GetMeta(BiomeDisplayMetadata, false).AsBool())
+                {
+                    RemoveChild(display);
+                    display.QueueFree();
+                }
+            _layers.Clear();
+            _builtSignature = string.Empty;
         }
 
         /// <summary>
@@ -199,11 +321,16 @@ namespace Beep.ECS
         private void EnsureWaterSurface()
         {
             if (string.IsNullOrWhiteSpace(WaterShaderPath))
+            {
+                _water?.Clear();
                 return;
+            }
 
             ResolveGenerator();
-            if (_generator is null)
+            ResolveCells();
+            if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
+                ClearSurface();
                 GD.PushWarning(
                     $"[{Name}] no generator at TerrainGeneratorPath, so the sea has no coastline to read; "
                     + "the water tiles will draw on their own.");
@@ -211,7 +338,9 @@ namespace Beep.ECS
             }
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            _coastMap = TerrainCoastField.Build(_generator, size, CoastDetail, CoastRangeTiles);
+            _coastMap = _cells is not null
+                ? _liveCoast.Resolve(_cells, BoundsOrigin, size, CoastDetail, CoastRangeTiles)
+                : TerrainCoastField.Build(_generator!, size, CoastDetail, CoastRangeTiles);
 
             _water = TerrainAuthoring.EnsureLayer(this, "TileWater");
 
@@ -226,7 +355,7 @@ namespace Beep.ECS
 
             TerrainShaderSurface.Fill(_water, size);
 
-            _water.Position = Vector2.Zero;
+            _water.Position = new Vector2(BoundsOrigin.X * cell.X, BoundsOrigin.Y * cell.Y);
 
             // The shared sea level: over the water tiles that are its bed, and
             // under the land. Not another biome competing for the same ground.
@@ -240,6 +369,7 @@ namespace Beep.ECS
         private ShaderMaterial? BuildWaterMaterial(Vector2I size)
         {
             ShaderMaterial material = _waterMaterial ?? new ShaderMaterial();
+            material.SetShaderParameter("tile_batch", true);
             if (material.Shader is null)
             {
                 var shader = GD.Load<Shader>(WaterShaderPath);
@@ -262,11 +392,12 @@ namespace Beep.ECS
             }
             else
             {
-                material.SetShaderParameter("coast_map", _coastMap);
+                material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap, BoundsSize, _liveCoast.CoastRevision));
             }
 
             material.SetShaderParameter("coast_range", CoastRangeTiles);
             material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
+            material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
             material.SetShaderParameter(
                 "cell_size", new Vector2(AtlasTileSize.X, AtlasTileSize.Y));
             material.SetShaderParameter("max_opacity", MaxOpacity);
@@ -333,6 +464,9 @@ namespace Beep.ECS
                 // SEA, beneath everything.
                 new("deep_water", WaterAtlasPath, WaterDetailAtlasPath),
                 new("shallow_water", WaterAtlasPath, WaterDetailAtlasPath),
+                new("water", WaterAtlasPath, WaterDetailAtlasPath),
+                new("sea", WaterAtlasPath, WaterDetailAtlasPath),
+                new("ocean", WaterAtlasPath, WaterDetailAtlasPath),
 
                 // GROUND.
                 new("swamp", SwampAtlasPath, string.Empty),
@@ -358,7 +492,8 @@ namespace Beep.ECS
             // property of the renderer's configuration rather than of the world,
             // so two views of one map could not be compared.
             ResolveGenerator();
-            Godot.Collections.Array<string>? present = _generator?.TerrainKindsPresent();
+            // Keep every authored live biome ready: an edit may introduce a kind absent at generation.
+            Godot.Collections.Array<string>? present = CellDataPath.IsEmpty ? _generator?.TerrainKindsPresent() : null;
 
             var configured = new List<BiomeLayer>();
             foreach (BiomeLayer candidate in candidates)
@@ -390,24 +525,9 @@ namespace Beep.ECS
                 Configure();
                 return;
             }
+            // Names are not ownership: authored roads/details may also end in "Tiles".
+            ClearBiomeLayers();
             _builtSignature = signature;
-
-            // Tear down only the biome display layers THIS renderer builds - the
-            // "*Tiles" TileMapLayers. Freeing every child took the shader sea
-            // ("TileWater") and anything a user authored under this node with
-            // them. RemoveChild before QueueFree, because a queued-free node is
-            // still in the tree and still valid, so EnsureLayer would find it by
-            // name, hand it back, and the freshly configured layer would die at
-            // the end of the frame - one blank build after every atlas change.
-            foreach (Node child in GetChildren())
-            {
-                if (child is not TileMapLayer || !child.Name.ToString().EndsWith("Tiles", StringComparison.Ordinal))
-                    continue;
-
-                RemoveChild(child);
-                child.QueueFree();
-            }
-            _layers.Clear();
 
             // A filled base at the floor of the stack, so a gap between biome
             // layers shows water rather than a hole.
@@ -451,6 +571,8 @@ namespace Beep.ECS
         {
             var text = new System.Text.StringBuilder();
             text.Append(BaseAtlasPath).Append('|')
+                .Append(CellDataPath).Append('|').Append(TerrainGeneratorPath).Append('|')
+                .Append(_cells?.GetInstanceId() ?? _generator?.GetInstanceId() ?? 0).Append('|')
                 .Append(AtlasTileSize).Append('|')
                 .Append(AtlasColumns).Append('x').Append(AtlasTileRows);
             foreach (BiomeLayer layer in configured)
@@ -498,7 +620,11 @@ namespace Beep.ECS
             // transition component below places the layer from the terrain kind
             // it paints, and sets the filter to match the atlas it just built
             // with a mip chain. Both used to be written twice.
-            TileMapLayer display = TerrainAuthoring.EnsureLayer(this, $"{name}Tiles");
+            // Do not take ownership of an authored layer with the requested display name.
+            var display = new TileMapLayer { Name = $"{name}Tiles" };
+            display.SetMeta(BiomeDisplayMetadata, true);
+            AddChild(display, forceReadableName: true);
+            TerrainAuthoring.Adopt(display, this);
             display.Position = new Vector2(AtlasTileSize.X * -0.5f, AtlasTileSize.Y * -0.5f);
 
             var component = new TerrainTransitionLayerComponent
@@ -507,6 +633,7 @@ namespace Beep.ECS
                 BoundsOrigin = BoundsOrigin,
                 BoundsSize = BoundsSize,
                 TransitionTerrainKind = terrainKind,
+                MatchTerrainAliases = false,
                 RenderFilledBase = filledBase,
                 // The atlases here are hand-authored 15-piece sheets, not Godot
                 // TileSet terrain sets, so connection selection uses the
@@ -527,12 +654,15 @@ namespace Beep.ECS
             // Paths must be assigned AFTER the node is in the tree and relative
             // to the component itself: it is a grandchild of this renderer, so a
             // path computed from the renderer does not resolve from there.
-            // The generator, not the cell data it filled in. This renderer already
-            // held the generator for its coastline; feeding the layers from the
-            // copy was what let the tile view disagree with the other two.
-            Node? source = TerrainGeneratorPath.IsEmpty ? null : GetNodeOrNull(TerrainGeneratorPath);
+            // Live cells own edited maps; generated fields are for recipe-only previews.
+            Node? source = CellDataPath.IsEmpty
+                ? (TerrainGeneratorPath.IsEmpty ? null : GetNodeOrNull(TerrainGeneratorPath))
+                : GetNodeOrNull(CellDataPath);
             if (source is not null)
-                component.TerrainGeneratorPath = component.GetPathTo(source);
+            {
+                if (CellDataPath.IsEmpty) component.TerrainGeneratorPath = component.GetPathTo(source);
+                else component.CellDataPath = component.GetPathTo(source);
+            }
             component.DisplayLayerPath = component.GetPathTo(display);
 
             if (!string.IsNullOrWhiteSpace(detailAtlasPath))

@@ -1,5 +1,13 @@
 # TerrainTransitionLayerComponent
 
+## Automatic Refresh
+
+Cell-triggered refreshes pause when the display TileMapLayer is hidden, including through an
+ancestor. A previously used standalone display refreshes when shown. Renderer-owned displays let
+TerrainTileRendererComponent refresh the whole view once. Explicit RefreshTransitions still works
+while hidden. Full refresh clears pending dirty cells, and superseded callbacks do no extra work.
+Visibility and cell subscriptions are released on tree exit and restored on re-entry.
+
 Renderer: a `[Tool][GlobalClass]` `Node` that maintains one display `TileMapLayer` for a single logical terrain kind, painting autotiled transition ("15-piece" or Godot terrain-set) tiles at its edges.
 
 Each instance represents one biome's presence across the map — e.g. "water" or "grass" — as a dual-grid autotiled layer: for every point where up to four gameplay cells meet, it decides (via `IsTransitionTerrain`) which of those four count as "this layer's terrain" and paints the matching edge/corner/solid tile so biome boundaries read as smooth coastlines/shorelines instead of a hard grid. It supports two selection mechanisms: the modern, default path delegates to Godot 4's own `TileSet` terrain-connect API (`SetCellsTerrainConnect`), and a legacy manual path computes a 4-bit corner mask itself and looks the tile up in a hand-verified 15-piece atlas layout — kept only for atlases whose numeric tile order has been confirmed to match `CanonicalMaskToAtlasIndex`. `TerrainTileRendererComponent` builds and owns one of these per configured biome; it is not typically hand-placed standalone, though it is usable as such.
@@ -36,7 +44,7 @@ Each instance represents one biome's presence across the map — e.g. "water" or
 - Reads `TerrainLayers.ZForFloor()` (when `RenderFilledBase`) or `TerrainLayers.ZForKind(Normalize(TransitionTerrainKind))` (otherwise) in `PlaceDisplayLayer` to set the display layer's (and detail layer's, +1) z-index — the sole place this component's stack order is decided, replacing per-scene hand-authored z values the class comment says used to drift (six hand-written z values in the 15-piece demo scene kept water stacked above grass/desert after that exact bug was fixed elsewhere).
 - Calls `TerrainTextures.Load` (not a bare `GD.Load`) in `EnsureDisplayTileSet` to load atlas textures through the shared import/mipmap pipeline.
 - Owned/instantiated by `TerrainTileRendererComponent`, which sets every one of its `[Export]`s programmatically per biome (see that file's `CreateLayer`).
-- Does not read or write `TerrainWorld`, `TerrainTileSets`, or `GridCellDataComponent` directly.
+- Does not read or write `TerrainGenerationBuffer`, `TerrainTileSets`, or `GridCellDataComponent` directly.
 
 ## Notes
 

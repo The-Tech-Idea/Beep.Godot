@@ -28,12 +28,6 @@ namespace Beep.ECS
 
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
-        /// <summary>
-        /// Optional bridge to the terrain engine: when set, terrain kinds come
-        /// from the TerrainDataLayersComponent's generated map, with cell data
-        /// as the fallback where the layers have no tile. Explicit wire only.
-        /// </summary>
-        [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath SelectionPath { get; set; } = new("");
         [Export] public NodePath JobQueuePath { get; set; } = new("");
         [Export] public NodePath RoadPath { get; set; } = new("");
@@ -47,7 +41,8 @@ namespace Beep.ECS
         [Export] public string CropId { get; set; } = "turnip";
         [Export(PropertyHint.Range, "0,365,1")] public int CropDaysToMature { get; set; } = 3;
         [Export] public string JobKind { get; set; } = "clear_land";
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float JobWorkSeconds { get; set; } = 1.5f;
+        /// <summary>Work a queued job carries, in turns - the grid's one unit.</summary>
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float JobWorkTurns { get; set; } = 1.5f;
         [Export] public int JobPriority { get; set; } = 0;
         [Export] public bool ApplyToSelectionWhenPresent { get; set; } = true;
         [Export] public bool UseMouseInput { get; set; } = false;
@@ -55,6 +50,15 @@ namespace Beep.ECS
         [Export] public bool ConsumeSeedsFromWallet { get; set; } = true;
         [Export] public bool UseNavigationBounds { get; set; } = true;
         [Export] public bool RejectNavigationBlockedCellsForJobs { get; set; } = false;
+
+        /// <summary>
+        /// Whether a cell carrying GridCellDataComponent's Blocked flag refuses
+        /// a queued job. Defaults false to match
+        /// GridSelectionJobCommandComponent.TreatCellDataBlockedAsUnqueueable:
+        /// the two queueing paths answer "is this cell queueable" through the
+        /// same GridCellRules, so they are configured alike out of the box.
+        /// </summary>
+        [Export] public bool RejectCellDataBlockedCellsForJobs { get; set; } = false;
         [Export] public bool TreatBlockedTerrainKindsAsUnworkable { get; set; } = true;
         [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
             = GridTerrainRules.DefaultBlockedTerrainKinds();
@@ -70,11 +74,10 @@ namespace Beep.ECS
         private GridCropCatalogComponent? _cropCatalog;
         private GridCalendarComponent? _calendar;
         private GridResourceWalletComponent? _resourceWallet;
-        private TerrainDataLayersComponent? _dataLayers;
 
         public float EffectiveRoadCostMultiplier => Mathf.Clamp(float.IsFinite(RoadCostMultiplier) ? RoadCostMultiplier : 0.55f, 0.05f, 1f);
         public int EffectiveCropDaysToMature => Mathf.Max(0, CropDaysToMature);
-        public float EffectiveJobWorkSeconds => Mathf.Max(0.01f, float.IsFinite(JobWorkSeconds) ? JobWorkSeconds : 1.5f);
+        public float EffectiveJobWorkTurns => Mathf.Max(0.01f, float.IsFinite(JobWorkTurns) ? JobWorkTurns : 1.5f);
         public string EffectiveCropId => string.IsNullOrWhiteSpace(CropId) ? "crop" : CropId.Trim();
         public string EffectiveJobKind => string.IsNullOrWhiteSpace(JobKind) ? "work" : JobKind.Trim();
         public string EffectiveRoadKind => string.IsNullOrWhiteSpace(RoadKind) ? "dirt_path" : RoadKind.Trim();
@@ -183,11 +186,19 @@ namespace Beep.ECS
 
         private bool ApplyClear(Vector2I cell)
         {
-            if (!CanWorkTerrain(cell))
+            if (!CanClearCell(cell))
                 return Reject(ToolAction.Clear, cell, "unworkable_terrain");
 
             _cells!.ClearLand(cell);
             return true;
+        }
+
+        /// <summary>Side-effect-free clear eligibility, shared with job completion preflight.</summary>
+        public bool CanClearCell(Vector2I cell)
+        {
+            ResolveReferences();
+            return _cells is not null && cell.X != int.MinValue && cell.Y != int.MinValue
+                && CanWorkTerrain(cell);
         }
 
         private bool ApplyHoe(Vector2I cell)
@@ -285,7 +296,7 @@ namespace Beep.ECS
             if (blockReason != null)
                 return Reject(ToolAction.QueueJob, cell, blockReason);
 
-            _jobs.AddJob(cell, EffectiveJobKind, EffectiveJobWorkSeconds, JobPriority);
+            _jobs.AddJob(cell, EffectiveJobKind, EffectiveJobWorkTurns, JobPriority);
             return true;
         }
 
@@ -321,104 +332,53 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_selection == null || !GodotObject.IsInstanceValid(_selection))
-                _selection = !SelectionPath.IsEmpty
-                    ? GetNodeOrNull<GridSelectionComponent>(SelectionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridSelectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_roads == null || !GodotObject.IsInstanceValid(_roads))
-                _roads = !RoadPath.IsEmpty
-                    ? GetNodeOrNull<GridRoadComponent>(RoadPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty
-                    ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cropCatalog == null || !GodotObject.IsInstanceValid(_cropCatalog))
-                _cropCatalog = !CropCatalogPath.IsEmpty
-                    ? GetNodeOrNull<GridCropCatalogComponent>(CropCatalogPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCropCatalogComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_calendar == null || !GodotObject.IsInstanceValid(_calendar))
-                _calendar = !CalendarPath.IsEmpty
-                    ? GetNodeOrNull<GridCalendarComponent>(CalendarPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCalendarComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_resourceWallet == null || !GodotObject.IsInstanceValid(_resourceWallet))
-                _resourceWallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-
-            // Explicit wire only, never found scene-wide - see DataLayersPath.
-            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
-                _dataLayers = !DataLayersPath.IsEmpty
-                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
-                    : null;
+            ResolveCurrent(GridPath, ref _grid);
+            ResolveCurrent(CellDataPath, ref _cells);
+            ResolveCurrent(SelectionPath, ref _selection);
+            ResolveCurrent(JobQueuePath, ref _jobs);
+            ResolveCurrent(RoadPath, ref _roads);
+            ResolveCurrent(NavigationPath, ref _navigation);
+            ResolveCurrent(CropCatalogPath, ref _cropCatalog);
+            ResolveCurrent(CalendarPath, ref _calendar);
+            ResolveCurrent(ResourceWalletPath, ref _resourceWallet);
         }
 
-        private string TerrainKindAt(Vector2I cell)
+        private void ResolveCurrent<T>(NodePath path, ref T? cached) where T : class
         {
-            string kind = _dataLayers is null ? "" : GridTerrainRules.Normalize(_dataLayers.TerrainAt(cell));
-            if (kind.Length == 0 && _cells is not null)
-                kind = GridTerrainRules.Normalize(_cells.GetTerrainKind(cell));
-            return kind;
+            if (!path.IsEmpty) cached = GetNodeOrNull<Node>(path) as T;
+            else EntityComponent.Resolve(this, path, ref cached);
         }
+
+        /// <summary>
+        /// This component's own exports, as the shared cell rule. Built per
+        /// call so a NodePath re-resolved by ResolveReferences is picked up.
+        /// </summary>
+        private GridCellRules Rules() => new()
+        {
+            Navigation = _navigation,
+            Cells = _cells,
+            UseNavigationBounds = UseNavigationBounds,
+            RejectNavigationBlockedCells = RejectNavigationBlockedCellsForJobs,
+            RejectCellDataBlockedCells = RejectCellDataBlockedCellsForJobs,
+            TreatBlockedTerrainKindsAsBlocking = TreatBlockedTerrainKindsAsUnworkable,
+            BlockedTerrainKinds = BlockedTerrainKinds,
+            AllowedTerrainKinds = AllowedTerrainKinds
+        };
 
         private bool CanWorkTerrain(Vector2I cell)
-        {
-            if (_navigation != null && UseNavigationBounds && !_navigation.IsInBounds(cell))
-                return false;
+            => Rules().CanWorkTerrain(cell);
 
-            if (_cells == null && _dataLayers == null)
-                return true;
-
-            string terrainKind = TerrainKindAt(cell);
-            if (!GridTerrainRules.IsAllowed(terrainKind, AllowedTerrainKinds))
-                return false;
-
-            if (TreatBlockedTerrainKindsAsUnworkable && IsBlockedTerrainKind(terrainKind))
-                return false;
-
-            return true;
-        }
-
+        /// <summary>
+        /// The shared queueability answer in this component's own words - the
+        /// vocabulary its ToolRejected signal has always reported.
+        /// </summary>
         private string? WorkJobBlockReason(Vector2I cell)
-        {
-            if (_navigation != null)
+            => Rules().QueueBlock(cell) switch
             {
-                if (UseNavigationBounds && !_navigation.IsInBounds(cell))
-                    return "cell_out_of_bounds";
-
-                if (RejectNavigationBlockedCellsForJobs && _navigation.IsBlocked(cell))
-                    return "blocked_cell";
-            }
-
-            return CanWorkTerrain(cell) ? null : "unworkable_terrain";
-        }
-
-        private bool IsBlockedTerrainKind(string normalizedTerrainKind)
-        {
-            if (BlockedTerrainKinds.Count == 0)
-                return normalizedTerrainKind is "water" or "sea" or "ocean" or "deep_water" or "shallow_water" or "lava";
-
-            return GridTerrainRules.MatchesAny(normalizedTerrainKind, BlockedTerrainKinds);
-        }
+                GridJobBlock.OutOfBounds => "cell_out_of_bounds",
+                GridJobBlock.Blocked => "blocked_cell",
+                GridJobBlock.UnworkableTerrain => "unworkable_terrain",
+                _ => null
+            };
     }
 }

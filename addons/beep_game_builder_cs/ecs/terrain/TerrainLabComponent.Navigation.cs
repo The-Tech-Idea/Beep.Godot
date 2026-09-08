@@ -29,38 +29,50 @@ namespace Beep.ECS
                     return;
 
                 if (mouseButton.ButtonIndex == MouseButton.WheelUp)
-                    ZoomAt(mouseButton.Position, ZoomStep);
+                    ZoomPreviewAt(mouseButton.Position, ZoomStep);
                 else if (mouseButton.ButtonIndex == MouseButton.WheelDown)
-                    ZoomAt(mouseButton.Position, 1.0f / Mathf.Max(1.01f, ZoomStep));
+                    ZoomPreviewAt(mouseButton.Position, 1.0f / Mathf.Max(1.01f, ZoomStep));
                 return;
             }
 
             if (_isPanning && @event is InputEventMouseMotion motion)
             {
-                _preview.Position += motion.Relative;
+                PanPreviewBy(motion.Relative);
                 return;
             }
 
             if (@event is InputEventPanGesture pan)
-                _preview.Position += pan.Delta;
+                PanPreviewBy(pan.Delta);
         }
 
         /// <summary>Zooms about a screen point, keeping what is under it still.</summary>
-        private void ZoomAt(Vector2 screenPosition, float factor)
+        public void ZoomPreviewAt(Vector2 screenPosition, float factor)
         {
-            if (_preview is null)
+            if (_preview is null || !screenPosition.IsFinite() || !float.IsFinite(factor) || factor <= 0)
                 return;
 
-            Vector2 previousLocalPosition = _preview.ToLocal(screenPosition);
+            Vector2 previousLocalPosition = _preview.GetGlobalTransformWithCanvas().AffineInverse() * screenPosition;
             float currentZoom = _preview.Scale.X;
             float targetZoom = Mathf.Clamp(currentZoom * factor, MinimumZoom, MaximumZoom);
             if (Mathf.IsEqualApprox(currentZoom, targetZoom))
                 return;
 
             _preview.Scale = Vector2.One * targetZoom;
-            Vector2 newLocalPosition = _preview.ToLocal(screenPosition);
-            _preview.Position += (newLocalPosition - previousLocalPosition) * targetZoom;
+            Vector2 movedScreenPosition = _preview.GetGlobalTransformWithCanvas() * previousLocalPosition;
+            PanPreviewBy(screenPosition - movedScreenPosition);
         }
+
+        /// <summary>Moves the preview by viewport pixels, independent of parent/canvas transforms.</summary>
+        public void PanPreviewBy(Vector2 screenDelta)
+        {
+            if (_preview is null || !screenDelta.IsFinite()) return;
+            Transform2D parentToScreen = _preview.GetGlobalTransformWithCanvas() * _preview.Transform.AffineInverse();
+            Transform2D screenToParent = parentToScreen.AffineInverse();
+            _preview.Position += screenToParent * screenDelta - screenToParent * Vector2.Zero;
+        }
+
+        private bool _hasFramedPreview;
+        private Rect2 _framedExtent;
 
         /// <summary>Margins of the preview area inside the window, in pixels.</summary>
         private const float PreviewLeft = 340.0f;
@@ -84,8 +96,13 @@ namespace Beep.ECS
                 return;
 
             Rect2 extent = _world.PreviewExtent();
-            Vector2 origin = extent.Position;
-            Vector2 terrainSize = extent.Size;
+            if (!extent.Size.IsFinite() || extent.Size.X <= 0 || extent.Size.Y <= 0) return;
+            _framedExtent = extent;
+            _hasFramedPreview = true;
+            _preview.Scale = Vector2.One;
+            Rect2 unitScreenExtent = _preview.GetGlobalTransformWithCanvas() * extent;
+            Vector2 terrainSize = unitScreenExtent.Size;
+            if (!terrainSize.IsFinite() || terrainSize.X <= 0 || terrainSize.Y <= 0) return;
 
             Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
             Vector2 availableSize = new(
@@ -98,10 +115,11 @@ namespace Beep.ECS
                 MaximumZoom);
 
             _preview.Scale = Vector2.One * zoom;
-            _preview.Position = new Vector2(
+            Vector2 desiredTopLeft = new Vector2(
                 PreviewLeft + ((availableSize.X - (terrainSize.X * zoom)) * 0.5f),
-                PreviewTop + ((availableSize.Y - (terrainSize.Y * zoom)) * 0.5f))
-                - (origin * zoom);
+                PreviewTop + ((availableSize.Y - (terrainSize.Y * zoom)) * 0.5f));
+            Rect2 screenExtent = _preview.GetGlobalTransformWithCanvas() * extent;
+            PanPreviewBy(desiredTopLeft - screenExtent.Position);
         }
     }
 }

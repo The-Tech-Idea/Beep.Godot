@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/terrain_templates/v1/ramps/volcanic_basalt/ramp_half_left.tres" id="1"]
+
+[node name="ramp_half_left" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -37.682243)
+scale = Vector2(0.29906542056074764, 0.29906542056074764)
+texture = ExtResource("1")

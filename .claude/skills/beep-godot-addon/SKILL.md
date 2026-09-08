@@ -85,11 +85,26 @@ catalogs/skins/<genre>/
 
 ## Runtime shape
 
-- **`GameApp`** — autoload; session state (level, score, character) + holds `Info`.
-- **`GameInfo`** — a `[GlobalClass]` **Resource** at `res://game_info.tres`, *not* an autoload. Static config; genre scene paths get stamped in at runtime.
-- **`Settings`** — autoload; audio/display/language → `user://settings.cfg`.
-- **`Locale`** — autoload; `LocalizationComponent` wrapping `TranslationServer`, loads `templates/i18n/translations.csv`.
-- **`BeepGenreScene`** — set `GenreId` (`platformer` / `topdown` / `shooter` / `puzzle`); it instantiates that genre's main scene as a child, populates `GameApp.Info`, and drives any sibling `ThemePresetComponent`.
+**One autoload, and it owns everything else.** `GameApp` (`/root/GameApp`) is the game master; the only `static Instance` in the addon is its. It builds its subsystems as children in `_EnterTree`, before anything's `_Ready`, and hands them out by typed accessor — the Widelands `game.cmdqueue()` shape:
+
+- **`GameApp.Instance.Clock`** — `GameClock`, the one heartbeat. Counts **beats**; days cascade from beats via `BeatsPerDay`.
+- **`GameApp.Instance.Settings`** — `SettingsComponent`; audio/display/language → `user://settings.cfg`.
+- **`GameApp.Instance.Locale`** — `LocalizationComponent` wrapping `TranslationServer`, loads `templates/i18n/translations.csv`.
+- **`GameApp.Instance.Saves`** — `GameStateManagerComponent`; save slots, `ISaveable` discovery. Always constructed; `GameInfo.EnableGameStateManager = false` disables it rather than removing it.
+- **`GameApp.Info`** — `GameInfo`, a `[GlobalClass]` **Resource** at `res://game_info.tres`, *not* an autoload. Static config; declares the game's **`TimeAxis`** (`Realtime` | `Turns`) and `BeatsPerDay`.
+- **`BeepGenreScene`** — set `GenreId`; instantiates that genre's main scene as a child, populates `GameApp.Info`, drives any sibling `ThemePresetComponent`.
+
+`Settings`, `Locale`, `GameStateManager` and `TurnManager` are **no longer autoloads** and have no `static Instance`. `TurnManager` is deleted — its counter, `TurnEnded` and `EndTurn()` live on `GameClock`.
+
+**Time axis rules.** The axis is *declared* in `GameInfo.TimeAxis` and read in exactly one place, `GameApp.ReconfigureClock()` — called when the master builds its subsystems and again by anything that rewrites `GameInfo` afterwards (`BeepGenreScene` does, after `ApplyTuning`). If you replace or re-tune `GameApp.Info` at runtime, call `ReconfigureClock()`; the clock follows the declaration, never the Info it happened to see first. `GameClock._Process` is the only place in the addon that branches on the axis. Durational components (`StatsComponent`, `WorkComponent`, every timed grid subsystem) subscribe to the clock and never ask which axis they are on — one beat is one second on `Realtime` and one turn on `Turns`, so the same authored number is correct on both. A turn-based scene needs a `TurnDriverComponent` (or anything calling `Clock.EndTurn()`) or nothing advances; the clock reports a refused `EndTurn` rather than pretending. Never infer the axis from whether a node exists — that inference is what froze the strategy genre.
+
+**Pause.** `SceneTree.Paused` is the one pause fact and `GameApp.Instance.SetPaused(bool)` the one door — never write `GetTree().Paused` yourself (the contract scan fails any addon `.cs` that does). `GameApp.IsPaused` is a computed view of the tree flag. The real-time clock stops for free (it is pausable); `GameClock.EndTurn()` reads the same flag and refuses while paused.
+
+**Saves.** `GameApp` saves its clock (`Elapsed`/`Turn`/`DayFraction` in `SessionStateData`; `Day` is re-derived). `TerrainWorldComponent` is `ISaveable` and saves the **recipe** (axes + seed) under `terrain_world.recipe`; on load `RestoreWorld()` regenerates and draws the world **without writing cells** — `GridCellDataComponent` is the live map (saved by `GridWorldStateComponent`), and `TerrainDataLayersComponent.GeneratedTerrainAt` is the recipe's answer, never a kind source for grid rules. `NewWorld()` is the only door that fills cells.
+
+**Grid time.** The grid toolkit references no global. `GridWorkClockComponent` finds the clock by shape (`GridClockPorts`), converts beats to **turns** (a turn is a day), and self-ticks when no clock exists so template scenes and probes run standalone. Sites declare `BuildTurns`, never seconds; the calendar derives its day from the clock and has no `_Process`. UI refresh intervals and retry backoffs stay real seconds on purpose.
+
+**Wiring.** `EntityComponent.Resolve<T>(owner, path, ref cached)` is the one rule for finding a collaborator: authored `NodePath` first, scene search second, cached and re-resolved when stale. Don't write the ternary by hand. Extension points are an interface **plus** a duck-typed port (`IGridSite`/`GridSitePorts`, `IConstructionVisual`/`GridConstructionVisualPorts`, `GridPorts`, `GridClockPorts`) so GDScript participates by name.
 
 The editor dock (`ui/BeepGameBuilderDock.cs`) is a **`VBoxContainer` — a single scrollable form with section headers, not a `TabContainer`**. The "3 tabs" description in the root `README.md` is stale; `addons/beep_game_builder_cs/README.md` is accurate.
 
@@ -125,9 +140,8 @@ Before using any Godot API, confirm it exists in **4.7** specifically.
 
 ## Deeper reference
 
-- `docs/ARCHITECTURE.md` — layer diagram, full directory map, data flow
-- `docs/APP_WORKFLOW.md` — generation pipeline, autoloads, scene wiring
-- `docs/SKINNING_THEMING.md` — visual preset pipeline
-- `docs/FILE_FORMATS.md` — JSON schema reference
-- `docs/SKIN_SYSTEM.md` — cookbook for adding genres/themes/palettes
+- `docs/ARCHITECTURE.md` — the three rules (one owner per fact; composition; contract + port), the game master, the clock and both axes, the wiring rule, where time is measured and in what
+- `docs/grid-system/ENHANCEMENT_AND_FIX_PLAN.md` — every grid file indexed with its own doc, plus the review findings and how each was closed
+- `docs/grid-system/CONSTRUCTION_VISUALS_RESEARCH.md` — the games-as-code research method this repo uses
+- *Not yet written* (do not cite them as if they exist): `docs/APP_WORKFLOW.md`, `docs/SKINNING_THEMING.md`, `docs/FILE_FORMATS.md`, `docs/SKIN_SYSTEM.md`
 - `addons/beep_game_builder_cs/INDEX.md` — full shipped inventory

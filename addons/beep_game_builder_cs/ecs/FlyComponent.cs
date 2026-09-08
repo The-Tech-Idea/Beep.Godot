@@ -54,6 +54,7 @@ namespace Beep.ECS
         public float EffectiveBoostDuration => NonNegative(BoostDuration);
         public float EffectiveMaxBankAngle => NonNegative(MaxBankAngle);
         public float EffectiveBankSpeed => NonNegative(BankSpeed);
+        public bool IsBoosting => IsActive && _boostTimer > 0;
 
         public override void _Ready()
         {
@@ -82,9 +83,11 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (EnableBoost
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && !actor.CanDrive(this)) { _boostTimer = 0; return; }
+            if (actor is null && (EnableBoost
                 ? !InputActionsAvailable("move_left", "move_right", "move_up", "move_down", BoostAction)
-                : !InputActionsAvailable("move_left", "move_right", "move_up", "move_down")) return;
+                : !InputActionsAvailable("move_left", "move_right", "move_up", "move_down"))) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
@@ -94,13 +97,16 @@ namespace Beep.ECS
             bool stunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
             if (stunned)
                 _boostTimer = 0f;
-            float x = stunned ? 0f : Input.GetAxis("move_left", "move_right");
-            float y = stunned ? 0f : Input.GetAxis("move_up", "move_down");
-            Vector2 inputDir = new(x, y);
+            Vector2 inputDir = stunned ? Vector2.Zero : actor?.MoveIntent ?? Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
             // Check for boost activation.
-            if (!stunned && EnableBoost && Input.IsActionJustPressed(BoostAction) && _boostTimer <= 0)
-                _boostTimer = EffectiveBoostDuration;
+            // A dedicated dash owns the shared dash intent; flight must not trigger both abilities.
+            bool dedicatedDash = GetSiblingComponent<DashComponent>() is { IsActive: true };
+            bool boostRequested = actor is not null
+                ? !dedicatedDash && actor.ConsumeDash()
+                : (!dedicatedDash || BoostAction != GetSiblingComponent<DashComponent>()!.DashAction)
+                    && EnableBoost && Input.IsActionJustPressed(BoostAction);
+            if (!stunned && boostRequested) TryBoost();
 
             float currentMaxSpeed = EffectiveMaxSpeed;
             if (_boostTimer > 0)
@@ -108,7 +114,7 @@ namespace Beep.ECS
 
             if (inputDir.Length() > 0)
             {
-                inputDir = inputDir.Normalized();
+                inputDir = inputDir.LimitLength();
                 _body.Velocity = _body.Velocity.MoveToward(inputDir * currentMaxSpeed, EffectiveAcceleration * dt);
                 _targetRotation = inputDir.Angle();
             }
@@ -138,7 +144,7 @@ namespace Beep.ECS
                 _bankSprite.Skew = Mathf.Lerp(_bankSprite.Skew, 0f, Mathf.Clamp(EffectiveBankSpeed * dt, 0f, 1f));
             }
 
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
 
             if (_body.Velocity.Length() > 1f)
                 EmitSignal(SignalName.Moved, _body.Velocity);
@@ -150,6 +156,24 @@ namespace Beep.ECS
             if (_body == null || !IsFinite(force)) return;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
             _body.Velocity += force;
+        }
+
+        public bool TryBoost()
+        {
+            if (!IsActive || !EnableBoost || !GodotObject.IsInstanceValid(_body) || _boostTimer > 0 || EffectiveBoostDuration <= 0) return false;
+            if (ActorComponent.ForBody(_body) is { } actor && (!actor.CanDrive(this) || actor.HasOrders)) return false;
+            if (GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }) return false;
+            if (StunBlocksMovement && _statusEffects?.HasEffect("stun") == true) return false;
+            _boostTimer = EffectiveBoostDuration;
+            return true;
+        }
+
+        public override void _ExitTree()
+        {
+            _body = null; _bankSprite = null; _statusEffects = null;
+            _boostTimer = 0; _targetRotation = 0;
+            RequestReady();
+            base._ExitTree();
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;

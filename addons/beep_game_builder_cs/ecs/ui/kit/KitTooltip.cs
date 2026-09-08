@@ -83,18 +83,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(w, h);
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private static float TailSizeFor(int fs) => Mathf.Clamp(fs * 0.42f, 5f, 9f);
 
         private static float LongestLineWidth(Font? font, string text, int fs)
@@ -162,7 +150,7 @@ namespace Beep.ECS.UI.Kit
                                        new Vector2(body.Size.X * 0.82f, body.Size.Y * 0.44f),
                                        _text, font, min: 8);
             Rect2 textBox = body.Grow(-Mathf.Max(5f, tf * 0.55f));
-            KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, textBox, _text, tf, txt,
+            KitChrome.DrawWrappedText(this, Genre, font, textBox, _text, tf, txt,
                                       HorizontalAlignment.Center, maxLines: 2);
         }
 

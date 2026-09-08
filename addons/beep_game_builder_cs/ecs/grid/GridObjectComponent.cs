@@ -22,9 +22,21 @@ namespace Beep.ECS
         [Export] public string ObjectKind { get; set; } = "";
         [Export] public string Category { get; set; } = "";
         [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
-        [Export] public Vector2I Cell { get; set; } = Vector2I.Zero;
-        [Export] public Vector2I Footprint { get; set; } = Vector2I.One;
+        private Vector2I _cell;
+        private Vector2I _footprint = Vector2I.One;
+        [Export] public Vector2I Cell
+        {
+            get => _cell;
+            set { _cell = value; RefreshChunkPins(); }
+        }
+        [Export] public Vector2I Footprint
+        {
+            get => _footprint;
+            set { _footprint = value; RefreshChunkPins(); }
+        }
         [Export] public bool BlocksNavigation { get; set; } = true;
+        /// <summary>Optional cell-anchor binding for stationary objects. Child art supplies visual offsets.</summary>
+        [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public NodePath NavigationPath { get; set; } = new("");
         [Export] public bool ReserveFootprintOnReady { get; set; } = false;
@@ -39,6 +51,7 @@ namespace Beep.ECS
         private readonly HashSet<Vector2I> _reservedNavigationCells = new();
         private GridPlacementComponent? _placement;
         private GridNavigationComponent? _navigation;
+        private GridProjectionComponent? _grid;
 
         public string EffectiveCategory => !string.IsNullOrWhiteSpace(Category) ? Category : ObjectKind;
 
@@ -47,13 +60,19 @@ namespace Beep.ECS
             if (string.IsNullOrEmpty(ComponentGroup))
                 ComponentGroup = ComponentGroupName;
             AddToGroup(ComponentGroupName);
+            BindGrid();
             ApplyParentMetadata();
+            RefreshChunkPins();
             if (!Engine.IsEditorHint() && ReserveFootprintOnReady)
                 ReserveFootprint();
         }
 
         public override void _ExitTree()
         {
+            ReleaseChunkPins();
+            RequestReady();
+            if (_grid is not null && GodotObject.IsInstanceValid(_grid)) _grid.GeometryChanged -= RefreshPosition;
+            _grid = null;
             if (ReleaseReservedFootprintOnExit)
                 ReleaseFootprint();
         }
@@ -76,8 +95,9 @@ namespace Beep.ECS
             Category = string.IsNullOrWhiteSpace(category) ? "" : category.Trim();
             if (string.IsNullOrWhiteSpace(ObjectKind))
                 ObjectKind = Category;
-            Cell = cell;
-            Footprint = new Vector2I(Mathf.Max(1, footprint.X), Mathf.Max(1, footprint.Y));
+            _cell = cell;
+            _footprint = new Vector2I(Mathf.Max(1, footprint.X), Mathf.Max(1, footprint.Y));
+            RefreshChunkPins();
             BlocksNavigation = blocksNavigation;
             Complete = complete;
             ApplyParentMetadata();
@@ -184,8 +204,9 @@ namespace Beep.ECS
             ObjectKind = DictString(state, "object_kind", ObjectKind);
             Category = DictString(state, "category", Category);
             Description = DictString(state, "description", Description);
-            Cell = DictVector2I(state, "cell", Cell);
-            Footprint = DictVector2I(state, "footprint", Footprint);
+            _cell = DictVector2I(state, "cell", Cell);
+            _footprint = DictVector2I(state, "footprint", Footprint);
+            RefreshChunkPins();
             BlocksNavigation = DictBool(state, "blocks_navigation", BlocksNavigation);
             ReserveFootprintOnReady = DictBool(state, "reserve_footprint_on_ready", ReserveFootprintOnReady);
             ReservePlacementFootprint = DictBool(state, "reserve_placement_footprint", ReservePlacementFootprint);
@@ -215,6 +236,27 @@ namespace Beep.ECS
             parent.SetMeta("grid_object_footprint", Footprint);
             parent.SetMeta("grid_object_blocks_navigation", BlocksNavigation);
             parent.SetMeta("grid_object_complete", Complete);
+            RefreshPosition();
+        }
+
+        private void BindGrid()
+        {
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            if (grid == _grid) return;
+            if (_grid is not null && GodotObject.IsInstanceValid(_grid)) _grid.GeometryChanged -= RefreshPosition;
+            _grid = grid;
+            if (_grid is not null) _grid.GeometryChanged += RefreshPosition;
+        }
+
+        /// <summary>Repositions the parent from saved cell identity, never by inverse-picking its old position.</summary>
+        public void RefreshPosition()
+        {
+            BindGrid();
+            if (_grid is null || GetParent() is not Node2D body) return;
+            foreach (Node child in body.GetChildren())
+                if (child is GridPathFollowerComponent { IsMoving: true }) return;
+            Vector2 position = _grid.CellToWorld(Cell);
+            if (position.IsFinite()) body.GlobalPosition = position;
         }
 
         private bool HasReservedFootprint => _reservedPlacementCells.Count > 0 || _reservedNavigationCells.Count > 0;
@@ -230,15 +272,22 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
+            Resolve(PlacementPath, ref _placement);
+            Resolve(NavigationPath, ref _navigation);
+        }
 
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty
-                    ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
+        internal void BindPlacementContext(GridProjectionComponent grid, GridPlacementComponent placement,
+            GridNavigationComponent? navigation, GridCellDataComponent? cells)
+        {
+            // Release the previous owner's reservations before changing the binding.
+            ReleaseFootprint();
+            GridPath = GetPathTo(grid);
+            PlacementPath = GetPathTo(placement);
+            NavigationPath = navigation is null ? new NodePath("") : GetPathTo(navigation);
+            _placement = placement;
+            _navigation = navigation;
+            ChunkCellDataPath = cells is null ? new NodePath("") : GetPathTo(cells);
+            BindGrid();
         }
 
         private static string NormalizeId(string value)

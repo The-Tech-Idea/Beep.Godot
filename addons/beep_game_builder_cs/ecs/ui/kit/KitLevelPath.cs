@@ -19,6 +19,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitLevelPath : KitControl
     {
+        /// <summary>A board that lays out level nodes; it is a container, not a thing you press.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public enum LevelState { Locked, Available, Complete }
 
         public sealed class Level
@@ -176,6 +182,26 @@ namespace Beep.ECS.UI.Kit
             RefreshLevels();
         }
 
+        /// <summary>Drop one level, reporting whether the index named one. The current level and
+        /// the focused one follow the removal; RefreshLevels then re-clamps everything else.</summary>
+        public bool RemoveLevel(int index)
+        {
+            if (index < 0 || index >= Levels.Count) return false;
+
+            Levels.RemoveAt(index);
+            if (index <= _cur) _cur = Mathf.Max(-1, _cur - 1);
+            if (index <= _focusIndex) _focusIndex = Mathf.Max(-1, _focusIndex - 1);
+            RefreshLevels();
+            return true;
+        }
+
+        public void ClearLevels()
+        {
+            if (Levels.Count == 0) return;
+            Levels.Clear();
+            RefreshLevels();
+        }
+
         public void RefreshLevels()
         {
             if (Levels.Count == 0)
@@ -314,21 +340,14 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, MoveFocus))
+                return;
+
+            if (KitChrome.IsConfirm(@event) && _focusIndex >= 0)
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir != Vector2I.Zero)
-                {
-                    MoveFocus(dir);
-                    AcceptEvent();
-                    return;
-                }
-                if (KitChrome.IsConfirmKey(key) && _focusIndex >= 0)
-                {
-                    ActivateLevel(_focusIndex);
-                    AcceptEvent();
-                    return;
-                }
+                ActivateLevel(_focusIndex);
+                AcceptEvent();
+                return;
             }
 
             if (@event is InputEventMouseMotion mm)
@@ -357,6 +376,18 @@ namespace Beep.ECS.UI.Kit
         {
             if (index < 0 || index >= Levels.Count || Levels[index].State == LevelState.Locked) return;
             _focusIndex = index;
+
+            // Move the "you are here" marker to the level that was just chosen.
+            //
+            // It did not, and that is what "the level path does not work" means: clicking an
+            // unlocked node emitted LevelActivated and changed nothing on screen, so the widget
+            // looked dead unless a host happened to be listening and wrote Current back. Every
+            // other selectable widget in this kit moves its own selection on activation --
+            // KitTabStrip, KitSlotGrid, KitSegmentedIconGroup -- and a map that will not show you
+            // where you just clicked is not a map. A host that owns progression still overrides
+            // Current whenever it likes; this only stops the widget being silent.
+            _cur = index;
+
             EmitSignal(SignalName.LevelActivated, index);
             QueueRedraw();
         }
@@ -384,14 +415,48 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private void MoveFocus(Vector2I dir)
+        /// <summary>
+        /// Move the focused level, reporting whether it moved. False at the edge of the path
+        /// releases the key so focus can leave the map instead of dead-ending on it.
+        ///
+        /// Sideways moves stay inside their ROW. This used to add dir.X to a flat index and clamp,
+        /// so pressing right on the last level of a row jumped to the first level of the next one.
+        /// </summary>
+        private bool MoveFocus(Vector2I dir)
         {
-            if (Levels.Count == 0) return;
-            if (_focusIndex < 0) _focusIndex = FirstPlayableIndex();
-            if (dir.X <= -9999) _focusIndex = 0;
-            else if (dir.X >= 9999) _focusIndex = Levels.Count - 1;
-            else _focusIndex = Mathf.Clamp(_focusIndex + dir.X + dir.Y * _per, 0, Levels.Count - 1);
+            int total = Levels.Count;
+            if (total == 0) return false;
+
+            if (_focusIndex < 0)
+            {
+                int first = FirstPlayableIndex();
+                if (first < 0) return false;
+                _focusIndex = first;
+                QueueRedraw();
+                return true;
+            }
+
+            int next;
+            if (dir.X <= -KitChrome.Jump) next = 0;
+            else if (dir.X >= KitChrome.Jump) next = total - 1;
+            else if (dir.X != 0)
+            {
+                int column = _focusIndex % _per;
+                int wanted = column + dir.X;
+                if (wanted < 0 || wanted >= _per) return false;
+                next = _focusIndex - column + wanted;
+                if (next >= total) return false;
+            }
+            else
+            {
+                next = _focusIndex + dir.Y * _per;
+                if (next < 0 || next >= total) return false;
+            }
+
+            if (next == _focusIndex) return false;
+            _focusIndex = next;
             QueueRedraw();
+            return true;
         }
 
         public override Vector2 _GetMinimumSize()
@@ -414,7 +479,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X < 30f || Size.Y < 30f) return;
             if (Levels.Count == 0)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            ActiveShape, "Levels");
                 return;
             }
@@ -499,18 +564,21 @@ namespace Beep.ECS.UI.Kit
                 }
 
                 if (lv.State != LevelState.Complete) continue;
-                // Stars beneath, drained when unearned rather than omitted.
+                // Stars beneath, drained when unearned rather than omitted -- and drawn as STARS.
+                // These were three DrawCircle dots, which read as pips rather than as a score and
+                // contradicted this class's own comment that they follow KitStarRating. One star
+                // drawer now serves both widgets, so they cannot disagree again.
                 Color star = UiSurface.Semantic(this, UiSurface.Role.Warning);
                 float l = UiSurface.Luminance(star);
                 Color dim = new(Mathf.Lerp(star.R, l, 0.9f) * 0.6f, Mathf.Lerp(star.G, l, 0.9f) * 0.6f,
                                 Mathf.Lerp(star.B, l, 0.9f) * 0.6f, 1f);
-                float sr = r * 0.26f;
+                float sr = r * 0.30f;
                 for (int s = 0; s < 3; s++)
-                    DrawCircle(p + new Vector2((s - 1) * sr * 2.4f, r * 1.15f), sr,
-                               s < lv.Stars ? star : dim);
+                    KitChrome.DrawStar(this, p + new Vector2((s - 1) * sr * 2.3f, r * 1.22f), sr,
+                                       s < lv.Stars ? star : dim, ink);
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
         }
     }
 }

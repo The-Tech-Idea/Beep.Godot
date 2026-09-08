@@ -49,7 +49,7 @@ flowchart TB
 
 ## The stage pipeline
 
-`TerrainFieldBuilder.Build` runs the stages on a shared mutable `TerrainWorld` (struct-of-arrays, at sub-tile *sample* resolution), then reduces to gameplay tiles. Order is load-bearing; each stage reads only what earlier stages settled.
+`TerrainFieldBuilder.Build` runs the stages on a shared mutable `TerrainGenerationBuffer` (struct-of-arrays, at sub-tile *sample* resolution), then reduces to gameplay tiles. Order is load-bearing; each stage reads only what earlier stages settled.
 
 ```mermaid
 flowchart TB
@@ -92,7 +92,19 @@ Flat-view companions: `TerrainFeatureRendererComponent` (batched tree stamps), `
 
 Standalone authoring tools, not part of the pipeline: `MountainPrefabGeneratorComponent` (instantiates an authored mountain prefab from a manifest), `MountainTileMapLayerGeneratorComponent` (paints a deterministic mountain footprint), `TextureElevationTileSetGeneratorComponent` (bakes an elevated-terrain atlas from textures).
 
+Both feature projections now share bounded, absolute-cell-seeded anchor selection
+and woods-frame bindings. The world supplies the seed before visible or hidden
+views can rebuild. See [Feature Scatter](FEATURE_SCATTER.md) for fine-water
+acceptance, density, artwork selection, tests and footprint limitations.
+
 ## The published map
+
+For live builder scenes, `GridCellDataComponent` is authoritative. Navigation,
+placement and feature views consume that live store through the grid/terrain
+interfaces. The generated data layers below describe the recipe or authored
+snapshot; do not use them as the current terrain source after a player edits
+the grid. `TerrainWorldComponent.NewWorld()` fills live cells, while redraw and
+restore preserve them. There is no separate gameplay world inside a renderer.
 
 `TerrainDataLayersComponent` mirrors the generated field into four invisible TileMapLayers — terrain, resource, feature, relief — whose tiles carry custom data (`terrain`, `resource`, `feature`, `relief`, `is_water`, `passable`, defined once in `TerrainTileSets.Cell`). A game asks cells about themselves through Godot's own `GetCellTileData`/`GetCustomData`, with no generator node required at runtime. The terrain layer also carries **native** per-ground physics and navigation polygons (`TerrainTileSets.DefineBody`/`ShapeCell`): land, water and steep each collide and navigate on their own layer, so whether water stops a character is the game's collision-mask decision, never the map's.
 

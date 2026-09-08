@@ -15,19 +15,12 @@ namespace Beep.ECS
     public partial class TerrainTransitionLayerComponent : Node
     {
         /// <summary>
-        /// The generator this layer draws from - the SAME field the painted and
-        /// isometric views read.
-        ///
-        /// A generated map has one source and this is it. The layer used to read
-        /// GridCellDataComponent instead, which the generator fills in at build
-        /// time: a copy. Two views of one world then answered from two places,
-        /// and the tile view was the only one that could drift.
-        ///
-        /// This is the only source. It used to read GridCellDataComponent, which
-        /// the generator fills in at build time - a copy - so the tile view was
-        /// the one projection that could drift from the world the others drew.
+        /// Generated preview source. Live gameplay should assign CellDataPath;
+        /// the generator is then not consulted for terrain kinds.
         /// </summary>
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        /// <summary>Live grid map. When assigned, this replaces the generated preview field.</summary>
+        [Export] public NodePath CellDataPath { get; set; } = new("");
         [Export] public NodePath DisplayLayerPath { get; set; } = new("");
         [Export] public NodePath DetailDisplayLayerPath { get; set; } = new("");
 
@@ -35,6 +28,7 @@ namespace Beep.ECS
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(64, 64);
         [Export] public string TransitionTerrainKind { get; set; } = "water";
+        [Export] public bool MatchTerrainAliases { get; set; } = true;
 		[Export] public bool RenderFilledBase { get; set; } = false;
 
         [ExportGroup("Godot Terrain Set")]
@@ -66,6 +60,10 @@ namespace Beep.ECS
         private TileMapLayer? _displayLayer;
         private TileMapLayer? _detailDisplayLayer;
         private bool _refreshQueued;
+        private GridCellDataComponent? _cells;
+        private readonly HashSet<Vector2I> _dirty = new();
+        private bool _dirtyQueued;
+        private bool _hasRefreshAttempt;
 
         public Vector2I EffectiveBoundsSize => new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
 
@@ -75,17 +73,37 @@ namespace Beep.ECS
             UpdateConfigurationWarnings();
 
             if (RefreshOnReady && (!Engine.IsEditorHint() || RefreshInEditor))
+            {
+                _hasRefreshAttempt = true;
                 RequestRefresh();
+            }
         }
 
         public override void _ExitTree()
         {
+            DisconnectCells();
+            if (GodotObject.IsInstanceValid(_displayLayer)) _displayLayer!.VisibilityChanged -= OnDisplayVisibilityChanged;
+            _displayLayer = null;
+            _refreshQueued = false;
+            _dirtyQueued = false;
+            _dirty.Clear();
+        }
+
+        public override void _EnterTree()
+        {
+            if (!_hasRefreshAttempt) return;
+            Callable.From(() =>
+            {
+                if (!IsInsideTree()) return;
+                ResolveReferences();
+                RequestRefresh();
+            }).CallDeferred();
         }
 
         public override string[] _GetConfigurationWarnings()
         {
-            if (TerrainGeneratorPath.IsEmpty)
-                return new[] { "TerrainGeneratorPath should point to the TerrainGeneratorComponent this layer draws." };
+            if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
+                return new[] { "Assign CellDataPath for live terrain or TerrainGeneratorPath for a preview." };
             if (DisplayLayerPath.IsEmpty)
                 return new[] { "DisplayLayerPath should point to a TileMapLayer with a configured TileSet." };
             if (string.IsNullOrWhiteSpace(TransitionTerrainKind))
@@ -97,11 +115,22 @@ namespace Beep.ECS
 
         public void RequestRefresh()
         {
-            if (_refreshQueued)
+            if (_refreshQueued || _displayLayer?.IsVisibleInTree() != true)
                 return;
 
             _refreshQueued = true;
-            CallDeferred(nameof(RefreshTransitions));
+            Callable.From(() =>
+            {
+                if (!_refreshQueued) return;
+                _refreshQueued = false;
+                if (IsInsideTree() && _displayLayer?.IsVisibleInTree() == true) RefreshTransitions();
+            }).CallDeferred();
+        }
+
+        private void OnDisplayVisibilityChanged()
+        {
+            if (_displayLayer?.GetParent() is TerrainTileRendererComponent) return;
+            if (_hasRefreshAttempt && (!Engine.IsEditorHint() || RefreshInEditor)) RequestRefresh();
         }
 
         /// <summary>
@@ -112,9 +141,11 @@ namespace Beep.ECS
         /// </summary>
         public void RefreshTransitions()
         {
+            _hasRefreshAttempt = true;
             _refreshQueued = false;
+            _dirty.Clear();
             ResolveReferences();
-            if (_generator == null)
+            if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
                 GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no transitions were drawn.");
                 return;
@@ -124,7 +155,8 @@ namespace Beep.ECS
                 GD.PushWarning($"[{Name}] no display layer at DisplayLayerPath; no transitions were drawn.");
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (_cells is null && _generator is not null)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             PlaceDisplayLayer();
             if (!UseTileSetTerrains)
@@ -150,18 +182,7 @@ namespace Beep.ECS
                 for (int x = 0; x <= size.X; x++)
                 {
                     Vector2I displayCell = BoundsOrigin + new Vector2I(x, y);
-                    int mask = RenderFilledBase ? 15 : DualGridMaskAt(displayCell);
-                    _displayLayer.EraseCell(displayCell);
-                    _detailDisplayLayer?.EraseCell(displayCell);
-                    if (mask == 0)
-                    {
-                        continue;
-                    }
-
-                    Vector2I atlas = AtlasOrigin + AtlasCoordinatesForMask(mask);
-                    _displayLayer.SetCell(displayCell, SourceId, atlas, AlternativeTile);
-                    if (_detailDisplayLayer?.TileSet is not null)
-                        _detailDisplayLayer.SetCell(displayCell, DetailSourceId, atlas, AlternativeTile);
+                    PaintDualCell(displayCell);
                 }
             }
         }
@@ -232,7 +253,60 @@ namespace Beep.ECS
         /// </summary>
         private string? TerrainKindAt(Vector2I cell)
         {
+            if (_cells is not null)
+            {
+                Vector2I relative = cell - BoundsOrigin;
+                if (relative.X < 0 || relative.Y < 0 || relative.X >= EffectiveBoundsSize.X || relative.Y >= EffectiveBoundsSize.Y)
+                    return null;
+                return GridCellRules.TerrainKindAt(_cells, cell);
+            }
             return _field?.TerrainAtCell(cell);
+        }
+
+        private void PaintDualCell(Vector2I cell)
+        {
+            if (_displayLayer?.TileSet is null) return;
+            int mask = RenderFilledBase ? 15 : DualGridMaskAt(cell);
+            _displayLayer.EraseCell(cell);
+            _detailDisplayLayer?.EraseCell(cell);
+            if (mask == 0) return;
+            Vector2I atlas = AtlasOrigin + AtlasCoordinatesForMask(mask);
+            _displayLayer.SetCell(cell, SourceId, atlas, AlternativeTile);
+            if (_detailDisplayLayer?.TileSet is not null)
+                _detailDisplayLayer.SetCell(cell, DetailSourceId, atlas, AlternativeTile);
+        }
+
+        private void DisconnectCells()
+        {
+            if (_cells is not null && GodotObject.IsInstanceValid(_cells))
+            {
+                _cells.CellChanged -= OnCellChanged;
+                _cells.CellsChanged -= RequestRefresh;
+            }
+            _cells = null;
+        }
+
+        private void OnCellChanged(int x, int y)
+        {
+            if (_displayLayer?.IsVisibleInTree() != true) return;
+            if (UseTileSetTerrains) { RequestRefresh(); return; }
+            for (int dy = 0; dy <= 1; dy++)
+                for (int dx = 0; dx <= 1; dx++)
+                {
+                    Vector2I cell = new(x + dx, y + dy);
+                    Vector2I relative = cell - BoundsOrigin;
+                    if (relative.X >= 0 && relative.Y >= 0 && relative.X <= EffectiveBoundsSize.X && relative.Y <= EffectiveBoundsSize.Y)
+                        _dirty.Add(cell);
+                }
+            if (_dirtyQueued) return;
+            _dirtyQueued = true;
+            Callable.From(() =>
+            {
+                _dirtyQueued = false;
+                if (IsInsideTree() && !_refreshQueued && _displayLayer?.IsVisibleInTree() == true)
+                    foreach (Vector2I cell in _dirty) PaintDualCell(cell);
+                _dirty.Clear();
+            }).CallDeferred();
         }
 
         /// <summary>
@@ -243,16 +317,19 @@ namespace Beep.ECS
         /// </summary>
         private readonly HashSet<string> _transitionMatches = new(StringComparer.Ordinal);
         private string? _matchesBuiltFor;
+        private bool _matchesAliases;
 
         private void RebuildTransitionMatches()
         {
-            if (_matchesBuiltFor == TransitionTerrainKind)
+            if (_matchesBuiltFor == TransitionTerrainKind && _matchesAliases == MatchTerrainAliases)
                 return;
 
             _matchesBuiltFor = TransitionTerrainKind;
+            _matchesAliases = MatchTerrainAliases;
             _transitionMatches.Clear();
             string transition = Normalize(TransitionTerrainKind);
             _transitionMatches.Add(transition);
+            if (!MatchTerrainAliases) return;
             switch (transition)
             {
                 case "water":
@@ -289,6 +366,17 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
+            var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+            if (cells != _cells)
+            {
+                DisconnectCells();
+                _cells = cells;
+                if (_cells is not null && (!Engine.IsEditorHint() || RefreshInEditor))
+                {
+                    _cells.CellChanged += OnCellChanged;
+                    _cells.CellsChanged += RequestRefresh;
+                }
+            }
             if (_generator == null || !GodotObject.IsInstanceValid(_generator))
                 _generator = TerrainGeneratorPath.IsEmpty
                     ? null
@@ -299,10 +387,15 @@ namespace Beep.ECS
             // per cell, and DualGridMaskAt calls it up to four times per display
             // cell across the whole map, so a stale field here would draw a
             // coastline from a map the generator no longer has.
-            _field = _generator?.ResolveField();
+            _field = CellDataPath.IsEmpty ? _generator?.ResolveField() : null;
 
-            if (_displayLayer == null || !GodotObject.IsInstanceValid(_displayLayer))
-                _displayLayer = !DisplayLayerPath.IsEmpty ? GetNodeOrNull<TileMapLayer>(DisplayLayerPath) : null;
+            var display = !DisplayLayerPath.IsEmpty ? GetNodeOrNull<TileMapLayer>(DisplayLayerPath) : null;
+            if (display != _displayLayer)
+            {
+                if (GodotObject.IsInstanceValid(_displayLayer)) _displayLayer!.VisibilityChanged -= OnDisplayVisibilityChanged;
+                _displayLayer = display;
+                if (_displayLayer is not null) _displayLayer.VisibilityChanged += OnDisplayVisibilityChanged;
+            }
 
             if (_detailDisplayLayer == null || !GodotObject.IsInstanceValid(_detailDisplayLayer))
                 _detailDisplayLayer = !DetailDisplayLayerPath.IsEmpty ? GetNodeOrNull<TileMapLayer>(DetailDisplayLayerPath) : null;

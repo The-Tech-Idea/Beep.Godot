@@ -15,8 +15,18 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class TerrainWorldStatusComponent : Node
     {
-        [Export] public NodePath WorldPath { get; set; } = new("");
-        [Export] public NodePath LabelPath { get; set; } = new("");
+        private NodePath _worldPath = new("");
+        private NodePath _labelPath = new("");
+        [Export] public NodePath WorldPath
+        {
+            get => _worldPath;
+            set { _worldPath = value; if (IsNodeReady() && !Engine.IsEditorHint()) Refresh(); }
+        }
+        [Export] public NodePath LabelPath
+        {
+            get => _labelPath;
+            set { _labelPath = value; if (IsNodeReady() && !Engine.IsEditorHint()) Refresh(); }
+        }
 
         /// <summary>Text shown before the first world is built.</summary>
         [Export] public string PendingText { get; set; } = "generating...";
@@ -29,20 +39,15 @@ namespace Beep.ECS
             if (Engine.IsEditorHint())
                 return;
 
-            _world = WorldPath.IsEmpty ? null : GetNodeOrNull<TerrainWorldComponent>(WorldPath);
-            _label = LabelPath.IsEmpty ? null : GetNodeOrNull<Label>(LabelPath);
-
-            if (_label is not null)
-                _label.Text = PendingText;
-
-            if (_world is not null)
-                _world.WorldBuilt += OnWorldBuilt;
+            Refresh();
         }
 
         public override void _ExitTree()
         {
             if (_world is not null && GodotObject.IsInstanceValid(_world))
                 _world.WorldBuilt -= OnWorldBuilt;
+            _world = null;
+            _label = null;
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -57,8 +62,22 @@ namespace Beep.ECS
         private void OnWorldBuilt(Vector2I size)
         {
             _ = size;
-            if (_label is not null && _world is not null)
-                _label.Text = _world.StatusLine();
+            Refresh();
+        }
+
+        /// <summary>Rebinds to the current paths and displays an already-built world immediately.</summary>
+        public void Refresh()
+        {
+            var next = WorldPath.IsEmpty ? null : GetNodeOrNull<TerrainWorldComponent>(WorldPath);
+            if (_world != next)
+            {
+                if (GodotObject.IsInstanceValid(_world)) _world!.WorldBuilt -= OnWorldBuilt;
+                _world = next;
+                if (_world is not null && !Engine.IsEditorHint()) _world.WorldBuilt += OnWorldBuilt;
+            }
+            _label = LabelPath.IsEmpty ? null : GetNodeOrNull<Label>(LabelPath);
+            if (_label is not null)
+                _label.Text = _world?.BuiltSize.X > 0 ? _world.StatusLine() : PendingText;
         }
     }
 }

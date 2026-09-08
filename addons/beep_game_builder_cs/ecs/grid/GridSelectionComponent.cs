@@ -244,15 +244,7 @@ namespace Beep.ECS
         }
 
         private void ResolveGrid()
-        {
-            if (_grid != null && GodotObject.IsInstanceValid(_grid))
-                return;
-
-            if (!GridPath.IsEmpty)
-                _grid = GetNodeOrNull<GridProjectionComponent>(GridPath);
-            else if (IsInsideTree())
-                _grid = EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene);
-        }
+            => EntityComponent.Resolve(this, GridPath, ref _grid);
 
         private void DrawCell(Vector2I cell, Color fill, Color outline, float width)
         {

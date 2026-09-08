@@ -48,8 +48,15 @@ namespace Beep.ECS
         private float _stickTimer;
         private float _lockTimer;
         private int _wallDirection;
+        private int _kickDirection;
+        private int _slideDirection;
+        private ulong _jumpFrame;
+        private bool _hasJumpFrame;
+        private bool _launchPending;
 
-        public bool IsWallSliding => _isWallSliding;
+        public bool IsWallSliding => IsActive && _isWallSliding;
+        public bool JumpedThisFrame => IsActive && (_launchPending || (_hasJumpFrame && _jumpFrame == Engine.GetPhysicsFrames()));
+        public bool IsWallJumpLocked => IsActive && _lockTimer > 0;
 
         private StatusEffectComponent? _statusEffects;
 
@@ -63,6 +70,7 @@ namespace Beep.ECS
                 return;
             }
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            ProcessPhysicsPriority = -8;
             SetupWallRays();
         }
 
@@ -73,6 +81,9 @@ namespace Beep.ECS
             // Create or find wall-detection rays on the body.
             _leftRay = _body.GetNodeOrNull<RayCast2D>("WallRayLeft");
             _rightRay = _body.GetNodeOrNull<RayCast2D>("WallRayRight");
+            // A same-frame reattachment must not adopt rays already scheduled for deletion.
+            if (_leftRay?.IsQueuedForDeletion() == true) { _leftRay.Name = $"RetiredWallRay{_leftRay.GetInstanceId()}"; _leftRay = null; }
+            if (_rightRay?.IsQueuedForDeletion() == true) { _rightRay.Name = $"RetiredWallRay{_rightRay.GetInstanceId()}"; _rightRay = null; }
             if (_leftRay == null)
             {
                 _leftRay = new RayCast2D
@@ -109,15 +120,23 @@ namespace Beep.ECS
             if (_createdRightRay && _rightRay != null && GodotObject.IsInstanceValid(_rightRay))
                 _rightRay.QueueFree();
             _leftRay = _rightRay = null;
+            _createdLeftRay = _createdRightRay = false;
+            _body = null; _statusEffects = null;
+            ResetWallMotion();
+            RequestReady();
         }
 
         public override void _PhysicsProcess(double delta)
         {
-            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body)) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (!IsActive || actor is { IsActive: false } or { IsDead: true } or { HasOrders: true }
+                || GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }
+                || GetSiblingComponent<DashComponent>() is { IsDashing: true }
+                || CharacterMotion.HasKnockback(_body)
+                || _statusEffects?.HasEffect("stun") == true)
             {
-                _isWallSliding = false;
-                _stickTimer = 0f;
+                ResetWallMotion();
                 return;
             }
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
@@ -127,15 +146,18 @@ namespace Beep.ECS
 
             // Detect wall direction.
             _wallDirection = 0;
-            if (_rightRay?.IsColliding() == true) _wallDirection = 1;
-            else if (_leftRay?.IsColliding() == true) _wallDirection = -1;
+            if (GodotObject.IsInstanceValid(_leftRay)) _leftRay!.ForceRaycastUpdate();
+            if (GodotObject.IsInstanceValid(_rightRay)) _rightRay!.ForceRaycastUpdate();
+            if (GodotObject.IsInstanceValid(_rightRay) && _rightRay!.IsColliding()) _wallDirection = 1;
+            else if (GodotObject.IsInstanceValid(_leftRay) && _leftRay!.IsColliding()) _wallDirection = -1;
 
-            bool onFloor = _body.IsOnFloor();
+            bool onFloor = CharacterMotion.IsOnFloor(_body);
             bool falling = _body.Velocity.Y > 0;
 
             // Wall slide: touching a wall, in the air, falling.
             if (_wallDirection != 0 && !onFloor && falling && _lockTimer <= 0)
             {
+                _slideDirection = _wallDirection;
                 if (!_isWallSliding)
                 {
                     _isWallSliding = true;
@@ -154,16 +176,38 @@ namespace Beep.ECS
 
             // Wall jump. Gate the input read so an absent "jump" action doesn't spam a
             // per-frame error before the input map is generated.
-            if (_isWallSliding && InputActionsAvailable("jump") && Input.IsActionJustPressed("jump"))
+            if (_isWallSliding && (actor?.ConsumeJump() ?? (InputActionsAvailable("jump") && Input.IsActionJustPressed("jump"))))
             {
-                _body.Velocity = new Vector2(-_wallDirection * EffectiveWallJumpForceX, EffectiveWallJumpForceY);
+                _body.Velocity = new Vector2(-_slideDirection * EffectiveWallJumpForceX, EffectiveWallJumpForceY);
+                _kickDirection = _slideDirection;
+                _jumpFrame = Engine.GetPhysicsFrames(); _hasJumpFrame = true;
+                _launchPending = true;
                 _isWallSliding = false;
                 _lockTimer = EffectiveWallJumpLockTime; // prevent immediate re-stick
-                EmitSignal(SignalName.WallJumped, _wallDirection);
+                EmitSignal(SignalName.WallJumped, _slideDirection);
             }
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        private void ResetWallMotion()
+        {
+            _isWallSliding = _hasJumpFrame = _launchPending = false;
+            _stickTimer = _lockTimer = 0;
+            _wallDirection = _kickDirection = _slideDirection = 0;
+        }
+
+        public void CancelWallMotion() => ResetWallMotion();
+        internal void CompleteIntegration() => _launchPending = false;
+
+        internal Vector2 ApplyVelocity(Vector2 ordinary)
+        {
+            if (!IsActive) return ordinary;
+            if (IsWallJumpLocked || JumpedThisFrame) ordinary.X = -_kickDirection * EffectiveWallJumpForceX;
+            if (JumpedThisFrame) ordinary.Y = EffectiveWallJumpForceY;
+            else if (_isWallSliding) ordinary.Y = Mathf.Min(ordinary.Y, EffectiveWallSlideSpeed);
+            return ordinary;
+        }
 
         private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }

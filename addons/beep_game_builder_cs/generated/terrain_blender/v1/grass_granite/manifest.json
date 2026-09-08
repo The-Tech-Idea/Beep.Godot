@@ -1,0 +1,46 @@
+{
+  "theme": "grass_granite",
+  "pixels_per_unit": 64,
+  "camera_elevation_degrees": 38,
+  "canvas": [
+    800,
+    720
+  ],
+  "origin": [
+    400,
+    360
+  ],
+  "level_height": 1,
+  "level_screen_rise": 50.4326882308302,
+  "ramp_width": 0.85,
+  "ramp_run": 1.65,
+  "height_ratios": [
+    0.25,
+    0.5,
+    1
+  ],
+  "assets": [
+    "plate_base.png",
+    "plate_middle.png",
+    "plate_top.png",
+    "step_half.png",
+    "step_quarter.png",
+    "hill_round.png",
+    "hill_square.png",
+    "ramp_quarter_front.png",
+    "ramp_quarter_left.png",
+    "ramp_quarter_right.png",
+    "ramp_half_front.png",
+    "ramp_half_left.png",
+    "ramp_half_right.png",
+    "ramp_full_front.png",
+    "ramp_full_left.png",
+    "ramp_full_right.png"
+  ],
+  "textures": [
+    "Natural Grassy Meadow Texture.png"
+  ],
+  "cliff_material": "modeled rock volumes with procedural granite grain",
+  "blender_source": "art_sources\\terrain_blender\\v1\\grass_granite\\terrain_source.blend",
+  "cliff_atlas_cell": null
+}

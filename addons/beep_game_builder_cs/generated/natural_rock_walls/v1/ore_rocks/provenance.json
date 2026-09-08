@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate artwork sprites on green backgrounds. No engine behavior configured.",
+  "assets": [
+    {
+      "kind": "iron",
+      "file": "iron_ore_01_green.png",
+      "prompt": "Create ONE mineable resource rock sprite: a squat irregular grey boulder with broad dark metallic iron ore seams, steel-grey highlights and subtle rusty red-brown mineral patches. Reference is painterly rock STYLE only, not its tall pillar shape. Compact single boulder with visible top and front side faces, front elevated orthographic 2.5D game view, upper-left lighting. Detailed hand-painted natural rock not low-poly; ore should read clearly at small game scale, not jewelry or ingots. Entire subject centered with generous green margins. OPAQUE uniform vivid GREEN RGB 0,255,0 background. No ground, soil, plants, detached debris, external shadow, text, tools, or sparkles.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-138bef01-b777-4200-b1c5-41f2f192f0d9.png"
+    },
+    {
+      "kind": "copper",
+      "file": "copper_ore_01_green.png",
+      "prompt": "Create ONE mineable resource rock sprite: an irregular rounded angular grey boulder with clearly readable rich copper-orange metallic ore veins embedded in its fractured faces, no green patina. Reference is painterly rock STYLE only, not its tall pillar shape. Compact single boulder with visible top and front side faces, front elevated orthographic 2.5D game view, upper-left lighting. Detailed hand-painted natural rock not low-poly; ore should read clearly at small game scale, not jewelry or ingots. Entire subject centered with generous green margins. OPAQUE uniform vivid GREEN RGB 0,255,0 background. No ground, soil, plants, detached debris, external shadow, text, tools, or sparkles.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-1fee515d-695f-4a1d-bab4-a1e27cdb0096.png"
+    },
+    {
+      "kind": "gold",
+      "file": "gold_ore_01_green.png",
+      "prompt": "Create ONE gold ore resource boulder sprite matching the reference's detailed painterly rock art, camera and scale. A compact asymmetrical grey rock with clearly readable golden yellow metallic veins and inclusions embedded in fractured rock faces. Most of the boulder remains grey stone. Not orange copper, not a solid gold rock, no ingots. Elevated front orthographic 2.5D game view, visible top and sides, upper-left lighting. Entire subject isolated with ample margins on an opaque uniform vivid green RGB 0,255,0 background. No ground, plants, detached debris, cast shadow, glow, sparkles, text or tools. Natural hand-painted rendering, not low-poly.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b87abf36-2fca-45ad-9eae-21f6258a0820.png"
+    },
+    {
+      "kind": "crystal",
+      "file": "crystal_cluster_01_green.png",
+      "prompt": "Create ONE mineable blue crystal cluster sprite. A compact group of five unequal pointed blue crystals growing together from a small rugged grey rock matrix. One main crystal, medium side crystals, small attached crystals. Detailed hand-painted fantasy terrain artwork matching reference rock treatment, not low-poly. Reference is rock rendering only: replace boulder with crystal cluster. Elevated front orthographic 2.5D game view, visible top and side faces, upper-left lighting. Blue sapphire and pale cyan highlights contained INSIDE crystal surfaces, opaque painted crystal bodies, no exterior glow. Entire subject centered with generous margins on opaque uniform vivid GREEN RGB 0,255,0 background. No floor, soil, vegetation, detached debris, external cast shadows, sparkles, tools or text.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a6dd3469-6490-4982-8732-87891c1c4ea4.png"
+    }
+  ]
+}

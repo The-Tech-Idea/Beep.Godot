@@ -1,0 +1,198 @@
+{
+  "schema_version": 2,
+  "pack_id": "modular_front_2_5d_grey_rock",
+  "style_id": "mountain_prefab_1",
+  "style_label": "Mountain Prefab 1",
+  "theme_id": "grey_rock",
+  "theme_label": "Grey Rock",
+  "projection": "front_2_5d",
+  "plate_modules": [
+    {
+      "id": "plate_base",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/plate_base.png",
+      "image_size": [
+        556,
+        391
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_middle",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/plate_middle.png",
+      "image_size": [
+        322,
+        242
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_top",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/plate_top.png",
+      "image_size": [
+        257,
+        184
+      ],
+      "walkable": true
+    }
+  ],
+  "base_prefabs": [
+    {
+      "id": "three_level_wide_no_ramps",
+      "display_name": "Mountain Prefab 1 - Grey Rock",
+      "style_id": "mountain_prefab_1",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/three_level_wide_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/three_level_wide_no_ramps_preview.png",
+      "level_count": 3,
+      "image_size": [
+        544,
+        651
+      ],
+      "strict_nested_footprints": true,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 560,
+            "y": 560
+          },
+          "z_index": 0
+        },
+        {
+          "plate": "plate_middle",
+          "level": 1,
+          "center": {
+            "x": 560,
+            "y": 350
+          },
+          "z_index": 10
+        },
+        {
+          "plate": "plate_top",
+          "level": 2,
+          "center": {
+            "x": 560,
+            "y": 190
+          },
+          "z_index": 20
+        }
+      ],
+      "sockets": []
+    },
+    {
+      "id": "one_level_wide_no_ramps",
+      "display_name": "Mountain Prefab 1 - Grey Rock (One Level)",
+      "style_id": "mountain_prefab_1",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/one_level_wide_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/one_level_wide_no_ramps_preview.png",
+      "level_count": 1,
+      "image_size": [
+        556,
+        391
+      ],
+      "strict_nested_footprints": true,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 278,
+            "y": 195
+          },
+          "z_index": 0
+        }
+      ],
+      "sockets": []
+    }
+  ],
+  "ramp_modules": [],
+  "jump_step_modules": [
+    {
+      "id": "step_quarter",
+      "display_name": "Grey Rock Plate Quarter Height",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/step_quarter.png",
+      "alias_id": "plate_quarter_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/plate_quarter_height.png",
+      "image_size": [
+        245,
+        46
+      ],
+      "height_class": "quarter",
+      "relative_level_height": 0.25,
+      "placement": "manual"
+    },
+    {
+      "id": "step_half",
+      "display_name": "Grey Rock Plate Half Height",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/step_half.png",
+      "alias_id": "plate_half_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/plate_half_height.png",
+      "image_size": [
+        285,
+        92
+      ],
+      "height_class": "half",
+      "relative_level_height": 0.5,
+      "placement": "manual"
+    }
+  ],
+  "atlas_sheets": [
+    {
+      "id": "mountain_plates_grey_rock",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/mountain_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "plate_base": {
+          "x": 24,
+          "y": 24,
+          "width": 556,
+          "height": 391
+        },
+        "plate_middle": {
+          "x": 604,
+          "y": 24,
+          "width": 322,
+          "height": 242
+        },
+        "plate_top": {
+          "x": 24,
+          "y": 439,
+          "width": 257,
+          "height": 184
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_1_manual_steps_grey_rock",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/manual_step_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "step_quarter": {
+          "x": 24,
+          "y": 24,
+          "width": 245,
+          "height": 46
+        },
+        "step_half": {
+          "x": 293,
+          "y": 24,
+          "width": 285,
+          "height": 92
+        }
+      }
+    },
+    {
+      "id": "one_level_mountain_grey_rock",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/one_level_mountain_sheet.png",
+      "transparent": true,
+      "regions": {
+        "one_level_wide_no_ramps": {
+          "x": 24,
+          "y": 24,
+          "width": 556,
+          "height": 391
+        }
+      }
+    }
+  ]
+}

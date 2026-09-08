@@ -61,11 +61,6 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
@@ -116,15 +111,17 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
             int fs = UiSurface.FontSize(this);
 
-            // Cut IN: the recessed readout shade, not the content-well shade.
-            float ps = Geo.PlateShadeFor(KitElevation.Recessed);
+            // Cut IN deeper than a content well: a socket is a hole, not a tray. But the readout
+            // shade is 0.12, and 12% of a near-black surface is black — this drew the socket as a
+            // featureless black disc on every dark skin, which is the exact failure WellShade was
+            // introduced to avoid and which this widget then reproduced with a different number.
             float r = d * 0.42f;
-            DrawCircle(c, r, new Color(face.R * ps, face.G * ps, face.B * ps, 1f));
+            DrawCircle(c, r, KitChrome.RecessFace(face, Geo.PlateShadeFor(KitElevation.Recessed)) with { A = 1f });
             // Bezel: bright above, dark below, so the socket reads as a hole rather than a disc.
             DrawArc(c, r, Mathf.Pi, Mathf.Tau, 24, new Color(0, 0, 0, 0.35f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Pi, 24, new Color(1, 1, 1, 0.22f), Mathf.Max(2f, d * 0.06f));
             DrawArc(c, r, 0f, Mathf.Tau, 32, ink, Mathf.Max(1.5f, d * 0.035f));
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(c - new Vector2(r, r), new Vector2(r * 2f, r * 2f)),
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(c - new Vector2(r, r), new Vector2(r * 2f, r * 2f)),
                                     KitShape.Pill, 0.75f);
             if (_hover && _state != SocketState.Locked)
                 DrawArc(c, r * 1.10f, 0f, Mathf.Tau, 32, UiSurface.Semantic(this, UiSurface.Role.Info),

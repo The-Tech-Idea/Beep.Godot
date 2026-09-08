@@ -25,20 +25,18 @@ namespace Beep.ECS
         /// <summary>Tiles per broad noise feature; the scale of a basin.</summary>
         private const float FieldTiles = 9.0f;
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, TerrainResourceRules? rules = null)
         {
             if (settings.ResourceDensity <= 0.0f)
                 return;
 
-            ResourceCatalog catalogue = TerrainResourceStage.ActiveCatalogue(settings);
+            rules ??= TerrainResourceRules.Capture(settings);
             int wide = world.CellsWide;
             int high = world.CellsHigh;
 
             int definitionIndex = 0;
-            foreach (ResourceDefinition definition in catalogue.Resources)
+            foreach (TerrainResourceRules.Entry definition in rules.Entries)
             {
-                if (definition == null)
-                    continue;
                 // Every definition advances the index, so a stratum change on
                 // one resource cannot shift every later resource's noise.
                 int defSeed = settings.Seed + 70001 + (definitionIndex++ * 7919);
@@ -54,7 +52,7 @@ namespace Beep.ECS
                     for (int cellX = 0; cellX < wide; cellX++)
                     {
                         int cell = (cellY * wide) + cellX;
-                        if (!TerrainResourceStage.Supports(definition, world.CellTerrain[cell], world.CellRelief[cell]))
+                        if (!definition.Supports(world.CellTerrain[cell], world.CellRelief[cell]))
                             continue;
 
                         float n = FieldNoise(cellX, cellY, defSeed);
@@ -68,7 +66,7 @@ namespace Beep.ECS
                         // can displace the thin rim of a common one.
                         float score = definition.Weight * richness;
                         if (world.CellUndergroundResource[cell].Length > 0
-                            && world.CellUndergroundRichness[cell] * ScoreWeightOf(catalogue, world.CellUndergroundResource[cell]) >= score)
+                            && world.CellUndergroundRichness[cell] * rules.WeightOf(world.CellUndergroundResource[cell]) >= score)
                             continue;
 
                         world.CellUndergroundResource[cell] = definition.Id;
@@ -78,9 +76,6 @@ namespace Beep.ECS
                 }
             }
         }
-
-        private static float ScoreWeightOf(ResourceCatalog catalogue, string id)
-            => catalogue.Find(id)?.Weight ?? 1.0f;
 
         /// <summary>
         /// Two octaves of seeded value noise on the cell grid: a broad one that

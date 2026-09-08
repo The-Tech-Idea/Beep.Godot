@@ -3,7 +3,7 @@ using Beep.ECS.UI;
 using Beep.ECS.UI.Kit;
 
 /// <summary>
-/// Phase-A proof harness: renders ONE <see cref="KitButton"/> under each of the ten genres and
+/// Phase-A proof harness: renders ONE <see cref="KitPushButton"/> under each of the ten genres and
 /// writes gs_&lt;genre&gt;.png, which is the input tools/genre_shapes/verify_greyscale.py grades.
 ///
 /// COLOUR IS HELD CONSTANT ON PURPOSE. No theme is applied, so every genre resolves the same
@@ -58,7 +58,7 @@ public partial class KitProofProbe : Node
         {
             SkinCatalog.SetActiveSkin(genre, "", "", "");
 
-            var btn = new KitButton { Text = "PLAY" };
+            var btn = new KitPushButton { Text = "PLAY" };
             root.AddChild(btn);
 
             // _Ready sizes from the genre's ratios; it has run by the next frame.
@@ -83,7 +83,7 @@ public partial class KitProofProbe : Node
             // plate and the measurement was worthless. Text is not material. A big, empty
             // face is the only honest input, so the probe renders one rather than asking the
             // measurement to subtract a letterform it cannot see.
-            var plate = new KitButton { Text = "" };
+            var plate = new KitPushButton { Text = "" };
             root.AddChild(plate);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             plate.Size = new Vector2(420, 260);

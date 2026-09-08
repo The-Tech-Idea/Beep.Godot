@@ -91,8 +91,8 @@ namespace Beep.ECS.UI.Kit
             Color face = _locked ? Desaturate(FaceColor(), 0.90f) : UiSurface.Semantic(this, _accent);
             if (face.A < 0.02f) face = FaceColor();
 
-            DrawShape(body, ActiveShape, face, RimColor(), rim);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, ActiveShape, 0.8f);
+            DrawPlate(body, ActiveShape, face, RimColor(), rim);
+            KitChrome.DrawFocusRing(this, Genre, body, ActiveShape, 0.8f);
 
             Font? font = KitFont();
             if (font != null)
@@ -107,16 +107,45 @@ namespace Beep.ECS.UI.Kit
                 Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, tf);
                 Color ink = UiSurface.Luminance(face) > 0.52f ? new Color(0.10f, 0.08f, 0.06f) : new Color(0.98f, 0.96f, 0.92f);
                 DrawText(font, textBox.Position + new Vector2((textBox.Size.X - m.X) * 0.5f, (textBox.Size.Y + m.Y * 0.62f) * 0.5f), text, tf, ink);
-
-                string stars = new string('*', _locked ? 0 : _stars);
-                if (!string.IsNullOrEmpty(stars))
-                {
-                    Rect2 starBox = new(0, Size.Y * 0.72f, Size.X, Size.Y * 0.28f);
-                    int sf = UiSurface.FitRole(this, UiSurface.TextRole.Small, starBox.Size * 0.82f, stars, font, min: 7);
-                    Vector2 sm = font.GetStringSize(stars, HorizontalAlignment.Left, -1, sf);
-                    DrawText(font, starBox.Position + new Vector2((starBox.Size.X - sm.X) * 0.5f, (starBox.Size.Y + sm.Y * 0.58f) * 0.5f), stars, sf, UiSurface.Semantic(this, UiSurface.Role.Warning));
-                }
             }
+
+            DrawStars();
+        }
+
+        /// <summary>
+        /// The earned score, as stars.
+        ///
+        /// It was `new string('*', _stars)` typed through the theme font: three asterisks, which a
+        /// text face renders as small raised marks near the cap height and a pixel face renders as
+        /// a 3x3 blob. It also dropped the kit's own drained-not-hidden rule -- unearned stars were
+        /// simply absent, so a one-star level and a three-star level differed by a gap rather than
+        /// by two dim stars, and a player could not see what a level was worth.
+        ///
+        /// Drawn through the shared star, so this widget, KitStarRating and KitLevelPath agree
+        /// about what a star is. Outside the font branch as well, because it does not need one --
+        /// it used to sit after an early return that skipped the stars whenever the level's own
+        /// label ellipsized away to nothing.
+        /// </summary>
+        private void DrawStars()
+        {
+            if (_locked || Size.X < 12f || Size.Y < 12f) return;
+
+            Color lit = UiSurface.Semantic(this, UiSurface.Role.Warning);
+            float l = UiSurface.Luminance(lit);
+            Color dim = new(Mathf.Lerp(lit.R, l, 0.9f) * 0.6f, Mathf.Lerp(lit.G, l, 0.9f) * 0.6f,
+                            Mathf.Lerp(lit.B, l, 0.9f) * 0.6f, 1f);
+            Color ink = InkColor();
+
+            // The plate stops at 82% of the height and the remaining band exists for exactly this,
+            // so the stars are centred in that band rather than laid over the plate's own rim and
+            // (on a genre with artwork) its raised lip, where they read as a rendering fault.
+            const float PlateBottom = 0.82f;
+            float band = Size.Y * (1f - PlateBottom);
+            float r = Mathf.Min(Size.X * 0.10f, band * 0.42f);
+            float y = Size.Y * PlateBottom + band * 0.5f;
+            for (int i = 0; i < 3; i++)
+                KitChrome.DrawStar(this, new Vector2(Size.X * 0.5f + (i - 1) * r * 2.4f, y), r,
+                                   i < _stars ? lit : dim, ink);
         }
 
         private static Color Desaturate(Color c, float amount)

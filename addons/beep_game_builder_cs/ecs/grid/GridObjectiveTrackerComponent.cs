@@ -61,10 +61,10 @@ namespace Beep.ECS
         public bool AddProgress(string objectiveId, int amount = 1)
         {
             ObjectiveState? state = StateFor(objectiveId);
-            if (state == null || !state.Active || state.Completed)
+            if (state == null || !state.Active || state.Completed || amount <= 0)
                 return false;
 
-            return SetProgress(state.ObjectiveId, state.Progress + amount);
+            return SetProgress(state.ObjectiveId, (int)Math.Min(int.MaxValue, (long)state.Progress + amount));
         }
 
         public bool SetProgress(string objectiveId, int progress)
@@ -73,6 +73,10 @@ namespace Beep.ECS
             GridObjectiveDefinition? definition = DefinitionFor(objectiveId);
             if (state == null || definition == null)
                 return false;
+
+            // Completion is a milestone; only ResetObjective starts it again.
+            if (state.Completed)
+                return true;
 
             int target = definition.EffectiveTargetCount;
             int next = Mathf.Clamp(progress, 0, target);
@@ -181,9 +185,12 @@ namespace Beep.ECS
                 if (objective == null)
                     continue;
 
-                objective.Progress = ReadInt(data, "progress");
+                int target = GetTarget(id);
+                objective.Progress = Mathf.Clamp(ReadInt(data, "progress"), 0, target);
                 objective.Active = ReadBool(data, "active", objective.Active);
                 objective.Completed = ReadBool(data, "completed", objective.Completed);
+                if (objective.Completed)
+                    objective.Progress = target;
             }
         }
 

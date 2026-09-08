@@ -23,7 +23,7 @@ namespace Beep.ECS.Scenes
         private void OnRetry()
         {
             // Plain retry: make sure no bonus is carried over from a previous attempt.
-            GameStateManagerComponent.Instance?.SetGameData("retry_bonus", false);
+            GameApp.Instance?.Saves?.SetGameData("retry_bonus", false);
             ChangeScene(GameApp.Instance?.GameScenePath);
         }
 
@@ -32,7 +32,7 @@ namespace Beep.ECS.Scenes
         /// game's to define. The distinction from plain Retry (the flag) is real and carried.</summary>
         private void OnRetryWithBonus()
         {
-            GameStateManagerComponent.Instance?.SetGameData("retry_bonus", true);
+            GameApp.Instance?.Saves?.SetGameData("retry_bonus", true);
             ChangeScene(GameApp.Instance?.GameScenePath);
         }
 

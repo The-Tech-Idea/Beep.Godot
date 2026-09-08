@@ -6,19 +6,19 @@ This stage runs early in the generation pipeline — before `TerrainElevationSta
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the only entry point; runs `CarveLakeBasins` then `ClassifyWaterBodies` in order.
+- `internal static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the only entry point; runs `CarveLakeBasins` then `ClassifyWaterBodies` in order.
 - `private static void CarveLakeBasins(...)` — computes a requested lake-tile count from `settings.LakeCoverage` (clamped to 0–0.35 of total sample count, further capped to at most 35% of current land-sample count), then for every land sample at least `max(3, SamplesPerCell * 2)` tiles from existing water, scores it by a weighted blend of lake-noise value (55%), inverse ridge/mountain-noise "flatness" (30%), and distance-from-water up to a cap (15%). Candidates are sorted best-first; from each unclaimed best seed, a priority-flood (best-score-first `PriorityQueue`) grows the basin outward, converting `world.Land[index] = false` for each claimed sample, stopping once the per-seed growth budget (remaining requested total) or reachable frontier is exhausted, and skipping any sample that has since become too close to water or is no longer land.
-- `private static void ClassifyWaterBodies(TerrainWorld world)` — seeds a BFS queue from every border sample that is water and not yet marked ocean, floods inward across all connected water (`EnqueueIfOpenWater`), marking every reached sample `WaterBody.Ocean`; afterward, sweeps the whole field and sets any remaining non-land sample that is still `WaterBody.None`/unset to `WaterBody.Lake`.
-- `private static void EnqueueIfOpenWater(TerrainWorld world, int index, Queue<int> queue)` — the flood-fill primitive: skips land and already-ocean samples, otherwise marks the sample `Ocean` and enqueues it.
+- `private static void ClassifyWaterBodies(TerrainGenerationBuffer world)` — seeds a BFS queue from every border sample that is water and not yet marked ocean, floods inward across all connected water (`EnqueueIfOpenWater`), marking every reached sample `WaterBody.Ocean`; afterward, sweeps the whole field and sets any remaining non-land sample that is still `WaterBody.None`/unset to `WaterBody.Lake`.
+- `private static void EnqueueIfOpenWater(TerrainGenerationBuffer world, int index, Queue<int> queue)` — the flood-fill primitive: skips land and already-ocean samples, otherwise marks the sample `Ocean` and enqueues it.
 - `private static bool[] Negate(bool[] values)` / `private static int CountTrue(bool[] values)` — small array helpers used to build the "is water" mask for the distance transform and to count current land samples.
 
 ## Dependencies
 
-- Reads/writes `TerrainWorld`'s fine-resolution arrays: reads `Land`, `Width`, `Height`, `Count`, `SamplesPerCell`, `Index`, `TileCentre`; writes `Land[index] = false` (basin carving) and `Water[index] = WaterBody.Ocean`/`WaterBody.Lake` (classification).
+- Reads/writes `TerrainGenerationBuffer`'s fine-resolution arrays: reads `Land`, `Width`, `Height`, `Count`, `SamplesPerCell`, `Index`, `TileCentre`; writes `Land[index] = false` (basin carving) and `Water[index] = WaterBody.Ocean`/`WaterBody.Lake` (classification).
 - Reads `TerrainNoiseSet.Lake` and `TerrainNoiseSet.Ridge` (`GetNoise2D`) for basin scoring.
 - Reads `TerrainGenerationSettings.LakeCoverage`.
 - Calls `TerrainGeometry.DistanceTo` (distance-transform from a boolean mask) and `TerrainGeometry.Neighbours` (4-neighbour iteration) and `TerrainGeometry.Normalized` / `TerrainGeometry.Ridged` (noise-value shaping) — all from `TerrainGeometry.cs`.
-- Uses the `WaterBody` enum (`None`/`Ocean`/`Lake`/`River`, defined alongside `TerrainWorld`/`GeneratedTerrainField`).
+- Uses the `WaterBody` enum (`None`/`Ocean`/`Lake`/`River`, defined alongside `TerrainGenerationBuffer`/`GeneratedTerrainField`).
 - Called by `TerrainFieldBuilder.cs` (`TerrainWaterStage.Apply(world, noise, settings)`) before `TerrainElevationStage`, per the class's own doc comment — this is the pipeline orchestrator, not visible from this file itself.
 - Does not touch `TerrainTileReductionStage`'s tile-resolution `Cell*` arrays, nor rivers (`WaterBody.River` is read in the reduction-stage tallies but never written here — rivers are assigned by a separate stage not in this batch).
 

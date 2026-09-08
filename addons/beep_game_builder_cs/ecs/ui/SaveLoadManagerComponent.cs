@@ -113,26 +113,14 @@ namespace Beep.ECS.UI
 			return false;
 		}
 
-		/// <summary>Resolve the GameStateManager autoload. It is registered at
-		/// /root/GameStateManager so it outlives scene changes — the save/load menus live
-		/// in the main menu, a different scene from gameplay, so a per-scene manager could
-		/// never be found from here. Falls back to a tree scan for projects that still
-		/// place it manually in a scene.</summary>
+		/// <summary>Resolve the GameStateManager. GameApp owns it and hands it out as
+		/// GameApp.Instance.Saves, and GameApp outlives scene changes — the save/load menus
+		/// live in the main menu, a different scene from gameplay, so a per-scene manager
+		/// could never be found from here. GameApp is the one discovery path; a second
+		/// tree-scan fallback used to live here and is gone, so there is one answer.</summary>
 		private void FindGameStateManager()
 		{
-			_gameStateManager = GameStateManagerComponent.Instance;
-			if (_gameStateManager != null) return;
-
-			var root = GetTree()?.Root;
-			if (root != null) _gameStateManager = FindFirst(root);
-		}
-
-		private static GameStateManagerComponent? FindFirst(Node node)
-		{
-			if (node is GameStateManagerComponent gsm) return gsm;
-			foreach (var child in node.GetChildren())
-				if (FindFirst(child) is { } found) return found;
-			return null;
+			_gameStateManager = GameApp.Instance?.Saves;
 		}
 
 		// FindUILayer() removed: it looked for /root/HUD and then any CanvasLayer directly under
@@ -228,6 +216,12 @@ namespace Beep.ECS.UI
 		private void OnLoadConfirmed(int slot)
 		{
 			if (_gameStateManager == null) return;
+			var target = GameApp.Instance?.GameScenePath;
+			if (string.IsNullOrEmpty(target) || !ResourceLoader.Exists(target))
+			{
+				GD.PushError($"[SaveLoad] Cannot load slot {slot}: gameplay scene is missing.");
+				return;
+			}
 
 			// Queue the restore rather than applying it now — the scene change below frees
 			// this scene, so anything restored here would be thrown away. GameFlowComponent
@@ -250,10 +244,11 @@ namespace Beep.ECS.UI
 					return;
 				}
 				// Clear pause before leaving: the overlay that paused us dies with the old
-				// scene, and the new scene would have nothing left to unpause it.
+				// scene, and the new scene would have nothing left to unpause it. Through
+				// the master's one door, like every other pause write.
 				if (tree != null)
 				{
-					tree.Paused = false;
+					GameApp.Instance?.SetPaused(false);
 					tree.ChangeSceneToFile(gamePath);
 				}
 			}

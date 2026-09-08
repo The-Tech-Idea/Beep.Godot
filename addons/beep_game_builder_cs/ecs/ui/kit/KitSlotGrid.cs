@@ -44,6 +44,20 @@ namespace Beep.ECS.UI.Kit
             public string Requirement = "";
             /// <summary>Rarity/quality tint on the slot background (gameui8). Neutral = none.</summary>
             public UiSurface.Role Tint = UiSurface.Role.Neutral;
+
+            /// <summary>
+            /// How much of the cooldown is still to run: 1 just triggered, 0 ready.
+            ///
+            /// This widget already called itself a hotbar, and the addon already had
+            /// <c>CooldownComponent</c> with a Progress and a per-tick signal, consumed by exactly
+            /// one thing and displayed by nothing. A wedge that unwinds is how every action game
+            /// draws it, and it is the reading that survives at slot size.
+            /// </summary>
+            public float Cooldown;
+
+            /// <summary>The key or button that fires this slot, drawn small in the corner. Empty
+            /// hides it. A hotbar the player cannot map to their hand is a list of pictures.</summary>
+            public string Hotkey = "";
         }
 
         [Export(PropertyHint.Range, "1,12,1")]
@@ -161,6 +175,32 @@ namespace Beep.ECS.UI.Kit
         }
 
         [Export]
+        public float[] SlotCooldowns
+        {
+            get
+            {
+                var cooldowns = new float[Slots.Count];
+                for (int i = 0; i < Slots.Count; i++)
+                    cooldowns[i] = Slots[i].Cooldown;
+                return cooldowns;
+            }
+            set => SetSlotCooldowns(value);
+        }
+
+        [Export]
+        public string[] SlotHotkeys
+        {
+            get
+            {
+                var hotkeys = new string[Slots.Count];
+                for (int i = 0; i < Slots.Count; i++)
+                    hotkeys[i] = Slots[i].Hotkey;
+                return hotkeys;
+            }
+            set => SetSlotHotkeys(value);
+        }
+
+        [Export]
         public int[] SlotTintRoles
         {
             get
@@ -229,6 +269,65 @@ namespace Beep.ECS.UI.Kit
             {
                 if (Slots[i].Count == 0) continue;
                 Slots[i].Count = 0;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshSlots();
+        }
+
+        public void SetSlotCooldowns(float[]? cooldowns)
+        {
+            bool updated = false;
+            int given = cooldowns?.Length ?? 0;
+            for (int i = 0; i < given; i++)
+            {
+                EnsureSlot(i);
+                float next = Mathf.Clamp(cooldowns![i], 0f, 1f);
+                if (Mathf.IsEqualApprox(Slots[i].Cooldown, next)) continue;
+                Slots[i].Cooldown = next;
+                updated = true;
+            }
+            for (int i = given; i < Slots.Count; i++)
+            {
+                if (Slots[i].Cooldown == 0f) continue;
+                Slots[i].Cooldown = 0f;
+                updated = true;
+            }
+            if (!updated) return;
+            RefreshSlots();
+        }
+
+        /// <summary>
+        /// Set one slot's remaining cooldown. This is the per-frame door, so it repaints without
+        /// re-measuring — a sweep changes no layout, and running the full refresh sixty times a
+        /// second on a hotbar would invalidate the minimum size for nothing.
+        /// </summary>
+        public void SetSlotCooldown(int index, float remaining)
+        {
+            if (index < 0 || index >= TotalSlots) return;
+            EnsureSlot(index);
+            float next = Mathf.Clamp(remaining, 0f, 1f);
+            if (Mathf.IsEqualApprox(Slots[index].Cooldown, next)) return;
+            Slots[index].Cooldown = next;
+            QueueRedraw();
+        }
+
+        public void SetSlotHotkeys(string[]? hotkeys)
+        {
+            bool updated = false;
+            int given = hotkeys?.Length ?? 0;
+            for (int i = 0; i < given; i++)
+            {
+                EnsureSlot(i);
+                string next = hotkeys![i] ?? "";
+                if (Slots[i].Hotkey == next) continue;
+                Slots[i].Hotkey = next;
+                updated = true;
+            }
+            for (int i = given; i < Slots.Count; i++)
+            {
+                if (Slots[i].Hotkey.Length == 0) continue;
+                Slots[i].Hotkey = "";
                 updated = true;
             }
             if (!updated) return;
@@ -463,21 +562,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(pitch * _cols, pitch * _rows);
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            if (IsInsideTree())
-            {
-                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-                UpdateMinimumSize();
-            }
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private float Pitch() => Mathf.Min(Size.X / _cols, Size.Y / _rows);
 
         private Rect2 SlotRect(int i)
@@ -491,21 +575,14 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, MoveSelection))
+                return;
+
+            if (KitChrome.IsConfirm(@event) && _sel >= 0 && _sel < TotalSlots)
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir != Vector2I.Zero)
-                {
-                    MoveSelection(dir);
-                    AcceptEvent();
-                    return;
-                }
-                if (KitChrome.IsConfirmKey(key) && _sel >= 0 && _sel < TotalSlots)
-                {
-                    EmitSignal(SignalName.SlotActivated, _sel);
-                    AcceptEvent();
-                    return;
-                }
+                EmitSignal(SignalName.SlotActivated, _sel);
+                AcceptEvent();
+                return;
             }
 
             if (@event is InputEventMouseMotion mm)
@@ -531,15 +608,49 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        private void MoveSelection(Vector2I dir)
+        /// <summary>
+        /// Move the selection, reporting whether it ACTUALLY moved.
+        ///
+        /// The return value is what keeps the grid from trapping the player: at an edge it is
+        /// false, so <see cref="KitChrome.NavigateOrRelease"/> declines the event and Godot's focus
+        /// traversal carries them out of the grid. It used to clamp silently and the caller ate the
+        /// key regardless, so arrows could never leave a slot grid.
+        ///
+        /// Horizontal moves also stay inside their ROW now. This added dir.X to a flat index, so
+        /// pressing right in the last column jumped to the first slot of the next row — a sideways
+        /// key moving the cursor down a line.
+        /// </summary>
+        private bool MoveSelection(Vector2I dir)
         {
             int total = TotalSlots;
-            if (total <= 0) return;
-            int next = _sel < 0 ? 0 : _sel;
-            if (dir.X <= -9999) next = 0;
-            else if (dir.X >= 9999) next = total - 1;
-            else next += dir.X + dir.Y * _cols;
-            Selected = Mathf.Clamp(next, 0, total - 1);
+            if (total <= 0) return false;
+
+            if (_sel < 0)
+            {
+                Selected = 0;
+                return true;
+            }
+
+            int next;
+            if (dir.X <= -KitChrome.Jump) next = 0;
+            else if (dir.X >= KitChrome.Jump) next = total - 1;
+            else if (dir.X != 0)
+            {
+                int column = _sel % _cols;
+                int wanted = column + dir.X;
+                if (wanted < 0 || wanted >= _cols) return false;
+                next = _sel - column + wanted;
+                if (next >= total) return false;
+            }
+            else
+            {
+                next = _sel + dir.Y * _cols;
+                if (next < 0 || next >= total) return false;
+            }
+
+            if (next == _sel) return false;
+            Selected = next;
+            return true;
         }
 
         private int HitSlot(Vector2 p)
@@ -547,6 +658,24 @@ namespace Beep.ECS.UI.Kit
             for (int i = 0; i < TotalSlots; i++)
                 if (SlotRect(i).HasPoint(p)) return i;
             return -1;
+        }
+
+        /// <summary>
+        /// What the slot under the pointer is, in words.
+        ///
+        /// A locked slot's requirement is drawn into the slot itself, but a slot is small and the
+        /// text is ellipsized to fit; the tooltip is where the whole sentence can be read. A stack
+        /// count is reported too, since the corner badge is deliberately tiny.
+        /// </summary>
+        public override string _GetTooltip(Vector2 atPosition)
+        {
+            int index = HitSlot(atPosition);
+            if (index < 0 || index >= Slots.Count) return "";
+
+            Slot slot = Slots[index];
+            if (slot.Kind == SlotKind.Locked && !string.IsNullOrWhiteSpace(slot.Requirement))
+                return slot.Requirement;
+            return slot.Kind == SlotKind.Filled && slot.Count > 1 ? $"{slot.Count}" : "";
         }
 
         private void ClearHover()
@@ -576,8 +705,10 @@ namespace Beep.ECS.UI.Kit
 
                 // Slots are content wells, so they take WellShade — not the readout recess,
                 // which renders a grid of black holes.
-                float ps = g.WellShade;
-                Color plate = new Color(face.R * ps, face.G * ps, face.B * ps, 1f);
+                // A slot is a hole you put a thing in, and it has to look like one on every skin.
+                // Multiplying a near-black surface by the well shade moved it nowhere, so a dark
+                // theme drew the whole grid as black squares.
+                Color plate = KitChrome.RecessFace(face, g.WellShade) with { A = 1f };
 
                 if (s.Tint != UiSurface.Role.Neutral && s.Kind == SlotKind.Filled)
                 {
@@ -595,7 +726,7 @@ namespace Beep.ECS.UI.Kit
                                       Mathf.Lerp(plate.B, l, 0.92f), 1f);
                 }
 
-                DrawShape(r, ActiveShape, plate, ink, rimPx);
+                DrawPlate(r, ActiveShape, plate, ink, rimPx);
                 DrawSlotInset(r, plate);
 
                 switch (s.Kind)
@@ -630,6 +761,13 @@ namespace Beep.ECS.UI.Kit
                                req, small, UiSurface.Text(this));
                 }
 
+                // Cooldown over the contents, hotkey over both: the sweep says "not yet" and the
+                // glyph says "this key", and neither means anything hidden behind an icon.
+                if (s.Cooldown > 0.001f)
+                    DrawCooldownSweep(r, s.Cooldown);
+                if (!string.IsNullOrEmpty(s.Hotkey) && font != null)
+                    DrawHotkey(r, s.Hotkey, font, ink);
+
                 if (_hover == i && _sel != i)
                     KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
                                    KitChrome.Poly(ActiveShape, r, Geo), r,
@@ -650,10 +788,63 @@ namespace Beep.ECS.UI.Kit
                                Mathf.Max(2f, 3f * (fs / 14f)));
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size),
                                     ActiveShape, 0.8f);
 
             DrawAttachments();
+        }
+
+        /// <summary>
+        /// The unwinding wedge over a slot that is not ready yet.
+        ///
+        /// Drawn as a filled fan from the slot's centre, starting at twelve o'clock and sweeping
+        /// clockwise, because that is the direction every action game unwinds one and a player
+        /// reads it without being taught. The radius reaches the slot's CORNER, so the darkening
+        /// covers the square rather than leaving four lit corners outside an inscribed circle.
+        /// </summary>
+        private void DrawCooldownSweep(Rect2 r, float remaining)
+        {
+            float fraction = Mathf.Clamp(remaining, 0f, 1f);
+            if (fraction <= 0f) return;
+
+            Vector2 centre = r.Position + r.Size * 0.5f;
+            float radius = r.Size.Length() * 0.5f;
+            int steps = Mathf.Max(3, Mathf.CeilToInt(fraction * 48f));
+
+            var fan = new Vector2[steps + 2];
+            fan[0] = centre;
+            for (int i = 0; i <= steps; i++)
+            {
+                float angle = -Mathf.Pi * 0.5f + Mathf.Tau * fraction * (i / (float)steps);
+                fan[i + 1] = centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            }
+
+            // Darken rather than tint: a coloured wash would fight the rarity tint the slot may
+            // already be carrying, and "not ready" is not a quality.
+            DrawColoredPolygon(fan, new Color(0f, 0f, 0f, 0.55f));
+        }
+
+        /// <summary>The key that fires this slot, in the top-left where an icon is thinnest, on its
+        /// own plate so it stays legible over whatever the slot holds.</summary>
+        private void DrawHotkey(Rect2 r, string hotkey, Font font, Color ink)
+        {
+            string text = KitCase(hotkey);
+            int size = UiSurface.FitRole(this, UiSurface.TextRole.Small,
+                                         new Vector2(r.Size.X * 0.5f, r.Size.Y * 0.30f),
+                                         text, font, min: 7);
+            Vector2 measured = font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
+            float padding = size * 0.34f;
+            var plate = new Rect2(r.Position.X + r.Size.X * 0.04f,
+                                  r.Position.Y + r.Size.Y * 0.04f,
+                                  measured.X + padding * 2f,
+                                  size * 1.45f);
+
+            Color face = UiSurface.ControlFace(UiSurface.Of(this));
+            DrawShape(plate, KitShape.Round, face with { A = 0.86f }, ink with { A = 0.7f }, 1f);
+            DrawText(font,
+                     new Vector2(plate.Position.X + padding,
+                                 plate.Position.Y + (plate.Size.Y + measured.Y * 0.6f) * 0.5f),
+                     text, size, UiSurface.Text(this));
         }
 
         private void DrawPlus(Rect2 r, Color ink)

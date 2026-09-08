@@ -9,8 +9,8 @@ namespace Beep.ECS.UI
     /// • Auto-saves on every Set (with a SettingsChanged signal).
     /// • Applies audio (AudioServer bus volumes) and display (DisplayServer window mode).
     ///
-    /// Place as an autoload or in the boot scene. Other components read/write via
-    /// SettingsComponent.Instance or GetSiblingComponent&lt;SettingsComponent&gt;().
+    /// GameApp owns this component. Other components read/write via
+    /// GameApp.Instance?.Settings or GetSiblingComponent&lt;SettingsComponent&gt;().
     ///
     /// Replaces: BeepConfigManager (static, dead), ConfigManagerComponent (dead),
     /// and the settings fields that were marooned on GameApp (in-memory only).
@@ -113,30 +113,10 @@ namespace Beep.ECS.UI
         /// requirement for the change to take effect.</summary>
         [Signal] public delegate void SettingsChangedEventHandler();
 
-        private static SettingsComponent? _instance;
         private ConfigFile _config = new();
 
-        /// <summary>The autoloaded instance, or null.</summary>
-        public static SettingsComponent? Instance
-        {
-            get
-            {
-                if (_instance != null && GodotObject.IsInstanceValid(_instance)) return _instance;
-                if (Engine.GetMainLoop() is SceneTree tree
-                    && tree.Root.GetNodeOrNull<SettingsComponent>("/root/Settings") is { } s)
-                {
-                    _instance = s;
-                    return s;
-                }
-                return null;
-            }
-        }
-
-        public override void _EnterTree()
-        {
-            if (GetParent() == GetTree()?.Root)
-                _instance = this;
-        }
+        // No static Instance and no /root/Settings lookup: GameApp owns this
+        // component and hands it out as GameApp.Instance.Settings. One door.
 
         public override void _Ready()
         {
@@ -286,7 +266,7 @@ namespace Beep.ECS.UI
         /// <summary>Apply the saved language to the LocalizationComponent.</summary>
         public void ApplyLocaleSettings()
         {
-            var loc = LocalizationComponent.Instance;
+            var loc = GameApp.Instance?.Locale;
             if (loc != null && !string.IsNullOrEmpty(_language))
                 loc.SetLanguage(_language);
         }

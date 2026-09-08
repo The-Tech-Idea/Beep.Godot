@@ -21,6 +21,14 @@ namespace Beep.ECS
         }
 
         [Signal] public delegate void HoverCellChangedEventHandler(int x, int y);
+        [Signal] public delegate void GeometryChangedEventHandler();
+
+        public void NotifyGeometryChanged()
+        {
+            BindElevatedTerrain();
+            QueueRedraw();
+            EmitSignal(SignalName.GeometryChanged);
+        }
 
         private GridProjection _projection = GridProjection.TopDown;
         private Vector2 _tileSize = new(64, 64);
@@ -34,6 +42,28 @@ namespace Beep.ECS
         private NodePath _snapTargetPath = new("");
         private Vector2I _hoverCell = new(int.MinValue, int.MinValue);
         private static readonly Vector2I InvalidCell = new(int.MinValue, int.MinValue);
+
+        /// <summary>Optional native geometry source. Its TileSet layout and transform replace
+        /// the manual Projection, TileSize and Origin for placement and picking.</summary>
+        [Export] public NodePath TileMapLayerPath { get; set; } = new("");
+
+        /// <summary>Elevated terrain geometry, taking precedence over the flat native layer.</summary>
+        private NodePath _elevatedTerrainPath = new("");
+        private TerrainIsometricRendererComponent? _connectedTerrain;
+        [Export] public NodePath ElevatedTerrainPath
+        {
+            get => _elevatedTerrainPath;
+            set
+            {
+                _elevatedTerrainPath = value;
+                if (IsInsideTree()) BindElevatedTerrain();
+            }
+        }
+        private TerrainIsometricRendererComponent? ElevatedTerrain => ElevatedTerrainPath.IsEmpty
+            ? null : GetNodeOrNull<TerrainIsometricRendererComponent>(ElevatedTerrainPath);
+
+        private TileMapLayer? NativeLayer => TileMapLayerPath.IsEmpty
+            ? null : GetNodeOrNull<TileMapLayer>(TileMapLayerPath);
 
         [Export]
         public GridProjection Projection
@@ -108,9 +138,28 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            BindElevatedTerrain();
             QueueRedraw();
             UpdateConfigurationWarnings();
         }
+
+        private void BindElevatedTerrain()
+        {
+            var terrain = ElevatedTerrain;
+            if (terrain == _connectedTerrain) return;
+            DisconnectElevatedTerrain();
+            _connectedTerrain = terrain;
+            if (_connectedTerrain is not null) _connectedTerrain.SurfaceRebuilt += NotifyGeometryChanged;
+        }
+
+        private void DisconnectElevatedTerrain()
+        {
+            if (_connectedTerrain is not null && GodotObject.IsInstanceValid(_connectedTerrain))
+                _connectedTerrain.SurfaceRebuilt -= NotifyGeometryChanged;
+            _connectedTerrain = null;
+        }
+
+        public override void _ExitTree() => DisconnectElevatedTerrain();
 
         public override void _Process(double delta)
         {
@@ -131,6 +180,18 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
         {
+            if (!ElevatedTerrainPath.IsEmpty)
+                return ElevatedTerrain is null
+                    ? new[] { "ElevatedTerrainPath must resolve to a TerrainIsometricRendererComponent." }
+                    : System.Array.Empty<string>();
+            if (!TileMapLayerPath.IsEmpty)
+            {
+                if (NativeLayer?.TileSet is not { } tiles)
+                    return new[] { "TileMapLayerPath must resolve to a TileMapLayer with a TileSet." };
+                if (tiles.TileShape is not (TileSet.TileShapeEnum.Square or TileSet.TileShapeEnum.Isometric))
+                    return new[] { "Native grid outlines currently support square and isometric tiles only." };
+                return System.Array.Empty<string>();
+            }
             if (TileSize.X <= 0f || TileSize.Y <= 0f || !float.IsFinite(TileSize.X) || !float.IsFinite(TileSize.Y))
                 return new[] { "TileSize must be greater than zero on both axes." };
 
@@ -149,14 +210,36 @@ namespace Beep.ECS
             float.IsFinite(Origin.Y) ? Origin.Y : 0f);
 
         /// <summary>Returns the global/world-space center of a grid cell.</summary>
-        public Vector2 CellToWorld(Vector2I cell) => ToGlobal(CellToLocal(cell));
+        public Vector2 CellToWorld(Vector2I cell)
+        {
+            if (!ElevatedTerrainPath.IsEmpty)
+                return ElevatedTerrain is { } terrain && terrain.ContainsSurfaceCell(cell)
+                    && terrain.HasSurface
+                    ? terrain.ToGlobal(terrain.SurfacePosition(cell)) : new Vector2(float.NaN, float.NaN);
+            if (TileMapLayerPath.IsEmpty) return ToGlobal(CellToLocal(cell));
+            return NativeLayer is { TileSet: not null } layer
+                ? layer.ToGlobal(layer.MapToLocal(cell)) : new Vector2(float.NaN, float.NaN);
+        }
 
         /// <summary>Returns the grid cell under a global/world-space point.</summary>
         public Vector2I WorldToCell(Vector2 worldPosition)
-            => float.IsFinite(worldPosition.X) && float.IsFinite(worldPosition.Y) ? LocalToCell(ToLocal(worldPosition)) : InvalidCell;
+        {
+            if (!float.IsFinite(worldPosition.X) || !float.IsFinite(worldPosition.Y)) return InvalidCell;
+            if (!ElevatedTerrainPath.IsEmpty)
+                return ElevatedTerrain is { } terrain ? terrain.SurfaceCellAt(terrain.ToLocal(worldPosition)) : InvalidCell;
+            if (TileMapLayerPath.IsEmpty) return LocalToCell(ToLocal(worldPosition));
+            return NativeLayer is { TileSet: not null } layer
+                ? layer.LocalToMap(layer.ToLocal(worldPosition)) : InvalidCell;
+        }
 
         /// <summary>Snaps a global/world-space point to the center of the nearest grid cell.</summary>
-        public Vector2 SnapWorld(Vector2 worldPosition) => CellToWorld(WorldToCell(worldPosition));
+        public Vector2 SnapWorld(Vector2 worldPosition)
+        {
+            Vector2I cell = WorldToCell(worldPosition);
+            if (cell == InvalidCell) return worldPosition;
+            Vector2 snapped = CellToWorld(cell);
+            return snapped.IsFinite() ? snapped : worldPosition;
+        }
 
         /// <summary>Returns the current mouse cell using the active viewport mouse position.</summary>
         public Vector2I MouseCell() => WorldToCell(GetGlobalMousePosition());
@@ -164,6 +247,28 @@ namespace Beep.ECS
         /// <summary>Returns local-space corners for drawing or hit previews.</summary>
         public Vector2[] CellCorners(Vector2I cell)
         {
+            if (!ElevatedTerrainPath.IsEmpty)
+            {
+                if (ElevatedTerrain is not { } terrain) return System.Array.Empty<Vector2>();
+                Vector2[] corners = terrain.SurfaceCorners(cell);
+                for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(terrain.ToGlobal(corners[i]));
+                return corners;
+            }
+            if (!TileMapLayerPath.IsEmpty)
+            {
+                if (NativeLayer is not { TileSet: { } tiles } layer) return System.Array.Empty<Vector2>();
+                Vector2 half = (Vector2)tiles.TileSize * 0.5f;
+                Vector2[] offsets = tiles.TileShape switch
+                {
+                    TileSet.TileShapeEnum.Square => new[] { -half, new Vector2(half.X, -half.Y), half, new Vector2(-half.X, half.Y) },
+                    TileSet.TileShapeEnum.Isometric => new[] { new Vector2(0, -half.Y), new Vector2(half.X, 0), new Vector2(0, half.Y), new Vector2(-half.X, 0) },
+                    _ => System.Array.Empty<Vector2>()
+                };
+                Vector2 center = layer.MapToLocal(cell);
+                for (int i = 0; i < offsets.Length; i++)
+                    offsets[i] = ToLocal(layer.ToGlobal(center + offsets[i]));
+                return offsets;
+            }
             return Projection == GridProjection.Isometric
                 ? IsometricCellCorners(CellToLocal(cell))
                 : TopDownCellCorners(cell);
@@ -174,6 +279,18 @@ namespace Beep.ECS
             if (!DrawGrid) return;
 
             int radius = Mathf.Clamp(DrawRadius, 1, 128);
+            if (!TileMapLayerPath.IsEmpty || !ElevatedTerrainPath.IsEmpty)
+            {
+                for (int x = -radius; x <= radius; x++)
+                    for (int y = -radius; y <= radius; y++)
+                    {
+                        Vector2[] corners = CellCorners(new Vector2I(x, y));
+                        if (corners.Length < 3) continue;
+                        for (int i = 0; i < corners.Length; i++)
+                            DrawLine(corners[i], corners[(i + 1) % corners.Length], GridColor);
+                    }
+                return;
+            }
             if (Projection == GridProjection.Isometric)
                 DrawIsometricGrid(radius);
             else

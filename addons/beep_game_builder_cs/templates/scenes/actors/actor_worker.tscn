@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn" id="unit"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorPresentationComponent.cs" id="presentation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="health"]
+
+[node name="Worker" instance=ExtResource("unit")]
+collision_layer = 2
+collision_mask = 1
+
+[node name="PathFollower" parent="." index="7"]
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+Speed = 160.0
+SetZIndexFromY = false
+
+[node name="GridWorker" parent="." index="8"]
+GridPath = NodePath("../../../Grid")
+JobQueuePath = NodePath("../../../Jobs")
+AutoClaimJobs = false
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+RegistryPath = NodePath("../../../Registry")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("health")
+MaxHealth = 100.0
+CurrentHealth = 100.0
+ParticipatesInSave = true
+
+[node name="Presentation" type="Node2D" parent="."]
+script = ExtResource("presentation")
+PlayerPath = NodePath("../../../Player")

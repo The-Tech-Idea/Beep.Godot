@@ -34,37 +34,44 @@ namespace Beep.ECS
         public int EffectiveOutputQuantity => Mathf.Max(1, OutputQuantity);
         public float EffectiveTotalWorkRequired => Mathf.Max(0.001f, float.IsFinite(TotalWorkRequired) ? TotalWorkRequired : 100f);
 
-        // Injectable clock. Tick(delta) was always the right signature — it just never had a
-        // driver. Real-time genres tick it per frame; turn-based genres tick it once per turn.
-        // The genre's axis is read from whether a TurnManager autoload is in the tree.
-        private bool _turnBased;
+        // The game clock drives this producer. It does NOT ask which time axis it
+        // is on: one beat is one second in a real-time game and one turn in a
+        // turn-based one, so the same Tick(beats) is correct on both. Asking used
+        // to mean inferring the axis from whether a TurnManager node existed,
+        // which is how a genre that declared turns but shipped no driver froze
+        // every producer in the game with nothing to report it.
+        private GameClock? _clock;
 
         public override void _Ready()
         {
             base._Ready();
             if (Engine.IsEditorHint()) return;
-            _turnBased = TurnManager.Instance != null && GodotObject.IsInstanceValid(TurnManager.Instance);
-            if (_turnBased)
-                TurnManager.Instance!.TurnEnded += OnTurnEnded;
-            else if (Beep.GameBuilder.GameInfo.Instance?.TimeAxis == "turns")
-                GD.PushWarning(
-                    $"[{Name}] TimeAxis is 'turns' but no TurnManager is in the tree — this producer " +
-                    "will never tick and its work will never finish. Ensure the TurnManager autoload is registered.");
+
+            _clock = GameApp.Instance?.Clock;
+            if (_clock != null)
+                _clock.Advanced += OnAdvanced;
+
+            // No GameApp at all means a bare scene - a template opened on its own,
+            // or a headless probe - where no axis has been declared by anything.
+            // Self-tick in real time so those keep working; a real game always has
+            // the clock.
+            SetProcess(_clock == null);
         }
+
+        private void OnAdvanced(double beats) => Tick(beats);
 
         public override void _Process(double delta)
         {
-            // Real-time only; in a turn-based genre the tick arrives from TurnEnded, once per turn.
-            if (Engine.IsEditorHint() || _turnBased) return;
+            // Only reached in the no-clock standalone case; SetProcess is off otherwise.
+            if (Engine.IsEditorHint()) return;
             Tick(delta);
         }
 
-        private void OnTurnEnded(int turn) => Tick(1);
-
         public override void _ExitTree()
         {
-            if (_turnBased && TurnManager.Instance != null && GodotObject.IsInstanceValid(TurnManager.Instance))
-                TurnManager.Instance.TurnEnded -= OnTurnEnded;
+            if (_clock != null && GodotObject.IsInstanceValid(_clock))
+                _clock.Advanced -= OnAdvanced;
+            _clock = null;
             base._ExitTree();
         }
 

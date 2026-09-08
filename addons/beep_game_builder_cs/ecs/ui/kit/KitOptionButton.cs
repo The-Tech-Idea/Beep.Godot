@@ -67,7 +67,13 @@ namespace Beep.ECS.UI.Kit
             _suppressing = true;
             int fs = UiSurface.FontSize(this);
             float pad = Mathf.Max(6f, fs * 0.7f);
-            float frame = KitGeometry.ForGenre(_genre).FramePx(Mathf.Max(Size.Y, fs * 2.4f));
+            // Derived from the FONT, never from the control's current height. Godot computes this
+            // control's minimum size from the very content margins built below, so measuring
+            // Size.Y here fed the widget's own height back into its margins: every theme change
+            // grew it a little, and switching genre repeatedly walked the picker wider and wider
+            // (measured 172 -> 194px over six switches). fs * 2.4f is the same intrinsic basis
+            // _GetMinimumSize uses, so the two now agree by construction.
+            float frame = KitGeometry.ForGenre(_genre).FramePx(fs * 2.4f);
             // The RIGHT margin is widened to reserve room for the arrow this class draws. Without
             // it a long item label runs straight under the chevron.
             foreach (string s in new[] { "normal", "hover", "pressed", "disabled", "focus" })
@@ -146,12 +152,10 @@ namespace Beep.ECS.UI.Kit
             KitChrome.DrawFocusRing(this, _genre, body, KitMaterial.WidgetShapeForGenre(_genre, KitWidgetClass.Button));
         }
 
+        // Derives from a native Godot type, so it cannot inherit KitControl's copy; it forwards to
+        // the one shared body instead of restating it.
         private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
 
         private void RefreshVisualAndRedraw()
         {

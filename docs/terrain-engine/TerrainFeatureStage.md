@@ -6,14 +6,14 @@ Generation stage in the terrain pipeline, run by `TerrainFieldBuilder` after the
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the only public member. Populates `world.Feature[cell]` for every cell in the reduced tile grid. No-ops entirely if `settings.FeatureDensity <= 0`.
+- `internal static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the only public member. Populates `world.Feature[cell]` for every cell in the reduced tile grid. No-ops entirely if `settings.FeatureDensity <= 0`.
 - `public const string None = ""`, `public const string Woods = "woods"`, `public const string Forest = "forest"`, `public const string Jungle = "jungle"`, `public const string Marsh = "marsh"`, `public const string Oasis = "oasis"` — the feature-name string constants other files (notably the renderers) switch on to decide what to draw.
 
 Everything else (`Blend`, `AverageWetness`, `Choose`, `StandBias`, `Hash01`, and the tuning constants `BlockTiles`, `MinBlockCells`, `StandSpread`) is private; the class is `internal static`.
 
 ## Dependencies
 
-- Reads/writes `TerrainWorld.CellWater`, `TerrainWorld.CellRelief`, `TerrainWorld.CellTerrain`, `TerrainWorld.Moisture`, `TerrainWorld.Temperature`, `TerrainWorld.CellsWide/CellsHigh`, `TerrainWorld.CellIndex`, `TerrainWorld.CellCentreIndex`; writes `TerrainWorld.Feature` (from `TerrainWorld.cs`).
+- Reads/writes `TerrainGenerationBuffer.CellWater`, `TerrainGenerationBuffer.CellRelief`, `TerrainGenerationBuffer.CellTerrain`, `TerrainGenerationBuffer.Moisture`, `TerrainGenerationBuffer.Temperature`, `TerrainGenerationBuffer.CellsWide/CellsHigh`, `TerrainGenerationBuffer.CellIndex`, `TerrainGenerationBuffer.CellCentreIndex`; writes `TerrainGenerationBuffer.Feature` (from `TerrainGenerationBuffer.cs`).
 - Reads `noise.Vegetation` (a `TerrainNoiseSet` field, from `TerrainNoiseSet.cs`) for the per-cell vegetation fbm sample.
 - Reads `settings.FeatureDensity` and `settings.Seed` (from `TerrainGenerationSettings.cs`).
 - Calls `TerrainGeometry.Percentile` (from `TerrainGeometry.cs`) both globally and per-block to turn the vegetation field into a coverage-meaning threshold.

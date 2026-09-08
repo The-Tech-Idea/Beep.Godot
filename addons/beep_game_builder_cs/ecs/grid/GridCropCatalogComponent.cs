@@ -56,10 +56,21 @@ namespace Beep.ECS
             return crop == null || string.IsNullOrWhiteSpace(crop.SeedItemId) ? "" : crop.SeedItemId.Trim();
         }
 
+        /// <summary>
+        /// The item a harvest pays out; falls back to the crop's own id when
+        /// YieldItemId is unset. A `crop?.YieldItemId ?? cropId` null check
+        /// alone missed this: TryRead's dictionary/duck-typed-Resource path
+        /// falls back to "" for a missing yield_item_id, not the exported
+        /// field's own "turnip" default, so a non-null crop with an empty
+        /// YieldItemId used to pay out an empty resource id instead of ever
+        /// reaching this fallback. IsNullOrWhiteSpace catches both "crop is
+        /// null" and "crop exists but its yield id is blank," the same
+        /// distinction SeedItem already makes above.
+        /// </summary>
         public string YieldItem(string cropId)
         {
             GridCropDefinition? crop = FindCrop(cropId);
-            return crop?.YieldItemId ?? cropId;
+            return crop == null || string.IsNullOrWhiteSpace(crop.YieldItemId) ? cropId : crop.YieldItemId.Trim();
         }
 
         public int YieldCount(string cropId)

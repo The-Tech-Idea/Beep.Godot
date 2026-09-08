@@ -36,14 +36,15 @@ namespace Beep.ECS
     /// Nor is it enough to reserve a buffer and ask who owns a cell; three
     /// versions of that leak, each documented where the test now lives. A mass
     /// may claim a cell only when no OTHER mass has claimed ground within the
-    /// separating gap of it, and the gap has to be wide enough to survive the
-    /// beach, which turns the water beside a coast into land.
+    /// separating gap of it. The gap is geometric; BeachWidth only changes
+    /// the material of existing land and must not reshape islands.
     ///
     /// The noise is still doing the aesthetic work. It no longer decides WHERE
     /// land is - only what its edges look like.
     /// </summary>
     internal static class TerrainLandmassStage
     {
+        private readonly record struct LandmassSeed(int Index, float Stretch);
         /// <summary>
         /// Characteristic landmass size in tiles - one landmass spans the map,
         /// N landmasses each span about 1/sqrt(N) of it. Read by the noise set
@@ -63,10 +64,10 @@ namespace Beep.ECS
         public static int LandmassCount(TerrainGenerationSettings settings)
             => settings.RequestedLandmassCount;
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             // Cleared defensively, even though TerrainFieldBuilder constructs a
-            // fresh TerrainWorld per build today: this stage only ever SETS
+            // fresh TerrainGenerationBuffer per build today: this stage only ever SETS
             // land, so any future caller that does reuse a world - the reason
             // this clear was first added - would weld the previous run's masses
             // into this one and come back with the wrong landmass count.
@@ -81,7 +82,7 @@ namespace Beep.ECS
             bool[] eligible = Eligible(world, settings);
             int count = LandmassCount(settings);
 
-            int[] seeds = PlaceSeeds(world, eligible, count, settings.Seed);
+            LandmassSeed[] seeds = PlaceSeeds(world, eligible, count, settings.Seed);
             if (seeds.Length == 0)
                 return;
 
@@ -93,7 +94,7 @@ namespace Beep.ECS
         /// ring at the map edge, so a coastline is never a straight cut along
         /// the border.
         /// </summary>
-        private static bool[] Eligible(TerrainWorld world, TerrainGenerationSettings settings)
+        private static bool[] Eligible(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             var eligible = new bool[world.Count];
             float margin = Mathf.Max(0.0f, settings.OceanMarginTiles);
@@ -160,7 +161,7 @@ namespace Beep.ECS
         /// property of the construction rather than something to test for, the
         /// count is exact, and it is O(N).
         /// </summary>
-        private static int[] PlaceSeeds(TerrainWorld world, bool[] eligible, int count, int seed)
+        private static LandmassSeed[] PlaceSeeds(TerrainGenerationBuffer world, bool[] eligible, int count, int seed)
         {
             count = Mathf.Max(1, count);
 
@@ -188,7 +189,8 @@ namespace Beep.ECS
 
             float cellWidth = world.Width / (float)columns;
             float cellHeight = world.Height / (float)rows;
-            var placed = new List<int>();
+            var placed = new List<LandmassSeed>();
+            float stretch = Mathf.Sqrt(cellWidth / cellHeight);
 
             // Two lattice points can be pushed onto the SAME cell when the one
             // they wanted is in the ocean margin. Two masses sharing a seed is
@@ -202,10 +204,10 @@ namespace Beep.ECS
                 if (placed.Count >= count)
                     break;
 
-                // Jitter stays inside the middle of the lattice cell, so two
-                // seeds in neighbouring cells keep most of their spacing.
-                float x = (cell.X + 0.5f + (random.Randf() - 0.5f) * 0.8f) * cellWidth;
-                float y = (cell.Y + 0.5f + (random.Randf() - 0.5f) * 0.8f) * cellHeight;
+                // Keep room for the coast on every side. The former 80% jitter
+                // range seeded masses beside the hard margin before growth began.
+                float x = (cell.X + 0.5f + (random.Randf() - 0.5f) * 0.2f) * cellWidth;
+                float y = (cell.Y + 0.5f + (random.Randf() - 0.5f) * 0.2f) * cellHeight;
 
                 int found = NearestEligible(
                     world, eligible, taken, Mathf.RoundToInt(x), Mathf.RoundToInt(y),
@@ -215,7 +217,7 @@ namespace Beep.ECS
                     continue;
 
                 taken.Add(found);
-                placed.Add(found);
+                placed.Add(new LandmassSeed(found, stretch));
             }
 
             return placed.ToArray();
@@ -228,7 +230,7 @@ namespace Beep.ECS
         /// mass can actually start.
         /// </summary>
         private static int NearestEligible(
-            TerrainWorld world, bool[] eligible, HashSet<int> taken, int x, int y, int radius)
+            TerrainGenerationBuffer world, bool[] eligible, HashSet<int> taken, int x, int y, int radius)
         {
             for (int ring = 0; ring <= radius; ring++)
             {
@@ -300,7 +302,7 @@ namespace Beep.ECS
             return false;
         }
 
-        private static float Squared(TerrainWorld world, int left, int right)
+        private static float Squared(TerrainGenerationBuffer world, int left, int right)
         {
             float dx = (left % world.Width) - (right % world.Width);
             float dy = (left / world.Width) - (right / world.Width);
@@ -317,10 +319,10 @@ namespace Beep.ECS
         /// without letting it grow a tendril across the map.
         /// </summary>
         private static void Grow(
-            TerrainWorld world,
+            TerrainGenerationBuffer world,
             TerrainGenerationSettings settings,
             bool[] eligible,
-            int[] seeds,
+            LandmassSeed[] seeds,
             int target)
         {
             var claimed = new bool[world.Count];
@@ -335,21 +337,9 @@ namespace Beep.ECS
             var tileOwner = new int[tilesWide * tilesHigh];
             Array.Fill(tileOwner, -1);
 
-            // How wide the channel between two masses has to be.
-            //
-            // Two tiles of open water is not enough, and the reason is the
-            // BEACH: it turns the ground either side of a coast into sand, which
-            // is land, so a narrow channel is filled in from both banks and the
-            // two masses read - and draw - as one. Measured at 128x80 asking for
-            // four landmasses: two components, the larger 2839 tiles. Excluding
-            // sand from the same count split it into 2006 + 314 + 63, which is
-            // the sand isthmus showing up as exactly what it was.
-            //
-            // So the channel needs a water core that survives a beach eating
-            // inward from each side, plus a tile of slack so the core is not lost
-            // when the sample grid is reduced to tiles.
-            int beachTiles = Mathf.CeilToInt(Mathf.Max(0.0f, settings.BeachWidth));
-            int gapTiles = (beachTiles * 2) + 2;
+            // Two whole gameplay tiles separate foreign claims. Biome painting
+            // never turns water into beach, so beach width is not a spacing input.
+            const int gapTiles = 2;
 
             var frontiers = new List<PriorityQueue<int, float>>(seeds.Length);
             var share = new float[seeds.Length];
@@ -367,7 +357,6 @@ namespace Beep.ECS
             // fine. Every mass now gets the same proportion of wobble.
             float raggedness = Mathf.Clamp(settings.CoastlineRaggedness, 0.0f, 4.0f) * 0.45f;
             float radius = Mathf.Sqrt(target / (float)Mathf.Max(1, seeds.Length) / Mathf.Pi);
-            float scale = Mathf.Max(1.0f, radius);
             float radiusTiles = Mathf.Max(2.0f, radius / samples);
 
             // The coastline gets its OWN noise, at the scale of the landmass it
@@ -409,10 +398,14 @@ namespace Beep.ECS
             for (int mass = 0; mass < seeds.Length; mass++)
                 weights[mass] /= weightTotal;
 
-            foreach (int seed in seeds)
+            var massRadii = new float[seeds.Length];
+            for (int mass = 0; mass < seeds.Length; mass++)
+                massRadii[mass] = Mathf.Max(1.0f, Mathf.Sqrt(target * weights[mass] / Mathf.Pi));
+
+            foreach (LandmassSeed seed in seeds)
             {
                 var queue = new PriorityQueue<int, float>();
-                queue.Enqueue(seed, 0.0f);
+                queue.Enqueue(seed.Index, 0.0f);
                 frontiers.Add(queue);
             }
 
@@ -481,8 +474,8 @@ namespace Beep.ECS
 
                 int x = cell % world.Width;
                 int y = cell / world.Width;
-                int seedX = seeds[mass] % world.Width;
-                int seedY = seeds[mass] / world.Width;
+                int seedX = seeds[mass].Index % world.Width;
+                int seedY = seeds[mass].Index / world.Width;
 
                 for (int side = 0; side < 4; side++)
                 {
@@ -495,12 +488,17 @@ namespace Beep.ECS
                     if (claimed[at] || !eligible[at])
                         continue;
 
-                    float dx = nx - seedX;
-                    float dy = ny - seedY;
+                    // Area-preserving metric fits the seed's available region:
+                    // wide lattice cells grow broad masses instead of circular
+                    // ones clipped against their short top/bottom boundaries.
+                    float dx = (nx - seedX) / seeds[mass].Stretch;
+                    float dy = (ny - seedY) * seeds[mass].Stretch;
                     float distance = Mathf.Sqrt((dx * dx) + (dy * dy));
 
                     Vector2 point = world.TileCentre(nx, ny);
-                    float wobble = coast.GetNoise2D(point.X, point.Y) * raggedness * scale;
+                    float frequencyScale = radius / massRadii[mass];
+                    float wobble = coast.GetNoise2D(point.X * frequencyScale, point.Y * frequencyScale)
+                        * raggedness * massRadii[mass];
 
                     queue.Enqueue(at, distance + wobble);
                 }

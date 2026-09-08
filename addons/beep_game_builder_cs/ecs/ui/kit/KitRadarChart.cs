@@ -18,6 +18,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitRadarChart : KitControl
     {
+        /// <summary>A stat chart on its own plate -- a container for a drawing.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         /// <summary>Axis labels. The chart draws one spoke per entry.</summary>
         public readonly List<string> Axes = new();
         /// <summary>Values 0..1, parallel to <see cref="Axes"/>.</summary>
@@ -207,11 +213,6 @@ namespace Beep.ECS.UI.Kit
             RefreshVisualAndRedraw();
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private static List<string> NormalizeAxes(IEnumerable<string>? axes)
         {
             var next = new List<string>();
@@ -259,6 +260,43 @@ namespace Beep.ECS.UI.Kit
             return true;
         }
 
+        /// <summary>
+        /// Left/right pick the axis, up/down move its value; reports whether anything changed.
+        ///
+        /// Axis selection deliberately WRAPS — the axes of a radar chart are a ring, so the far
+        /// right of the last axis is the first one. Wrapping still counts as movement, so the key
+        /// is consumed. A value already at its floor or ceiling is not movement, and releasing it
+        /// there is what lets the player leave the chart.
+        /// </summary>
+        private bool AdjustByArrow(Vector2I dir)
+        {
+            int n = Count();
+            if (n <= 0) return false;
+
+            if (dir.X != 0)
+            {
+                if (_activeAxis < 0) _activeAxis = 0;
+                int wanted = dir.X <= -KitChrome.Jump ? 0
+                           : dir.X >= KitChrome.Jump ? n - 1
+                           : Mathf.PosMod(_activeAxis + dir.X, n);
+                if (wanted == _activeAxis) return false;
+                _activeAxis = wanted;
+                QueueRedraw();
+                return true;
+            }
+
+            if (dir.Y != 0 && _activeAxis >= 0)
+            {
+                float before = Values[_activeAxis];
+                SetValue(_activeAxis, before + (dir.Y < 0 ? 0.05f : -0.05f));
+                if (Mathf.IsEqualApprox(Values[_activeAxis], before)) return false;
+                EmitSignal(SignalName.ValueChanged, _activeAxis, Values[_activeAxis]);
+                return true;
+            }
+
+            return false;
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (!Editable)
@@ -266,29 +304,11 @@ namespace Beep.ECS.UI.Kit
                 _activeAxis = -1;
                 return;
             }
+            if (KitChrome.NavigateOrRelease(this, @event, AdjustByArrow))
+                return;
+
             switch (@event)
             {
-                case InputEventKey key:
-                    Vector2I dir = KitChrome.DirectionFromKey(key);
-                    if (dir.X != 0)
-                    {
-                        int n = Count();
-                        if (n <= 0) return;
-                        if (_activeAxis < 0) _activeAxis = 0;
-                        if (dir.X <= -9999) _activeAxis = 0;
-                        else if (dir.X >= 9999) _activeAxis = n - 1;
-                        else _activeAxis = Mathf.PosMod(_activeAxis + dir.X, n);
-                        QueueRedraw();
-                        AcceptEvent();
-                    }
-                    else if (dir.Y != 0 && _activeAxis >= 0)
-                    {
-                        float delta = dir.Y < 0 ? 0.05f : -0.05f;
-                        SetValue(_activeAxis, Values[_activeAxis] + delta);
-                        EmitSignal(SignalName.ValueChanged, _activeAxis, Values[_activeAxis]);
-                        AcceptEvent();
-                    }
-                    break;
                 case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
                     if (mb.Pressed)
                     {
@@ -362,7 +382,7 @@ namespace Beep.ECS.UI.Kit
             if (d < 24f) return;
             if (n < 3)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            ActiveShape, "Axes");
                 return;
             }
@@ -406,7 +426,7 @@ namespace Beep.ECS.UI.Kit
             if (Editable && _activeAxis >= 0 && _activeAxis < n)
                 DrawCircle(poly[_activeAxis], Mathf.Max(3f, r * 0.07f), UiSurface.Semantic(this, UiSurface.Role.Info));
             if (Editable)
-                KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
+                KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
 
             if (!ShowLabels || font == null) return;
             for (int i = 0; i < n; i++)

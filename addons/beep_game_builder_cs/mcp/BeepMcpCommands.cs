@@ -968,7 +968,7 @@ public static partial class BeepMcpCommands
     }
 
     private static Beep.ECS.GameStateManagerComponent RequireSaveManager()
-        => Beep.ECS.GameStateManagerComponent.Instance
+        => Beep.ECS.GameApp.Instance?.Saves
            ?? throw new InvalidOperationException("GameStateManager autoload is not present — save/load only works while the game is running.");
 
     private static Beep.ECS.GameFlowComponent RequireFlow()
@@ -988,10 +988,10 @@ public static partial class BeepMcpCommands
            ?? throw new InvalidOperationException("No DayNightCycleComponent in the running scene (day/night must be enabled for this genre).");
 
     private static Beep.ECS.UI.SettingsComponent RequireSettings()
-        => Beep.ECS.UI.SettingsComponent.Instance
+        => Beep.ECS.GameApp.Instance?.Settings
            ?? throw new InvalidOperationException("Settings autoload is not present — settings only work while the game is running.");
 
     private static Beep.ECS.UI.LocalizationComponent RequireLocale()
-        => Beep.ECS.UI.LocalizationComponent.Instance
+        => Beep.ECS.GameApp.Instance?.Locale
            ?? throw new InvalidOperationException("Locale autoload is not present — localization only works while the game is running.");
 }

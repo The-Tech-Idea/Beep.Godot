@@ -393,7 +393,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 8 || Size.Y <= 6) return;
             if (Entries.Count == 0)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            KitShape.Pill, "Entries");
                 DrawAttachments();
                 return;
@@ -409,9 +409,9 @@ namespace Beep.ECS.UI.Kit
             float y = (Size.Y - h) * 0.5f;
             var strip = new Rect2(0f, y, Size.X, h);
             Color bodyFace = KitChrome.WellFace(face);
-            string genre = KitChrome.GenreOf(this);
+            string genre = Genre;
             KitShape barShape = KitChrome.Shape(genre, KitWidgetClass.Bar);
-            KitChrome.DrawPlate(this, KitChrome.GenreOf(this), strip, bodyFace, KitState.Normal,
+            KitChrome.DrawPlate(this, Genre, strip, bodyFace, KitState.Normal,
                                 fs / 14f, KitWidgetClass.Bar);
 
             float iconW = h * Mathf.Clamp(IconOverhang, 0.75f, 1.35f);

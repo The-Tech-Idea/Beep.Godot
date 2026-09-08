@@ -6,16 +6,16 @@ Everything upstream of this stage (elevation, water, relief, terrain-kind assign
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world)` — the only entry point. For every gameplay cell, tallies its block of fine samples (land/ocean/lake/river counts, per-terrain-kind counts overall and per-relief-band, summed shade and elevation) and writes one reduced value per cell: `world.CellShade`, `world.CellElevation`, `world.CellWater`, `world.CellRelief`, `world.CellTerrain`. A cell becomes water (`Ocean`/`Lake`/`River`, by whichever water count is largest) when water samples outnumber land samples; otherwise it becomes a river tile if river samples meet the 10% threshold; otherwise it is land, with relief picked as the sample-block's largest relief-band count and terrain picked as the majority terrain kind *within that band* (falling back to the whole tile's majority if no sample fell in the winning band).
+- `internal static void Apply(TerrainGenerationBuffer world)` — the only entry point. For every gameplay cell, tallies its block of fine samples (land/ocean/lake/river counts, per-terrain-kind counts overall and per-relief-band, summed shade and elevation) and writes one reduced value per cell: `world.CellShade`, `world.CellElevation`, `world.CellWater`, `world.CellRelief`, `world.CellTerrain`. A cell becomes water (`Ocean`/`Lake`/`River`, by whichever water count is largest) when water samples outnumber land samples; otherwise it becomes a river tile if river samples meet the 10% threshold; otherwise it is land, with relief picked as the sample-block's largest relief-band count and terrain picked as the majority terrain kind *within that band* (falling back to the whole tile's majority if no sample fell in the winning band).
 - `private const float RiverTileFraction = 0.10f` — the minimum fraction of a tile's samples that must be river for the tile to become a river tile (not exported, not a tunable — a hardcoded threshold justified in the class doc comment as needing to stay low so rivers stay connected).
 - `private static string MostCommon(Dictionary<string,int> counts, string fallback)` — returns the key with the highest count, or `fallback` if the dictionary is empty or all counts are zero.
 - `private static int LargestIndex(int[] values)` — returns the index of the largest value in a 3-element relief-band count array.
 
 ## Dependencies
 
-- Reads from `TerrainWorld` (defined in `TerrainWorld.cs`): `CellsWide`, `CellsHigh`, `SamplesPerCell`, `InBounds`, `Index`, and the fine-resolution arrays `Shade`, `Land`, `Elevation`, `Relief`, `Terrain`, `Water`.
-- Writes to `TerrainWorld`'s tile-resolution arrays: `CellShade`, `CellElevation`, `CellWater`, `CellRelief`, `CellTerrain`.
-- Uses the `TerrainRelief` and `WaterBody` enums (defined alongside `TerrainWorld`/`GeneratedTerrainField`).
+- Reads from `TerrainGenerationBuffer` (defined in `TerrainGenerationBuffer.cs`): `CellsWide`, `CellsHigh`, `SamplesPerCell`, `InBounds`, `Index`, and the fine-resolution arrays `Shade`, `Land`, `Elevation`, `Relief`, `Terrain`, `Water`.
+- Writes to `TerrainGenerationBuffer`'s tile-resolution arrays: `CellShade`, `CellElevation`, `CellWater`, `CellRelief`, `CellTerrain`.
+- Uses the `TerrainRelief` and `WaterBody` enums (defined alongside `TerrainGenerationBuffer`/`GeneratedTerrainField`).
 - Called by `TerrainFieldBuilder.cs` (`TerrainTileReductionStage.Apply(world)`), the pipeline orchestrator that runs all generation stages in order — this is not visible from the file itself but is the file's only caller in the codebase.
 - Everything downstream that reads `CellTerrain`/`CellRelief`/`CellWater` (renderers, `TerrainDataLayersComponent`, `TerrainGeneratorComponent.TerrainKindAt`) depends on this stage having already run.
 

@@ -1,35 +1,72 @@
 # TerrainMapOverlayComponent
 
-Renderer: a `Node2D` overlay component that sits alongside the ground renderers in the terrain scene and paints gameplay markers over whichever surface is drawn beneath it.
+A Node2D that batches generated resource markers, start rings, and underground survey patches.
+TerrainWorldComponent shows it for flat projections. It is a view, not a resource store.
 
-`TerrainMapOverlayComponent` draws the generator's resource deposits and player start positions as primitive circles/rings — no sprites, no art assets. It reads `TerrainGeneratorComponent` directly (the one owner of resource/start data) and draws with Godot's immediate canvas API (`_Draw`) rather than instancing nodes, so a full map's worth of markers costs one draw call's worth of shapes instead of one node per marker. It is deliberately a separate node from the painted/tile/isometric ground renderers so markers can be toggled or reparented without touching terrain art.
+## Sources
 
-## Public API
+- `TerrainGeneratorPath`: required for generated resource markers, underground patches or starts.
+  A live-resource-only overlay needs no generator: assign ResourceRootPath and disable
+  ShowUndergroundResources and ShowStartPositions. All-disabled overlays also need no generator.
+- `GridPath`: optional gameplay grid for native cell centers and polygon corners. Missing configured
+  grids clear the overlay rather than drawing using an unrelated square fallback.
+- `ResourceRootPath`: optional subtree of GridResourceNodeComponent instances. Surface/liquid
+  markers then show live, nondepleted nodes within bounds rather than generated resources.
+  Missing configured roots show no resource markers. Empty keeps the generated preview.
+- `ProspectingPath`: optional GridProspectingComponent controlling discovery. Empty means no
+  discovery restriction. A configured but missing node hides underground patches.
+- `SubsurfaceStorePath`: optional GridSubsurfaceStoreComponent controlling remaining stock.
+  Cells with no remaining units are hidden. A configured but missing store hides underground patches.
+  Empty means the overlay shows generated deposits without depletion filtering.
 
-- `[Export] NodePath TerrainGeneratorPath` — path to the `TerrainGeneratorComponent` this overlay reads; empty disables drawing and raises a configuration warning.
-- `[Export] Vector2I BoundsSize = (48, 30)` — map dimensions in tiles the overlay iterates when placing markers. Note this default does not match the 96x60 default used by the renderer components (see Notes).
-- `[Export(Range 1,256,1)] int TileSize = 64` — pixel size of one tile, used to convert cell coordinates to draw-space positions.
-- `[Export] bool ShowResources = true` — toggles drawing resource markers.
-- `[Export] bool ShowStartPositions = true` — toggles drawing start-position rings.
-- `[Export(Range 0.05,0.5,0.01)] float ResourceRadiusTiles = 0.16f` — resource marker radius, as a fraction of `TileSize`.
-- `[Export(Range 0.1,1.0,0.01)] float StartRadiusTiles = 0.42f` — start-position ring radius, as a fraction of `TileSize`.
-- `void Refresh()` — sets this node's `ZIndex` to `TerrainLayers.ZForMarkers()`, re-resolves `_generator` from `TerrainGeneratorPath` if it is null or invalid, then calls `QueueRedraw()`. Called automatically from `_Ready()`.
-- `override string[] _GetConfigurationWarnings()` — returns a warning string when `TerrainGeneratorPath` is empty, otherwise an empty array.
-- `override void _Draw()` — if no generator is resolved, pushes a warning and draws nothing; otherwise calls `DrawResources` (if enabled) then `DrawStartPositions` (if enabled).
+Wire the store and prospecting component to the same generated data layers as this overlay's world.
+Prospecting owns discovery; the store owns drawdown; the overlay does not copy either state.
 
-Everything else (`DrawResources`, `DrawStartPositions`, `ColourFor`) is private implementation:
-- Resource markers: for every cell in `BoundsSize`, calls `_generator.ResourceAt(cell)`; a non-empty result is drawn as a dark-rimmed filled circle coloured by `ColourFor`, which maps `TerrainResourceStage.CategoryOf(resource)` to one of three flat colours (Strategic = red, Luxury = purple/pink, everything else including Bonus = yellow).
-- Start positions: for every cell in `_generator.GetStartPositions()`, draws a two-tone ring (dark outer arc + light inner arc) plus a filled dot at the centre.
+## Display
 
-## Dependencies
+`BoundsOrigin` and `BoundsSize` define the logical cell rectangle. Generated queries use local
+sample coordinates; discovery, drawdown and geometry queries use absolute logical cells.
+`TileSize` provides square spacing only when GridPath is empty. With a grid, patch polygons follow
+its corners through both nodes' transforms; marker size uses the transformed cell edge lengths.
+`ShowResources`, `ShowStartPositions`, and `ShowUndergroundResources` choose the batches.
+`ResourceRadiusTiles` and `StartRadiusTiles` set marker sizes.
+The shared TerrainLayers marker slot owns Z order.
 
-- Reads `TerrainGeneratorComponent.ResourceAt(Vector2I)` and `TerrainGeneratorComponent.GetStartPositions()` (world-data model, this batch's sibling file not included here but referenced directly).
-- Reads `TerrainResourceStage.CategoryOf(string)` to bucket a resource id into a `ResourceCategory` for marker colour.
-- Reads `TerrainLayers.ZForMarkers()` to place itself at the top of the shared draw-order stack.
-- Writes nothing back to the generator or any other terrain file — purely a read-and-draw component.
+Surface/liquid resources are colored by their resource category. Underground hue is stable per
+resource ID; alpha represents generated richness, not remaining quantity. Depleted patches disappear
+when a store is wired. Starts are generated locations, not live unit positions.
 
-## Notes
+## Updates
 
-- `BoundsSize` defaults to `(48, 30)` here, while `TerrainPaintedRendererComponent` and `TerrainReliefRendererComponent` default to `(96, 60)`. If a scene leaves all three at their defaults, the overlay iterates a smaller area than the ground it sits over and silently omits markers on the outer part of the map. This is an accepted-but-easy-to-miss per-node setting rather than one shared owner (`TerrainLayers`/`TerrainMapSetup` own z-order and bounds-by-size respectively, but not this per-renderer `BoundsSize` export).
-- The class doc comment explicitly calls out a past defect (a scene supplying `ZIndex = 60` externally instead of the component owning it) and the code now sets `ZIndex` itself every `Refresh()` — this is documentation of a fixed problem, not a live one.
-- No caching of per-cell resource lookups: `_generator.ResourceAt` and `TerrainResourceStage.CategoryOf` run for every cell in `BoundsSize` on every `Refresh()`/redraw, which is fine at map scale but is an O(width × height) scan purely to find sparse resource cells.
+Automatic refresh pauses while hidden, then catches up when a previously attempted view is shown.
+Reattachment restores resource, survey, drawdown and grid bindings. Explicit Rebuild remains valid
+while hidden. World-managed inactive bounds/origin remain synchronized.
+
+`Rebuild()` resolves current paths, clears stale batches, reads the source and requests redraw.
+`RefreshOnReady` schedules the initial runtime rebuild. Disable it when TerrainWorldComponent
+drives the renderer. There is no public Refresh method.
+
+DiscoveryChanged covers surveys, RevealAll changes and discovery restore. DepositChanged and
+StateRestored cover extraction and subsurface restore. Grid GeometryChanged refreshes cached
+positions after projection changes. The overlay coalesces these events into a
+deferred rebuild and disconnects sources on exit. Call Rebuild after changing source paths or
+display settings; the next rebuild binds the new nodes even if the previous nodes remain alive.
+
+`CellPosition` and `CellOutline` return overlay-local centers and polygons using the same geometry
+as drawing. TerrainWorldComponent binds the grid before rebuilding this overlay in flat views.
+`UndergroundPatchCount` reports the current baked patch count. Draw only renders cached batches:
+it does not scan the generator or emit missing-source warnings every frame.
+
+## Verification And Remaining Work
+
+`tests/terrain_survey_overlay_probe.gd` verifies hidden deposits, survey updates, depletion,
+both restore paths, RevealAll, missing configured sources, rectangular/isometric cells, transformed
+parents and nonzero origins. The lab probe checks marker/grid agreement after view switches.
+Recipe restore and rendered OpenGL lab probes also pass with these bindings.
+
+Live resource-root bindings refresh on gather, restore, node addition and removal, and disconnect
+on exit. The shared TerrainResourceViewBinding reads balances from nodes; it does not store balances.
+Direct property edits or source-path changes require Rebuild. A depletion QueueFree cannot be undone
+by restoring a removed node; the game's object restoration must recreate that node.
+Other terrain renderers still need their own nonzero-origin audit. Arbitrary transform edits require
+a grid geometry notification or explicit Rebuild; this view does not monitor every scene transform.

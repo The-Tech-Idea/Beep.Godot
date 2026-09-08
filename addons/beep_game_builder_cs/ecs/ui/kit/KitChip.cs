@@ -99,20 +99,10 @@ namespace Beep.ECS.UI.Kit
                 ChipKind.Status => new Vector2(fs * 1.6f, fs * 1.6f),
                 ChipKind.Count => CountNaturalSize(fs),
                 ChipKind.Delta => new Vector2(Mathf.Max(fs * 2.6f, TextWidth(DeltaText(), UiSurface.TextRole.Small) + fs * 2.1f), h),
+                // Wider than a Rarity chip by exactly the padlock it now draws.
+                ChipKind.Lock => new Vector2(Mathf.Max(fs * 4.4f, TextWidth(_text, UiSurface.TextRole.Small) + fs * 2.4f), h),
                 _ => new Vector2(Mathf.Max(fs * 3.6f, TextWidth(_text, UiSurface.TextRole.Small) + fs * 1.5f), h),
             };
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private float TextWidth(string text, UiSurface.TextRole role)
@@ -168,7 +158,7 @@ namespace Beep.ECS.UI.Kit
             if (_kind == ChipKind.Count)
                 r = CountBubbleRect(r, font, fs);
 
-            DrawShape(r, ShapeFor(), fill, ink, rimPx);
+            DrawPlate(r, ShapeFor(), fill, ink, rimPx);
 
             // A dot says "something here" and carries no text by definition.
             if (_kind == ChipKind.Dot) return;
@@ -201,15 +191,60 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
+            // A LOCK says so with a padlock AND with words. The kind was declared, documented as
+            // "a padlock plate over its host, WITH its requirement in words", and then fell
+            // straight through to the plain-text branch below -- so a Lock chip rendered
+            // byte-identically to a Rarity chip and choosing it did nothing at all. Same defect
+            // class as an unenforced setting: the option is offered and changes nothing.
+            //
+            // The padlock is DRAWN, not typed, for the reason the tick and the arrow are: the
+            // pixel and blackletter faces carry no padlock glyph, so a typed one would render as
+            // a missing-glyph box on exactly the themes that most need to look deliberate.
+            float lockRoom = 0f;
+            if (_kind == ChipKind.Lock)
+            {
+                lockRoom = Mathf.Min(r.Size.Y * 0.52f, r.Size.X * 0.30f);
+                DrawPadlock(new Rect2(r.Position.X + r.Size.X * 0.09f,
+                                      r.Position.Y + (r.Size.Y - lockRoom) * 0.5f,
+                                      lockRoom, lockRoom), on);
+            }
+
             if (font == null || string.IsNullOrEmpty(_text)) return;
-            float textWidth = Mathf.Max(1f, r.Size.X * 0.82f);
+            float textWidth = Mathf.Max(1f, r.Size.X * 0.82f - lockRoom);
             string text = KitCase(_text);
             int size = UiSurface.FitText(this, new Vector2(textWidth, r.Size.Y * 0.82f), 0.66f, text, font, min: 7, themeMax: 0.85f);
             text = KitChrome.EllipsizeText(font, text, size, textWidth);
             if (string.IsNullOrEmpty(text)) return;
             Vector2 m = font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
-            DrawText(font, new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
+            // Centred normally; nudged past the padlock when there is one, so the two never overlap.
+            float textX = lockRoom > 0f
+                ? r.Position.X + r.Size.X * 0.09f + lockRoom * 1.25f
+                : r.Position.X + (r.Size.X - m.X) * 0.5f;
+            DrawText(font, new Vector2(textX, r.Position.Y + (r.Size.Y + m.Y * 0.6f) * 0.5f),
                        text, size, on);
+        }
+
+        /// <summary>A padlock: a shackle arc over a closed body. Drawn rather than typed, like the
+        /// tick and the delta arrow, so it survives a theme whose font has no padlock glyph.</summary>
+        private void DrawPadlock(Rect2 box, Color col)
+        {
+            if (box.Size.X < 3f || box.Size.Y < 3f) return;
+
+            float bodyH = box.Size.Y * 0.56f;
+            var body = new Rect2(box.Position.X, box.End.Y - bodyH, box.Size.X, bodyH);
+            DrawRect(body, col, true);
+
+            // The shackle sits above the body and is drawn as an arc, so it stays a loop at every
+            // size instead of collapsing into a filled blob.
+            float shackleR = box.Size.X * 0.30f;
+            var centre = new Vector2(box.Position.X + box.Size.X * 0.5f, body.Position.Y);
+            DrawArc(centre, shackleR, Mathf.Pi, Mathf.Tau, 14, col,
+                    Mathf.Max(1.5f, box.Size.X * 0.14f));
+
+            // The keyhole, punched out of the body in the plate's own colour so it reads as a hole.
+            float keyR = Mathf.Max(1f, bodyH * 0.17f);
+            DrawCircle(new Vector2(centre.X, body.Position.Y + bodyH * 0.46f), keyR,
+                       FaceColor() with { A = 1f });
         }
 
         /// <summary>The delta's arrow, on the chip's left third.</summary>

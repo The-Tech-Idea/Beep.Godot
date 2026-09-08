@@ -27,15 +27,6 @@ namespace Beep.ECS
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public NodePath RoadPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
-        /// <summary>
-        /// Optional bridge to the terrain engine: point this at a
-        /// TerrainDataLayersComponent and terrain kinds are read from the
-        /// generated map's data layers, with GridCellDataComponent as the
-        /// fallback for cells the layers do not cover. Deliberately explicit -
-        /// never found scene-wide - so a scene that has both systems does not
-        /// silently switch its source of truth.
-        /// </summary>
-        [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public bool UseBounds { get; set; } = true;
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(64, 64);
@@ -69,6 +60,11 @@ namespace Beep.ECS
         };
         [Export] public bool AllowBlockedStart { get; set; } = true;
         [Export] public bool AllowBlockedGoal { get; set; } = false;
+        [ExportGroup("Terrain Traversal")]
+        [Export] public bool RespectTerrainHeight { get; set; } = true;
+        [Export(PropertyHint.Range, "0,8,1")] public int MaximumStepHeight { get; set; } = 0;
+        /// <summary>Ramp direction is a cardinal Vector2I on the lower cell, pointing uphill.</summary>
+        [Export] public bool AllowTerrainRamps { get; set; } = true;
         [Export(PropertyHint.Range, "16,200000,1")] public int MaxVisitedCells { get; set; } = 10000;
 
         private readonly HashSet<Vector2I> _blocked = new();
@@ -76,12 +72,39 @@ namespace Beep.ECS
         private GridPlacementComponent? _placement;
         private GridRoadComponent? _roads;
         private GridCellDataComponent? _cellData;
-        private TerrainDataLayersComponent? _dataLayers;
+        private readonly Dictionary<Type, Node?> _fallbackSources = new();
+        private Node? _fallbackRoot;
+        private SceneTree? _observedTree;
+        private string[] _blockedKindValues = System.Array.Empty<string>();
+        private HashSet<string>? _normalizedBlockedKinds;
 
         public override void _Ready()
         {
+            _observedTree = GetTree();
+            _observedTree.NodeAdded += OnReferenceNodeChanged;
+            _observedTree.NodeRemoved += OnReferenceNodeChanged;
             ResolveReferences();
             UpdateConfigurationWarnings();
+        }
+
+        public override void _ExitTree()
+        {
+            ClearPathRequests();
+            DisconnectRequestSources();
+            if (GodotObject.IsInstanceValid(_observedTree))
+            {
+                _observedTree!.NodeAdded -= OnReferenceNodeChanged;
+                _observedTree.NodeRemoved -= OnReferenceNodeChanged;
+            }
+            _observedTree = null;
+            _fallbackSources.Clear();
+            _fallbackRoot = null;
+        }
+
+        private void OnReferenceNodeChanged(Node node)
+        {
+            if (node is GridProjectionComponent or GridPlacementComponent or GridRoadComponent or GridCellDataComponent)
+                _fallbackSources.Clear();
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -105,15 +128,44 @@ namespace Beep.ECS
         /// </summary>
         private sealed class Search
         {
+            public Func<Vector2I, bool>? Availability;
+            public bool IsAvailable(Vector2I cell) => Availability?.Invoke(cell) ?? Cells?.IsCellAvailable(cell) != false;
             public GridCellDataComponent? Cells;
-            public TerrainDataLayersComponent? DataLayers;
             public GridPlacementComponent? Placement;
             public GridRoadComponent? Roads;
-            public HashSet<Vector2I> Blocked = new();
+            public required HashSet<Vector2I> Blocked;
             public bool UseCellBlockedFlag;
             public HashSet<string>? BlockedKinds;
             public Dictionary<string, float>? Costs;
             public float MinimumStepCost = 1f;
+            public bool RespectHeight;
+            public bool AllowRamps;
+            public int MaximumStep;
+            private readonly Dictionary<Vector2I, int> _heights = new();
+
+            public int HeightAt(Vector2I cell)
+            {
+                if (_heights.TryGetValue(cell, out int height)) return height;
+                Variant value = Cells?.GetMetadata(cell, "terrain_relief") ?? default;
+                height = value.VariantType == Variant.Type.Int ? Mathf.Clamp(value.AsInt32(), 0, 2) : 0;
+                _heights[cell] = height;
+                return height;
+            }
+
+            public bool CanCross(Vector2I from, Vector2I to)
+            {
+                if (!IsAvailable(from) || !IsAvailable(to)) return false;
+                if (!RespectHeight || Cells is null) return true;
+                int fromHeight = HeightAt(from), toHeight = HeightAt(to);
+                int difference = Mathf.Abs(toHeight - fromHeight);
+                if (difference <= MaximumStep) return true;
+                Vector2I delta = to - from;
+                if (!AllowRamps || difference != 1 || Mathf.Abs(delta.X) + Mathf.Abs(delta.Y) != 1) return false;
+                Vector2I lower = fromHeight < toHeight ? from : to;
+                Vector2I uphill = fromHeight < toHeight ? delta : -delta;
+                Variant direction = Cells.GetMetadata(lower, "terrain_ramp_direction");
+                return direction.VariantType == Variant.Type.Vector2I && direction.AsVector2I() == uphill;
+            }
 
             private readonly Dictionary<Vector2I, string> _kinds = new();
 
@@ -122,11 +174,10 @@ namespace Beep.ECS
                 if (_kinds.TryGetValue(cell, out string? kind))
                     return kind;
 
-                // The generated map's data layers win when wired; cell data
-                // answers for cells they do not cover (off-map, or edited).
-                kind = DataLayers is null ? "" : GridTerrainRules.Normalize(DataLayers.TerrainAt(cell));
-                if (kind.Length == 0 && Cells is not null)
-                    kind = GridTerrainRules.Normalize(Cells.GetTerrainKind(cell));
+                // The one terrain-kind rule, not a copy of it: this used to
+                // re-implement GridCellRules' precedence inline, and the two
+                // had to be fixed in step.
+                kind = GridCellRules.TerrainKindAt(Cells, cell);
                 _kinds[cell] = kind;
                 return kind;
             }
@@ -140,29 +191,25 @@ namespace Beep.ECS
             }
         }
 
-        private Search BuildSearch()
+        private Search BuildSearch(bool includeCosts = true)
         {
             var search = new Search
             {
                 Cells = _cellData,
-                DataLayers = _dataLayers,
                 Placement = TreatPlacementOccupiedAsBlocked ? _placement : null,
                 Roads = _roads,
                 Blocked = _blocked,
                 UseCellBlockedFlag = TreatCellDataBlockedAsBlocked && _cellData != null,
+                RespectHeight = RespectTerrainHeight,
+                AllowRamps = AllowTerrainRamps,
+                MaximumStep = Mathf.Max(0, MaximumStepHeight),
             };
 
-            bool hasKindSource = _cellData != null || _dataLayers != null;
+            bool hasKindSource = _cellData != null;
             if (TreatBlockedTerrainKindsAsBlocked && hasKindSource && BlockedTerrainKinds.Count > 0)
-            {
-                search.BlockedKinds = new HashSet<string>(StringComparer.Ordinal);
-                foreach (string kind in BlockedTerrainKinds)
-                {
-                    string normalized = GridTerrainRules.Normalize(kind);
-                    if (normalized.Length > 0)
-                        search.BlockedKinds.Add(normalized);
-                }
-            }
+                search.BlockedKinds = ResolveBlockedKinds();
+
+            if (!includeCosts) return search;
 
             if (hasKindSource && TerrainCostMultipliers.Count > 0)
             {
@@ -185,6 +232,28 @@ namespace Beep.ECS
             return search;
         }
 
+        private HashSet<string> ResolveBlockedKinds()
+        {
+            int count = BlockedTerrainKinds.Count;
+            bool unchanged = _normalizedBlockedKinds is not null && _blockedKindValues.Length == count;
+            for (int i = 0; unchanged && i < count; i++)
+                unchanged = string.Equals(_blockedKindValues[i], BlockedTerrainKinds[i], StringComparison.Ordinal);
+            if (unchanged) return _normalizedBlockedKinds!;
+
+            var values = new string[count];
+            var normalized = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = BlockedTerrainKinds[i];
+                string kind = GridTerrainRules.Normalize(values[i]);
+                if (kind.Length > 0) normalized.Add(kind);
+            }
+            // Replace rather than mutate: active searches must retain their old rules
+            // so the scheduler can detect a change before returning a stale route.
+            _blockedKindValues = values;
+            return _normalizedBlockedKinds = normalized;
+        }
+
         private static float MinimumTerrainCostMultiplier(Dictionary<string, float>? costs)
         {
             float min = 1f;
@@ -199,61 +268,31 @@ namespace Beep.ECS
         public Godot.Collections.Array<Vector2I> FindCellPath(Vector2I start, Vector2I goal)
         {
             ResolveReferences();
-            Search search = BuildSearch();
-
-            if (!IsCellAllowed(search, start, AllowBlockedStart))
-                return Fail(start, goal, "start_blocked_or_out_of_bounds");
-
-            if (!IsCellAllowed(search, goal, AllowBlockedGoal))
-                return Fail(start, goal, "goal_blocked_or_out_of_bounds");
-
-            var open = new PriorityQueue<Vector2I, float>();
-            var cameFrom = new Dictionary<Vector2I, Vector2I>();
-            var bestCost = new Dictionary<Vector2I, float> { [start] = 0f };
-            var closed = new HashSet<Vector2I>();
-            open.Enqueue(start, Heuristic(search, start, goal));
-
-            int visited = 0;
-            while (open.Count > 0)
-            {
-                Vector2I current = open.Dequeue();
-                if (!closed.Add(current))
-                    continue;
-
-                if (++visited > MaxVisitedCells)
-                    return Fail(start, goal, "max_visited_cells");
-
-                if (current == goal)
-                    return Succeed(start, goal, Reconstruct(cameFrom, current));
-
-                foreach (Vector2I next in Neighbors(search, current, goal))
-                {
-                    if (closed.Contains(next))
-                        continue;
-
-                    float nextCost = bestCost[current] + StepCost(search, current, next);
-                    if (bestCost.TryGetValue(next, out float oldCost) && nextCost >= oldCost)
-                        continue;
-
-                    bestCost[next] = nextCost;
-                    cameFrom[next] = current;
-                    open.Enqueue(next, nextCost + Heuristic(search, next, goal));
-                }
-            }
-
-            return Fail(start, goal, "no_path");
+            var search = new PathSearch(this, BuildSearch(), start, goal);
+            while (!search.Complete) search.Step(4096);
+            return search.Reason.Length == 0 ? Succeed(start, goal, search.Path) : Fail(start, goal, search.Reason);
         }
 
         public Godot.Collections.Array<Vector2> FindWorldPath(Vector2 startWorld, Vector2 goalWorld)
         {
             ResolveReferences();
             var points = new Godot.Collections.Array<Vector2>();
-            if (_grid == null)
+            var grid = _grid;
+            if (grid == null || !startWorld.IsFinite() || !goalWorld.IsFinite())
                 return points;
 
-            var cells = FindCellPath(_grid.WorldToCell(startWorld), _grid.WorldToCell(goalWorld));
+            Vector2I start = grid.WorldToCell(startWorld), goal = grid.WorldToCell(goalWorld);
+            if (start == new Vector2I(int.MinValue, int.MinValue)
+                || goal == new Vector2I(int.MinValue, int.MinValue)) return points;
+            var cells = FindCellPath(start, goal);
             foreach (Vector2I cell in cells)
-                points.Add(_grid.CellToWorld(cell));
+            {
+                // PathFound listeners can change or remove the view synchronously.
+                if (!GodotObject.IsInstanceValid(grid)) return new Godot.Collections.Array<Vector2>();
+                Vector2 point = grid.CellToWorld(cell);
+                if (!point.IsFinite()) return new Godot.Collections.Array<Vector2>();
+                points.Add(point);
+            }
             return points;
         }
 
@@ -265,11 +304,41 @@ namespace Beep.ECS
             return StepCost(search, from, to);
         }
 
+        /// <summary>Checks a legal adjacent move, including corner and height rules.</summary>
+        public bool CanTraverse(Vector2I from, Vector2I to)
+        {
+            ResolveReferences();
+            return CanTraverse(BuildSearch(includeCosts: false), from, to);
+        }
+
+        /// <summary>Validates a supplied route with one resolved terrain working set.</summary>
+        public bool CanTraversePath(Godot.Collections.Array<Vector2I> cells)
+        {
+            ResolveReferences();
+            if (cells.Count == 0) return false;
+            Search search = BuildSearch(includeCosts: false);
+            if (!IsCellAllowed(search, cells[0], AllowBlockedStart)) return false;
+            for (int i = 1; i < cells.Count; i++)
+            {
+                if (!CanTraverse(search, cells[i - 1], cells[i])) return false;
+                if (i < cells.Count - 1 && !IsCellAllowed(search, cells[i], false)) return false;
+            }
+            return true;
+        }
+
+        private bool CanTraverse(Search search, Vector2I from, Vector2I to)
+        {
+            long dx = (long)to.X - from.X, dy = (long)to.Y - from.Y;
+            if (Math.Abs(dx) > 1 || Math.Abs(dy) > 1 || (dx == 0 && dy == 0)) return false;
+            if (!IsCellAllowed(search, from, AllowBlockedStart)) return false;
+            return CanEnterNeighbor(search, from, to, AllowBlockedGoal);
+        }
+
         /// <summary>One-off blocked query, for external callers.</summary>
         public bool IsBlocked(Vector2I cell)
         {
             ResolveReferences();
-            return IsBlocked(BuildSearch(), cell);
+            return IsBlocked(BuildSearch(includeCosts: false), cell);
         }
 
         public bool IsInBounds(Vector2I cell)
@@ -285,11 +354,15 @@ namespace Beep.ECS
 
         public void SetBlocked(Vector2I cell, bool blocked)
         {
-            if (blocked) _blocked.Add(cell);
-            else _blocked.Remove(cell);
+            if (blocked ? _blocked.Add(cell) : _blocked.Remove(cell)) _navigationRevision++;
         }
 
-        public void ClearBlocked() => _blocked.Clear();
+        public void ClearBlocked()
+        {
+            if (_blocked.Count == 0) return;
+            _blocked.Clear();
+            _navigationRevision++;
+        }
 
         public Godot.Collections.Array<Vector2I> GetBlockedCells()
         {
@@ -301,38 +374,38 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            // Cached-and-valid everywhere. The explicit-path branches used to
-            // re-run GetNodeOrNull on every call, which the per-step callbacks
-            // then multiplied by the whole search.
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
+            // Resolve explicit paths once per query, not per visited cell. A valid
+            // cached node may have moved, or its authored path may now name another node.
+            _grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            ResolveSource(PlacementPath, ref _placement);
+            ResolveSource(RoadPath, ref _roads);
+            ResolveSource(CellDataPath, ref _cellData);
+        }
 
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_roads == null || !GodotObject.IsInstanceValid(_roads))
-                _roads = !RoadPath.IsEmpty
-                    ? GetNodeOrNull<GridRoadComponent>(RoadPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cellData == null || !GodotObject.IsInstanceValid(_cellData))
-                _cellData = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            // Explicit wire only, never found scene-wide - see DataLayersPath.
-            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
-                _dataLayers = !DataLayersPath.IsEmpty
-                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
-                    : null;
+        private void ResolveSource<T>(NodePath path, ref T? cached) where T : Node
+        {
+            if (!path.IsEmpty) { cached = GetNodeOrNull<T>(path); return; }
+            Node? root = IsInsideTree() ? GetTree().CurrentScene : null;
+            if (root != _fallbackRoot)
+            {
+                _fallbackSources.Clear();
+                _fallbackRoot = root;
+            }
+            // Missing optional collaborators are cached too. Otherwise 200 moving
+            // units repeatedly traverse all 1,000 actor subtrees every physics tick.
+            if (_fallbackSources.TryGetValue(typeof(T), out var found)
+                && (found is null || (GodotObject.IsInstanceValid(found) && found.IsInsideTree())))
+            {
+                cached = found as T;
+                return;
+            }
+            cached = EntityComponent.FindComponent<T>(root);
+            _fallbackSources[typeof(T)] = cached;
         }
 
         private bool IsBlocked(Search search, Vector2I cell)
         {
+            if (!search.IsAvailable(cell)) return true;
             if (search.Blocked.Contains(cell))
                 return true;
 
@@ -341,8 +414,7 @@ namespace Beep.ECS
                 && search.Cells.HasFlag(cell, GridCellDataComponent.CellFlags.Blocked))
                 return true;
 
-            // Not nested under Cells: the kind can come from the terrain data
-            // layers alone, in a scene with no GridCellDataComponent at all.
+            // Kind blocking and explicit cell flags are independent rules.
             if (search.BlockedKinds != null && search.BlockedKinds.Contains(search.KindAt(cell)))
                 return true;
 
@@ -351,7 +423,7 @@ namespace Beep.ECS
 
         private bool IsCellAllowed(Search search, Vector2I cell, bool allowBlocked)
         {
-            if (!IsInBounds(cell))
+            if (!IsInBounds(cell) || !search.IsAvailable(cell))
                 return false;
 
             return allowBlocked || !IsBlocked(search, cell);
@@ -362,7 +434,7 @@ namespace Beep.ECS
             foreach (Vector2I delta in CardinalSteps)
             {
                 Vector2I next = current + delta;
-                if (next == goal ? IsCellAllowed(search, next, AllowBlockedGoal) : IsCellAllowed(search, next, allowBlocked: false))
+                if (CanEnterNeighbor(search, current, next, next == goal && AllowBlockedGoal))
                     yield return next;
             }
 
@@ -372,19 +444,24 @@ namespace Beep.ECS
             foreach (Vector2I delta in DiagonalSteps)
             {
                 Vector2I next = current + delta;
-                if (!(next == goal ? IsCellAllowed(search, next, AllowBlockedGoal) : IsCellAllowed(search, next, allowBlocked: false)))
-                    continue;
-
-                if (Diagonals == DiagonalPolicy.NoCornerCutting)
-                {
-                    Vector2I sideA = current + new Vector2I(delta.X, 0);
-                    Vector2I sideB = current + new Vector2I(0, delta.Y);
-                    if (!IsCellAllowed(search, sideA, allowBlocked: false) || !IsCellAllowed(search, sideB, allowBlocked: false))
-                        continue;
-                }
-
-                yield return next;
+                if (CanEnterNeighbor(search, current, next, next == goal && AllowBlockedGoal))
+                    yield return next;
             }
+        }
+
+        private bool CanEnterNeighbor(Search search, Vector2I current, Vector2I next, bool allowBlocked)
+        {
+            bool diagonal = current.X != next.X && current.Y != next.Y;
+            if (diagonal && Diagonals == DiagonalPolicy.Never) return false;
+            if (!IsCellAllowed(search, next, allowBlocked) || !search.CanCross(current, next)) return false;
+            if (!diagonal) return true;
+
+            Vector2I sideA = new(next.X, current.Y), sideB = new(current.X, next.Y);
+            // Diagonals may not shortcut a cliff or turn across a ramp edge.
+            if (!search.CanCross(current, sideA) || !search.CanCross(current, sideB)
+                || !search.CanCross(sideA, next) || !search.CanCross(sideB, next)) return false;
+            return Diagonals != DiagonalPolicy.NoCornerCutting
+                || (IsCellAllowed(search, sideA, false) && IsCellAllowed(search, sideB, false));
         }
 
         private float Heuristic(Search search, Vector2I a, Vector2I b)
@@ -402,6 +479,8 @@ namespace Beep.ECS
 
         private static float StepCost(Search search, Vector2I from, Vector2I to)
         {
+            if (search.Cells?.IsCellAvailable(from) == false || search.Cells?.IsCellAvailable(to) == false)
+                return float.PositiveInfinity;
             float baseCost = from.X != to.X && from.Y != to.Y ? 1.41421356f : 1f;
             float roadCost = Mathf.Clamp(search.Roads?.GetTraversalCostMultiplier(to) ?? 1f, 0.05f, 10f);
             return baseCost * search.CostFor(to) * roadCost;

@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/generated/terrain_templates/natural_landforms_v1/canyon_left.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/generated/terrain_templates/natural_landforms_v1/canyon_right.tscn" id="2"]
+
+[node name="CanyonPair" type="Node2D"]
+
+[node name="LeftBank" parent="." instance=ExtResource("1")]
+position = Vector2(-384, 0)
+
+[node name="RightBank" parent="." instance=ExtResource("2")]
+position = Vector2(384, 0)

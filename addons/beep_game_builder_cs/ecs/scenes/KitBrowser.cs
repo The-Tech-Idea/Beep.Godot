@@ -6,7 +6,16 @@ using Beep.ECS.UI.Kit;
 namespace Beep.ECS.Scenes
 {
     /// <summary>
-    /// Every Game UI Kit widget on one scrolling page, with a genre switcher.
+    /// Every Game UI Kit widget on one scrolling page, with a genre switcher and a material
+    /// switcher.
+    ///
+    /// The material picker is the second comparison this board exists to make: a plate is either
+    /// the register's band stack computed over the palette colour, or a neutral nine-slice sprite
+    /// re-tinted to it. Which one applies is a property of the genre (overridable by its theme), so
+    /// only one can be live at a time and the two cannot be shown side by side — flipping the
+    /// picker changes every widget's material with nothing else moving, which is the comparison.
+    /// See <see cref="PopulateMaterials"/> for why it drives the theme's own `kit.material` key
+    /// rather than a switch of its own.
     ///
     /// Why it exists: the kit is GENRE-AWARE — <see cref="KitChrome.GenreOf"/> reads the global
     /// <see cref="SkinCatalog.ActiveGenre"/>, and shape/material/geometry/font/text-treatment all
@@ -42,7 +51,22 @@ namespace Beep.ECS.Scenes
         /// <summary>Preferred theme for the starting genre. Empty = the genre default.</summary>
         [Export] public string StartTheme { get; set; } = "oilfield_days";
 
+        /// <summary>
+        /// Material to open on, in `kit.material` terms: `"ui_pack"` for the nine-slice artwork,
+        /// `"none"` for the procedural stack. Empty opens on whatever the starting genre declares.
+        ///
+        /// Exists for the same reason <see cref="StartGenre"/> does: a render of this board is only
+        /// evidence if the thing being compared can be chosen from outside, and both materials need
+        /// capturing to compare them.
+        /// </summary>
+        [Export] public string StartMaterial { get; set; } = "";
+
+        /// <summary>The material name the picker's "artwork" entry asks for. One set ships; when
+        /// there are more this becomes a per-set entry rather than a boolean.</summary>
+        private const string ArtworkMaterial = "ui_pack";
+
         private OptionButton? _genrePicker;
+        private OptionButton? _materialPicker;
         private VBoxContainer? _content;
         private Label? _summary;
         private ThemePresetComponent? _theme;
@@ -53,6 +77,7 @@ namespace Beep.ECS.Scenes
             if (Engine.IsEditorHint()) return;
             BindChrome();
             PopulateGenres();
+            PopulateMaterials();
             CallDeferred(nameof(DeferredInitialRebuild));
         }
 
@@ -74,6 +99,9 @@ namespace Beep.ECS.Scenes
 
             _genrePicker = RequireNode<OptionButton>("GenrePicker");
             _genrePicker.ItemSelected += _ => Rebuild();
+
+            _materialPicker = RequireNode<OptionButton>("MaterialPicker");
+            _materialPicker.ItemSelected += _ => Rebuild();
 
             // Build stamp. Not decoration: a stale Godot editor keeps its own loaded assembly, and
             // a window left open from an earlier run keeps the code it started with — both look
@@ -131,6 +159,65 @@ namespace Beep.ECS.Scenes
             _genrePicker.Select(idx >= 0 ? idx : 0);
         }
 
+        /// <summary>
+        /// The two ways a kit plate can be built, so both can be seen on the same widgets.
+        ///
+        /// A plate is either the register's band stack — flat fill, rim, keyline, a seven-band
+        /// vertical shade, bevel and gloss, all arithmetic over the palette colour — or a neutral
+        /// nine-slice sprite re-tinted to that same colour. Which one a genre uses is a property of
+        /// the genre, overridable by its theme, so there is exactly ONE answer live at a time and
+        /// the two cannot be rendered side by side. This picker is how you see both: flip it and
+        /// every widget on the page changes material with nothing else moving.
+        ///
+        /// It goes through the theme's own `kit.material` key rather than a separate runtime
+        /// switch — the browser plays the part of a theme author, so the mechanism being
+        /// demonstrated is the one a real theme would use, and the material keeps one owner.
+        /// </summary>
+        private void PopulateMaterials()
+        {
+            if (_materialPicker == null) return;
+            _materialPicker.Clear();
+            _materialPicker.AddItem("Artwork — nine-slice", 0);
+            _materialPicker.AddItem("Procedural — drawn", 1);
+
+            string wanted = StartMaterial?.Trim().ToLowerInvariant() ?? "";
+            if (wanted.Length > 0)
+            {
+                _materialPicker.Select(wanted is "none" or "procedural" ? 1 : 0);
+                return;
+            }
+
+            // Nothing asked for: open on whatever the starting genre actually declares, so the
+            // board first shows the kit as it ships rather than as this tool prefers it. No theme
+            // has been applied yet, so this reads the genre's built-in table entry, which is the
+            // right basis.
+            string genre = string.IsNullOrWhiteSpace(StartGenre) ? "citybuilder" : StartGenre.ToLowerInvariant();
+            _materialPicker.Select(
+                string.IsNullOrEmpty(KitGeometry.ForGenre(genre).Material) ? 1 : 0);
+        }
+
+        /// <summary>The material the picker is asking for, in `kit.material` terms.</summary>
+        private string ChosenMaterial()
+            => _materialPicker != null && _materialPicker.Selected == 1 ? "none" : ArtworkMaterial;
+
+        /// <summary>
+        /// Publish the active theme's `kit` block with the picker's material substituted in.
+        ///
+        /// A copy, never the catalog's own dictionary: that instance is the parsed theme and is
+        /// handed out again on every skin change, so mutating it would make the tool's choice
+        /// permanent for the session and follow the theme into any other scene that loads it.
+        /// </summary>
+        private void ApplyMaterialChoice(string genre, string theme)
+        {
+            var def = string.IsNullOrEmpty(genre) || string.IsNullOrEmpty(theme)
+                ? null : SkinCatalog.GetTheme(genre, theme);
+            var kit = def?.Kit != null
+                ? (Godot.Collections.Dictionary)def.Kit.Duplicate()
+                : new Godot.Collections.Dictionary();
+            kit["material"] = ChosenMaterial();
+            KitStyleJson.Set(genre, kit);
+        }
+
         /// <summary>When the loaded assembly was written, HH:mm:ss. Read off the DLL rather than
         /// baked in, because the thing worth knowing is what the running process loaded.</summary>
         private static string BuildStamp()
@@ -171,6 +258,13 @@ namespace Beep.ECS.Scenes
             string theme = PreferredThemeFor(genre);
             _theme?.SetThemeSelection(genre, theme, "default", "");
 
+            // AFTER the skin is published and BEFORE the widgets are built. SetThemeSelection puts
+            // the theme's own `kit` block into KitStyleJson, so overriding earlier would be
+            // overwritten; and several widgets measure themselves from the geometry in _Ready, so
+            // overriding later would leave those sized for the other material. ApplyTheme below
+            // does not republish the skin, so this stays the last word.
+            ApplyMaterialChoice(genre, theme);
+
             // Everything except the themer — it lives here so it can theme this subtree, and
             // freeing it would take the palette with it.
             foreach (var child in _content.GetChildren())
@@ -178,7 +272,7 @@ namespace Beep.ECS.Scenes
 
             if (_summary != null)
                 _summary.Text = $"Genre '{genre}' → silhouette {KitMaterial.ShapeForGenre(genre)}, "
-                              + $"theme '{theme}'. Same widgets, same data — only the genre changed.";
+                              + $"theme '{theme}'. {MaterialSummary(genre)}";
 
             Buttons();
             Meters();
@@ -191,6 +285,31 @@ namespace Beep.ECS.Scenes
             // widget unthemed — the half-applied state this class rebuilds to avoid.
             if (_theme != null)
                 _theme.ApplyTheme();
+        }
+
+        /// <summary>
+        /// What the material picker is actually doing to this genre, in words.
+        ///
+        /// The interesting case is the one that looks broken: asking for artwork on a genre whose
+        /// silhouette a nine-slice cannot serve changes nothing at all, because
+        /// <see cref="KitSprite.FitsSilhouette"/> refuses anything but a rounded rectangle. Without
+        /// this line that reads as a dead picker rather than as the rule working, which is the
+        /// whole reason the shape axis survived the material being added.
+        /// </summary>
+        private string MaterialSummary(string genre)
+        {
+            if (ChosenMaterial() == "none")
+                return "Plates are drawn PROCEDURALLY — the register's band stack over the palette "
+                     + "colour. Switch Material to compare.";
+
+            KitShape shape = KitMaterial.ShapeForGenre(genre);
+            if (!KitSprite.FitsSilhouette(shape))
+                return $"Artwork is requested, but this genre's {shape} silhouette is not a rounded "
+                     + "rectangle, so its buttons and panels keep drawing procedurally — a "
+                     + "nine-slice has one outline and the genre's own is worth more than the depth.";
+
+            return "Plates are cut from ARTWORK — one neutral nine-slice set, re-tinted to this "
+                 + "theme's palette. Switch Material to compare.";
         }
 
         private string PreferredThemeFor(string genre)
@@ -268,15 +387,49 @@ namespace Beep.ECS.Scenes
                 Text = caption,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                // A floor, so a long widget name wraps instead of stretching its cell and
-                // ragging the flow; the widget's own width still wins when it is wider.
-                CustomMinimumSize = new Vector2(Mathf.Max(size.X, MinCellWidth), 0),
+                // A floor on BOTH axes. Width so a long name wraps instead of stretching its cell
+                // and ragging the flow. Height for two lines, because a genre with a wide display
+                // face — cardgame's blocky caps are the worst — wraps captions the narrow faces
+                // fit on one line, and the flow row had already been sized for one: "METER
+                // (SEGMENTED)" and "RADIAL METER" ended up drawn across the widgets around them.
+                CustomMinimumSize = new Vector2(Mathf.Max(size.X, MinCellWidth), CaptionFont * 2.5f),
             };
             KitChrome.SetFontSizeOverrideIfChanged(cap, "font_size", CaptionFont);
             KitChrome.SetColorOverrideIfChanged(cap, "font_color", new Color(0.72f, 0.75f, 0.84f));
             box.AddChild(cap);
 
             row.AddChild(box);
+        }
+
+        /// <summary>
+        /// Pin a chip to a host widget's top-right corner, straddling it.
+        ///
+        /// A chip is not a small button, and shown free-floating in a row at button size that is
+        /// exactly what it looks like. The kit's own art notes call the top-right corner straddle
+        /// "the attention anchor" and <see cref="BadgeComponent"/> uses chips this way for real:
+        /// as a CHILD of the control being marked, offset so it hangs over the corner. The board
+        /// now shows them the way they are used instead of laid out like controls of their own.
+        ///
+        /// Anchored rather than positioned, so the chip stays on the corner when the host is
+        /// resized by the cell's minimum-size floor.
+        /// </summary>
+        private static Godot.Control Pinned(Godot.Control host, KitChip chip)
+        {
+            host.AddChild(chip);
+
+            Vector2 s = chip.GetCombinedMinimumSize();
+            chip.SetAnchorsPreset(LayoutPreset.TopRight, keepOffsets: false);
+
+            // INSIDE the host, flush into its top-right corner. An earlier version hung the chip
+            // over the host's outer edge, which put it above the control entirely -- outside the
+            // one rect a container has already allocated, so it would land on whatever sat above.
+            // A badge overhangs the PLATE it marks, never the control's own bounds; that is the
+            // rule KitChrome.DrawCornerBadge follows for the drawn badges and it holds here too.
+            chip.OffsetLeft = -s.X;
+            chip.OffsetRight = 0f;
+            chip.OffsetTop = 0f;
+            chip.OffsetBottom = s.Y;
+            return host;
         }
 
         private static string HumanizeCaption(string name)
@@ -313,12 +466,21 @@ namespace Beep.ECS.Scenes
         {
             var r = Section("Buttons & input");
 
+            // Each of these has to show the thing that makes it NOT its neighbour. Shown bare,
+            // KitPushButton and KitPushButton are the same yellow rectangle with different text, and
+            // KitBuildTile is an empty square indistinguishable from an icon button — which is
+            // exactly how the browser presented them, and it made three distinct widgets look like
+            // one widget listed three times.
             Card(r, "KitPushButton", new KitPushButton { Text = "PLAY" }, new Vector2(130, 44));
-            Card(r, "KitButton", new KitButton { Text = "BUY" }, new Vector2(130, 44));
+            // The badge IS the reason this class exists over KitPushButton.
+            Card(r, "KitPushButton (badge)", new KitPushButton { Text = "BUY", BadgeText = "250" }, new Vector2(130, 44));
             Card(r, "KitIconButton", new KitIconButton { Glyph = "+" }, new Vector2(52, 52));
             Card(r, "KitIconButton (locked)",
                  new KitIconButton { Glyph = "?", Locked = true, Requirement = "Lv 5" }, new Vector2(52, 52));
-            Card(r, "KitBuildTile", new KitBuildTile(), new Vector2(84, 84));
+            // A build tile is icon + name + cost + how many you own. Empty, it is just a square.
+            Card(r, "KitBuildTile",
+                 new KitBuildTile { Caption = "Refinery", CostText = "120", OwnedText = "x3" },
+                 new Vector2(84, 84));
 
             Card(r, "KitToggle (switch)", new KitToggle { ButtonPressed = true }, new Vector2(74, 40));
             Card(r, "KitToggle (box)", new KitToggle { Style = KitToggle.ToggleStyle.Box }, new Vector2(52, 46));
@@ -343,9 +505,15 @@ namespace Beep.ECS.Scenes
 
             Card(r, "KitMeter (segmented)", Meter(0.62, 10, UiSurface.Role.Success), new Vector2(180, 26));
             Card(r, "KitMeter (continuous)", Meter(0.4, 0, UiSurface.Role.Danger), new Vector2(180, 26));
-            Card(r, "KitRadialMeter", new KitRadialMeter { CentreText = "62" }, new Vector2(90, 90));
-            Card(r, "KitOrbMeter", new KitOrbMeter(), new Vector2(84, 84));
-            Card(r, "KitHeartRow", new KitHeartRow(), new Vector2(180, 38));
+            // Every meter states its value EXPLICITLY, and the radial's ring agrees with the
+            // number printed in it. The board showed `CentreText = "62"` over a ring left at its
+            // 0.68 default, so the widget contradicted itself on screen and read as broken; the
+            // orb and the heart row were built with no value at all and inherited a full one,
+            // which renders as a plain green disc and five identical hearts.
+            Card(r, "KitRadialMeter", new KitRadialMeter { Value = 0.62f, CentreText = "62" }, new Vector2(90, 90));
+            Card(r, "KitOrbMeter", new KitOrbMeter { Value = 0.62f }, new Vector2(84, 84));
+            // 3.5 of 5 shows all three states the row can draw at once: full, partial, empty.
+            Card(r, "KitHeartRow", new KitHeartRow { MaxHearts = 5, Value = 3.5f }, new Vector2(180, 38));
             Card(r, "KitSpinner", new KitSpinner { Kind = KitSpinner.SpinnerKind.Ring }, new Vector2(64, 64));
 
             Card(r, "KitLabelValue", new KitLabelValue { Label = "ATTACK", Value = "7" }, new Vector2(150, 34));
@@ -358,10 +526,40 @@ namespace Beep.ECS.Scenes
             });
             Card(r, "KitCurrencyBar", cur, new Vector2(300, 46));
 
-            Card(r, "KitChip (rarity)", new KitChip { Kind = KitChip.ChipKind.Rarity, Text = "EPIC" }, new Vector2(86, 32));
-            Card(r, "KitChip (count)", new KitChip { Kind = KitChip.ChipKind.Count, Text = "12" }, new Vector2(52, 32));
-            Card(r, "KitChip (delta)", new KitChip { Kind = KitChip.ChipKind.Delta, Delta = 3f, Positive = true }, new Vector2(70, 32));
-            Card(r, "KitChip (lock)", new KitChip { Kind = KitChip.ChipKind.Lock, Text = "Lv 8" }, new Vector2(86, 32));
+            // Chips, shown ATTACHED. Every one of these is a marker pinned to something else --
+            // an unread count on an icon, a rarity on an item, a requirement on a locked slot --
+            // and a chip standing alone in a row is just a small button with a word in it.
+            Card(r, "Chip: count on an icon",
+                 Pinned(new KitIconButton { Glyph = "\u2709" },
+                        new KitChip { Kind = KitChip.ChipKind.Count, Text = "12", Role = UiSurface.Role.Danger }),
+                 new Vector2(52, 52));
+
+            Card(r, "Chip: dot on an icon",
+                 Pinned(new KitIconButton { Glyph = "\u2630" },
+                        new KitChip { Kind = KitChip.ChipKind.Dot, Role = UiSurface.Role.Danger }),
+                 new Vector2(52, 52));
+
+            Card(r, "Chip: rarity on an item",
+                 Pinned(new KitInventorySlot(),
+                        new KitChip { Kind = KitChip.ChipKind.Rarity, Text = "EPIC", Role = UiSurface.Role.Accent2 }),
+                 new Vector2(66, 66));
+
+            Card(r, "Chip: lock on a slot",
+                 Pinned(new KitInventorySlot(),
+                        new KitChip { Kind = KitChip.ChipKind.Lock, Text = "Lv 8", Role = UiSurface.Role.Danger }),
+                 new Vector2(66, 66));
+
+            Card(r, "Chip: status on a slot",
+                 Pinned(new KitInventorySlot(),
+                        new KitChip { Kind = KitChip.ChipKind.Status, Positive = true, Role = UiSurface.Role.Success }),
+                 new Vector2(66, 66));
+
+            // Not a KitLabelValue host: that widget right-aligns its value, so a chip pinned to the
+            // top-right corner lands straight on top of the number it is commenting on.
+            Card(r, "Chip: delta on an item",
+                 Pinned(new KitInventorySlot(),
+                        new KitChip { Kind = KitChip.ChipKind.Delta, Delta = 3f, Positive = true }),
+                 new Vector2(66, 66));
         }
 
         private void Panels()
@@ -384,7 +582,12 @@ namespace Beep.ECS.Scenes
             Card(r, "KitSpeechBubble", new KitSpeechBubble(), new Vector2(220, 100));
             Card(r, "KitToast", new KitToast(), new Vector2(230, 60));
             Card(r, "KitTooltip", new KitTooltip { Text = "Restores 25 HP" }, new Vector2(200, 72));
-            Card(r, "KitInputHint", new KitInputHint { Action = "Interact" }, new Vector2(180, 46));
+            // Two cards, because one key and a word does not say what this widget is for. It is
+            // the on-screen prompt -- "[E] Gather Wood" over a resource, "L2 + X" on a controller
+            // -- and CHORD support is the stated reason it exists. Showing only a lone "E" left
+            // the board with an unexplained keycap on it.
+            Card(r, "KitInputHint", new KitInputHint { Keys = new[] { "E" }, Action = "Gather Wood" }, new Vector2(200, 46));
+            Card(r, "KitInputHint (chord)", new KitInputHint { Keys = new[] { "L2", "X" }, Action = "Special" }, new Vector2(200, 46));
         }
 
         private void Inventory()

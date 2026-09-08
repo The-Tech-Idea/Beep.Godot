@@ -394,18 +394,15 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty ? GetNodeOrNull<GridProjectionComponent>(GridPath) : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty ? GetNodeOrNull<GridNavigationComponent>(NavigationPath) : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
-            if (_roads == null || !GodotObject.IsInstanceValid(_roads))
-                _roads = !RoadPath.IsEmpty ? GetNodeOrNull<GridRoadComponent>(RoadPath) : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
-            if (_selection == null || !GodotObject.IsInstanceValid(_selection))
-                _selection = !SelectionPath.IsEmpty ? GetNodeOrNull<GridSelectionComponent>(SelectionPath) : IsInsideTree() ? EntityComponent.FindComponent<GridSelectionComponent>(GetTree()?.CurrentScene) : null;
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath) : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty ? GetNodeOrNull<GridCellDataComponent>(CellDataPath) : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
+            EntityComponent.Resolve(this, NavigationPath, ref _navigation);
+            EntityComponent.Resolve(this, RoadPath, ref _roads);
+            EntityComponent.Resolve(this, SelectionPath, ref _selection);
+            EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
+            EntityComponent.Resolve(this, CellDataPath, ref _cells);
+
+            // Not the shared rule: the units root is an explicit wire only, and
+            // the camera falls back to the viewport's current camera.
             if (_unitsRoot == null || !GodotObject.IsInstanceValid(_unitsRoot))
                 _unitsRoot = !UnitsRootPath.IsEmpty ? GetNodeOrNull<Node>(UnitsRootPath) : null;
             if (_camera == null || !GodotObject.IsInstanceValid(_camera))

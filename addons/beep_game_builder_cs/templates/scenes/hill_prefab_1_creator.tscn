@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/ModularMountainPrefabComponent.cs" id="1_hill_prefab"]
+
+[node name="HillPrefab1Creator" type="Node2D"]
+script = ExtResource("1_hill_prefab")
+MaterialTheme = 4
+PackManifestPath = "res://addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_prefab_1_manifest.json"
+BasePrefabId = "hill_large"
+GenerateOnReady = true

@@ -657,6 +657,15 @@ namespace Beep.ECS.UI
             Col(t, "accent", c.AccentPrimary);
             Col(t, "accent2", c.AccentSecondary);
             Col(t, "neutral", c.SurfacePrimary);
+            // Every theme declares border_focus and it used to reach only native controls' focus
+            // StyleBoxes, while kit widgets drew their ring from semantic_info — so one theme put
+            // two different focus colours on one screen. Publishing it here gives the kit the same
+            // source the generated StyleBoxes use.
+            Col(t, "focus", c.BorderFocus);
+            // border_bevel_light is declared by all 51 themes and, until now, read by nothing at
+            // all: the kit's bevel painted pure white and pure black regardless of the palette.
+            Col(t, "bevel_light", c.BorderBevelLight);
+            Col(t, "bevel_dark", c.BorderBevelDark);
         }
 
         // ═══════════════════════════════════════════════════════════════

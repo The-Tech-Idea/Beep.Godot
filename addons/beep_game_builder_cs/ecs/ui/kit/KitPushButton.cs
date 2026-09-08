@@ -10,17 +10,21 @@ namespace Beep.ECS.UI.Kit
     /// every <c>Find&lt;Button&gt;</c>, <c>GetNode&lt;Button&gt;</c>, <c>is Button</c> and
     /// <c>btn.Pressed +=</c> in the codebase keeps working — all 48 typed lookups, untouched.
     ///
-    /// WHY THIS EXISTS ALONGSIDE <see cref="KitButton"/>
-    /// -------------------------------------------------
-    /// KitButton derives from KitControl, which buys the full layer/attachment model but makes it
-    /// NOT a Button — so swapping a scene onto it silently breaks every typed lookup and every
-    /// `Pressed +=`, and each scene has to be repaired by hand. That cost is why 126 buttons sat
-    /// unconverted across 35 files. PLAN.md rejected subclassing Button ("fighting the base
-    /// class's draw"), but the base draw is trivially suppressed — see below — and the migration
-    /// cost of NOT subclassing turned out to be far higher than the drawing cost of doing it.
+    /// THE ONE KIT BUTTON
+    /// ------------------
+    /// There were two. `KitButton` was also `: Button`, also drew the kit's chrome, and differed
+    /// only by carrying a badge — while this one carried the corner studs. Two classes on one
+    /// Godot base, each holding a feature the other lacked, is a split with nothing behind it:
+    /// a scene author had to know which name had which capability, and neither could be chosen
+    /// on the merits.
     ///
-    /// Use this to convert existing screens. Use KitButton when you want attachments that overhang
-    /// the control (a cost badge straddling the corner), which Button's own layout cannot express.
+    /// This class survived because the adoption was here — 98 references across 66 files and
+    /// roughly 50 shipped scenes, against 42 in 21 — and the badge came across to it. That
+    /// direction cost 22 files to repoint instead of 66, and left every shipped scene untouched.
+    ///
+    /// A note for anyone reading the old comment in a diff: it claimed the other class derived
+    /// from KitControl and so was "NOT a Button". That had stopped being true — both derived from
+    /// Button — and the stale claim is exactly what kept the pair looking justified.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -44,6 +48,40 @@ namespace Beep.ECS.UI.Kit
             set { if (_accent == value) return; _accent = value; RefreshVisualAndRedraw(); }
         }
         private UiSurface.Role _accent = UiSurface.Role.Accent;
+
+        /// <summary>Badge text, e.g. a cost. Empty = no badge. Drawn inside the top-right corner
+        /// so ordinary Godot containers can place buttons without overlap.
+        ///
+        /// Absorbed from KitPushButton, which was a second Button-derived kit button differing from
+        /// this one only by carrying a badge. Two classes on one Godot base, one adding nothing
+        /// the other could not, is the duplicate shape; the capability moved here, where the
+        /// adoption already was.</summary>
+        [Export]
+        public string BadgeText
+        {
+            get => _badge;
+            set
+            {
+                string next = value ?? "";
+                if (_badge == next) return;
+                _badge = next;
+                if (IsInsideTree())
+                {
+                    SuppressBaseChrome();
+                    UpdateMinimumSize();
+                }
+                RefreshVisualAndRedraw();
+            }
+        }
+        private string _badge = "";
+
+        [Export]
+        public UiSurface.Role BadgeRole
+        {
+            get => _badgeRole;
+            set { if (_badgeRole == value) return; _badgeRole = value; RefreshVisualAndRedraw(); }
+        }
+        private UiSurface.Role _badgeRole = UiSurface.Role.Warning;
 
         private string _genre = "";
         private KitGeometry Geo => KitGeometry.ForGenre(_genre);
@@ -84,7 +122,8 @@ namespace Beep.ECS.UI.Kit
         {
             int themeFs = UiSurface.FontSize(this);
             float pad = Mathf.Max(6f, themeFs * 0.7f);
-            float frame = Geo.FramePx(Mathf.Max(Size.Y, themeFs * 2.4f));
+            // Godot calls this to decide the size; reading Size makes the answer depend on itself.
+            float frame = Geo.FramePx(themeFs * 2.4f);
             float horizontal = (frame + pad) * 2f;
             float vertical = (frame * 0.5f + pad * 0.4f) * 2f;
             float width = horizontal + themeFs * 4.4f;
@@ -101,6 +140,13 @@ namespace Beep.ECS.UI.Kit
 
                 width = Mathf.Max(width, horizontal + longest);
                 height = Mathf.Max(height, vertical + Mathf.Max(1, lines.Length) * textFs * 1.15f);
+            }
+
+            Vector2 badge = BadgeSize();
+            if (badge.X > 0f)
+            {
+                width = Mathf.Max(width + badge.X * 0.45f, horizontal + badge.X * 1.35f);
+                height = Mathf.Max(height, badge.Y + Mathf.Max(4f, frame * 0.5f + pad * 0.35f));
             }
 
             Vector2 native = base._GetMinimumSize();
@@ -123,14 +169,19 @@ namespace Beep.ECS.UI.Kit
             {
                 int fs = UiSurface.FontSize(this);
                 float pad = Mathf.Max(6f, fs * 0.7f);
-                float frame = Geo.FramePx(Mathf.Max(Size.Y, fs * 2.4f));
+                // Font-derived, never Size: this frame becomes the content margin the minimum size
+                // is computed from, so reading Size feeds the button's height back into itself.
+                float frame = Geo.FramePx(fs * 2.4f);
                 foreach (string state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
                     KitChrome.SetEmptyStyleboxOverride(
                         this,
                         state,
                         frame + pad,
                         frame + pad,
-                        frame * 0.5f + pad * 0.4f,
+                        // The badge hangs over the plate's TOP corner now, not into the label's
+                        // right side, so the room it needs is vertical.
+                        frame * 0.5f + pad * 0.4f + (string.IsNullOrEmpty(_badge)
+                            ? 0f : KitChrome.BadgeOverhang(this)),
                         frame * 0.5f + pad * 0.4f);
             }
             finally
@@ -173,6 +224,15 @@ namespace Beep.ECS.UI.Kit
             float rimPx = Mathf.Max(1f, g.Rim * (fs / 14f));
             var body = new Rect2(Vector2.Zero, Size);
 
+            // The plate gives up the room the badge overhangs into, so the badge can straddle the
+            // corner without leaving this control's rect and upsetting a container.
+            if (!string.IsNullOrEmpty(_badge))
+            {
+                float over = KitChrome.BadgeOverhang(this);
+                body = new Rect2(body.Position.X, body.Position.Y + over,
+                                 Mathf.Max(1f, body.Size.X - over), Mathf.Max(1f, body.Size.Y - over));
+            }
+
             // One shared band walk (KitChrome), not a second copy. The register stack is
             // the kit's definition of what a plate IS; two implementations of it drift.
             KitChrome.DrawPlate(this, _genre, body, face, state, fs / 14f);
@@ -183,13 +243,15 @@ namespace Beep.ECS.UI.Kit
             // the plate above paints straight over the text Button already drew — every swept
             // button rendered as a blank plate until this was added. Re-drawing it here is the
             // price of owning the chrome on a Button subclass.
-            DrawLabel(state, face);
+            DrawLabel(body, state, face);
+            if (state != KitState.Disabled)
+                KitChrome.DrawCornerBadge(this, _genre, body, _badge, BadgeRole);
             KitChrome.DrawFocusRing(this, _genre, body, ActiveShape, 0.8f);
         }
 
         /// <summary>Multi-line aware: several template buttons carry two lines ("Hammer\nx2",
         /// "5\n★★"), and drawing only the first would silently lose half of every one of them.</summary>
-        private void DrawLabel(KitState state, Color face)
+        private void DrawLabel(Rect2 body, KitState state, Color face)
         {
             if (string.IsNullOrEmpty(Text)) return;
             var font = KitChrome.Font(this, _genre);
@@ -201,8 +263,8 @@ namespace Beep.ECS.UI.Kit
                 if (line.Length > longest.Length) longest = line;
 
             int fs = UiSurface.FitText(this,
-                                       Size - new Vector2(UiSurface.FontSize(this) * 1.4f,
-                                                          UiSurface.FontSize(this) * 0.35f),
+                                       body.Size - new Vector2(UiSurface.FontSize(this) * 1.4f,
+                                                               UiSurface.FontSize(this) * 0.35f),
                                        lines.Length > 1 ? 0.38f : 0.50f,
                                        longest, font, min: 8, themeMax: 1.08f);
             Color col = UiSurface.Ink(face);
@@ -211,14 +273,15 @@ namespace Beep.ECS.UI.Kit
             float dy = state == KitState.Pressed ? 1f : 0f;
 
             float lh = fs * 1.15f;
-            float top = (Size.Y - lh * lines.Length) * 0.5f + fs * 0.82f + dy;
-            float textWidth = Mathf.Max(1f, Size.X - UiSurface.FontSize(this) * 1.4f);
+            float top = body.Position.Y + (body.Size.Y - lh * lines.Length) * 0.5f + fs * 0.82f + dy;
+            float textWidth = Mathf.Max(1f, body.Size.X - UiSurface.FontSize(this) * 1.4f);
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = KitChrome.EllipsizeText(font, lines[i], fs, textWidth);
                 if (string.IsNullOrEmpty(line)) continue;
                 Vector2 m = font.GetStringSize(line, HorizontalAlignment.Left, -1, fs);
-                KitChrome.DrawText(this, _genre, font, new Vector2((Size.X - m.X) * 0.5f, top + lh * i),
+                KitChrome.DrawText(this, _genre, font,
+                           new Vector2(body.Position.X + (body.Size.X - m.X) * 0.5f, top + lh * i),
                            line, fs, col);
             }
         }
@@ -226,6 +289,21 @@ namespace Beep.ECS.UI.Kit
         /// <summary>State sculpt, shared with every other drop-in so a converted Button and a
         /// converted CheckButton respond to hover and disable identically.</summary>
         private static Color StateFace(Color s, KitState st) => KitChrome.StateFace(s, st);
+
+        private Vector2 BadgeSize()
+        {
+            if (string.IsNullOrEmpty(_badge)) return Vector2.Zero;
+
+            int fs = UiSurface.FontSize(this, UiSurface.TextRole.Small);
+            string badge = KitChrome.Case(_badge, _genre);
+            Font? font = KitChrome.Font(this, _genre);
+            float textWidth = font?.GetStringSize(badge, HorizontalAlignment.Left, -1, fs).X
+                           ?? badge.Length * fs * 0.56f;
+            float height = Mathf.Max(fs * 1.45f, 18f);
+            float width = Mathf.Clamp(textWidth + fs * 0.95f, height, fs * 5.2f);
+            return new Vector2(width, height);
+        }
+
 
         private void Studs(Rect2 r, KitGeometry g, Color ink)
         {

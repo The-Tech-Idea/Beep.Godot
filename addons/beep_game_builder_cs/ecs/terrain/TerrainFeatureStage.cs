@@ -75,6 +75,13 @@ namespace Beep.ECS
         /// </summary>
         private const float StandSpread = 0.32f;
 
+        internal static float RankedValue(float[] sorted, int count, float percentile)
+        {
+            if (count == 0) return 0f;
+            int position = Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp(percentile, 0f, 1f) * (count - 1)), 0, count - 1);
+            return sorted[position];
+        }
+
         public const string None = "";
         public const string Woods = "woods";
 
@@ -84,7 +91,7 @@ namespace Beep.ECS
         public const string Marsh = "marsh";
         public const string Oasis = "oasis";
 
-        public static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
         {
             if (settings.FeatureDensity <= 0.0f)
                 return;
@@ -137,8 +144,7 @@ namespace Beep.ECS
                     // on it, which is how the standard biome model works: a
                     // biome and its plant cover are read off the same climate,
                     // never off two disagreeing tests.
-                    int centre = world.CellCentreIndex(cellX, cellY);
-                    if (world.Temperature[centre] < 0.15f)
+                    if (world.TemperatureAtCell(cell) < 0.15f)
                         continue;
 
                     // The ranked value is the value that gets thresholded,
@@ -191,12 +197,11 @@ namespace Beep.ECS
             float globalThreshold = TerrainGeometry.Percentile(stand, eligible, 1.0f - wanted);
             float globalDense = TerrainGeometry.Percentile(stand, eligible, 1.0f - (wanted * 0.45f));
 
-            var window = new bool[eligible.Length];
+            var window = new float[BlockTiles * BlockTiles];
             for (int blockY = 0; blockY < blocksHigh; blockY++)
             {
                 for (int blockX = 0; blockX < blocksWide; blockX++)
                 {
-                    System.Array.Clear(window);
                     int seen = 0;
 
                     int fromX = blockX * BlockTiles;
@@ -212,8 +217,7 @@ namespace Beep.ECS
                             if (!eligible[at])
                                 continue;
 
-                            window[at] = true;
-                            seen++;
+                            window[seen++] = stand[at];
                         }
                     }
 
@@ -225,9 +229,9 @@ namespace Beep.ECS
                         continue;
                     }
 
-                    blockThreshold[block] = TerrainGeometry.Percentile(stand, window, 1.0f - wanted);
-                    blockDense[block] = TerrainGeometry.Percentile(
-                        stand, window, 1.0f - (wanted * 0.45f));
+                    System.Array.Sort(window, 0, seen);
+                    blockThreshold[block] = RankedValue(window, seen, 1.0f - wanted);
+                    blockDense[block] = RankedValue(window, seen, 1.0f - (wanted * 0.45f));
                 }
             }
 
@@ -272,7 +276,7 @@ namespace Beep.ECS
         /// that is a fact about the world, not about the map's own spread.
         /// </summary>
         private static float AverageWetness(
-            TerrainWorld world, TerrainGenerationSettings settings)
+            TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             float total = 0.0f;
             int seen = 0;
@@ -285,8 +289,7 @@ namespace Beep.ECS
                 if (!TerrainTileSets.IsLandKind(kind))
                     continue;
 
-                int sample = world.CellCentreIndex(cell % world.CellsWide, cell / world.CellsWide);
-                float moisture = world.Moisture[sample];
+                float moisture = world.MoistureAtCell(cell);
                 total += Mathf.Clamp((moisture - 0.26f) * 2.6f, 0.0f, 0.85f);
                 seen++;
             }
@@ -296,7 +299,7 @@ namespace Beep.ECS
         }
 
         private static string Choose(
-            TerrainWorld world,
+            TerrainGenerationBuffer world,
             TerrainGenerationSettings settings,
             int cell,
             int cellX,
@@ -306,8 +309,7 @@ namespace Beep.ECS
             float dense)
         {
             string terrain = world.CellTerrain[cell];
-            int sample = world.CellCentreIndex(cellX, cellY);
-            float temperature = world.Temperature[sample];
+            float temperature = world.TemperatureAtCell(cell);
             float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
             float density = Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
 
@@ -350,11 +352,10 @@ namespace Beep.ECS
         /// a penalty for tundra, where trees are marginal.
         /// </summary>
         private static float StandBias(
-            TerrainWorld world, TerrainGenerationSettings settings,
+            TerrainGenerationBuffer world, TerrainGenerationSettings settings,
             int cell, int cellX, int cellY, string terrain)
         {
-            int sample = world.CellCentreIndex(cellX, cellY);
-            float moisture = world.Moisture[sample];
+            float moisture = world.MoistureAtCell(cell);
             float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
 
             float bias = ((moisture - 0.45f) * 0.10f) + ((roll - 0.5f) * 0.02f);

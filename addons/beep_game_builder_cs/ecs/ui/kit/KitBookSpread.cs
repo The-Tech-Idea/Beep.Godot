@@ -113,16 +113,70 @@ namespace Beep.ECS.UI.Kit
 
         public void ClearTabs() => Tabs = System.Array.Empty<string>();
 
+        /// <summary>Drop one left-hand page title, reporting whether the index named one.</summary>
+        public bool RemoveLeftPageTitle(int index)
+        {
+            if (index < 0 || index >= _leftPages.Length) return false;
+            LeftPageTitles = WithRemoved(_leftPages, index);
+            return true;
+        }
+
+        /// <summary>Drop one right-hand page title, reporting whether the index named one.</summary>
+        public bool RemoveRightPageTitle(int index)
+        {
+            if (index < 0 || index >= _rightPages.Length) return false;
+            RightPageTitles = WithRemoved(_rightPages, index);
+            return true;
+        }
+
+        /// <summary>Drop one tab, reporting whether the index named one. The open page follows the
+        /// removal so a shortened book never sits on a page that is no longer there.</summary>
+        public bool RemoveTab(int index)
+        {
+            if (index < 0 || index >= _tabs.Length) return false;
+            if (index <= _selectedTab) _selectedTab = Mathf.Max(0, _selectedTab - 1);
+            Tabs = WithRemoved(_tabs, index);
+            return true;
+        }
+
+        private static string[] WithRemoved(string[] source, int index)
+        {
+            var next = new string[source.Length - 1];
+            for (int i = 0, w = 0; i < source.Length; i++)
+                if (i != index) next[w++] = source[i];
+            return next;
+        }
+
+        /// <summary>Turn a page, reporting whether one actually turned. False on the first or last
+        /// page releases the key so focus can leave the book instead of dead-ending on it.</summary>
+        private bool TurnByArrow(Vector2I dir)
+        {
+            int pages = PageCount();
+            if (pages <= 0) return false;
+
+            int target;
+            if (dir.X <= -KitChrome.Jump) target = 0;
+            else if (dir.X >= KitChrome.Jump) target = pages - 1;
+            else if (dir.X < 0) target = _selectedTab - 1;
+            else if (dir.X > 0) target = _selectedTab + 1;
+            else return false;
+
+            if (target < 0 || target >= pages || target == _selectedTab) return false;
+            TurnTo(target);
+            EmitSignal(SignalName.TabSelected, _selectedTab);
+            return true;
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, TurnByArrow))
+                return;
+
+            if (KitChrome.IsConfirm(@event))
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.X <= -9999) { TurnTo(0); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
-                if (dir.X >= 9999) { TurnTo(PageCount() - 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
-                if (dir.X < 0) { TurnTo(_selectedTab - 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
-                if (dir.X > 0) { TurnTo(_selectedTab + 1); EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
-                if (KitChrome.IsConfirmKey(key)) { EmitSignal(SignalName.TabSelected, _selectedTab); AcceptEvent(); return; }
+                EmitSignal(SignalName.TabSelected, _selectedTab);
+                AcceptEvent();
+                return;
             }
 
             if (!ShowTabs || _tabs.Length == 0) return;
@@ -203,18 +257,6 @@ namespace Beep.ECS.UI.Kit
                 UpdateProcessing();
             }
             RefreshMinimumAndRedraw();
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private bool ShouldAnimate() => _turnTime < 1f;
@@ -326,7 +368,7 @@ namespace Beep.ECS.UI.Kit
             if (ShowCover)
                 DrawCover(book, face, ink, rimPx);
             else
-                DrawShape(book, ActiveShape, face, RimColor(), rimPx);
+                DrawPlate(book, ActiveShape, face, RimColor(), rimPx);
 
             float inset = Mathf.Max(3f, book.Size.Y * 0.035f);
             float gut = Gutter;
@@ -393,7 +435,7 @@ namespace Beep.ECS.UI.Kit
             int titlePage = VisiblePageIndex();
             Title(PageLeftTitle(titlePage), lp);
             Title(PageRightTitle(titlePage), rp);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), book, ActiveShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, book, ActiveShape, 0.8f);
         }
 
         private void DrawCover(Rect2 book, Color face, Color ink, float rimPx)

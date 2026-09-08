@@ -1,0 +1,155 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/actors/economy_lab.gd" id="lab"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorkClockComponent.cs" id="clock"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs" id="wallet"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProductionSimulationComponent.cs" id="simulation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorRegistryComponent.cs" id="registry"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/PlayerContextComponent.cs" id="player"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorDefinition.cs" id="definition"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/economy_producer.tscn" id="producer"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitItemList.cs" id="list"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabel.cs" id="label"]
+
+[sub_resource type="Resource" id="sawmill"]
+script = ExtResource("definition")
+Id = "sawmill"
+Scene = ExtResource("producer")
+SimulationPolicy = 1
+
+[node name="EconomyLab" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("lab")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Layout"]
+layout_mode = 2
+text = "Settlement Economy"
+theme_override_font_sizes/font_size = 24
+script = ExtResource("label")
+
+[node name="Stock" type="Label" parent="Layout"]
+layout_mode = 2
+text = "Wood  120     Planks  0"
+script = ExtResource("label")
+
+[node name="Split" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="Controls" type="VBoxContainer" parent="Layout/Split"]
+layout_mode = 2
+custom_minimum_size = Vector2(340, 0)
+theme_override_constants/separation = 8
+
+[node name="Roster" type="ItemList" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(340, 150)
+script = ExtResource("list")
+
+[node name="Pause" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Pause production"
+script = ExtResource("button")
+
+[node name="Residency" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Unload scene"
+script = ExtResource("button")
+
+[node name="Advance" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Advance 10 turns"
+script = ExtResource("button")
+
+[node name="Save" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Capture snapshot"
+script = ExtResource("button")
+
+[node name="Restore" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Restore snapshot"
+script = ExtResource("button")
+
+[node name="Remove" type="Button" parent="Layout/Split/Controls"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 42)
+text = "Remove sawmill"
+script = ExtResource("button")
+
+[node name="Preview" type="SubViewportContainer" parent="Layout/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+stretch = true
+
+[node name="Viewport" type="SubViewport" parent="Layout/Split/Preview"]
+size = Vector2i(760, 540)
+render_target_update_mode = 4
+
+[node name="World" type="Node2D" parent="Layout/Split/Preview/Viewport"]
+
+[node name="Camera" type="Camera2D" parent="Layout/Split/Preview/Viewport/World"]
+position = Vector2(345, 245)
+
+[node name="Ground" type="Polygon2D" parent="Layout/Split/Preview/Viewport/World"]
+polygon = PackedVector2Array(-4096, -4096, 4096, -4096, 4096, 4096, -4096, 4096)
+color = Color(0.28, 0.48, 0.22, 1)
+
+[node name="Clock" type="Node" parent="Layout/Split/Preview/Viewport/World"]
+script = ExtResource("clock")
+SecondsPerTurn = 1.0
+
+[node name="Wallet" type="Node" parent="Layout/Split/Preview/Viewport/World"]
+script = ExtResource("wallet")
+
+[node name="ProductionSimulation" type="Node" parent="Layout/Split/Preview/Viewport/World"]
+script = ExtResource("simulation")
+WorkClockPath = NodePath("../Clock")
+ResourceWalletPath = NodePath("../Wallet")
+ActorRegistryPath = NodePath("../Registry")
+Recipes = [{"recipe_id": "planks", "duration_turns": 4.0, "inputs": [{"resource_id": "wood", "amount": 1}], "outputs": [{"resource_id": "plank", "amount": 2}]}]
+
+[node name="Actors" type="Node2D" parent="Layout/Split/Preview/Viewport/World"]
+y_sort_enabled = true
+
+[node name="Registry" type="Node" parent="Layout/Split/Preview/Viewport/World"]
+script = ExtResource("registry")
+ActorsRootPath = NodePath("../Actors")
+Definitions = Array[ExtResource("definition")]([SubResource("sawmill")])
+
+[node name="Player" type="Node" parent="Layout/Split/Preview/Viewport/World"]
+script = ExtResource("player")
+RegistryPath = NodePath("../Registry")
+PlayerId = "settlement"
+FactionId = "settlement"
+ReadLocalInput = false
+ControlMode = 1
+
+[node name="Status" type="Label" parent="Layout"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Settlement ready"
+script = ExtResource("label")

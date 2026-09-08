@@ -17,9 +17,13 @@ namespace Beep.ECS
     public partial class TerrainMapOverlayComponent : Node2D
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        [Export] public NodePath GridPath { get; set; } = new("");
+        /// <summary>Optional subtree of live gatherable resources; empty previews generated resources.</summary>
+        [Export] public NodePath ResourceRootPath { get; set; } = new("");
 
         [ExportGroup("Map")]
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 30);
+        [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
         [ExportGroup("Display")]
@@ -34,6 +38,8 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool ShowUndergroundResources { get; set; } = true;
         [Export] public NodePath ProspectingPath { get; set; } = new("");
+        /// <summary>Optional live drawdown store. Depleted underground cells are not shown.</summary>
+        [Export] public NodePath SubsurfaceStorePath { get; set; } = new("");
         [Export(PropertyHint.Range, "0.05,0.5,0.01")] public float ResourceRadiusTiles { get; set; } = 0.16f;
         [Export(PropertyHint.Range, "0.1,1.0,0.01")] public float StartRadiusTiles { get; set; } = 0.42f;
 
@@ -54,10 +60,19 @@ namespace Beep.ECS
         private readonly record struct ResourceMarker(Vector2 Centre, float Radius, float RimRadius, Color Colour);
 
         /// <summary>One baked underground patch: which tile, what colour.</summary>
-        private readonly record struct UndergroundPatch(Rect2 Rect, Color Colour);
+        private readonly record struct UndergroundPatch(Vector2[] Corners, Color Colour);
 
         private TerrainGeneratorComponent? _generator;
         private GridProspectingComponent? _prospecting;
+        private GridSubsurfaceStoreComponent? _store;
+        private GridProjectionComponent? _grid;
+        private bool _rebuildQueued;
+        private bool _hasRebuildAttempt;
+        private bool RequiresGenerator => ShowStartPositions || ShowUndergroundResources
+            || (ShowResources && ResourceRootPath.IsEmpty);
+        private TerrainResourceViewBinding? _liveResources;
+        public int ResourceMarkerCount => _resourceMarkers.Count;
+        public int UndergroundPatchCount => _undergroundPatches.Count;
 
         /// <summary>
         /// Built once per Rebuild rather than read from the generator on every
@@ -74,18 +89,45 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            ResolveSources();
             if (RefreshOnReady && !Engine.IsEditorHint())
                 CallDeferred(nameof(Rebuild));
         }
 
+        public override void _ExitTree()
+        {
+            DisconnectSources();
+            _liveResources?.Dispose();
+            _rebuildQueued = false;
+        }
+
+        public override void _EnterTree()
+        {
+            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+                Callable.From(() =>
+                {
+                    if (!IsInsideTree()) return;
+                    ResolveSources();
+                    QueueRebuild();
+                }).CallDeferred();
+        }
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
         public override string[] _GetConfigurationWarnings()
-            => TerrainGeneratorPath.IsEmpty
+            => RequiresGenerator && TerrainGeneratorPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : System.Array.Empty<string>();
 
         /// <summary>Re-reads the generator and repaints the markers.</summary>
         public void Rebuild()
         {
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
             // Markers, so the stack's marker slot - above the props, because a
             // forest must never hide the thing the player is meant to click.
             //
@@ -97,76 +139,88 @@ namespace Beep.ECS
             ZIndex = TerrainLayers.ZForMarkers();
             ZAsRelative = false;
 
-            if (_generator == null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            ResolveSources();
 
             _resourceMarkers.Clear();
             _undergroundPatches.Clear();
             _startMarkers.Clear();
 
-            if (_generator is null)
+            if ((RequiresGenerator && _generator is null) || (!GridPath.IsEmpty && _grid is null))
             {
                 // Reported HERE, once per rebuild. _Draw used to carry this
                 // warning, and _Draw runs on every canvas redraw - a window
                 // resize, an unrelated sibling invalidating the frame - so an
                 // unwired overlay spammed the same warning every frame.
-                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; the map overlay was not drawn.");
+                GD.PushWarning($"[{Name}] configured generator or grid is missing; the map overlay was not drawn.");
                 QueueRedraw();
                 return;
             }
 
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (RequiresGenerator && _generator is not null)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             float tile = Mathf.Max(1, TileSize);
+            Vector2[] firstCorners = CellOutline(BoundsOrigin, _grid);
+            if (firstCorners.Length >= 4)
+                tile = Mathf.Min(firstCorners[0].DistanceTo(firstCorners[1]), firstCorners[1].DistanceTo(firstCorners[2]));
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
 
-            if (ShowResources || ShowUndergroundResources)
+            if ((ShowResources && ResourceRootPath.IsEmpty) || ShowUndergroundResources)
             {
                 // Resolved ONCE for the whole scan rather than once per cell;
                 // see TerrainGeneratorComponent.ResolveField.
-                GeneratedTerrainField field = _generator.ResolveField();
+                GeneratedTerrainField field = _generator!.ResolveField();
                 float radius = Mathf.Max(1.0f, ResourceRadiusTiles * tile);
                 float rim = radius + Mathf.Max(1.0f, tile * 0.03f);
-
-                if (_prospecting == null || !GodotObject.IsInstanceValid(_prospecting))
-                    _prospecting = ProspectingPath.IsEmpty
-                        ? null
-                        : GetNodeOrNull<GridProspectingComponent>(ProspectingPath);
 
                 for (int y = 0; y < size.Y; y++)
                 {
                     for (int x = 0; x < size.X; x++)
                     {
-                        var cell = new Vector2I(x, y);
-                        if (ShowResources)
+                        var sample = new Vector2I(x, y);
+                        Vector2I cell = BoundsOrigin + sample;
+                        if (ShowResources && ResourceRootPath.IsEmpty)
                         {
                             // Surface and liquid alike: a marker means "there
                             // is something here", whichever stratum holds it.
-                            string resource = field.ResourceAtCell(cell);
+                            string resource = field.ResourceAtCell(sample);
                             if (resource.Length == 0)
-                                resource = field.LiquidResourceAtCell(cell);
+                                resource = field.LiquidResourceAtCell(sample);
                             if (resource.Length > 0)
                             {
-                                Vector2 centre = new((x + 0.5f) * tile, (y + 0.5f) * tile);
-                                _resourceMarkers.Add(new ResourceMarker(centre, radius, rim, ColourFor(resource)));
+                                Vector2 centre = CellPosition(cell, _grid);
+                                if (centre.IsFinite())
+                                    _resourceMarkers.Add(new ResourceMarker(centre, radius, rim, ColourFor(resource)));
                             }
                         }
 
                         if (ShowUndergroundResources
-                            && (_prospecting == null || _prospecting.IsDiscovered(cell)))
+                            && (ProspectingPath.IsEmpty || _prospecting?.IsDiscovered(cell) == true)
+                            && (SubsurfaceStorePath.IsEmpty || _store?.RemainingAt(cell) > 0))
                         {
-                            string underground = field.UndergroundResourceAtCell(cell);
+                            string underground = field.UndergroundResourceAtCell(sample);
                             if (underground.Length > 0)
                             {
-                                float richness = field.UndergroundRichnessAtCell(cell);
-                                _undergroundPatches.Add(new UndergroundPatch(
-                                    new Rect2(x * tile, y * tile, tile, tile),
-                                    UndergroundColourFor(underground, richness)));
+                                float richness = field.UndergroundRichnessAtCell(sample);
+                                Vector2[] corners = CellOutline(cell, _grid);
+                                if (corners.Length >= 3)
+                                    _undergroundPatches.Add(new UndergroundPatch(corners, UndergroundColourFor(underground, richness)));
                             }
                         }
                     }
+                }
+            }
+
+            if (ShowResources && !ResourceRootPath.IsEmpty && _liveResources is not null)
+            {
+                var bounds = new Rect2I(BoundsOrigin, size);
+                float radius = Mathf.Max(1.0f, ResourceRadiusTiles * tile);
+                foreach (var (cell, resource) in _liveResources.Entries())
+                {
+                    if (!bounds.HasPoint(cell)) continue;
+                    Vector2 centre = CellPosition(cell, _grid);
+                    if (centre.IsFinite()) _resourceMarkers.Add(new ResourceMarker(
+                        centre, radius, radius + Mathf.Max(1.0f, tile * 0.03f), ColourFor(resource)));
                 }
             }
 
@@ -174,8 +228,11 @@ namespace Beep.ECS
             {
                 _startRadius = Mathf.Max(2.0f, StartRadiusTiles * tile);
                 _startThickness = Mathf.Max(2.0f, tile * 0.07f);
-                foreach (Vector2I cell in _generator.GetStartPositions())
-                    _startMarkers.Add(new Vector2((cell.X + 0.5f) * tile, (cell.Y + 0.5f) * tile));
+                foreach (Vector2I cell in _generator!.GetStartPositions())
+                {
+                    Vector2 centre = CellPosition(BoundsOrigin + cell, _grid);
+                    if (centre.IsFinite()) _startMarkers.Add(centre);
+                }
             }
 
             QueueRedraw();
@@ -183,15 +240,94 @@ namespace Beep.ECS
 
         public override void _Draw()
         {
-            if (_generator == null)
-                return;
-
             // Underground first: it is the ground the markers sit over.
             foreach (UndergroundPatch patch in _undergroundPatches)
-                DrawRect(patch.Rect, patch.Colour);
+                DrawColoredPolygon(patch.Corners, patch.Colour);
 
             DrawResources();
             DrawStartPositions();
+        }
+
+        private void ResolveSources()
+        {
+            _liveResources ??= new TerrainResourceViewBinding(QueueRebuild);
+            _liveResources.Bind(ResourceRootPath.IsEmpty ? null : GetNodeOrNull<Node>(ResourceRootPath));
+            _generator = TerrainGeneratorPath.IsEmpty ? null : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            var prospecting = ProspectingPath.IsEmpty ? null : GetNodeOrNull<GridProspectingComponent>(ProspectingPath);
+            var store = SubsurfaceStorePath.IsEmpty ? null : GetNodeOrNull<GridSubsurfaceStoreComponent>(SubsurfaceStorePath);
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            if (_prospecting == prospecting && _store == store && _grid == grid) return;
+            DisconnectSources();
+            _prospecting = prospecting;
+            _store = store;
+            _grid = grid;
+            if (Engine.IsEditorHint()) return;
+            if (_prospecting is not null) _prospecting.DiscoveryChanged += QueueRebuild;
+            if (_grid is not null) _grid.GeometryChanged += QueueRebuild;
+            if (_store is not null)
+            {
+                _store.DepositChanged += OnDepositChanged;
+                _store.StateRestored += QueueRebuild;
+            }
+        }
+
+        private void DisconnectSources()
+        {
+            if (GodotObject.IsInstanceValid(_prospecting)) _prospecting!.DiscoveryChanged -= QueueRebuild;
+            if (GodotObject.IsInstanceValid(_store))
+            {
+                _store!.DepositChanged -= OnDepositChanged;
+                _store.StateRestored -= QueueRebuild;
+            }
+            _prospecting = null;
+            _store = null;
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = null;
+        }
+
+        /// <summary>Logical cell center in overlay-local coordinates.</summary>
+        public Vector2 CellPosition(Vector2I cell)
+        {
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            return !GridPath.IsEmpty && grid is null ? new Vector2(float.NaN, float.NaN) : CellPosition(cell, grid);
+        }
+
+        private Vector2 CellPosition(Vector2I cell, GridProjectionComponent? grid)
+            => grid is null ? ((Vector2)cell + Vector2.One * 0.5f) * Mathf.Max(1, TileSize)
+                : ToLocal(grid.CellToWorld(cell));
+
+        /// <summary>Logical cell polygon in overlay-local coordinates, shared with patch drawing.</summary>
+        public Vector2[] CellOutline(Vector2I cell)
+        {
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            return !GridPath.IsEmpty && grid is null ? System.Array.Empty<Vector2>() : CellOutline(cell, grid);
+        }
+
+        private Vector2[] CellOutline(Vector2I cell, GridProjectionComponent? grid)
+        {
+            if (grid is not null)
+            {
+                Vector2[] points = grid.CellCorners(cell);
+                for (int i = 0; i < points.Length; i++) points[i] = ToLocal(grid.ToGlobal(points[i]));
+                return points;
+            }
+            float tile = Mathf.Max(1, TileSize);
+            Vector2 corner = (Vector2)cell * tile;
+            return new[] { corner, corner + new Vector2(tile, 0), corner + Vector2.One * tile, corner + new Vector2(0, tile) };
+        }
+
+        private void OnDepositChanged(int x, int y, string resourceId, int remaining) => QueueRebuild();
+
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
         }
 
         /// <summary>

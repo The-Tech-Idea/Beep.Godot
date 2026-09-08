@@ -18,6 +18,7 @@ namespace Beep.ECS
         [Signal] public delegate void GatheredEventHandler(string resourceId, int amount, int remainingAmount);
         [Signal] public delegate void GatherRejectedEventHandler(string reason);
         [Signal] public delegate void DepletedEventHandler();
+        [Signal] public delegate void ResourceChangedEventHandler();
 
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath PlacementPath { get; set; } = new("");
@@ -193,6 +194,8 @@ namespace Beep.ECS
             if (Amount <= 0)
                 Deplete();
 
+            EmitSignal(SignalName.ResourceChanged);
+
             return true;
         }
 
@@ -233,6 +236,7 @@ namespace Beep.ECS
                 if (MarkCellOccupiedOnReady)
                     ReserveCurrentCell();
             }
+            EmitSignal(SignalName.ResourceChanged);
         }
 
         private void Deplete()
@@ -262,25 +266,10 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
-                _wallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
+            EntityComponent.Resolve(this, PlacementPath, ref _placement);
+            EntityComponent.Resolve(this, ResourceWalletPath, ref _wallet);
+            EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
         }
 
         private void ClearStaleActiveGatherJob()

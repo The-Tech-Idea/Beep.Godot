@@ -17,6 +17,9 @@ Additional bundled faces from the provided all-in-one font folder:
     Vectroid.otf                  CC0 1.0 Universal, Raymond Larabie
     Gridtile.ttf                  CC0 1.0 Universal
     OperationNapalm-Regular.ttf   CC0 1.0 Universal
+    EBGaramond-Regular.ttf        SIL Open Font License 1.1
+                                  Copyright 2017 The EB Garamond Project Authors
+                                  Full license: EBGaramond-OFL.txt
 
 WHAT IS AND IS NOT HERE
 -----------------------
@@ -26,18 +29,30 @@ the 59 reference images. These bundled faces cover six of the roles:
     Pixel        Kenney_Pixel.ttf              (only when a pixel theme explicitly asks)
     Condensed    Audex-Regular.ttf             (clean compact UI face for citybuilder/industrial skins)
     Sans         NotoSans-Variable.ttf         (readable UI text for non-pixel themes)
-    Rounded      Kenney_Blocks.ttf             (files 12, 13, 17, 26, 44)
+    Rounded      Kenney_Future.ttf             (files 12, 13, 17, 26, 44)
+                                               Kenney_Blocks was here and is a solid-square
+                                               DISPLAY face whose counters are filled; as the
+                                               single face a genre draws ALL its text with it
+                                               made cardgame/platformer/puzzle unreadable below
+                                               title size.
     Heavy        Kenney_Thick.ttf              (display / banner use)
     Mono         Kenney_Mini_Square_Mono.ttf   (grid/terminal readouts)
 
 The additional raw faces above are available for project-specific use after
 Godot imports them, but they are not the default startup font map.
 
-NOT AVAILABLE under CC0 from this source, and therefore NOT shipped:
+And a seventh, added from the project's own font library:
 
-    Serif        files 11, 21, 33   (rpg, survival storybook)
+    Serif        EBGaramond-Regular.ttf        (files 11, 21, 33 -- rpg, survival storybook)
+
+STILL NOT SHIPPED, no licence-clear face available:
+
     Blackletter  files 19, 53, 54   (rpg gothic)
     Handwritten  file  18           (the diegetic journal)
+
+Both continue to substitute deterministically and warn -- see KitFonts.Substitute. The wider
+font library carries candidates for these, but their licences are "personal use only" or a
+vendor EULA rather than OFL/CC0, so they are deliberately not bundled with a shipping addon.
 
 Those three roles resolve to null and WARN. They are a real gap, not a defect:
 the framework ships no substitute, and a silent fallback to the default would be

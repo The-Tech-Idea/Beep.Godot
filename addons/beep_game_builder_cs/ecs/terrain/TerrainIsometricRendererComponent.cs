@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Beep.ECS
 {
@@ -35,6 +36,7 @@ namespace Beep.ECS
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
 
         [ExportGroup("Map")]
+        [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 48);
 
         [ExportGroup("Blocks")]
@@ -71,9 +73,10 @@ namespace Beep.ECS
         [Export] public int TopLift { get; set; }
 
         /// <summary>
-        /// How far one elevation step raises a block. This is the height of a
-        /// block's visible SIDE: less and the terraces overlap into mush, more
-        /// and the column pulls apart into floating slabs.
+        /// How far one elevation step raises a block. For shorter steps, the
+        /// block material resamples only the side faces to this height while
+        /// preserving the top diamond. Steps taller than the source sides need
+        /// taller artwork to avoid gaps.
         /// </summary>
         [Export(PropertyHint.Range, "4,512,1")] public int LevelHeight { get; set; } = 158;
 
@@ -90,8 +93,6 @@ namespace Beep.ECS
         [Export] public int SwampFrame { get; set; } = 8;
         [Export] public int GravelFrame { get; set; } = 9;
         [Export] public int RockFrame { get; set; } = 10;
-        [Export] public int ShallowWaterFrame { get; set; } = 11;
-        [Export] public int DeepWaterFrame { get; set; } = 12;
 
         /// <summary>
         /// Interchangeable frames per terrain, as "kind=frame[,frame...]".
@@ -144,10 +145,10 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
 
         /// <summary>Sub-tile samples per tile edge when measuring the coastline.</summary>
-        [Export(PropertyHint.Range, "1,8,1")] public int CoastDetail { get; set; } = 4;
+        [Export(PropertyHint.Range, "1,16,1")] public int CoastDetail { get; set; } = TerrainCoastField.DefaultDetail;
 
         /// <summary>Distance, in tiles, at which the coast field saturates.</summary>
-        [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = 5.0f;
+        [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
 
         /// <summary>
         /// How opaque deep water gets. With ClarityTiles below, this is what
@@ -188,6 +189,10 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.50f;
         [Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 4.5f;
         [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
+        /// <summary>Tiles per sandy-bottom texture repeat; does not resize atlas blocks.</summary>
+        [Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
+        /// <summary>Tiles per animated water-texture repeat.</summary>
+        [Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
 
         // The same five foam-sheet dials the painted renderer exposes, feeding
         // the same shader uniforms. The two views deliberately share one water
@@ -251,6 +256,84 @@ namespace Beep.ECS
 
         private float _summitFloor = float.MaxValue;
         private TerrainGeneratorComponent? _generator;
+        [Export] public NodePath CellDataPath { get; set; } = new("");
+        [Signal] public delegate void SurfaceRebuiltEventHandler();
+        private GridCellDataComponent? _cells;
+        private ITerrainSurfaceData? _liveSurface;
+        private Vector2I _sourceOrigin;
+        private bool _rebuildQueued;
+        private bool _hasSurface;
+        private bool _hasRebuildAttempt;
+        private Rect2 _surfaceExtent;
+        /// <summary>Built logical terrain bounds, excluding decorative art and ocean overscan.</summary>
+        public Rect2 SurfaceExtent => _surfaceExtent;
+
+        internal ITerrainSurfaceData? ResolveSurface()
+        {
+            var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+            if (cells != _cells)
+            {
+                DisconnectCells();
+                _cells = cells;
+                if (cells is not null && !Engine.IsEditorHint())
+                {
+                    cells.CellChanged += OnCellChanged;
+                    cells.CellsChanged += QueueRebuild;
+                }
+            }
+            if (cells is not null && (_liveSurface is null || _sourceOrigin != BoundsOrigin))
+            {
+                _sourceOrigin = BoundsOrigin;
+                _liveSurface = new OffsetTerrainSurfaceData(new LiveTerrainSurfaceData(cells), BoundsOrigin);
+            }
+            if (!CellDataPath.IsEmpty) return _liveSurface;
+            ResolveGenerator();
+            return _generator?.ResolveField();
+        }
+
+        internal System.Func<Vector2, bool> CreateWaterSampler(bool localQuery = false)
+        {
+            var source = ResolveSurface();
+            if (_cells is not null)
+                return localQuery ? TerrainCoastField.CreateLiveWaterQuery(_cells, BoundsOrigin, BoundsSize)
+                    : TerrainCoastField.CreateLiveWaterSampler(_cells, BoundsOrigin, BoundsSize);
+            return source is GeneratedTerrainField generated ? generated.IsWaterAtPosition : _ => true;
+        }
+
+        public override void _ExitTree() => DisconnectCells();
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && IsInsideTree() && IsVisibleInTree() && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
+        private void DisconnectCells()
+        {
+            if (_cells is not null && GodotObject.IsInstanceValid(_cells))
+            {
+                _cells.CellChanged -= OnCellChanged;
+                _cells.CellsChanged -= QueueRebuild;
+            }
+            _cells = null;
+            _liveSurface = null;
+        }
+
+        private void OnCellChanged(int x, int y)
+        {
+            if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
+        }
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
+        }
         private readonly List<TileMapLayer> _layers = new();
 
         /// <summary>
@@ -268,15 +351,21 @@ namespace Beep.ECS
         /// per-tile material cannot give it that, and the atlas UVs it would
         /// have to sample by belong to the tile, not the map.
         /// </summary>
-        private TileMapLayer? _water;
+        private Polygon2D? _water;
+        private Polygon2D? _rivers;
         private ShaderMaterial? _waterMaterial;
-        /// <summary>How far the sea layer was shifted, in tiles; see EnsureWaterSurface.</summary>
-        private Vector2 _waterTileOffset = Vector2.Zero;
+        // Keep an owning managed reference while the river material is attached.
+        private ShaderMaterial? _riverMaterial;
         private ImageTexture? _coastMap;
+        private readonly TerrainCoastField.RenderCache _renderCoast = new();
+        private readonly TerrainCoastField.LiveCache _liveCoast = new();
 
         /// <summary>Steps from the nearest land, per water cell; 0 on land.</summary>
         private int[] _depth = Array.Empty<int>();
         private TileSet? _tileSet;
+        private (string Block, string Top, int Columns, int Rows, Vector2I Cell, int BlockLift, int TopLift, int LevelHeight)? _tileSetSettings;
+        private int[] _frameSettings = Array.Empty<int>();
+        private string[] _variantSettings = Array.Empty<string>();
         /// <summary>Terrain kind to its cell in the atlas.</summary>
         private readonly Dictionary<string, Vector2I> _frames = new();
 
@@ -291,7 +380,7 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
         {
-            if (TerrainGeneratorPath.IsEmpty)
+            if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
                 return new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." };
             if (string.IsNullOrWhiteSpace(BlockSheetPath))
                 return new[] { "BlockSheetPath should point to a sheet of isometric blocks." };
@@ -301,18 +390,23 @@ namespace Beep.ECS
         /// <summary>Rebuilds the whole isometric map from the generator.</summary>
         public void Rebuild()
         {
-            ResolveGenerator();
-            if (_generator is null)
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
+            ITerrainSurfaceData? field = ResolveSurface();
+            if (field is null)
             {
-                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no blocks were drawn.");
+                ClearSurface();
+                GD.PushWarning($"[{Name}] configured terrain source is unavailable; the surface was cleared.");
                 return;
             }
             if (!EnsureTileSet())
             {
+                ClearSurface();
                 GD.PushWarning($"[{Name}] the block TileSet could not be built, so no blocks were drawn.");
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (_cells is null && _generator is not null)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             // Resolved ONCE per rebuild rather than once per cell: this
             // renderer's own per-cell cost already compounds hardest of any
@@ -320,13 +414,14 @@ namespace Beep.ECS
             // and summit floor, plus ShowsSide re-checking terrain and relief
             // for every elevation step of every raised cell) - see
             // TerrainGeneratorComponent.ResolveField.
-            GeneratedTerrainField field = _generator.ResolveField();
 
             // The coastline both views measure from. Built here rather than
             // copied, so the sea cannot break in one projection and not the
             // other.
             Vector2I bounds = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            _coastMap = TerrainCoastField.Build(_generator, bounds, CoastDetail, CoastRangeTiles);
+            _coastMap = _cells is not null
+                ? _liveCoast.Resolve(_cells, BoundsOrigin, bounds, CoastDetail, CoastRangeTiles)
+                : TerrainCoastField.Build(_generator!, bounds, CoastDetail, CoastRangeTiles);
 
             EnsureLayers();
             foreach (TileMapLayer existing in _layers)
@@ -336,20 +431,41 @@ namespace Beep.ECS
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             MeasureWaterDepth(field, size);
             MeasureSummitFloor(field, size);
+            bool extentStarted = false;
+            var riverVertices = new List<Vector2>();
+            var riverPolygons = new Godot.Collections.Array();
+            _surfaceExtent = new Rect2();
+            void Include(Vector2 point)
+            {
+                _surfaceExtent = extentStarted ? _surfaceExtent.Expand(point) : new Rect2(point, Vector2.Zero);
+                extentStarted = true;
+            }
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
                 {
                     var cell = new Vector2I(x, y);
+                    Vector2 baseCenter = _layers[0].MapToLocal(BoundsOrigin + cell);
+                    Vector2 half = (Vector2)_layers[0].TileSet.TileSize * 0.5f;
+                    Include(baseCenter - half);
+                    Include(baseCenter + half);
+                    foreach (Vector2 corner in SurfaceCorners(field, cell)) Include(corner);
                     string terrain = field.TerrainAtCell(cell);
-                    if (!_frames.TryGetValue(terrain, out Vector2I frame))
-                        continue;
-
-                    frame = VariantFor(terrain, cell, frame);
-
                     bool land = !TerrainTileSets.IsWaterKind(terrain);
                     if (!land)
                     {
+                        if (field.WaterSourceAtCell(cell) == "river")
+                        {
+                            // Native grid diamonds, batched in one elevated surface. Keep
+                            // local vertices origin-independent for the shared water shader.
+                            Vector2 center = _layers[0].MapToLocal(cell);
+                            int first = riverVertices.Count;
+                            riverVertices.Add(center + new Vector2(0, -half.Y));
+                            riverVertices.Add(center + new Vector2(half.X, 0));
+                            riverVertices.Add(center + new Vector2(0, half.Y));
+                            riverVertices.Add(center + new Vector2(-half.X, 0));
+                            riverPolygons.Add(new[] { first, first + 1, first + 2, first + 3 });
+                        }
                         // The bed under open water, dropping away from the shore.
                         //
                         // Only where the surface is see-through. Clamping every
@@ -365,29 +481,15 @@ namespace Beep.ECS
 
                         Vector2I bedFrame = SeabedFrameFor(depth - 1);
                         if (bedFrame.X >= 0)
-                            _seabed.SetCell(cell, SourceId, bedFrame);
-
-                        // A RIVER also gets a tile at ground level.
-                        //
-                        // Every other water cell is deliberately a hole in the
-                        // ground layer - bed below, water surface over it - and
-                        // that works for the sea and for lakes because they are
-                        // wide enough to have an interior the front row does not
-                        // cover. A river is ONE TILE WIDE, and a one-tile hole is
-                        // hidden completely behind the block sprite of the tile
-                        // in front of it. Measured at verified river positions:
-                        // 52 to 62 of 81 pixels were grass. The drainage network
-                        // was correct the whole time and simply could not be
-                        // seen.
-                        //
-                        // The flat-top source rather than the block one, because
-                        // a river sits at ground level and must not read as a
-                        // raised cube.
-                        if (field.WaterSourceAtCell(cell) == "river")
-                            _layers[LayerFor(GroundLevel)].SetCell(cell, TopSourceId, frame);
+                            _seabed.SetCell(BoundsOrigin + cell,
+                                _tileSet!.HasSource(TopSourceId) ? TopSourceId : SourceId, bedFrame);
 
                         continue;
                     }
+
+                    if (!_frames.TryGetValue(terrain, out Vector2I frame))
+                        continue;
+                    frame = VariantFor(terrain, cell, frame);
 
                     // Layer 1 - ground, over the sea. Raised cells get ground
                     // too: it is the body of the cliff, and leaving it out is
@@ -405,7 +507,7 @@ namespace Beep.ECS
                     //
                     // Written as a loop rather than a case per level so that
                     // adding a step to the stack is a change to LevelFor alone.
-                    int level = LevelFor(terrain, (int)field.ReliefAtCell(cell));
+                    int level = SurfaceLevel(field, cell);
 
                     // A mountain TAPERS. Every raised cell drawn at one height
                     // makes a range a flat-topped mesa - correct as a stack, and
@@ -413,15 +515,36 @@ namespace Beep.ECS
                     // stands above its own edge. The cells deep inside a massif
                     // take one more step than the cells around its rim, so the
                     // range steps up to its summits instead of shearing off.
-                    if (level >= PeakLevel && field.ElevationAtCell(cell) >= _summitFloor)
-                        level = SummitLevel;
                     for (int step = GroundLevel; step <= level && step < LevelCount; step++)
                     {
                         _layers[LayerFor(step)].SetCell(
-                            cell, ShowsSide(field, cell, step, size) ? SourceId : TopSourceId, frame);
+                            BoundsOrigin + cell,
+                            !_tileSet!.HasSource(TopSourceId) || ShowsSide(field, cell, step, size) ? SourceId : TopSourceId,
+                            frame);
                     }
                 }
             }
+            RebuildRivers(riverVertices, riverPolygons);
+            _hasSurface = true;
+            EmitSignal(SignalName.SurfaceRebuilt);
+        }
+
+        private void ClearSurface()
+        {
+            foreach (var layer in _layers)
+                if (GodotObject.IsInstanceValid(layer)) layer.Clear();
+            if (GodotObject.IsInstanceValid(_seabed)) _seabed!.Clear();
+            if (GodotObject.IsInstanceValid(_water)) _water!.Visible = false;
+            if (GodotObject.IsInstanceValid(_rivers))
+            {
+                _rivers!.Visible = false;
+                _rivers.Polygons = new Godot.Collections.Array();
+                _rivers.Polygon = Array.Empty<Vector2>();
+            }
+            _surfaceExtent = new Rect2();
+            _hasSurface = false;
+            _depth = Array.Empty<int>();
+            EmitSignal(SignalName.SurfaceRebuilt);
         }
 
         /// <summary>
@@ -477,8 +600,9 @@ namespace Beep.ECS
         /// </summary>
         private Vector2I VariantFor(string terrain, Vector2I cell, Vector2I fallback)
         {
-            if (!_variants.TryGetValue(terrain, out Vector2I[]? choices) || choices.Length <= 1)
+            if (!_variants.TryGetValue(terrain, out Vector2I[]? choices) || choices.Length == 0)
                 return fallback;
+            if (choices.Length == 1) return choices[0];
 
             uint value = (uint)(cell.X * 374761393) + (uint)(cell.Y * 668265263) + 2166136261u;
             value = (value ^ (value >> 13)) * 1274126177u;
@@ -495,7 +619,7 @@ namespace Beep.ECS
         /// those neighbours sits lower, or when there is no neighbour at all.
         /// Everywhere else the flat top tiles seamlessly with its neighbours.
         /// </summary>
-        private bool ShowsSide(GeneratedTerrainField field, Vector2I cell, int level, Vector2I size)
+        private bool ShowsSide(ITerrainSurfaceData field, Vector2I cell, int level, Vector2I size)
         {
             return Lower(cell + Vector2I.Right) || Lower(cell + Vector2I.Down);
 
@@ -508,7 +632,7 @@ namespace Beep.ECS
                 if (kind.Length == 0)
                     return true;
 
-                return LevelFor(kind, (int)field.ReliefAtCell(at)) < level;
+                return SurfaceLevel(field, at) < level;
             }
         }
 
@@ -526,7 +650,7 @@ namespace Beep.ECS
         /// Height is the field that actually says which part of a range is its
         /// crest, and a ridge one tile wide still has one.
         /// </summary>
-        private void MeasureSummitFloor(GeneratedTerrainField field, Vector2I size)
+        private void MeasureSummitFloor(ITerrainSurfaceData field, Vector2I size)
         {
             var heights = new List<float>();
             for (int y = 0; y < size.Y; y++)
@@ -559,7 +683,7 @@ namespace Beep.ECS
         /// records, and taking it from the deep/shallow kind alone gives two
         /// flat terraces instead of a slope.
         /// </summary>
-        private void MeasureWaterDepth(GeneratedTerrainField field, Vector2I size)
+        private void MeasureWaterDepth(ITerrainSurfaceData field, Vector2I size)
         {
             int count = size.X * size.Y;
             if (_depth.Length != count)
@@ -622,7 +746,7 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Where a cell's top face sits on screen, elevation included.
+        /// Where an absolute logical cell's top face sits in renderer-local space, elevation included.
         ///
         /// Anything drawn ON the map - trees, resources, units - needs this, and
         /// it must come from here rather than be recomputed: the projection, the
@@ -633,19 +757,19 @@ namespace Beep.ECS
         /// </summary>
         public Vector2 SurfacePosition(Vector2I cell)
         {
-            ResolveGenerator();
-            if (_generator is null || _layers.Count == 0)
+            var field = ResolveSurface();
+            if (!_hasSurface || field is null || _layers.Count == 0)
                 return Vector2.Zero;
 
-            return SurfacePosition(_generator.ResolveField(), cell);
+            return SurfacePosition(field, cell - BoundsOrigin);
         }
 
         /// <summary>
-        /// The hot-path overload: a caller looping many cells resolves the
+        /// The hot-path overload takes a local generation cell: a caller looping many cells resolves the
         /// field once and passes it, instead of each call paying the
         /// generator's settings rebuild through the public per-cell wrappers.
         /// </summary>
-        internal Vector2 SurfacePosition(GeneratedTerrainField field, Vector2I cell)
+        internal Vector2 SurfacePosition(ITerrainSurfaceData field, Vector2I cell)
         {
             if (_layers.Count == 0)
                 return Vector2.Zero;
@@ -653,8 +777,94 @@ namespace Beep.ECS
             // Every layer shares one grid, so the projection comes from any of
             // them and the height comes from the level. That is also what lets
             // the sea answer without owning a layer of its own.
+            int level = SurfaceLevel(field, cell);
+            if (level >= GroundLevel && LayerFor(level) < _layers.Count)
+            {
+                var layer = _layers[LayerFor(level)];
+                return layer.Transform * layer.MapToLocal(BoundsOrigin + cell);
+            }
+            return _layers[0].MapToLocal(BoundsOrigin + cell);
+        }
+
+        public int SurfaceLevel(Vector2I cell)
+        {
+            var field = ResolveSurface();
+            return !_hasSurface || field is null ? SeaLevel : SurfaceLevel(field, cell - BoundsOrigin);
+        }
+
+        /// <summary>Pick a visible top diamond in renderer-local coordinates, highest layer first.
+        /// Cliff sides and decorative sprite overhang are not selectable cell surfaces.</summary>
+        public Vector2I SurfaceCellAt(Vector2 position)
+        {
+            var invalid = new Vector2I(int.MinValue, int.MinValue);
+            var field = ResolveSurface();
+            if (!_hasSurface || field is null || _layers.Count == 0 || !position.IsFinite()) return invalid;
+            for (int level = LevelCount - 1; level >= SeaLevel; level--)
+            {
+                var layer = _layers[level >= GroundLevel ? LayerFor(level) : 0];
+                Vector2 local = level >= GroundLevel ? layer.Transform.AffineInverse() * position : position;
+                Vector2I cell = layer.LocalToMap(local);
+                if (ContainsSurfaceCell(cell) && SurfaceLevel(field, cell - BoundsOrigin) == level)
+                    return cell;
+            }
+            return invalid;
+        }
+
+        public bool ContainsSurfaceCell(Vector2I cell)
+            => new Rect2I(BoundsOrigin, BoundsSize).HasPoint(cell);
+
+        internal Rect2I VisiblePropCells()
+        {
+            Rect2 viewport = GetViewportRect();
+            Vector2I min = new(int.MaxValue, int.MaxValue), max = new(int.MinValue, int.MinValue);
+            // Include each native elevation transform so raised props are not culled at the ground plane.
+            foreach (var layer in _layers)
+            {
+                Transform2D inverse = layer.GetGlobalTransformWithCanvas().AffineInverse();
+                foreach (Vector2 corner in new[] { viewport.Position, new Vector2(viewport.End.X, viewport.Position.Y),
+                             viewport.End, new Vector2(viewport.Position.X, viewport.End.Y) })
+                {
+                    Vector2I cell = layer.LocalToMap(inverse * corner);
+                    min = min.Min(cell); max = max.Max(cell);
+                }
+            }
+            return _layers.Count == 0 ? new Rect2I() : new Rect2I(min, max - min + Vector2I.One);
+        }
+
+        public bool HasSurface => _hasSurface && _layers.Count > 0 && ResolveSurface() is not null;
+
+        /// <summary>Renderer-local displacement of the logical map origin, from the native grid.</summary>
+        public Vector2 OriginPosition => _seabed is null ? Vector2.Zero
+            : _seabed.MapToLocal(BoundsOrigin) - _seabed.MapToLocal(Vector2I.Zero);
+
+        /// <summary>Renderer-local surface outline using the same native layer as the terrain.</summary>
+        public Vector2[] SurfaceCorners(Vector2I cell)
+        {
+            var field = ResolveSurface();
+            return !_hasSurface || field is null ? System.Array.Empty<Vector2>() : SurfaceCorners(field, cell - BoundsOrigin);
+        }
+
+        internal Vector2[] SurfaceCorners(ITerrainSurfaceData field, Vector2I cell)
+        {
+            if (_layers.Count == 0 || !ContainsSurfaceCell(BoundsOrigin + cell))
+                return System.Array.Empty<Vector2>();
+            int level = SurfaceLevel(field, cell);
+            var layer = _layers[level >= GroundLevel ? LayerFor(level) : 0];
+            Vector2 half = (Vector2)layer.TileSet.TileSize * 0.5f;
+            Vector2 center = layer.MapToLocal(BoundsOrigin + cell);
+            Vector2[] corners = { center + new Vector2(0, -half.Y), center + new Vector2(half.X, 0),
+                center + new Vector2(0, half.Y), center + new Vector2(-half.X, 0) };
+            if (level >= GroundLevel)
+                for (int i = 0; i < corners.Length; i++) corners[i] = layer.Transform * corners[i];
+            return corners;
+        }
+
+        internal int SurfaceLevel(ITerrainSurfaceData field, Vector2I cell)
+        {
+            if (TerrainTileSets.IsWaterKind(field.TerrainAtCell(cell)) && field.WaterSourceAtCell(cell) == "river")
+                return GroundLevel;
             int level = LevelFor(field.TerrainAtCell(cell), (int)field.ReliefAtCell(cell));
-            return _layers[0].MapToLocal(cell) + new Vector2(0.0f, -level * LevelHeight);
+            return level >= PeakLevel && field.ElevationAtCell(cell) >= _summitFloor ? SummitLevel : level;
         }
 
         /// <summary>
@@ -688,6 +898,8 @@ namespace Beep.ECS
                     { "relative_z", _water.ZAsRelative },
                     { "cells", 0 },
                     { "surface", SurfaceReport(_waterMaterial) },
+                    { "river_cells", _rivers?.Visible == true ? _rivers.Polygons.Count : 0 },
+                    { "river_surface", SurfaceReport(_rivers?.Material as ShaderMaterial) },
                 });
             }
 
@@ -722,12 +934,12 @@ namespace Beep.ECS
         /// <summary>True where the cell is land, so callers can skip the sea.</summary>
         public bool IsLandCell(Vector2I cell)
         {
-            ResolveGenerator();
-            return _generator is not null && IsLandCell(_generator.ResolveField(), cell);
+            var field = ResolveSurface();
+            return field is not null && ContainsSurfaceCell(cell) && IsLandCell(field, cell - BoundsOrigin);
         }
 
         /// <summary>Hot-path overload; see SurfacePosition(field, cell).</summary>
-        internal static bool IsLandCell(GeneratedTerrainField field, Vector2I cell)
+        internal static bool IsLandCell(ITerrainSurfaceData field, Vector2I cell)
             => TerrainTileSets.IsLandKind(field.TerrainAtCell(cell));
 
         /// <summary>Which level a tile is drawn at. Owned by TerrainLayers.</summary>
@@ -786,27 +998,30 @@ namespace Beep.ECS
         private void EnsureWaterSurface()
         {
             if (string.IsNullOrWhiteSpace(WaterShaderPath))
+            {
+                if (_water is not null) _water.Visible = false;
                 return;
+            }
 
-            // EnsureLayer finds the existing layer or creates, parents and
-            // adopts a new one. A second AddChild here used to fire Godot's
-            // "already has a parent" error on every first build.
+            // Reuse authored geometry and keep newly created surfaces saveable.
             if (_water is null || !GodotObject.IsInstanceValid(_water))
-                _water = TerrainAuthoring.EnsureLayer(this, "IsoWater");
+            {
+                _water = GetNodeOrNull<Polygon2D>("IsoWater");
+                if (_water is null)
+                {
+                    _water = new Polygon2D { Name = "IsoWater" };
+                    AddChild(_water);
+                    TerrainAuthoring.Adopt(_water, this);
+                }
+            }
 
+            _water.Visible = true;
             _water.ZIndex = ZIndexForLevel(SeaLevel);
             _water.ZAsRelative = false;
 
-            // The sea is tiles, on the SAME isometric grid as the terrain, so a
-            // water cell sits exactly where its land neighbour does.
-            //
-            // The blank tile has to be a diamond rather than a rectangle.
-            // Isometric cells overlap, and since this surface is transparent, a
-            // rectangular tile would blend with its neighbours' halves twice
-            // over and draw a brighter lattice across the whole ocean.
+            // One continuous native polygon avoids minified raster-mask seams.
+            // Gameplay cells remain in GridCellData; only water rendering is continuous.
             Vector2I cell = new(Mathf.Max(2, CellSize.X), Mathf.Max(2, CellSize.Y));
-            if (_water.TileSet is null || _water.TileSet.TileSize != cell)
-                _water.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: true);
 
             // Overscanned so the surface's own edge is never in frame: beyond the
             // map the shader draws plain open sea, so there is nothing to give
@@ -820,18 +1035,51 @@ namespace Beep.ECS
                 0,
                 MaxWaterMarginCells);
 
-            TerrainShaderSurface.Fill(
-                _water, new Vector2I(size.X + (margin * 2), size.Y + (margin * 2)));
-
-            // Shift the layer so its filled cell (margin, margin) lands where map
-            // cell (0, 0) belongs. In a diamond grid, moving by (-m, -m) cells is
-            // a pure VERTICAL shift - the x terms cancel, since (-m) - (-m) = 0 -
-            // which is why this is one number and not a diagonal.
-            _water.Position = new Vector2(0.0f, -margin * Mathf.Max(1, CellSize.Y));
-            _waterTileOffset = new Vector2(margin, margin);
+            Vector2 Project(float x, float y) => new(
+                cell.X * 0.5f * (1 + x - y), cell.Y * 0.5f * (x + y));
+            _water.Position = OriginPosition;
+            _water.Polygon = new[] { Project(-margin, -margin), Project(size.X + margin, -margin),
+                Project(size.X + margin, size.Y + margin), Project(-margin, size.Y + margin) };
 
             _waterMaterial = BuildWaterMaterial();
             _water.Material = _waterMaterial;
+        }
+
+        private void RebuildRivers(List<Vector2> vertices, Godot.Collections.Array polygons)
+        {
+            _rivers ??= GetNodeOrNull<Polygon2D>("IsoRivers");
+            if (vertices.Count == 0 || string.IsNullOrWhiteSpace(WaterShaderPath) || _waterMaterial?.Shader is null)
+            {
+                if (_rivers is not null)
+                {
+                    _rivers.Visible = false;
+                    _rivers.Polygons = new Godot.Collections.Array();
+                    _rivers.Polygon = Array.Empty<Vector2>();
+                }
+                return;
+            }
+            if (_rivers is null)
+            {
+                _rivers = new Polygon2D { Name = "IsoRivers" };
+                AddChild(_rivers);
+                TerrainAuthoring.Adopt(_rivers, this);
+            }
+
+            _rivers.Position = OriginPosition + new Vector2(0, -GroundLevel * LevelHeight);
+            _rivers.ZAsRelative = false;
+            _rivers.ZIndex = ZIndexForLevel(GroundLevel) + 1;
+            _rivers.Polygon = vertices.ToArray();
+            _rivers.Polygons = polygons;
+            // Elevated rivers composite their bed in the shared shader: transparency
+            // here would reveal foreground block sides, not an elevated riverbed.
+            var material = (ShaderMaterial)_waterMaterial.Duplicate();
+            material.SetShaderParameter("max_opacity", 1.0f);
+            material.SetShaderParameter("lake_opacity", 1.0f);
+            material.SetShaderParameter("shore_opacity", 1.0f);
+            material.SetShaderParameter("foam_strength", 0.0f);
+            _riverMaterial = material;
+            _rivers.Material = _riverMaterial;
+            _rivers.Visible = true;
         }
 
         /// <summary>
@@ -845,7 +1093,7 @@ namespace Beep.ECS
             // Inspector on each reload. Exported dials are still written below
             // and win; only the uniforms no export covers survive by this.
             ShaderMaterial material = _waterMaterial
-                ?? _water?.Material as ShaderMaterial
+                ?? (_water?.Material as ShaderMaterial)?.Duplicate() as ShaderMaterial
                 ?? new ShaderMaterial();
             if (material.Shader is null)
             {
@@ -873,7 +1121,7 @@ namespace Beep.ECS
             }
             else
             {
-                material.SetShaderParameter("coast_map", _coastMap);
+                material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap, BoundsSize, _liveCoast.CoastRevision));
             }
 
             // The quad's rectangle in THIS renderer's space. The shader resolves
@@ -881,8 +1129,11 @@ namespace Beep.ECS
             // world position, which carries any parent scaling with it.
             material.SetShaderParameter("coast_range", CoastRangeTiles);
             material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
+            material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
             material.SetShaderParameter("cell_size", new Vector2(CellSize.X, CellSize.Y));
-            material.SetShaderParameter("tile_offset", _waterTileOffset);
+            material.SetShaderParameter("tile_offset", Vector2.Zero);
+            material.SetShaderParameter("tile_batch", false);
+            material.SetShaderParameter("flat_projection", 0.0f);
             material.SetShaderParameter("max_opacity", MaxOpacity);
             material.SetShaderParameter("clarity_tiles", ClarityTiles);
             material.SetShaderParameter("lake_opacity", LakeOpacity);
@@ -891,6 +1142,8 @@ namespace Beep.ECS
             material.SetShaderParameter("foam_strength", FoamStrength);
             material.SetShaderParameter("deep_tiles", DeepTiles);
             material.SetShaderParameter("shallow_tiles", ShallowTiles);
+            material.SetShaderParameter("ground_texture_tiles", Mathf.Max(1.0f, GroundTextureTiles));
+            material.SetShaderParameter("water_texture_tiles", Mathf.Max(1.0f, WaterTextureTiles));
 
             material.SetShaderParameter("foam_tiles_along", Mathf.Max(1.0f, FoamTilesAlong));
             material.SetShaderParameter("foam_tiles_across", Mathf.Max(0.3f, FoamTilesAcross));
@@ -954,8 +1207,15 @@ namespace Beep.ECS
 
         private bool EnsureTileSet()
         {
-            if (_tileSet is not null && _frames.Count > 0)
+            var settings = (BlockSheetPath, TopSheetPath, SheetColumns, SheetRows, CellSize, BlockLift, TopLift, LevelHeight);
+            int[] frames = TerrainFrames().Select(pair => pair.Frame).ToArray();
+            if (_tileSet is not null && _frames.Count > 0 && _tileSetSettings == settings
+                && _frameSettings.SequenceEqual(frames) && _variantSettings.SequenceEqual(TerrainVariants))
                 return true;
+
+            _tileSet = null;
+            _frames.Clear();
+            _variants.Clear();
 
             Texture2D? sheet = LoadSheet();
             if (sheet is null)
@@ -967,8 +1227,25 @@ namespace Beep.ECS
             var region = new Vector2I(
                 Mathf.FloorToInt(sheetSize.X / columns),
                 Mathf.FloorToInt(sheetSize.Y / rows));
+            if (region.X <= 0 || region.Y <= 0)
+            {
+                GD.PushWarning($"[{Name}] block atlas dimensions produce empty frames.");
+                return false;
+            }
 
             var source = new TileSetAtlasSource { Texture = sheet, TextureRegionSize = region };
+            ShaderMaterial? sides = null;
+            if (LevelHeight > 0 && LevelHeight < region.Y - CellSize.Y)
+            {
+                sides = new ShaderMaterial
+                {
+                    Shader = GD.Load<Shader>("res://addons/beep_game_builder_cs/shaders/terrain_block_sides.gdshader"),
+                };
+                sides.SetShaderParameter("atlas_grid", new Vector2(columns, rows));
+                sides.SetShaderParameter("frame_size", (Vector2)region);
+                sides.SetShaderParameter("footprint_height", (float)CellSize.Y);
+                sides.SetShaderParameter("side_height", (float)LevelHeight);
+            }
             var tileSet = new TileSet
             {
                 TileShape = TileSet.TileShapeEnum.Isometric,
@@ -990,7 +1267,10 @@ namespace Beep.ECS
                 {
                     source.CreateTile(coords);
                     if (source.GetTileData(coords, 0) is { } data)
+                    {
                         data.TextureOrigin = new Vector2I(0, -BlockLift);
+                        data.Material = sides;
+                    }
                 }
                 _frames[terrain] = coords;
             }
@@ -1016,7 +1296,10 @@ namespace Beep.ECS
 
                 source.CreateTile(coords);
                 if (source.GetTileData(coords, 0) is { } extra)
+                {
                     extra.TextureOrigin = new Vector2I(0, -BlockLift);
+                    extra.Material = sides;
+                }
             }
 
             // The flat-top sheet, on the same grid so a terrain's top is at the
@@ -1025,9 +1308,15 @@ namespace Beep.ECS
             if (!string.IsNullOrWhiteSpace(TopSheetPath))
             {
                 Texture2D? tops = LoadTexture(TopSheetPath, "flat-top sheet");
+                if (tops is null) return false;
                 if (tops is not null)
                 {
                     Vector2 topSize = tops.GetSize();
+                    if (topSize.X < columns || topSize.Y < rows)
+                    {
+                        GD.PushWarning($"[{Name}] flat-top atlas dimensions produce empty frames.");
+                        return false;
+                    }
                     var topSource = new TileSetAtlasSource
                     {
                         Texture = tops,
@@ -1062,6 +1351,9 @@ namespace Beep.ECS
 
             tileSet.AddSource(source, SourceId);
             _tileSet = tileSet;
+            _tileSetSettings = settings;
+            _frameSettings = frames;
+            _variantSettings = (string[])TerrainVariants.Clone();
             return true;
         }
 
@@ -1092,8 +1384,6 @@ namespace Beep.ECS
             // No lava block art ships; the rock block stands in. Unregistered,
             // a lava cell was skipped entirely and left a hole in the map.
             yield return ("lava", RockFrame);
-            yield return ("shallow_water", ShallowWaterFrame);
-            yield return ("deep_water", DeepWaterFrame);
         }
 
         private Texture2D? LoadSheet()
@@ -1112,10 +1402,8 @@ namespace Beep.ECS
 
         private void ResolveGenerator()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _generator = TerrainGeneratorPath.IsEmpty ? null
+                : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
         }
     }
 }

@@ -1,0 +1,8 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/terrain_reference/v2/grass_rock_plates.png" id="1"]
+
+[resource]
+atlas = ExtResource("1")
+region = Rect2(26, 371, 570, 196)
+filter_clip = true

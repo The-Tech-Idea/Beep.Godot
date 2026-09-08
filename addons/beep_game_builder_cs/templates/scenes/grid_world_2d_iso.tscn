@@ -1,5 +1,7 @@
 [gd_scene load_steps=55 format=3]
 
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/painted_ground_tiling.tres" id="material_tiling"]
+
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs" id="grid_object"]
@@ -67,14 +69,16 @@ script = ExtResource("splat")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(64, 64)
 TileSize = 64
-GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
-DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
+GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png"
+DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
 DirtTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dirt.png"
 SnowTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
 MudTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
 GravelTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/gravel.png"
-RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/rock.png"
+RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/bedrock_ground.png"
+MaterialTiling = ExtResource("material_tiling")
+LavaTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/lava_ground.png"
 ShallowWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_shallow.png"
 DeepWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_deep.png"
 
@@ -274,8 +278,6 @@ BoundsSize = Vector2i(64, 64)
 [node name="Calendar" type="Node" parent="."]
 script = ExtResource("calendar")
 CellDataPath = NodePath("../Cells")
-AutoAdvance = false
-SecondsPerDay = 45.0
 DaysPerSeason = 28
 
 [node name="Crops" type="Node" parent="."]
@@ -297,7 +299,7 @@ ProductionRootPath = NodePath("../../ProductionBuildings")
 
 [node name="Jobs" type="Node" parent="."]
 script = ExtResource("job_queue")
-DefaultWorkSeconds = 1.5
+DefaultWorkTurns = 1.5
 
 [node name="JobEffects" type="Node" parent="."]
 script = ExtResource("job_effect")
@@ -335,7 +337,7 @@ RoadCostMultiplier = 0.55
 CropId = "turnip"
 CropDaysToMature = 3
 JobKind = "clear_land"
-JobWorkSeconds = 1.5
+JobWorkTurns = 1.5
 
 [node name="ClearLandCommand" type="Node" parent="Commands"]
 script = ExtResource("selection_job_command")
@@ -344,7 +346,7 @@ JobQueuePath = NodePath("../../Jobs")
 CellDataPath = NodePath("../../Cells")
 NavigationPath = NodePath("../../Navigation")
 JobKind = "clear_land"
-WorkSeconds = 1.5
+WorkTurns = 1.5
 Priority = 0
 ClearSelectionAfterQueue = true
 

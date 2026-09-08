@@ -7,9 +7,19 @@ namespace Beep.ECS
     /// <summary>
     /// Lightweight cell-job queue for builder, RTS, farming, tactics, and settlement games.
     ///
-    /// Use this for jobs such as clear land, build road, harvest tile, repair object,
+    /// Use this for jobs such as clear land, build road, harvest tile,
     /// deliver resource, or inspect a cell. Workers claim jobs by id and complete,
     /// release, or cancel them without the queue depending on TileMap.
+    ///
+    /// WORK IS MEASURED IN TURNS, like every other grid duration (BuildTurns,
+    /// DurationTurns, CycleTurns): a turn is the grid's one unit, and
+    /// GridWorkClockComponent decides what a turn is in the game's own time -
+    /// one end-turn on the turn axis, one day's worth of beats on the
+    /// real-time axis. The queue never ticks and never divides by a frame
+    /// delta; it only records what an executor reports, so the unit is a
+    /// float for sub-turn resolution (a worker with WorkSpeedMultiplier 2
+    /// burns half a turn of work per turn... twice). The field used to be
+    /// called seconds while the work clock fed it turns.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -31,23 +41,25 @@ namespace Beep.ECS
         [Signal] public delegate void QueueChangedEventHandler(int queued, int claimed, int completed);
 
         [Export] public bool UniqueCellKind { get; set; } = true;
+        [Export] public string OwnerId { get; set; } = "";
+        [Export] public NodePath ActorRegistryPath { get; set; } = new("");
         [Export] public bool RemoveCompletedJobs { get; set; } = true;
         [Export] public bool RemoveCancelledJobs { get; set; } = true;
         /// <summary>
-        /// Whether jobs saved as Claimed load back as Queued. On by default:
-        /// worker ids include the instance id, which no reload reproduces, and
-        /// workers do not persist their current job - so a loaded claim always
-        /// belongs to a ghost, and the job would sit claimed forever.
+        /// Whether saved claims load as queued. Actor-backed workers have stable
+        /// IDs and reclaim their saved job when restored after the queue. Keeping
+        /// this enabled also releases claims for workers absent from a save.
         /// </summary>
         [Export] public bool RequeueClaimedJobsOnLoad { get; set; } = true;
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float DefaultWorkSeconds { get; set; } = 1.5f;
+        /// <summary>Work a job carries when its author gave none, in turns.</summary>
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float DefaultWorkTurns { get; set; } = 1.5f;
 
         private readonly Dictionary<string, GridJob> _jobs = new();
         private int _nextJobNumber = 1;
 
-        public float EffectiveDefaultWorkSeconds => Mathf.Max(0.01f, float.IsFinite(DefaultWorkSeconds) ? DefaultWorkSeconds : 1.5f);
+        public float EffectiveDefaultWorkTurns => Mathf.Max(0.01f, float.IsFinite(DefaultWorkTurns) ? DefaultWorkTurns : 1.5f);
 
-        public string AddJob(Vector2I cell, string kind = "work", float workSeconds = -1f, int priority = 0)
+        public string AddJob(Vector2I cell, string kind = "work", float workTurns = -1f, int priority = 0)
         {
             kind = NormalizeKind(kind);
             if (UniqueCellKind && FindOpenJobAt(cell, kind) is { } existing)
@@ -57,10 +69,11 @@ namespace Beep.ECS
             while (_jobs.ContainsKey(id))
                 id = $"{kind}_{_nextJobNumber++}";
 
-            float effectiveWorkSeconds = workSeconds > 0f && float.IsFinite(workSeconds)
-                ? workSeconds
-                : EffectiveDefaultWorkSeconds;
-            _jobs[id] = new GridJob(id, kind, cell, priority, effectiveWorkSeconds);
+            float effectiveWorkTurns = workTurns > 0f && float.IsFinite(workTurns)
+                ? workTurns
+                : EffectiveDefaultWorkTurns;
+            _jobs[id] = new GridJob(id, kind, cell, priority, effectiveWorkTurns);
+            RefreshChunkPins();
             EmitSignal(SignalName.JobAdded, id, kind, cell.X, cell.Y);
             EmitQueueChanged();
             return id;
@@ -71,10 +84,12 @@ namespace Beep.ECS
             if (!_jobs.TryGetValue(id, out GridJob? job) || job.State is GridJobState.Completed or GridJobState.Cancelled)
                 return false;
 
+            ReleaseReservation(job);
             job.State = GridJobState.Cancelled;
             job.ClaimedBy = "";
+            RefreshChunkPins();
             EmitSignal(SignalName.JobCancelled, id, reason);
-            if (RemoveCancelledJobs)
+            if (RemoveCancelledJobs && _jobs.GetValueOrDefault(id) == job)
                 _jobs.Remove(id);
             EmitQueueChanged();
             return true;
@@ -87,20 +102,26 @@ namespace Beep.ECS
         /// and neither churns on work it can never reach.
         /// </summary>
         public string ClaimNextJob(string workerId, Vector2I workerCell, Godot.Collections.Array<string>? allowedKinds = null)
+            => ClaimNextJobExcluding(workerId, workerCell, allowedKinds, null);
+
+        internal string ClaimNextJobExcluding(string workerId, Vector2I workerCell,
+            Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
         {
-            workerId = NormalizeWorker(workerId);
+            if (!EnsureReservationScope() || !CanWorkerClaim(workerId) || _workerClaims.ContainsKey(workerId)) return "";
             GridJob? best = null;
-            int bestDistance = int.MaxValue;
+            long bestDistance = long.MaxValue;
 
             foreach (GridJob job in _jobs.Values)
             {
-                if (job.State != GridJobState.Queued)
+                if (excludedJobs?.Contains(job.Id) == true) continue;
+                if (job.State != GridJobState.Queued || _workCells.ContainsKey(job.ApproachCell) || !SharedClaimAvailable(workerId, job.ApproachCell)
+                    || job.ApproachCell.X == int.MinValue || job.ApproachCell.Y == int.MinValue)
                     continue;
 
                 if (allowedKinds is { Count: > 0 } && !KindAllowed(job.Kind, allowedKinds))
                     continue;
 
-                int distance = Mathf.Abs(job.Cell.X - workerCell.X) + Mathf.Abs(job.Cell.Y - workerCell.Y);
+                long distance = Math.Abs((long)job.ApproachCell.X - workerCell.X) + Math.Abs((long)job.ApproachCell.Y - workerCell.Y);
                 if (best == null
                     || job.Priority > best.Priority
                     || (job.Priority == best.Priority && distance < bestDistance)
@@ -114,24 +135,17 @@ namespace Beep.ECS
             if (best == null)
                 return "";
 
-            best.State = GridJobState.Claimed;
-            best.ClaimedBy = workerId;
-            EmitSignal(SignalName.JobClaimed, best.Id, workerId);
-            EmitQueueChanged();
-            return best.Id;
+            return ClaimJob(best.Id, workerId) ? best.Id : "";
         }
 
         public bool ClaimJob(string id, string workerId)
         {
-            workerId = NormalizeWorker(workerId);
-            if (!_jobs.TryGetValue(id, out GridJob? job) || job.State != GridJobState.Queued)
-                return false;
-
-            job.State = GridJobState.Claimed;
-            job.ClaimedBy = workerId;
+            if (!CanClaimJob(id, workerId)) return false;
+            GridJob job = _jobs[id];
+            ReserveClaim(job, workerId);
             EmitSignal(SignalName.JobClaimed, job.Id, workerId);
             EmitQueueChanged();
-            return true;
+            return _jobs.GetValueOrDefault(id) == job && job.State == GridJobState.Claimed && job.ClaimedBy == workerId;
         }
 
         public bool ReleaseJob(string id, string workerId = "")
@@ -143,8 +157,10 @@ namespace Beep.ECS
                 return false;
 
             string releasedBy = job.ClaimedBy;
+            ReleaseReservation(job);
             job.State = GridJobState.Queued;
             job.ClaimedBy = "";
+            RefreshChunkPins();
             EmitSignal(SignalName.JobReleased, id, releasedBy);
             EmitQueueChanged();
             return true;
@@ -159,10 +175,12 @@ namespace Beep.ECS
                 return false;
 
             string completedBy = string.IsNullOrEmpty(workerId) ? job.ClaimedBy : workerId;
+            ReleaseReservation(job);
             job.State = GridJobState.Completed;
             job.ClaimedBy = completedBy;
+            RefreshChunkPins();
             EmitSignal(SignalName.JobCompleted, id, completedBy);
-            if (RemoveCompletedJobs)
+            if (RemoveCompletedJobs && _jobs.GetValueOrDefault(id) == job)
                 _jobs.Remove(id);
             EmitQueueChanged();
             return true;
@@ -179,11 +197,109 @@ namespace Beep.ECS
         public string GetJobClaimedBy(string id)
             => _jobs.TryGetValue(id, out GridJob? job) ? job.ClaimedBy : "";
 
-        public float GetJobWorkSeconds(string id)
-            => _jobs.TryGetValue(id, out GridJob? job) ? job.WorkSeconds : 0f;
+        public float GetJobWorkTurns(string id)
+            => _jobs.TryGetValue(id, out GridJob? job) ? job.WorkTurns : 0f;
+
+        public float GetJobRemainingTurns(string id)
+            => _jobs.TryGetValue(id, out GridJob? job) ? job.RemainingTurns : 0f;
+
+        public enum WorkAdvanceResult { Rejected, Progressed, Completed }
+
+        /// <summary>Advances an executor that has already reached its reserved work cell.
+        /// Progress stays in the queue, independent of the executor's scene lifetime.
+        /// Arrival and worker activity remain the executor's responsibility.</summary>
+        public WorkAdvanceResult AdvanceClaimedWork(string jobId, string workerId, Vector2I workCell,
+            float elapsedTurns, float workSpeed)
+            => AdvanceClaimedWorkCore(jobId, workerId, workCell, elapsedTurns, workSpeed, null);
+
+        internal WorkAdvanceResult AdvanceClaimedWorkCore(string jobId, string workerId, Vector2I workCell,
+            float elapsedTurns, float workSpeed, Node? executor)
+        {
+            if (!float.IsFinite(elapsedTurns) || elapsedTurns <= 0f
+                || !float.IsFinite(workSpeed) || workSpeed <= 0f || !EnsureReservationScope() || !CanWorkerClaim(workerId)
+                || !_jobs.TryGetValue(jobId, out var job) || job.State != GridJobState.Claimed
+                || job.ClaimedBy != workerId || GetReservedWorkCell(jobId) != workCell || !ExecutorMatches(jobId, executor))
+                return WorkAdvanceResult.Rejected;
+            job.RemainingTurns = (float)Math.Max(0.0, job.RemainingTurns - (double)elapsedTurns * workSpeed);
+            if (job.RemainingTurns > 0f) return WorkAdvanceResult.Progressed;
+            return CompleteJob(jobId, workerId) ? WorkAdvanceResult.Completed : WorkAdvanceResult.Rejected;
+        }
+
+        /// <summary>Sets raw remaining work for custom executors and authoring tools.
+        /// Normal worker execution uses AdvanceClaimedWork to validate claims and complete once.</summary>
+        public void ReportProgress(string jobId, float remainingTurns)
+        {
+            if (_jobs.TryGetValue(jobId, out GridJob? job))
+                job.RemainingTurns = Mathf.Clamp(float.IsFinite(remainingTurns) ? remainingTurns : job.WorkTurns, 0f, job.WorkTurns);
+        }
+
+        /// <summary>
+        /// How far along a job is, 0 (just started, or unknown/never
+        /// reported) to 1 (about to complete). Derived from WorkTurns and
+        /// whatever ReportProgress last recorded, so it reflects reality
+        /// for ANY executor that reports - not specifically GridWorkerComponent.
+        /// </summary>
+        public float GetJobProgress01(string jobId)
+        {
+            if (!_jobs.TryGetValue(jobId, out GridJob? job) || job.WorkTurns <= 0f)
+                return 0f;
+            return Mathf.Clamp(1f - job.RemainingTurns / job.WorkTurns, 0f, 1f);
+        }
 
         public GridJobState GetJobState(string id)
             => _jobs.TryGetValue(id, out GridJob? job) ? job.State : GridJobState.Cancelled;
+
+        /// <summary>
+        /// The cell a worker should STAND ON to do this job - by default the
+        /// job cell itself. A build site sets it to a cell just outside its
+        /// footprint (the way Age of Empires villagers and Settlers builders
+        /// stand beside the site, never inside it): the footprint's own
+        /// cells are blocked by the placed GridObjectComponent, so a worker
+        /// sent to the job cell with AllowBlockedGoal off fails with no_path
+        /// and drops the job.
+        /// </summary>
+        public bool SetJobApproachCell(string id, Vector2I approachCell)
+        {
+            if (approachCell.X == int.MinValue || approachCell.Y == int.MinValue) return false;
+            if (!_jobs.TryGetValue(id, out GridJob? job))
+                return false;
+            if (job.State == GridJobState.Claimed && job.ApproachCell != approachCell) return false;
+            job.ApproachCell = approachCell;
+            RefreshChunkPins();
+            return true;
+        }
+
+        /// <summary>The cell to stand on for a job - the job cell unless a
+        /// site set one - or (int.MinValue, int.MinValue) for an unknown job.</summary>
+        public Vector2I GetJobApproachCell(string id)
+            => _jobs.TryGetValue(id, out GridJob? job) ? job.ApproachCell : new Vector2I(int.MinValue, int.MinValue);
+
+        /// <summary>
+        /// The id of the job a worker currently holds Claimed, or empty. A
+        /// lookup in the queue's claim index, with no per-job marshalling.
+        /// Worker IDs are ordinal, matching actor identity. For a roster snapshot,
+        /// use <see cref="GetClaimedJobIdsByWorker"/>.
+        /// </summary>
+        public string FindClaimedJobId(string workerId)
+        {
+            if (string.IsNullOrWhiteSpace(workerId))
+                return "";
+
+            return _workerClaims.GetValueOrDefault(workerId, "");
+        }
+
+        /// <summary>
+        /// Every currently-Claimed job's id, keyed by the claiming worker id -
+        /// a detached copy of the queue's claim index, with no per-job marshalling.
+        /// Meant for a caller that needs to resolve many workers' claims at
+        /// once (a HUD refresh over the whole roster) instead of calling
+        /// <see cref="FindClaimedJobId"/> - or re-marshalling <see cref="GetJobs"/> -
+        /// once per worker.
+        /// </summary>
+        public Dictionary<string, string> GetClaimedJobIdsByWorker()
+        {
+            return new Dictionary<string, string>(_workerClaims, StringComparer.Ordinal);
+        }
 
         public int QueuedCount => Count(GridJobState.Queued);
         public int ClaimedCount => Count(GridJobState.Claimed);
@@ -191,7 +307,12 @@ namespace Beep.ECS
 
         public void ClearJobs()
         {
+            ReleaseSharedReservations();
+            _executionOwners.Clear();
+            _dispatchOwners.Clear();
             _jobs.Clear();
+            _workerClaims.Clear();
+            _workCells.Clear();
             EmitQueueChanged();
         }
 
@@ -227,10 +348,12 @@ namespace Beep.ECS
                     kind,
                     cell,
                     DictInt(dict, "priority", 0),
-                    ClampWorkSeconds(DictFloat(dict, "work_seconds", EffectiveDefaultWorkSeconds)))
+                    ClampWorkTurns(DictFloat(dict, "work_turns", EffectiveDefaultWorkTurns)))
                 {
                     State = ParseState(DictString(dict, "state", nameof(GridJobState.Queued))),
-                    ClaimedBy = DictString(dict, "claimed_by", "")
+                    ClaimedBy = DictString(dict, "claimed_by", ""),
+                    ApproachCell = DictVector2I(dict, "approach_cell", cell),
+                    ReservedCell = DictVector2I(dict, "reserved_cell", DictVector2I(dict, "approach_cell", cell))
                 };
 
                 if (RequeueClaimedJobsOnLoad && job.State == GridJobState.Claimed)
@@ -240,9 +363,11 @@ namespace Beep.ECS
                 }
 
                 _jobs[id] = job;
+                job.RemainingTurns = Mathf.Clamp(DictFloat(dict, "remaining_turns", job.WorkTurns), 0f, job.WorkTurns);
                 TrackNextJobNumber(id);
             }
 
+            RebuildReservations();
             EmitQueueChanged();
         }
 
@@ -264,7 +389,10 @@ namespace Beep.ECS
         }
 
         private void EmitQueueChanged()
-            => EmitSignal(SignalName.QueueChanged, QueuedCount, ClaimedCount, CompletedCount);
+        {
+            RefreshChunkPins();
+            EmitSignal(SignalName.QueueChanged, QueuedCount, ClaimedCount, CompletedCount);
+        }
 
         private static string NormalizeKind(string kind)
             => string.IsNullOrWhiteSpace(kind) ? "work" : kind.Trim().ToLowerInvariant().Replace(' ', '_');
@@ -279,8 +407,9 @@ namespace Beep.ECS
             return false;
         }
 
-        private static string NormalizeWorker(string workerId)
-            => string.IsNullOrWhiteSpace(workerId) ? Guid.NewGuid().ToString("N") : workerId.Trim();
+        public bool CanWorkerClaim(string workerId)
+            => !string.IsNullOrWhiteSpace(workerId) && (OwnerId.Length == 0 || (!ActorRegistryPath.IsEmpty
+                && GetNodeOrNull<ActorRegistryComponent>(ActorRegistryPath)?.GetActorOwner(workerId) == OwnerId));
 
         private void TrackNextJobNumber(string id)
         {
@@ -307,27 +436,39 @@ namespace Beep.ECS
         private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
             => GridVariantReader.Vector2I(dict, key, fallback);
 
-        private static float ClampWorkSeconds(float value)
+        private static float ClampWorkTurns(float value)
             => Mathf.Max(0.01f, float.IsFinite(value) ? value : 1.5f);
 
         private sealed class GridJob
         {
-            public GridJob(string id, string kind, Vector2I cell, int priority, float workSeconds)
+            public GridJob(string id, string kind, Vector2I cell, int priority, float workTurns)
             {
                 Id = id;
                 Kind = kind;
                 Cell = cell;
                 Priority = priority;
-                WorkSeconds = workSeconds;
+                WorkTurns = workTurns;
+                RemainingTurns = workTurns;
+                ApproachCell = cell;
+                ReservedCell = cell;
             }
 
             public string Id { get; }
             public string Kind { get; }
             public Vector2I Cell { get; }
             public int Priority { get; }
-            public float WorkSeconds { get; }
+            public float WorkTurns { get; }
             public GridJobState State { get; set; } = GridJobState.Queued;
             public string ClaimedBy { get; set; } = "";
+
+            /// <summary>Where a worker stands to do the job; the job cell
+            /// unless a site set a cell outside its footprint.</summary>
+            public Vector2I ApproachCell { get; set; }
+            public Vector2I ReservedCell { get; set; }
+
+            /// <summary>Turns of work left, as last reported by whoever is
+            /// executing the job. Starts equal to WorkTurns (0% progress).</summary>
+            public float RemainingTurns { get; set; }
 
             public Godot.Collections.Dictionary ToDictionary()
             {
@@ -336,8 +477,11 @@ namespace Beep.ECS
                     ["id"] = Id,
                     ["kind"] = Kind,
                     ["cell"] = Cell,
+                    ["approach_cell"] = ApproachCell,
+                    ["reserved_cell"] = ReservedCell,
                     ["priority"] = Priority,
-                    ["work_seconds"] = WorkSeconds,
+                    ["work_turns"] = WorkTurns,
+                    ["remaining_turns"] = RemainingTurns,
                     ["state"] = State.ToString(),
                     ["claimed_by"] = ClaimedBy
                 };

@@ -41,12 +41,17 @@ namespace Beep.ECS
         [Export] public NodePath ResourceSetPath { get; set; } = new("");
         [Export] public NodePath SeedPath { get; set; } = new("");
         [Export] public NodePath ViewPath { get; set; } = new("");
+        [Export] public TerrainMapArt? PixelArtProfile { get; set; }
+        [Export] public TerrainMapArt? CartoonProfile { get; set; }
 
         [ExportGroup("Actions")]
         [Export] public NodePath GenerateButtonPath { get; set; } = new("");
         [Export] public NodePath RandomSeedButtonPath { get; set; } = new("");
         [Export] public NodePath ResetViewButtonPath { get; set; } = new("");
         [Export] public NodePath StatusPath { get; set; } = new("");
+        [Export] public NodePath DiagnosticsButtonPath { get; set; } = new("");
+        [Export] public NodePath CancelButtonPath { get; set; } = new("");
+        [Export] public NodePath GenerationProgressPath { get; set; } = new("");
 
         // There are deliberately no paths here for relief, rivers, resource
         // density, lake size, beach width, frequency, octaves, landform, or raw
@@ -91,6 +96,14 @@ namespace Beep.ECS
 
             ResolveNodes();
             PopulateOptions();
+            if (_world is not null)
+            {
+                _world.WorldBuilt += OnWorldBuilt;
+                _world.GenerationProgress += OnGenerationProgress;
+                _world.GenerationFinished += OnGenerationFinished;
+            }
+            if (!CancelButtonPath.IsEmpty && GetNodeOrNull<Button>(CancelButtonPath) is { } cancel)
+                cancel.Pressed += () => _world?.CancelGeneration();
 
             // Reframe when the window changes size. The preview's zoom and
             // position are computed FROM the viewport, so after a resize they
@@ -101,6 +114,12 @@ namespace Beep.ECS
             GetNodeOrNull<Button>(GenerateButtonPath)?.Pressed += Generate;
             GetNodeOrNull<Button>(RandomSeedButtonPath)?.Pressed += RandomizeSeed;
             GetNodeOrNull<Button>(ResetViewButtonPath)?.Pressed += ResetPreviewView;
+            if (!DiagnosticsButtonPath.IsEmpty
+                && GetNodeOrNull<BaseButton>(DiagnosticsButtonPath) is { } diagnostics)
+            {
+                SetDiagnostics(diagnostics.ButtonPressed);
+                diagnostics.Toggled += SetDiagnostics;
+            }
 
             foreach (OptionButton? axis in new[]
                      { _mapType, _mapSize, _worldAge, _temperature, _rainfall,
@@ -116,12 +135,29 @@ namespace Beep.ECS
             {
                 _view.ItemSelected += _ =>
                 {
-                    Generate();
+                    if (_world is null) return;
+                    ApplyView(Selected(_view, SelectedView()));
+                    _world.Redraw();
                     ResetPreviewView();
                 };
             }
 
-            CallDeferred(nameof(Generate));
+            if (_world?.BuiltSize.X > 0)
+                OnWorldBuilt(_world.BuiltSize);
+            else if (_world is not null && !_world.BuildOnReady)
+                CallDeferred(nameof(Generate));
+        }
+
+        public override void _ExitTree()
+        {
+            if (Engine.IsEditorHint()) return;
+            GetViewport().SizeChanged -= ResetPreviewView;
+            if (GodotObject.IsInstanceValid(_world))
+            {
+                _world!.WorldBuilt -= OnWorldBuilt;
+                _world.GenerationProgress -= OnGenerationProgress;
+                _world.GenerationFinished -= OnGenerationFinished;
+            }
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -141,7 +177,7 @@ namespace Beep.ECS
         /// </summary>
         public void Generate()
         {
-            if (_world is null)
+            if (_world is null || _world.IsGenerating)
                 return;
 
             _world.MapType = (TerrainShape)Selected(_mapType, (int)_world.MapType);
@@ -152,18 +188,64 @@ namespace Beep.ECS
             _world.SeaLevel = (TerrainSeaLevel)Selected(_seaLevel, (int)_world.SeaLevel);
             _world.ResourceLevel = (TerrainResourceLevel)Selected(_resourceLevel, (int)_world.ResourceLevel);
             _world.Resources = (ResourceSet)Selected(_resourceSet, (int)_world.Resources);
-            _world.Projection = (TerrainProjection)Selected(_view, (int)_world.Projection);
+            ApplyView(Selected(_view, SelectedView()));
             if (_seed is not null)
                 _world.Seed = Mathf.Clamp((int)_seed.Value, 0, int.MaxValue);
 
-            _world.Build();
+            if (!_world.BeginNewWorld()) _status?.SetText("Unable to start generation");
+        }
 
+        private void OnGenerationProgress(string stage, float fraction)
+        {
+            SetGenerationBusy(true);
+            _status?.SetText(stage);
+            if (!GenerationProgressPath.IsEmpty && GetNodeOrNull<ProgressBar>(GenerationProgressPath) is { } bar)
+                if (stage != "Cancelling") bar.Value = fraction * 100;
+            if (!CancelButtonPath.IsEmpty && GetNodeOrNull<Button>(CancelButtonPath) is { } cancel)
+                cancel.Disabled = stage == "Cancelling" || _world?.CanCancelGeneration != true;
+        }
+
+        private void OnGenerationFinished(bool success, string message)
+        {
+            SetGenerationBusy(false);
+            if (!success) _status?.SetText(message);
+        }
+
+        private void SetGenerationBusy(bool busy)
+        {
+            foreach (OptionButton? axis in new[] { _mapType, _mapSize, _worldAge, _temperature,
+                         _rainfall, _seaLevel, _resourceLevel, _resourceSet, _view })
+                if (axis is not null) axis.Disabled = busy;
+            if (_seed is not null) _seed.Editable = !busy;
+            foreach (NodePath path in new[] { GenerateButtonPath, RandomSeedButtonPath, DiagnosticsButtonPath })
+                if (!path.IsEmpty && GetNodeOrNull<BaseButton>(path) is { } button) button.Disabled = busy;
+            if (!CancelButtonPath.IsEmpty && GetNodeOrNull<Button>(CancelButtonPath) is { } cancel)
+                cancel.Visible = busy;
+            if (!GenerationProgressPath.IsEmpty && GetNodeOrNull<ProgressBar>(GenerationProgressPath) is { } bar)
+                bar.Visible = busy;
+        }
+
+        private void OnWorldBuilt(Vector2I size)
+        {
+            _ = size;
+            if (_world is null) return;
+            SetGenerationBusy(false);
             _status?.SetText(_world.StatusLine());
 
-            // First build only: a preview still at its default scale has never
-            // been framed.
-            if (_preview?.Scale == Vector2.One)
+            // Preserve pan/zoom for same-size regeneration, but fit changed map extents.
+            if (!_hasFramedPreview || _world.PreviewExtent() != _framedExtent)
                 ResetPreviewView();
+        }
+
+        private void SetDiagnostics(bool enabled)
+        {
+            if (_world is null || _world.MapOverlayPath.IsEmpty) return;
+            var overlay = _world.GetNodeOrNull<TerrainMapOverlayComponent>(_world.MapOverlayPath);
+            if (overlay is null) return;
+            overlay.ShowResources = enabled;
+            overlay.ShowStartPositions = enabled;
+            overlay.ShowUndergroundResources = enabled;
+            if (_world.BuiltSize.X > 0) overlay.Rebuild();
         }
 
         /// <summary>A chooser's selection, or the world's current value when it is absent.</summary>
@@ -200,30 +282,46 @@ namespace Beep.ECS
         /// <summary>Fills a chooser once, and selects its default.</summary>
         private static void Fill(OptionButton? option, string[] names, int selected = 0)
         {
-            if (option is null || option.ItemCount > 0)
+            if (option is null)
                 return;
 
-            foreach (string name in names)
-                option.AddItem(name);
+            if (option.ItemCount == 0)
+                foreach (string name in names) option.AddItem(name);
             option.Selected = Mathf.Clamp(selected, 0, option.ItemCount - 1);
         }
 
         /// <summary>
-        /// Every chooser's contents come from the type that owns them, so a new
-        /// map size, resource set or projection appears here without this file
-        /// changing - and the index a chooser reports IS the enum value.
+        /// Setup axes use enum order. The presentation menu additionally maps
+        /// Pixel Art and Cartoon to the painted projection through ApplyView.
         /// </summary>
         private void PopulateOptions()
         {
-            Fill(_mapType, TerrainShapePresets.DisplayNames());
-            Fill(_mapSize, TerrainMapSetup.MapSizeNames, (int)TerrainMapSize.Standard);
-            Fill(_worldAge, TerrainMapSetup.WorldAgeNames, (int)TerrainWorldAge.Mature);
-            Fill(_temperature, TerrainMapSetup.TemperatureNames, (int)TerrainTemperature.Temperate);
-            Fill(_rainfall, TerrainMapSetup.RainfallNames, (int)TerrainRainfall.Normal);
-            Fill(_seaLevel, TerrainMapSetup.SeaLevelNames, (int)TerrainSeaLevel.Normal);
-            Fill(_resourceLevel, TerrainMapSetup.ResourceLevelNames, (int)TerrainResourceLevel.Normal);
-            Fill(_resourceSet, TerrainMapSetup.ResourceSetNames);
-            Fill(_view, TerrainMapSetup.ProjectionNames);
+            if (_world is null) return;
+            Fill(_mapType, TerrainShapePresets.DisplayNames(), (int)_world.MapType);
+            Fill(_mapSize, TerrainMapSetup.MapSizeNames, (int)_world.MapSize);
+            Fill(_worldAge, TerrainMapSetup.WorldAgeNames, (int)_world.WorldAge);
+            Fill(_temperature, TerrainMapSetup.TemperatureNames, (int)_world.Temperature);
+            Fill(_rainfall, TerrainMapSetup.RainfallNames, (int)_world.Rainfall);
+            Fill(_seaLevel, TerrainMapSetup.SeaLevelNames, (int)_world.SeaLevel);
+            Fill(_resourceLevel, TerrainMapSetup.ResourceLevelNames, (int)_world.ResourceLevel);
+            Fill(_resourceSet, TerrainMapSetup.ResourceSetNames, (int)_world.Resources);
+            Fill(_view, new[] { "Original", "Game tiles", "Isometric", "Isometric tiles", "Pixel Art", "Cartoon" }, SelectedView());
+            if (_seed is not null) _seed.Value = _world.Seed;
+        }
+
+        private int SelectedView()
+        {
+            if (_world is null) return 0;
+            if (_world.Projection != TerrainProjection.Painted) return (int)_world.Projection;
+            if (_world.MapArt is null) return 0;
+            return _world.MapArt == PixelArtProfile ? 4 : 5;
+        }
+
+        private void ApplyView(int index)
+        {
+            if (_world is null) return;
+            _world.Projection = index is 4 or 5 ? TerrainProjection.Painted : (TerrainProjection)index;
+            _world.MapArt = index == 4 ? PixelArtProfile : index == 5 ? CartoonProfile : null;
         }
     }
 }

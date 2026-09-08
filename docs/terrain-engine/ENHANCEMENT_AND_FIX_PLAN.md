@@ -163,7 +163,7 @@ code or in this plan's own recommendations.
   every terrain kind present. `TerrainTileSets.cs:138-148, 173-199, 218-242`;
   `TerrainDataLayersComponent.cs:125-132, 197-202`.
 - **No parallel per-cell cache exists behind the query API.** Every public
-  query on `TerrainDataLayersComponent` (`TerrainAt`, `ResourceAt`,
+  query on `TerrainDataLayersComponent` (`GeneratedTerrainAt`, `ResourceAt`,
   `FeatureAt`, `ReliefAt`, `IsWaterAt`, `PassableAt`) routes through one
   `Read()` helper calling `TileMapLayer.GetCellTileData` then
   `TileData.GetCustomData` - exactly the native call the class's own doc
@@ -275,7 +275,7 @@ Two candidate fixes, presented without a pick, because this needs a decision:
   and removes a second, wrong, currently-dead source of the same fact.
 
 (a) keeps a promise the component's own doc comment already makes (a matched
-`TerrainAt`/`ResourceAt`/`FeatureAt`/`ReliefAt` set, queryable without the
+`GeneratedTerrainAt`/`ResourceAt`/`FeatureAt`/`ReliefAt` set, queryable without the
 generator at hand); (b) is less code.
 
 **Status:** Fixed, option (a). `TerrainDataLayersComponent` now builds a
@@ -1109,11 +1109,11 @@ fixing them, not by the review passes:
 
 ### Pipeline stages
 
-Run in order by `TerrainFieldBuilder`, on the shared `TerrainWorld` data model.
+Run in order by `TerrainFieldBuilder`, on the shared `TerrainGenerationBuffer` data model.
 
 | File | Purpose | Doc |
 |---|---|---|
-| TerrainFieldBuilder.cs | Top-level orchestrator: allocates the `TerrainWorld` and runs every generation stage in order (or a Plain-mode shortcut). | [TerrainFieldBuilder.md](TerrainFieldBuilder.md) |
+| TerrainFieldBuilder.cs | Top-level orchestrator: allocates the `TerrainGenerationBuffer` and runs every generation stage in order (or a Plain-mode shortcut). | [TerrainFieldBuilder.md](TerrainFieldBuilder.md) |
 | TerrainLandmassStage.cs | Decides where land exists by growing a fixed number of separated, noise-perturbed landmasses from lattice-jittered seeds. | [TerrainLandmassStage.md](TerrainLandmassStage.md) |
 | TerrainWaterStage.cs | Carves inland lake basins into the fine sample field, then classifies water as ocean vs. lake independent of how it was created. | [TerrainWaterStage.md](TerrainWaterStage.md) |
 | TerrainElevationStage.cs | Builds the raw land elevation field (`Apply`) and cuts eroded elevation into flat/hills/mountains bands (`Classify`). | [TerrainElevationStage.md](TerrainElevationStage.md) |
@@ -1134,7 +1134,7 @@ Run in order by `TerrainFieldBuilder`, on the shared `TerrainWorld` data model.
 
 | File | Purpose | Doc |
 |---|---|---|
-| TerrainWorld.cs | Plain struct-of-arrays data model holding the mutable working set every generation stage reads and writes. | [TerrainWorld.md](TerrainWorld.md) |
+| TerrainGenerationBuffer.cs | Plain struct-of-arrays data model holding the mutable working set every generation stage reads and writes. | [TerrainGenerationBuffer.md](TerrainGenerationBuffer.md) |
 | GeneratedTerrainField.cs | Read-only result of one generation run; answers per-cell and per-position terrain/water/relief/resource queries. | [GeneratedTerrainField.md](GeneratedTerrainField.md) |
 | TerrainGenerationSettings.cs | Immutable input record (and output diagnostics record) that treats generation as a pure, cacheable function of one value. | [TerrainGenerationSettings.md](TerrainGenerationSettings.md) |
 | TerrainGeneratorComponent.cs | The single `[Tool][GlobalClass]` Node owning every generation setting, caching the generated field, and exposing the query API renderers use. | [TerrainGeneratorComponent.md](TerrainGeneratorComponent.md) |

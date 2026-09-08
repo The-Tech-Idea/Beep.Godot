@@ -28,6 +28,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitTree : KitControl
     {
+        /// <summary>A board that lays out tier nodes, like KitLevelPath.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public enum NodeState { Locked, Available, Owned }
 
         /// <summary>Which axis the palette is spent on. Never both — see the class remarks.</summary>
@@ -517,19 +523,6 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            if (IsInsideTree())
-                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
         private void EnsureNode(int index)
         {
             while (Nodes.Count <= index)
@@ -745,21 +738,14 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, MoveSelection))
+                return;
+
+            if (KitChrome.IsConfirm(@event) && _sel >= 0)
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir != Vector2I.Zero)
-                {
-                    MoveSelection(dir);
-                    AcceptEvent();
-                    return;
-                }
-                if (KitChrome.IsConfirmKey(key) && _sel >= 0)
-                {
-                    ActivateNode(_sel);
-                    AcceptEvent();
-                    return;
-                }
+                ActivateNode(_sel);
+                AcceptEvent();
+                return;
             }
 
             if (@event is InputEventMouseMotion mm)
@@ -799,25 +785,38 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private void MoveSelection(Vector2I dir)
+        /// <summary>
+        /// Move to the neighbouring node on the tier grid, reporting whether one was found.
+        ///
+        /// The search was already correct — it only moves when a node occupies the target
+        /// column and tier — but the caller consumed the key either way, so at the edge of the
+        /// tree the player was stuck. Returning false there releases the key and lets focus out.
+        /// </summary>
+        private bool MoveSelection(Vector2I dir)
         {
-            if (Nodes.Count == 0) return;
-            if (dir.X <= -9999) { Selected = 0; return; }
-            if (dir.X >= 9999) { Selected = Nodes.Count - 1; return; }
+            if (Nodes.Count == 0) return false;
 
-            int current = Mathf.Clamp(_sel < 0 ? 0 : _sel, 0, Nodes.Count - 1);
-            Node origin = Nodes[current];
+            if (dir.X <= -KitChrome.Jump) return SelectIfDifferent(0);
+            if (dir.X >= KitChrome.Jump) return SelectIfDifferent(Nodes.Count - 1);
+            if (_sel < 0) return SelectIfDifferent(0);
+
+            Node origin = Nodes[Mathf.Clamp(_sel, 0, Nodes.Count - 1)];
             int targetColumn = origin.Column + dir.X;
             int targetTier = origin.Tier + dir.Y;
             for (int i = 0; i < Nodes.Count; i++)
             {
                 Node candidate = Nodes[i];
                 if (candidate.Column == targetColumn && candidate.Tier == targetTier)
-                {
-                    Selected = i;
-                    return;
-                }
+                    return SelectIfDifferent(i);
             }
+            return false;
+        }
+
+        private bool SelectIfDifferent(int index)
+        {
+            if (index == _sel) return false;
+            Selected = index;
+            return true;
         }
 
         private int HitNode(Vector2 p)
@@ -841,7 +840,7 @@ namespace Beep.ECS.UI.Kit
             if (Size.X <= 8 || Size.Y <= 8) return;
             if (Nodes.Count == 0)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            ActiveShape, "Nodes");
                 DrawAttachments();
                 return;
@@ -966,7 +965,7 @@ namespace Beep.ECS.UI.Kit
                                    Mathf.Max(2f, 3f * (fs / 14f)));
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size), ActiveShape, 0.8f);
             DrawAttachments();
         }
 

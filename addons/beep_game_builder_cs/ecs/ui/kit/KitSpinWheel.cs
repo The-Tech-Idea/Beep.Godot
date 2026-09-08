@@ -19,6 +19,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitSpinWheel : KitControl
     {
+        /// <summary>A board carrying a wheel, not a control you press.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public readonly List<string> Wedges = new();
 
         [Export]
@@ -112,11 +118,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(fs * 9f, fs * 9f);
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private bool ShouldAnimate() => _spinning && Wedges.Count > 0;
 
         private void UpdateProcessing()
@@ -145,7 +146,7 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            if (KitChrome.IsConfirm(@event))
             {
                 if (!_spinning && Wedges.Count > 0) Spin(_target + 1);
                 AcceptEvent();
@@ -202,7 +203,7 @@ namespace Beep.ECS.UI.Kit
             if (d < 30f) return;
             if (n < 2)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
                                            KitShape.Ellipse, "Wedges");
                 return;
             }
@@ -270,7 +271,7 @@ namespace Beep.ECS.UI.Kit
                 tip,
             }, ink);
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size), KitShape.Ellipse, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size), KitShape.Ellipse, 0.8f);
         }
     }
 }

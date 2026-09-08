@@ -8,7 +8,7 @@ against the post-enhancement-plan tree; companion to
 
 ## Why, and what exists today
 
-Today a cell has **one** resource string (`TerrainWorld.Resource[cell]`),
+Today a cell has **one** resource string (`TerrainGenerationBuffer.Resource[cell]`),
 placed point-wise by `TerrainResourceStage`: single-cell deposits, spacing
 apart, weighted by `ResourceDefinition.TerrainKinds`/`Weight`/relief. That
 model conflates three different facts:
@@ -103,7 +103,7 @@ from the seed:
   fetch data already exist), thin out over deep water, skip lakes unless the
   definition allows them.
 
-`TerrainWorld` gains `CellUndergroundResource[]`, `CellUndergroundRichness[]`,
+`TerrainGenerationBuffer` gains `CellUndergroundResource[]`, `CellUndergroundRichness[]`,
 `CellWaterResource[]`. `GeneratedTerrainField` gains `UndergroundResourceAtCell`,
 `UndergroundRichnessAtCell`, `WaterResourceAtCell`. Diagnostics gain per-stratum
 counts (the lab's status line shows them).
@@ -206,7 +206,7 @@ machinery:
 
 - **Phase A — model & generation. DONE (2026-09-02).** ResourceDefinition
   gained `Stratum`/`Depth`/`DepositScale`/`Extraction`/`ExtractorBuildId`;
-  TerrainWorld carries the three new cell arrays; `TerrainSubsurfaceStage`
+  TerrainGenerationBuffer carries the three new cell arrays; `TerrainSubsurfaceStage`
   lays contiguous richness fields per underground definition;
   `TerrainResourceStage` is stratum-aware with the same hashes (a seed lays
   the surface out unchanged); field + generator accessors; diagnostics count

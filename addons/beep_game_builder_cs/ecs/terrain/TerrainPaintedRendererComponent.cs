@@ -45,34 +45,46 @@ namespace Beep.ECS
 			["mud"] = 8,
 			["gravel"] = 9,
 			["rock"] = 10,
-			// The splat shader has no lava material slot; rock is the honest
-			// stand-in until one exists. Unmapped, lava fell through to id 0
-			// and a lava field painted as grass.
-			["lava"] = 10,
+			["lava"] = 13,
 			["shallow_water"] = 11,
 			["deep_water"] = 12,
+			["water"] = 12,
+			["sea"] = 12,
+			["ocean"] = 12,
 		};
 
 		[Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+		[Export] public NodePath CellDataPath { get; set; } = new("");
 
 		[ExportGroup("Map")]
+		[Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
 		[Export] public Vector2I BoundsSize { get; set; } = new(96, 60);
 		[Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
 		[ExportGroup("Look")]
-		[Export(PropertyHint.Range, "1,32,0.5")] public float TextureTiles { get; set; } = 6.0f;
+		/// <summary>Tiles per ground-texture repeat, including beach and submerged sand.</summary>
+		[Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
+		/// <summary>Tiles per animated water-texture repeat, independent of ground detail.</summary>
+		[Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
+		/// <summary>Optional per-ground-texture repeat sizes; unassigned slots use GroundTextureTiles.</summary>
+		[Export] public TerrainMaterialTiling? MaterialTiling { get; set; }
+		[Export] public TerrainMapArt? MapArt { get; set; }
 		[Export(PropertyHint.Range, "0,0.9,0.01")] public float BlendWidth { get; set; } = 0.42f;
+		/// <summary>Concentrates material transitions without changing their coverage or texture scale.</summary>
+		[Export(PropertyHint.Range, "1,8,0.25")] public float BlendSharpness { get; set; } = 4.0f;
+		/// <summary>Texture-detail influence at material transitions; zero uses geometric blending only.</summary>
+		[Export(PropertyHint.Range, "0,1,0.05")] public float MaterialEdgeDetail { get; set; } = 0.75f;
 		[Export(PropertyHint.Range, "0,1,0.01")] public float EdgeNoise { get; set; } = 0.55f;
 		[Export(PropertyHint.Range, "0.5,24,0.5")] public float NoiseScale { get; set; } = 5.0f;
-		[Export(PropertyHint.Range, "0,2,0.05")] public float ShadeStrength { get; set; } = 1.0f;
+		[Export(PropertyHint.Range, "0,2,0.05")] public float ShadeStrength { get; set; } = 0.35f;
 		/// <summary>How many tiles of coast distance the shader can see.</summary>
-		[Export(PropertyHint.Range, "1,16,0.5")] public float CoastRangeTiles { get; set; } = 5.0f;
+		[Export(PropertyHint.Range, "5,16,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
 		/// <summary>
 		/// Sub-tile resolution of the coast distance field. At 1 the field has
 		/// one value per tile and its interpolated contours are square, so surf
 		/// drawn along them looks like survey lines rather than waves.
 		/// </summary>
-		[Export(PropertyHint.Range, "1,8,1")] public int CoastDetail { get; set; } = 4;
+		[Export(PropertyHint.Range, "1,16,1")] public int CoastDetail { get; set; } = 12;
 
 		// No z index export here. Where a view sits in the stack belongs to
 		// TerrainLayers, and a per-renderer dial beside it is a second owner of
@@ -145,14 +157,95 @@ namespace Beep.ECS
 		[Export(PropertyHint.File, "*.png,*.webp")] public string MudTexturePath { get; set; } = "";
 		[Export(PropertyHint.File, "*.png,*.webp")] public string GravelTexturePath { get; set; } = "";
 		[Export(PropertyHint.File, "*.png,*.webp")] public string RockTexturePath { get; set; } = "";
+		[Export(PropertyHint.File, "*.png,*.webp")] public string LavaTexturePath { get; set; } = "";
 		[Export(PropertyHint.File, "*.png,*.webp")] public string ShallowWaterTexturePath { get; set; } = "";
 		[Export(PropertyHint.File, "*.png,*.webp")] public string DeepWaterTexturePath { get; set; } = "";
 
 		private const string ShaderPath = "res://addons/beep_game_builder_cs/shaders/terrain_splat.gdshader";
 
 		private TerrainGeneratorComponent? _generator;
+		private GridCellDataComponent? _cells;
+		private bool _rebuildQueued;
+		private bool _hasRebuildAttempt;
 		private TileMapLayer? _surface;
 		private ShaderMaterial? _material;
+		private readonly TerrainCoastField.LiveCache _liveCoast = new();
+		private TerrainVisualSnapshot _visualSnapshot = new();
+		private TerrainVisualSnapshot.Preparation? _snapshotPreparation;
+		private TerrainPaintedCoastJob? _coastPreparation;
+		private ImageTexture? _preparedCoast, _preparedLake;
+		private TerrainCoastField.Pixels? _preparedCoastPixels, _preparedLakePixels;
+		private (GridCellDataComponent? Cells, ulong Revision, string DefaultKind,
+			Vector2I Origin, Vector2I Size, int Detail, float Range)? _preparedKey;
+		public bool IsPreparingSnapshot => _snapshotPreparation is not null;
+		public int PreparedSnapshotCells => _snapshotPreparation?.Loaded ?? 0;
+		public string PreparationStage => _coastPreparation is null ? "Preparing painted terrain" : "Computing painted coast";
+
+		internal bool BeginSnapshotPreparation()
+		{
+			CancelSnapshotPreparation();
+			ResolveCells();
+			if (_cells is null) return false;
+			_rebuildQueued = false;
+			_snapshotPreparation = new(_cells, BoundsOrigin, BoundsSize);
+			return true;
+		}
+
+		internal bool StepSnapshotPreparation(int budget)
+		{
+			if (_snapshotPreparation is null) throw new InvalidOperationException("Painted snapshot preparation was interrupted.");
+			var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+			if (!_snapshotPreparation.Matches(cells, BoundsOrigin, BoundsSize))
+				throw new InvalidOperationException("Painted snapshot source changed during preparation.");
+			if (!_snapshotPreparation.Step(budget)) return false;
+			if (_coastPreparation is null)
+			{
+				_coastPreparation = new(_snapshotPreparation.Snapshot, BoundsSize, CoastDetail, CoastRangeTiles);
+				return false;
+			}
+			if (_coastPreparation.Detail != CoastDetail || _coastPreparation.Range != CoastRangeTiles)
+				throw new InvalidOperationException("Painted coast settings changed during preparation.");
+			if (!_coastPreparation.Completion.IsCompleted) return false;
+			var pixels = _coastPreparation.Completion.GetAwaiter().GetResult();
+			var coast = pixels.Coast.Upload();
+			var lake = pixels.Lake.Upload();
+			_renderCoast.Prepare(coast, BoundsSize, pixels.SmoothCoast);
+			_renderLake.Prepare(lake, BoundsSize, pixels.SmoothLake);
+			_preparedCoast = coast;
+			_preparedLake = lake;
+			// The raw fields too, so the coast caches adopt them and the first edit is a window, not a rebuild.
+			_preparedCoastPixels = pixels.Coast;
+			_preparedLakePixels = pixels.Lake;
+			_preparedKey = (_cells, _cells!.TerrainRevision, _cells.DefaultTerrainKind,
+				BoundsOrigin, BoundsSize, CoastDetail, CoastRangeTiles);
+			_coastPreparation.Dispose();
+			_coastPreparation = null;
+			_visualSnapshot = _snapshotPreparation.Snapshot;
+			_snapshotPreparation = null;
+			_mapKey = null;
+			return true;
+		}
+
+		internal void CancelSnapshotPreparation()
+		{
+			_snapshotPreparation = null;
+			_coastPreparation?.Dispose();
+			_coastPreparation = null;
+		}
+		private readonly TerrainCoastField.RenderCache _renderCoast = new();
+		private readonly TerrainCoastField.RenderCache _renderLake = new();
+		private ImageTexture? _lakeMap, _lakeWidthMap, _emptyLakeMap;
+		private ImageTexture? _idMap, _shadeMap, _coastMap;
+		// The id-map inputs and pixels, retained so a changed chunk rewrites only its texels. The
+		// whole-map pass they replace cost 742 ms for one inland cell at 320x256.
+		private byte[]? _idPixels, _shadePixels, _lakeWidthPixels;
+		private bool[]? _waterMask, _lakeBank;
+		private float[]? _elevationField;
+		private GridTerrainWaterPatch?[]? _waterPatches, _lakePatches;
+		private Image? _idImage, _shadeImage, _lakeWidthImage;
+		private int _lakeBankCells;
+		private (GridCellDataComponent? Cells, ulong Revision, string DefaultKind,
+			GeneratedTerrainField? Field, Vector2I Origin, Vector2I Size, int Detail, float Range)? _mapKey;
 
 
 
@@ -165,41 +258,148 @@ namespace Beep.ECS
 
 		public override void _Ready()
 		{
+			ResolveCells();
 			if (RefreshOnReady && !Engine.IsEditorHint())
 				CallDeferred(nameof(Rebuild));
 		}
 
+		public override void _EnterTree()
+		{
+			if (_hasRebuildAttempt && !Engine.IsEditorHint())
+				Callable.From(() =>
+				{
+					if (!IsInsideTree()) return;
+					ResolveCells();
+					QueueRebuild();
+				}).CallDeferred();
+		}
+
+		public override void _ExitTree()
+		{
+			CancelSnapshotPreparation();
+			DisconnectCells();
+			_rebuildQueued = false;
+		}
+
+		public override void _Notification(int what)
+		{
+			if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
+				QueueRebuild();
+		}
+
+		private void DisconnectCells()
+		{
+			if (_cells is not null && GodotObject.IsInstanceValid(_cells))
+			{
+				_cells.CellChanged -= OnCellChanged;
+				_cells.CellsChanged -= QueueRebuild;
+			}
+			_cells = null;
+			_mapKey = null;
+		}
+
+		private void ResolveCells()
+		{
+			var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+			if (cells == _cells) return;
+			DisconnectCells();
+			_cells = cells;
+			if (_cells is null || Engine.IsEditorHint()) return;
+			_cells.CellChanged += OnCellChanged;
+			_cells.CellsChanged += QueueRebuild;
+		}
+
+		private void OnCellChanged(int x, int y)
+		{
+			if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
+		}
+
+		private void QueueRebuild()
+		{
+			if (_snapshotPreparation is not null || _rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+			_rebuildQueued = true;
+			Callable.From(() =>
+			{
+				if (!_rebuildQueued) return;
+				_rebuildQueued = false;
+				if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+			}).CallDeferred();
+		}
+
 		public override string[] _GetConfigurationWarnings()
-			=> TerrainGeneratorPath.IsEmpty
+			=> TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty
 				? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
 				: System.Array.Empty<string>();
 
 		/// <summary>Re-uploads the terrain grid and repaints the surface.</summary>
 		public void Rebuild()
 		{
+			CancelSnapshotPreparation();
+			_hasRebuildAttempt = true;
+			_rebuildQueued = false;
+			ResolveCells();
 			ResolveGenerator();
-			if (_generator is null)
+			if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
 			{
-				GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; the painted surface was not repainted.");
+				_surface = GetNodeOrNull<TileMapLayer>("SplatSurface");
+				_surface?.Clear();
+				GD.PushWarning($"[{Name}] terrain source could not be resolved; the painted surface was cleared.");
 				return;
 			}
-			TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+			if (_cells is null && _generator is not null)
+				TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
 			// Resolved ONCE per rebuild rather than once per cell; see
 			// TerrainGeneratorComponent.ResolveField.
-			GeneratedTerrainField field = _generator.ResolveField();
+			GeneratedTerrainField? field = _cells is null ? _generator!.ResolveField() : null;
 
 			Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-			ImageTexture idMap = BuildIdMap(field, size, out ImageTexture shadeMap, out ImageTexture coastMap);
+			if (_preparedKey != (_cells, _cells?.TerrainRevision ?? 0, _cells?.DefaultTerrainKind ?? "",
+				BoundsOrigin, size, CoastDetail, CoastRangeTiles))
+			{
+				_preparedCoast = _preparedLake = null;
+				_preparedCoastPixels = _preparedLakePixels = null;
+				_preparedKey = null;
+			}
+			if (_cells is not null && !_visualSnapshot.Update(_cells, BoundsOrigin, size))
+			{
+				if (GodotObject.IsInstanceValid(_surface)) _surface!.Visible = false;
+				return;
+			}
+			var mapKey = (_cells, _cells is not null ? _visualSnapshot.Revision : 0, _cells?.DefaultTerrainKind ?? "",
+				field, BoundsOrigin, size, CoastDetail, CoastRangeTiles);
+			if (_mapKey != mapKey || !GodotObject.IsInstanceValid(_idMap)
+				|| !GodotObject.IsInstanceValid(_shadeMap) || !GodotObject.IsInstanceValid(_coastMap))
+			{
+				// Same source, bounds and coast settings, only the samples moved: rewrite the changed
+				// chunks' texels in place. Anything else is a whole build.
+				bool incremental = _cells is not null && _idPixels is not null && !_visualSnapshot.Reset
+					&& _mapKey is { } previous && previous.Cells == _cells && previous.DefaultKind == _cells.DefaultTerrainKind
+					&& previous.Field == field && previous.Origin == BoundsOrigin && previous.Size == size
+					&& previous.Detail == CoastDetail && previous.Range == CoastRangeTiles
+					&& GodotObject.IsInstanceValid(_idMap) && GodotObject.IsInstanceValid(_shadeMap)
+					&& GodotObject.IsInstanceValid(_coastMap) && GodotObject.IsInstanceValid(_lakeWidthMap);
+				if (incremental) UpdateMaps(size, _visualSnapshot.ChangedChunks);
+				else BuildMaps(field, size);
+				_mapKey = mapKey;
+			}
 
 			EnsureSurface(size);
+			_surface!.Visible = true;
 			if (_material is null)
 				return;
 
-			_material.SetShaderParameter("id_map", idMap);
-			_material.SetShaderParameter("shade_map", shadeMap);
-			_material.SetShaderParameter("coast_map", coastMap);
-			_material.SetShaderParameter("coast_range", CoastRangeTiles);
+			_material.SetShaderParameter("id_map", _idMap!);
+			_material.SetShaderParameter("shade_map", _shadeMap!);
+			// The live caches hand the render caches their raw fields and the window an update
+			// touched; a generator-built field has neither and takes the whole pass.
+			bool liveCoast = _waterPatches is not null;
+			_material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap!, size, _liveCoast.CoastRevision,
+				liveCoast ? _liveCoast.CoastField : null, liveCoast ? _liveCoast.CoastDirty : null));
+			_material.SetShaderParameter("lake_map", _renderLake.Resolve(_lakeMap!, size, _liveCoast.LakeRevision,
+				liveCoast ? _liveCoast.LakeField : null, liveCoast ? _liveCoast.LakeDirty : null));
+			_material.SetShaderParameter("lake_width_map", _lakeWidthMap!);
+			_material.SetShaderParameter("coast_range", Mathf.Max(5f, CoastRangeTiles));
 
 			// The beach is as wide as the GENERATOR says, not as wide as this
 			// shader happens to default to.
@@ -212,12 +412,18 @@ namespace Beep.ECS
 			// showed none, and this one carried on drawing the 1.15 tiles its
 			// shader defaulted to. One map, and only one of three views telling
 			// the truth about its coast.
-			_material.SetShaderParameter("beach_tiles", _generator.BeachWidth);
+			// Live sand is explicit cell data; do not invent a generated beach over player edits.
+			// Width and underlying biome are carried in each live ID texel.
 			_material.SetShaderParameter("map_size", new Vector2(size.X, size.Y));
+			_material.SetShaderParameter("map_origin", new Vector2(BoundsOrigin.X, BoundsOrigin.Y));
 			_material.SetShaderParameter(
 				"cell_size", new Vector2(Mathf.Max(1, TileSize), Mathf.Max(1, TileSize)));
-			_material.SetShaderParameter("texture_tiles", Mathf.Max(1.0f, TextureTiles));
+			_material.SetShaderParameter("ground_texture_tiles", Mathf.Max(1.0f, GroundTextureTiles));
+			_material.SetShaderParameter("water_texture_tiles", Mathf.Max(1.0f, WaterTextureTiles));
+			TerrainMaterialTiling.Apply(_material, MaterialTiling);
 			_material.SetShaderParameter("blend_width", BlendWidth);
+			_material.SetShaderParameter("blend_sharpness", Mathf.Clamp(BlendSharpness, 1.0f, 8.0f));
+			_material.SetShaderParameter("material_edge_detail", Mathf.Clamp(MaterialEdgeDetail, 0.0f, 1.0f));
 			_material.SetShaderParameter("edge_noise", EdgeNoise);
 			_material.SetShaderParameter("noise_scale", NoiseScale);
 			_material.SetShaderParameter("shade_strength", ShadeStrength);
@@ -239,36 +445,157 @@ namespace Beep.ECS
 			_material.SetShaderParameter("shallow_tiles", Mathf.Max(0.0f, ShallowTiles));
 			_material.SetShaderParameter("swell_direction_degrees", SwellDirectionDegrees);
 			_material.SetShaderParameter("swell_directionality", Mathf.Clamp(SwellDirectionality, 0.0f, 1.0f));
+			_material.SetShaderParameter("art_style", 0);
+			MapArt?.ApplyGround(_material);
 		}
 
 		/// <summary>
 		/// One texel per tile: red is the terrain id, green the hillshade. This
 		/// is the only way the shader can know what its neighbours are.
 		/// </summary>
-		private ImageTexture BuildIdMap(GeneratedTerrainField field, Vector2I size, out ImageTexture shadeMap, out ImageTexture coastMap)
+		private void BuildMaps(GeneratedTerrainField? field, Vector2I size)
 		{
-			var image = Image.CreateEmpty(size.X, size.Y, false, Image.Format.Rgba8);
-			// Shade lives in its own image so it can be sampled with linear
-			// filtering while ids stay nearest.
-			var shade = Image.CreateEmpty(size.X, size.Y, false, Image.Format.Rgba8);
+			int count = checked(size.X * size.Y);
+			_idPixels = new byte[checked(count * 4)];
+			_shadePixels = new byte[_idPixels.Length];
+			_lakeWidthPixels = new byte[_idPixels.Length];
+			_waterMask = new bool[count];
+			_lakeBank = new bool[count];
+			_lakeBankCells = 0;
+			_elevationField = _cells is null ? null : new float[count];
+			_waterPatches = _cells is null ? null : new GridTerrainWaterPatch?[count];
+			_lakePatches = _cells is null ? null : new GridTerrainWaterPatch?[count];
+			// Sample each live elevation once; neighbouring slopes read this snapshot.
 			for (int y = 0; y < size.Y; y++)
-			{
-				for (int x = 0; x < size.X; x++)
-				{
-					var cell = new Vector2I(x, y);
-					string kind = field.TerrainAtCell(cell);
-					int id = TerrainIds.TryGetValue(kind, out int mapped) ? mapped : 0;
+				for (int x = 0; x < size.X; x++) WriteCellTexels(field, size, x, y);
+			for (int y = 0; y < size.Y; y++)
+				for (int x = 0; x < size.X; x++) WriteShadeTexel(field, size, x, y);
+			_idImage = Image.CreateFromData(size.X, size.Y, false, Image.Format.Rgba8, _idPixels);
+			// Shade is filtered linearly while terrain IDs remain nearest-filtered.
+			_shadeImage = Image.CreateFromData(size.X, size.Y, false, Image.Format.Rgba8, _shadePixels);
+			_lakeWidthImage = Image.CreateFromData(size.X, size.Y, false, Image.Format.Rgba8, _lakeWidthPixels);
+			_idMap = ImageTexture.CreateFromImage(_idImage);
+			_shadeMap = ImageTexture.CreateFromImage(_shadeImage);
+			_lakeWidthMap = ImageTexture.CreateFromImage(_lakeWidthImage);
+			_lakeMap = ResolveLakeMap(field, size);
+			_coastMap = ResolveCoastMap(size);
+		}
 
-					// Shade is 0.7..1.3 from the generator; halved so it fits a
-					// colour channel, and doubled again in the shader.
-					float lit = Mathf.Clamp(field.ShadeAtPosition(new Vector2(cell.X + 0.5f, cell.Y + 0.5f)) * 0.5f, 0.0f, 1.0f);
-					image.SetPixel(x, y, new Color(id / 255.0f, lit, 0.0f, 1.0f));
-					shade.SetPixel(x, y, new Color(lit, lit, lit, 1.0f));
-				}
+		/// <summary>Rewrites the texels of the chunks whose samples changed, plus a one-cell shade halo, in place.</summary>
+		private void UpdateMaps(Vector2I size, IReadOnlyList<Vector2I> chunks)
+		{
+			var bounds = new Rect2I(Vector2I.Zero, size);
+			foreach (Vector2I chunk in chunks)
+			{
+				// Snapshot chunks are absolute; the maps are local to BoundsOrigin.
+				var rect = new Rect2I(chunk * 32 - BoundsOrigin, new Vector2I(32, 32)).Intersection(bounds);
+				if (rect.Size.X <= 0 || rect.Size.Y <= 0) continue;
+				for (int y = rect.Position.Y; y < rect.End.Y; y++)
+					for (int x = rect.Position.X; x < rect.End.X; x++) WriteCellTexels(null, size, x, y);
+				var shade = rect.Grow(1).Intersection(bounds);
+				for (int y = shade.Position.Y; y < shade.End.Y; y++)
+					for (int x = shade.Position.X; x < shade.End.X; x++) WriteShadeTexel(null, size, x, y);
 			}
-			shadeMap = ImageTexture.CreateFromImage(shade);
-			coastMap = BuildCoastMap(size);
-			return ImageTexture.CreateFromImage(image);
+			// New textures rather than ImageTexture.Update: the headless renderer never applies an
+			// Update, and the probes read texture data back. The upload is the same either way.
+			_idImage!.SetData(size.X, size.Y, false, Image.Format.Rgba8, _idPixels!);
+			_idMap = ImageTexture.CreateFromImage(_idImage);
+			_shadeImage!.SetData(size.X, size.Y, false, Image.Format.Rgba8, _shadePixels!);
+			_shadeMap = ImageTexture.CreateFromImage(_shadeImage);
+			_lakeWidthImage!.SetData(size.X, size.Y, false, Image.Format.Rgba8, _lakeWidthPixels!);
+			_lakeWidthMap = ImageTexture.CreateFromImage(_lakeWidthImage);
+			_lakeMap = ResolveLakeMap(null, size);
+			_coastMap = ResolveCoastMap(size);
+		}
+
+		private void WriteCellTexels(GeneratedTerrainField? field, Vector2I size, int x, int y)
+		{
+			var cell = new Vector2I(x, y);
+			int index = y * size.X + x;
+			int pixel = index * 4;
+			string kind = _cells is not null ? _visualSnapshot[index].Kind : field!.TerrainAtCell(cell);
+			int id = TerrainIds.TryGetValue(kind, out int mapped) ? mapped : 0;
+			_idPixels![pixel] = (byte)id;
+			var shore = _cells is not null ? _visualSnapshot[index].Shore
+				: (Inland: field!.InlandTerrainAtCell(cell), Width: field.BeachWidth,
+					LakeWidth: field.ReliefAtCell(cell) == TerrainRelief.Flat ? field.LakeShoreWidth : 0f);
+			_lakeWidthPixels![pixel] = (byte)Mathf.RoundToInt(shore.LakeWidth / 3f * 255f);
+			bool bank = shore.LakeWidth > 0f;
+			if (_lakeBank![index] != bank)
+			{
+				_lakeBank[index] = bank;
+				_lakeBankCells += bank ? 1 : -1;
+			}
+			_idPixels[pixel + 2] = (byte)(TerrainIds.TryGetValue(shore.Inland, out int inlandId) ? inlandId : id);
+			_idPixels[pixel + 3] = (byte)Mathf.RoundToInt(Mathf.Clamp(shore.Width / 4f, 0f, 1f) * 255f);
+			bool water = TerrainTileSets.IsWaterKind(kind);
+			_waterMask![index] = water;
+			if (_elevationField is not null) _elevationField[index] = water ? 0f : _visualSnapshot[index].Elevation;
+			if (_waterPatches is not null)
+			{
+				_waterPatches[index] = _visualSnapshot[index].Water;
+				_lakePatches![index] = _visualSnapshot[index].Lake;
+			}
+		}
+
+		private void WriteShadeTexel(GeneratedTerrainField? field, Vector2I size, int x, int y)
+		{
+			var cell = new Vector2I(x, y);
+			int index = y * size.X + x;
+			// Shade is 0.7..1.3 from the generator; halved so it fits a
+			// colour channel, and doubled again in the shader.
+			float lighting = _elevationField is not null
+				? (_waterMask![index] ? 1f : TerrainShadingStage.AtCell(_elevationField, size, cell))
+				: field!.ShadeAtPosition(new Vector2(cell.X + 0.5f, cell.Y + 0.5f));
+			float lit = Mathf.Clamp(lighting * 0.5f, 0.0f, 1.0f);
+			byte shadeByte = (byte)(lit * 255f);
+			int pixel = index * 4;
+			_idPixels![pixel + 1] = shadeByte;
+			_shadePixels![pixel] = _shadePixels[pixel + 1] = _shadePixels[pixel + 2] = shadeByte;
+			_shadePixels[pixel + 3] = 255;
+		}
+
+		private ImageTexture ResolveLakeMap(GeneratedTerrainField? field, Vector2I size)
+		{
+			int detail = Mathf.Clamp(CoastDetail, 1, 16);
+			float range = Mathf.Max(5f, CoastRangeTiles);
+			ImageTexture lake;
+			if (_lakeBankCells == 0)
+			{
+				if (!GodotObject.IsInstanceValid(_emptyLakeMap))
+				{
+					using var empty = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
+					empty.Fill(new Color(0f, 0f, 0f, 1f));
+					_emptyLakeMap = ImageTexture.CreateFromImage(empty);
+				}
+				lake = _emptyLakeMap!;
+			}
+			else if (_lakePatches is null)
+				lake = TerrainCoastField.BuildLake(_cells, field, BoundsOrigin, size, CoastDetail, range);
+			else if (_preparedLakePixels is { Format: Image.Format.Rgbaf } prepared && _preparedLake is not null)
+				lake = _liveCoast.AdoptLake(_lakePatches, prepared, _preparedLake, size, detail, range);
+			else
+				lake = _liveCoast.ResolveLakeSamples(_lakePatches, size, detail, range);
+			_preparedLake = null;
+			_preparedLakePixels = null;
+			return lake;
+		}
+
+		private ImageTexture ResolveCoastMap(Vector2I size)
+		{
+			int detail = Mathf.Clamp(CoastDetail, 1, 16);
+			float range = Mathf.Max(5f, CoastRangeTiles);
+			ImageTexture coast;
+			if (_waterPatches is null)
+				coast = BuildCoastMap(size);
+			else if (_preparedCoastPixels is { } prepared && _preparedCoast is not null)
+				coast = _liveCoast.AdoptCoast(_waterMask!, _waterPatches, prepared, _preparedCoast, size, detail, range);
+			else
+				coast = _liveCoast.ResolveSamples(_waterMask!, _waterPatches, size, detail, range);
+			_preparedCoast = null;
+			_preparedCoastPixels = null;
+			_preparedKey = null;
+			return coast;
 		}
 
 		/// <summary>
@@ -281,7 +608,9 @@ namespace Beep.ECS
 		/// in tiles and actually be that wide on screen.
 		/// </summary>
 		private ImageTexture BuildCoastMap(Vector2I size)
-			=> TerrainCoastField.Build(_generator!, size, CoastDetail, CoastRangeTiles);
+			=> _cells is not null
+				? _liveCoast.Resolve(_cells, BoundsOrigin, size, CoastDetail, Mathf.Max(5f, CoastRangeTiles))
+				: TerrainCoastField.Build(_generator!, size, CoastDetail, Mathf.Max(5f, CoastRangeTiles));
 
 		private void EnsureSurface(Vector2I size)
 		{
@@ -301,6 +630,8 @@ namespace Beep.ECS
 				_surface.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: false);
 
 			TerrainShaderSurface.Fill(_surface, size);
+			_surface.Position = new Vector2(BoundsOrigin.X * tile, BoundsOrigin.Y * tile);
+			GetTerrainLayer();
 
 			// The whole map - bed, sea and land composited in a single pass - so it
 			// goes at the floor of the shared stack.
@@ -308,16 +639,13 @@ namespace Beep.ECS
 			_surface.ZAsRelative = false;
 			_surface.TextureFilter = TextureFilterEnum.Linear;
 
-			if (_material is null)
+			if (_material is null || _surface.Material != _material)
 			{
-				// Adopt the material saved with the scene before building a
-				// fresh one: replacing it wiped every uniform hand-tuned in
-				// the Inspector on each reload. Exported dials are rewritten
-				// by Rebuild and win; only the uniforms no export covers
-				// survive by this.
-				_material = _surface.Material as ShaderMaterial;
+				// Keep authored uniforms, but never write map data into a shared scene resource.
+				_material = (_surface.Material as ShaderMaterial)?.Duplicate() as ShaderMaterial;
 				if (_material is not null && _material.Shader is null)
 					_material.Shader = GD.Load<Shader>(ShaderPath);
+				if (_material is not null) _surface.Material = _material;
 			}
 			if (_material is null)
 			{
@@ -333,6 +661,16 @@ namespace Beep.ECS
 			AssignMaterialTextures();
 		}
 
+		/// <summary>Absolute logical coordinates; shader tiles stay local to one rendering quadrant.</summary>
+		public TileMapLayer GetTerrainLayer()
+		{
+			var layer = TerrainAuthoring.EnsureLayer(this, "LogicalGrid");
+			var size = Vector2I.One * Mathf.Max(1, TileSize);
+			if (layer.TileSet is null || layer.TileSet.TileSize != size)
+				layer.TileSet = new TileSet { TileSize = size };
+			return layer;
+		}
+
 		private void AssignMaterialTextures()
 		{
 			Assign("tex_grass", GrassTexturePath);
@@ -343,6 +681,7 @@ namespace Beep.ECS
 			Assign("tex_mud", MudTexturePath);
 			Assign("tex_gravel", GravelTexturePath);
 			Assign("tex_rock", RockTexturePath);
+			Assign("tex_lava", LavaTexturePath);
 			Assign("tex_shallow", ShallowWaterTexturePath);
 			Assign("tex_deep", DeepWaterTexturePath);
 		}
@@ -361,10 +700,8 @@ namespace Beep.ECS
 
 		private void ResolveGenerator()
 		{
-			if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-				_generator = TerrainGeneratorPath.IsEmpty
-					? null
-					: GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+			_generator = TerrainGeneratorPath.IsEmpty ? null
+				: GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
 		}
 	}
 }

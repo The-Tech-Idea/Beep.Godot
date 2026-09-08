@@ -39,7 +39,7 @@ namespace Beep.ECS
         private void InitializeApp()
         {
             // Load and apply user settings (audio/display/locale) from SettingsComponent.
-            var settings = UI.SettingsComponent.Instance;
+            var settings = GameApp.Instance?.Settings;
             if (settings != null)
             {
                 settings.LoadSettings();  // reads user://settings.cfg

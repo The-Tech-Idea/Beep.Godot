@@ -14,7 +14,11 @@ namespace Beep.ECS.UI.Kit
 
         [Export(PropertyHint.Range, "0.0,1.0,0.001")]
         public float Value { get => _value; set { float next = Mathf.Clamp(value, 0f, 1f); if (Mathf.IsEqualApprox(_value, next)) return; _value = next; RefreshContentAndRedraw(); } }
-        private float _value = 1f;
+        // A meter that ships FULL demonstrates nothing: a completely filled orb is a solid disc,
+        // indistinguishable from a decorative ball, so it reads as a widget that does not work.
+        // Every other widget in this kit carries an opinionated default for the same reason -- see
+        // KitToast and KitDialogBox. A meter's opinionated default has to be a PARTIAL value.
+        private float _value = 0.62f;
 
         [Export]
         public UiSurface.Role Fill
@@ -95,20 +99,26 @@ namespace Beep.ECS.UI.Kit
             float waterY = c.Y + r - r * 2f * _value;
             float dy = Mathf.Clamp((waterY - c.Y) / r, -1f, 1f);
             float xSpan = Mathf.Sqrt(Mathf.Max(0f, 1f - dy * dy)) * r;
-            float leftAngle = Mathf.Atan2(dy, -xSpan / r);
-            float rightAngle = Mathf.Atan2(dy, xSpan / r);
 
-            var points = new System.Collections.Generic.List<Vector2>
-            {
-                new(c.X - xSpan, waterY)
-            };
+            // The SUBMERGED arc: from the left end of the water line, down through the bottom of
+            // the orb, to the right end. The polygon closes along the water line itself.
+            //
+            // This swept `leftAngle -> rightAngle + Tau` before, which is more than a full turn:
+            // the outline wrapped past itself, and Godot rejected the result outright --
+            // "Invalid polygon data, triangulation failed" -- so NOTHING was drawn. It went
+            // unnoticed because the widget shipped at value 1.0, where the branch above returns a
+            // plain circle and this code never runs. Any partial value at all was a silent blank.
+            //
+            // Asin gives the right end's angle directly, and the left end mirrors it about the
+            // vertical axis; sweeping from the left DOWN to the right passes through +pi/2, which
+            // is the bottom of the orb in screen space (y grows downward).
+            float phi = Mathf.Asin(dy);
+            var points = new System.Collections.Generic.List<Vector2>(41);
             for (int i = 0; i <= 40; i++)
             {
-                float t = i / 40f;
-                float a = Mathf.Lerp(leftAngle, rightAngle + Mathf.Tau, t);
+                float a = Mathf.Lerp(Mathf.Pi - phi, phi, i / 40f);
                 points.Add(c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r);
             }
-            points.Add(new Vector2(c.X + xSpan, waterY));
             DrawColoredPolygon(points.ToArray(), fill);
 
             DrawLine(new Vector2(c.X - xSpan, waterY), new Vector2(c.X + xSpan, waterY),

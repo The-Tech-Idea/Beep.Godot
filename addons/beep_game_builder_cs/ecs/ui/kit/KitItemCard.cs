@@ -103,11 +103,6 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private void ClearPointerState()
         {
             if (_locked || State == KitState.Normal) return;
@@ -145,7 +140,7 @@ namespace Beep.ECS.UI.Kit
             Color ink = InkColor();
 
             DrawShape(r, KitShape.Round, face, _selected ? UiSurface.Semantic(this, UiSurface.Role.Info) : RimColor(), _selected ? rim * 1.6f : rim);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, KitShape.Round, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, r, KitShape.Round, 0.8f);
 
             float pad = Mathf.Clamp(Size.Y * 0.11f, 6f, 10f);
             float iconSide = Mathf.Clamp(Size.Y - pad * 2f, 38f, 54f);
@@ -177,8 +172,8 @@ namespace Beep.ECS.UI.Kit
             Color face = _locked ? Desaturate(FaceColor(), 0.90f) : FaceColor();
             Color ink = InkColor();
 
-            DrawShape(r, ActiveShape, face, _selected ? UiSurface.Semantic(this, UiSurface.Role.Info) : RimColor(), _selected ? rim * 1.5f : rim);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape, 0.8f);
+            DrawPlate(r, ActiveShape, face, _selected ? UiSurface.Semantic(this, UiSurface.Role.Info) : RimColor(), _selected ? rim * 1.5f : rim);
+            KitChrome.DrawFocusRing(this, Genre, r, ActiveShape, 0.8f);
 
             float pad = Mathf.Clamp(Mathf.Min(Size.X, Size.Y) * 0.11f, 7f, 12f);
 
@@ -215,8 +210,7 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawIconWell(Rect2 r, Color ink)
         {
-            Color well = UiSurface.Of(this);
-            well = new Color(well.R * Geo.WellShade, well.G * Geo.WellShade, well.B * Geo.WellShade, 1f);
+            Color well = KitChrome.RecessFace(UiSurface.Of(this), Geo.WellShade) with { A = 1f };
             DrawShape(r, KitShape.Round, well, ink, Mathf.Max(1f, Geo.Rim * 0.55f));
             if (_icon != null)
                 DrawTextureRect(_icon, r.Grow(-Mathf.Min(r.Size.X, r.Size.Y) * 0.16f), false, _locked ? new Color(0.6f, 0.6f, 0.62f) : Colors.White);
@@ -253,7 +247,7 @@ namespace Beep.ECS.UI.Kit
                 int fs = UiSurface.FitRole(this, UiSurface.TextRole.Small,
                                            new Vector2(descBox.Size.X, descBox.Size.Y * 0.55f),
                                            _description, font, min: 7);
-                KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, descBox,
+                KitChrome.DrawWrappedText(this, Genre, font, descBox,
                                           _description, fs, ink with { A = 0.78f },
                                           maxLines: 2);
             }

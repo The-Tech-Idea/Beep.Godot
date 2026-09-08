@@ -9,9 +9,12 @@ namespace Beep.ECS
     /// The map's data layers say what lies beneath each cell and how rich it
     /// is - immutable facts of the generated world. This component owns the
     /// MUTABLE half: the remaining amount, drawn down by extractors, carried
-    /// through saves. Splitting it this way keeps the published map pure (a
-    /// reload regenerates it from the seed) while the drawdown lives with the
-    /// rest of the gameplay state.
+    /// through saves. Splitting it this way keeps the published map pure - a
+    /// reload regenerates it from the saved recipe, TerrainWorldComponent's
+    /// axes and seed, through RestoreWorld - while the drawdown lives with
+    /// the rest of the gameplay state. The two halves meet lazily: a restored
+    /// remaining amount is read against layers that RestoreWorld has rebuilt,
+    /// never inside Load, so the order the saveables restore in is irrelevant.
     ///
     /// A cell's remaining amount is seeded LAZILY on first touch:
     /// richness x the catalog definition's Amount (its per-cell amount at
@@ -24,6 +27,7 @@ namespace Beep.ECS
     {
         [Signal] public delegate void DepositChangedEventHandler(int x, int y, string resourceId, int remaining);
         [Signal] public delegate void DepositDepletedEventHandler(int x, int y, string resourceId);
+        [Signal] public delegate void StateRestoredEventHandler();
 
         [Export] public bool ParticipatesInSave { get; set; } = true;
         [Export] public string SaveKey { get; set; } = "grid_subsurface.state";
@@ -38,6 +42,7 @@ namespace Beep.ECS
 
         private readonly Dictionary<Vector2I, int> _remaining = new();
         private TerrainDataLayersComponent? _dataLayers;
+        private string _undergroundIdentity = "";
 
         public override void _Ready()
         {
@@ -71,7 +76,11 @@ namespace Beep.ECS
         /// </summary>
         public int RemainingAt(Vector2I cell)
         {
-            if (_remaining.TryGetValue(cell, out int stored))
+            ResolveReferences();
+            if (_dataLayers is null || _dataLayers.UndergroundIdentity.Length == 0
+                || _dataLayers.UndergroundResourceAt(cell).Length == 0) return 0;
+            if (_undergroundIdentity == _dataLayers.UndergroundIdentity
+                && _remaining.TryGetValue(cell, out int stored))
                 return stored;
             return SeedAmountAt(cell);
         }
@@ -96,6 +105,11 @@ namespace Beep.ECS
 
             int drawn = Mathf.Min(amount, remaining);
             remaining -= drawn;
+            if (_undergroundIdentity != _dataLayers!.UndergroundIdentity)
+            {
+                _remaining.Clear();
+                _undergroundIdentity = _dataLayers.UndergroundIdentity;
+            }
             _remaining[cell] = remaining;
             EmitSignal(SignalName.DepositChanged, cell.X, cell.Y, id, remaining);
             if (remaining <= 0)
@@ -120,23 +134,29 @@ namespace Beep.ECS
 
         public Godot.Collections.Dictionary CaptureState()
         {
+            ResolveReferences();
+            string identity = _dataLayers?.UndergroundIdentity ?? "";
+            if (identity.Length == 0) identity = _undergroundIdentity;
             var cells = new Godot.Collections.Array<Godot.Collections.Dictionary>();
             foreach ((Vector2I cell, int remaining) in _remaining)
             {
+                if (identity != _undergroundIdentity) break;
                 cells.Add(new Godot.Collections.Dictionary
                 {
                     ["cell"] = cell,
                     ["remaining"] = remaining
                 });
             }
-            return new Godot.Collections.Dictionary { ["cells"] = cells };
+            return new Godot.Collections.Dictionary { ["underground_identity"] = identity, ["cells"] = cells };
         }
 
         public void RestoreState(Godot.Collections.Dictionary state)
         {
             _remaining.Clear();
+            _undergroundIdentity = GridVariantReader.String(state, "underground_identity", "");
             foreach (Variant value in GridVariantReader.Array(state, "cells"))
             {
+                if (_undergroundIdentity.Length == 0) break;
                 if (!GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary dict))
                     continue;
 
@@ -146,6 +166,7 @@ namespace Beep.ECS
 
                 _remaining[cell] = Mathf.Max(0, GridVariantReader.Int(dict, "remaining", 0));
             }
+            EmitSignal(SignalName.StateRestored);
         }
 
         public void Save(GameBuilder.GameStateData state)
@@ -168,10 +189,8 @@ namespace Beep.ECS
         {
             // Explicit wire only, like every other DataLayersPath: a scene
             // with two data-layer nodes must not silently pick one.
-            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
-                _dataLayers = !DataLayersPath.IsEmpty
-                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
-                    : null;
+            _dataLayers = !DataLayersPath.IsEmpty
+                ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath) : null;
         }
     }
 }

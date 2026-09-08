@@ -6,15 +6,15 @@ Generation stage in the terrain pipeline, run by `TerrainFieldBuilder` after `Te
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world, TerrainGenerationSettings settings)` — the stage's only member. Clamps `settings.RiverDensity` to 0–4 and returns immediately if it is ≤0. Computes the drainage network via `TerrainFlow.Accumulate`; returns if there is no land. Computes an accumulation `Threshold` from `RiverShareAtDensityOne * density` (clamped to 0–0.5 share of land); returns if that threshold is ≤1. Walks every land sample in descending-accumulation order and, for each at or above threshold, carves a radius-1–3 disc (radius grows with `log(flow/threshold + 1)`, clamped 1–3) into `world.Land`/`world.Water` via the private `Carve` helper.
+- `internal static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)` — the stage's only member. Clamps `settings.RiverDensity` to 0–4 and returns immediately if it is ≤0. Computes the drainage network via `TerrainFlow.Accumulate`; returns if there is no land. Computes an accumulation `Threshold` from `RiverShareAtDensityOne * density` (clamped to 0–0.5 share of land); returns if that threshold is ≤1. Walks every land sample in descending-accumulation order and, for each at or above threshold, carves a radius-1–3 disc (radius grows with `log(flow/threshold + 1)`, clamped 1–3) into `world.Land`/`world.Water` via the private `Carve` helper.
 
 Everything else (`RiverShareAtDensityOne`, `Threshold`, `Carve`) is private to the `internal static class TerrainRiverStage`.
 
 ## Dependencies
 
-- Reads and writes `TerrainWorld.Land`, `TerrainWorld.Water` (sets to `WaterBody.River`); reads `TerrainWorld.Count`, `TerrainWorld.Width`, `TerrainWorld.InBounds`, `TerrainWorld.Index` (all `TerrainWorld.cs`) — operates on the full sample grid, not the reduced per-tile grid.
+- Reads and writes `TerrainGenerationBuffer.Land`, `TerrainGenerationBuffer.Water` (sets to `WaterBody.River`); reads `TerrainGenerationBuffer.Count`, `TerrainGenerationBuffer.Width`, `TerrainGenerationBuffer.InBounds`, `TerrainGenerationBuffer.Index` (all `TerrainGenerationBuffer.cs`) — operates on the full sample grid, not the reduced per-tile grid.
 - Reads `TerrainGenerationSettings.RiverDensity`, `.Seed` (indirectly, via the shared `TerrainFlow` call) (`TerrainGenerationSettings.cs`).
-- Calls `TerrainFlow.Accumulate` (`TerrainFlow.cs`) to get the shared drainage network (`flowsTo`, `order`, `flow`) — the same network `TerrainErosionStage` computes independently for its own pass; both stages read `TerrainWorld.Elevation`/`CoastDistance` through that shared helper rather than duplicating the D8 walk.
+- Calls `TerrainFlow.Accumulate` (`TerrainFlow.cs`) to get the shared drainage network (`flowsTo`, `order`, `flow`) — the same network `TerrainErosionStage` computes independently for its own pass; both stages read `TerrainGenerationBuffer.Elevation`/`CoastDistance` through that shared helper rather than duplicating the D8 walk.
 - Reads the `WaterBody` enum (`WaterBody.River`, tested/compared elsewhere in the pipeline, e.g. `TerrainScaleConstraintStage`).
 - Consumed by: `TerrainFieldBuilder.Build` (calls `Apply`); downstream, `TerrainScaleConstraintStage.ApplyTerrain`'s `ClearShortRivers` removes any river region on the *reduced* tile grid that falls below `TerrainScaleRules.MinRiverTiles` after tile reduction collapses this stage's sample-level carving into cells.
 

@@ -2,6 +2,17 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// The dim behind a modal: a full-screen plate that darkens the game and swallows pointer
+    /// input, so a click meant for the dialog cannot land on the scene behind it.
+    ///
+    /// Separate from the dialog on purpose. The shade belongs to the screen, the dialog belongs to
+    /// whoever opened it, and a dialog that painted its own backdrop could not cover a sibling
+    /// drawn after it. <see cref="ModalComponent"/> owns the pair.
+    ///
+    /// Emits <c>ShadePressed</c> on a click or <c>ui_cancel</c> rather than closing itself — the
+    /// decision of whether a modal is dismissible is the caller's, not the backdrop's.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitModalShade : Godot.Control
@@ -30,7 +41,13 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what == NotificationThemeChanged)
                 RefreshVisualAndRedraw();
-            if (what == NotificationVisibilityChanged && Visible && IsInsideTree())
+            // Only ask for focus this control can actually take. The visibility notification can
+            // arrive before _Ready has applied the input defaults that make it focusable, and can
+            // arrive at all when a scene has set AutoInputDefaults = false to keep its own focus
+            // policy — in both cases Godot answers with "This control can't grab focus", which is
+            // a warning the kit was generating against itself on every modal that appeared.
+            if (what == NotificationVisibilityChanged && Visible && IsInsideTree()
+                && FocusMode != FocusModeEnum.None)
                 GrabFocus();
         }
 
@@ -41,7 +58,7 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && KitChrome.IsCancelKey(key))
+            if (KitChrome.IsCancel(@event))
             {
                 EmitSignal(SignalName.ShadePressed);
                 AcceptEvent();

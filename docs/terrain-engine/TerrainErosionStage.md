@@ -6,13 +6,13 @@ Generation stage in the terrain pipeline, run by `TerrainFieldBuilder` after ele
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world, TerrainGenerationSettings settings)` — runs `Passes` (12) rounds of incision-then-diffusion directly on `world.Elevation` for every land cell, using a drainage network computed once at the start; returns early doing nothing if `settings.ErosionStrength <= 0` or there is no land. Diffusion strength and incision strength both scale with `settings.ErosionStrength` (clamped to 0–4).
+- `internal static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)` — runs `Passes` (12) rounds of incision-then-diffusion directly on `world.Elevation` for every land cell, using a drainage network computed once at the start; returns early doing nothing if `settings.ErosionStrength <= 0` or there is no land. Diffusion strength and incision strength both scale with `settings.ErosionStrength` (clamped to 0–4).
 
 That is the only public member; everything else (`Diffuse`, the tuning constants `DrainageExponent`, `Strength`, `MaxDrainageFactor`, `Diffusion`, `Passes`) is private to the class, and the class itself is `internal static`.
 
 ## Dependencies
 
-- Reads and writes `TerrainWorld.Elevation`, `TerrainWorld.Land`, `TerrainWorld.Width`/`Height`, `TerrainWorld.Index`/`InBounds` (from `TerrainWorld.cs`).
+- Reads and writes `TerrainGenerationBuffer.Elevation`, `TerrainGenerationBuffer.Land`, `TerrainGenerationBuffer.Width`/`Height`, `TerrainGenerationBuffer.Index`/`InBounds` (from `TerrainGenerationBuffer.cs`).
 - Reads `TerrainGenerationSettings.ErosionStrength` (from `TerrainGenerationSettings.cs`).
 - Calls `TerrainFlow.Accumulate` (from `TerrainFlow.cs`) to get the shared D8 drainage network (`flowsTo`, `order`, `flow`) — the same network `TerrainRiverStage` reads, so carved valleys and drawn rivers agree.
 - Called by `TerrainFieldBuilder.Build`, which runs it after `TerrainElevationStage.Apply` and before `TerrainElevationStage.Classify` — relief bands (hills/mountains) are cut as percentiles of the *eroded* height field, not the raw noise.

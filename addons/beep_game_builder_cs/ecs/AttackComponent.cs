@@ -64,8 +64,9 @@ namespace Beep.ECS
                 if (_body is CharacterBody2D cb && IsFinite(cb.Velocity) && cb.Velocity.LengthSquared() > 1f)
                     _lastFacing = cb.Velocity.Normalized();
 
-                if (InputMap.HasAction(AttackAction) && Input.IsActionJustPressed(AttackAction))
-                    Attack((_body?.GlobalPosition ?? Vector2.Zero) + _lastFacing * EffectiveRange);
+                var actor = ActorComponent.ForBody(_body);
+                if (actor?.FireHeld ?? (InputMap.HasAction(AttackAction) && Input.IsActionJustPressed(AttackAction)))
+                    Attack((_body?.GlobalPosition ?? Vector2.Zero) + (actor?.AimIntent ?? _lastFacing) * EffectiveRange);
             }
         }
 
@@ -186,6 +187,10 @@ namespace Beep.ECS
                 var collider = result["collider"].AsGodotObject() as Node2D;
                 if (collider != null && collider != _body)
                 {
+                    var attacker = ActorComponent.ForBody(_body);
+                    var victim = ActorComponent.ForBody(collider);
+                    if (attacker?.Registry is not null && victim is not null
+                        && !attacker.Registry.AreHostile(attacker.OwnerId, victim.OwnerId)) continue;
                     var health = EntityComponent.FindComponent<HealthComponent>(collider, false);
                     if (health != null)
                     {

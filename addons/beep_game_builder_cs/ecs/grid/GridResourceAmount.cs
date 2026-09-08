@@ -22,6 +22,21 @@ namespace Beep.ECS
             }
         }
 
+        internal static bool TryTotals(Godot.Collections.Array amounts, out Dictionary<string, int> totals)
+        {
+            totals = new(System.StringComparer.OrdinalIgnoreCase);
+            foreach ((string resourceId, int amount) in Enumerate(amounts))
+            {
+                if (amount <= 0) continue;
+                string id = resourceId.Trim().ToLowerInvariant();
+                totals.TryGetValue(id, out int existing);
+                long sum = (long)existing + amount;
+                if (sum > int.MaxValue) return false;
+                totals[id] = (int)sum;
+            }
+            return true;
+        }
+
         public static bool TryRead(Variant entry, out string resourceId, out int amount)
         {
             resourceId = "";

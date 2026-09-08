@@ -50,6 +50,26 @@ namespace Beep.ECS.UI.Kit
             return true;
         }
 
+        /// <summary>
+        /// Re-measure and repaint after a change that alters a widget's natural size.
+        ///
+        /// One body, because 27 widgets had each written their own and they did not agree: five
+        /// guarded the resize with <c>IsInsideTree()</c> and 22 called <c>UpdateMinimumSize()</c>
+        /// regardless. The guard is correct — a widget takes property changes before it enters the
+        /// tree — so this is the guarded form. <see cref="KitControl"/> exposes it as a protected
+        /// method; the widgets that derive from a native Godot type call this directly, since C#
+        /// gives them only one base and it has to be the real control.
+        /// </summary>
+        public static void RefreshMinimumAndRedraw(Godot.Control ctl, Vector2 minimum)
+        {
+            if (ctl.IsInsideTree())
+            {
+                RefreshAutoMinimumSize(ctl, minimum);
+                ctl.UpdateMinimumSize();
+            }
+            ctl.QueueRedraw();
+        }
+
         public static void RefreshAutoMinimumSize(Godot.Control ctl, Vector2 wanted)
         {
             if (SetAutoMinimumSize(ctl, wanted))
@@ -225,6 +245,93 @@ namespace Beep.ECS.UI.Kit
             return true;
         }
 
+        /// <summary>How far apart two planes must sit before a player can see that one is cut into
+        /// the other. Below this they read as one flat shape.</summary>
+        private const float MinPlaneSeparation = 0.045f;
+
+        /// <summary>
+        /// The colour of a recess — a panel's well, a slot's interior, a slider's track — cut into
+        /// a plate of <paramref name="surface"/>.
+        ///
+        /// Multiplying by a shade under 1 is right on a mid or light skin and does nothing at all
+        /// on a dark one. `oilfield_days` has a #121A1B surface; at the 0.79 well shade that lands
+        /// on #0E1415, a separation of about two levels out of 255. That is why, on a dark skin,
+        /// every panel well and every empty inventory slot rendered as one black void — the recess
+        /// was being drawn, it just could not be seen.
+        ///
+        /// So: multiply when that produces a visible step, and otherwise fall back to
+        /// <see cref="WellFace"/>, which lifts a dark surface instead. Separating the two planes is
+        /// the point; which direction achieves it is whichever one the skin leaves room for.
+        /// </summary>
+        /// <summary>
+        /// The colour of a panel's TITLE BAR, sitting on a plate of <paramref name="surface"/>.
+        ///
+        /// A header is the opposite of a well and was being drawn as one: `Tint(face, 0.48)` is the
+        /// panel face multiplied DOWN, and on a dark skin that lands near black. Rendered, the
+        /// EQUIPMENT and INVENTORY bars read as a gap cut across the top of the panel rather than
+        /// as a title bar — a hole where the panel's own name should be.
+        ///
+        /// A title bar is a RAISED plane: it carries the panel's name, so it should read as sitting
+        /// on top of the body, not sunk into it. This lifts when the skin has headroom and falls
+        /// back to darkening when it does not, which is the same "separate the two planes, and let
+        /// the skin decide which direction" rule <see cref="RecessFace"/> follows in reverse.
+        /// </summary>
+        /// <param name="shade">The theme's authored header shade. It used to be a multiplier
+        /// straight onto the face, which is what produced the near-black bar; it now sets HOW FAR
+        /// the header separates from the body, so a theme that asked for a strongly distinct
+        /// header still gets one and a theme that asked for a subtle one still gets that. The
+        /// authored value keeps meaning something rather than becoming a key nothing reads.</param>
+        public static Color HeaderFace(Color surface, float shade = 0.48f)
+        {
+            if (surface.A <= 0.02f) return surface;
+
+            float lum = UiSurface.Luminance(surface);
+            float strength = Mathf.Clamp(1f - shade, 0.15f, 1f);
+
+            // Lift toward white, keeping the hue, by enough to clear the separation floor.
+            float want = lum + MinPlaneSeparation * 4.2f * strength;
+            if (want <= 1f)
+            {
+                float t = Mathf.Clamp((want - lum) / Mathf.Max(0.001f, 1f - lum), 0f, 1f);
+                return new Color(Mathf.Lerp(surface.R, 1f, t), Mathf.Lerp(surface.G, 1f, t),
+                                 Mathf.Lerp(surface.B, 1f, t), surface.A);
+            }
+
+            // Already near white: the only way to separate is down.
+            float k = 1f - MinPlaneSeparation * 3f * strength;
+            return new Color(surface.R * k, surface.G * k, surface.B * k, surface.A);
+        }
+
+        public static Color RecessFace(Color surface, float shade)
+        {
+            if (surface.A <= 0.02f) return surface;
+
+            var darker = new Color(surface.R * shade, surface.G * shade, surface.B * shade, surface.A);
+            if (UiSurface.Luminance(surface) - UiSurface.Luminance(darker) >= MinPlaneSeparation)
+                return Floor(darker);
+
+            return WellFace(surface);
+        }
+
+        /// <summary>
+        /// Keep a recess a SURFACE rather than a hole punched through to black.
+        ///
+        /// The deep readout shade is 0.12, and on a dark skin that lands at effectively zero: the
+        /// gem socket rendered as a featureless black disc, and a slot grid as a row of them. The
+        /// shade was doing exactly what it says; the result was just unreadable. Scaling the
+        /// channels back up to a floor keeps the hue exactly — it is the same colour, turned up —
+        /// so a socket still reads as cut deeper than a content well without going out entirely.
+        /// </summary>
+        private static Color Floor(Color c)
+        {
+            const float minRecessLuminance = 0.055f;
+            float lum = UiSurface.Luminance(c);
+            if (lum >= minRecessLuminance || lum <= 0.0005f) return c;
+
+            float k = minRecessLuminance / lum;
+            return new Color(Mathf.Min(1f, c.R * k), Mathf.Min(1f, c.G * k), Mathf.Min(1f, c.B * k), c.A);
+        }
+
         public static Color WellFace(Color surface)
         {
             if (surface.A <= 0.02f) return surface;
@@ -343,7 +450,7 @@ namespace Beep.ECS.UI.Kit
             KitShape shape = KitMaterial.WidgetShapeForGenre(genre, widgetClass);
 
             // THE PIXEL REGISTER'S STAIRCASE. This rule lived only in KitControl.DrawMaterial, so
-            // the moment KitButton became a Godot Button and started drawing through here, every
+            // the moment KitPushButton became a Godot Button and started drawing through here, every
             // pixel theme went back to arcs -- measured 0.76 mobility where a staircase is < 0.40.
             // Third time this rule has escaped a draw path; it belongs wherever a silhouette is
             // decided, and both paths now decide it here or in the matching block over there.
@@ -358,6 +465,26 @@ namespace Beep.ECS.UI.Kit
             Color ink = UiSurface.Ink(face);
             float rimPx = Mathf.Max(1f, g.Rim * rimScale);
             float frame = g.FramePx(body.Size.Y);
+
+            // ARTWORK, when the genre declares a sprite set. The band stack below is arithmetic
+            // over the surface colour, and on a dark palette it has almost nowhere to go; a
+            // nine-slice carries its gloss, gradient and raised lip in the pixels and takes the
+            // palette as a multiply. See KitSprite for why the art is neutral, which widget
+            // classes it covers, and why a genre whose identity is its silhouette should not
+            // take it.
+            //
+            // The shadow still comes from the THEME rather than from the art: a lip says the plate
+            // is raised off its own base, a shadow says it is raised off the screen behind it, and
+            // those are different statements. It follows the pressed rect so a sunken control does
+            // not keep floating.
+            if (KitSprite.TryPlate(ci, g, widgetClass, state, shape, body, face, out KitSprite.Plate art))
+            {
+                KitShadow.Draw(ci, g.Shadow, Poly(shape, art.Rect, g, unitPx, widgetClass),
+                               art.Rect, KitShadow.UnitFor(art.Rect), face);
+                KitSprite.Draw(ci, art);
+                KitEdge.Draw(ci, g.EdgeRun, body, rimPx, Tint(face, g.OutlineShade), g.Shear, g.Wobble);
+                return;
+            }
 
             // SHADOW FIRST, under the whole stack. It is not in the register's layer list on
             // purpose: the register says how a plate is BUILT, the theme says how it is
@@ -472,8 +599,11 @@ namespace Beep.ECS.UI.Kit
             // Bevel: light along the top-left edges, dark along the bottom-right.
             if (g.Bevel <= 0f) return;
             float w = Mathf.Max(1f, unit * 0.20f * g.Bevel);
-            Color hi = new(1, 1, 1, 0.22f * g.Bevel * layer.Amount);
-            Color lo = new(0, 0, 0, 0.26f * g.Bevel * layer.Amount);
+            // The alphas are unchanged; only the HUE now comes from the theme, which declared
+            // border_bevel_light and border_bevel_dark all along and had neither ever read.
+            var (bevelLight, bevelDark) = UiSurface.Bevel(UiSurface.NearestControl(ci));
+            Color hi = bevelLight with { A = 0.22f * g.Bevel * layer.Amount };
+            Color lo = bevelDark with { A = 0.26f * g.Bevel * layer.Amount };
             bool allowDark = g.Register != KitRegister.Casual;
             Vector2 c = Vector2.Zero;
             foreach (var v in poly) c += v;
@@ -581,11 +711,21 @@ namespace Beep.ECS.UI.Kit
         public static KitShape Shape(string genre, KitWidgetClass widgetClass = KitWidgetClass.Button)
             => KitMaterial.WidgetShapeForGenre(genre, widgetClass);
 
-        public static bool IsConfirmKey(InputEventKey key)
-            => key.Pressed && !key.Echo && key.Keycode is Key.Enter or Key.KpEnter or Key.Space;
+        /// <summary>
+        /// True when this event is the player's "activate it" input.
+        ///
+        /// Reads Godot's built-in <c>ui_accept</c> action rather than testing key codes, so one
+        /// press works from Enter, Space, a gamepad's A/Cross button, and whatever the player has
+        /// remapped. This used to switch on <c>Key.Enter/KpEnter/Space</c> — key codes a controller
+        /// can never produce — so every custom-drawn widget in the kit was unreachable by gamepad
+        /// while the gameplay components beside them were already action-driven, and
+        /// <c>BeepInputMapGenerator</c> had bound a pad button to this very action.
+        /// </summary>
+        public static bool IsConfirm(InputEvent @event) => @event.IsActionPressed("ui_accept");
 
-        public static bool IsCancelKey(InputEventKey key)
-            => key.Pressed && !key.Echo && key.Keycode == Key.Escape;
+        /// <summary>True when this event is the player's "back out" input: <c>ui_cancel</c>, which
+        /// is Escape and a gamepad's B/Circle.</summary>
+        public static bool IsCancel(InputEvent @event) => @event.IsActionPressed("ui_cancel");
 
         public static void HookButtonChromeRedraw(BaseButton button, System.Action redraw, ref bool hooked)
         {
@@ -610,7 +750,7 @@ namespace Beep.ECS.UI.Kit
         {
             if (!interactive) return false;
 
-            if (@event is InputEventKey key && IsConfirmKey(key))
+            if (IsConfirm(@event))
             {
                 activate();
                 ctl.AcceptEvent();
@@ -629,35 +769,172 @@ namespace Beep.ECS.UI.Kit
             return false;
         }
 
-        public static Vector2I DirectionFromKey(InputEventKey key)
+        /// <summary>
+        /// The direction this event asks for, or zero. <see cref="Jump"/> on an axis means
+        /// "all the way to that end" — the Home/End contract every caller's MoveSelection expects.
+        ///
+        /// Built on Godot's own directional actions, which ship with D-pad bindings, so a
+        /// controller drives a slot grid exactly as the arrow keys do. WASD stays as a
+        /// keyboard-only extra rather than being bound into the project's <c>ui_*</c> actions,
+        /// because binding it there would make walking move the UI selection too.
+        /// </summary>
+        public static Vector2I DirectionOf(InputEvent @event)
         {
-            if (!key.Pressed || key.Echo) return Vector2I.Zero;
-            return key.Keycode switch
-            {
-                Key.Left or Key.A => new Vector2I(-1, 0),
-                Key.Right or Key.D => new Vector2I(1, 0),
-                Key.Up or Key.W => new Vector2I(0, -1),
-                Key.Down or Key.S => new Vector2I(0, 1),
-                Key.Home => new Vector2I(-9999, 0),
-                Key.End => new Vector2I(9999, 0),
-                _ => Vector2I.Zero,
-            };
+            if (@event.IsActionPressed("ui_home")) return new Vector2I(-Jump, 0);
+            if (@event.IsActionPressed("ui_end")) return new Vector2I(Jump, 0);
+            if (@event.IsActionPressed("ui_left")) return new Vector2I(-1, 0);
+            if (@event.IsActionPressed("ui_right")) return new Vector2I(1, 0);
+            if (@event.IsActionPressed("ui_up")) return new Vector2I(0, -1);
+            if (@event.IsActionPressed("ui_down")) return new Vector2I(0, 1);
+
+            if (@event is InputEventKey { Pressed: true, Echo: false } key)
+                return key.Keycode switch
+                {
+                    Key.A => new Vector2I(-1, 0),
+                    Key.D => new Vector2I(1, 0),
+                    Key.W => new Vector2I(0, -1),
+                    Key.S => new Vector2I(0, 1),
+                    _ => Vector2I.Zero,
+                };
+
+            return Vector2I.Zero;
         }
+
+        /// <summary>The "jump to that end" magnitude on a direction axis.</summary>
+        public const int Jump = 9999;
+
+        /// <summary>
+        /// Move the selection, and consume the event ONLY if it actually moved.
+        ///
+        /// This is what keeps a widget from trapping the player. Every directional widget used to
+        /// call AcceptEvent() for any arrow key, while its own MoveSelection clamped at the ends —
+        /// so at the edge of a slot grid the key was eaten and the selection stayed put, and there
+        /// was no way to leave the widget by arrow at all. Declining the event at the edge hands it
+        /// back to Godot, whose focus traversal then carries the player to the next control. That
+        /// matters far more once <see cref="DirectionOf"/> reads the D-pad, because on a controller
+        /// the D-pad is the only way out.
+        /// </summary>
+        public static bool NavigateOrRelease(Godot.Control ctl, InputEvent @event,
+                                             System.Func<Vector2I, bool> move)
+        {
+            Vector2I dir = DirectionOf(@event);
+            if (dir == Vector2I.Zero) return false;
+            if (!move(dir)) return false;
+            ctl.AcceptEvent();
+            return true;
+        }
+
+        /// <summary>The contrast a focus indicator must clear against the surface behind it.
+        /// WCAG 2.2 SC 1.4.11; Xbox Accessibility Guideline 112 asks for the same.</summary>
+        public const float MinFocusContrast = 3f;
+
+        /// <summary>
+        /// The colour of a focus ring on this control.
+        ///
+        /// The theme's own <c>border_focus</c> comes first, because that is the colour the
+        /// generated Theme already stamps into every native control's focus StyleBox — reading it
+        /// here is what stops a themed Button and a kit widget beside it from ringing in two
+        /// different colours out of one theme.
+        ///
+        /// A role is only taken if it clears <see cref="MinFocusContrast"/> against the plate it
+        /// will be drawn over; otherwise the next role is tried, and the best of them wins. There
+        /// is deliberately no black-or-white backstop: that would paper over a theme whose palette
+        /// cannot produce a visible ring, and `kit_focus_contrast_probe` exists to name that theme
+        /// instead of hiding it.
+        /// </summary>
+        public static Color FocusRingColor(Godot.Control ctl)
+        {
+            Color behind = UiSurface.ControlFace(UiSurface.Of(ctl));
+            Color best = UiSurface.Text(ctl);
+            float bestRatio = UiSurface.ContrastRatio(best, behind);
+
+            foreach (UiSurface.Role role in FocusRoles)
+            {
+                if (!UiSurface.TrySemantic(ctl, role, out Color candidate)) continue;
+                if (candidate.A < 0.02f) continue;
+
+                float ratio = UiSurface.ContrastRatio(candidate, behind);
+                if (ratio >= MinFocusContrast) return candidate with { A = 0.95f };
+                if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
+            }
+
+            return best with { A = 0.95f };
+        }
+
+        private static readonly UiSurface.Role[] FocusRoles =
+            { UiSurface.Role.Focus, UiSurface.Role.Info, UiSurface.Role.Accent };
 
         public static void DrawFocusRing(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
                                          float widthScale = 1f)
         {
             if (!ctl.HasFocus()) return;
-            Color accent = UiSurface.Semantic(ctl, UiSurface.Role.Info);
-            if (accent.A < 0.02f) accent = UiSurface.Semantic(ctl, UiSurface.Role.Accent);
-            if (accent.A < 0.02f) accent = UiSurface.Text(ctl);
             float w = Mathf.Max(2f, Unit(ctl) * 0.16f * widthScale);
             DrawShape(ctl, genre, r.Grow(w * 0.8f), shape, new Color(0, 0, 0, 0),
-                      accent with { A = 0.95f }, w);
+                      FocusRingColor(ctl), w);
+        }
+
+        /// <summary>
+        /// Build the kit's own tooltip panel for a control.
+        ///
+        /// <see cref="KitTooltip"/> was fully built — a drawn panel with a tail, at the opposite
+        /// polarity to the surface it covers — and nothing ever showed one. No kit widget set
+        /// <c>TooltipText</c> at all, so Godot never asked for a tooltip in the first place.
+        ///
+        /// Two things have to be carried across by hand, because Godot parents the returned panel
+        /// into a popup OUTSIDE the owner's tree, where neither would be inherited:
+        /// the genre meta that <see cref="GenreOf"/> walks ancestors to find, and the generated
+        /// Theme that every colour and font size is read from.
+        /// </summary>
+        public static Godot.Control? MakeTooltip(Godot.Control owner, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            var tip = new KitTooltip { Text = text };
+            tip.SetMeta(GenreMeta, GenreOf(owner));
+            if (InheritedTheme(owner) is { } theme) tip.Theme = theme;
+            return tip;
+        }
+
+        /// <summary>The nearest Theme in force above this node, which is what a control would have
+        /// resolved against had it stayed in the tree.</summary>
+        private static Theme? InheritedTheme(Node? node)
+        {
+            for (Node? cursor = node; cursor != null; cursor = cursor.GetParent())
+                if (cursor is Godot.Control control && control.Theme != null)
+                    return control.Theme;
+            return null;
         }
 
         public static bool ShouldClearPointerState(Godot.Control ctl, int notification)
             => notification == CanvasItem.NotificationVisibilityChanged && !ctl.IsVisibleInTree();
+
+        /// <summary>
+        /// Draw a widget's OWN PLATE — the one surface its content sits on — for the widgets that
+        /// derive from a native Godot type and so cannot inherit
+        /// <see cref="KitControl.DrawPlate"/>.
+        ///
+        /// Identical to <see cref="DrawShape(Godot.Control, string, Rect2, KitShape, Color, Color, float, KitWidgetClass)"/>
+        /// except that it takes the sprite branch when the genre declares artwork. The
+        /// distinction is stated rather than inferred: a slider's track and a tab strip's badge
+        /// are drawn with the genre's own class shape too, and neither is a plate.
+        ///
+        /// As on <see cref="KitControl.DrawPlate"/>, the artwork stands in for the genre's own
+        /// silhouette for this class and nothing else — a widget that has chosen a specific form
+        /// keeps it.
+        /// </summary>
+        public static void DrawWidgetPlate(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
+                                           Color fill, Color rim, float rimWidth,
+                                           KitWidgetClass widgetClass, KitState state)
+        {
+            if (shape == KitMaterial.WidgetShapeForGenre(genre, widgetClass)
+                && KitSprite.TryPlate(ctl, KitGeometry.ForGenre(genre), widgetClass, state, shape, r, fill,
+                                      out KitSprite.Plate art))
+            {
+                KitSprite.Draw(ctl, art);
+                return;
+            }
+            DrawShape(ctl, genre, r, shape, fill, rim, rimWidth, widgetClass);
+        }
 
         /// <summary>Fill a shape inside <paramref name="r"/>, unit-aware.</summary>
         public static void DrawShape(Godot.Control ctl, string genre, Rect2 r, KitShape shape,
@@ -679,6 +956,120 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        /// <summary>
+        /// A five-pointed star, filled and outlined.
+        ///
+        /// Shared because two widgets show earned stars and only one of them was drawing a star.
+        /// <see cref="KitStarRating"/> had this as a private method; <see cref="KitLevelPath"/>,
+        /// whose own class comment says its stars follow KitStarRating, was drawing three
+        /// <c>DrawCircle</c> dots under each completed node. A player reading that saw pips, not a
+        /// score, and the two widgets disagreed about what a star is on the same screen.
+        ///
+        /// The inner radius is 0.44 of the outer, which is the proportion KitStarRating was already
+        /// using and the one that reads as a star rather than as a pinwheel or a blob.
+        /// </summary>
+        public static void DrawStar(CanvasItem ci, Vector2 centre, float radius, Color fill, Color ink)
+        {
+            if (radius <= 0.5f) return;
+
+            var points = new Vector2[10];
+            for (int i = 0; i < 10; i++)
+            {
+                float r = (i % 2 == 0) ? radius : radius * 0.44f;
+                float angle = -Mathf.Pi * 0.5f + i * Mathf.Pi / 5f;
+                points[i] = centre + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
+            }
+            ci.DrawColoredPolygon(points, fill);
+
+            var closed = new Vector2[11];
+            points.CopyTo(closed, 0);
+            closed[10] = points[0];
+            ci.DrawPolyline(closed, ink, Mathf.Max(1f, radius * 0.12f));
+        }
+
+        /// <summary>
+        /// How far a corner badge reaches PAST the plate it is pinned to, and therefore how much
+        /// room the plate has to give up so the badge can overhang without leaving the control's
+        /// own rect. Add this to the top and the trailing edge before drawing the plate.
+        /// </summary>
+        public static float BadgeOverhang(Godot.Control ctl)
+            => BadgeRadius(ctl) * 0.70f;
+
+        private static float BadgeRadius(Godot.Control ctl)
+            => Mathf.Clamp(UiSurface.FontSize(ctl, UiSurface.TextRole.Small) * 0.95f, 9f, 15f);
+
+        /// <summary>
+        /// A badge STRADDLING a plate's corner — half on the plate, half off it.
+        ///
+        /// One implementation, because there were three and only one of them was right.
+        /// KitAvatarFrame insets its own frame and hangs the badge over the rim, which is the look
+        /// every reference sheet uses and the one that reads as a count pinned to an object.
+        /// KitPushButton and KitBuildTile instead drew theirs flat inside the plate, sitting on the
+        /// control like part of its face, so a cost badge and an owned count looked like decoration
+        /// printed on the button rather than a marker attached to it.
+        ///
+        /// The badge stays inside the CONTROL's rect even while it leaves the PLATE's, so ordinary
+        /// Godot containers still lay these out without overlap — the plate gives up the room
+        /// (see <see cref="BadgeOverhang"/>) rather than the layout absorbing it.
+        ///
+        /// A circle when the text is short and a pill when it is not: "3" in a pill reads as a
+        /// stretched blob, and "250" in a circle either overflows or ellipsizes to nothing.
+        /// </summary>
+        public static void DrawCornerBadge(Godot.Control ctl, string genre, Rect2 plate, string text,
+                                           UiSurface.Role role, bool topCorner = true)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            var font = Font(ctl, genre);
+            if (font == null) return;
+
+            var g = KitGeometry.ForGenre(genre);
+            float radius = BadgeRadius(ctl);
+            string label = Case(text, genre);
+
+            int fs = UiSurface.FitRole(ctl, UiSurface.TextRole.Small,
+                                       new Vector2(radius * 1.5f, radius * 1.2f), label, font, min: 7);
+            Vector2 measured = font.GetStringSize(label, HorizontalAlignment.Left, -1, fs);
+
+            float height = radius * 2f;
+            float width = Mathf.Max(height, measured.X + fs * 0.85f);
+
+            // Centre ON the corner, drawn back by a third of the radius so the badge reads as
+            // attached to the plate rather than floating off it.
+            float cx = plate.End.X - radius * 0.30f;
+            float cy = topCorner ? plate.Position.Y + radius * 0.30f : plate.End.Y - radius * 0.30f;
+
+            var r = new Rect2(cx - width * 0.5f, cy - height * 0.5f, width, height);
+            // Never outside the control itself: the plate paid for the overhang, the layout did not.
+            r.Position = new Vector2(
+                Mathf.Clamp(r.Position.X, 0f, Mathf.Max(0f, ctl.Size.X - width)),
+                Mathf.Clamp(r.Position.Y, 0f, Mathf.Max(0f, ctl.Size.Y - height)));
+
+            Color fill = UiSurface.SemanticOrDerived(ctl, role);
+            if (fill.A < 0.02f) fill = UiSurface.Of(ctl);
+            Color ink = UiSurface.Ink(fill);
+            float rim = Mathf.Max(1.5f, g.Rim * 0.5f);
+
+            if (Mathf.IsEqualApprox(width, height))
+            {
+                Vector2 centre = r.Position + r.Size * 0.5f;
+                ctl.DrawCircle(centre, radius, fill);
+                ctl.DrawArc(centre, radius, 0f, Mathf.Tau, 32, ink, rim);
+            }
+            else
+            {
+                DrawShape(ctl, genre, r, KitShape.Pill, fill, ink, rim);
+            }
+
+            label = EllipsizeText(font, label, fs, r.Size.X - fs * 0.5f);
+            if (string.IsNullOrEmpty(label)) return;
+            Vector2 m = font.GetStringSize(label, HorizontalAlignment.Left, -1, fs);
+            float baseline = r.Position.Y + (r.Size.Y - font.GetHeight(fs)) * 0.5f + font.GetAscent(fs);
+            DrawText(ctl, genre, font,
+                     new Vector2(r.Position.X + (r.Size.X - m.X) * 0.5f, baseline),
+                     label, fs, UiSurface.Luminance(fill) > 0.5f
+                         ? new Color(0.10f, 0.09f, 0.08f) : new Color(0.98f, 0.96f, 0.92f));
+        }
+
         /// <summary>The rim's POLARITY is a genre tell: above 1 a bright carved rim, below 1 the
         /// thick dark outline of the casual family.</summary>
         public static Color Rim(Color face, KitGeometry g) => Tint(face, g.OutlineShade);
@@ -697,7 +1088,11 @@ namespace Beep.ECS.UI.Kit
             if (style == KitPanelHeaderStyle.UtilityStrip)
                 return Mathf.Max(fs * 1.35f, 14f);
 
-            float h = hostHeight > 0f ? hostHeight : ctl.Size.Y;
+            // Falling back to ctl.Size.Y made this unsafe to call from a sizing path: a caller that
+            // omitted hostHeight got the control's CURRENT height folded into a value that becomes
+            // part of that control's minimum size. Callers now pass a font-derived height, and the
+            // fallback does the same rather than reaching for the live one.
+            float h = hostHeight > 0f ? hostHeight : fs * 2.4f;
             return Mathf.Max(fs * 1.32f, h * Mathf.Min(heightRatio, 0.095f)) * 0.5f;
         }
 
@@ -768,7 +1163,7 @@ namespace Beep.ECS.UI.Kit
                               host.Position.Y - h * 0.5f, w, h);
 
             Color face = UiSurface.Of(ctl);
-            Color plate = Tint(face, shade);
+            Color plate = HeaderFace(face, shade);
             DrawShape(ctl, genre, r, shape, plate, UiSurface.Ink(face),
                       Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f)));
 
@@ -790,7 +1185,9 @@ namespace Beep.ECS.UI.Kit
             var g = KitGeometry.ForGenre(genre);
             float frame = Mathf.Max(1f, g.FramePx(host.Size.Y));
             float h = Mathf.Max(titleFs * 1.35f, 14f);
-            float padX = Mathf.Max(6f, fs * 0.38f);
+            // Real padding. At 6px the title sat hard against the panel's inner edge and read as
+            // overflowing text rather than as a titled bar.
+            float padX = Mathf.Max(10f, fs * 0.75f);
             var r = new Rect2(host.Position.X + frame, host.Position.Y + frame,
                               Mathf.Max(4f, host.Size.X - frame * 2f), h);
             if (r.Size.X < 4f || r.Size.Y < 4f) return;
@@ -799,8 +1196,8 @@ namespace Beep.ECS.UI.Kit
                                         0.82f, text, font, min: 8,
                                         themeMax: Mathf.Max(0.45f, titleFs / Mathf.Max(1f, fs)));
             Color face = UiSurface.Of(ctl);
-            Color plate = Tint(face, Mathf.Max(0.48f, shade));
-            DrawShape(ctl, genre, r, KitShape.Rect, plate with { A = Mathf.Min(0.92f, plate.A) },
+            Color plate = HeaderFace(face, shade);
+            DrawShape(ctl, genre, r, KitShape.Rect, plate,
                       UiSurface.Ink(face) with { A = 0.36f },
                       Mathf.Max(1f, g.Rim * 0.25f * (fs / 14f)));
             ctl.DrawLine(new Vector2(r.Position.X, r.End.Y), new Vector2(r.End.X, r.End.Y),
@@ -832,15 +1229,39 @@ namespace Beep.ECS.UI.Kit
             if (font == null || string.IsNullOrEmpty(text)) return;
             fs = Mathf.Max(1, fs);
             var treat = KitGeometry.ForGenre(genre).TextTreatment;
-            float d = Mathf.Max(1f, Unit(ctl) * 0.075f);
+
+            // The offset comes from the GLYPH being drawn, not from the control it sits in.
+            //
+            // It was `Unit(ctl) * 0.075`, the host control's own font size -- so a 10px caption
+            // inside a 16px control got the same contour as a 26px title, roughly a tenth of the
+            // glyph's height on all four sides. On any face that is what closes the counters and
+            // turns small type into blocks.
+            float d = Mathf.Max(1f, fs * 0.075f);
+
+            // An OUTLINE is bounded much tighter than the other treatments, because it is the only
+            // one that closes a glyph rather than sitting beside it. A contour grows inward from
+            // every edge, so at 0.075 of a 16px glyph it eats 1.2px into both sides of a counter
+            // only about 3px wide -- measured on the cardgame board, where PLAY rendered with a
+            // solid A and BUY with a solid B. One pixel is the smallest contour that reads and the
+            // largest a caption-sized glyph can survive; it grows only once there is room.
+            float outline = Mathf.Clamp(fs * 0.045f, 1f, 2.5f);
+
+            // Below this, a decorative treatment can only subtract. An outline needs a glyph thick
+            // enough to carry a contour and still show its holes; an engrave needs room for two
+            // edges. At caption sizes there is neither, so the genre keeps its treatment
+            // everywhere it can be read and gives it up where it would destroy the word.
+            const int MinTreatedFontSize = 11;
+            if (fs < MinTreatedFontSize) treat = KitTextTreat.Plain;
 
             switch (treat)
             {
                 case KitTextTreat.Outlined:
                 {
-                    Color dark = new(0f, 0f, 0f, 0.75f);
-                    foreach (var o in new[] { new Vector2(-d, 0), new Vector2(d, 0),
-                                              new Vector2(0, -d), new Vector2(0, d) })
+                    // 0.60, not 0.75: a thin contour at high alpha still reads as thick, because
+                    // each copy's anti-aliased edge lands inside the counter.
+                    Color dark = new(0f, 0f, 0f, 0.60f);
+                    foreach (var o in new[] { new Vector2(-outline, 0), new Vector2(outline, 0),
+                                              new Vector2(0, -outline), new Vector2(0, outline) })
                         ctl.DrawString(font, at + o, text, HorizontalAlignment.Left, -1, fs, dark);
                     break;
                 }
@@ -914,7 +1335,7 @@ namespace Beep.ECS.UI.Kit
             if (r.Size.X <= 4f || r.Size.Y <= 4f)
                 return;
 
-            Color well = new(face.R * g.WellShade, face.G * g.WellShade, face.B * g.WellShade, 0.62f);
+            Color well = RecessFace(face, g.WellShade) with { A = 0.62f };
             DrawShape(ctl, genre, r, shape, well, ink with { A = 0.32f }, rim);
 
             float y = r.Position.Y + r.Size.Y * 0.5f;

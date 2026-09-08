@@ -5,7 +5,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from prepare_low_poly_modular_mountain_prefabs import RAW_DIR, create_one_level_sheet
 from prepare_low_poly_transition_prefab import PROJECT_ROOT, create_preview, largest_component
@@ -16,12 +16,29 @@ OUTPUT_ROOT = (
     / "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes"
 )
 CATALOG_PATH = OUTPUT_ROOT / "modular_mountain_theme_catalog.json"
+STYLE_ID = "mountain_prefab_1"
+STYLE_LABEL = "Mountain Prefab 1"
+SMALL_RAMP_WIDTH_RATIO = 0.19
+RAMP_RUN_SCALE = 0.72
+SOCKET_PROFILES = {
+    "grass_granite": {
+        "entry_left": (0.230, 0.750), "entry_front": (0.500, 0.840), "entry_right": (0.770, 0.750),
+        "level_0_to_1_left": (0.350, 0.440), "level_0_to_1_right": (0.650, 0.440),
+        "level_1_to_2_left": (0.380, 0.200), "level_1_to_2_right": (0.620, 0.200),
+    },
+    "stone": {
+        "entry_left": (0.240, 0.750), "entry_front": (0.500, 0.840), "entry_right": (0.760, 0.750),
+        "level_0_to_1_left": (0.340, 0.420), "level_0_to_1_right": (0.660, 0.420),
+        "level_1_to_2_left": (0.380, 0.180), "level_1_to_2_right": (0.620, 0.180),
+    },
+}
 
 THEMES = [
     {
         "id": "grass_granite",
         "label": "Grass + Granite",
         "background": "gradient",
+        "socket_profile": "grass_granite",
         "three": RAW_DIR / "grass_granite_three_level_pack_raw.png",
         "one": RAW_DIR / "grass_granite_one_level_pack_raw.png",
         "three_boxes": {
@@ -35,6 +52,7 @@ THEMES = [
         "id": "grey_rock",
         "label": "Grey Rock",
         "background": "checker",
+        "socket_profile": "stone",
         "three": RAW_DIR / "grey_rock_three_level_pack_raw.png",
         "one": RAW_DIR / "grey_rock_one_level_pack_raw.png",
         "three_boxes": {
@@ -48,6 +66,7 @@ THEMES = [
         "id": "volcanic_basalt",
         "label": "Volcanic Basalt",
         "background": "checker",
+        "socket_profile": "stone",
         "three": RAW_DIR / "volcanic_basalt_three_level_pack_raw.png",
         "one": RAW_DIR / "volcanic_basalt_one_level_pack_raw.png",
         "three_boxes": {
@@ -59,6 +78,24 @@ THEMES = [
     },
 ]
 ONE_LEVEL_BOX = (0, 0, 1180, 1024)
+
+
+def fit_width(image: Image.Image, width: int) -> Image.Image:
+    height = round(image.height * width / image.width)
+    return image.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def fit_height(image: Image.Image, height: int) -> Image.Image:
+    width = round(image.width * height / image.height)
+    return image.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def shorten_ramp_run(image: Image.Image, direction: str) -> Image.Image:
+    if direction == "front":
+        size = (image.width, max(1, round(image.height * RAMP_RUN_SCALE)))
+    else:
+        size = (max(1, round(image.width * RAMP_RUN_SCALE)), image.height)
+    return image.resize(size, Image.Resampling.LANCZOS)
 
 
 def relative(path: Path) -> str:
@@ -143,24 +180,68 @@ def socket(socket_id: str, from_level: int, to_level: int, direction: str, image
     }
 
 
-def sockets_for_three_level(image: Image.Image) -> list[dict[str, object]]:
+def sockets_for_three_level(image: Image.Image, profile: dict[str, tuple[float, float]]) -> list[dict[str, object]]:
     return [
-        socket("entry_left", -1, 0, "left", image, 0.22, 0.80),
-        socket("entry_front", -1, 0, "front", image, 0.50, 0.90),
-        socket("entry_right", -1, 0, "right", image, 0.78, 0.80),
-        socket("level_0_to_1_left", 0, 1, "left", image, 0.35, 0.48),
-        socket("level_0_to_1_right", 0, 1, "right", image, 0.65, 0.48),
-        socket("level_1_to_2_left", 1, 2, "left", image, 0.42, 0.24),
-        socket("level_1_to_2_right", 1, 2, "right", image, 0.58, 0.24),
+        socket("entry_left", -1, 0, "left", image, *profile["entry_left"]),
+        socket("entry_front", -1, 0, "front", image, *profile["entry_front"]),
+        socket("entry_right", -1, 0, "right", image, *profile["entry_right"]),
+        socket("level_0_to_1_left", 0, 1, "left", image, *profile["level_0_to_1_left"]),
+        socket("level_0_to_1_right", 0, 1, "right", image, *profile["level_0_to_1_right"]),
+        socket("level_1_to_2_left", 1, 2, "left", image, *profile["level_1_to_2_left"]),
+        socket("level_1_to_2_right", 1, 2, "right", image, *profile["level_1_to_2_right"]),
     ]
 
 
-def sockets_for_one_level(image: Image.Image) -> list[dict[str, object]]:
+def sockets_for_one_level(image: Image.Image, profile: dict[str, tuple[float, float]]) -> list[dict[str, object]]:
     return [
-        socket("entry_left", -1, 0, "left", image, 0.22, 0.80),
-        socket("entry_front", -1, 0, "front", image, 0.50, 0.90),
-        socket("entry_right", -1, 0, "right", image, 0.78, 0.80),
+        socket("entry_left", -1, 0, "left", image, *profile["entry_left"]),
+        socket("entry_front", -1, 0, "front", image, *profile["entry_front"]),
+        socket("entry_right", -1, 0, "right", image, *profile["entry_right"]),
     ]
+
+
+def compose_assembled_preview(
+    base: Image.Image,
+    ramps: dict[str, Image.Image],
+    sockets: list[dict[str, object]],
+    output: Path,
+) -> None:
+    socket_index = {item["id"]: item for item in sockets}
+    selected = [
+        ("entry_front", "ramp_front"),
+        ("level_0_to_1_left", "ramp_left"),
+        ("level_1_to_2_right", "ramp_right"),
+    ]
+    layers: list[tuple[Image.Image, tuple[int, int]]] = [(base, (0, 0))]
+    for socket_id, ramp_id in selected:
+        ramp = ramps[ramp_id]
+        landing = socket_index[socket_id]["upper_landing"]
+        direction = ramp_id.rsplit("_", 1)[1]
+        anchor_x = 0.82 if direction == "left" else 0.18 if direction == "right" else 0.5
+        anchor_y = 0.13 if direction != "front" else 0.08
+        layers.append(
+            (
+                ramp,
+                (
+                    round(landing["x"] - ramp.width * anchor_x),
+                    round(landing["y"] - ramp.height * anchor_y),
+                ),
+            )
+        )
+
+    padding = 24
+    min_x = min(position[0] for _, position in layers)
+    min_y = min(position[1] for _, position in layers)
+    max_x = max(position[0] + image.width for image, position in layers)
+    max_y = max(position[1] + image.height for image, position in layers)
+    canvas = Image.new(
+        "RGBA",
+        (max_x - min_x + padding * 2, max_y - min_y + padding * 2),
+        (0, 0, 0, 0),
+    )
+    for image, position in layers:
+        canvas.alpha_composite(image, (position[0] - min_x + padding, position[1] - min_y + padding))
+    create_preview(canvas, output)
 
 
 def build_theme(theme: dict[str, object]) -> dict[str, object]:
@@ -168,6 +249,7 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
     output = OUTPUT_ROOT / theme_id
     output.mkdir(parents=True, exist_ok=True)
     background = str(theme["background"])
+    socket_profile = SOCKET_PROFILES[str(theme["socket_profile"])]
     three_source = Image.open(Path(theme["three"]))
     one_source = Image.open(Path(theme["one"]))
 
@@ -177,16 +259,26 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
         for asset_id, box in three_boxes.items()
     }
     assets["one_level_wide_no_ramps"] = extract_asset(one_source, ONE_LEVEL_BOX, background)
+    three = assets["three_level_wide_no_ramps"]
+    one = assets["one_level_wide_no_ramps"]
+    small_ramp_length = round(three.width * SMALL_RAMP_WIDTH_RATIO)
+    left = shorten_ramp_run(fit_width(assets["ramp_left"], small_ramp_length), "left")
+    front = shorten_ramp_run(fit_height(assets["ramp_front"], small_ramp_length), "front")
+    right = ImageOps.mirror(left)
+    assets.update({"ramp_left": left, "ramp_front": front, "ramp_right": right})
     for asset_id, image in assets.items():
         image.save(output / f"{asset_id}.png", optimize=True)
 
-    three = assets["three_level_wide_no_ramps"]
-    one = assets["one_level_wide_no_ramps"]
-    left = assets["ramp_left"]
-    front = assets["ramp_front"]
-    right = assets["ramp_right"]
     create_preview(three, output / "three_level_wide_no_ramps_preview.png")
     create_preview(one, output / "one_level_wide_no_ramps_preview.png")
+    three_sockets = sockets_for_three_level(three, socket_profile)
+    assembled_preview_path = output / "assembled_with_level_ramps_preview.png"
+    compose_assembled_preview(
+        three,
+        {"ramp_left": left, "ramp_front": front, "ramp_right": right},
+        three_sockets,
+        assembled_preview_path,
+    )
     sheet_path = output / "one_level_mountain_sheet.png"
     sheet_regions = create_one_level_sheet(
         one,
@@ -204,9 +296,13 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
             {
                 "id": ramp_id,
                 "direction": direction,
+                "size_class": "small",
                 "file": relative(output / f"{ramp_id}.png"),
+                "image_size": [assets[ramp_id].width, assets[ramp_id].height],
                 "upper_anchor_normalized": {"x": anchor_x, "y": 0.13 if direction != "front" else 0.08},
                 "display_scale": 1.0,
+                "run_scale": RAMP_RUN_SCALE,
+                "level_rise": 1.0,
                 "walkable": True,
                 "climbable": True,
             }
@@ -215,27 +311,33 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
     manifest = {
         "schema_version": 1,
         "pack_id": f"modular_front_2_5d_{theme_id}",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
         "theme_id": theme_id,
         "theme_label": theme["label"],
         "projection": "front_2_5d",
         "base_prefabs": [
             {
                 "id": "three_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - {theme['label']}",
+                "style_id": STYLE_ID,
                 "file": relative(output / "three_level_wide_no_ramps.png"),
                 "preview": relative(output / "three_level_wide_no_ramps_preview.png"),
                 "level_count": 3,
                 "image_size": [three.width, three.height],
                 "strict_nested_footprints": True,
-                "sockets": sockets_for_three_level(three),
+                "sockets": three_sockets,
             },
             {
                 "id": "one_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - {theme['label']} (One Level)",
+                "style_id": STYLE_ID,
                 "file": relative(output / "one_level_wide_no_ramps.png"),
                 "preview": relative(output / "one_level_wide_no_ramps_preview.png"),
                 "level_count": 1,
                 "image_size": [one.width, one.height],
                 "strict_nested_footprints": True,
-                "sockets": sockets_for_one_level(one),
+                "sockets": sockets_for_one_level(one, socket_profile),
             },
         ],
         "ramp_modules": ramp_modules,
@@ -253,8 +355,12 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
     return {
         "id": theme_id,
         "label": theme["label"],
+        "display_name": f"{STYLE_LABEL} - {theme['label']}",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
         "manifest": relative(manifest_path),
         "three_level_preview": relative(output / "three_level_wide_no_ramps_preview.png"),
+        "assembled_ramp_preview": relative(assembled_preview_path),
         "one_level_sheet": relative(sheet_path),
     }
 
@@ -262,7 +368,7 @@ def build_theme(theme: dict[str, object]) -> dict[str, object]:
 def main() -> int:
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     entries = [build_theme(theme) for theme in THEMES]
-    generated_ids = {entry["id"] for entry in entries}
+    generated_ids = {entry["id"] for entry in entries} | {"sandstone"}
     preserved = []
     if CATALOG_PATH.exists():
         current = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
@@ -271,10 +377,27 @@ def main() -> int:
             for entry in current.get("themes", [])
             if entry.get("id") not in generated_ids
         ]
+    sandstone_root = PROJECT_ROOT / (
+        "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/"
+        "authored_prefabs/modular_front_2_5d"
+    )
+    sandstone = {
+        "id": "sandstone",
+        "label": "Low Poly Sandstone",
+        "display_name": f"{STYLE_LABEL} - Low Poly Sandstone",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
+        "manifest": relative(sandstone_root / "modular_mountain_pack_manifest.json"),
+        "three_level_preview": relative(sandstone_root / "three_level_wide_no_ramps_preview.png"),
+        "assembled_ramp_preview": relative(sandstone_root / "assembled_with_level_ramps_preview.png"),
+        "one_level_sheet": relative(sandstone_root / "one_level_mountain_sheet.png"),
+    }
     catalog = {
         "schema_version": 1,
         "catalog_id": "modular_front_2_5d_material_themes",
-        "themes": entries + preserved,
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
+        "themes": [sandstone] + entries + preserved,
     }
     CATALOG_PATH.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
     print(f"Prepared {len(entries)} modular mountain material themes")

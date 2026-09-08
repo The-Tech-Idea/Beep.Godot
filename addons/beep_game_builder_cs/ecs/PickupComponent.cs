@@ -92,19 +92,7 @@ namespace Beep.ECS
         /// instanced into a level under a LevelContainer, so the flow is a cousin rather
         /// than a sibling and can't be found until the tree is built.</summary>
         private GameFlowComponent? ResolveGameFlow()
-        {
-            if (_flow != null && GodotObject.IsInstanceValid(_flow)) return _flow;
-
-            if (!GameFlowPath.IsEmpty)
-                _flow = GetNodeOrNull<GameFlowComponent>(GameFlowPath);
-
-            // Search from the current scene, not from a sibling: the pickup lives inside the
-            // level instance while GameFlow sits on the main scene alongside it.
-            if (_flow == null && GetTree()?.CurrentScene is { } scene)
-                _flow = EntityComponent.FindComponent<GameFlowComponent>(scene, true);
-
-            return _flow;
-        }
+            => Resolve(GameFlowPath, ref _flow);
         private GameFlowComponent? _flow;
 
         private void Collect(Node2D? collector = null)

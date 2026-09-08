@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="k_panelc"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/GameFlowComponent.cs" id="1_flow"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_pair"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitColorRect.cs" id="k_color"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/time/TurnDriverComponent.cs" id="turn_driver"]
 
 [node name="StrategyMain" type="Node2D"]
 
@@ -107,6 +108,20 @@ script = ExtResource("k_pair")
 Label = "TURN"
 Value = "1"
 Accent = 2
+
+[node name="TurnDriver" type="Control" parent="HUD/Root"]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -96.0
+offset_top = -80.0
+offset_right = 96.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("turn_driver")
+ButtonText = "End Turn"
 
 [node name="Minimap" type="Control" parent="HUD/Root"]
 anchor_left = 1.0

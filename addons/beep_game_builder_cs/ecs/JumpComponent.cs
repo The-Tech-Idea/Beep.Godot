@@ -61,17 +61,20 @@ namespace Beep.ECS
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
             _jumpsRemaining = EffectiveMaxJumps;
+            ProcessPhysicsPriority = -7;
         }
 
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            // Gate the "jump" reads so an absent action doesn't spam a per-frame error before the
-            // input map is generated (matches the controllers). No jump is possible without it anyway.
-            if (!InputActionsAvailable("jump")) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && (!actor.IsActive || actor.IsDead || actor.HasOrders)) return;
+            if (GetSiblingComponent<WallJumpComponent>() is { JumpedThisFrame: true })
+            { _bufferTimer = 0; _jumpCutTimer = 0; return; }
+            if (actor is null && !InputActionsAvailable("jump")) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
-            bool onFloor = _body.IsOnFloor();
+            bool onFloor = CharacterMotion.IsOnFloor(_body);
 
             if (onFloor)
             {
@@ -83,12 +86,12 @@ namespace Beep.ECS
                 _coyoteTimer -= dt;
             }
 
-            if (Input.IsActionJustPressed("jump"))
+            if (actor?.ConsumeJump() ?? Input.IsActionJustPressed("jump"))
                 _bufferTimer = EffectiveJumpBufferTime;
             else
                 _bufferTimer -= dt;
 
-            _jumpHeld = Input.IsActionPressed("jump");
+            _jumpHeld = actor?.JumpHeld ?? Input.IsActionPressed("jump");
 
             // Apex hang — reduce gravity only when moving upward near threshold.
             float apexThreshold = EffectiveApexThreshold;

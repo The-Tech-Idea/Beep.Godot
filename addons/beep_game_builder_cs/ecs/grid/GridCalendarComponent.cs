@@ -26,35 +26,22 @@ namespace Beep.ECS
         [Export] public bool ParticipatesInSave { get; set; } = true;
         [Export] public string SaveKeyPrefix { get; set; } = "grid_calendar";
         [Export] public NodePath CellDataPath { get; set; } = new("");
-        [Export] public bool AutoAdvance { get; set; } = false;
-        [Export(PropertyHint.Range, "1,3600,1")] public float SecondsPerDay { get; set; } = 45f;
         [Export(PropertyHint.Range, "1,120,1")] public int DaysPerSeason { get; set; } = 28;
         [Export(PropertyHint.Range, "1,9999,1")] public int Year { get; private set; } = 1;
         [Export(PropertyHint.Range, "1,120,1")] public int DayOfSeason { get; private set; } = 1;
         [Export] public GridSeason Season { get; private set; } = GridSeason.Spring;
 
         public int AbsoluteDay { get; private set; } = 1;
-        public float EffectiveSecondsPerDay => PositiveFinite(SecondsPerDay, 45f);
         public int EffectiveDaysPerSeason => Mathf.Max(1, DaysPerSeason);
-        public float DayProgress
-        {
-            get
-            {
-                float seconds = EffectiveSecondsPerDay;
-                float clock = float.IsFinite(_dayClock) ? Mathf.Max(0f, _dayClock) : 0f;
-                return Mathf.Clamp(clock / seconds, 0f, 1f);
-            }
-        }
 
         private GridCellDataComponent? _cells;
-        private float _dayClock;
 
         public override void _Ready()
         {
             ResolveReferences();
             if (!Engine.IsEditorHint() && ParticipatesInSave)
                 AddToGroup(SaveableHelper.Group);
-            SetProcess(!Engine.IsEditorHint());
+            SetProcess(false);
             UpdateConfigurationWarnings();
         }
 
@@ -66,31 +53,17 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
         {
-            if (!float.IsFinite(SecondsPerDay) || SecondsPerDay <= 0f)
-                return new[] { "SecondsPerDay must be a finite value greater than zero." };
             if (DaysPerSeason <= 0)
                 return new[] { "DaysPerSeason must be greater than zero." };
             return System.Array.Empty<string>();
         }
 
-        public override void _Process(double delta)
-        {
-            if (!AutoAdvance)
-                return;
-
-            float step = DeltaSeconds(delta);
-            if (step <= 0f)
-                return;
-
-            float seconds = EffectiveSecondsPerDay;
-            _dayClock = (float.IsFinite(_dayClock) ? Mathf.Max(0f, _dayClock) : 0f) + step;
-            if (_dayClock < seconds)
-                return;
-
-            int days = Mathf.Max(1, Mathf.FloorToInt(_dayClock / seconds));
-            _dayClock -= days * seconds;
-            AdvanceDay(days);
-        }
+        // No _Process and no clock of its own. The calendar DERIVES from the
+        // game clock: GridWorkClockComponent calls AdvanceDay when a day rolls
+        // over, exactly as Freeciv advances the year inside end_turn. It used to
+        // carry an AutoAdvance accumulator with its own SecondsPerDay, which was
+        // a second owner of "what day is it" - enable it alongside the clock and
+        // the day advances twice.
 
         public void AdvanceDay(int days = 1)
         {
@@ -106,7 +79,6 @@ namespace Beep.ECS
             int seasonLength = EffectiveDaysPerSeason;
             DayOfSeason = Mathf.Clamp(dayOfSeason, 1, seasonLength);
             AbsoluteDay = ((Year - 1) * seasonLength * 4) + ((int)Season * seasonLength) + DayOfSeason;
-            _dayClock = 0f;
             // The date changed even though no day "passed": the HUD refreshes
             // its labels only on this signal, and without it a jumped or
             // loaded date stayed on screen as the old one until the next tick.
@@ -120,7 +92,9 @@ namespace Beep.ECS
                 ["year"] = Year,
                 ["season"] = (int)Season,
                 ["day_of_season"] = DayOfSeason,
-                ["day_clock"] = float.IsFinite(_dayClock) ? Mathf.Max(0f, _dayClock) : 0f,
+                // No day_clock: the fraction of a day in progress belongs to the
+                // game clock, which persists it once. Storing it here too would
+                // make the same fact restorable from two places.
                 ["days_per_season"] = EffectiveDaysPerSeason
             };
 
@@ -132,7 +106,6 @@ namespace Beep.ECS
             Season = (GridSeason)Mathf.Clamp(DictInt(state, "season", 0), 0, 3);
             DayOfSeason = Mathf.Clamp(DictInt(state, "day_of_season", 1), 1, EffectiveDaysPerSeason);
             AbsoluteDay = Mathf.Max(1, DictInt(state, "absolute_day", AbsoluteDayFromDate()));
-            _dayClock = NonNegativeFinite(DictFloat(state, "day_clock", 0f));
             // See SetDate: the restored date has to reach the HUD's labels.
             EmitSignal(SignalName.DayAdvanced, DayOfSeason, (int)Season, Year);
         }
@@ -196,12 +169,7 @@ namespace Beep.ECS
         }
 
         private void ResolveReferences()
-        {
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-        }
+            => EntityComponent.Resolve(this, CellDataPath, ref _cells);
 
         private static int DictInt(Godot.Collections.Dictionary dict, string key, int fallback)
             => GridVariantReader.Int(dict, key, fallback);

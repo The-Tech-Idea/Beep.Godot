@@ -1,0 +1,209 @@
+{
+  "schema_version": 2,
+  "pack_id": "natural_plateau_front_2_5d_red_rock_mesa",
+  "style_id": "mountain_prefab_2",
+  "style_label": "Mountain Prefab 2 - Natural Plateau",
+  "theme_id": "red_rock_mesa",
+  "theme_label": "Red Rock Mesa",
+  "projection": "front_2_5d",
+  "visual_only": true,
+  "plate_modules": [
+    {
+      "id": "plate_base",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/plate_base.png",
+      "image_size": [
+        616,
+        393
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_middle",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/plate_middle.png",
+      "image_size": [
+        523,
+        340
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_top",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/plate_top.png",
+      "image_size": [
+        341,
+        237
+      ],
+      "walkable": true
+    }
+  ],
+  "base_prefabs": [
+    {
+      "id": "natural_plateau_three_level_no_ramps",
+      "display_name": "Mountain Prefab 2 - Red Rock Mesa",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/natural_plateau_three_level_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/natural_plateau_three_level_no_ramps_preview.png",
+      "level_count": 3,
+      "image_size": [
+        610,
+        611
+      ],
+      "strict_nested_footprints": true,
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 310,
+            "y": 423
+          },
+          "z_index": 0
+        },
+        {
+          "plate": "plate_middle",
+          "level": 1,
+          "center": {
+            "x": 254,
+            "y": 314
+          },
+          "z_index": 10
+        },
+        {
+          "plate": "plate_top",
+          "level": 2,
+          "center": {
+            "x": 214,
+            "y": 110
+          },
+          "z_index": 20
+        }
+      ],
+      "sockets": []
+    },
+    {
+      "id": "natural_plateau_extra_wide",
+      "display_name": "Mountain Prefab 2 - Red Rock Mesa Base Plate",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/natural_plateau_one_level.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/natural_plateau_one_level_preview.png",
+      "level_count": 1,
+      "image_size": [
+        616,
+        393
+      ],
+      "strict_nested_footprints": true,
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "fill_tile": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/surface_fill_tile.png",
+      "fill_tile_size": [
+        512,
+        512
+      ],
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 308,
+            "y": 196
+          },
+          "z_index": 0
+        }
+      ],
+      "sockets": []
+    }
+  ],
+  "ramp_modules": [],
+  "jump_step_modules": [
+    {
+      "id": "step_quarter",
+      "display_name": "Red Rock Mesa Step Quarter",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/step_quarter.png",
+      "alias_id": "plate_quarter_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/plate_quarter_height.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/fit_preview.png",
+      "image_size": [
+        245,
+        59
+      ],
+      "height_class": "quarter",
+      "relative_level_height": 0.25,
+      "placement": "manual"
+    },
+    {
+      "id": "step_half",
+      "display_name": "Red Rock Mesa Step Half",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/step_half.png",
+      "alias_id": "plate_half_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/plate_half_height.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/fit_preview.png",
+      "image_size": [
+        285,
+        118
+      ],
+      "height_class": "half",
+      "relative_level_height": 0.5,
+      "placement": "manual"
+    }
+  ],
+  "sockets": [],
+  "atlas_sheets": [
+    {
+      "id": "mountain_prefab_2_plates_red_rock_mesa",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/mountain_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "plate_base": {
+          "x": 24,
+          "y": 24,
+          "width": 616,
+          "height": 393
+        },
+        "plate_middle": {
+          "x": 664,
+          "y": 24,
+          "width": 523,
+          "height": 340
+        },
+        "plate_top": {
+          "x": 24,
+          "y": 441,
+          "width": 341,
+          "height": 237
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_2_manual_steps_red_rock_mesa",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/manual_step_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "step_quarter": {
+          "x": 24,
+          "y": 24,
+          "width": 245,
+          "height": 59
+        },
+        "step_half": {
+          "x": 293,
+          "y": 24,
+          "width": 285,
+          "height": 118
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_2_one_level_red_rock_mesa",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/one_level_mountain_sheet.png",
+      "transparent": true,
+      "regions": {
+        "natural_plateau_one_level": {
+          "x": 24,
+          "y": 24,
+          "width": 616,
+          "height": 393
+        }
+      }
+    }
+  ]
+}

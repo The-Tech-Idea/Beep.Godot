@@ -176,7 +176,7 @@ namespace Beep.ECS.Scenes
         /// setters persist and apply.</summary>
         private void WireSettingsWidgets()
         {
-            var settings = UI.SettingsComponent.Instance;
+            var settings = GameApp.Instance?.Settings;
             if (settings == null)
             {
                 GD.PushWarning($"[{Name}] Settings autoload not found — controls left inert.");
@@ -312,7 +312,7 @@ namespace Beep.ECS.Scenes
         /// the screen would be lying about the state of the game.</summary>
         private void OnResetPressed()
         {
-            var settings = UI.SettingsComponent.Instance;
+            var settings = GameApp.Instance?.Settings;
             if (settings == null)
             {
                 GD.PushWarning($"[{Name}] Reset pressed but the Settings autoload is missing — nothing to reset.");
@@ -377,7 +377,7 @@ namespace Beep.ECS.Scenes
             check.Toggled += value =>
             {
                 apply(value);
-                UI.SettingsComponent.Instance?.SaveSettings();
+                GameApp.Instance?.Settings?.SaveSettings();
             };
         }
 

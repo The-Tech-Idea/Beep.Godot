@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "approved_reference": "natural_wall_01_approved_green.png",
+  "new_variation": "natural_wall_02_green.png",
+  "prompt": "Create a SECOND MATCHING VARIATION of the approved natural rock wall in the reference. Preserve the same image dimensions, framing, front-facing elevated orthographic 2.5D camera, wall height, width, rock scale, painterly rendering, neutral grey granite palette, upper-left light, narrow olive grassy rocky upper lip and bright opaque chroma green background. Change ONLY the rock arrangement: new asymmetrical fractures, uneven broad projecting rock shoulders interspersed with smaller recessed stone masses, staggered natural ledges, varied cracks. Preserve natural convincing three-dimensional rock volume. No cylindrical repeated columns, regular pillars, masonry, flat texture wallpaper, symmetrical repeated motifs or low-poly triangles. Whole continuous wall fully visible with margins, varied but nearly level upper edge and uneven natural rock feet around a common baseline. No detached stones or plants at base. Do not add ramps, stairs, cave holes, arches, large grass plateau, extra terrain levels, props, water or labels. This is one natural wall variation, NOT a tile template or atlas. Flat solid bright green background #00FF00 everywhere outside wall; no gradients, glow, shadows outside wall, transparency or checkerboard.",
+  "status": "Source artwork with opaque green background. Not a seamless atlas; no Godot collision or tile connections assigned."
+}

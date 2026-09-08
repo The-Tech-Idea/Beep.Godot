@@ -125,18 +125,47 @@ if ($coreSmoke -notmatch 'VerifyLevelLoaderLooseLevelEntries' -or
 # the contract that mattered: a world is not rebuilt just because a scene was
 # opened, there is a design-time trigger, and what that trigger generates is kept.
 $terrainWorld = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs"
-if ($terrainWorld -notmatch 'BuildOnReady && !Engine\.IsEditorHint\(\)' -or
-    $terrainWorld -notmatch 'CallDeferred\(nameof\(Build\)\)') {
+# The deferred build no longer follows `if (BuildOnReady)` immediately — a BeginWorldLoad call was
+# added inside that block — so the pin allows bookkeeping in between while still requiring both
+# guarantees it exists for: the editor returns before building, and the runtime build is deferred.
+if ($terrainWorld -notmatch 'if \(Engine\.IsEditorHint\(\)\)\s*\r?\n\s*return;[\s\S]*if \(BuildOnReady\)[\s\S]{0,300}?CallDeferred\(nameof\(NewWorldOnReady\)\)') {
     Fail "TerrainWorldComponent must not build a world while opening editor scenes, and runtime ready generation must be deferred."
 }
 if ($terrainWorld -notmatch '\[ExportToolButton\("Generate map"\)\]' -or
-    $terrainWorld -notmatch 'Callable\.From\(Build\)') {
+    $terrainWorld -notmatch 'Callable\.From\(NewWorld\)') {
     Fail "TerrainWorldComponent must expose the design-time Generate map trigger, or every component is [Tool] and inert in the editor."
 }
 foreach ($required in @("PaintedRendererPath", "TileRendererPath", "IsometricRendererPath", "DataLayersPath", "BuiltSize", "Diagnostics()", "StatusLine()")) {
     if ($terrainWorld -notmatch [regex]::Escape($required)) {
         Fail "TerrainWorldComponent must own the whole world-creation surface, so a demo is a configured node and not another controller script: $required."
     }
+}
+# The recipe is the save. The world component persists its axes and seed and
+# regenerates from them; the live map is GridCellDataComponent's, so a restore
+# must never call the generator's cell-writing GenerateTerrain, and a pending
+# BuildOnReady must stand down once a save has restored the recipe. Before this
+# the seed was never saved: a reload drew the scene's authored world over cells
+# restored from a different one.
+foreach ($required in @("class TerrainWorldComponent : Node, ISaveable", 'SaveKey { get; set; } = "terrain_world.recipe"', "public void NewWorld()", "public void RestoreWorld()", "public Godot.Collections.Dictionary CaptureState()", "public void RestoreState(Godot.Collections.Dictionary state)", '["seed"] = Seed', "_restoredFromSave = true", "AddToGroup(SaveableHelper.Group)")) {
+    if ($terrainWorld -notmatch [regex]::Escape($required)) {
+        Fail "TerrainWorldComponent must save its recipe and regenerate from it: $required."
+    }
+}
+$restoreWorldMethod = [regex]::Match($terrainWorld, 'public void RestoreWorld\(\)[\s\S]*?
+        \}')
+if (-not $restoreWorldMethod.Success) { Fail "TerrainWorldComponent.RestoreWorld not found." }
+# The CALL, not the word: RestoreWorld's comment names GenerateTerrain as the
+# thing it deliberately does not do.
+if ($restoreWorldMethod.Value -match 'GenerateTerrain\(\)' -or $restoreWorldMethod.Value -notmatch 'ResolveField\(\)') {
+    Fail "TerrainWorldComponent.RestoreWorld must regenerate the field without writing the grid's cells; GenerateTerrain is the new-world door only."
+}
+$newWorldOnReady = [regex]::Match($terrainWorld, 'private void NewWorldOnReady\(\)[\s\S]*?
+        \}')
+if (-not $newWorldOnReady.Success -or $newWorldOnReady.Value -notmatch 'if \(_restoredFromSave\)\s*\r?\n\s*return;') {
+    Fail "TerrainWorldComponent's deferred BuildOnReady must yield to a restored save, or a load is followed by a fresh world over the restored cells."
+}
+if ($terrainWorld -match 'public void Build\(\)') {
+    Fail "TerrainWorldComponent.Build is back; the two doors are NewWorld (fills cells) and RestoreWorld (never does)."
 }
 
 # A node added with AddChild belongs to the tree but not to the scene FILE, so a
@@ -566,7 +595,7 @@ if ($table -notmatch 'FocusMode\s*=\s*Control\.FocusModeEnum\.All' -or
     $table -notmatch 'rowPanel\.FocusExited \+=' -or
     $table -notmatch 'OnRowGuiInput\(Control row,\s*InputEvent e,\s*int rowIdx,\s*string\[\] values\)' -or
     $table -notmatch 'InputEventMouseButton\s*\{\s*Pressed:\s*true,\s*ButtonIndex:\s*MouseButton\.Left\s*\}' -or
-    $table -notmatch 'InputEventKey key && KitChrome\.IsConfirmKey\(key\)' -or
+    $table -notmatch 'KitChrome\.IsConfirm\(e\)' -or
     $table -notmatch 'row\.AcceptEvent\(\)') {
     Fail "TableComponent rows must be focusable and activate only on left-click or keyboard confirm."
 }
@@ -1167,6 +1196,39 @@ foreach ($required in @(
         Fail "GridDefinitionReader must read dual pascal/snake keys from dictionaries and duck-typed Resources through GridVariantReader: $required."
     }
 }
+# The one wiring rule for a collaborator behind an exported NodePath: the
+# authored path when there is one, else the first match in the current scene,
+# re-resolved whenever the cached instance goes stale. It used to be written out
+# by hand in every grid component and the copies drifted - some never re-checked
+# IsInstanceValid, so a freed collaborator was never picked back up. The
+# per-component pins below name their Resolve calls; this pins the rule itself.
+$entityComponent = Read "addons/beep_game_builder_cs/ecs/EntityComponent.cs"
+foreach ($required in @(
+    "public static T? Resolve<T>(Node owner, NodePath path, ref T? cached) where T : class",
+    "if (cached is GodotObject existing && GodotObject.IsInstanceValid(existing))",
+    "? owner.GetNodeOrNull<Node>(path) as T",
+    ": owner.IsInsideTree() ? FindComponent<T>(owner.GetTree()?.CurrentScene) : null;",
+    "protected T? Resolve<T>(NodePath path, ref T? cached) where T : class"
+)) {
+    if ($entityComponent -notmatch [regex]::Escape($required)) {
+        Fail "EntityComponent.Resolve must stay the one home of the NodePath-or-scene-wide collaborator rule: $required."
+    }
+}
+# And the hand-written spelling must not regrow anywhere in the grid toolkit.
+# The explicit-only DataLayersPath wires, the parent/sibling fallbacks and the
+# "root is the scene itself" lookups are deliberately different shapes and do
+# not contain either fragment.
+$handRolledResolves = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter "*.cs" -File -Recurse) {
+    $source = Get-Content -LiteralPath $file.FullName -Raw
+    if ($source -match 'IsInsideTree\(\)\s*\?\s*EntityComponent\.FindComponent<' -or
+        $source -match 'EntityComponent\.FindComponent<[^>]+>\(GetTree\(\)\?\.CurrentScene\)') {
+        $handRolledResolves += $file.Name
+    }
+}
+if ($handRolledResolves.Count -gt 0) {
+    Fail "Grid components must resolve NodePath collaborators through EntityComponent.Resolve, not a hand-written path-or-scene-wide lookup: $($handRolledResolves -join ', ')."
+}
 $gridProjection = Read "addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs"
 if ($gridProjection -notmatch 'class\s+GridProjectionComponent' -or $gridProjection -notmatch 'CellToWorld' -or $gridProjection -notmatch 'WorldToCell' -or $gridProjection -notmatch 'CellCorners') {
     Fail "GridProjectionComponent is missing the expected reusable grid math surface."
@@ -1215,14 +1277,38 @@ $gridNavigation = Read "addons/beep_game_builder_cs/ecs/grid/GridNavigationCompo
 if ($gridNavigation -notmatch 'class\s+GridNavigationComponent' -or $gridNavigation -notmatch 'FindCellPath' -or $gridNavigation -notmatch 'PriorityQueue' -or $gridNavigation -notmatch 'RoadPath' -or $gridNavigation -notmatch 'CellDataPath' -or $gridNavigation -notmatch 'TraversalCost') {
     Fail "GridNavigationComponent is missing the expected reusable A* pathfinding surface."
 }
-foreach ($required in @("!GodotObject.IsInstanceValid(_placement)", "!GodotObject.IsInstanceValid(_roads)", "!GodotObject.IsInstanceValid(_cellData)", "TreatCellDataBlockedAsBlocked", "BlockedTerrainKinds", "TerrainCostMultipliers", "MinimumTerrainCostMultiplier")) {
+# Collaborators go through EntityComponent.Resolve, which is what re-checks
+# IsInstanceValid and re-resolves a freed node (pinned at its home above).
+foreach ($required in @("EntityComponent.Resolve(this, PlacementPath, ref _placement)", "EntityComponent.Resolve(this, RoadPath, ref _roads)", "EntityComponent.Resolve(this, CellDataPath, ref _cellData)", "TreatCellDataBlockedAsBlocked", "BlockedTerrainKinds", "TerrainCostMultipliers", "MinimumTerrainCostMultiplier")) {
     if ($gridNavigation -notmatch [regex]::Escape($required)) {
         Fail "GridNavigationComponent must integrate placement, roads, and cell terrain data: $required."
     }
 }
-foreach ($required in @("DataLayersPath", "DataLayers.TerrainAt(cell)")) {
-    if ($gridNavigation -notmatch [regex]::Escape($required)) {
-        Fail "GridNavigationComponent must optionally read terrain kinds from TerrainDataLayersComponent when DataLayersPath is wired: $required."
+# Live terrain kind has ONE owner, GridCellDataComponent, and one rule that
+# reads it, GridCellRules.TerrainKindAt. The terrain engine's data layers are a
+# projection of the GENERATED world and are never a kind source for the grid:
+# when they were, a rebuilt map won over every restored or edited cell wherever
+# it had a tile. Navigation used to carry its own copy of the precedence inline.
+if ($gridNavigation -notmatch [regex]::Escape("GridCellRules.TerrainKindAt(Cells, cell)")) {
+    Fail "GridNavigationComponent must read terrain kind through GridCellRules.TerrainKindAt rather than a second copy of the rule."
+}
+$gridCellRulesSource = Read "addons/beep_game_builder_cs/ecs/grid/GridCellRules.cs"
+if ($gridCellRulesSource -notmatch [regex]::Escape("public static string TerrainKindAt(GridCellDataComponent? cells, Vector2I cell)") -or
+    $gridCellRulesSource -match 'DataLayers|TerrainDataLayersComponent') {
+    Fail "GridCellRules.TerrainKindAt must read cells only; the data layers are the generated world's projection, not the live map."
+}
+# The four grid readers that legitimately reach the layers read resource,
+# liquid and underground facts - things only the generated field holds. Nothing
+# else under ecs/grid may reference the layers at all, and nobody may read a
+# terrain kind from them.
+$layerReaders = @("GridResourceScatterComponent.cs", "GridProspectingComponent.cs", "GridExtractorComponent.cs", "GridSubsurfaceStoreComponent.cs")
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter "*.cs" -File -Recurse) {
+    $source = Get-Content -LiteralPath $file.FullName -Raw
+    if ($source -match 'GeneratedTerrainAt\(|(?<![A-Za-z])TerrainAt\(') {
+        Fail "$($file.Name) reads a terrain kind from TerrainDataLayersComponent; the live kind is GridCellDataComponent's alone."
+    }
+    if ($layerReaders -notcontains $file.Name -and $source -match 'TerrainDataLayersComponent|DataLayersPath') {
+        Fail "$($file.Name) references the terrain data layers; only the resource/liquid/underground readers ($($layerReaders -join ', ')) may."
     }
 }
 $gridRoad = Read "addons/beep_game_builder_cs/ecs/grid/GridRoadComponent.cs"
@@ -1238,7 +1324,7 @@ $gridFollower = Read "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerCompo
 if ($gridFollower -notmatch 'class\s+GridPathFollowerComponent' -or $gridFollower -notmatch 'MoveToCell' -or $gridFollower -notmatch 'AdvancePath') {
     Fail "GridPathFollowerComponent is missing the expected reusable grid movement surface."
 }
-foreach ($required in @("CancelMove();", "!GodotObject.IsInstanceValid(_grid)", "!GodotObject.IsInstanceValid(_navigation)")) {
+foreach ($required in @("CancelMove();", "Resolve(GridPath, ref _grid)", "Resolve(NavigationPath, ref _navigation)")) {
     if ($gridFollower -notmatch [regex]::Escape($required)) {
         Fail "GridPathFollowerComponent must clear stuck moves and refresh stale grid/navigation references: $required."
     }
@@ -1280,10 +1366,24 @@ if ($gridJobQueue -notmatch 'class\s+GridJobQueueComponent' -or $gridJobQueue -n
 if ($gridJobQueue -notmatch 'GetJobClaimedBy') {
     Fail "GridJobQueueComponent must expose GetJobClaimedBy so worker assignment can enforce claim ownership."
 }
-foreach ($required in @("EffectiveDefaultWorkSeconds", "ClampWorkSeconds", "float.IsFinite(workSeconds)")) {
+foreach ($required in @("EffectiveDefaultWorkTurns", "ClampWorkTurns", "float.IsFinite(workTurns)")) {
     if ($gridJobQueue -notmatch [regex]::Escape($required)) {
         Fail "GridJobQueueComponent must bound invalid authored and loaded work durations: $required."
     }
+}
+# The grid measures gameplay work in ONE unit, turns. The job queue, the two
+# queueing paths, the worker and production all used to say "seconds" while the
+# work clock fed them turns. The one grid field still in real seconds is the
+# dispatch board's showcase tween interval, which genuinely is one.
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter "*.cs" -File -Recurse) {
+    if ($file.Name -eq "GridDispatchBoardComponent.cs") { continue }
+    $source = Get-Content -LiteralPath $file.FullName -Raw
+    if ($source -match 'WorkSeconds|RemainingSeconds|work_seconds|remaining_seconds') {
+        Fail "$($file.Name) measures grid work in seconds again; jobs, production and workers count turns (WorkTurns / RemainingTurns)."
+    }
+}
+if ($gridJobQueue -notmatch [regex]::Escape('["work_turns"] = WorkTurns') -or $gridJobQueue -notmatch [regex]::Escape('"work_turns", EffectiveDefaultWorkTurns')) {
+    Fail "GridJobQueueComponent must save and load a job's work under work_turns."
 }
 foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(dict, key, fallback)", "GridVariantReader.Float(dict, key, fallback)", "GridVariantReader.Vector2I(dict, key, fallback)")) {
     if ($gridJobQueue -notmatch [regex]::Escape($required)) {
@@ -1294,12 +1394,26 @@ $gridJobBoard = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridJobBoardCompon
 if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent' -or $gridJobBoard -notmatch 'RebuildBoard' -or $gridJobBoard -notmatch 'RefreshBoard' -or $gridJobBoard -notmatch 'CancelJob' -or $gridJobBoard -notmatch 'GridJobQueueComponent') {
     Fail "GridJobBoardComponent is missing the expected reusable job HUD surface."
 }
-if ($gridJobBoard -notmatch 'TitleLabelPath' -or $gridJobBoard -notmatch 'SummaryLabelPath' -or $gridJobBoard -notmatch 'RowsContainerPath' -or $gridJobBoard -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridJobBoard -notmatch 'BindExistingControls' -or $gridJobBoard -notmatch 'UsesSceneControls') {
-    Fail "GridJobBoardComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled."
+# Same as the worker status panel below: the panel surface is
+# GridListPanelComponent's, and this file owns only what a job row says.
+if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent\s*:\s*GridListPanelComponent' -or $gridJobBoard -notmatch 'GeneratedRootName' -or $gridJobBoard -notmatch 'RowNamePrefix' -or $gridJobBoard -notmatch 'BindExistingControls' -or $gridJobBoard -notmatch 'HasAuthoredControls' -or $gridJobBoard -notmatch 'UpdateRows') {
+    Fail "GridJobBoardComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
-foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLabel", "FindRowsContainer", 'FindChild\("Title"', 'FindChild\("Summary"', 'FindChild\("Rows"')) {
-    if ($gridJobBoard -notmatch $required) {
-        Fail "GridJobBoardComponent must auto-bind conventional design-time children before generated fallback: $required."
+
+# The panel surface itself, pinned at its ONE home. Four HUD panels used to
+# carry a byte-for-byte copy of the editor-owner stamp, the node-name
+# sanitiser and the three-tier authored-control lookup; the two list panels
+# also each copied the generated layout and the seen-set row diff.
+$gridPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridPanelComponent.cs"
+foreach ($required in @("GenerateControlsWhenPathsEmpty { get; set; } = false", "SetEditedOwner", "EditedSceneRoot", "FindControl<T>", "FindChild(name, recursive: true, owned: false)", "parent.FindChild(name, recursive: true, owned: false)", "SafeName")) {
+    if ($gridPanelBase -notmatch [regex]::Escape($required)) {
+        Fail "GridPanelComponent must own the shared HUD panel bootstrap - authored-control lookup, editor owner, safe node names: $required."
+    }
+}
+$gridListPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridListPanelComponent.cs"
+foreach ($required in @("TitleLabelPath", "SummaryLabelPath", "RowsContainerPath", "UsesSceneControls", "HasAuthoredControls", "BindExistingControls", "BuildGeneratedPanel", 'FindControl<Label>(TitleLabelPath, "Title")', 'FindControl<Label>(SummaryLabelPath, "Summary")', 'FindControl<VBoxContainer>(RowsContainerPath, "Rows")', "UpdateRows", "MoveChild(row, shown)", "RemoveChild(row)")) {
+    if ($gridListPanelBase -notmatch [regex]::Escape($required)) {
+        Fail "GridListPanelComponent must own the list-panel surface both HUD list panels build on: $required."
     }
 }
 $gridJobEffect = Read "addons/beep_game_builder_cs/ecs/grid/GridJobEffectComponent.cs"
@@ -1325,7 +1439,9 @@ foreach ($required in @("double.IsFinite(delta)", "!GodotObject.IsInstanceValid(
         Fail "GridWorkerComponent must ignore invalid frame deltas and refresh stale body references: $required."
     }
 }
-foreach ($required in @("!GodotObject.IsInstanceValid(_queue)", "!GodotObject.IsInstanceValid(_grid)", "!GodotObject.IsInstanceValid(_follower)")) {
+# Queue and grid go through EntityComponent.Resolve; the follower is a sibling on
+# the same body, deliberately never found scene-wide, so it keeps its own check.
+foreach ($required in @("Resolve(JobQueuePath, ref _queue)", "Resolve(GridPath, ref _grid)", "!GodotObject.IsInstanceValid(_follower)")) {
     if ($gridWorker -notmatch [regex]::Escape($required)) {
         Fail "GridWorkerComponent must refresh stale queue/grid/follower references: $required."
     }
@@ -1336,7 +1452,7 @@ if ($gridSmoke -notmatch 'VerifyGridWorkerRejectsClaimedJob' -or
     $gridSmoke -notmatch 'Cancelling the owning worker did not release the claimed job') {
     Fail "GridPlacementSmoke must cover claimed-job ownership and worker release behavior."
 }
-foreach ($required in @("VerifyPathFollowerBoundsInvalidTuning", "VerifyGridJobQueueBoundsInvalidWorkSeconds", "VerifyGridWorkerBoundsInvalidTuning")) {
+foreach ($required in @("VerifyPathFollowerBoundsInvalidTuning", "VerifyGridJobQueueBoundsInvalidWorkTurns", "VerifyGridWorkerBoundsInvalidTuning")) {
     if ($gridSmoke -notmatch $required) {
         Fail "GridPlacementSmoke must cover invalid job, worker, and path tuning regression cases: $required."
     }
@@ -1345,19 +1461,19 @@ $gridWorkerStatusPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridWorke
 if ($gridWorkerStatusPanel -notmatch 'class\s+GridWorkerStatusPanelComponent' -or $gridWorkerStatusPanel -notmatch 'RebuildPanel' -or $gridWorkerStatusPanel -notmatch 'RefreshPanel' -or $gridWorkerStatusPanel -notmatch 'CancelWorkerJob' -or $gridWorkerStatusPanel -notmatch 'GridWorkerComponent') {
     Fail "GridWorkerStatusPanelComponent is missing the expected reusable worker status HUD surface."
 }
-if ($gridWorkerStatusPanel -notmatch 'TitleLabelPath' -or $gridWorkerStatusPanel -notmatch 'SummaryLabelPath' -or $gridWorkerStatusPanel -notmatch 'RowsContainerPath' -or $gridWorkerStatusPanel -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridWorkerStatusPanel -notmatch 'BindExistingControls' -or $gridWorkerStatusPanel -notmatch 'UsesSceneControls') {
-    Fail "GridWorkerStatusPanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled."
-}
-foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLabel", "FindRowsContainer", 'FindChild\("Title"', 'FindChild\("Summary"', 'FindChild\("Rows"')) {
-    if ($gridWorkerStatusPanel -notmatch $required) {
-        Fail "GridWorkerStatusPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
-    }
+# The authored-control binding, the generated fallback and the row diff live
+# ONCE, in GridListPanelComponent (pinned further down); this panel must build
+# on them rather than carry its own copy.
+if ($gridWorkerStatusPanel -notmatch 'class\s+GridWorkerStatusPanelComponent\s*:\s*GridListPanelComponent' -or $gridWorkerStatusPanel -notmatch 'GeneratedRootName' -or $gridWorkerStatusPanel -notmatch 'RowNamePrefix' -or $gridWorkerStatusPanel -notmatch 'BindExistingControls' -or $gridWorkerStatusPanel -notmatch 'HasAuthoredControls' -or $gridWorkerStatusPanel -notmatch 'UpdateRows') {
+    Fail "GridWorkerStatusPanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
 $gridWorkerSpawner = Read "addons/beep_game_builder_cs/ecs/grid/GridWorkerSpawnerComponent.cs"
 if ($gridWorkerSpawner -notmatch 'class\s+GridWorkerSpawnerComponent' -or $gridWorkerSpawner -notmatch 'SpawnWorker' -or $gridWorkerSpawner -notmatch 'UnitSpawned' -or $gridWorkerSpawner -notmatch 'GridPathFollowerComponent' -or $gridWorkerSpawner -notmatch 'GridWorkerComponent') {
     Fail "GridWorkerSpawnerComponent is missing the expected base-to-worker spawning surface."
 }
-foreach ($required in @("!GodotObject.IsInstanceValid(_unitsRoot)", "!GodotObject.IsInstanceValid(_grid)", "!GodotObject.IsInstanceValid(_navigation)", "!GodotObject.IsInstanceValid(_jobs)", "!GodotObject.IsInstanceValid(_cellData)", "!GodotObject.IsInstanceValid(_placement)")) {
+# The units root falls back to the parent, deliberately not scene-wide, so it
+# keeps its own check; every other collaborator goes through EntityComponent.Resolve.
+foreach ($required in @("!GodotObject.IsInstanceValid(_unitsRoot)", "EntityComponent.Resolve(this, GridPath, ref _grid)", "EntityComponent.Resolve(this, NavigationPath, ref _navigation)", "EntityComponent.Resolve(this, JobQueuePath, ref _jobs)", "EntityComponent.Resolve(this, CellDataPath, ref _cellData)", "EntityComponent.Resolve(this, PlacementPath, ref _placement)")) {
     if ($gridWorkerSpawner -notmatch [regex]::Escape($required)) {
         Fail "GridWorkerSpawnerComponent must refresh stale root/grid/navigation/job/cell-data/placement references: $required."
     }
@@ -1388,7 +1504,7 @@ $gridSelectionJobCommand = Read "addons/beep_game_builder_cs/ecs/grid/GridSelect
 if ($gridSelectionJobCommand -notmatch 'class\s+GridSelectionJobCommandComponent' -or $gridSelectionJobCommand -notmatch 'QueueSelectedCells' -or $gridSelectionJobCommand -notmatch 'QueueRectangle' -or $gridSelectionJobCommand -notmatch 'GridJobQueueComponent') {
     Fail "GridSelectionJobCommandComponent is missing the expected selection-to-job command surface."
 }
-foreach ($required in @("EffectiveWorkSeconds", "float.IsFinite(WorkSeconds)", "float.IsFinite(workSeconds)")) {
+foreach ($required in @("EffectiveWorkTurns", "float.IsFinite(WorkTurns)", "float.IsFinite(workTurns)")) {
     if ($gridSelectionJobCommand -notmatch [regex]::Escape($required)) {
         Fail "GridSelectionJobCommandComponent must bound invalid authored and override work durations: $required."
     }
@@ -1402,10 +1518,75 @@ foreach ($required in @(
         Fail "GridSelectionJobCommandComponent must accept loose authored/GDScript cell arrays without typed-array casts: $required."
     }
 }
-foreach ($required in @("CellDataPath", "NavigationPath", "CanQueueJobAt", "QueueBlockReason", "UseNavigationBounds", "RejectNavigationBlockedCells", "TreatCellDataBlockedAsUnqueueable", "TreatBlockedTerrainKindsAsUnqueueable", "BlockedTerrainKinds", "AllowedTerrainKinds", "no_valid_cells")) {
+foreach ($required in @("CellDataPath", "NavigationPath", "CanQueueJobAt", "QueueBlockReason", "UseNavigationBounds", "RejectNavigationBlockedCells", "TreatCellDataBlockedAsUnqueueable", "TreatBlockedTerrainKindsAsUnqueueable", "BlockedTerrainKinds", "AllowedTerrainKinds", "GridCellRules", "no_valid_cells")) {
     if ($gridSelectionJobCommand -notmatch [regex]::Escape($required)) {
         Fail "GridSelectionJobCommandComponent must validate queued work against terrain/cell data and navigation bounds: $required."
     }
+}
+
+# The queueability rule itself: both paths above ask GridCellRules instead of
+# each deriving "is this cell queueable" from its own copy - the copies had
+# already diverged (only one checked the CellData Blocked flag, only the other
+# read the terrain engine's generated map). Pinned HERE so a component cannot
+# quietly regrow a second answer, and so the rule cannot lose a term.
+$gridCellRules = Read "addons/beep_game_builder_cs/ecs/grid/GridCellRules.cs"
+foreach ($required in @("struct GridCellRules", "CanWorkTerrain", "QueueBlock", "TerrainKindAt", "Navigation.IsInBounds", "Navigation.IsBlocked", "GridCellDataComponent.CellFlags.Blocked", "GridTerrainRules.IsAllowed", "GridTerrainRules.MatchesAny", "GridJobBlock.OutOfBounds", "GridJobBlock.Blocked", "GridJobBlock.UnworkableTerrain")) {
+    if ($gridCellRules -notmatch [regex]::Escape($required)) {
+        Fail "GridCellRules must own the one bounds/blocked/terrain queueability rule both queueing paths ask: $required."
+    }
+}
+if ($gridCellRules -match 'is\s+"water"\s+or') {
+    Fail "GridCellRules must not re-embed a hardcoded blocked-terrain list; GridTerrainRules owns the default and an emptied BlockedTerrainKinds means nothing is blocked."
+}
+
+# A build definition's own occupancy/sorting policy is the ACTIVE placement's,
+# never a write into the component's exported defaults - those have no restore
+# path, so one catalog build with OccupiesCells false used to govern every
+# later non-definition placement too.
+$gridPlacementPolicy = Read "addons/beep_game_builder_cs/ecs/grid/GridPlacementComponent.cs"
+foreach ($required in @("_activeMarkPlacedCellsOccupied", "_activeSetZIndexFromY")) {
+    if ($gridPlacementPolicy -notmatch [regex]::Escape($required)) {
+        Fail "GridPlacementComponent must shadow a definition's occupancy/z-sorting policy instead of overwriting its own exports: $required."
+    }
+}
+# Lookbehind, because the shadow fields' own names END with the exported names:
+# an unanchored match would flag the fix as the bug.
+foreach ($forbidden in @('(?<!\w)MarkPlacedCellsOccupied\s*=\s*definition\.OccupiesCells', '(?<!\w)SetZIndexFromY\s*=\s*definition\.SetZIndexFromY')) {
+    if ($gridPlacementPolicy -match $forbidden) {
+        Fail "GridPlacementComponent must not write a definition's policy into its own inspector-owned export: $forbidden."
+    }
+}
+
+# Registration is a contract, and it can be refused: an extractor that does not
+# answer the shape used to join the registry silently and only fail later, at
+# read time, in IsActivelyExtracting.
+$gridExtractionManager = Read "addons/beep_game_builder_cs/ecs/grid/GridExtractionManagerComponent.cs"
+foreach ($required in @("public bool Register(Node extractor)", "IsExtractingProperty", "ActiveResourceIdProperty", "Variant.Type.Nil", "GD.PushWarning")) {
+    if ($gridExtractionManager -notmatch [regex]::Escape($required)) {
+        Fail "GridExtractionManagerComponent must validate an extractor's shape before registering it, and report the refusal: $required."
+    }
+}
+$gridExtractor = Read "addons/beep_game_builder_cs/ecs/grid/GridExtractorComponent.cs"
+foreach ($required in @("RegisterOnReady", "if (RegisterOnReady)", "_registered = _extractionManager.Register(this)")) {
+    if ($gridExtractor -notmatch [regex]::Escape($required)) {
+        Fail "GridExtractorComponent must carry the same registration lever as GridHaulerComponent and record what the manager actually did: $required."
+    }
+}
+# Extraction advances on the work clock, in turns - not on its own frame delta.
+# A pump that self-ticks keeps drawing in real time in a turn-based game.
+foreach ($required in @("CycleTurnsOverride", "GridWorkClockBinding", "AdvanceWork(float turns)", "_workClock.Bind(this, WorkClockPath, AdvanceWork)", "CurrentCycleTurns()")) {
+    if ($gridExtractor -notmatch [regex]::Escape($required)) {
+        Fail "GridExtractorComponent must advance extraction off the grid work clock, in turns: $required."
+    }
+}
+if ($gridExtractor -match 'CycleSecondsOverride|CurrentCycleSeconds') {
+    Fail "GridExtractorComponent still measures a cycle in seconds; a cycle is turns, like every other timed grid subsystem."
+}
+# The manager asks for the rate BY NAME - nothing compiles that call - so the
+# rename has to land there too or every extractor's rate reads as unknown, 0.
+if ($gridExtractionManager -notmatch [regex]::Escape('extractor.Call("CurrentCycleTurns")') -or
+    $gridExtractionManager -match 'CurrentCycleSeconds') {
+    Fail "GridExtractionManagerComponent must ask registered extractors for CurrentCycleTurns."
 }
 $gridCellData = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs"
 if ($gridCellData -notmatch 'class\s+GridCellDataComponent' -or $gridCellData -notmatch 'PlantCrop' -or $gridCellData -notmatch 'AdvanceDay' -or $gridCellData -notmatch 'HarvestReady' -or $gridCellData -notmatch 'LoadCells') {
@@ -1425,7 +1606,7 @@ $gridToolAction = Read "addons/beep_game_builder_cs/ecs/grid/GridToolActionCompo
 if ($gridToolAction -notmatch 'class\s+GridToolActionComponent' -or $gridToolAction -notmatch 'ToolAction' -or $gridToolAction -notmatch 'ApplyToCell' -or $gridToolAction -notmatch 'Plant' -or $gridToolAction -notmatch 'Harvest' -or $gridToolAction -notmatch 'QueueJob' -or $gridToolAction -notmatch 'RoadPath' -or $gridToolAction -notmatch 'RemoveRoad' -or $gridToolAction -notmatch 'GridRoadComponent' -or $gridToolAction -notmatch 'CropCatalogPath' -or $gridToolAction -notmatch 'CalendarPath' -or $gridToolAction -notmatch 'ResourceWalletPath' -or $gridToolAction -notmatch 'AddHarvestYieldToWallet') {
     Fail "GridToolActionComponent is missing the expected Stardew-style tool action surface."
 }
-foreach ($required in @("EffectiveRoadCostMultiplier", "EffectiveCropDaysToMature", "EffectiveJobWorkSeconds", "EffectiveCropId", "EffectiveJobKind", "EffectiveRoadKind")) {
+foreach ($required in @("EffectiveRoadCostMultiplier", "EffectiveCropDaysToMature", "EffectiveJobWorkTurns", "EffectiveCropId", "EffectiveJobKind", "EffectiveRoadKind")) {
     if ($gridToolAction -notmatch [regex]::Escape($required)) {
         Fail "GridToolActionComponent must bound invalid crop, road, and queued-job tuning: $required."
     }
@@ -1439,12 +1620,12 @@ foreach ($required in @(
         Fail "GridToolActionComponent must accept loose authored/GDScript cell arrays without typed-array casts: $required."
     }
 }
-foreach ($required in @("NavigationPath", "UseNavigationBounds", "RejectNavigationBlockedCellsForJobs", "TreatBlockedTerrainKindsAsUnworkable", "BlockedTerrainKinds", "AllowedTerrainKinds", "CanWorkTerrain", "IsBlockedTerrainKind", "WorkJobBlockReason", "unworkable_terrain", "cell_out_of_bounds")) {
+foreach ($required in @("NavigationPath", "UseNavigationBounds", "RejectNavigationBlockedCellsForJobs", "RejectCellDataBlockedCellsForJobs", "TreatBlockedTerrainKindsAsUnworkable", "BlockedTerrainKinds", "AllowedTerrainKinds", "CanWorkTerrain", "GridCellRules", "WorkJobBlockReason", "unworkable_terrain", "cell_out_of_bounds")) {
     if ($gridToolAction -notmatch [regex]::Escape($required)) {
         Fail "GridToolActionComponent must reject direct tools/jobs on unworkable terrain and out-of-bounds cells: $required."
     }
 }
-foreach ($required in @("ConsumeSeedsFromWallet", "missing_seeds", "TrySpendAmount(seedId, 1)", "RegrowDays(cropId)", "DataLayersPath")) {
+foreach ($required in @("ConsumeSeedsFromWallet", "missing_seeds", "TrySpendAmount(seedId, 1)", "RegrowDays(cropId)")) {
     if ($gridToolAction -notmatch [regex]::Escape($required)) {
         Fail "GridToolActionComponent must charge authored seed costs on plant and pass crop regrowth through to cell data: $required."
     }
@@ -1574,10 +1755,20 @@ foreach ($required in @("int Stored(string resourceId)", "StoredIds()", "int Unl
     }
 }
 $gridTransportChain = Read "addons/beep_game_builder_cs/ecs/grid/GridTransportChainComponent.cs"
-foreach ($required in @("StoredIdsOf", "ChainBlocked", "ChainUnblocked", "FlowRatePerSecond", "protected virtual int MoveLink")) {
+foreach ($required in @("StoredIdsOf", "ChainBlocked", "ChainUnblocked", "FlowRatePerTurn", "protected virtual int MoveLink")) {
     if ($gridTransportChain -notmatch [regex]::Escape($required)) {
         Fail "GridTransportChainComponent must move what its links hold, at its own rate, with whole-chain backpressure and an overridable hop: $required."
     }
+}
+# Flow advances on the work clock, in turns - not on its own frame delta. A
+# chain that self-ticks keeps pumping in real time in a turn-based game.
+foreach ($required in @("GridWorkClockBinding", "AdvanceWork(float turns)", "_workClock.Bind(this, WorkClockPath, AdvanceWork)")) {
+    if ($gridTransportChain -notmatch [regex]::Escape($required)) {
+        Fail "GridTransportChainComponent must advance flow off the grid work clock, in turns: $required."
+    }
+}
+if ($gridTransportChain -match 'FlowRatePerSecond') {
+    Fail "GridTransportChainComponent still measures throughput per second; a chain's rate is per turn, the same unit GridHaulerComponent.TransportRate is ranked against."
 }
 foreach ($pair in @(
     @("addons/beep_game_builder_cs/ecs/grid/IExtractor.cs", "interface IExtractor : ILoadPort, IUnloadPort"),
@@ -1593,11 +1784,33 @@ foreach ($required in @("Register(", "RequestHaul(", "Transfer(", "HasMethod(`"L
         Fail "GridTransportManagerComponent must be an open registry with the safe hand-off primitive: $required."
     }
 }
+# The truck. Travel advances on the work clock, in turns; the blocked-delivery
+# retry does NOT - it is polling for space somebody else has to free, so it
+# stays a real-time backoff driven by the frame delta on either time axis.
+$gridHauler = Read "addons/beep_game_builder_cs/ecs/grid/GridHaulerComponent.cs"
+foreach ($required in @("GridWorkClockBinding", "AdvanceWork(float turns)", "_workClock.Bind(this, WorkClockPath, AdvanceWork)", "!_workClock.FollowsClock")) {
+    if ($gridHauler -notmatch [regex]::Escape($required)) {
+        Fail "GridHaulerComponent must advance hauling off the grid work clock, in turns: $required."
+    }
+}
+foreach ($required in @("DeliveryRetrySeconds", "AdvanceDeliveryRetry(double delta)", "AdvanceDeliveryRetry(delta)")) {
+    if ($gridHauler -notmatch [regex]::Escape($required)) {
+        Fail "GridHaulerComponent must keep the full-depot retry on real seconds and on the frame delta: $required."
+    }
+}
+if ($gridHauler -match 'DeliveryRetryTurns') {
+    Fail "GridHaulerComponent's delivery retry must not become a turn duration; a full depot is a wait for someone else, not work this hauler is doing."
+}
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
-foreach ($required in @("TerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
+foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
         Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, liquid, and underground data layers: $required."
     }
+}
+# The kind the layers answer is the GENERATED one, and its name says so. A
+# method called TerrainAt reads as the live map, which it is not.
+if ($terrainDataLayers -match 'public string TerrainAt\(') {
+    Fail "TerrainDataLayersComponent.TerrainAt is back; the layers publish the recipe's kind and the method is GeneratedTerrainAt."
 }
 # One noise set per run, each channel on its own seed offset, so changing one
 # stage's frequency cannot shift another stage's pattern.
@@ -1625,22 +1838,32 @@ foreach ($name in $documented) {
     }
 }
 
-# TerrainWorldComponent.Build overwrites five MORE generator settings outside
+# TerrainWorldComponent.ConfigureGenerator - the step both NewWorld and
+# RestoreWorld share - overwrites five MORE generator settings outside
 # ApplyMapSetup entirely (BoundsSize, Seed, ResourceSet, and the two booleans
 # that matter: UseClimateBiomeMaps and UseScaleRules, forced true
 # unconditionally). Same rule as above, same reason: undocumented here means
 # ClimateLatitudeSpan/MinBiomeRegionFraction can be typed into the Inspector
 # and silently discarded for every TerrainWorldComponent-built world.
 $terrainWorldForBuild = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs"
-$buildMethod = [regex]::Match($terrainWorldForBuild, 'public void Build\(\)[\s\S]*?
+$buildMethod = [regex]::Match($terrainWorldForBuild, 'private bool ConfigureGenerator\(out Vector2I size\)[\s\S]*?
         \}')
-if (-not $buildMethod.Success) { Fail "TerrainWorldComponent.Build not found." }
+if (-not $buildMethod.Success) { Fail "TerrainWorldComponent.ConfigureGenerator not found." }
 $buildAssigned = [regex]::Matches($buildMethod.Value, '(?m)^\s{12}_generator\.([A-Z][A-Za-z]*)\s*=') |
     ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 $buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules") | Sort-Object
 $buildUndocumented = @($buildAssigned | Where-Object { $_ -notin $buildDocumented })
 if ($buildUndocumented.Count -gt 0) {
-    Fail "TerrainWorldComponent.Build overwrites $($buildUndocumented -join ', ') on the generator without naming them as derived in Build's doc comment."
+    Fail "TerrainWorldComponent.ConfigureGenerator overwrites $($buildUndocumented -join ', ') on the generator without naming them as derived in its doc comment."
+}
+# Both doors configure the generator the same way, or a restored world and a
+# new one from the same recipe would differ.
+foreach ($door in @("public void NewWorld()", "public void RestoreWorld()")) {
+    $doorMethod = [regex]::Match($terrainWorldForBuild, [regex]::Escape($door) + '[\s\S]*?
+        \}')
+    if (-not $doorMethod.Success -or $doorMethod.Value -notmatch 'ConfigureGenerator\(out Vector2I size\)') {
+        Fail "TerrainWorldComponent's $door must configure the generator through the shared ConfigureGenerator step."
+    }
 }
 
 $terrainNoiseSet = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainNoiseSet.cs"
@@ -1654,10 +1877,24 @@ $gridCalendar = Read "addons/beep_game_builder_cs/ecs/grid/GridCalendarComponent
 if ($gridCalendar -notmatch 'class\s+GridCalendarComponent' -or $gridCalendar -notmatch 'AdvanceDay' -or $gridCalendar -notmatch 'GridSeason' -or $gridCalendar -notmatch 'CaptureState' -or $gridCalendar -notmatch 'GridCellDataComponent') {
     Fail "GridCalendarComponent is missing the expected Stardew-style calendar/crop advancement surface."
 }
-foreach ($required in @("EffectiveSecondsPerDay", "EffectiveDaysPerSeason", "DeltaSeconds(double delta)", "PositiveFinite(SecondsPerDay", "NonNegativeFinite(DictFloat", "float.IsFinite(_dayClock)", "double.IsFinite(delta)")) {
+foreach ($required in @("EffectiveDaysPerSeason", "Mathf.Max(1, DaysPerSeason)")) {
     if ($gridCalendar -notmatch [regex]::Escape($required)) {
-        Fail "GridCalendarComponent must bound invalid day length, season length, saved clocks, and frame deltas: $required."
+        Fail "GridCalendarComponent must bound an invalid season length: $required."
     }
+}
+# The calendar knows WHICH day it is; it does not own how time passes. It used
+# to carry an AutoAdvance accumulator with its own SecondsPerDay, a second owner
+# of the date - enable it beside the game clock and the day advances twice.
+# Declarations, not the bare words: the file carries a comment explaining what
+# the AutoAdvance/SecondsPerDay accumulator used to do, and that history is
+# worth keeping.
+foreach ($forbidden in @('\[Export\][^\r\n]*AutoAdvance', '\[Export\][^\r\n]*SecondsPerDay', '_dayClock\s*[=;+]', '\["day_clock"\]')) {
+    if ($gridCalendar -match $forbidden) {
+        Fail "GridCalendarComponent must not run a clock of its own ($forbidden); it derives its day from GridWorkClockComponent."
+    }
+}
+if ($gridCalendar -match 'override\s+void\s+_Process') {
+    Fail "GridCalendarComponent must not tick itself; AdvanceDay is its only mutator."
 }
 foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(dict, key, fallback)", "GridVariantReader.Float(dict, key, fallback)")) {
     if ($gridCalendar -notmatch [regex]::Escape($required)) {
@@ -1695,7 +1932,10 @@ if ($gridPlacement -notmatch 'bool\s+IsOccupied\(Vector2I cell\)') { Fail "GridP
 if ($gridPlacement -notmatch 'BeginPlacement\(GridBuildDefinition' -or $gridPlacement -notmatch 'ResourceWalletPath' -or $gridPlacement -notmatch 'MovePreviewToCell' -or $gridPlacement -notmatch 'ConfigurePlacedObject' -or $gridPlacement -notmatch 'GridObjectComponent' -or $gridPlacement -notmatch 'NavigationPath') {
     Fail "GridPlacementComponent is missing catalog-driven build placement support."
 }
-foreach ($required in @("!GodotObject.IsInstanceValid(_grid)", "!GodotObject.IsInstanceValid(_placementRoot)", "!GodotObject.IsInstanceValid(_resourceWallet)", "!GodotObject.IsInstanceValid(_cellData)", "!GodotObject.IsInstanceValid(_navigation)", "IsInsideTree() ? EntityComponent.FindComponent", "TreatCellDataBlockedAsUnplaceable", "TreatBlockedTerrainKindsAsUnplaceable", "AllowedTerrainKinds", "BlockedTerrainKinds", "MarkPlacedCellsBlockedInNavigation", "SetFootprintNavigationBlocked")) {
+# The placement root falls back to the parent, deliberately not scene-wide, so it
+# keeps its own check; every other collaborator goes through EntityComponent.Resolve,
+# whose cached-while-valid contract is pinned at its home above.
+foreach ($required in @("EntityComponent.Resolve(this, GridPath, ref _grid)", "!GodotObject.IsInstanceValid(_placementRoot)", "EntityComponent.Resolve(this, ResourceWalletPath, ref _resourceWallet)", "EntityComponent.Resolve(this, CellDataPath, ref _cellData)", "EntityComponent.Resolve(this, NavigationPath, ref _navigation)", "TreatCellDataBlockedAsUnplaceable", "TreatBlockedTerrainKindsAsUnplaceable", "AllowedTerrainKinds", "BlockedTerrainKinds", "MarkPlacedCellsBlockedInNavigation", "SetFootprintNavigationBlocked")) {
     if ($gridPlacement -notmatch [regex]::Escape($required)) {
         Fail "GridPlacementComponent must refresh cached references safely without clobbering valid nodes: $required."
     }
@@ -1805,19 +2045,24 @@ foreach ($required in @("EffectiveBoundsSize", "EffectiveDensity", "EffectiveMax
     }
 }
 $gridProductionRecipe = Read "addons/beep_game_builder_cs/ecs/grid/GridProductionRecipe.cs"
-if ($gridProductionRecipe -notmatch 'class\s+GridProductionRecipe' -or $gridProductionRecipe -notmatch 'RecipeId' -or $gridProductionRecipe -notmatch 'Inputs' -or $gridProductionRecipe -notmatch 'Outputs' -or $gridProductionRecipe -notmatch 'DurationSeconds') {
+if ($gridProductionRecipe -notmatch 'class\s+GridProductionRecipe' -or $gridProductionRecipe -notmatch 'RecipeId' -or $gridProductionRecipe -notmatch 'Inputs' -or $gridProductionRecipe -notmatch 'Outputs' -or $gridProductionRecipe -notmatch 'DurationTurns') {
     Fail "GridProductionRecipe is missing the expected reusable production recipe surface."
 }
 if ($gridProductionRecipe -notmatch '\[Tool\]' -or
     $gridProductionRecipe -match 'Array\s*<\s*GridResourceAmount\s*>' -or
     $gridProductionRecipe -notmatch 'GridResourceAmount\.Enumerate\(Outputs\)' -or
-    $gridProductionRecipe -notmatch 'EffectiveDurationSeconds') {
+    $gridProductionRecipe -notmatch 'EffectiveDurationTurns') {
     Fail "GridProductionRecipe must be a Tool GlobalClass and expose untyped Inputs/Outputs parsed through GridResourceAmount."
 }
 if ($gridProductionRecipe -notmatch [regex]::Escape('GridVariantReader.TryDictionary(entry') -or
     $gridProductionRecipe -notmatch [regex]::Escape('using static Beep.ECS.GridDefinitionReader;') -or
-    $gridProductionRecipe -notmatch [regex]::Escape('ReadFloat(data, "DurationSeconds", "duration_seconds"')) {
+    $gridProductionRecipe -notmatch [regex]::Escape('ReadFloat(data, "DurationTurns", "duration_turns"')) {
     Fail "GridProductionRecipe must parse loose/malformed authored recipe data through the shared GridDefinitionReader."
+}
+# A recipe measures the same unit a build site does. Seconds here would only be
+# correct on the real-time axis.
+if ($gridProductionRecipe -match 'DurationSeconds') {
+    Fail "GridProductionRecipe still measures a cycle in seconds; production runs in turns, like every other timed grid subsystem."
 }
 $gridProduction = Read "addons/beep_game_builder_cs/ecs/grid/GridProductionComponent.cs"
 if ($gridProduction -notmatch 'class\s+GridProductionComponent' -or $gridProduction -notmatch 'StartProduction' -or $gridProduction -notmatch 'CompleteProduction' -or $gridProduction -notmatch 'ProductionCompleted' -or $gridProduction -notmatch 'GridResourceWalletComponent') {
@@ -1829,26 +2074,23 @@ if ($gridProduction -match 'foreach\s*\(\s*GridResourceAmount' -or
 }
 if ($gridProduction -notmatch 'State != ProductionState\.Idle' -or
     $gridProduction -notmatch 'already_producing' -or
-    $gridProduction -notmatch 'recipe\.EffectiveDurationSeconds' -or
+    $gridProduction -notmatch 'recipe\.EffectiveDurationTurns' -or
     $gridProduction -notmatch 'GridProductionRecipe\.Enumerate\(Recipes\)') {
     Fail "GridProductionComponent must reject duplicate starts and use a consistent effective duration."
 }
-foreach ($required in @("EffectiveRemainingSeconds", "DeltaSeconds(double delta)", "double.IsFinite(delta)", "Mathf.Min(delta, 86400.0)")) {
+# Production advances on the work clock, in turns - not on its own frame delta.
+# A machine that self-ticks keeps running in real time in a turn-based game.
+foreach ($required in @("EffectiveRemainingTurns", "GridWorkClockBinding", "AdvanceWork(float turns)", "_workClock.Bind(this, WorkClockPath, AdvanceWork)")) {
     if ($gridProduction -notmatch [regex]::Escape($required)) {
-        Fail "GridProductionComponent must ignore invalid frame deltas and keep remaining production time finite: $required."
+        Fail "GridProductionComponent must advance production off the grid work clock, in turns: $required."
     }
 }
 $gridProductionPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridProductionPanelComponent.cs"
 if ($gridProductionPanel -notmatch 'class\s+GridProductionPanelComponent' -or $gridProductionPanel -notmatch 'RebuildPanel' -or $gridProductionPanel -notmatch 'StartMachine' -or $gridProductionPanel -notmatch 'PauseMachine' -or $gridProductionPanel -notmatch 'GridProductionComponent') {
     Fail "GridProductionPanelComponent is missing the expected reusable production HUD surface."
 }
-if ($gridProductionPanel -notmatch 'TitleLabelPath' -or $gridProductionPanel -notmatch 'SummaryLabelPath' -or $gridProductionPanel -notmatch 'RowsContainerPath' -or $gridProductionPanel -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridProductionPanel -notmatch 'BindExistingControls' -or $gridProductionPanel -notmatch 'UsesSceneControls') {
-    Fail "GridProductionPanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled."
-}
-foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLabel", "FindRowsContainer", 'FindChild\("Title"', 'FindChild\("Summary"', 'FindChild\("Rows"')) {
-    if ($gridProductionPanel -notmatch $required) {
-        Fail "GridProductionPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
-    }
+if ($gridProductionPanel -notmatch 'class\s+GridProductionPanelComponent\s*:\s*GridListPanelComponent' -or $gridProductionPanel -notmatch 'GeneratedRootName' -or $gridProductionPanel -notmatch 'RowNamePrefix' -or $gridProductionPanel -notmatch 'BindExistingControls' -or $gridProductionPanel -notmatch 'HasAuthoredControls' -or $gridProductionPanel -notmatch 'UpdateRows') {
+    Fail "GridProductionPanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
 $gridObjectiveDefinition = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectiveDefinition.cs"
 if ($gridObjectiveDefinition -notmatch 'class\s+GridObjectiveDefinition' -or $gridObjectiveDefinition -notmatch 'ObjectiveId' -or $gridObjectiveDefinition -notmatch 'TargetCount' -or $gridObjectiveDefinition -notmatch 'ActiveOnStart') {
@@ -1878,22 +2120,17 @@ $gridObjectivePanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridObjectiv
 if ($gridObjectivePanel -notmatch 'class\s+GridObjectivePanelComponent' -or $gridObjectivePanel -notmatch 'RebuildPanel' -or $gridObjectivePanel -notmatch 'TextForObjective' -or $gridObjectivePanel -notmatch 'GridObjectiveTrackerComponent') {
     Fail "GridObjectivePanelComponent is missing the expected reusable objective HUD surface."
 }
-if ($gridObjectivePanel -notmatch 'TitleLabelPath' -or $gridObjectivePanel -notmatch 'SummaryLabelPath' -or $gridObjectivePanel -notmatch 'RowsContainerPath' -or $gridObjectivePanel -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridObjectivePanel -notmatch 'BindExistingControls' -or $gridObjectivePanel -notmatch 'UsesSceneControls') {
-    Fail "GridObjectivePanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled."
+if ($gridObjectivePanel -notmatch 'class\s+GridObjectivePanelComponent\s*:\s*GridListPanelComponent' -or $gridObjectivePanel -notmatch 'GeneratedRootName' -or $gridObjectivePanel -notmatch 'RowNamePrefix' -or $gridObjectivePanel -notmatch 'BindExistingControls' -or $gridObjectivePanel -notmatch 'HasAuthoredControls' -or $gridObjectivePanel -notmatch 'UpdateRows') {
+    Fail "GridObjectivePanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
-foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindSummaryLabel", "FindRowsContainer", 'FindChild\("Title"', 'FindChild\("Summary"', 'FindChild\("Rows"')) {
-    if ($gridObjectivePanel -notmatch $required) {
-        Fail "GridObjectivePanelComponent must auto-bind conventional design-time children before generated fallback: $required."
-    }
-}
+# The four GridListPanelComponent panels are absent here on purpose: they
+# search parent/sibling controls through GridPanelComponent.FindControl, which
+# is pinned at its own home above. What remains are the panels that still do
+# their own lookup.
 $parentAwareTerrainFinders = @{
     "GridCalendarHudComponent" = $gridCalendarHud
     "GridInteractionStatusComponent" = $gridInteractionStatus
-    "GridJobBoardComponent" = $gridJobBoard
-    "GridObjectivePanelComponent" = $gridObjectivePanel
-    "GridProductionPanelComponent" = $gridProductionPanel
     "GridWorkerSpawnerPanelComponent" = $gridWorkerSpawnerPanel
-    "GridWorkerStatusPanelComponent" = $gridWorkerStatusPanel
 }
 foreach ($entry in $parentAwareTerrainFinders.GetEnumerator()) {
     if ($entry.Value -notmatch 'GetParent\(\)\?\.FindChild') {
@@ -1915,10 +2152,10 @@ $gridResourceBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridResourceBar
 if ($gridResourceBar -notmatch 'class\s+GridResourceBarComponent' -or $gridResourceBar -notmatch 'RebuildBar' -or $gridResourceBar -notmatch 'VisibleResourceCount' -or $gridResourceBar -notmatch 'TextForResource' -or $gridResourceBar -notmatch 'BoundResourceIds' -or $gridResourceBar -notmatch 'BoundLabelPaths') {
     Fail "GridResourceBarComponent is missing the expected reusable resource HUD surface."
 }
-if ($gridResourceBar -notmatch 'RowPath' -or $gridResourceBar -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridResourceBar -notmatch 'BindExistingLabels' -or $gridResourceBar -notmatch 'BindExistingRow' -or $gridResourceBar -notmatch 'UsesSceneControls' -or $gridResourceBar -notmatch 'BuildGeneratedRow') {
+if ($gridResourceBar -notmatch 'class\s+GridResourceBarComponent\s*:\s*GridPanelComponent' -or $gridResourceBar -notmatch 'RowPath' -or $gridResourceBar -notmatch 'BindExistingLabels' -or $gridResourceBar -notmatch 'BindExistingRow' -or $gridResourceBar -notmatch 'UsesSceneControls' -or $gridResourceBar -notmatch 'BuildGeneratedRow') {
     Fail "GridResourceBarComponent must bind authored resource labels/row by default and only generate fallback UI when explicitly enabled."
 }
-foreach ($required in @("FindResourceRow", "FindResourceLabel", 'FindChild\("ResourceBar"', 'FindChild\(nodeName', 'GetParent\(\)\?\.FindChild')) {
+foreach ($required in @("FindResourceRow", "FindResourceLabel", 'FindControl<HBoxContainer>\(RowPath, "ResourceBar", "GeneratedResourceBar"\)', 'FindControl<Label>\(path, \$"Resource_')) {
     if ($gridResourceBar -notmatch $required) {
         Fail "GridResourceBarComponent must auto-bind conventional ResourceBar/Resource_* controls before generated fallback: $required."
     }
@@ -1931,8 +2168,19 @@ if ($gridBuildDefinition -notmatch '\[Tool\]' -or
     $gridBuildDefinition -match 'Array\s*<\s*GridResourceAmount\s*>' -or
     $gridBuildDefinition -notmatch 'Godot\.Collections\.Array Costs' -or
     $gridBuildDefinition -notmatch 'EffectiveFootprint' -or
-    $gridBuildDefinition -notmatch 'EffectiveBuildSeconds') {
+    $gridBuildDefinition -notmatch 'EffectiveBuildTurns') {
     Fail "GridBuildDefinition must be a Tool GlobalClass and expose untyped Costs so scene-authored costs cannot crash on managed casts."
+}
+# A site declares three things, and its duration is in TURNS - one authored
+# number that means the same amount of world time on the turn axis and the
+# real-time one. Seconds here would only be correct on one of them.
+foreach ($required in @("IGridSite", "SiteFootprint", "SiteMaterials", "SiteTurns", "BuildTurns", "build_turns")) {
+    if ($gridBuildDefinition -notmatch [regex]::Escape($required)) {
+        Fail "GridBuildDefinition must declare the site contract - area, materials, turns: $required."
+    }
+}
+if ($gridBuildDefinition -match 'BuildSeconds') {
+    Fail "GridBuildDefinition still measures build time in seconds; a site's duration is turns."
 }
 $gridBuildCatalog = Read "addons/beep_game_builder_cs/ecs/grid/GridBuildCatalogComponent.cs"
 if ($gridBuildCatalog -notmatch 'class\s+GridBuildCatalogComponent' -or $gridBuildCatalog -notmatch 'FindBuild' -or $gridBuildCatalog -notmatch 'BeginPlacement' -or $gridBuildCatalog -notmatch 'BuildIdsForCategory' -or $gridBuildCatalog -notmatch 'CostSummary') {
@@ -1948,7 +2196,7 @@ $gridBuildToolbar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridBuildToolb
 if ($gridBuildToolbar -notmatch 'class\s+GridBuildToolbarComponent' -or $gridBuildToolbar -notmatch 'RebuildToolbar' -or $gridBuildToolbar -notmatch 'SelectBuild' -or $gridBuildToolbar -notmatch 'SelectCategory' -or $gridBuildToolbar -notmatch 'VisibleBuildButtonCount' -or $gridBuildToolbar -notmatch 'InteractionModePath' -or $gridBuildToolbar -notmatch 'AutoSwitchInteractionMode') {
     Fail "GridBuildToolbarComponent is missing the expected reusable build toolbar surface."
 }
-if ($gridBuildToolbar -notmatch 'CategoryRowPath' -or $gridBuildToolbar -notmatch 'BuildGridPath' -or $gridBuildToolbar -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridBuildToolbar -notmatch 'BindExistingControls' -or $gridBuildToolbar -notmatch 'UsesSceneControls' -or $gridBuildToolbar -notmatch 'BuildGeneratedSurface') {
+if ($gridBuildToolbar -notmatch 'class\s+GridBuildToolbarComponent\s*:\s*GridPanelComponent' -or $gridBuildToolbar -notmatch 'CategoryRowPath' -or $gridBuildToolbar -notmatch 'BuildGridPath' -or $gridBuildToolbar -notmatch 'BindExistingControls' -or $gridBuildToolbar -notmatch 'UsesSceneControls' -or $gridBuildToolbar -notmatch 'BuildGeneratedSurface') {
     Fail "GridBuildToolbarComponent must bind authored toolbar containers by default and only generate fallback UI when explicitly enabled."
 }
 if ($gridBuildToolbar -match 'foreach\s*\(\s*GridResourceAmount' -or
@@ -1957,7 +2205,7 @@ if ($gridBuildToolbar -match 'foreach\s*\(\s*GridResourceAmount' -or
     $gridBuildToolbar -notmatch 'EffectiveButtonMinimumSize') {
     Fail "GridBuildToolbarComponent must render cost text through GridResourceAmount.Enumerate instead of typed foreach casts."
 }
-foreach ($required in @("FindCategoryRow", "FindBuildGrid", 'Name = "Categories"', 'Name = "Builds"', 'FindChild\("Categories"', 'FindChild\("Builds"', 'GetParent\(\)\?\.FindChild')) {
+foreach ($required in @("FindCategoryRow", "FindBuildGrid", 'Name = "Categories"', 'Name = "Builds"', 'FindControl<HBoxContainer>\(CategoryRowPath, "Categories"\)', 'FindControl<GridContainer>\(BuildGridPath, "Builds"\)')) {
     if ($gridBuildToolbar -notmatch $required) {
         Fail "GridBuildToolbarComponent must auto-bind conventional Categories/Builds controls before generated fallback: $required."
     }
@@ -2601,6 +2849,18 @@ foreach ($removedTextureApi in @(
         Fail "$removedTextureApi must not exist; texture-backed UI chrome has been removed."
     }
 }
+# KitButton was a second Button-derived kit button: same Godot base, same chrome, differing from
+# KitPushButton only by carrying a badge while KitPushButton carried the studs. A scene author had
+# to know which name held which capability and could not choose on the merits. Both features live
+# on KitPushButton now; this stops the pair growing back.
+foreach ($removedDuplicateWidget in @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs.uid"
+)) {
+    if (Test-Path (Join-Path $Root $removedDuplicateWidget)) {
+        Fail "$removedDuplicateWidget must not exist; KitPushButton is the one Button-derived kit button and carries the badge."
+    }
+}
 foreach ($removedTextureFolder in @(
     "addons/beep_game_builder_cs/textures/hud",
     "addons/beep_game_builder_cs/textures/cardgame",
@@ -2706,7 +2966,7 @@ if ($kitControl -notmatch 'AutoInputDefaults[\s\S]*get => _autoInputDefaults[\s\
 }
 $kitFocusDefaultPattern = '(FocusMode\s*=\s*FocusModeEnum\.All|ApplyInputDefaults\([^;\r\n]*FocusModeEnum\.All|KitChrome\.ApplyInputDefaults\([^;\r\n]*FocusModeEnum\.All)'
 $nativeInputDefaultFiles = @(
-    "KitButton.cs",
+    "KitPushButton.cs",
     "KitBuildTile.cs",
     "KitCheckBox.cs",
     "KitCheckButton.cs",
@@ -2759,8 +3019,266 @@ if ($kitChrome -notmatch 'DrawPanelHeader\(ctl,\s*genre,\s*host,\s*text,\s*KitPa
     $kitChrome -notmatch '0\.82f,\s*text,\s*font,\s*min:\s*8') {
     Fail "KitChrome utility panel headers must use readable header sizing, not tiny caption-style fit bounds."
 }
-if ($kitChrome -notmatch 'DrawFocusRing' -or $kitChrome -notmatch 'IsConfirmKey' -or $kitChrome -notmatch 'DirectionFromKey') {
+if ($kitChrome -notmatch 'DrawFocusRing' -or $kitChrome -notmatch 'IsConfirm\(' -or $kitChrome -notmatch 'DirectionOf\(' -or $kitChrome -notmatch 'NavigateOrRelease\(') {
     Fail "KitChrome does not expose shared keyboard/focus helpers for custom controls."
+}
+# Activation and direction resolve through Godot's built-in ui_* actions, which carry gamepad
+# bindings. Switching on raw key codes made every custom-drawn kit widget unreachable by a
+# controller while BeepInputMapGenerator had already bound a pad button to ui_accept.
+if ($kitChrome -notmatch '"ui_accept"' -or $kitChrome -notmatch '"ui_cancel"' -or
+    $kitChrome -notmatch '"ui_left"' -or $kitChrome -notmatch '"ui_right"' -or
+    $kitChrome -notmatch '"ui_up"' -or $kitChrome -notmatch '"ui_down"') {
+    Fail "KitChrome must resolve activation and direction through Godot's built-in ui_* actions so a gamepad reaches every kit widget."
+}
+# NavigateOrRelease consumes the event only when the selection actually moved. Accepting it at an
+# edge is a focus trap: arrows could never leave a slot grid, and on a controller the D-pad is the
+# only way out.
+if ($kitChrome -notmatch 'if \(!move\(dir\)\) return false;') {
+    Fail "KitChrome.NavigateOrRelease must release the event when the selection did not move, so focus can leave the widget."
+}
+$rawKeycodeFiles = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File) {
+    if ($file.Name -eq "KitChrome.cs") { continue }
+    $source = Get-Content -Path $file.FullName -Raw
+    if ($source -match 'Key\.(Enter|KpEnter|Space|Escape|Left|Right|Up|Down|Home|End)\b') {
+        $rawKeycodeFiles += $file.Name
+    }
+}
+if ($rawKeycodeFiles.Count -gt 0) {
+    Fail "Kit widgets must not test raw navigation/confirm key codes; route them through KitChrome.IsConfirm/IsCancel/DirectionOf so a gamepad reaches them too: $($rawKeycodeFiles -join ', ')."
+}
+
+# KitControl owns the helpers its subclasses share. They were private, so 46 widgets each wrote
+# their own RefreshVisualAndRedraw and 27 their own RefreshMinimumAndRedraw — the latter in four
+# variants that disagreed about guarding UpdateMinimumSize with IsInsideTree.
+$kitControlSource = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitControl.cs"
+if ($kitControlSource -notmatch 'protected string Genre =>' -or
+    $kitControlSource -notmatch 'protected void RefreshVisualAndRedraw\(\)' -or
+    $kitControlSource -notmatch 'protected void RefreshMinimumAndRedraw\(\)' -or
+    $kitControlSource -notmatch 'protected void DrawFocusRing\(') {
+    Fail "KitControl must expose its shared helpers to subclasses, or every widget re-declares them."
+}
+if ($kitChrome -notmatch 'RefreshMinimumAndRedraw\(Godot\.Control ctl, Vector2 minimum\)' -or
+    $kitChrome -notmatch 'if \(ctl\.IsInsideTree\(\)\)') {
+    Fail "KitChrome must own one guarded RefreshMinimumAndRedraw body for the native-derived kit widgets to share."
+}
+# EVERY drawn widget states what KIND of thing it is.
+#
+# KitControl.WidgetClass defaults to Button, and that default is not cosmetic: it picks the
+# widget's corner radius (KitGeometry.CornerFor), its selection cue (SelectFor), its silhouette
+# (KitMaterial.WidgetShapeForGenre) and, once a genre declares artwork, which sprite it is cut
+# from. Eleven widgets were inheriting it silently -- a radial meter, a skill tree, a level map
+# and a radar chart were all being styled as buttons, which is why so much of the kit read as
+# "just KitPushButton". A default that quietly mis-styles anything that forgets to override it is the
+# accepted-and-ignored shape; the fix is that nobody inherits it.
+$unclassifiedWidgets = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File) {
+    if ($file.Name -eq "KitControl.cs") { continue }
+    $source = Get-Content -Path $file.FullName -Raw
+    # Match the DECLARATION, not the name in prose: KitChrome.cs cites KitControl in its comments
+    # and would otherwise be asked for a WidgetClass it has no business owning.
+    if ($source -notmatch 'partial class \w+ : KitControl') { continue }
+    if ($source -notmatch 'override KitWidgetClass WidgetClass') { $unclassifiedWidgets += $file.Name }
+}
+if ($unclassifiedWidgets.Count -gt 0) {
+    Fail "Every KitControl subclass must declare its WidgetClass rather than inherit the Button default, which silently decides its corner, cue, silhouette and sprite: $($unclassifiedWidgets -join ', ')."
+}
+
+$redeclaredVisual = @()
+$redeclaredMinimum = @()
+$reresolvedGenre = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File) {
+    if ($file.Name -eq "KitControl.cs") { continue }
+    $source = Get-Content -Path $file.FullName -Raw
+    if ($source -notmatch ':\s*KitControl\b') { continue }   # native-derived widgets keep their own
+    if ($source -match 'private void RefreshVisualAndRedraw\(\)') { $redeclaredVisual += $file.Name }
+    if ($source -match 'private void RefreshMinimumAndRedraw\(\)') { $redeclaredMinimum += $file.Name }
+    if ($source -match 'KitChrome\.GenreOf\(this\)') { $reresolvedGenre += $file.Name }
+}
+if ($redeclaredVisual.Count -gt 0) {
+    Fail "KitControl subclasses must inherit RefreshVisualAndRedraw, not re-declare it: $($redeclaredVisual -join ', ')."
+}
+if ($redeclaredMinimum.Count -gt 0) {
+    Fail "KitControl subclasses must inherit RefreshMinimumAndRedraw, not re-declare it: $($redeclaredMinimum -join ', ')."
+}
+if ($reresolvedGenre.Count -gt 0) {
+    Fail "KitControl subclasses must use the inherited Genre rather than walking ancestors again per repaint: $($reresolvedGenre -join ', ')."
+}
+
+# Colours a theme declares must be read by something. border_focus reached only native controls
+# while kit widgets drew from semantic_info, and border_bevel_light was read by nothing at all.
+$nodeTheming = Read "addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.NodeTheming.cs"
+if ($nodeTheming -notmatch 'Col\(t, "focus", c\.BorderFocus\)' -or
+    $nodeTheming -notmatch 'Col\(t, "bevel_light", c\.BorderBevelLight\)' -or
+    $nodeTheming -notmatch 'Col\(t, "bevel_dark", c\.BorderBevelDark\)') {
+    Fail "ThemeSemantics must publish focus and bevel colours, or the kit cannot read what every theme declares."
+}
+if ($kitChrome -notmatch 'UiSurface\.Bevel\(' -or $kitControlSource -notmatch 'UiSurface\.Bevel\(') {
+    Fail "Both bevel paths must take their hue from the theme rather than painting literal white and black."
+}
+$uiSurfaceSource = Read "addons/beep_game_builder_cs/ecs/ui/UiSurface.cs"
+if ($uiSurfaceSource -notmatch 'public static float RelativeLuminance' -or
+    $uiSurfaceSource -notmatch 'public static float ContrastRatio') {
+    Fail "UiSurface must expose the sRGB-linearised luminance and contrast ratio a focus-contrast claim rests on."
+}
+
+# The kit block warns on an unknown key; the other three blocks silently defaulted, and a missing
+# colour falls back to white with no clue why.
+$skinCatalog = Read "addons/beep_game_builder_cs/ecs/ui/SkinCatalog.cs"
+foreach ($block in @("colors", "geometry", "animation")) {
+    if ($skinCatalog -notmatch "WarnUnknownKeys\([a-z]+, `"$block`"") {
+        Fail "SkinCatalog must report unknown keys in the theme's '$block' block, the way KitStyleJson already does for 'kit'."
+    }
+}
+
+# Tooltips. KitTooltip was fully drawn and shown by nothing, and KitSegmentedIconGroup exported a
+# SegmentTips array that no code ever read back.
+if ($kitChrome -notmatch 'public static Godot\.Control\? MakeTooltip\(' -or
+    $kitChrome -notmatch 'tip\.SetMeta\(GenreMeta' -or
+    $kitChrome -notmatch 'InheritedTheme\(owner\)') {
+    Fail "KitChrome.MakeTooltip must build the kit's tooltip and carry the genre and theme across the popup boundary."
+}
+if ($kitControlSource -notmatch '_MakeCustomTooltip\(string forText\)') {
+    Fail "KitControl must render tooltips in the kit's chrome for every drawn widget."
+}
+$segmented = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs"
+if ($segmented -notmatch 'public override string _GetTooltip' -or
+    $segmented -notmatch 'Segments\[index\]\.Tip') {
+    Fail "KitSegmentedIconGroup must report its authored SegmentTips, which nothing read before."
+}
+$slotGridSource = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs"
+if ($slotGridSource -notmatch 'public override string _GetTooltip') {
+    Fail "KitSlotGrid must report a locked slot's requirement, which is ellipsized in the slot itself."
+}
+$tabStripSource = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs"
+if ($tabStripSource -notmatch 'SetTabTooltip\(index,') {
+    Fail "KitTabStrip must publish native per-tab tooltips; TabBar resolves tooltips in C++ and never consults a script _GetTooltip."
+}
+
+# Five widgets shipped a partial collection API: Set and Add but no Remove, or Set alone. A caller
+# could grow a list and never shrink it.
+foreach ($entry in @(
+    @{ File = "KitContextMenu";  Members = @("RemoveItem\(int index\)", "ClearItems\(\)") },
+    @{ File = "KitInputHint";    Members = @("RemoveKey\(int index\)", "ClearKeys\(\)") },
+    @{ File = "KitDialogBox";    Members = @("AddChoice\(", "RemoveChoice\(int index\)", "ClearChoices\(\)") },
+    @{ File = "KitLevelPath";    Members = @("RemoveLevel\(int index\)", "ClearLevels\(\)") },
+    @{ File = "KitBookSpread";   Members = @("RemoveTab\(int index\)", "RemoveLeftPageTitle\(", "RemoveRightPageTitle\(") })) {
+    $source = Read "addons/beep_game_builder_cs/ecs/ui/kit/$($entry.File).cs"
+    foreach ($member in $entry.Members) {
+        if ($source -notmatch $member) {
+            Fail "$($entry.File) must expose a complete collection API; missing something matching '$member'."
+        }
+    }
+}
+# A removal has to move the selection with it, or a shortened list points at an index that is gone.
+$levelPathSource = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs"
+if ($levelPathSource -notmatch 'if \(index <= _cur\) _cur = Mathf\.Max\(-1, _cur - 1\);') {
+    Fail "KitLevelPath.RemoveLevel must move Current with the removal, not rely on the later clamp."
+}
+# A widget that would otherwise draw nothing names the array to fill, under the editor only.
+foreach ($entry in @(
+    @{ File = "KitContextMenu"; Label = "Items" },
+    @{ File = "KitInputHint";   Label = "Keys" })) {
+    $source = Read "addons/beep_game_builder_cs/ecs/ui/kit/$($entry.File).cs"
+    if ($source -notmatch "DrawEmptyPreview\(this, Genre, new Rect2\(Vector2\.Zero, Size\),[\s\S]{0,60}`"$($entry.Label)`"") {
+        Fail "$($entry.File) draws nothing at all when its collection is empty and must show the editor preview naming '$($entry.Label)'."
+    }
+}
+
+# Inventory reordering had exactly one route to MoveItem: a mouse drag. OnSlotGuiInput branched on
+# InputEventMouseButton alone, so a keyboard or controller could not rearrange an inventory at all.
+# The probe exercises CarryOrPlace directly, so this pin is what holds the INPUT wiring in place.
+$inventoryInteract = Read "addons/beep_game_builder_cs/ecs/InventoryComponent.Interact.cs"
+if ($inventoryInteract -notmatch '@event\.IsActionPressed\("ui_accept"\)' -or
+    $inventoryInteract -notmatch '@event\.IsActionPressed\("ui_cancel"\)' -or
+    $inventoryInteract -notmatch 'public void CarryOrPlace\(int slot\)' -or
+    $inventoryInteract -notmatch 'if \(from != slot\) MoveItem\(from, slot\);') {
+    Fail "InventoryComponent must offer a keyboard/gamepad lift-and-place route to MoveItem, not a mouse drag only."
+}
+$inventoryDisplay = Read "addons/beep_game_builder_cs/ecs/InventoryComponent.Display.cs"
+if ($inventoryDisplay -notmatch 'CarryChanged \+= OnCarryChanged') {
+    Fail "InventoryComponent.Display must mark the carried slot, or a lift gives the player no feedback."
+}
+
+# The one widget family the kit lacked, with a data source that had no display at all.
+if ($slotGridSource -notmatch 'public float\[\] SlotCooldowns' -or
+    $slotGridSource -notmatch 'public string\[\] SlotHotkeys' -or
+    $slotGridSource -notmatch 'private void DrawCooldownSweep\(') {
+    Fail "KitSlotGrid calls itself a hotbar and must be able to draw a cooldown and a hotkey."
+}
+$abilityBar = Read "addons/beep_game_builder_cs/ecs/ui/AbilityBarComponent.cs"
+if ($abilityBar -notmatch '1f - ability\.Progress') {
+    Fail "AbilityBarComponent must convert CooldownComponent's elapsed Progress into the REMAINING fraction the slot draws."
+}
+if ($abilityBar -notmatch 'bound\.Ability\.CooldownProgress -= bound\.OnProgress') {
+    Fail "AbilityBarComponent must unsubscribe with the delegates it subscribed; a rebuilt lambda removes nothing."
+}
+
+# SkinCatalog.cs and PanelFrameComponent.cs cite this spec; for a long time it did not exist.
+if (-not (Test-Path (Join-Path $root "docs/GAME_UI_KIT_SPEC.md"))) {
+    Fail "docs/GAME_UI_KIT_SPEC.md is cited from source and must exist."
+}
+# Every kit widget carries a class summary. Without one it lists as a bare "-" in the generated
+# reference, which is how a reader decides the kit is undocumented.
+$undocumentedKitFiles = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File) {
+    $source = Get-Content -Path $file.FullName -Raw
+    if ($source -notmatch '///\s*<summary>') { $undocumentedKitFiles += $file.Name }
+}
+if ($undocumentedKitFiles.Count -gt 0) {
+    Fail "Every kit file needs a class summary; these have none: $($undocumentedKitFiles -join ', ')."
+}
+# The reference generator must look back far enough to contain a long summary. At 1800 characters
+# it silently reported thoroughly documented classes as having no description.
+$referenceGenerator = Get-Content -Path (Join-Path $root "tools/Generate-AddonReference.ps1") -Raw
+if ($referenceGenerator -notmatch '\$classIndex - 8000') {
+    Fail "Generate-AddonReference's summary look-back must be wide enough for the kit's longest class comments."
+}
+
+# A recess must be VISIBLE on every skin. Multiplying a near-black plate by the well shade moves it
+# nowhere: the panel well measured 0.040 luminance and the gem socket 0.019 on a dark theme, so both
+# rendered as black voids. Every well goes through RecessFace, which darkens when there is room and
+# lifts when there is not.
+$recessWidgets = @("KitPanel", "KitPanelContainer", "KitSlotGrid", "KitInventorySlot",
+                   "KitGemSlot", "KitArrowSelector", "KitItemCard", "KitSegmentedIconGroup")
+foreach ($name in $recessWidgets) {
+    $source = Read "addons/beep_game_builder_cs/ecs/ui/kit/$name.cs"
+    if ($source -notmatch 'KitChrome\.RecessFace\(') {
+        Fail "$name draws a recessed well and must compute it with KitChrome.RecessFace, not a bare shade multiply."
+    }
+}
+$bareWellMultiply = @()
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/ui/kit") -Filter "*.cs" -File) {
+    $source = Get-Content -Path $file.FullName -Raw
+    if ($source -match '\w+\.R \* (g\.WellShade|Geo\.WellShade)') { $bareWellMultiply += $file.Name }
+}
+if ($bareWellMultiply.Count -gt 0) {
+    Fail "A well must not be a bare WellShade multiply; it disappears on a dark skin: $($bareWellMultiply -join ', ')."
+}
+if ($kitChrome -notmatch 'private static Color Floor\(Color c\)') {
+    Fail "KitChrome.RecessFace needs its luminance floor, or the deep readout shade still bottoms out at black."
+}
+# A bevel highlight is a light, not paint. Applied as authored, a mid-grey border_bevel_light
+# flattens every widget in the kit.
+if ($uiSurfaceSource -notmatch 'private static Color Lit\(Color c\)' -or
+    $uiSurfaceSource -notmatch 'private static Color Shade\(Color c\)') {
+    Fail "UiSurface.Bevel must push the theme's bevel colours to their poles, or the kit renders flat."
+}
+# A widget dropped into a scene should look like a game control before it is configured.
+foreach ($entry in @(
+    @{ File = "KitToast";     Field = '_message = "' },
+    @{ File = "KitDialogBox"; Field = '_body = "' })) {
+    $source = Read "addons/beep_game_builder_cs/ecs/ui/kit/$($entry.File).cs"
+    if ($source -match [regex]::Escape($entry.Field) + '"') {
+        Fail "$($entry.File) must ship a non-empty default, or it draws as a blank rectangle."
+    }
+}
+
+# Three of six hanger kinds drew the same bracket, leaving two written drawers unreachable.
+$panelHanger = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPanelHanger.cs"
+if ($panelHanger -notmatch 'case HangerKind\.Chain: DrawChain\(' -or
+    $panelHanger -notmatch 'case HangerKind\.Rope: DrawRope\(') {
+    Fail "KitPanelHanger must dispatch Chain and Rope to their own drawers, not to DrawBracket."
 }
 if ($kitChrome -notmatch 'ShouldClearPointerState' -or $kitChrome -notmatch 'NotificationVisibilityChanged' -or $kitChrome -notmatch 'IsVisibleInTree') {
     Fail "KitChrome must expose a shared hidden-state reset helper for custom hover/drag visuals."
@@ -2977,7 +3495,6 @@ if ($kitNodeCard -notmatch 'Locked\s*\{\s*get\s*=>\s*_locked;\s*set\s*\{[^}]*Ref
 }
 $liveExportCoreKitFiles = @(
     "KitLabel.cs",
-    "KitButton.cs",
     "KitPushButton.cs",
     "KitIconButton.cs",
     "KitPanel.cs"
@@ -3013,18 +3530,6 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
         Fail "$($file.Name) has passive exported kit properties. Inspector edits must update drawing, theme overrides, layout, or backing state immediately."
     }
 }
-$kitButton = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs"
-if ($kitButton -notmatch 'BadgeText[\s\S]*Suppress\(\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitButton -notmatch 'public UiSurface\.Role Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitButton -notmatch 'public UiSurface\.Role BadgeRole[\s\S]*if \(_badgeRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitButton -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitButton -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
-    Fail "KitButton exported appearance changes must use guarded visual redraw and BadgeText/theme changes must refresh native Button margins."
-}
-if ($kitButton -notmatch 'DrawLabel\(body,\s*state,\s*face\)' -or $kitButton -notmatch 'UiSurface\.Ink\(face\)') {
-    Fail "KitButton must draw label text against the actual accent plate face, not generic surface text."
-}
-foreach ($required in @("EllipsizeText(font, text", "string badge = KitChrome.Case(_badge, _genre)", "EllipsizeText(font, badge")) {
-    if ($kitButton -notmatch [regex]::Escape($required)) {
-        Fail "KitButton must ellipsize label and badge text inside their actual draw bounds: $required."
-    }
-}
 $kitPushButton = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs"
 if ($kitPushButton -notmatch 'public UiSurface\.Role Accent[\s\S]*QueueRedraw\(\)') {
     Fail "KitPushButton.Accent must redraw immediately for design-time edits."
@@ -3038,6 +3543,23 @@ if ($kitPushButton -notmatch 'string\[\]\s+lines\s*=\s*KitChrome\.Case\(Text,\s*
 if ($kitPushButton -notmatch $kitFocusDefaultPattern -or $kitPushButton -notmatch 'DrawFocusRing') {
     Fail "KitPushButton must draw a visible kit focus ring after suppressing native button focus chrome."
 }
+# The BADGE, absorbed from the deleted KitButton. These moved rather than went away: the
+# capability is the whole reason that class existed, so its guards belong on whatever carries it.
+if ($kitPushButton -notmatch 'BadgeText[\s\S]*SuppressBaseChrome\(\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)') {
+    Fail "KitPushButton.BadgeText must re-suppress and re-measure: the badge changes the right content margin the minimum size is derived from."
+}
+if ($kitPushButton -notmatch 'public UiSurface\.Role BadgeRole[\s\S]*if \(_badgeRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)') {
+    Fail "KitPushButton.BadgeRole must redraw immediately for design-time edits."
+}
+foreach ($required in @("string badge = KitChrome.Case(_badge, _genre)", "EllipsizeText(font, badge")) {
+    if ($kitPushButton -notmatch [regex]::Escape($required)) {
+        Fail "KitPushButton must case and ellipsize badge text inside its actual draw bounds: $required."
+    }
+}
+if ($kitPushButton -notmatch 'BadgeLabelReserve\(\)') {
+    Fail "KitPushButton must reserve label room for the badge, or a long caption runs underneath it."
+}
+
 if ($kitPushButton -notmatch 'private void SuppressBaseChrome\(\)[\s\S]*SetEmptyStyleboxOverride[\s\S]*UpdateMinimumSize\(\)') {
     Fail "KitPushButton.SuppressBaseChrome must invalidate Button minimum size after replacing native stylebox margins."
 }
@@ -3209,7 +3731,7 @@ if ($kitColorRect -notmatch 'public bool AutoFallback' -or
     Fail "KitColorRect must expose an AutoFallback opt-out and skip no-op fallback colour writes."
 }
 $startupSafeSemanticFiles = @(
-    "KitButton.cs",
+    "KitPushButton.cs",
     "KitBuildTile.cs",
     "KitCheckBox.cs",
     "KitCheckButton.cs",
@@ -3331,12 +3853,11 @@ if ($kitIconButton -notmatch 'ButtonIcon\s*\{[^\r\n]*RefreshVisualAndRedraw\(\)'
 }
 $nativeChromeFocusControls = @(
     "addons/beep_game_builder_cs/ecs/ui/kit/KitBuildTile.cs",
-    "addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitCheckButton.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitIconButton.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitOptionButton.cs",
-    "addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitRemovableChip.cs",
     "addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs"
 )
@@ -3770,8 +4291,47 @@ $focusControls = @(
 foreach ($relativePath in $focusControls) {
     $source = Read $relativePath
     if ($source -notmatch 'FocusMode\s*=\s*FocusModeEnum\.All' -and $source -notmatch 'ApplyInputDefaults\([^;\r\n]*FocusModeEnum\.All') { Fail "$relativePath is interactive but does not opt into keyboard focus." }
-    if ($source -notmatch 'InputEventKey' -and $source -notmatch 'ActivateOnClickOrConfirm') { Fail "$relativePath is interactive but does not handle keyboard input." }
+    # KitRemovableChip is exempt from the activation clause and only from it: it derives from
+    # Button, so ui_accept already presses it through BaseButton, and its Delete/Backspace handling
+    # is a separate REMOVE gesture rather than a confirm. Known limitation, recorded rather than
+    # papered over: there is no built-in gamepad action for "remove", so that gesture stays
+    # keyboard and mouse only.
+    if ($relativePath -notmatch 'KitRemovableChip\.cs$' -and
+        $source -notmatch 'KitChrome\.IsConfirm\(' -and $source -notmatch 'ActivateOnClickOrConfirm' -and $source -notmatch 'NavigateOrRelease') { Fail "$relativePath is interactive but does not answer the kit's ui_* activation contract." }
     if ($source -notmatch 'DrawFocusRing') { Fail "$relativePath is interactive but does not draw a visible focus ring." }
+}
+
+# Widgets that move a selection must route it through NavigateOrRelease, so the event is consumed
+# only when something moved and the player is never stuck inside the widget.
+$directionalControls = @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitArrowSelector.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitContextMenu.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitKnob.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitRadarChart.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs"
+)
+foreach ($relativePath in $directionalControls) {
+    $source = Read $relativePath
+    if ($source -notmatch 'KitChrome\.NavigateOrRelease\(this,') {
+        Fail "$relativePath moves a selection but does not go through KitChrome.NavigateOrRelease, so it can trap focus at its edge."
+    }
+}
+# A grid lays its slots out in rows; stepping sideways must not cross into the next one.
+foreach ($relativePath in @(
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs",
+    "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs")) {
+    $source = Read $relativePath
+    if ($source -notmatch 'int column = ' -or $source -notmatch 'if \(wanted < 0 \|\| wanted >= ') {
+        Fail "$relativePath must move sideways within a row, not by adding to a flat index."
+    }
 }
 
 $pureHoverControls = @(
@@ -4752,6 +5312,156 @@ if ($weatherCard -notmatch 'DrawCentered' -or $weatherCard -notmatch 'EllipsizeT
 }
 if ($weatherCard -notmatch 'DayText[\s\S]*if \(_dayText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherGlyph[\s\S]*if \(_weatherGlyph == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'TemperatureText[\s\S]*if \(_temperatureText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WindText[\s\S]*if \(_windText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherRole[\s\S]*if \(_weatherRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $weatherCard -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitWeatherForecastCard authored text must avoid duplicate layout refreshes, while weather role uses visual-only redraw."
+}
+
+# ── One master, one clock, two axes ─────────────────────────────────────────
+# The addon supports turn-based AND real-time games off a single clock. What
+# makes that work is that the axis is DECLARED (GameInfo.TimeAxis) and read in
+# exactly one place, instead of being inferred from whether a node happens to be
+# in the tree. The old design inferred it from a TurnManager autoload, so every
+# durational component branched on the answer - and the strategy genre, which
+# declared turns and shipped nothing that could end one, froze every duration in
+# the game with nothing to report it.
+$gameClock = Read "addons/beep_game_builder_cs/ecs/time/GameClock.cs"
+foreach ($required in @("class GameClock", "GameTimeAxis Axis", "AdvancedEventHandler(double beats)", "DayAdvancedEventHandler", "TurnEndedEventHandler", "BeatsPerDay", "public void Advance(double beats)", "public bool EndTurn()", "Axis == GameTimeAxis.Realtime")) {
+    if ($gameClock -notmatch [regex]::Escape($required)) {
+        Fail "GameClock must own the one beat counter, its day cascade and both drivers: $required."
+    }
+}
+# EndTurn REPORTS refusal rather than appearing to work on a real-time clock.
+if ($gameClock -notmatch 'EndTurn\(\)[\s\S]*Axis != GameTimeAxis\.Turns[\s\S]*return false') {
+    Fail "GameClock.EndTurn must refuse and report on a non-turn axis, not silently do nothing."
+}
+# ONE pause fact: the tree's. The clock carried its own IsPaused/SetPaused that
+# nothing ever set, so a turn could be ended from under the pause menu - the
+# turn axis has no _Process for the tree pause to stop. EndTurn reads the tree.
+# Declarations, not the words: the class comment names GameApp.SetPaused as the door.
+if ($gameClock -match 'public bool IsPaused|public void SetPaused|PausedChangedEventHandler') {
+    Fail "GameClock carries a pause flag of its own again; SceneTree.Paused is the one pause fact and GameApp.SetPaused the one door."
+}
+if ($gameClock -notmatch 'public bool EndTurn\(\)[\s\S]*?GetTree\(\)\.Paused\)\s*\r?\n\s*return false;[\s\S]*?Turn\+\+') {
+    Fail "GameClock.EndTurn must refuse while the tree is paused, before it counts a turn."
+}
+# The three facts a save needs. Day is derived, never stored.
+if ($gameClock -notmatch 'public double DayFraction => _dayFraction;' -or $gameClock -notmatch 'public void RestoreState\(double elapsed, int turn, double dayFraction\)') {
+    Fail "GameClock must expose DayFraction and RestoreState so GameApp can persist and restore the clock."
+}
+
+$gameApp = Read "addons/beep_game_builder_cs/ecs/GameApp.cs"
+foreach ($required in @("GameClock? Clock", "SettingsComponent? Settings", "LocalizationComponent? Locale", "GameStateManagerComponent? Saves", "BuildSubsystems", "public void ReconfigureClock()", "_clock.Configure(info.TimeAxis, info.BeatsPerDay)")) {
+    if ($gameApp -notmatch [regex]::Escape($required)) {
+        Fail "GameApp must OWN its subsystems and configure the clock from the declared axis: $required."
+    }
+}
+# The clock follows the declaration, ALWAYS. Configure is reached only through
+# ReconfigureClock, and whoever rewrites GameInfo after the master built its
+# clock calls it: a BeepGenreScene applying the strategy genre's turns at _Ready
+# used to leave the clock on the real-time axis it was built with.
+if (([regex]::Matches($gameApp, '\.Configure\(')).Count -ne 1) {
+    Fail "GameApp must configure the clock in exactly one place, ReconfigureClock, so every rewrite of GameInfo goes through the same door."
+}
+if ($gameApp -notmatch 'private void BuildSubsystems\(\)[\s\S]*?ReconfigureClock\(\);') {
+    Fail "GameApp.BuildSubsystems must configure the clock through ReconfigureClock."
+}
+$genreScene = Read "addons/beep_game_builder_cs/ecs/BeepGenreScene.cs"
+if ($genreScene -notmatch 'BeepGenreGenerator\.ApplyTuning\(info, genre\);[\s\S]*?app\.ReconfigureClock\(\);') {
+    Fail "BeepGenreScene must call app.ReconfigureClock() after ApplyTuning rewrites the live GameInfo's axis, or a genre declaring turns runs on a real-time clock."
+}
+$runtimeTuningProbe = Read "tools/genre_shapes/RuntimeTuningProbe.cs"
+if ($runtimeTuningProbe -notmatch 'app\.Info = new GameInfo[\s\S]*?app\.ReconfigureClock\(\);') {
+    Fail "RuntimeTuningProbe replaces GameApp.Info and must re-declare the clock through ReconfigureClock like every other Info rewrite."
+}
+# The BeatsPerDay default belongs to the time_axis declaration. It used to run
+# for every genre with a tuning block, so any genre clobbered an authored day
+# length without saying a word about time.
+$genreGenerator = Read "addons/beep_game_builder_cs/core/BeepGenreGenerator.cs"
+if ($genreGenerator -notmatch '(?m)^\s{12}info\.BeatsPerDay = info\.TimeAxis == Beep\.ECS\.GameTimeAxis\.Turns' -or
+    $genreGenerator -match '(?m)^\s{8}info\.BeatsPerDay = info\.TimeAxis') {
+    Fail "BeepGenreGenerator must reset BeatsPerDay only inside the time_axis block, where the axis is actually declared."
+}
+if ($genreGenerator -notmatch 'GameInfo\.DefaultRealtimeBeatsPerDay' -or $genreGenerator -match '45\.0') {
+    Fail "BeepGenreGenerator must take the real-time day length from GameInfo.DefaultRealtimeBeatsPerDay, not a second literal."
+}
+# GameApp.IsPaused is a VIEW of the tree flag, and SetPaused the one door that
+# writes it. A stored export never flipped, so playtime accrued under the pause
+# menu, and seven components wrote the tree flag themselves.
+if ($gameApp -notmatch 'public bool IsPaused => IsInsideTree\(\) && GetTree\(\)\.Paused;' -or $gameApp -match '\[Export\] public bool IsPaused') {
+    Fail "GameApp.IsPaused must be computed from SceneTree.Paused, never stored."
+}
+if ($gameApp -notmatch 'public void SetPaused\(bool paused\)[\s\S]*?tree\.Paused = paused;[\s\S]*?GamePaused[\s\S]*?GameResumed') {
+    Fail "GameApp.SetPaused must write the tree flag and announce GamePaused/GameResumed - it is the one door."
+}
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs") -Filter "*.cs" -File -Recurse) {
+    if ($file.Name -eq "GameApp.cs") { continue }
+    $source = Get-Content -LiteralPath $file.FullName -Raw
+    # Case-sensitive, member write only: `tree.Paused = x` / `GetTree().Paused = x`.
+    # ProductionState.Paused (including as a `=>` switch arm), IsPaused == x and
+    # MovingPlatform's own _paused field are none of these.
+    if ($source -cmatch '\.Paused\s*=(?![=>])') {
+        Fail "$($file.Name) writes SceneTree.Paused directly; every pause goes through GameApp.Instance.SetPaused, the one door."
+    }
+}
+# The master saves its clock: the three facts Day is re-derived from, in the
+# per-run Session state. A turn-based save used to resume at turn 0.
+foreach ($required in @("sess.ClockElapsed = _clock?.Elapsed", "sess.ClockTurn = _clock?.Turn", "sess.ClockDayFraction = _clock?.DayFraction", "_clock?.RestoreState(sess.ClockElapsed, sess.ClockTurn, sess.ClockDayFraction)")) {
+    if ($gameApp -notmatch [regex]::Escape($required)) {
+        Fail "GameApp must persist and restore the clock through SessionStateData: $required."
+    }
+}
+$gameStateData = Read "addons/beep_game_builder_cs/core/GameStateData.cs"
+foreach ($required in @("public double ClockElapsed", "public int ClockTurn", "public double ClockDayFraction", '"clock_elapsed"', '"clock_turn"', '"clock_day_fraction"')) {
+    if ($gameStateData -notmatch [regex]::Escape($required)) {
+        Fail "SessionStateData must carry the clock: $required."
+    }
+}
+if ($gameStateData -match 'ClockDay\b|"clock_day"') {
+    Fail "SessionStateData must not store Day; it is derived from Elapsed, DayFraction and BeatsPerDay, and a stored copy is a second owner."
+}
+$clockProbe = Read "tests/game_clock_axes_probe.gd"
+foreach ($required in @("_clock_follows_declaration", "_pause_is_one_fact", "_clock_is_saved", '_make_genre_scene("strategy")', '_make_genre_scene("platformer")', 'call("SetPaused", true)', 'call("RestoreAllSaveables")')) {
+    if ($clockProbe -notmatch [regex]::Escape($required)) {
+        Fail "game_clock_axes_probe.gd must prove the clock follows a re-declared axis, that the tree pause gates EndTurn, and that the clock survives a save: $required."
+    }
+}
+$recipeProbe = Read "tests/terrain_world_recipe_probe.gd"
+foreach ($required in @('call("NewWorld")', 'call("RestoreState"', "probe_mark", 'call("GeneratedTerrainAt"', 'make_world(SEED_SCENE, true)', "RESULT:")) {
+    if ($recipeProbe -notmatch [regex]::Escape($required)) {
+        Fail "terrain_world_recipe_probe.gd must round-trip the recipe, keep an edited cell, realign the subsurface store and prove BuildOnReady yields to a restore: $required."
+    }
+}
+if ($runAddonChecks -notmatch 'terrain_world_recipe_probe\.ps1') {
+    Fail "run_addon_checks.ps1 must include the terrain world recipe probe."
+}
+
+# TurnManager is gone. Its presence in the tree was the axis signal, which is the
+# whole defect; nothing may reintroduce it or read it.
+if (Test-Path (Join-Path $root "addons/beep_game_builder_cs/ecs/TurnManager.cs")) {
+    Fail "ecs/TurnManager.cs is back. The turn counter, TurnEnded and EndTurn belong to GameClock; a separate turn node makes tree shape mean something again."
+}
+foreach ($axisReader in @(
+    "addons/beep_game_builder_cs/ecs/WorkComponent.cs",
+    "addons/beep_game_builder_cs/ecs/stats/StatsComponent.cs"
+)) {
+    $source = Read $axisReader
+    # Member access, not the bare word: these files carry a comment explaining
+    # what the TurnManager inference used to do, and that history is worth keeping.
+    if ($source -match 'TurnManager\s*\.') {
+        Fail "$axisReader still reads TurnManager."
+    }
+    if ($source -match '_turnBased' -or $source -match 'TimeAxis') {
+        Fail "$axisReader must not ask which time axis it is on - it subscribes to GameClock.Advanced and one beat is one second or one turn."
+    }
+    if ($source -notmatch [regex]::Escape("GameApp.Instance?.Clock")) {
+        Fail "$axisReader must advance off the game clock."
+    }
+}
+
+# A turn-based game needs something that can actually end a turn.
+$turnDriver = Read "addons/beep_game_builder_cs/ecs/time/TurnDriverComponent.cs"
+foreach ($required in @("class TurnDriverComponent", "RequestEndTurn", "EndTurn()", "GameTimeAxis.Turns")) {
+    if ($turnDriver -notmatch [regex]::Escape($required)) {
+        Fail "TurnDriverComponent must be able to end a turn and know when there are none: $required."
+    }
 }
 
 $tmpIgnorePath = Join-Path $root "tmp/.gdignore"

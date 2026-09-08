@@ -85,40 +85,35 @@ namespace Beep.ECS
 
         public bool CanAfford(Godot.Collections.Array costs)
         {
-            foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(costs))
-            {
-                string id = Normalize(resourceId);
-                int required = Mathf.Max(0, amount);
-                if (required > 0 && GetAmount(id) < required)
-                    return false;
-            }
-
+            if (!GridResourceAmount.TryTotals(costs, out var totals)) return false;
+            foreach ((string id, int required) in totals)
+                if (GetAmount(id) < required) return false;
             return true;
         }
 
         public bool Spend(Godot.Collections.Array costs)
         {
-            if (!CanAfford(costs))
+            if (!GridResourceAmount.TryTotals(costs, out var totals)) return false;
+            foreach ((string id, int required) in totals)
             {
-                foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(costs))
+                int available = GetAmount(id);
+                if (available < required)
                 {
-                    string id = Normalize(resourceId);
-                    int required = Mathf.Max(0, amount);
-                    int available = GetAmount(id);
-                    if (required > 0 && available < required)
-                    {
-                        EmitSignal(SignalName.ResourceSpendRejected, id, required, available);
-                        break;
-                    }
+                    EmitSignal(SignalName.ResourceSpendRejected, id, required, available);
+                    return false;
                 }
-                return false;
             }
 
-            foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(costs))
+            // Commit every debit before any observer can spend the remaining balance.
+            foreach ((string id, int required) in totals)
             {
-                AddAmount(resourceId, -Mathf.Max(0, amount));
+                int remaining = GetAmount(id) - required;
+                if (remaining == 0) _amounts.Remove(id);
+                else _amounts[id] = remaining;
             }
-
+            foreach (string id in totals.Keys)
+                EmitSignal(SignalName.ResourceChanged, id, GetAmount(id));
+            if (totals.Count > 0) EmitSignal(SignalName.ResourcesChanged);
             return true;
         }
 

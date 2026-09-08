@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -9,20 +8,30 @@ namespace Beep.ECS
     /// Compact HUD panel for worker/truck status. It scans a units root for
     /// GridWorkerComponent instances and shows whether each worker is idle,
     /// moving, or working.
+    ///
+    /// The panel surface itself - authored-control binding, the generated
+    /// fallback layout, and the row diff - is GridListPanelComponent's; this
+    /// file owns only the worker roster and what a worker row says.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridWorkerStatusPanelComponent : Control
+    public partial class GridWorkerStatusPanelComponent : GridListPanelComponent
     {
         [Signal] public delegate void WorkerCancelRequestedEventHandler(string workerId);
 
         [Export] public NodePath UnitsRootPath { get; set; } = new("");
         [Export] public NodePath JobQueuePath { get; set; } = new("");
-        [Export] public NodePath TitleLabelPath { get; set; } = new("");
-        [Export] public NodePath SummaryLabelPath { get; set; } = new("");
-        [Export] public NodePath RowsContainerPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
+
+        /// <summary>
+        /// Optional. Wired (or found scene-wide when empty), new units the
+        /// spawner reports via UnitSpawned are appended to the cached roster
+        /// instead of triggering a full re-walk of UnitsRootPath. A worker
+        /// added some OTHER way - a second spawner, or one hand-placed in the
+        /// scene after this panel's first refresh - is missed by the
+        /// incremental path; call InvalidateWorkerCache() after adding one
+        /// that way.
+        /// </summary>
+        [Export] public NodePath SpawnerPath { get; set; } = new("");
         [Export] public bool AutoRefresh { get; set; } = true;
 
         /// <summary>
@@ -32,15 +41,22 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "0.05,5,0.05")] public float RefreshIntervalSeconds { get; set; } = 0.25f;
         [Export(PropertyHint.Range, "1,24,1")] public int MaxVisibleWorkers { get; set; } = 8;
-        [Export] public string TitleText { get; set; } = "Workers";
-        [Export] public Vector2 PanelMinimumSize { get; set; } = new(220, 126);
+
+        public GridWorkerStatusPanelComponent()
+        {
+            TitleText = "Workers";
+            PanelMinimumSize = new Vector2(220, 126);
+        }
+
+        protected override string GeneratedRootName => "GeneratedWorkerStatusPanel";
+        protected override string RowNamePrefix => "Worker";
 
         private Node? _unitsRoot;
         private GridJobQueueComponent? _jobs;
-        private Label? _title;
-        private Label? _summary;
-        private VBoxContainer? _rows;
-        private readonly Dictionary<string, Label> _rowLabels = new();
+        private GridWorkerSpawnerComponent? _spawner;
+        private bool _spawnerConnected;
+        private List<GridWorkerComponent>? _cachedWorkers;
+        private float _refreshAccumulator;
 
         public override void _Ready()
         {
@@ -51,6 +67,16 @@ namespace Beep.ECS
             SetProcess(AutoRefresh || Engine.IsEditorHint());
             UpdateConfigurationWarnings();
         }
+
+        public override void _ExitTree()
+        {
+            DisconnectSpawner();
+        }
+
+        /// <summary>Forces the next Workers() call to re-walk UnitsRootPath from
+        /// scratch, for a roster change this panel's incremental cache cannot
+        /// see on its own (see the SpawnerPath doc comment).</summary>
+        public void InvalidateWorkerCache() => _cachedWorkers = null;
 
         public override void _Process(double delta)
         {
@@ -64,8 +90,6 @@ namespace Beep.ECS
             _refreshAccumulator = 0f;
             RefreshPanel();
         }
-
-        private float _refreshAccumulator;
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -88,155 +112,74 @@ namespace Beep.ECS
             if (!GenerateControlsWhenPathsEmpty)
                 return;
 
-            ClearChildren();
-            _rowLabels.Clear();
-
-            var panel = new PanelContainer
-            {
-                Name = "GeneratedWorkerStatusPanel",
-                CustomMinimumSize = PanelMinimumSize,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            AddChild(panel);
-            SetEditedOwner(panel);
-
-            var layout = new VBoxContainer
-            {
-                Name = "Content",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(layout, "separation", 4);
-            panel.AddChild(layout);
-            SetEditedOwner(layout);
-
-            _title = new Label
-            {
-                Name = "Title",
-                Text = TitleText,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
-            };
-            KitChrome.SetColorOverrideIfChanged(_title, "font_color", Colors.White);
-            layout.AddChild(_title);
-            SetEditedOwner(_title);
-
-            _summary = new Label
-            {
-                Name = "Summary",
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            KitChrome.SetColorOverrideIfChanged(_summary, "font_color", new Color(0.86f, 0.89f, 0.92f));
-            layout.AddChild(_summary);
-            SetEditedOwner(_summary);
-
-            _rows = new VBoxContainer
-            {
-                Name = "Rows",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(_rows, "separation", 2);
-            layout.AddChild(_rows);
-            SetEditedOwner(_rows);
-
+            BuildGeneratedPanel();
             RefreshPanel();
         }
 
         public void RefreshPanel()
         {
             ResolveReferences();
-            if (_summary == null || _rows == null)
+            if (!ControlsReady)
                 return;
 
-            if (_title != null)
-                _title.Text = TitleText;
+            ApplyTitleText();
 
             var workers = Workers();
+            // One pass over the queue for the whole refresh, not one scan per
+            // idle worker: EffectiveState/TextForWorker used to each re-derive
+            // "what job is this worker claiming" independently via a fresh
+            // GetJobs() marshal-and-scan, up to three times per idle worker.
+            Dictionary<string, string> claimedByWorker = _jobs?.GetClaimedJobIdsByWorker()
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
             int idle = 0;
             int active = 0;
             foreach (GridWorkerComponent worker in workers)
             {
-                if (EffectiveState(worker) == GridWorkerComponent.WorkerState.Idle)
+                if (EffectiveState(worker, claimedByWorker) == GridWorkerComponent.WorkerState.Idle)
                     idle++;
                 else
                     active++;
             }
 
-            _summary.Text = $"Total {workers.Count} | Idle {idle} | Active {active}";
+            SummaryLabel!.Text = $"Total {workers.Count} | Idle {idle} | Active {active}";
 
-            // Rows are updated IN PLACE and only added or removed when the
-            // worker set actually changes. Freeing and recreating every Label
-            // per refresh was UI node churn for a panel whose set of rows is
-            // almost always identical to the last refresh.
-            var seen = new HashSet<string>();
-            int shown = 0;
+            UpdateRows(WorkerRows(workers, claimedByWorker), MaxVisibleWorkers);
+        }
+
+        private IEnumerable<GridPanelRow> WorkerRows(
+            List<GridWorkerComponent> workers,
+            Dictionary<string, string> claimedByWorker)
+        {
             foreach (GridWorkerComponent worker in workers)
-            {
-                if (shown >= MaxVisibleWorkers)
-                    break;
-
-                string id = worker.WorkerId;
-                if (!seen.Add(id))
-                    continue;
-
-                if (!_rowLabels.TryGetValue(id, out Label? row) || !GodotObject.IsInstanceValid(row))
-                {
-                    row = new Label
-                    {
-                        Name = $"Worker_{SafeName(id)}",
-                        TooltipText = id,
-                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                        CustomMinimumSize = new Vector2(0, 22)
-                    };
-                    _rows.AddChild(row);
-                    SetEditedOwner(row);
-                    _rowLabels[id] = row;
-                }
-
-                row.Text = TextForWorker(worker);
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(worker.State));
-                // Reused rows still follow the sorted id order.
-                _rows.MoveChild(row, shown);
-                shown++;
-            }
-
-            var stale = new List<string>();
-            foreach ((string id, Label row) in _rowLabels)
-            {
-                if (seen.Contains(id))
-                    continue;
-
-                if (GodotObject.IsInstanceValid(row))
-                {
-                    _rows.RemoveChild(row);
-                    row.QueueFree();
-                }
-                stale.Add(id);
-            }
-            foreach (string id in stale)
-                _rowLabels.Remove(id);
+                yield return new GridPanelRow(
+                    worker.WorkerId,
+                    TextForWorker(worker, claimedByWorker),
+                    ColorForState(worker.State));
         }
 
         public string SummaryText()
         {
             RefreshPanel();
-            return _summary?.Text ?? "";
+            return SummaryLabel?.Text ?? "";
         }
 
         public string TextForWorker(string workerId)
         {
             RefreshPanel();
-            return _rowLabels.TryGetValue(workerId, out Label? label) ? label.Text : "";
+            return RowText(workerId);
         }
 
         public string TextForWorker(GridWorkerComponent worker)
+            => TextForWorker(worker, null);
+
+        private string TextForWorker(GridWorkerComponent worker, Dictionary<string, string>? claimedByWorker)
         {
             string id = string.IsNullOrWhiteSpace(worker.WorkerId) ? worker.Name : worker.WorkerId;
-            GridWorkerComponent.WorkerState stateValue = EffectiveState(worker);
+            GridWorkerComponent.WorkerState stateValue = EffectiveState(worker, claimedByWorker);
             string state = stateValue.ToString();
             string jobId = string.IsNullOrWhiteSpace(worker.CurrentJobId)
-                ? FindClaimedJobId(worker.WorkerId)
+                ? ClaimedJobIdFor(worker.WorkerId, claimedByWorker)
                 : worker.CurrentJobId;
             if (string.IsNullOrWhiteSpace(jobId))
                 return $"{id}: {state}";
@@ -245,14 +188,14 @@ namespace Beep.ECS
             Vector2I cell = _jobs?.GetJobCell(jobId) ?? new Vector2I(int.MinValue, int.MinValue);
             string job = string.IsNullOrWhiteSpace(kind) ? jobId : kind;
             string target = cell.X == int.MinValue ? "" : $" ({cell.X},{cell.Y})";
+            // Turns, the grid's one unit - shown as such, not as seconds it never was.
             string remaining = worker.State == GridWorkerComponent.WorkerState.Working
-                ? $" {Mathf.Max(0f, worker.WorkRemainingSeconds):0.0}s"
+                ? $" {Mathf.Max(0f, worker.WorkRemainingTurns):0.0}t"
                 : "";
             return $"{id}: {state} {job}{target}{remaining}";
         }
 
-        public int VisibleWorkerRowCount()
-            => _rowLabels.Count;
+        public int VisibleWorkerRowCount() => RowCount;
 
         public bool CancelWorkerJob(string workerId, string reason = "cancelled_from_worker_panel")
         {
@@ -262,7 +205,7 @@ namespace Beep.ECS
                     continue;
 
                 string jobId = string.IsNullOrEmpty(worker.CurrentJobId)
-                    ? FindClaimedJobId(worker.WorkerId)
+                    ? ClaimedJobIdFor(worker.WorkerId, null)
                     : worker.CurrentJobId;
                 if (string.IsNullOrEmpty(jobId))
                     return false;
@@ -279,98 +222,94 @@ namespace Beep.ECS
             return false;
         }
 
+        /// <summary>
+        /// Cached and only rebuilt on a genuine roster change - new units
+        /// arrive via GridWorkerSpawnerComponent.UnitSpawned (appended, no
+        /// re-walk), and freed ones drop out on the cheap IsInstanceValid
+        /// prune below - the same registry-pruning shape
+        /// GridTransportManagerComponent/GridExtractionManagerComponent use for
+        /// their own registries, rather than re-walking UnitsRootPath's whole
+        /// subtree every refresh tick.
+        /// </summary>
         private List<GridWorkerComponent> Workers()
         {
             ResolveReferences();
+            if (_cachedWorkers == null)
+                RebuildWorkerCache();
+            else
+                PruneInvalidWorkers();
+            return _cachedWorkers!;
+        }
+
+        private void RebuildWorkerCache()
+        {
             var workers = new List<GridWorkerComponent>();
             if (_unitsRoot != null)
                 CollectWorkers(_unitsRoot, workers);
-            workers.Sort((a, b) => string.Compare(DisplayId(a), DisplayId(b), StringComparison.OrdinalIgnoreCase));
-            return workers;
+            SortWorkers(workers);
+            _cachedWorkers = workers;
+        }
+
+        private void PruneInvalidWorkers()
+        {
+            for (int i = _cachedWorkers!.Count - 1; i >= 0; i--)
+                if (!GodotObject.IsInstanceValid(_cachedWorkers[i]))
+                    _cachedWorkers.RemoveAt(i);
+        }
+
+        private static void SortWorkers(List<GridWorkerComponent> workers)
+            => workers.Sort((a, b) => string.Compare(DisplayId(a), DisplayId(b), StringComparison.OrdinalIgnoreCase));
+
+        private void OnUnitSpawned(Node unit, string workerId, int x, int y)
+        {
+            if (_cachedWorkers == null)
+                return;
+
+            GridWorkerComponent? worker = EntityComponent.FindComponent<GridWorkerComponent>(unit, recursive: true);
+            if (worker == null || _cachedWorkers.Contains(worker))
+                return;
+
+            _cachedWorkers.Add(worker);
+            SortWorkers(_cachedWorkers);
+        }
+
+        private void ConnectSpawner()
+        {
+            if (_spawner == null || _spawnerConnected)
+                return;
+
+            _spawner.UnitSpawned += OnUnitSpawned;
+            _spawnerConnected = true;
+        }
+
+        private void DisconnectSpawner()
+        {
+            if (_spawner != null && GodotObject.IsInstanceValid(_spawner) && _spawnerConnected)
+                _spawner.UnitSpawned -= OnUnitSpawned;
+            _spawnerConnected = false;
         }
 
         private void ResolveReferences()
         {
+            // Explicit wire only: with no root there is nothing to walk.
             if (_unitsRoot == null || !GodotObject.IsInstanceValid(_unitsRoot))
                 _unitsRoot = !UnitsRootPath.IsEmpty ? GetNodeOrNull<Node>(UnitsRootPath) : null;
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath) : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-        }
 
-        public bool UsesSceneControls()
-            => !TitleLabelPath.IsEmpty || !SummaryLabelPath.IsEmpty || !RowsContainerPath.IsEmpty
-            || FindTitleLabel() != null || FindSummaryLabel() != null || FindRowsContainer() != null;
+            EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
 
-        private bool BindExistingControls()
-        {
-            if (!UsesSceneControls())
-                return false;
-
-            Label? title = FindTitleLabel();
-            Label? summary = FindSummaryLabel();
-            VBoxContainer? rows = FindRowsContainer();
-
-            if (summary == null || rows == null)
-                return false;
-
-            _title = title;
-            _summary = summary;
-            _rows = rows;
-            _rowLabels.Clear();
-            return true;
-        }
-
-        private bool HasAuthoredControls()
-            => FindSummaryLabel() != null && FindRowsContainer() != null;
-
-        private Label? FindTitleLabel()
-        {
-            if (!TitleLabelPath.IsEmpty && GetNodeOrNull<Label>(TitleLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Title", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Title", recursive: true, owned: false) as Label;
-        }
-
-        private Label? FindSummaryLabel()
-        {
-            if (!SummaryLabelPath.IsEmpty && GetNodeOrNull<Label>(SummaryLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Summary", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Summary", recursive: true, owned: false) as Label;
-        }
-
-        private VBoxContainer? FindRowsContainer()
-        {
-            if (!RowsContainerPath.IsEmpty && GetNodeOrNull<VBoxContainer>(RowsContainerPath) is { } pathRows)
-                return pathRows;
-
-            if (FindChild("Rows", recursive: true, owned: false) is VBoxContainer childRows)
-                return childRows;
-
-            return GetParent()?.FindChild("Rows", recursive: true, owned: false) as VBoxContainer;
-        }
-
-        private void ClearChildren()
-        {
-            foreach (Node child in GetChildren())
-                child.QueueFree();
-            _title = null;
-            _summary = null;
-            _rows = null;
-        }
-
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
+            // A freed spawner took its signal connection with it; the flag must
+            // drop before Resolve picks a replacement up. Never resolved in the
+            // editor - the spawner is a runtime roster source only.
+            if (_spawner != null && !GodotObject.IsInstanceValid(_spawner))
+            {
+                _spawner = null;
+                _spawnerConnected = false;
+            }
+            if (_spawner == null && !Engine.IsEditorHint())
+            {
+                EntityComponent.Resolve(this, SpawnerPath, ref _spawner);
+                ConnectSpawner();
+            }
         }
 
         private static void CollectWorkers(Node node, List<GridWorkerComponent> workers)
@@ -385,30 +324,29 @@ namespace Beep.ECS
         private static string DisplayId(GridWorkerComponent worker)
             => string.IsNullOrWhiteSpace(worker.WorkerId) ? worker.Name : worker.WorkerId;
 
-        private GridWorkerComponent.WorkerState EffectiveState(GridWorkerComponent worker)
+        private GridWorkerComponent.WorkerState EffectiveState(GridWorkerComponent worker, Dictionary<string, string>? claimedByWorker = null)
         {
             if (worker.State != GridWorkerComponent.WorkerState.Idle)
                 return worker.State;
-            return string.IsNullOrEmpty(FindClaimedJobId(worker.WorkerId))
+            return string.IsNullOrEmpty(ClaimedJobIdFor(worker.WorkerId, claimedByWorker))
                 ? GridWorkerComponent.WorkerState.Idle
                 : GridWorkerComponent.WorkerState.Working;
         }
 
-        private string FindClaimedJobId(string workerId)
+        /// <summary>
+        /// The job a worker currently holds Claimed. Consults the
+        /// once-per-refresh map when the caller has one (RefreshPanel's own
+        /// loop over every worker); falls back to a single direct queue scan
+        /// for an on-demand, single-worker lookup (CancelWorkerJob, the
+        /// public single-worker TextForWorker overload) - either way, no
+        /// per-job Dictionary marshalling.
+        /// </summary>
+        private string ClaimedJobIdFor(string workerId, Dictionary<string, string>? claimedByWorker)
         {
-            if (_jobs == null || string.IsNullOrWhiteSpace(workerId))
-                return "";
+            if (claimedByWorker != null)
+                return claimedByWorker.TryGetValue(workerId, out string? jobId) ? jobId : "";
 
-            foreach (Godot.Collections.Dictionary job in _jobs.GetJobs())
-            {
-                string claimedBy = DictString(job, "claimed_by", "");
-                string state = DictString(job, "state", "");
-                if (string.Equals(claimedBy, workerId, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Claimed), StringComparison.OrdinalIgnoreCase))
-                    return DictString(job, "id", "");
-            }
-
-            return "";
+            return _jobs?.FindClaimedJobId(workerId) ?? "";
         }
 
         private static Color ColorForState(GridWorkerComponent.WorkerState state)
@@ -419,16 +357,5 @@ namespace Beep.ECS
                 GridWorkerComponent.WorkerState.Working => new Color(0.48f, 0.92f, 0.58f),
                 _ => Colors.White
             };
-
-        private static string SafeName(string value)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? "Worker" : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return result.Replace(' ', '_');
-        }
-
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
     }
 }

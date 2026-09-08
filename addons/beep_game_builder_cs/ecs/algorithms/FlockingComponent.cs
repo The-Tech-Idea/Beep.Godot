@@ -25,6 +25,8 @@ namespace Beep.ECS
         /// <summary>Group holding every flockmate (the parent bodies, not components). Each member's
         /// EntityGroup or SpawnerComponent.SpawnGroup should add the body to this group.</summary>
         [Export] public string FlockGroup { get; set; } = "";
+        /// <summary>Registered actors query nearby actors in their registry; disable for mixed/non-actor groups.</summary>
+        [Export] public bool UseActorSpatialIndex { get; set; } = true;
         [Export] public float MaxSpeed { get; set; } = 150f;
         /// <summary>How far a body can see its flockmates.</summary>
         [Export] public float NeighborRadius { get; set; } = 120f;
@@ -48,7 +50,7 @@ namespace Beep.ECS
 
         private CharacterBody2D? _body;
         private Vector2 _velocity;
-        private bool _warnedNoGroup;
+        private bool _yielded;
 
         public override void _Ready()
         {
@@ -64,16 +66,32 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (Engine.IsEditorHint() || !IsActive || _body == null) return;
+            if (Engine.IsEditorHint() || !GodotObject.IsInstanceValid(_body)) return;
+            if (!IsActive || ActorComponent.ForBody(_body) is { } actor && !actor.CanDrive(this))
+            {
+                _yielded = true;
+                return;
+            }
+            // Resume from the body's current momentum, not steering cached before an order.
+            if (_yielded) { _velocity = _body!.Velocity; _yielded = false; }
             if (!IsFinite(_velocity)) _velocity = Vector2.Zero;
 
             Vector2 desired = ComputeDesired();
             _velocity = _velocity.Lerp(desired, EffectiveSteerLerp);
             _velocity = SteeringBehavior.Limit(_velocity, EffectiveMaxSpeed);
 
-            _body.Velocity = _velocity;
-            _body.MoveAndSlide();
+            _body!.Velocity = _velocity;
+            CharacterMotion.Move(_body);
             _velocity = _body.Velocity;   // collisions may have altered it; keep the truth
+        }
+
+        public override void _ExitTree()
+        {
+            _body = null;
+            _velocity = Vector2.Zero;
+            _yielded = false;
+            RequestReady();
+            base._ExitTree();
         }
 
         /// <summary>Blend the three rules into one desired velocity. Zero neighbors → keep current
@@ -91,7 +109,7 @@ namespace Beep.ECS
             float separationRadius = EffectiveSeparationRadius;
             float maxSpeed = EffectiveMaxSpeed;
 
-            foreach (var n in GetTree().GetNodesInGroup(FlockGroup))
+            foreach (var n in Neighbors(pos, neighborRadius))
             {
                 if (n is not Node2D other || other == _body || !GodotObject.IsInstanceValid(other)) continue;
                 Vector2 otherPosition = IsFinite(other.GlobalPosition) ? other.GlobalPosition : Vector2.Zero;
@@ -120,6 +138,19 @@ namespace Beep.ECS
             return alignDesired * EffectiveAlignmentWeight
                  + cohesionDesired * EffectiveCohesionWeight
                  + separationDesired * EffectiveSeparationWeight;
+        }
+
+        private IEnumerable<Node> Neighbors(Vector2 position, float radius)
+        {
+            if (UseActorSpatialIndex && ActorComponent.ForBody(_body)?.Registry is { } registry)
+            {
+                // Query bounds include the radius edge; the distance test remains authoritative.
+                var extent = Vector2.One * (radius + 0.01f);
+                foreach (string id in registry.QueryActors(new(position - extent, extent * 2)))
+                    if (registry.FindActor(id)?.Body is { } body && body.IsInGroup(FlockGroup)) yield return body;
+                yield break;
+            }
+            foreach (Node node in GetTree().GetNodesInGroup(FlockGroup)) yield return node;
         }
 
         private static float NonNegative(float value) =>

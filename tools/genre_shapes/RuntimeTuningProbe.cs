@@ -23,6 +23,9 @@ public partial class RuntimeTuningProbe : Node
         // 7 and 20. Distinct on purpose — equal values cannot tell wired from inert.
         app.Info = new GameInfo { EnableSeasons = true, DaysPerSeason = 14.0,
                                   EnableTemperature = true, AmbientTemperature = 12f };
+        // Whoever rewrites Info re-declares the clock; the master built its clock
+        // from the Info it had at _EnterTree.
+        app.ReconfigureClock();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
         bool ok = GameInfo.Instance != null;

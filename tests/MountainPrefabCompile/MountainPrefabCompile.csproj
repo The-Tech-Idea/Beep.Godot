@@ -1,0 +1,14 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Beep.ECS</RootNamespace>
+    <NoWarn>$(NoWarn);CS0108;CS8669</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../addons/beep_game_builder_cs/ecs/terrain/ModularMountainPrefabComponent.cs" Link="ModularMountainPrefabComponent.cs" />
+  </ItemGroup>
+</Project>

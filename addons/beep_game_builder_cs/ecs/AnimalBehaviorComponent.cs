@@ -79,17 +79,18 @@ namespace Beep.ECS
                 GD.PushWarning($"[{Name}] AnimalBehaviorComponent found no SeasonalComponent in the scene; season-driven behavior (nesting/hibernating/foraging) will not change. Add a SeasonalComponent (see atmosphere.tscn).");
         }
 
-        public override void _Process(double delta)
+        public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint()) return;
             if (!IsActive || _body == null) return;
+            if (ActorComponent.ForBody(_body) is { } actor && !actor.CanDrive(this)) return;
 
             // Update behavior based on season/weather
             UpdateBehavior(delta);
 
             // Apply velocity based on current behavior
             _body.Velocity = _targetVelocity;
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
         }
 
         private void UpdateBehavior(double delta)

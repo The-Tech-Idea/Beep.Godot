@@ -6,14 +6,14 @@ Support utility shared by two generation stages (`TerrainRiverStage` and `Terrai
 
 ## Public API
 
-- `public static int Accumulate(TerrainWorld world, int[] flowsTo, int[] order, float[] flow)` — fills the three caller-provided arrays (`flowsTo`: each land cell's downhill neighbour index, or -1; `order`: land cell indices sorted highest-elevation-first; `flow`: accumulated drainage count, starting at 1.0 per cell and summing downstream) and returns the number of land cells. Non-land cells are left at `flowsTo = -1`, `flow = 0`. Returns 0 immediately if there is no land.
-- `public static int Downhill(TerrainWorld world, int current)` — for one cell, returns the neighbour index it drains to: the neighbouring water cell if adjacent to open water (flow exits the land there), else the lowest-elevation land neighbour, else (if no lower neighbour exists — a pit) the neighbour nearest the coast by `CoastDistance`. Returns -1 only if there is no water neighbour, no lower neighbour, and no closer-to-coast neighbour at all (i.e., an isolated single-cell island with no eligible neighbours).
+- `public static int Accumulate(TerrainGenerationBuffer world, int[] flowsTo, int[] order, float[] flow)` — fills the three caller-provided arrays (`flowsTo`: each land cell's downhill neighbour index, or -1; `order`: land cell indices sorted highest-elevation-first; `flow`: accumulated drainage count, starting at 1.0 per cell and summing downstream) and returns the number of land cells. Non-land cells are left at `flowsTo = -1`, `flow = 0`. Returns 0 immediately if there is no land.
+- `public static int Downhill(TerrainGenerationBuffer world, int current)` — for one cell, returns the neighbour index it drains to: the neighbouring water cell if adjacent to open water (flow exits the land there), else the lowest-elevation land neighbour, else (if no lower neighbour exists — a pit) the neighbour nearest the coast by `CoastDistance`. Returns -1 only if there is no water neighbour, no lower neighbour, and no closer-to-coast neighbour at all (i.e., an isolated single-cell island with no eligible neighbours).
 
 `HighestFirst` (an `IComparer<int>` sorting by descending elevation) is a private nested class, not public API.
 
 ## Dependencies
 
-- Reads `TerrainWorld.Land`, `TerrainWorld.Elevation`, `TerrainWorld.CoastDistance`, `TerrainWorld.Width`, `TerrainWorld.Index`, `TerrainWorld.InBounds` (from `TerrainWorld.cs`). Writes nothing to `TerrainWorld` itself — all output goes into the caller-supplied `flowsTo`/`order`/`flow` arrays.
+- Reads `TerrainGenerationBuffer.Land`, `TerrainGenerationBuffer.Elevation`, `TerrainGenerationBuffer.CoastDistance`, `TerrainGenerationBuffer.Width`, `TerrainGenerationBuffer.Index`, `TerrainGenerationBuffer.InBounds` (from `TerrainGenerationBuffer.cs`). Writes nothing to `TerrainGenerationBuffer` itself — all output goes into the caller-supplied `flowsTo`/`order`/`flow` arrays.
 - Consumed by `TerrainErosionStage.Apply` (from `TerrainErosionStage.cs`), which calls `Accumulate` once per `Apply` call and reuses the resulting network across all erosion passes.
 - Consumed by `TerrainRiverStage.Apply` (from `TerrainRiverStage.cs`, not in this batch but referenced by the class doc comment) to decide where river channels are placed.
 - Called by `TerrainFieldBuilder.Build` only indirectly, through `TerrainErosionStage` and `TerrainRiverStage` — `TerrainFieldBuilder` never calls `TerrainFlow` directly.

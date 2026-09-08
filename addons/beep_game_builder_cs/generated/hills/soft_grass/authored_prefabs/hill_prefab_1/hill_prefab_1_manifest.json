@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "pack_id": "hill_prefab_1_soft_grass",
+  "style_id": "hill_prefab_1",
+  "style_label": "Hill Prefab 1 - Soft Grass",
+  "projection": "front_2_5d",
+  "visual_only": true,
+  "base_prefabs": [
+    {
+      "id": "hill_large",
+      "display_name": "Hill Prefab 1 - Large Hill",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_large.png",
+      "preview": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_prefab_1_preview.png",
+      "image_size": [
+        590,
+        344
+      ],
+      "level_count": 1,
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "sockets": []
+    },
+    {
+      "id": "square_declined_edge_plate",
+      "display_name": "Hill Prefab 1 - Square Declined Edge Plate",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/square_declined_edge_plate.png",
+      "preview": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_prefab_1_preview.png",
+      "image_size": [
+        438,
+        257
+      ],
+      "level_count": 1,
+      "fill_tile": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/surface_fill_tile.png",
+      "fill_tile_size": [
+        512,
+        512
+      ],
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "sockets": []
+    }
+  ],
+  "hill_modules": [
+    {
+      "id": "hill_large",
+      "display_name": "Large Rounded Hill",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_large.png",
+      "image_size": [
+        590,
+        344
+      ],
+      "relative_level_height": 1.0,
+      "walkable": true,
+      "placement": "manual"
+    },
+    {
+      "id": "hill_medium",
+      "display_name": "Medium Rounded Hill",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_medium.png",
+      "image_size": [
+        421,
+        274
+      ],
+      "relative_level_height": 0.75,
+      "walkable": true,
+      "placement": "manual"
+    },
+    {
+      "id": "hill_small",
+      "display_name": "Small Rounded Hill",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_small.png",
+      "image_size": [
+        316,
+        210
+      ],
+      "relative_level_height": 0.55,
+      "walkable": true,
+      "placement": "manual"
+    },
+    {
+      "id": "plate_quarter_height",
+      "display_name": "Quarter Height Hill Plate",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/plate_quarter_height.png",
+      "image_size": [
+        406,
+        147
+      ],
+      "relative_level_height": 0.25,
+      "walkable": true,
+      "placement": "manual"
+    },
+    {
+      "id": "plate_half_height",
+      "display_name": "Half Height Hill Plate",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/plate_half_height.png",
+      "image_size": [
+        405,
+        226
+      ],
+      "relative_level_height": 0.5,
+      "walkable": true,
+      "placement": "manual"
+    },
+    {
+      "id": "square_declined_edge_plate",
+      "display_name": "Square Declined Edge Hill Plate",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/square_declined_edge_plate.png",
+      "image_size": [
+        438,
+        257
+      ],
+      "relative_level_height": 0.42,
+      "walkable": true,
+      "placement": "manual"
+    }
+  ],
+  "ramp_modules": [],
+  "jump_step_modules": [
+    {
+      "id": "step_quarter",
+      "alias_id": "plate_quarter_height",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/step_quarter.png",
+      "alias_file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/plate_quarter_height.png",
+      "image_size": [
+        406,
+        147
+      ],
+      "relative_level_height": 0.25,
+      "placement": "manual"
+    },
+    {
+      "id": "step_half",
+      "alias_id": "plate_half_height",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/step_half.png",
+      "alias_file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/plate_half_height.png",
+      "image_size": [
+        405,
+        226
+      ],
+      "relative_level_height": 0.5,
+      "placement": "manual"
+    }
+  ],
+  "atlas_sheets": [
+    {
+      "id": "hill_prefab_1_sheet",
+      "file": "addons/beep_game_builder_cs/generated/hills/soft_grass/authored_prefabs/hill_prefab_1/hill_prefab_1_sheet.png",
+      "transparent": true,
+      "regions": {
+        "hill_large": {
+          "x": 24,
+          "y": 24,
+          "width": 590,
+          "height": 344
+        },
+        "hill_medium": {
+          "x": 638,
+          "y": 24,
+          "width": 421,
+          "height": 274
+        },
+        "hill_small": {
+          "x": 1083,
+          "y": 24,
+          "width": 316,
+          "height": 210
+        },
+        "plate_quarter_height": {
+          "x": 24,
+          "y": 392,
+          "width": 406,
+          "height": 147
+        },
+        "plate_half_height": {
+          "x": 638,
+          "y": 392,
+          "width": 405,
+          "height": 226
+        },
+        "square_declined_edge_plate": {
+          "x": 1083,
+          "y": 392,
+          "width": 438,
+          "height": 257
+        }
+      }
+    }
+  ]
+}

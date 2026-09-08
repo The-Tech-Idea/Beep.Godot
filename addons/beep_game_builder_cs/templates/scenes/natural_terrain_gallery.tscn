@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/NaturalTerrainPrefabComponent.cs" id="1"]
+
+[node name="NaturalTerrainGallery" type="Node2D"]
+y_sort_enabled = true
+
+[node name="SandstoneFull" type="Node2D" parent="."]
+position = Vector2(210, 220)
+script = ExtResource("1")
+MaterialTheme = 0
+Elevation = 0
+ArtScale = 0.22
+
+[node name="SandstoneHalf" type="Node2D" parent="."]
+position = Vector2(210, 440)
+script = ExtResource("1")
+MaterialTheme = 0
+Elevation = 1
+ArtScale = 0.22
+
+[node name="SandstoneQuarter" type="Node2D" parent="."]
+position = Vector2(210, 660)
+script = ExtResource("1")
+MaterialTheme = 0
+Elevation = 2
+ArtScale = 0.22
+
+[node name="BasaltFull" type="Node2D" parent="."]
+position = Vector2(630, 220)
+script = ExtResource("1")
+MaterialTheme = 1
+Elevation = 0
+ArtScale = 0.22
+
+[node name="BasaltHalf" type="Node2D" parent="."]
+position = Vector2(630, 440)
+script = ExtResource("1")
+MaterialTheme = 1
+Elevation = 1
+ArtScale = 0.22
+
+[node name="BasaltQuarter" type="Node2D" parent="."]
+position = Vector2(630, 660)
+script = ExtResource("1")
+MaterialTheme = 1
+Elevation = 2
+ArtScale = 0.22
+
+[node name="LimestoneFull" type="Node2D" parent="."]
+position = Vector2(1050, 220)
+script = ExtResource("1")
+MaterialTheme = 2
+Elevation = 0
+ArtScale = 0.22
+
+[node name="LimestoneHalf" type="Node2D" parent="."]
+position = Vector2(1050, 440)
+script = ExtResource("1")
+MaterialTheme = 2
+Elevation = 1
+ArtScale = 0.22
+
+[node name="LimestoneQuarter" type="Node2D" parent="."]
+position = Vector2(1050, 660)
+script = ExtResource("1")
+MaterialTheme = 2
+Elevation = 2
+ArtScale = 0.22
+
+[node name="GraniteFull" type="Node2D" parent="."]
+position = Vector2(1470, 220)
+script = ExtResource("1")
+MaterialTheme = 3
+Elevation = 0
+ArtScale = 0.22
+
+[node name="GraniteHalf" type="Node2D" parent="."]
+position = Vector2(1470, 440)
+script = ExtResource("1")
+MaterialTheme = 3
+Elevation = 1
+ArtScale = 0.22
+
+[node name="GraniteQuarter" type="Node2D" parent="."]
+position = Vector2(1470, 660)
+script = ExtResource("1")
+MaterialTheme = 3
+Elevation = 2
+ArtScale = 0.22

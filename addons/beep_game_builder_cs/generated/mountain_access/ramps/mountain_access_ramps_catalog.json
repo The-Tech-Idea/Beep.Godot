@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "catalog_id": "mountain_access_ramps",
+  "projection": "front_2_5d",
+  "height_classes": [
+    {
+      "id": "quarter",
+      "relative_level_height": 0.25
+    },
+    {
+      "id": "half",
+      "relative_level_height": 0.5
+    },
+    {
+      "id": "full",
+      "relative_level_height": 1.0
+    }
+  ],
+  "directions": [
+    "front",
+    "left",
+    "right"
+  ],
+  "styles": [
+    {
+      "style_id": "mountain_prefab_1",
+      "style_label": "Mountain Prefab 1",
+      "themes": [
+        {
+          "theme_id": "sandstone",
+          "theme_label": "Low Poly Sandstone",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/sandstone/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/sandstone/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "grass_granite",
+          "theme_label": "Grass + Granite",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/grass_granite/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/grass_granite/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grass_granite/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "grey_rock",
+          "theme_label": "Grey Rock",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/grey_rock/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/grey_rock/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/grey_rock/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "volcanic_basalt",
+          "theme_label": "Volcanic Basalt",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/volcanic_basalt/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/volcanic_basalt/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/volcanic_basalt/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "meadow_hill",
+          "theme_label": "Gentle Meadow Hill",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/meadow_hill/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/meadow_hill/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/meadow_hill/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "red_rock_mesa",
+          "theme_label": "Red Rock Mesa",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/red_rock_mesa/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/red_rock_mesa/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/red_rock_mesa/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        },
+        {
+          "theme_id": "alpine_snow",
+          "theme_label": "Alpine Snow",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/alpine_snow/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_1/alpine_snow/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_themes/alpine_snow/modular_mountain_pack_manifest.json",
+          "style_id": "mountain_prefab_1",
+          "style_label": "Mountain Prefab 1"
+        }
+      ]
+    },
+    {
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2",
+      "themes": [
+        {
+          "theme_id": "sandstone",
+          "theme_label": "Low Poly Sandstone",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/sandstone/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/sandstone/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/sandstone/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "grass_granite",
+          "theme_label": "Grass + Granite",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/grass_granite/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/grass_granite/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grass_granite/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "grey_rock",
+          "theme_label": "Grey Rock",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/grey_rock/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/grey_rock/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grey_rock/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "volcanic_basalt",
+          "theme_label": "Volcanic Basalt",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/volcanic_basalt/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/volcanic_basalt/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/volcanic_basalt/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "meadow_hill",
+          "theme_label": "Gentle Meadow Hill",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/meadow_hill/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/meadow_hill/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/meadow_hill/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "red_rock_mesa",
+          "theme_label": "Red Rock Mesa",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/red_rock_mesa/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/red_rock_mesa/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        },
+        {
+          "theme_id": "alpine_snow",
+          "theme_label": "Alpine Snow",
+          "manifest": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/alpine_snow/mountain_access_ramps_manifest.json",
+          "sheet": "addons/beep_game_builder_cs/generated/mountain_access/ramps/mountain_prefab_2/alpine_snow/mountain_access_ramp_sheet.png",
+          "ramp_count": 9,
+          "source_prefab_manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/mountain_prefab_2_manifest.json",
+          "style_id": "mountain_prefab_2",
+          "style_label": "Mountain Prefab 2"
+        }
+      ]
+    }
+  ]
+}

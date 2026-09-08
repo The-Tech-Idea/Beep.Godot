@@ -4,19 +4,20 @@ namespace Beep.ECS
 {
     /// <summary>
     /// XP and leveling system for RPGs, roguelikes, and progression-based games.
-    /// Attach to the player entity alongside HealthComponent / GameFlowComponent.
+    /// Attach to any progressing actor alongside HealthComponent and optional StatsComponent.
     /// Call AddXp() to grant experience; when XP exceeds the threshold, the entity
     /// levels up and awards stat points to spend.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class LevelingComponent : GameplayComponent
+    public partial class LevelingComponent : GameplayComponent, ISaveable
     {
         [Export] public int Level { get; set; } = 1;
         [Export] public int MaxLevel { get; set; } = 99;
         [Export] public float BaseXp { get; set; } = 100f;
         [Export] public float XpGrowthMultiplier { get; set; } = 1.5f;
         [Export] public int StatPointsPerLevel { get; set; } = 3;
+        [Export] public bool ParticipatesInSave { get; set; } = false;
         public int EffectiveMaxLevel => Mathf.Max(1, MaxLevel);
         public int EffectiveLevel => Mathf.Clamp(Level, 1, EffectiveMaxLevel);
         public float EffectiveBaseXp => PositiveFinite(BaseXp, 100f);
@@ -46,21 +47,30 @@ namespace Beep.ECS
             base._Ready();
             NormalizeProgressionState();
             _stats = GetSiblingComponent<StatsComponent>();
+            if (!Engine.IsEditorHint() && ParticipatesInSave) AddToGroup(SaveableHelper.Group);
+        }
+
+        public override void _ExitTree()
+        {
+            _stats = null;
+            RequestReady();
+            base._ExitTree();
         }
 
         /// <summary>Grant XP. Automatically levels up if threshold exceeded.</summary>
         public void AddXp(float amount)
         {
             NormalizeProgressionState();
-            if (!IsActive || IsMaxLevel || !float.IsFinite(amount) || amount <= 0f) return;
-            CurrentXp += amount;
+            if (!IsActive || IsMaxLevel || GetSiblingComponent<HealthComponent>() is { IsDead: true }
+                || !float.IsFinite(amount) || amount <= 0f) return;
+            CurrentXp = (float)System.Math.Min(float.MaxValue, (double)CurrentXp + amount);
             EmitSignal(SignalName.XpChanged, CurrentXp, XpNeeded);
 
             while (CurrentXp >= XpNeeded && !IsMaxLevel)
             {
                 CurrentXp -= XpNeeded;
                 Level++;
-                StatPoints += EffectiveStatPointsPerLevel;
+                StatPoints = (int)System.Math.Min(int.MaxValue, (long)StatPoints + EffectiveStatPointsPerLevel);
                 EmitSignal(SignalName.LevelUp, Level, StatPoints);
                 EmitSignal(SignalName.XpChanged, CurrentXp, XpNeeded);
             }

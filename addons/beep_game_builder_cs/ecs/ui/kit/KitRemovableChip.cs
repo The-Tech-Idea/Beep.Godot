@@ -2,6 +2,19 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// A chip the player can take off: a pill with a label and a close affordance at its trailing
+    /// edge. Filters, equipped tags, party members, applied modifiers.
+    ///
+    /// It IS a <see cref="Button"/>, so pressing it is an ordinary press — <c>ui_accept</c> and a
+    /// click both work, inherited from BaseButton. Removal is a SEPARATE gesture, not a second
+    /// meaning for the same press: clicking the close region, or Delete/Backspace while focused,
+    /// emits <c>RemovePressed</c>. Conflating the two would make selecting a chip destroy it.
+    ///
+    /// Known limitation: Godot defines no built-in action for "remove", so the removal gesture is
+    /// keyboard and mouse only. A controller can focus and press the chip but not take it off; a
+    /// screen that needs that should offer a remove control of its own.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitRemovableChip : Button
@@ -62,12 +75,10 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(Mathf.Max(h * 2.1f, textWidth + h * 0.9f + closeRoom), h);
         }
 
+        // Derives from a native Godot type, so it cannot inherit KitControl's copy; it forwards to
+        // the one shared body instead of restating it.
         private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
 
         private void RefreshVisualAndRedraw()
         {

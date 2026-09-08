@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/actors/ActorPlatformerLab.cs" id="lab"]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_platformer.tscn" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorRegistryComponent.cs" id="registry"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/PlayerContextComponent.cs" id="player"]
+
+[sub_resource type="RectangleShape2D" id="FloorShape"]
+size = Vector2(2400, 80)
+
+[node name="PlatformerLab" type="Node2D"]
+script = ExtResource("lab")
+
+[node name="Background" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-1200, -800, 1200, -800, 1200, 400, -1200, 400)
+color = Color(0.16, 0.32, 0.38, 1)
+
+[node name="Registry" type="Node" parent="."]
+script = ExtResource("registry")
+
+[node name="Player" type="Node" parent="."]
+script = ExtResource("player")
+RegistryPath = NodePath("../Registry")
+ControlMode = 0
+InitialActorId = "adventurer_1"
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(0, 40)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("FloorShape")
+
+[node name="Surface" type="Polygon2D" parent="Ground"]
+polygon = PackedVector2Array(-1200, -40, 1200, -40, 1200, 40, -1200, 40)
+color = Color(0.3, 0.52, 0.25, 1)
+
+[node name="Adventurer" parent="." instance=ExtResource("actor")]
+position = Vector2(0, -1)
+
+[node name="Actor" parent="Adventurer" index="2"]
+ActorId = "adventurer_1"
+OwnerId = "player_1"
+RegistryPath = NodePath("../../Registry")
+
+[node name="Camera2D" type="Camera2D" parent="Adventurer"]
+position = Vector2(0, -120)
+zoom = Vector2(1.5, 1.5)
+
+[editable path="Adventurer"]

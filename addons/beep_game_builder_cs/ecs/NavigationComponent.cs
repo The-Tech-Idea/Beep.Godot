@@ -182,6 +182,8 @@ namespace Beep.ECS
         public void Restart()
         {
             if (!IsActive) return;
+            GameApp.Instance?.Saves?.SuspendSession();
+            GameApp.Instance?.SetPaused(false);
             EmitSignal(SignalName.BeforeNavigate, GetTree().CurrentScene.SceneFilePath);
             GetTree().ReloadCurrentScene();
         }
@@ -196,6 +198,8 @@ namespace Beep.ECS
         private void ChangeScene(PackedScene scene)
         {
             if (scene == null) return;
+            GameApp.Instance?.Saves?.SuspendSession();
+            GameApp.Instance?.SetPaused(false);
             string path = scene.ResourcePath;
             EmitSignal(SignalName.BeforeNavigate, path);
 

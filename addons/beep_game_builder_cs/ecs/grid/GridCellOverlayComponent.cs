@@ -130,15 +130,8 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
+            EntityComponent.Resolve(this, CellDataPath, ref _cells);
 
             ConnectCells();
         }

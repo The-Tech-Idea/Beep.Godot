@@ -1,0 +1,23 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "../natural_headland_v1/grass_granite_headland.png",
+  "assets": [
+    {
+      "name": "canyon_banks",
+      "prompt": "Create a production game sprite sheet for a matching CANYON PAIR. Reference image is MATERIAL, LIGHTING AND CAMERA STYLE ONLY: hand-painted natural grey granite cliffs, restrained olive green grass tops with natural rocky transitions, front-facing elevated orthographic 2.5D camera, not diamond-grid isometric, no low-poly flat triangles. Two separate long irregular plateau banks, left bank and right bank, framing a continuous open north-south canyon gap. Both banks same cliff height and camera and texture scale. Broad usable plain grass tops, craggy exposed inward-facing rock walls. No back connection: channel open at both ends. Show the two pieces side by side with a generous genuinely transparent vertical gap (at least 15% canvas width) and transparent margin on all outer sides. Each whole bank fully visible and never touching the other. No water, ground plane, roads, ramps, buildings, plants, flowers, text, labels, cast shadow outside sprites, checkerboard. Actual RGBA transparency. Landscape canvas. These should be independent placeable terrain pieces, not a scenic illustration.",
+      "source": "exec-1352a790-5a2e-4cbc-aad2-b7f43fb95467.png",
+      "transparency_edit": "Make the background transparent."
+    },
+    {
+      "name": "cave_entrance",
+      "prompt": "Use case: stylized-concept. Create ONE isolated cave entrance terrain prefab sprite for a front-facing 2.5D game, genuinely transparent background. Reference is material/camera/style only: naturally fractured grey granite, restrained olive grass, hand-painted detailed game art, upper-left light. A broad low rocky mound/short cliff section with a spacious dark cave opening centered in its FRONT wall; grass plateau on top, thick naturally interlocking stone arch integrated into the cliff, naturally weathered rock edges, believable grass-to-rock transition, cave floor meets the bottom of the rock formation, opening faces directly toward the viewer. Elevated orthographic frontal camera shows grassy top and front wall, no diamond rotation. Broad low silhouette, width about twice total projected height. No extra tiers, no ramps, no paths, no stair, no water, no bushes or flowers or ground plants, no props, no low-poly geometry, no text. Preserve opaque very dark cave interior, transparent background outside the terrain. Entire object visible with generous clear margin, no external ground shadow or ground plane. Same texture scale and painterly appearance as reference.",
+      "source": "exec-1a000f08-b9c6-4092-8d5a-5513fc9bc8ef.png"
+    },
+    {
+      "name": "elongated_hill",
+      "prompt": "Create ONE isolated elongated grassy hill prefab sprite for a front-facing elevated orthographic 2.5D game. Reference image gives hand-painted texture, olive green grass palette and upper-left lighting only. NEW SHAPE: a long horizontal low oval hill, broad gently rounded crown and continuous shallow slopes on every side that taper smoothly to ground level. Width about 2.5 times projected depth/height. NOT a plateau, NO vertical cliff walls, NO stacked layers, NO terraced ledges. Restrained finely painted grass texture, open uncluttered surface, subtle natural variation, natural asymmetrical outline; slope visible through shading, not concentric hard bands. No bushes, trees, flowers, paths, ramps, buildings, loose props, water, rocks forming a rim, external ground grass skirt, text, checkerboard, external shadows, or surrounding ground. Whole object completely within image with clear margin. Genuinely transparent RGBA background. Same painterly game asset family as reference, NOT low poly, NOT photorealistic lawn.",
+      "source": "exec-72100d71-bd74-4d23-b225-1374e2e63dec.png",
+      "transparency_edit": "Make the background transparent."
+    }
+  ]
+}

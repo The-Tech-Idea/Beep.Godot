@@ -14,7 +14,7 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainContinentStage
     {
-        public static void Apply(TerrainWorld world)
+        public static void Apply(TerrainGenerationBuffer world)
         {
             int wide = world.CellsWide;
             int high = world.CellsHigh;

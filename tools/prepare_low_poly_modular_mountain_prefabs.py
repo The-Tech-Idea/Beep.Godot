@@ -11,6 +11,15 @@ from prepare_low_poly_transition_prefab import PROJECT_ROOT, create_preview, shi
 
 RAW_DIR = PREFAB_ROOT / "raw"
 OUTPUT_DIR = PREFAB_ROOT / "modular_front_2_5d"
+STYLE_ID = "mountain_prefab_1"
+STYLE_LABEL = "Mountain Prefab 1"
+SMALL_RAMP_WIDTH_RATIO = 0.19
+RAMP_RUN_SCALE = 0.72
+SANDSTONE_SOCKET_PROFILE = {
+    "entry_left": (0.230, 0.750), "entry_front": (0.500, 0.840), "entry_right": (0.770, 0.750),
+    "level_0_to_1_left": (0.350, 0.440), "level_0_to_1_right": (0.650, 0.440),
+    "level_1_to_2_left": (0.380, 0.200), "level_1_to_2_right": (0.620, 0.200),
+}
 
 
 def relative(path: Path) -> str:
@@ -21,6 +30,24 @@ def save_clean(source_path: Path, output_path: Path) -> tuple[Image.Image, tuple
     sprite, origin = clean_source(Image.open(source_path))
     sprite.save(output_path, optimize=True)
     return sprite, origin
+
+
+def fit_width(image: Image.Image, width: int) -> Image.Image:
+    height = round(image.height * width / image.width)
+    return image.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def fit_height(image: Image.Image, height: int) -> Image.Image:
+    width = round(image.width * height / image.height)
+    return image.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def shorten_ramp_run(image: Image.Image, direction: str) -> Image.Image:
+    if direction == "front":
+        size = (image.width, max(1, round(image.height * RAMP_RUN_SCALE)))
+    else:
+        size = (max(1, round(image.width * RAMP_RUN_SCALE)), image.height)
+    return image.resize(size, Image.Resampling.LANCZOS)
 
 
 def socket(
@@ -42,6 +69,24 @@ def socket(
     }
 
 
+def profiled_socket(
+    socket_id: str,
+    from_level: int,
+    to_level: int,
+    direction: str,
+    image: Image.Image,
+) -> dict[str, object]:
+    x, y = SANDSTONE_SOCKET_PROFILE[socket_id]
+    return {
+        "id": socket_id,
+        "from_level": from_level,
+        "to_level": to_level,
+        "direction": direction,
+        "upper_landing": {"x": round(image.width * x), "y": round(image.height * y)},
+        "compatible_ramp": f"ramp_{direction}",
+    }
+
+
 def create_module_preview(base: Image.Image, ramps: list[tuple[str, Image.Image]], output: Path) -> None:
     width = 1500
     height = 900
@@ -59,6 +104,50 @@ def create_module_preview(base: Image.Image, ramps: list[tuple[str, Image.Image]
         y += 270
 
     canvas.convert("RGB").save(output, quality=95)
+
+
+def create_assembled_preview(
+    base: Image.Image,
+    ramps: dict[str, Image.Image],
+    sockets: list[dict[str, object]],
+    output: Path,
+) -> None:
+    socket_index = {item["id"]: item for item in sockets}
+    selected = [
+        ("entry_front", "ramp_front"),
+        ("level_0_to_1_left", "ramp_left"),
+        ("level_1_to_2_right", "ramp_right"),
+    ]
+    layers: list[tuple[Image.Image, tuple[int, int]]] = [(base, (0, 0))]
+    for socket_id, ramp_id in selected:
+        ramp = ramps[ramp_id]
+        landing = socket_index[socket_id]["upper_landing"]
+        direction = ramp_id.rsplit("_", 1)[1]
+        anchor_x = 0.82 if direction == "left" else 0.18 if direction == "right" else 0.5
+        anchor_y = 0.13 if direction != "front" else 0.08
+        layers.append(
+            (
+                ramp,
+                (
+                    round(landing["x"] - ramp.width * anchor_x),
+                    round(landing["y"] - ramp.height * anchor_y),
+                ),
+            )
+        )
+
+    padding = 24
+    min_x = min(position[0] for _, position in layers)
+    min_y = min(position[1] for _, position in layers)
+    max_x = max(position[0] + image.width for image, position in layers)
+    max_y = max(position[1] + image.height for image, position in layers)
+    canvas = Image.new(
+        "RGBA",
+        (max_x - min_x + padding * 2, max_y - min_y + padding * 2),
+        (0, 0, 0, 0),
+    )
+    for image, position in layers:
+        canvas.alpha_composite(image, (position[0] - min_x + padding, position[1] - min_y + padding))
+    create_preview(canvas, output)
 
 
 def create_one_level_sheet(
@@ -114,7 +203,12 @@ def build() -> dict[str, object]:
     right_path = OUTPUT_DIR / "ramp_right.png"
     left, _ = save_clean(RAW_DIR / "front_2_5d_ramp_left_raw.png", left_path)
     front, _ = save_clean(RAW_DIR / "front_2_5d_ramp_front_raw.png", front_path)
+    small_ramp_length = round(base.width * SMALL_RAMP_WIDTH_RATIO)
+    left = shorten_ramp_run(fit_width(left, small_ramp_length), "left")
+    front = shorten_ramp_run(fit_height(front, small_ramp_length), "front")
     right = ImageOps.mirror(left)
+    left.save(left_path, optimize=True)
+    front.save(front_path, optimize=True)
     right.save(right_path, optimize=True)
 
     one_level_path = OUTPUT_DIR / "one_level_wide_no_ramps.png"
@@ -128,9 +222,13 @@ def build() -> dict[str, object]:
         {
             "id": "ramp_left",
             "direction": "left",
+            "size_class": "small",
             "file": relative(left_path),
+            "image_size": [left.width, left.height],
             "upper_anchor_normalized": {"x": 0.82, "y": 0.13},
-            "display_scale": 0.22,
+            "display_scale": 1.0,
+            "run_scale": RAMP_RUN_SCALE,
+            "level_rise": 1.0,
             "from_level_delta": -1,
             "to_level_delta": 0,
             "walkable": True,
@@ -139,9 +237,13 @@ def build() -> dict[str, object]:
         {
             "id": "ramp_front",
             "direction": "front",
+            "size_class": "small",
             "file": relative(front_path),
+            "image_size": [front.width, front.height],
             "upper_anchor_normalized": {"x": 0.5, "y": 0.08},
-            "display_scale": 0.24,
+            "display_scale": 1.0,
+            "run_scale": RAMP_RUN_SCALE,
+            "level_rise": 1.0,
             "from_level_delta": -1,
             "to_level_delta": 0,
             "walkable": True,
@@ -150,9 +252,13 @@ def build() -> dict[str, object]:
         {
             "id": "ramp_right",
             "direction": "right",
+            "size_class": "small",
             "file": relative(right_path),
+            "image_size": [right.width, right.height],
             "upper_anchor_normalized": {"x": 0.18, "y": 0.13},
-            "display_scale": 0.22,
+            "display_scale": 1.0,
+            "run_scale": RAMP_RUN_SCALE,
+            "level_rise": 1.0,
             "from_level_delta": -1,
             "to_level_delta": 0,
             "walkable": True,
@@ -161,13 +267,13 @@ def build() -> dict[str, object]:
     ]
 
     sockets = [
-        socket("entry_left", -1, 0, "left", (245, 940), base_origin),
-        socket("entry_front", -1, 0, "front", (575, 1055), base_origin),
-        socket("entry_right", -1, 0, "right", (905, 940), base_origin),
-        socket("level_0_to_1_left", 0, 1, "left", (390, 545), base_origin),
-        socket("level_0_to_1_right", 0, 1, "right", (760, 545), base_origin),
-        socket("level_1_to_2_left", 1, 2, "left", (465, 275), base_origin),
-        socket("level_1_to_2_right", 1, 2, "right", (690, 275), base_origin),
+        profiled_socket("entry_left", -1, 0, "left", base),
+        profiled_socket("entry_front", -1, 0, "front", base),
+        profiled_socket("entry_right", -1, 0, "right", base),
+        profiled_socket("level_0_to_1_left", 0, 1, "left", base),
+        profiled_socket("level_0_to_1_right", 0, 1, "right", base),
+        profiled_socket("level_1_to_2_left", 1, 2, "left", base),
+        profiled_socket("level_1_to_2_right", 1, 2, "right", base),
     ]
 
     walkable_source = [
@@ -185,24 +291,30 @@ def build() -> dict[str, object]:
     ]
 
     one_level_sockets = [
-        socket("one_level_entry_left", -1, 0, "left", (245, 940), one_level_origin),
-        socket("one_level_entry_front", -1, 0, "front", (575, 1025), one_level_origin),
-        socket("one_level_entry_right", -1, 0, "right", (905, 940), one_level_origin),
+        profiled_socket("entry_left", -1, 0, "left", one_level),
+        profiled_socket("entry_front", -1, 0, "front", one_level),
+        profiled_socket("entry_right", -1, 0, "right", one_level),
     ]
     sheet_path = OUTPUT_DIR / "one_level_mountain_sheet.png"
     sheet_regions = create_one_level_sheet(
         one_level,
-        [("ramp_left", left, 0.22), ("ramp_front", front, 0.24), ("ramp_right", right, 0.22)],
+        [("ramp_left", left, 1.0), ("ramp_front", front, 1.0), ("ramp_right", right, 1.0)],
         sheet_path,
     )
 
     manifest = {
         "schema_version": 1,
         "pack_id": "low_poly_sandstone_modular_front_2_5d",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
+        "theme_id": "sandstone",
+        "theme_label": "Low Poly Sandstone",
         "projection": "front_2_5d",
         "base_prefabs": [
             {
                 "id": "three_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - Low Poly Sandstone",
+                "style_id": STYLE_ID,
                 "file": relative(base_path),
                 "preview": relative(OUTPUT_DIR / "three_level_wide_no_ramps_preview.png"),
                 "level_count": 3,
@@ -213,6 +325,8 @@ def build() -> dict[str, object]:
             },
             {
                 "id": "one_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - Low Poly Sandstone (One Level)",
+                "style_id": STYLE_ID,
                 "file": relative(one_level_path),
                 "preview": relative(OUTPUT_DIR / "one_level_wide_no_ramps_preview.png"),
                 "level_count": 1,
@@ -254,6 +368,12 @@ def build() -> dict[str, object]:
         base,
         [("left", left), ("front", front), ("right", right)],
         OUTPUT_DIR / "modular_mountain_pack_preview.png",
+    )
+    create_assembled_preview(
+        base,
+        {"ramp_left": left, "ramp_front": front, "ramp_right": right},
+        sockets,
+        OUTPUT_DIR / "assembled_with_level_ramps_preview.png",
     )
     return manifest
 

@@ -65,7 +65,7 @@ Generated maps mark rivers, lakes, and the continental shelf as `shallow_water`,
 **Fixed:** `shallow_water` added to the defaults of `GridPlacementComponent`, `GridRoadComponent`, `GridToolActionComponent` (list and hardcoded fallback), `GridSelectionJobCommandComponent`, `GridWorkerSpawnerComponent`, `GridResourceScatterComponent`. **Deliberately not** added to `GridNavigationComponent`, where shallow water is wadeable at 2.5× cost — that asymmetry is now documented on its list. Serialized scenes keep their authored lists; defaults affect new nodes.
 
 ### 1.12 Hygiene: dead code and orphaned documentation
-Verified-dead and removed: `TextureElevationTileSetGeneratorComponent.ScenarioTopTint` and `.Wrap` (zero callers), two unused locals in `SampleDirectTexture`, an unused `moisture` local in `TerrainFeatureStage.Choose`. Six orphaned/misattached `<summary>` blocks re-homed or deleted (`TerrainWorld.CellShade`, `TerrainBiomeStage.WaterKind` quota-era text, `TerrainCoherenceStage.AbsorbTargets`, `TerrainScaleConstraintStage.NeighbourLand`, `TerrainAuthoring.Adopt`, two dead quota-era blocks in `TerrainGeneratorComponent`). The stale "world buffer is REUSED between generations" comment in `TerrainLandmassStage` corrected (the builder constructs a fresh `TerrainWorld` per build; the defensive clear stays, now honestly explained).
+Verified-dead and removed: `TextureElevationTileSetGeneratorComponent.ScenarioTopTint` and `.Wrap` (zero callers), two unused locals in `SampleDirectTexture`, an unused `moisture` local in `TerrainFeatureStage.Choose`. Six orphaned/misattached `<summary>` blocks re-homed or deleted (`TerrainGenerationBuffer.CellShade`, `TerrainBiomeStage.WaterKind` quota-era text, `TerrainCoherenceStage.AbsorbTargets`, `TerrainScaleConstraintStage.NeighbourLand`, `TerrainAuthoring.Adopt`, two dead quota-era blocks in `TerrainGeneratorComponent`). The stale "world buffer is REUSED between generations" comment in `TerrainLandmassStage` corrected (the builder constructs a fresh `TerrainGenerationBuffer` per build; the defensive clear stays, now honestly explained).
 
 **Phase-1 verification** (all against `Godot_v4.7.1-stable_mono_win64`, after a one-time full `--import`):
 - `dotnet build` clean — 0 warnings, 0 errors.
@@ -132,7 +132,7 @@ Do this phase **after** Phase 2/3 diffs land, or before them — but not interle
 
 ---
 
-## Phase 5 — Enhancements. **Status: Fixed (this session).** Crop regrowth re-arms on harvest and survives saves (`crop_regrow_days`; `RemoveCrop` uproots); planting charges `SeedItemId` from the wallet (`ConsumeSeedsFromWallet`, `missing_seeds`, `TrySpendAmount`); the minimap bakes a terrain background (`ShowTerrain`); `TerrainDataLayersComponent` publishes continent and start-position layers (`ContinentAt`, `IsStartPositionAt`, `StartCells`); navigation/placement/tools take an explicit `DataLayersPath` to read terrain kinds from the generated map; the occupancy-ownership matrix is in `2D_ISO_TOOLKIT.md` and guarded by the contract scan.
+## Phase 5 — Enhancements. **Status: Fixed (this session); 5.5 reversed on 2026-09-05.** Crop regrowth re-arms on harvest and survives saves (`crop_regrow_days`; `RemoveCrop` uproots); planting charges `SeedItemId` from the wallet (`ConsumeSeedsFromWallet`, `missing_seeds`, `TrySpendAmount`); the minimap bakes a terrain background (`ShowTerrain`); `TerrainDataLayersComponent` publishes continent and start-position layers (`ContinentAt`, `IsStartPositionAt`, `StartCells`); the occupancy-ownership matrix is in `2D_ISO_TOOLKIT.md` and guarded by the contract scan. **5.5 was reversed** by the world-map review below: navigation/placement/tools no longer take a `DataLayersPath`, because the data layers publish the *generated* world and preferring them made a rebuilt map win over every restored or edited cell. Live terrain kind has one owner, `GridCellDataComponent`, read through `GridCellRules.TerrainKindAt`.
 
 - **5.1 Crop regrowth (approved wire-up).** `GridCropDefinition.RegrowDays` is exported and read by nothing. Implement in `GridCellDataComponent.HarvestCrop`/`AdvanceDay`: a harvested crop with `RegrowDays >= 0` keeps its `CropId`, resets age to `DaysToMature - RegrowDays` equivalent, and ripens again; guard with an example script.
 - **5.2 Seed consumption (approved wire-up).** `GridCropDefinition.SeedItemId` is exported and read by nothing — planting is free. `GridToolActionComponent.ApplyPlant` (and the plant job effect) should spend one `SeedItemId` from the wallet when a wallet is wired and the definition names a seed; reject with `missing_seeds` otherwise.
@@ -166,6 +166,21 @@ Noted, not changed: `GridObjectiveTrackerComponent.RestoreState` emits no signal
 
 New smoke coverage: walkable-build-occupies, claimed-job requeue on load, and build-site cancel teardown (refund + node removal). Verified: build 0/0, contract scan, runtime smoke, 15/15 terrain guards.
 
+## GameApp world-map review (2026-09-05). **Status: Fixed.**
+
+A follow-on plan proposed a `World` registry on `GameApp`, the data layers as the one owner of terrain kind, and a five-phase docs-first delivery, and listed six defects. Every claim was checked against source before anything changed (the full review is in `docs/ARCHITECTURE.md`'s companion plan, `.claude/plans/quiet-weaving-bonbon.md`). Verdicts and what landed:
+
+1. **Genre clock drift — real, latent. Fixed.** `BeepGenreScene.ApplyGenre` rewrote the live `GameInfo`'s axis after `GameApp` had configured its clock once, and `BeepGenreGenerator.ApplyTuning` reset `BeatsPerDay` for every genre with a tuning block. Now `GameApp.ReconfigureClock` is the one place the clock is configured; `BuildSubsystems`, `BeepGenreScene` and `RuntimeTuningProbe` all go through it, and the `BeatsPerDay` default lives inside the `time_axis` block (`GameInfo.DefaultRealtimeBeatsPerDay`, one constant). Guard: `game_clock_axes_probe.gd` `_clock_follows_declaration` (strategy flips a real-time clock to turns; platformer leaves an authored 120-beat day alone).
+2. **Dual terrain-kind ownership — refuted as stated; a smaller defect remained. Fixed the other way round.** The generator writes cells only and the layers *pull*; no shipped scene wired a grid consumer's `DataLayersPath`. The real defect was `GridNavigationComponent` carrying an inline copy of `GridCellRules`' precedence. Decision: **cells own the live kind; the recipe owns the generated world.** `GridCellRules.TerrainKindAt` reads cells only; `DataLayersPath` is gone from navigation, placement, tools and the selection command; `TerrainDataLayersComponent.TerrainAt` is `GeneratedTerrainAt`. Guard: contract-scan pins forbidding any `ecs/grid/` file other than the four resource/liquid/underground readers from referencing the layers, or anyone reading a kind from them.
+3. **No runtime world pointer — true, no consumer. Not built** (rule 6). Camera framing already uses `WorldPath`, weather self-publishes, save uses the `ISaveable` group.
+4. **Prefabs paint without stamping — true, documented in `MountainTileMapLayerGeneratorComponent`, unreachable from any shipped scene. Left as the documented future wire.**
+5. **Save split — true, and worse than stated. Fixed.** The seed was never saved and `GameClock.RestoreState` had no caller. `TerrainWorldComponent` is now `ISaveable` (`terrain_world.recipe`): it saves the axes and seed, and `RestoreWorld` regenerates and draws **without writing cells**; `Build()` split into `NewWorld()`/`RestoreWorld()`, with the deferred `BuildOnReady` yielding to a restore. `GridSubsurfaceStoreComponent`'s "a reload regenerates it from the seed" is now true. `GameApp.Save/Load` persist `Elapsed`/`Turn`/`DayFraction` in `SessionStateData`. Guards: `terrain_world_recipe_probe.gd` (new, in the gate) and `_clock_is_saved` in the clock probe.
+6. **Two pause channels — three pause facts, two dead. Fixed.** `GameClock.IsPaused/SetPaused/PausedChanged` deleted; `EndTurn` refuses while the tree is paused (the turn axis had no `_Process` for the tree pause to stop); `GameApp.IsPaused` is computed from the tree; `GameApp.SetPaused` is the one door, and the seven direct `SceneTree.Paused` writers go through it. Guard: `_pause_is_one_fact` in the clock probe; a scan pin forbids any other `.cs` under the addon writing `.Paused =`.
+
+Also found while verifying: the unconditional `BeatsPerDay` reset, dead `RestoreState`, dead clock pause state, the false regeneration claim in the subsurface store's doc, and navigation's duplicated precedence — all fixed above. The proposed `MASTER-TODO-TRACKER.md`/`docs/phases/` convention was declined in favour of this file's existing per-finding `Status:` paragraphs.
+
+**Closing the structure plan's two deferred items (same day).** The grid now says what it measures: `GridJobQueueComponent.DefaultWorkTurns`/`GetJobWorkTurns`/`ReportProgress(remainingTurns)` (saved under `work_turns`), `GridSelectionJobCommandComponent.WorkTurns`, `GridToolActionComponent.JobWorkTurns`, `GridWorkerComponent.WorkRemainingTurns`, `GridProductionComponent.RemainingTurns` (saved under `remaining_turns`) — the fields were named seconds while the work clock fed them turns. `GridDispatchBoardComponent.TravelSeconds`/`WorkSeconds` stay seconds because they drive a real-time showcase tween; a scan pin forbids any other grid file measuring work in seconds. The wiring rule (`EntityComponent.Resolve`) reached its last two hand-written copies, `Match3BoardComponent.ResolveGameFlow` and `TerrainGeneratorComponent.ResolveReferences`; the remaining `GetNodeOrNull`/`FindComponent` uses under `ecs/ui` and `ecs/terrain` are different rules on purpose (parent-relative paths, group discovery, explicit-only wires with no scene fallback) and were left as they are.
+
 ## Final verification (all phases landed)
 
 Run after Phase 4, against `Godot_v4.7.1-stable_mono_win64`:
@@ -176,3 +191,51 @@ Run after Phase 4, against `Godot_v4.7.1-stable_mono_win64`:
 - `tests/renderer_reporting_probe.ps1` — OK (9 renderers).
 - All four `grid_terrain_*` probes — OK, **including `lake_scatter`**, which this session made self-contained.
 - `tests/runtime_smoke.ps1` — OK, including the template scenes with their rewritten script paths and four new smoke assertions for seed spending and crop regrowth. The one behavior change surfaced by the smoke: `GridCropDefinition.SeedItemId` now defaults to `""` (empty = free planting) — the old `"turnip_seed"` default would have priced every authored crop in turnip seeds the moment 5.2 wired seed spending to the tool.
+
+## Terrain and grid review (2026-09-08). **Status: Proposed — nothing implemented yet.**
+
+A complete source read of `ecs/terrain/` (85 files), `ecs/grid/` (112) and `ecs/grid/ui/` (16) on 2026-09-08, asking three questions of every file: is this a second implementation of something that exists, what would make it faster or more correct, and what does the genre need that the engine cannot yet say. Findings were verified against the code, not against earlier plan documents. Each item has its own detailed plan under `plans/terrain-grid/` (index: `plans/terrain-grid/README.md`) with evidence, design, mutation-tested guards, effort and collision notes. Two other sessions were editing `ecs/grid/` (streaming/archive) and `TerrainWorldComponent` (levels/recipe) at the time; every plan names its collision surface.
+
+Headline evidence: `terrain_ramp_direction` is read by navigation and written by nothing (FEAT-05); `GridWorldStateComponent.CaptureState` throws on any streamed world (ENH-10); 18 id-normaliser copies with at least four different rules (DUP-05); `>> 5` chunk math at 52 sites in 12 files and a `Node` allocated per path request as a pin owner (DUP-09/ENH-03); 10 of 12 `CellsChanged` listeners rebuild the whole map on an eviction (ENH-01); 6 of 16 HUD panels bypass the panel base written for them (DUP-12); what a terrain kind means is spelled out in 11+ tables — the `lava` incident of Phase 1.10 (DUP-13).
+
+| Id | Plan | Type | Effort | Status |
+|---|---|---|---|---|
+| DUP-01 | [Terrain renderer lifecycle contract](../plans/terrain-grid/DUP-01-terrain-renderer-lifecycle-contract.md) | duplication | M | Proposed |
+| DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | Proposed |
+| DUP-03 | [Feature sheet loading](../plans/terrain-grid/DUP-03-feature-sheet-loading.md) | duplication + bug | S | Proposed |
+| DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | Proposed |
+| DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | Proposed |
+| DUP-06 | [Dictionary reader wrappers](../plans/terrain-grid/DUP-06-dictionary-reader-wrappers.md) | duplication / hygiene | XS | Proposed |
+| DUP-07 | [Prop residency façade](../plans/terrain-grid/DUP-07-prop-residency-facade.md) | duplication | S | Proposed |
+| DUP-08 | [Grid geometry helpers](../plans/terrain-grid/DUP-08-grid-geometry-helpers.md) | duplication | XS | Proposed |
+| DUP-09 | [Chunk-pin helper](../plans/terrain-grid/DUP-09-chunk-pin-helper.md) | duplication | M | Proposed |
+| DUP-10 | [Arrival detection](../plans/terrain-grid/DUP-10-arrival-detection.md) | duplication + latent bug | S | Proposed |
+| DUP-11 | [Dispatch board showcase](../plans/terrain-grid/DUP-11-dispatch-board-showcase.md) | duplication (owner's call) | S | Proposed |
+| DUP-12 | [HUD panel base](../plans/terrain-grid/DUP-12-hud-panel-base.md) | duplication | M | Proposed |
+| DUP-13 | [Terrain-kind registry](../plans/terrain-grid/DUP-13-terrain-kind-registry.md) | duplication + feature | L | Proposed |
+| ENH-01 | [Eviction-aware change notifications](../plans/terrain-grid/ENH-01-eviction-aware-change-notifications.md) | enhancement | M–L | Proposed |
+| ENH-02 | [Edit-kind classification](../plans/terrain-grid/ENH-02-edit-kind-classification.md) | enhancement | S–M | Proposed |
+| ENH-03 | [Chunk-scoped navigation invalidation](../plans/terrain-grid/ENH-03-chunk-scoped-navigation-invalidation.md) | enhancement | M | Proposed |
+| ENH-04 | [Archive scheduler](../plans/terrain-grid/ENH-04-archive-scheduler.md) | enhancement | M | Proposed |
+| ENH-05 | [Painted memory and uploads](../plans/terrain-grid/ENH-05-painted-memory-and-uploads.md) | enhancement | M | Proposed |
+| ENH-06 | [Prop residency update](../plans/terrain-grid/ENH-06-prop-residency-update.md) | enhancement | M | Proposed |
+| ENH-07 | [Tile and isometric streaming](../plans/terrain-grid/ENH-07-tile-and-isometric-streaming.md) | enhancement | L | Proposed |
+| ENH-08 | [Projection hot paths](../plans/terrain-grid/ENH-08-projection-hot-paths.md) | enhancement | S | Proposed |
+| ENH-09 | [Overlay culling and bridge marshalling](../plans/terrain-grid/ENH-09-overlay-culling-and-bridge-marshalling.md) | enhancement | S | Proposed |
+| ENH-10 | [Streamed-world save](../plans/terrain-grid/ENH-10-streamed-world-save.md) | enhancement / correctness | M | Proposed |
+| ENH-11 | [Autotile configuration per frame](../plans/terrain-grid/ENH-11-autotile-configuration-per-frame.md) | enhancement | XS | Proposed |
+| ENH-12 | [Job queue indices](../plans/terrain-grid/ENH-12-job-queue-indices.md) | enhancement | M | Proposed |
+| ENH-13 | [Minimap and scatter limits](../plans/terrain-grid/ENH-13-minimap-and-scatter-limits.md) | enhancement + silent-cap fix | S–M | Proposed |
+| ENH-14 | [Object-at-cell index](../plans/terrain-grid/ENH-14-object-at-cell-index.md) | enhancement + bug | S | Proposed |
+| ENH-15 | [Unit and contract drift](../plans/terrain-grid/ENH-15-unit-and-contract-drift.md) | correctness / docs | XS–S | Proposed |
+| ENH-16 | [Generation stage allocations](../plans/terrain-grid/ENH-16-generation-stage-allocations.md) | enhancement | M | Proposed |
+| FEAT-01 | [Hierarchical pathfinding and flow fields](../plans/terrain-grid/FEAT-01-hierarchical-pathfinding.md) | feature | L | Proposed |
+| FEAT-02 | [Territory layer](../plans/terrain-grid/FEAT-02-territory-layer.md) | feature | M–L | Proposed |
+| FEAT-03 | [Fog of war and exploration](../plans/terrain-grid/FEAT-03-fog-of-war-and-exploration.md) | feature | L | Proposed |
+| FEAT-04 | [Bridges and fords](../plans/terrain-grid/FEAT-04-bridges-and-fords.md) | feature | M | Proposed |
+| FEAT-05 | [Terraforming and ramps](../plans/terrain-grid/FEAT-05-terraforming-and-ramps.md) | feature + reader-without-writer fix | M | Proposed |
+| FEAT-06 | [Huge worlds through the recipe](../plans/terrain-grid/FEAT-06-huge-worlds-through-the-recipe.md) | feature | L | Proposed |
+| FEAT-07 | [Seasonal terrain](../plans/terrain-grid/FEAT-07-seasonal-terrain.md) | feature | M | Proposed |
+| FEAT-08 | [World edit history](../plans/terrain-grid/FEAT-08-world-edit-history.md) | feature | M | Proposed |
+
+Suggested order and the full collision map are in the index. When an item lands: set its status here and in the index, and move its evidence into the component pages under `docs/terrain-engine/` and `docs/grid-system/`.

@@ -41,7 +41,7 @@ public partial class ShadowProbe : Node
         foreach (string genre in Genres)
         {
             SkinCatalog.SetActiveSkin(genre, "", "", "");
-            var btn = new KitButton { Text = "" };
+            var btn = new KitPushButton { Text = "" };
             root.AddChild(btn);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             btn.Size = Size;

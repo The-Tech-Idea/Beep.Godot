@@ -185,12 +185,10 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(w, h);
         }
 
+        // Derives from a native Godot type, so it cannot inherit KitControl's copy; it forwards to
+        // the one shared body instead of restating it.
         private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
 
         private float TextWidth(string text, UiSurface.TextRole role)
         {

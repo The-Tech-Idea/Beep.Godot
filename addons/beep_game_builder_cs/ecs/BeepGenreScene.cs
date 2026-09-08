@@ -117,6 +117,11 @@ namespace Beep.ECS
             // Shared with the generator rather than forked — the local copy recognised only
             // the 7 gameplay keys, so weather/season/save tuning never reached this path.
             BeepGenreGenerator.ApplyTuning(info, genre);
+            // ApplyTuning may have rewritten TimeAxis and BeatsPerDay on the LIVE Info,
+            // after GameApp configured its clock from the old values in _EnterTree. The
+            // clock follows the declaration, so re-read it now — otherwise a scene wired
+            // this way ran a strategy genre that declared turns on a real-time clock.
+            app.ReconfigureClock();
 
             // Point the genre-specific scene paths at THIS genre's screens, exactly as the
             // generator does. Without this, a project set up the README way (drop in a

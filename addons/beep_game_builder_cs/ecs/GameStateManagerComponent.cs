@@ -23,27 +23,15 @@ namespace Beep.ECS
 	[GlobalClass]
 	public partial class GameStateManagerComponent : GameplayComponent
 	{
-		private static GameStateManagerComponent? _instance;
-
-		/// <summary>The autoloaded GameStateManager, or null if not registered.
-		/// Registered as an autoload by BeepGenreGenerator so save/load works from the
-		/// menus, which live in a different scene from gameplay. Mirrors GameApp.Instance.</summary>
-		public static GameStateManagerComponent? Instance
-		{
-			get
-			{
-				if (_instance != null && GodotObject.IsInstanceValid(_instance)) return _instance;
-				if (Engine.GetMainLoop() is SceneTree tree
-					&& tree.Root.GetNodeOrNull<GameStateManagerComponent>("/root/GameStateManager") is { } gsm)
-				{
-					_instance = gsm;
-					return gsm;
-				}
-				return null;
-			}
-		}
+		// No static Instance and no /root/GameStateManager lookup: GameApp owns
+		// this component and hands it out as GameApp.Instance.Saves. It still
+		// outlives scene changes. Discovery is limited to the current gameplay
+		// scope, with GameApp included explicitly for persistent session state.
 
 		[Export] public string SaveDirectory { get; set; } = "user://saves";
+		/// <summary>Optional gameplay subtree. Empty uses CurrentScene; headless hosts without
+		/// a current scene use the tree root. GameApp is included separately for session state.</summary>
+		[Export] public NodePath SaveRootPath { get; set; } = new("");
 		[Export] public int MaxSaveSlots { get; set; } = 5;
 		[Export] public bool AutosaveEnabled { get; set; } = true;
 		[Export] public float AutosaveIntervalSeconds { get; set; } = 300f;
@@ -57,6 +45,30 @@ namespace Beep.ECS
 		private float _autosaveTimer;
 		private int _currentSlot = -1;
 		private bool _pendingRestore;
+		private bool _capturingSnapshot;
+		private int _sessionGeneration;
+		private bool _sessionRequested;
+		private bool _loadFailed;
+		private readonly HashSet<Node> _loading = new();
+		private readonly List<(Node Owner, Action Action)> _whenReady = new();
+		public bool IsSessionReady { get; private set; }
+		public bool RestoreInFlight { get; private set; }
+		public bool IsRestorePending => _pendingRestore;
+
+		public void SuspendSession()
+		{
+			_sessionGeneration++;
+			IsSessionReady = false;
+			_sessionRequested = false;
+			_loading.Clear();
+			_whenReady.Clear();
+			_loadFailed = false;
+			GameApp.Instance?.SetGameRunning(false);
+		}
+		public bool CanSave => IsActive && IsSessionReady && !RestoreInFlight && !_pendingRestore
+			&& (GameApp.Instance?.IsGameRunning ?? true);
+		[Signal] public delegate void SessionReadyEventHandler();
+		[Signal] public delegate void SessionFailedEventHandler(string reason);
 		public int EffectiveMaxSaveSlots => Mathf.Max(1, MaxSaveSlots);
 		public float EffectiveAutosaveIntervalSeconds => Mathf.Max(0.1f, float.IsFinite(AutosaveIntervalSeconds) ? AutosaveIntervalSeconds : 300f);
 
@@ -89,13 +101,12 @@ namespace Beep.ECS
 		public override void _Process(double delta)
 		{
 			if (Engine.IsEditorHint()) return;
-			if (!IsActive || !AutosaveEnabled) return;
+			if (!CanSave || !AutosaveEnabled) return;
 			_autosaveTimer = Mathf.Max(0f, (float.IsFinite(_autosaveTimer) ? _autosaveTimer : EffectiveAutosaveIntervalSeconds) - DeltaSeconds(delta));
 			if (_autosaveTimer <= 0)
 			{
 				_autosaveTimer = EffectiveAutosaveIntervalSeconds;
-				SaveAutosave();
-				EmitSignal(SignalName.AutosaveTriggered);
+				if (SaveAutosave()) EmitSignal(SignalName.AutosaveTriggered);
 			}
 		}
 
@@ -111,6 +122,15 @@ namespace Beep.ECS
 		/// <summary>Create a new game state. Override in subclass to create your custom state type.</summary>
 		public virtual void NewGame(string playerName = "Player")
 		{
+			_sessionGeneration++;
+			_pendingRestore = false;
+			IsSessionReady = false;
+			_sessionRequested = false;
+			_loadFailed = false;
+			_loading.Clear();
+			_whenReady.Clear();
+			_currentSlot = -1;
+			_autosaveTimer = EffectiveAutosaveIntervalSeconds;
 			_currentState = new GameBuilder.GameStateData();
 			_currentState.Metadata.SaveName = playerName;
 			_currentState.Metadata.Timestamp = Now();
@@ -128,13 +148,13 @@ namespace Beep.ECS
 		/// Use <see cref="SaveAutosave"/> for the autosave file.</summary>
 		public bool Save(int slot)
 		{
-			if (slot < 0 || slot >= EffectiveMaxSaveSlots) return false;
+			if (!CanSave || slot < 0 || slot >= EffectiveMaxSaveSlots) return false;
 
 			EnsureState();
 			// Sync here rather than trusting callers to do it first. It was the caller's job,
 			// and the autosave timer forgot — it wrote whatever _currentState last held, so
 			// timed autosaves persisted stale values. Callers that still sync are harmless.
-			SyncAllSaveables();
+			if (!TryCaptureSnapshot()) return false;
 			_currentSlot = slot;
 			_currentState!.Metadata.Timestamp = Now();
 			_currentState.Metadata.PlaytimeSeconds = GameApp.Instance?.SessionPlaytimeSeconds ?? 0f;
@@ -154,10 +174,11 @@ namespace Beep.ECS
 		/// <summary>Save to the autosave file.</summary>
 		public bool SaveAutosave()
 		{
+			if (!CanSave) return false;
 			EnsureState();
 			// Same reason as Save(int): the _Process timer calls straight in here without
 			// syncing, which is exactly the caller that must not be trusted to remember.
-			SyncAllSaveables();
+			if (!TryCaptureSnapshot()) return false;
 			_currentState!.Metadata.Timestamp = Now();
 			_currentState.Metadata.PlaytimeSeconds = GameApp.Instance?.SessionPlaytimeSeconds ?? 0f;
 			_currentState.Metadata.CurrentLevel = GetTree()?.CurrentScene?.SceneFilePath ?? "unknown";
@@ -171,7 +192,7 @@ namespace Beep.ECS
 		/// Returns false — leaving the current state untouched — if the file is missing or corrupt.</summary>
 		public virtual bool Load(int slot)
 		{
-			if (slot < AutosaveSlot || slot >= EffectiveMaxSaveSlots) return false;
+			if (!IsActive || RestoreInFlight || slot < AutosaveSlot || slot >= EffectiveMaxSaveSlots) return false;
 
 			string filename = GetSaveFilename(slot);
 			if (!BeepFileUtils.FileExists(filename)) return false;
@@ -188,6 +209,9 @@ namespace Beep.ECS
 
 			_currentState = loaded;
 			_currentSlot = slot;
+			_sessionGeneration++;
+			IsSessionReady = false;
+			GameApp.Instance?.SetGameRunning(false);
 
 			EmitSignal(SignalName.GameStateLoaded, slot, filename);
 			return true;
@@ -255,6 +279,11 @@ namespace Beep.ECS
 		public bool LoadForSceneChange(int slot)
 		{
 			if (!Load(slot)) return false;
+			GameApp.Instance?.SetGameRunning(false);
+			_loading.Clear();
+			_whenReady.Clear();
+			_loadFailed = false;
+			_sessionRequested = false;
 
 			// Restore the autoload's progression NOW rather than with the rest. GameApp
 			// survives the scene change, and the incoming scene's LevelLoaderComponent reads
@@ -275,63 +304,164 @@ namespace Beep.ECS
 		/// _currentState was permanently null and every Save() silently returned false.</summary>
 		public void BeginSession(string playerName = "Player")
 		{
-			if (_pendingRestore)
-			{
-				_pendingRestore = false;
-				// Deferred, not immediate: _Ready propagates bottom-up, so the caller's sibling
-				// components may not have run theirs yet — HealthComponent._Ready setting
-				// CurrentHealth = MaxHealth would overwrite the health we just restored.
-				// Deferring puts the restore after the whole scene has readied.
-				Callable.From(RestoreAllSaveables).CallDeferred();
-				return;
-			}
-			if (_currentState == null) NewGame(playerName);
+			EnsureState();
+			_sessionRequested = true;
+			IsSessionReady = false;
+			GameApp.Instance?.SetGameRunning(false);
+			ScheduleReady();
 		}
 
-		/// <summary>Set game data key (into GameData dictionary).</summary>
+		public void BeginWorldLoad(Node owner)
+		{
+			_loading.Add(owner);
+			IsSessionReady = false;
+			GameApp.Instance?.SetGameRunning(false);
+		}
+
+		public void CompleteWorldLoad(Node owner, bool success = true)
+		{
+			if (!_loading.Remove(owner)) return;
+			if (!success)
+			{
+				_loadFailed = true;
+				EmitSignal(SignalName.SessionFailed, $"World load failed: {owner.Name}");
+			}
+			ScheduleReady();
+		}
+
+		public bool HasPendingSaveRecord(string key)
+			=> _pendingRestore && _currentState != null && _currentState.GameData.TryGetValue(key, out var value)
+				&& value.VariantType == Variant.Type.Dictionary;
+
+		internal static void AfterWorldReady(Node owner, Action action, string? savedKey = null)
+		{
+			if (GameApp.Instance?.Saves is { } saves)
+			{
+				if (savedKey != null && saves.HasPendingSaveRecord(savedKey)) return;
+				saves.WhenSessionReady(owner, action);
+			}
+			else Callable.From(() =>
+			{
+				if (GodotObject.IsInstanceValid(owner) && owner.IsInsideTree()) action();
+			}).CallDeferred();
+		}
+
+		internal void WhenSessionReady(Node owner, Action action)
+		{
+			if (IsSessionReady) action();
+			else _whenReady.Add((owner, action));
+		}
+
+		private void ScheduleReady()
+		{
+			int generation = _sessionGeneration;
+			Callable.From(() =>
+			{
+				if (!IsInsideTree() || generation != _sessionGeneration || !_sessionRequested
+					|| _loadFailed || IsSessionReady || _loading.Count != 0) return;
+				try
+				{
+					if (_pendingRestore) RestoreAllSaveables();
+					_pendingRestore = false;
+					var callbacks = _whenReady.ToArray();
+					_whenReady.Clear();
+					foreach (var callback in callbacks)
+					{
+						if (generation != _sessionGeneration) return;
+						if (GodotObject.IsInstanceValid(callback.Owner) && callback.Owner.IsInsideTree()) callback.Action();
+					}
+					if (generation != _sessionGeneration || _loadFailed || _loading.Count != 0) return;
+					if (_whenReady.Count > 0) { ScheduleReady(); return; }
+					IsSessionReady = true;
+					GameApp.Instance?.SetGameRunning(true);
+					EmitSignal(SignalName.SessionReady);
+				}
+				catch (Exception error)
+				{
+					_loadFailed = true;
+					EmitSignal(SignalName.SessionFailed, error.Message);
+					GD.PushError($"[Session] Initialization failed: {error}");
+				}
+			}).CallDeferred();
+		}
+
+		/// <summary>Set an explicit game choice, retained independently of component snapshots.</summary>
 		public void SetGameData(string key, Variant value)
 		{
 			if (_currentState != null)
-				_currentState.GameData[key] = value;
+				_currentState.CustomData[key] = value;
 		}
 
-		/// <summary>Get game data key (from GameData dictionary).</summary>
+		/// <summary>Get an explicit game choice written by SetGameData.</summary>
 		public Variant GetGameData(string key, Variant defaultValue = new())
 		{
-			if (_currentState != null && _currentState.GameData.TryGetValue(key, out var value))
+			if (_currentState != null && _currentState.CustomData.TryGetValue(key, out var value))
 				return value;
 			return defaultValue;
 		}
 
 		/// <summary>Auto-discover and sync all ISaveable components before saving.</summary>
 		public void SyncAllSaveables()
-		{
-			if (_currentState == null) return;
+			=> TryCaptureSnapshot();
 
-			var saveables = GetAllSaveables();
-			foreach (var saveable in saveables)
+		private bool TryCaptureSnapshot()
+		{
+			if (_currentState == null || !CanSave || _capturingSnapshot) return false;
+			_capturingSnapshot = true;
+			int generation = _sessionGeneration;
+			try
 			{
-				saveable.Save(_currentState);
+				var snapshot = new GameBuilder.GameStateData
+				{
+					Metadata = GameBuilder.SaveMetadata.FromDict(_currentState.Metadata.ToDict())
+				};
+				foreach (var saveable in GetAllSaveables())
+				{
+					saveable.Save(snapshot);
+					if (generation != _sessionGeneration || !CanSave) return false;
+				}
+				// Copy after component callbacks so choices changed during capture are not lost.
+				snapshot.CustomData = GameBuilder.GodotConv.ToVariantDict(
+					GameBuilder.GodotConv.ToDict(_currentState.CustomData).Duplicate(true));
+				_currentState = snapshot;
+				return true;
 			}
+			catch (Exception error)
+			{
+				GD.PushWarning($"[Save] Snapshot rejected: {error.Message}");
+				return false;
+			}
+			finally { _capturingSnapshot = false; }
 		}
 
 		/// <summary>Auto-discover and restore all ISaveable components after loading.</summary>
 		public void RestoreAllSaveables()
 		{
 			if (_currentState == null) return;
-
-			var saveables = GetAllSaveables();
-			foreach (var saveable in saveables)
+			if (RestoreInFlight) return;
+			RestoreInFlight = true;
+			try
 			{
-				saveable.Load(_currentState);
+				var participants = GetAllSaveables();
+				// Terrain, jobs and inventories must exist before actor references are restored.
+				foreach (var saveable in participants)
+					if (saveable is not ActorRegistryComponent) saveable.Load(_currentState);
+				foreach (var saveable in participants)
+					if (saveable is ActorRegistryComponent) saveable.Load(_currentState);
 			}
+			finally { RestoreInFlight = false; }
 		}
 
-		/// <summary>Override this to customize ISaveable discovery (default: tree scan).</summary>
+		/// <summary>Discover participants only within the gameplay scope and the owning app.</summary>
 		protected virtual List<ISaveable> GetAllSaveables()
 		{
-			var root = GetTree()?.Root;
-			return root != null ? SaveableHelper.FindAllSaveables(root) : new List<ISaveable>();
+			var tree = GetTree();
+			Node? root = SaveRootPath.IsEmpty ? tree?.CurrentScene ?? tree?.Root : GetNodeOrNull(SaveRootPath);
+			if (root == null) throw new InvalidOperationException("SaveRootPath does not resolve to a gameplay node.");
+			var saveables = SaveableHelper.FindAllSaveables(root);
+			if (GameApp.Instance is { } app && !app.IsQueuedForDeletion() && !saveables.Contains(app))
+				saveables.Insert(0, app);
+			return saveables;
 		}
 
 		private string GetSaveFilename(int slot)

@@ -215,15 +215,7 @@ namespace Beep.ECS
         }
 
         private void ResolveReferences()
-        {
-            if (_selection != null && GodotObject.IsInstanceValid(_selection))
-                return;
-
-            if (!SelectionPath.IsEmpty)
-                _selection = GetNodeOrNull<GridSelectionComponent>(SelectionPath);
-            else if (IsInsideTree())
-                _selection = EntityComponent.FindComponent<GridSelectionComponent>(GetTree()?.CurrentScene);
-        }
+            => EntityComponent.Resolve(this, SelectionPath, ref _selection);
 
         private void EnsureUi()
         {

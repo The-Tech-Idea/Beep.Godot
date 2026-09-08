@@ -2,6 +2,18 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// A conversation panel: a speaker name, a wrapped body, and an optional list of replies.
+    ///
+    /// <c>VisibleCharacters</c> is what makes it a dialogue box rather than a panel with text in
+    /// it — a negative value shows everything, and a caller walking it upward types the line out.
+    /// The panel measures itself from the FULL body, so the box does not grow line by line while
+    /// the text appears, which is the tell that ruins the effect.
+    ///
+    /// Choices and the continue marker are mutually exclusive in practice: a line either waits for
+    /// acknowledgement or asks a question. Both are exposed rather than inferred, because a screen
+    /// that wants a prompt beneath its choices is a legitimate design.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitDialogBox : KitControl
@@ -9,10 +21,15 @@ namespace Beep.ECS.UI.Kit
         protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
 
         [Export] public string Speaker { get => _speaker; set { string next = value ?? ""; if (_speaker == next) return; _speaker = next; RefreshMinimumAndRedraw(); } }
-        private string _speaker = "";
+        // Opinionated defaults for the same reason KitRow and KitInputHint carry them: an empty
+        // dialogue box draws as a bare dark rectangle, which looks like a widget that failed rather
+        // than one waiting for its line.
+        private string _speaker = "Quartermaster";
 
         [Export(PropertyHint.MultilineText)] public string Body { get => _body; set { string next = value ?? ""; if (_body == next) return; _body = next; RefreshMinimumAndRedraw(); } }
-        private string _body = "";
+        // Short enough that the box's natural width still fits a phone column — the default text
+        // feeds _GetMinimumSize, so a long one silently makes the widget too wide to place.
+        private string _body = "Take the west road.";
 
         [Export] public int VisibleCharacters { get => _visibleCharacters; set { if (_visibleCharacters == value) return; _visibleCharacters = value; RefreshVisualAndRedraw(); } }
         private int _visibleCharacters = -1;
@@ -60,6 +77,31 @@ namespace Beep.ECS.UI.Kit
             RefreshChoiceLayout();
         }
 
+        public void AddChoice(string choice)
+        {
+            string[] next = new string[_choices.Length + 1];
+            _choices.CopyTo(next, 0);
+            next[^1] = choice ?? "";
+            SetChoices(next);
+        }
+
+        /// <summary>Drop one choice, reporting whether the index named one. The highlight follows
+        /// the removal so it cannot point past the end of a shortened list.</summary>
+        public bool RemoveChoice(int index)
+        {
+            if (index < 0 || index >= _choices.Length) return false;
+
+            string[] next = new string[_choices.Length - 1];
+            for (int i = 0, w = 0; i < _choices.Length; i++)
+                if (i != index) next[w++] = _choices[i];
+
+            if (index <= _hoverChoice) _hoverChoice = Mathf.Max(-1, _hoverChoice - 1);
+            SetChoices(next);
+            return true;
+        }
+
+        public void ClearChoices() => SetChoices(System.Array.Empty<string>());
+
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
@@ -94,18 +136,6 @@ namespace Beep.ECS.UI.Kit
             if (!ChoicesVisible || Choices.Length == 0)
                 _hoverChoice = -1;
             RefreshMinimumAndRedraw();
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private static bool SetStringArray(ref string[] target, string[]? value)
@@ -167,21 +197,14 @@ namespace Beep.ECS.UI.Kit
         public override void _GuiInput(InputEvent @event)
         {
             if (!ChoicesVisible) return;
-            if (@event is InputEventKey key)
+            if (KitChrome.NavigateOrRelease(this, @event, dir => dir.Y != 0 && MoveChoice(dir.Y)))
+                return;
+
+            if (KitChrome.IsConfirm(@event) && _hoverChoice >= 0)
             {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.Y != 0)
-                {
-                    MoveChoice(dir.Y);
-                    AcceptEvent();
-                    return;
-                }
-                if (KitChrome.IsConfirmKey(key) && _hoverChoice >= 0)
-                {
-                    EmitSignal(SignalName.ChoiceSelected, _hoverChoice);
-                    AcceptEvent();
-                    return;
-                }
+                EmitSignal(SignalName.ChoiceSelected, _hoverChoice);
+                AcceptEvent();
+                return;
             }
 
             if (@event is InputEventMouseMotion mm)
@@ -203,12 +226,16 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        private void MoveChoice(int delta)
+        /// <summary>Move the highlighted choice, reporting whether it moved. Released at the first
+        /// and last choice so focus can leave the dialog.</summary>
+        private bool MoveChoice(int delta)
         {
-            if (!ChoicesVisible || Choices.Length == 0) return;
-            int next = _hoverChoice < 0 ? 0 : _hoverChoice + delta;
-            _hoverChoice = Mathf.Clamp(next, 0, Choices.Length - 1);
+            if (!ChoicesVisible || Choices.Length == 0) return false;
+            int next = Mathf.Clamp(_hoverChoice < 0 ? 0 : _hoverChoice + delta, 0, Choices.Length - 1);
+            if (next == _hoverChoice) return false;
+            _hoverChoice = next;
             QueueRedraw();
+            return true;
         }
 
         private void ClearHover()
@@ -246,7 +273,7 @@ namespace Beep.ECS.UI.Kit
                          UiSurface.Semantic(this, UiSurface.Role.Accent));
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), host, ActiveShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, host, ActiveShape, 0.8f);
         }
 
         private void DrawBodyText(Font font, Rect2 box)
@@ -257,7 +284,7 @@ namespace Beep.ECS.UI.Kit
             if (string.IsNullOrEmpty(text)) return;
 
             int fs = UiSurface.FontSize(this, UiSurface.TextRole.Body);
-            KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, box, text, fs,
+            KitChrome.DrawWrappedText(this, Genre, font, box, text, fs,
                                       UiSurface.Text(this));
         }
 
@@ -270,7 +297,7 @@ namespace Beep.ECS.UI.Kit
             {
                 var r = new Rect2(pad, y + i * rowH, Size.X - pad * 2f, rowH - fs * 0.25f);
                 Color fill = UiSurface.Semantic(this, i == _hoverChoice ? UiSurface.Role.Info : UiSurface.Role.Accent);
-                DrawShape(r, ActiveShape, fill, UiSurface.Ink(fill), Mathf.Max(1f, Geo.Rim * 0.6f));
+                DrawPlate(r, ActiveShape, fill, UiSurface.Ink(fill), Mathf.Max(1f, Geo.Rim * 0.6f));
                 string choice = KitCase(Choices[i]);
                 int cfs = UiSurface.FitRole(this, UiSurface.TextRole.Caption, r.Size - new Vector2(pad, 0), choice, font, min: 8);
                 choice = KitChrome.EllipsizeText(font, choice, cfs, r.Size.X - pad * 1.3f);

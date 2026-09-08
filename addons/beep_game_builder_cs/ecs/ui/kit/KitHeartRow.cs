@@ -16,7 +16,10 @@ namespace Beep.ECS.UI.Kit
         private int _max = 5;
 
         [Export(PropertyHint.Range, "0,20,0.5")] public float Value { get => _value; set { float next = Mathf.Clamp(value, 0, _max); if (Mathf.IsEqualApprox(_value, next)) return; _value = next; RefreshVisualAndRedraw(); } }
-        private float _value = 5f;
+        // Three of five, not five of five. A full row is five identical hearts, which shows
+        // neither that the row has a value nor where its empty state is drawn -- the same reason
+        // KitOrbMeter does not ship at 1.0.
+        private float _value = 3f;
 
         [Export(PropertyHint.Range, "10,80,1")] public float HeartSize { get => _heartSize; set { float next = Mathf.Max(8f, value); if (Mathf.IsEqualApprox(_heartSize, next)) return; _heartSize = next; RefreshMinimumAndRedraw(); } }
         private float _heartSize = 26f;
@@ -44,18 +47,6 @@ namespace Beep.ECS.UI.Kit
 
         public override Vector2 _GetMinimumSize()
             => new(_max * _heartSize + (_max - 1) * _spacing, _heartSize);
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
 
         public override void _Draw()
         {

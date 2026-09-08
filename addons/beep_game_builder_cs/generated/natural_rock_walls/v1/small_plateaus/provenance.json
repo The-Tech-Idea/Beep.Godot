@@ -1,0 +1,54 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate green-background source sprites. Height ratios are visual targets, not calibrated gameplay elevations. Same canvas scale retained; do not normalize each sprite to identical total height.",
+  "assets": [
+    {
+      "file": "red_sandstone_half_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-e5c44cc6-9455-452b-bc95-dde0999151da.png",
+      "prompt": "Create ONE small standalone red sandstone plateau sprite derived from reference. Same painterly front-facing elevated orthographic 2.5D camera, light, same material covering entire flat top and rocky sides, outward-sloping exterior left/right walls. IMPORTANT scale: keep the reference canvas and camera zoom, but reduce footprint to about 40% of original width and depth; independently reduce VERTICAL CLIFF HEIGHT to HALF original (about 120 pixels from front top lip to foot on a 1774x887 canvas). Center this smaller object with large green margins; do not zoom it up to fill canvas. This is a compact low platform, NOT miniature full-height mountain. Fully filled flat top, irregular rounded outline, natural varied rock, no repeating pillars. Solid bright green background. No plants, ramps, steps, props, labels, ground shadow or extra objects. Only one HALF-height asset.",
+      "height_ratio_target": 0.5
+    },
+    {
+      "file": "red_sandstone_quarter_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5ac2c80f-ddac-4600-b286-1d5f32a3a571.png",
+      "prompt": "Edit this small red sandstone plateau into its QUARTER-original-height companion. This reference is HALF height. Reduce only the vertical rock wall thickness by 50 percent: front lip to base should be about 65-75 pixels instead of 150. Keep the SAME top footprint width/depth, same canvas size, exact camera zoom and same flat top area. This must look like a very low shallow rocky slab, visibly HALF as tall as the supplied small platform, not the same height. Keep base grounded around same image y position, lowering top appropriately. Natural sandstone texture rebuilt for short wall, not squashed texture. Outward exterior sides, matching material over entire top. Solid bright green background, no plants, no ramps, no shadow, no labels, one isolated object with large margins.",
+      "height_ratio_target": 0.25
+    },
+    {
+      "file": "volcanic_basalt_half_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5cea7aa8-db34-474d-81df-ef8aa66ec8bf.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small half-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to charcoal grey cooled volcanic basalt throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Low plateau about 140 pixels of front wall. Natural irregular basalt fractures and subtle pores, no sandstone strata, no identical pillars. Painterly detailed 2.5D game sprite. One small complete filled platform, no lava, plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.5
+    },
+    {
+      "file": "volcanic_basalt_quarter_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-af48fee4-19a4-483f-a1f4-71447bf0ab9b.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small quarter-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to charcoal grey cooled volcanic basalt throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Very shallow rock ledge about 65 pixels of front wall. Natural irregular basalt fractures and subtle pores, no sandstone strata, no identical pillars. Painterly detailed 2.5D game sprite. One small complete filled platform, no lava, plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.25
+    },
+    {
+      "file": "pale_limestone_half_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-8aeedc13-a972-4b82-98fd-849b4d2d4d77.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small half-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to pale warm ivory weathered limestone throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Low plateau about 140 pixels of front wall. Natural irregular limestone fractures, eroded broad rocks and subtle pores. Painterly detailed 2.5D game sprite. One small complete filled platform, no snow, plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.5
+    },
+    {
+      "file": "pale_limestone_quarter_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-d54e3711-ed6f-4e42-abfe-4887735412b2.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small quarter-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to pale warm ivory weathered limestone throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Very shallow rock ledge about 65 pixels of front wall. Natural irregular limestone fractures, eroded broad rocks and subtle pores. Painterly detailed 2.5D game sprite. One small complete filled platform, no snow, plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.25
+    },
+    {
+      "file": "grey_granite_half_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5ce73417-80f0-4138-860b-3594ec6c53ef.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small half-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to neutral grey granite throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Low plateau about 140 pixels of front wall. Natural irregular granite diagonal fractures, broad varied rocks and subtle mineral speckles instead of sandstone sedimentary layers. Painterly detailed 2.5D game sprite. One small complete filled platform, no plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.5
+    },
+    {
+      "file": "grey_granite_quarter_height_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5c59a538-49e5-4820-8aab-2a9de549459e.png",
+      "prompt": "Material-transfer edit. Image 1 is the EXACT small quarter-height geometry target. Image 2 is MATERIAL REFERENCE ONLY, do not copy its large size or height. Change image 1 to neutral grey granite throughout flat top and walls, matching image 2. Preserve image 1 canvas, object size, footprint, wall height, position, camera, outward side profile and green background. Very shallow rock ledge about 65 pixels of front wall. Natural irregular granite diagonal fractures, broad varied rocks and subtle mineral speckles instead of sandstone sedimentary layers. Painterly detailed 2.5D game sprite. One small complete filled platform, no plants, ramps, text, props, cast shadow or extra objects. Do NOT zoom or enlarge.",
+      "height_ratio_target": 0.25
+    }
+  ]
+}

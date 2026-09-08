@@ -39,7 +39,7 @@ namespace Beep.ECS.Scenes
 
         private void OnPicked(string action)
         {
-            GameStateManagerComponent.Instance?.SetGameData(PickKey, action);
+            GameApp.Instance?.Saves?.SetGameData(PickKey, action);
 
             // Dismiss, don't navigate. This is an overlay (CanvasLayer layer=30 over a dim);
             // ChangeScene(GameScenePath) reloaded the game scene underneath it, so levelling

@@ -1,0 +1,169 @@
+extends SceneTree
+
+const BASE := "res://addons/beep_game_builder_cs/ecs/"
+var viewport: SubViewport
+
+func _initialize() -> void:
+	call_deferred("run")
+
+func solid(colour: Color) -> ImageTexture:
+	var image := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	image.fill(colour)
+	return ImageTexture.create_from_image(image)
+
+func capture() -> Image:
+	await process_frame
+	await RenderingServer.frame_post_draw
+	return viewport.get_texture().get_image()
+
+func run() -> void:
+	assert(DisplayServer.get_name() != "headless")
+	viewport = SubViewport.new()
+	viewport.size = Vector2i(256, 256)
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(viewport)
+	var cells: Node = load(BASE + "grid/GridCellDataComponent.cs").new()
+	cells.name = "Cells"
+	viewport.add_child(cells)
+	for y in range(4):
+		for x in range(4):
+			cells.call("SetTerrainKind", Vector2i(x, y), "desert")
+	var view: Node2D = load(BASE + "terrain/TerrainPaintedRendererComponent.cs").new()
+	view.set("RefreshOnReady", false)
+	view.set("CellDataPath", NodePath("../Cells"))
+	view.set("BoundsSize", Vector2i(4, 4))
+	view.set("BlendWidth", 0.0)
+	view.set("ShadeStrength", 0.0)
+	view.set("EdgeNoise", 0.0)
+	viewport.add_child(view)
+	view.call("Rebuild")
+	await process_frame
+	await process_frame
+	var material: ShaderMaterial = view.get_node("SplatSurface").material
+	material.set_shader_parameter("tex_sand", solid(Color.RED))
+	material.set_shader_parameter("tex_grass", solid(Color.GREEN))
+	material.set_shader_parameter("tex_gravel", solid(Color.BLUE))
+	for tint in ["tint_desert", "tint_grass", "tint_gravel"]:
+		material.set_shader_parameter(tint, Vector3.ONE)
+	material.set_shader_parameter("saturation", 1.0)
+	material.set_shader_parameter("contrast", 1.0)
+	material.set_shader_parameter("coast_wander", 0.0)
+	var rendered := await capture()
+	var wrong := 0
+	for y in range(4, 252):
+		for x in range(4, 252):
+			var pixel := rendered.get_pixel(x, y)
+			if pixel.r < 0.95 or pixel.g > 0.02 or pixel.b > 0.02:
+				wrong += 1
+	assert(wrong == 0, "Zero-width desert has %d uncovered/grass pixels" % wrong)
+	for width in [0.0, 0.1, 0.42, 0.9]:
+		material.set_shader_parameter("blend_width", width)
+		material.set_shader_parameter("coast_wander", 2.0)
+		material.set_shader_parameter("edge_noise", 1.0)
+		rendered = await capture()
+		for y in range(4, 252, 3):
+			for x in range(4, 252, 3):
+				var pixel := rendered.get_pixel(x, y)
+				assert(pixel.r > 0.95 and pixel.g < 0.02 and pixel.b < 0.02,
+					"Warped material lost coverage at blend width %f" % width)
+	material.set_shader_parameter("coast_wander", 0.0)
+
+	# A real live edit must change the material, without introducing a third terrain.
+	for y in range(4):
+		for x in range(2, 4):
+			cells.call("SetTerrainKind", Vector2i(x, y), "gravel")
+	view.set("BlendWidth", 0.42)
+	view.call("Rebuild")
+	await process_frame
+	await process_frame
+	var original_ids: PackedByteArray = material.get_shader_parameter("id_map").get_image().get_data()
+	var original_coast: PackedByteArray = material.get_shader_parameter("coast_map").get_image().get_data()
+	var widths: Array[int] = []
+	for sharpness in [1.0, 4.0]:
+		view.set("BlendSharpness", sharpness)
+		view.call("Rebuild")
+		assert(is_equal_approx(float(material.get_shader_parameter("blend_sharpness")), sharpness))
+		assert(material.get_shader_parameter("id_map").get_image().get_data() == original_ids)
+		assert(material.get_shader_parameter("coast_map").get_image().get_data() == original_coast)
+		rendered = await capture()
+		var mixed := 0
+		for x in range(256):
+			var pixel := rendered.get_pixel(x, 96)
+			assert(pixel.g < 0.02, "Material blend introduced unrelated grass")
+			assert(pixel.r + pixel.b > 0.95, "Blend left a dark gap")
+			if pixel.r > 0.1 and pixel.b > 0.1: mixed += 1
+		widths.append(mixed)
+	assert(widths[1] > 0 and widths[1] < widths[0] / 2,
+		"Sharpness did not narrow the transition: %s" % str(widths))
+	print("[terrain-painted-blend] transition pixels at sharpness 1 / 4: %s" % str(widths))
+	await verify_texture_edges(view, material)
+	# All painted styles round an inland material corner using the same geometry.
+	viewport.size = Vector2i(256, 256)
+	view.scale = Vector2.ONE
+	view.set("MaterialEdgeDetail", 0.0)
+	view.set("BlendSharpness", 4.0)
+	for y in 4:
+		for x in 4:
+			cells.call("SetTerrainKind", Vector2i(x, y), "grass" if x >= 1 and y >= 1 else "desert")
+	view.call("Rebuild")
+	await process_frame
+	material.set_shader_parameter("tex_sand", solid(Color.RED))
+	material.set_shader_parameter("tex_grass", solid(Color.GREEN))
+	DirAccess.make_dir_recursive_absolute("res://tests/output/inland_contours")
+	for style in [0, 1, 2]:
+		material.set_shader_parameter("art_style", style)
+		rendered = await capture()
+		assert(rendered.save_png("res://tests/output/inland_contours/style_%d.png" % style) == OK)
+		assert(rendered.get_pixel(66, 66).r > rendered.get_pixel(66, 66).g,
+			"Inland corner still follows a square cell in style %d" % style)
+		var interior := rendered.get_pixel(128, 128)
+		var reference := rendered.get_pixel(220, 220)
+		assert(interior.g > interior.r and absf(interior.g - reference.g) < 0.02,
+			"Rounded corner erased terrain interior")
+	viewport.free()
+	print("[terrain-painted-blend] OK")
+	quit()
+
+func verify_texture_edges(view: Node, material: ShaderMaterial) -> void:
+	var stripes := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 64:
+			stripes.set_pixel(x, y, Color(0.9 if (y / 16) % 2 == 0 else 0.1, 0, 0))
+	stripes.generate_mipmaps()
+	material.set_shader_parameter("tex_sand", ImageTexture.create_from_image(stripes))
+	view.set("GroundTextureTiles", 4.0)
+	view.set("BlendWidth", 0.42)
+	view.set("EdgeNoise", 0.0)
+	material.set_shader_parameter("coast_wander", 0.0)
+	var data: Dictionary = {}
+	for slot in ["id_map", "shade_map", "coast_map"]:
+		data[slot] = material.get_shader_parameter(slot).get_image().get_data()
+	for zoom in [0.5, 1.0, 2.0]:
+		viewport.size = Vector2i(Vector2(256, 256) * zoom)
+		view.scale = Vector2.ONE * zoom
+		var images: Array[Image] = []
+		for amount in [0.0, 0.75]:
+			view.set("MaterialEdgeDetail", amount)
+			view.call("Rebuild")
+			assert(is_equal_approx(float(material.get_shader_parameter("material_edge_detail")), amount))
+			for slot in data:
+				assert(material.get_shader_parameter(slot).get_image().get_data() == data[slot])
+			images.append(await capture())
+		var boundary := roundi(127 * zoom)
+		var bright := roundi(32 * zoom)
+		var dark := roundi(96 * zoom)
+		# Blue is the other material's weight: bright red detail must advance
+		# while dark gaps admit blue. A global tint or sharper kernel fails this.
+		var bright_change := images[0].get_pixel(boundary, bright).b - images[1].get_pixel(boundary, bright).b
+		var dark_change := images[0].get_pixel(boundary, dark).b - images[1].get_pixel(boundary, dark).b
+		assert(bright_change > 0.08 and dark_change < -0.04,
+			"Texture detail did not control the edge: bright=%s dark=%s" % [bright_change, dark_change])
+		var interior_error := 0.0
+		for y in range(4, viewport.size.y - 4):
+			for x in [roundi(48 * zoom), roundi(208 * zoom)]:
+				var a := images[0].get_pixel(x, y)
+				var b := images[1].get_pixel(x, y)
+				interior_error = maxf(interior_error, maxf(absf(a.r - b.r), absf(a.b - b.b)))
+				assert(a.a == 1.0 and b.a == 1.0, "Material detail made a transparent surface")
+		assert(interior_error <= 1.0 / 255.0 + 0.0001, "Material edge detail changed the terrain interior")
+		print("[terrain-painted-blend] texture edge zoom=%s bright=%s dark=%s interior_error=%s" % [zoom, bright_change, dark_change, interior_error])

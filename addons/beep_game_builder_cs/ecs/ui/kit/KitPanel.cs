@@ -294,7 +294,7 @@ namespace Beep.ECS.UI.Kit
         public override void _GuiInput(InputEvent @event)
         {
             if (!ShowClose) return;
-            if (@event is InputEventKey key && (KitChrome.IsConfirmKey(key) || KitChrome.IsCancelKey(key)))
+            if (KitChrome.IsConfirm(@event) || KitChrome.IsCancel(@event))
             {
                 EmitSignal(SignalName.CloseRequested);
                 AcceptEvent();
@@ -442,8 +442,11 @@ namespace Beep.ECS.UI.Kit
                                          Mathf.Max(0f, body.Size.Y - ft * 2f - headerRoom)));
         }
 
+        /// <summary>Header room measured from the FONT. _GetMinimumSize adds this to its result, so
+        /// passing Size.Y made the panel's minimum height depend on its own current height.</summary>
         private float HeaderRoom()
-            => KitChrome.PanelHeaderRoom(this, _genre, _title, HeaderStyle, TitleFontScale, Size.Y);
+            => KitChrome.PanelHeaderRoom(this, _genre, _title, HeaderStyle, TitleFontScale,
+                                         UiSurface.FontSize(this) * 2.4f);
 
         /// <summary>Amount the body is pushed down to keep an overhanging banner inside bounds.</summary>
         private float HeaderOverhang()
@@ -496,9 +499,12 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
-            // Frame.
-            KitChrome.DrawShape(this, _genre, body, KitChrome.Shape(_genre, KitWidgetClass.Panel), face,
-                                KitChrome.Rim(UiSurface.Of(this), Geo), rimPx, KitWidgetClass.Panel);
+            // Frame. This is the panel itself, so it takes the genre's artwork when there is any;
+            // the well below and the HUD variant above stay procedural, being a recess and a
+            // translucent strip rather than a plate.
+            KitChrome.DrawWidgetPlate(this, _genre, body, KitChrome.Shape(_genre, KitWidgetClass.Panel), face,
+                                      KitChrome.Rim(UiSurface.Of(this), Geo), rimPx,
+                                      KitWidgetClass.Panel, KitState.Normal);
 
             if (ShowWell)
             {
@@ -513,8 +519,14 @@ namespace Beep.ECS.UI.Kit
                                      body.Size - new Vector2(ft * 2f, ft * 2f));
                 if (well.Size.X > 4 && well.Size.Y > 4)
                 {
-                    float ps = g.WellShade;
-                    var sunk = new Color(face.R * ps, face.G * ps, face.B * ps, face.A);
+                    // RecessFace, not a bare multiply: on a dark skin face * 0.79 lands within a
+                    // couple of levels of the plate, so the well vanished and the panel rendered
+                    // as one flat black rectangle in every dark theme.
+                    // RecessFace, not a bare multiply: on a dark skin face * 0.79 lands within a
+                    // couple of levels of the plate, so the well vanished and the panel rendered
+                    // as one flat black rectangle. Measured on the probe's dark stub theme, the
+                    // well went from 0.040 luminance to 0.201.
+                    Color sunk = KitChrome.RecessFace(face, g.WellShade) with { A = face.A };
                     KitChrome.DrawShape(this, _genre, well, KitChrome.Shape(_genre, KitWidgetClass.Panel), sunk,
                                         ink, Mathf.Max(1f, rimPx * 0.5f), KitWidgetClass.Panel);
                     DrawWellInset(well, sunk);

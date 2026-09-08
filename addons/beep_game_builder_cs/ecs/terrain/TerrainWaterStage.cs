@@ -17,7 +17,7 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainWaterStage
     {
-        public static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
         {
             CarveLakeBasins(world, noise, settings);
             ClassifyWaterBodies(world);
@@ -28,7 +28,7 @@ namespace Beep.ECS
         /// lake coverage is met. Basins are kept well away from the coast so
         /// flooding one can never breach the shoreline and become a bay.
         /// </summary>
-        private static void CarveLakeBasins(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
+        private static void CarveLakeBasins(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
         {
             int requested = Mathf.RoundToInt(world.Count * Mathf.Clamp(settings.LakeCoverage, 0.0f, 0.35f));
             if (requested <= 0)
@@ -114,7 +114,7 @@ namespace Beep.ECS
         /// Flood fill inward from the border across water: everything reached is
         /// ocean, everything left over is an enclosed lake.
         /// </summary>
-        private static void ClassifyWaterBodies(TerrainWorld world)
+        private static void ClassifyWaterBodies(TerrainGenerationBuffer world)
         {
             var queue = new Queue<int>();
 
@@ -146,7 +146,7 @@ namespace Beep.ECS
             }
         }
 
-        private static void EnqueueIfOpenWater(TerrainWorld world, int index, Queue<int> queue)
+        private static void EnqueueIfOpenWater(TerrainGenerationBuffer world, int index, Queue<int> queue)
         {
             if (world.Land[index] || world.Water[index] == WaterBody.Ocean)
                 return;

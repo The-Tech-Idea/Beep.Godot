@@ -6,7 +6,7 @@ Generation stage in the terrain pipeline, run by `TerrainFieldBuilder` after `Te
 
 ## Public API
 
-- `internal static void Apply(TerrainWorld world, TerrainGenerationSettings settings)` — the stage's only mutating entry point. No-ops immediately if `settings.ResourceDensity <= 0`. Otherwise, for every gameplay cell, rolls a hash-based chance (land density 0.085, water density scaled by ×0.22, both further scaled by `settings.ResourceDensity`), and on a hit, weight-picks a supported resource id for that cell's terrain/relief via a second hash roll, then places it in `world.Resource[cell]` if it clears the same-resource spacing check (4 tiles).
+- `internal static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)` — the stage's only mutating entry point. No-ops immediately if `settings.ResourceDensity <= 0`. Otherwise, for every gameplay cell, rolls a hash-based chance (land density 0.085, water density scaled by ×0.22, both further scaled by `settings.ResourceDensity`), and on a hit, weight-picks a supported resource id for that cell's terrain/relief via a second hash roll, then places it in `world.Resource[cell]` if it clears the same-resource spacing check (4 tiles).
 - `internal static ResourceCategory CategoryOf(string id)` — looks the id up across every shipped catalogue (not just the one the current settings selected) via `ResourceCatalogs.FindAnywhere`, returning `ResourceCategory.Bonus` if the id isn't found in any of them. Exists because a saved/loaded map can carry resource ids from a catalogue the generator is no longer configured for.
 
 Also defined in this file: the public `ResourceSet` enum (`Historical`, `OilAndGas`, `SpaceExploration`) naming which shipped resource catalogue a map draws from.
@@ -15,7 +15,7 @@ Everything else (`Density`, `WaterDensityScale`, `SameResourceSpacing`, `Catalog
 
 ## Dependencies
 
-- Reads `TerrainWorld.CellTerrain`, `TerrainWorld.CellWater`, `TerrainWorld.CellRelief`, `TerrainWorld.CellsWide`/`CellsHigh`; writes `TerrainWorld.Resource[cell]` (all `TerrainWorld.cs`).
+- Reads `TerrainGenerationBuffer.CellTerrain`, `TerrainGenerationBuffer.CellWater`, `TerrainGenerationBuffer.CellRelief`, `TerrainGenerationBuffer.CellsWide`/`CellsHigh`; writes `TerrainGenerationBuffer.Resource[cell]` (all `TerrainGenerationBuffer.cs`).
 - Reads `TerrainGenerationSettings.ResourceDensity`, `.Seed`, `.ResourceCatalog`, `.ResourceSet` (`TerrainGenerationSettings.cs`).
 - Reads `ResourceCatalog.Resources` and `ResourceCatalogs.For(ResourceSet)` / `ResourceCatalogs.FindAnywhere(id)` (`ResourceCatalog.cs`, `ResourceCatalogs.cs`) to get the weighted resource list and, for `CategoryOf`, to search every catalogue.
 - Reads `ResourceDefinition` fields (`Id`, `Weight`, `RequiresRelief`, `RequiredRelief`, `TerrainKinds`, `Category`) (`ResourceDefinition.cs`).

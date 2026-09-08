@@ -152,11 +152,11 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
+            // The guard stays so signals are (re)connected only when Resolve
+            // actually picks a new instance up, not on every call.
             if (_interaction == null || !GodotObject.IsInstanceValid(_interaction))
             {
-                _interaction = !InteractionModePath.IsEmpty
-                    ? GetNodeOrNull<GridInteractionModeComponent>(InteractionModePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridInteractionModeComponent>(GetTree()?.CurrentScene) : null;
+                EntityComponent.Resolve(this, InteractionModePath, ref _interaction);
                 ConnectInteractionSignals();
             }
         }

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/terrain_templates/v1/ramps/red_rock_mesa/ramp_quarter_left.tres" id="1"]
+
+[node name="ramp_quarter_left" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -26.618182)
+scale = Vector2(0.2909090909090909, 0.2909090909090909)
+texture = ExtResource("1")

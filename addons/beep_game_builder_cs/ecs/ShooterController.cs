@@ -64,26 +64,28 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (!IsActive || _body == null || !GodotObject.IsInstanceValid(_body) || Engine.IsEditorHint()) return;
-            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down", FireAction)) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && !actor.CanDrive(this)) return;
+            if (actor is null && !InputActionsAvailable("move_left", "move_right", "move_up", "move_down", FireAction)) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
-            Vector2 input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
+            Vector2 input = isStunned ? Vector2.Zero : actor?.MoveIntent ?? Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
             // Speed from the entity's "move_speed" stat when it has one (equipment/buffs modify
             // it), else the MoveSpeed export. Same stat channel AttackComponent reads for damage.
             float speed = NonNegative(_stats?.GetValue("move_speed", EffectiveMoveSpeed) ?? EffectiveMoveSpeed);
             _body.Velocity = input * speed;
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
 
             // Aim toward mouse.
             Vector2 mouse = _body.GetGlobalMousePosition();
-            _body.Rotation = (mouse - _body.GlobalPosition).Angle();
+            _body.Rotation = (actor?.AimIntent ?? mouse - _body.GlobalPosition).Angle();
 
             // Fire.
             _cooldown -= dt;
-            if (Input.IsActionPressed(FireAction) && _cooldown < 0)
+            if ((actor?.FireHeld ?? Input.IsActionPressed(FireAction)) && _cooldown < 0)
             {
                 GetViewport().SetInputAsHandled();
                 // An equipped weapon drives the fire interval (its Cooldown) and the shot; unarmed

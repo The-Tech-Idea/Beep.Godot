@@ -29,7 +29,9 @@ namespace Beep.ECS.UI
         /// <summary>What a colour MEANS, so a scene declares intent and the palette decides the
         /// value. A scene that stores Color(0.30, 0.66, 0.90) has pinned a palette into a file
         /// no skin can reach; a scene that stores Role.Info has not.</summary>
-        public enum Role { Neutral, Accent, Accent2, Success, Warning, Danger, Info }
+        /// <remarks>Members are APPENDED, never inserted: a scene stores the ordinal, so
+        /// reordering this enum silently repaints every authored widget.</remarks>
+        public enum Role { Neutral, Accent, Accent2, Success, Warning, Danger, Info, Focus }
 
         private static string SemanticKey(Role role) => role switch
         {
@@ -39,8 +41,58 @@ namespace Beep.ECS.UI
             Role.Info => "info",
             Role.Accent2 => "accent2",
             Role.Neutral => "neutral",
+            Role.Focus => "focus",
             _ => "accent",
         };
+
+        /// <summary>
+        /// The theme's two bevel colours: the lit edge and the shaded one.
+        ///
+        /// Kept out of <see cref="Role"/> on purpose — a scene author choosing a chip's accent
+        /// should not be offered "bevel dark" in the inspector. These are material colours the
+        /// drawing code asks for by name, not an intent a scene declares.
+        ///
+        /// White and black are the fallback only when the theme registers nothing, which is what
+        /// the kit painted unconditionally before, so an unthemed control looks exactly as it did.
+        /// </summary>
+        public static (Color Light, Color Dark) Bevel(Godot.Control? ctl)
+        {
+            Color light = ctl != null && ctl.HasThemeColor("bevel_light", SemanticType)
+                ? Lit(ctl.GetThemeColor("bevel_light", SemanticType))
+                : Colors.White;
+            Color dark = ctl != null && ctl.HasThemeColor("bevel_dark", SemanticType)
+                ? Shade(ctl.GetThemeColor("bevel_dark", SemanticType))
+                : Colors.Black;
+            return (light, dark);
+        }
+
+        /// <summary>
+        /// Push a colour to the top of its own hue, so it reads as a LIGHT rather than as paint.
+        ///
+        /// A bevel highlight is the sun catching an edge. The theme names its tint — warm on a
+        /// brass panel, cold on a steel one — but the theme's authored value is a surface colour,
+        /// and applying it literally damps the highlight to nothing. `oilfield_days` declares
+        /// #657275, a mid grey: drawn as-is at the bevel's alpha it is barely lighter than the
+        /// plate, and every widget in the kit flattened the moment these colours were first read.
+        /// </summary>
+        private static Color Lit(Color c)
+        {
+            float peak = Mathf.Max(c.R, Mathf.Max(c.G, c.B));
+            return peak <= 0.001f
+                ? Colors.White
+                : new Color(c.R / peak, c.G / peak, c.B / peak, 1f);
+        }
+
+        /// <summary>The same idea at the other pole: keep the hue, force it dark enough to read as
+        /// shadow rather than as a second surface colour.</summary>
+        private static Color Shade(Color c)
+        {
+            const float target = 0.16f;
+            float peak = Mathf.Max(c.R, Mathf.Max(c.G, c.B));
+            return peak <= target
+                ? c with { A = 1f }
+                : new Color(c.R * target / peak, c.G * target / peak, c.B * target / peak, 1f);
+        }
 
         /// <summary>Try to read a palette role without logging. Godot can send early
         /// NotificationThemeChanged callbacks while a ThemePresetComponent is still assembling
@@ -170,10 +222,44 @@ namespace Beep.ECS.UI
         /// Anything that draws text, or sizes a box AROUND text, asks here.</summary>
         public static int FontSize(Node n, float scale = 1f, int min = 8)
         {
-            var c = NearestControl(n);
-            int b = c?.GetThemeFontSize("font_size", "Label") ?? 14;
-            if (b <= 0) b = 14;
+            int b = BaseFontSize(NearestControl(n));
             return Mathf.Max(min, Mathf.RoundToInt(b * scale));
+        }
+
+        /// <summary>
+        /// The theme's body size, read from the THEME RESOURCE and never through the control's own
+        /// overrides.
+        ///
+        /// This used to be `GetThemeFontSize("font_size", "Label")`. On a control that IS a Label —
+        /// KitLabel is one — Godot consults that control's own `font_size` override first, because
+        /// the requested type matches its own class. And the kit WRITES that override: KitLabel
+        /// asks here for a size, scales it by its role, then stores the answer under exactly the
+        /// key this read consults.
+        ///
+        /// So every theme change multiplied the previous OUTPUT instead of re-deriving from the
+        /// theme. Measured on a Caption label (0.90x): 16, 14, 13, 11, 10, 9, 8 — one step smaller
+        /// on each skin switch, without bound. A Title label (1.34x) runs the other way: 16, 21,
+        /// 29, 38, 52. That is why switching genre repeatedly made text balloon.
+        ///
+        /// Reading the Theme resource directly breaks the loop: the kit never writes into a Theme,
+        /// only into per-node overrides, so this input cannot be fed by its own output.
+        /// </summary>
+        private static int BaseFontSize(Godot.Control? c)
+        {
+            for (Node? cursor = c; cursor != null; cursor = cursor.GetParent())
+            {
+                if (cursor is Godot.Control ctl && ctl.Theme is { } theme
+                    && theme.HasFontSize("font_size", "Label"))
+                {
+                    int size = theme.GetFontSize("font_size", "Label");
+                    if (size > 0) return size;
+                }
+            }
+
+            // No Theme in the ancestry at all — a bare control in a test or a scene that has not
+            // been themed yet. The engine default is the honest answer here, not a kit constant.
+            int fallback = c?.GetThemeDefaultFontSize() ?? 0;
+            return fallback > 0 ? fallback : 14;
         }
 
         /// <summary>
@@ -184,24 +270,30 @@ namespace Beep.ECS.UI
         /// ThemePresetComponent). A drawn widget cannot use those — it has no Label — so it had
         /// nothing but a bare `FontSize(this)` and every string in the kit came out one size.
         ///
-        /// These multipliers are deliberately the SAME numbers the Label variations use, so a
-        /// drawn card title and a `BeepTitle` Label beside it agree, and changing the scale in
-        /// one place changes both.
+        /// Title, Subtitle, Value and Caption are deliberately the SAME numbers the Label
+        /// variations use — `ThemePresetComponent.SizeFor` reads them from here — so a drawn card
+        /// title and a `BeepTitle` Label beside it agree, and changing the scale in one place
+        /// changes both.
+        ///
+        /// The two scales are not identical end to end, and the difference is deliberate. The
+        /// theme has a `BeepDisplay` step above Title that no drawn widget asks for, and this
+        /// enum has a `Small` step below Caption that no Label variation matches. Four shared
+        /// steps, one extra at each end.
         /// </summary>
         public enum TextRole
         {
-            /// <summary>Screen and card titles. 1.6x -- matches `BeepTitle`.</summary>
+            /// <summary>Screen and card titles. 1.34x -- matches `BeepTitle`.</summary>
             Title,
-            /// <summary>Section headings, banner text. 1.22x -- matches `BeepSubtitle`.</summary>
+            /// <summary>Section headings, banner text. 1.12x -- matches `BeepSubtitle`.</summary>
             Subtitle,
-            /// <summary>A number that carries the meaning. 1.18x -- matches `BeepValue`.</summary>
+            /// <summary>A number that carries the meaning. 1.06x -- matches `BeepValue`.</summary>
             Value,
             /// <summary>Default running text. 1.0x.</summary>
             Body,
-            /// <summary>Stat labels, hints, footers. 0.9x -- matches `BeepCaption`.</summary>
+            /// <summary>Stat labels, hints, footers. 0.90x -- matches `BeepCaption`.</summary>
             Caption,
             /// <summary>Count badges and corner overlays, where the box is genuinely tiny.
-            /// 0.76x -- no Label variation equivalent; drawn widgets need a step below Caption.</summary>
+            /// 0.74x -- no Label variation equivalent; drawn widgets need a step below Caption.</summary>
             Small,
         }
 
@@ -354,6 +446,37 @@ namespace Beep.ECS.UI
                              surface.A);
         }
 
+        /// <summary>
+        /// A cheap TONE weight, not the WCAG metric: it applies the standard's coefficients to the
+        /// gamma-encoded channels without linearising them.
+        ///
+        /// That is fine for what it is used for — "is this face dark enough to lift", "does this
+        /// plate want black or white ink" — and the thresholds around it (0.145 in
+        /// <see cref="ControlFace"/>, the 0.5 ink pivots in the widgets) are tuned to these
+        /// numbers. It is NOT a contrast measure; use <see cref="ContrastRatio"/> for any claim
+        /// about legibility, and do not retune one from the other.
+        /// </summary>
         public static float Luminance(Color c) => 0.2126f * c.R + 0.7152f * c.G + 0.0722f * c.B;
+
+        /// <summary>WCAG relative luminance: sRGB channels linearised before weighting. The one
+        /// number a contrast claim may be built on. See <see cref="Luminance"/> for why the kit
+        /// keeps a second, cheaper tone weight beside it.</summary>
+        public static float RelativeLuminance(Color c)
+            => 0.2126f * Linearize(c.R) + 0.7152f * Linearize(c.G) + 0.0722f * Linearize(c.B);
+
+        private static float Linearize(float channel)
+            => channel <= 0.04045f
+                ? channel / 12.92f
+                : Mathf.Pow((channel + 0.055f) / 1.055f, 2.4f);
+
+        /// <summary>Contrast between two colours: 1.0 when identical, 21.0 for black on white.
+        /// WCAG 2.2 SC 1.4.11 asks for at least 3.0 on a focus ring or any other UI boundary, which
+        /// is what <see cref="Kit.KitChrome.MinFocusContrast"/> holds the kit to.</summary>
+        public static float ContrastRatio(Color a, Color b)
+        {
+            float first = RelativeLuminance(a);
+            float second = RelativeLuminance(b);
+            return (Mathf.Max(first, second) + 0.05f) / (Mathf.Min(first, second) + 0.05f);
+        }
     }
 }

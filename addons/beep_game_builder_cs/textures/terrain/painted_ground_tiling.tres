@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="TerrainMaterialTiling" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMaterialTiling.cs" id="tiling"]
+
+[resource]
+script = ExtResource("tiling")
+Rock = 6.0
+SeamBlend = 0.04

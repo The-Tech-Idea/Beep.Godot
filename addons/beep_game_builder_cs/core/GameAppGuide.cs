@@ -167,7 +167,8 @@ GameApp.Instance.AddSessionScore(100);
 // In PauseMenu - Player pauses
 GameApp.Instance.SetPaused(true);
 // → GamePaused signal fires
-// → GetTree().Paused = true (stops physics/animations)
+// → the tree is paused (stops physics/animations); SetPaused is the ONE door
+//   to that flag - never write SceneTree.Paused yourself
 // → Save button still available
 
 // In LevelComplete handler - Level done

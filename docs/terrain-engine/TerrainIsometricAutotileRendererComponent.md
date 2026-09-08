@@ -1,30 +1,94 @@
 # TerrainIsometricAutotileRendererComponent
 
-Renderer: a `[Tool][GlobalClass] Node2D` that paints the generated terrain field into an isometric `TileMapLayer` using an author-supplied `TileSet`'s built-in terrain-connect/peering-bit system, rather than picking tile indices itself.
+Automatic live-cell rebuilds pause while hidden and resume with a deferred rebuild when a previously
+built/attempted view is shown. Initial visibility does not override RefreshOnReady=false.
+Explicit Rebuild remains available regardless of visibility. TerrainWorldComponent updates inactive
+bounds and origin, so the next activation uses the current world's size. Invalid authored terrain
+assignments still report diagnostics when the view is actually built; they are not suppressed.
 
-This renderer deliberately does not compute transition tiles from a corner mask or from sampled pixel colors — its own doc comment explains that an earlier version tried deriving tile placement from an atlas's pixel content and only matched a known-correct mapping "on barely a third of tiles" for textured art. Instead it groups generated cells by which authored "terrain" (in the Godot TileSet-terrain sense) each maps to, and hands each whole group to `TileMapLayer.SetCellsTerrainConnect` in one call so Godot's own terrain-matching resolves the transitions across the run. It requires an isometric-shaped `TileSet` with peering bits painted on the transition tiles by a human in the TileSet editor.
+Current authored-isometric view for TerrainWorldComponent. This Node2D paints a
+native TileMapLayer using an authored TileSet. It is
+a renderer, not another world model or terrain generator.
 
-## Public API
+## Sources And Coordinates
 
-- `[Export] NodePath TerrainGeneratorPath` — path to the `TerrainGeneratorComponent` this renderer reads from.
-- `[Export] Vector2I BoundsSize` — the map size in cells this renderer paints, default `(48, 48)`; independent of the generator's own `BoundsSize` export (no cross-validation between the two is performed here).
-- `[Export] TileSet? Tiles` — the authored isometric TileSet with terrain peering bits; assigned directly onto the managed `TileMapLayer` on every `Rebuild()`.
-- `[Export] int TerrainSet` (0-8) — which terrain-set index within `Tiles` carries the terrains this renderer binds to.
-- `[Export] string[] TerrainBindings` — draw-order list of `"kind[,kind...]=terrainIndex"` entries (e.g. `"grass,dry_grass=0"`) mapping generator terrain-kind strings to a TileSet terrain index; kinds absent from every entry are simply never painted (by design — the doc comment calls a silent substitution a misdescription of the map).
-- `[Export] bool RefreshOnReady` — if true, `_Ready()` defers a `Rebuild()` call (skipped in the editor via `Engine.IsEditorHint()` check); turn off when an external controller generates the world first and calls `Rebuild()` itself.
-- `override void _Ready()` — conditionally schedules `Rebuild()`.
-- `override string[] _GetConfigurationWarnings()` — editor warnings for empty `TerrainGeneratorPath`, missing `Tiles`, or empty `TerrainBindings`.
-- `void Rebuild()` — resolves the generator, bails with a warning if the generator or `Tiles` is missing, otherwise clears and repaints the managed `TileMapLayer`: for each parsed binding it collects every cell in `BoundsSize` whose `TerrainKindAt` result is in that binding's kind set, then calls `SetCellsTerrainConnect` once per binding group. Also warns (without erroring) if cells were requested but the layer ends up with zero used cells — the documented "TileSet has no peering bits, nothing painted, no error" failure mode.
+- CellDataPath selects the authoritative GridCellDataComponent. Runtime live edits
+  schedule a coalesced rebuild; individual edits outside the bounds are ignored.
+- TerrainGeneratorPath provides a generated preview when CellDataPath is empty.
+  A configured but missing live source does not silently fall back to generation.
+- BoundsOrigin is the absolute starting cell; BoundsSize is the cell count.
+  Live reads and tile writes use absolute cells. Generated field samples remain
+  local to the recipe and are translated on output.
+- TerrainWorldComponent supplies source paths and bounds. Standalone scenes must
+  set them explicitly. Default bounds are origin (0, 0), size (48, 48).
+- Source paths resolve on Rebuild. Runtime cell subscriptions detach on source
+  replacement or tree exit.
 
-## Dependencies
+## Art And Initialization
 
-- Reads `TerrainGeneratorComponent.TerrainKindAt(Vector2I)` per cell, resolved via `TerrainGeneratorPath` (`ResolveGenerator()`), to decide what to paint.
-- Calls `TerrainAuthoring.EnsureLayer(this, "IsoTerrain")` to get/create its managed `TileMapLayer`, and `TerrainLayers.ZFor(TerrainLayers.Ground)` to set that layer's `ZIndex` — placing it at the shared cross-renderer Z stack's ground slot (documented as previously colliding with the "sea" slot at the Node2D default Z of 0).
-- Does not read `TerrainGenerationSettings`, `GeneratedTerrainField`, or any `Terrain*Stage` file directly — all generation data comes through the `TerrainGeneratorComponent` public API only.
+Tiles must be an isometric TileSet with the selected TerrainSet. TerrainBindings
+contains ordered entries such as `grass,dry_grass=0` and `water=1`. Unmapped
+terrain kinds are not substituted. Bindings are normalized and validated as one
+configuration before painting. Malformed entries, negative indices and one kind
+assigned to conflicting terrain indices invalidate the entire paint with a reason;
+they are not skipped while a misleading partial map is reported as valid.
+Repeated aliases pointing to the same index are allowed and grouped together.
 
-## Notes
+`UseTerrainConnections` defaults to true: every bound terrain needs assigned
+peering bits and Godot's `SetCellsTerrainConnect` chooses transitions. This check
+does not prove every combination exists; coverage is measured after painting.
 
-- `BoundsSize` here is a second, independently-set map-size export that duplicates `TerrainGeneratorComponent.BoundsSize` in purpose; nothing in this file validates the two agree, so a mismatch would silently paint only part of the generated map (if this renderer's `BoundsSize` is smaller) or query out-of-range cells (if larger) without any warning specific to that condition.
-- The "painted no tiles" warning in `Rebuild()` is a real, deliberately-added guard against a documented silent-failure mode (TileSet exists, terrain set is selected, but no peering bits are painted) — this is a good example of turning a previously-silent failure into a reported one, per the project's own exception/failure-reporting conventions, implemented here via `GD.PushWarning` rather than a return value, since this is a void editor/tool method with no caller expecting a result.
-- `RenderingQuadrantSize = 1` and the accompanying comment explicitly call out that this is the same fix `TerrainIsometricRendererComponent` (outside this batch) applies for the same reason (per-tile Y-sort correctness) — duplicated *reasoning*, not duplicated code; each renderer must set it on its own managed layer.
-- Malformed `TerrainBindings` entries are reported via `GD.PushWarning` and skipped rather than silently ignored, consistent with the project's "fail loud, not silent" convention.
+For complete terrain tiles without transition artwork, set it to false. Atlas
+tiles are selected by their authored `TileData.TerrainSet` and `Terrain` values.
+Multiple matching tiles vary deterministically by absolute cell coordinate.
+This mode calls native `SetCell`; it does not invent transition artwork or
+silently fall back when terrain-connect configuration is invalid.
+
+RefreshOnReady defers a runtime rebuild. Disable it when TerrainWorldComponent
+owns initialization. Invalid sources or art clear the old view rather than
+displaying stale terrain. The managed layer uses the shared ground Z slot,
+Y sorting and mip-aware filtering.
+
+The first explicit rebuild discovers an already-authored `IsoTerrain` child
+before validation, so a missing source cannot leave its old tiles on screen.
+Only that owned layer is cleared, not unrelated authored children.
+
+## Public Methods
+
+- Rebuild clears and validates the view, samples each source cell once, groups
+  it by the resolved terrain index, and makes one native terrain-connect call
+  per nonempty terrain group in first-binding order. It then measures coverage.
+- GetTerrainLayer returns the managed IsoTerrain layer for GridProjectionComponent.
+- CellPosition accepts an absolute cell and returns its renderer-local center
+  using the native layer transform.
+- GridExtent accepts dimensions and returns the logical tile extent starting at
+  BoundsOrigin, in renderer-local coordinates. It includes staggered perimeter
+  cells, but not sprite overhang. World adds BoundsOrigin to local generator start
+  cells before using CellPosition for camera targeting.
+- GetPaintDiagnostics returns a copy containing `valid`, `requested`,
+  `missing` and `unmapped`. Early validation failures also provide `reason`.
+  Valid requires both missing and unmapped counts to be zero.
+
+## Verification And Limits
+
+terrain_live_cells_probe covers shifted origins, source replacement, live edits,
+coverage diagnostics and invalid-art clearing using a complete synthetic TileSet.
+It also rejects conflicting/malformed bindings, verifies first-rebuild clearing
+of authored tiles, and checks detached-time and subsequent live edits after
+reattachment. Native matching does not paint outside the tested bounds or fill
+unbound cells in the complete fixture. That is a tested result, not a claimed
+fix for a reproduced out-of-bounds bug.
+terrain_view_grid_probe covers native layout geometry, shifted bounds and camera
+starts under transforms. World-source and lab-grid probes also pass.
+
+The lab now uses `textures/iso/lab_terrain_tileset.tres`: native 111x64 diamond
+tiles from the existing Kenney tops atlas, with explicit terrain assignments
+and bindings for all generated biomes, including water. It uses complete-tile
+mode, not terrain-connect mode. The old unassigned grass-only resource is no
+longer used by the lab. This is a flat isometric tile view; elevated blocks and
+isometric props remain in the separate Isometric view. Hard tile boundaries
+are expected here; smooth transition artwork has not been authored.
+
+`terrain_lab_styles_probe.gd` verifies all 1,024 cells are painted, no terrain
+is missing/unmapped, redraw is deterministic, and changing style preserves
+the live terrain revision. A coverage check is not an art-quality approval.

@@ -20,6 +20,20 @@ namespace Beep.ECS
         [Export] public NodePath ResourceNodesRootPath { get; set; } = new("");
         [Export] public bool AutoConnect { get; set; } = true;
         [Export] public bool UseToolActionForHarvest { get; set; } = true;
+        /// <summary>
+        /// Route a completed clear/till/water job through
+        /// GridToolActionComponent.ApplyToCell instead of mutating
+        /// GridCellDataComponent directly, so a job-completed effect is
+        /// gated by the same terrain-workability rule (CanWorkTerrain,
+        /// BlockedTerrainKinds, the Blocked/Tilled flag checks) the
+        /// click-driven tool path already enforces for the identical action.
+        /// A completed job could otherwise clear/till/water a cell the tool
+        /// path would have refused outright. Falls back to the direct
+        /// mutation, ungated, when no GridToolActionComponent is wired.
+        /// </summary>
+        [Export] public bool UseToolActionForClear { get; set; } = true;
+        [Export] public bool UseToolActionForTill { get; set; } = true;
+        [Export] public bool UseToolActionForWater { get; set; } = true;
         [Export] public bool ClearLandGathersResourceNode { get; set; } = true;
 
         private GridJobQueueComponent? _queue;
@@ -27,7 +41,6 @@ namespace Beep.ECS
         private GridCellDataComponent? _cells;
         private GridToolActionComponent? _tools;
         private bool _connected;
-        private string _resolvedJobQueuePath = "";
 
         public override void _Ready()
         {
@@ -98,6 +111,17 @@ namespace Beep.ECS
             if (_cells == null)
                 return Reject(jobId, kind, cell, "missing_cell_data");
 
+            bool requiresTools = normalized switch
+            {
+                "clear_land" or "clear" => UseToolActionForClear,
+                "till" or "hoe" or "prepare_soil" => UseToolActionForTill,
+                "water" => UseToolActionForWater,
+                "harvest" => UseToolActionForHarvest,
+                _ => false
+            };
+            if (requiresTools && !ToolActionPath.IsEmpty && _tools is null)
+                return Reject(jobId, kind, cell, "missing_tool_action");
+
             return normalized switch
             {
                 "clear_land" or "clear" => ApplyClear(jobId, kind, cell),
@@ -110,15 +134,29 @@ namespace Beep.ECS
 
         private void OnJobCompleted(string jobId, string workerId)
         {
+            var source = _connectedQueue;
+            ResolveReferences();
+            if (source is null || source != _queue)
+                return;
             ApplyJobEffect(jobId);
         }
 
         private bool ApplyClear(string jobId, string kind, Vector2I cell)
         {
+            if (UseToolActionForClear && _tools is not null && !_tools.CanClearCell(cell))
+                return Reject(jobId, kind, cell, "clear_rejected");
+
             if (ClearLandGathersResourceNode && FindResourceNodeAt(cell) is { } resource)
             {
                 if (!resource.GatherAllForJob(jobId))
                     return Reject(jobId, kind, cell, "clear_resource_rejected");
+            }
+
+            if (UseToolActionForClear && _tools != null)
+            {
+                return _tools.ApplyToCell(cell, GridToolActionComponent.ToolAction.Clear)
+                    ? Applied(jobId, kind, cell, "clear_land")
+                    : Reject(jobId, kind, cell, "clear_rejected");
             }
 
             _cells!.ClearLand(cell);
@@ -127,12 +165,26 @@ namespace Beep.ECS
 
         private bool ApplyTill(string jobId, string kind, Vector2I cell)
         {
+            if (UseToolActionForTill && _tools != null)
+            {
+                return _tools.ApplyToCell(cell, GridToolActionComponent.ToolAction.Hoe)
+                    ? Applied(jobId, kind, cell, "till")
+                    : Reject(jobId, kind, cell, "till_rejected");
+            }
+
             _cells!.Till(cell);
             return Applied(jobId, kind, cell, "till");
         }
 
         private bool ApplyWater(string jobId, string kind, Vector2I cell)
         {
+            if (UseToolActionForWater && _tools != null)
+            {
+                return _tools.ApplyToCell(cell, GridToolActionComponent.ToolAction.Water)
+                    ? Applied(jobId, kind, cell, "water")
+                    : Reject(jobId, kind, cell, "water_rejected");
+            }
+
             _cells!.Water(cell);
             return Applied(jobId, kind, cell, "water");
         }
@@ -179,27 +231,15 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            string requestedJobQueuePath = JobQueuePath.ToString();
-            bool explicitQueuePathChanged = !JobQueuePath.IsEmpty && requestedJobQueuePath != _resolvedJobQueuePath;
-            if (_queue == null || !GodotObject.IsInstanceValid(_queue) || explicitQueuePathChanged)
-            {
-                if (_connected)
-                    DisconnectQueue();
-                _queue = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-                _resolvedJobQueuePath = requestedJobQueuePath;
-            }
+            if (!JobQueuePath.IsEmpty) _queue = GetNodeOrNull<Node>(JobQueuePath) as GridJobQueueComponent;
+            else EntityComponent.Resolve(this, JobQueuePath, ref _queue);
+            if (_connected && _connectedQueue != _queue)
+                DisconnectQueue();
 
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_tools == null || !GodotObject.IsInstanceValid(_tools))
-                _tools = !ToolActionPath.IsEmpty
-                    ? GetNodeOrNull<GridToolActionComponent>(ToolActionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridToolActionComponent>(GetTree()?.CurrentScene) : null;
+            if (!CellDataPath.IsEmpty) _cells = GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+            else EntityComponent.Resolve(this, CellDataPath, ref _cells);
+            if (!ToolActionPath.IsEmpty) _tools = GetNodeOrNull<GridToolActionComponent>(ToolActionPath);
+            else EntityComponent.Resolve(this, ToolActionPath, ref _tools);
         }
 
         private GridResourceNodeComponent? FindResourceNodeAt(Vector2I cell)

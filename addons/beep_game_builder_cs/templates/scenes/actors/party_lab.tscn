@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_lab.tscn" id="base"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/actors/party_lab.gd" id="lab"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorDefinition.cs" id="definition"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_companion.tscn" id="companion"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainCollisionComponent.cs" id="collision"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="button"]
+
+[sub_resource type="Resource" id="companion_definition"]
+script = ExtResource("definition")
+Id = "worker"
+Scene = ExtResource("companion")
+Capabilities = 1
+Footprint = Vector2(20, 20)
+VisualSize = Vector2(40, 56)
+FeetAnchor = Vector2(0.5, 1)
+
+[node name="PartyLab" instance=ExtResource("base")]
+script = ExtResource("lab")
+
+[node name="World" parent="." index="0"]
+CollisionPath = NodePath("../TerrainCollision")
+
+[node name="Registry" parent="." index="7"]
+Definitions = Array[ExtResource("definition")]([SubResource("companion_definition")])
+
+[node name="Player" parent="." index="8"]
+ControlMode = 0
+FollowPartyOnPossession = true
+PartyFollowDistance = 80.0
+PossessionGroup = 0
+NextActorAction = "party_lab_next"
+PreviousActorAction = "party_lab_previous"
+
+[node name="TerrainCollision" type="Node2D" parent="."]
+script = ExtResource("collision")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+RefreshOnReady = false
+
+[node name="Controller" parent="Camera2D" index="0"]
+UseKeyboardPan = false
+
+[node name="Title" parent="HUD/Toolbar/Row" index="0"]
+text = "Companion Party"
+
+[node name="Spawn" parent="HUD/Toolbar/Row" index="1"]
+visible = false
+
+[node name="Select" parent="HUD/Toolbar/Row" index="2"]
+visible = false
+
+[node name="Work" parent="HUD/Toolbar/Row" index="3"]
+visible = false
+
+[node name="Stop" parent="HUD/Toolbar/Row" index="4"]
+visible = false
+
+[node name="Escort" parent="HUD/Toolbar/Row" index="5"]
+visible = false
+
+[node name="Save" parent="HUD/Toolbar/Row" index="6"]
+focus_mode = 0
+
+[node name="Load" parent="HUD/Toolbar/Row" index="7"]
+focus_mode = 0
+
+[node name="Fit" parent="HUD/Toolbar/Row" index="8"]
+focus_mode = 0
+
+[node name="Previous" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+focus_mode = 0
+text = "Previous"
+tooltip_text = "Control the previous party member (Q)"
+script = ExtResource("button")
+
+[node name="Next" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+focus_mode = 0
+text = "Next"
+tooltip_text = "Control the next party member (E)"
+script = ExtResource("button")
+
+[node name="Hold" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+focus_mode = 0
+text = "Hold companions"
+script = ExtResource("button")
+
+[node name="Regroup" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+focus_mode = 0
+text = "Regroup"
+script = ExtResource("button")

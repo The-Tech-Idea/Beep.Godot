@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Four separate grey granite canyon terrain sprites. Green backgrounds; artwork only, no engine configuration or guaranteed tile seams.",
+  "assets": [
+    {
+      "file": "grey_granite_narrow_ravine_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Create ONE narrow granite ravine terrain sprite. Reference is stone material and painterly front 2.5D camera guide, NOT shape to copy. Two elongated irregular craggy granite wall masses extend front-to-back, with a narrow continuous LOWER rocky corridor between them, open at near and far ends. Clearly visible interior side walls and corridor floor, front ends expose substantial rock height. Wall tops rugged not flat identical plateaus; unequal natural fractured rock faces without repeating columns. All terrain surfaces grey granite including floor. Camera elevated enough to see floor, front orthographic 2.5D not diamond isometric. Whole connected terrain footprint fully visible, sufficient margin on all sides. Upper-left lighting. Detailed natural hand-painted game artwork. OPAQUE SOLID vivid GREEN RGB 0,255,0 background. No ground beyond terrain, exterior shadow, grass, vegetation, water, bridges, stairs, ramps, markings, props, text or caves.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-fe0e4f6a-c2b2-4dfd-ac27-d9f874f8cd41.png"
+    },
+    {
+      "file": "grey_granite_wide_canyon_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "ONE wide grey-granite canyon terrain sprite in detailed painterly front elevated orthographic 2.5D style matching reference rock rendering. Two irregular elongated tall cliff masses on left and right border a BROAD LOW OPEN rocky canyon floor, its width at least equal to both side wall widths combined. Corridor extends front-to-back and exits both ends, not blocked by rear wall. Clearly show inner cliff faces dropping to floor, outer side rock faces flare naturally toward supporting base. Asymmetrical rugged crests, varied fractured stone, no repeated columns. Entire surfaces grey granite, no grass. Whole connected piece fully visible with green margin all around, landscape composition. Upper-left light. OPAQUE SOLID vivid GREEN RGB 0,255,0 background. No ground beyond terrain, shadows outside silhouette, water, ramps, stairs, paths, props, plants, text or cave opening.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-794af60e-5f24-4ba6-a9ff-e5854bf8ebbf.png"
+    },
+    {
+      "file": "grey_granite_curved_canyon_bend_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Create ONE CURVED CANYON BEND terrain sprite, grey granite. Reference for natural painterly stone style and elevated front orthographic 2.5D view only. A clear continuous low canyon floor ENTERS at bottom-center, curves smoothly 90 degrees and EXITS at right side. Two irregular rocky cliff banks follow BOTH sides of this L-shaped curved corridor. Outer bank curves around rear-left, shorter inner bank at front-right; leave entire bend readable from camera and do not obstruct exit. Rock walls have visible tall interior faces, outward-battered solid bases, varied fractured masses not repeated columns. Top, walls and floor all grey stone. Whole terrain fully in frame with green margins, landscape composition, upper-left light. OPAQUE SOLID vivid GREEN RGB 0,255,0 background outside terrain. No props, vegetation, ground beyond terrain, cast shadow outside silhouette, bridges, tunnels, water, ramps, stairs, road markings, text. Not circular arena or straight canyon.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-347cda64-b2c4-4d42-bc7c-b0ee8662dd9c.png"
+    },
+    {
+      "file": "grey_granite_dead_end_basin_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Create ONE dead-end granite canyon basin terrain sprite. A broad low open rocky bowl floor enclosed by continuous tall irregular cliff walls at REAR, LEFT and RIGHT, with ONE generous ground-level entrance at FRONT CENTER. Rear wall closes basin, no rear exit, no cave roof. Elevated front orthographic 2.5D camera shows open interior floor and inner cliff faces clearly; near side wall ends stay low enough not to occlude floor. Front outward rock faces and side walls flare naturally to solid supported bases. Asymmetric eroded grey granite masses, varied fractures, no repeating columns or decorative architecture. All surfaces same grey granite including floor and wall tops. Reference for painterly natural rock style and light only. Whole terrain fully visible with margin, landscape composition, upper-left light. OPAQUE SOLID vivid GREEN RGB 0,255,0 background, no ground outside boundary or exterior cast shadow. No plants, water, props, ramps, stairs, paths, text, bridges or tunnels.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-2f9ea199-c19e-4aa1-a158-4cd082a02f81.png"
+    }
+  ]
+}

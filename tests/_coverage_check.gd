@@ -21,7 +21,7 @@ func _run() -> void:
 
 	for v in VIEWS:
 		world.set("Projection", v)
-		world.call("Build")
+		world.call("NewWorld")
 		for i in range(25): await process_frame
 
 		var size: Vector2i = world.get("BuiltSize")

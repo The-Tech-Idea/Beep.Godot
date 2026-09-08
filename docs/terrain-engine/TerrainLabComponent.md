@@ -2,23 +2,39 @@
 
 Pipeline position: **game-facing component (editor/demo UI)** — a pure UI binder that drives a `TerrainWorldComponent` from panel controls; it sits above the generation/rendering pipeline and owns none of it.
 
-`TerrainLabComponent` is a `Node` (`[Tool]`, `[GlobalClass]`) that connects a set of `OptionButton`/`SpinBox`/`Button`/`Label` controls to a `TerrainWorldComponent`'s exported map-setup axes (map type, size, world age, temperature, rainfall, sea level, resource level/set, seed, projection) and to a preview `Node2D` that the world's renderers live under. On any control change it copies the selection onto the world, calls `world.Build()`, and updates a status label. It knows nothing about generation or rendering internals — that split is deliberate and stated in the class comment. The file is split by concern: this file resolves/populates controls and handles generate/status; `TerrainLabComponent.Navigation.cs` (a partial class) handles pan/zoom/fit-to-view of the preview.
+`TerrainLabComponent` connects authored setup controls to `TerrainWorldComponent` and moves the preview node containing its renderers. Setup changes generate a new world; projection changes only redraw it. The main partial binds controls and status, while `TerrainLabComponent.Navigation.cs` handles viewport navigation. Generation and terrain rules remain in the world/engine components.
 
 ## Public API
+
+- The first design-time selector now offers **Original, Game tiles, Isometric,
+  Isometric tiles, Pixel Art, Cartoon**. There is no separate disabled art selector.
+  Pixel Art and Cartoon select the painted renderer and their respective
+  `PixelArtProfile` / `CartoonProfile` resources. Original clears the override.
+  Entries 4 and 5 are presentation choices, not additional `TerrainProjection` values.
+  All six choices redraw the same live grid; none regenerate it.
+
+- `ZoomPreviewAt(screenPosition, factor)` keeps the preview-local point under a viewport position
+  fixed using `GetGlobalTransformWithCanvas`. Nonfinite/nonpositive factors are ignored.
+- `PanPreviewBy(screenDelta)` converts viewport-pixel displacement into the preview parent's space,
+  so rotated/scaled parents do not distort the drag distance.
+- Fit uses transformed screen bounds. World-built events refit changed extents; regenerating the
+  same extent preserves the user's view. Projection selection calls `Redraw`, not `NewWorld`, so
+  changing view does not regenerate live cell state. Setup-axis changes call `NewWorld`.
 
 - `[Export] NodePath WorldPath` — the `TerrainWorldComponent` this panel drives.
 - `[Export] NodePath PreviewPath` — the `Node2D` holding the renderers, panned/zoomed as one unit by the Navigation partial.
 - `[Export] NodePath MapTypePath/MapSizePath/WorldAgePath/TemperaturePath/RainfallPath/SeaLevelPath/ResourceLevelPath/ResourceSetPath/SeedPath/ViewPath` — paths to the setup `OptionButton`s/`SpinBox` bound to the matching `TerrainWorldComponent` properties.
 - `[Export] NodePath GenerateButtonPath/RandomSeedButtonPath/ResetViewButtonPath/StatusPath` — action buttons and the status `Label`.
-- `[Export] float MinimumZoom = 0.04f`, `[Export] float MaximumZoom = 3.0f`, `[Export] float ZoomStep = 1.15f` — preview navigation limits, consumed by the Navigation partial's `ZoomAt`/`ResetPreviewView`.
-- `void Generate()` — copies every bound control's current selection onto the corresponding `TerrainWorldComponent` property (falling back to the world's existing value if a control is unbound), calls `world.Build()`, sets the status label to `world.StatusLine()`, and calls `ResetPreviewView()` only on the very first build (detected via `_preview.Scale == Vector2.One`).
-- `override void _Ready()` — no-ops in the editor; otherwise resolves nodes, populates chooser options, wires `GetViewport().SizeChanged` to `ResetPreviewView`, wires the Generate/RandomSeed/ResetView buttons and every setup `OptionButton`'s `ItemSelected` to `Generate()` (the view chooser additionally calls `ResetPreviewView()`, since projections have different footprints/origins), then calls `Generate()` deferred.
+- `MinimumZoom = 0.04f`, `MaximumZoom = 3.0f`, `ZoomStep = 1.15f`: preview navigation limits.
+- `Generate()` copies bound setup controls to the world, preserving current values for unbound controls, then calls `NewWorld()`. World-built signals refresh status and extent-dependent framing.
+- `_Ready()` resolves authored controls, populates choices, connects actions and viewport resize. An already-built world is displayed directly; a world with automatic startup disabled is generated deferred. Editor instances do not run this workflow.
 - `override string[] _GetConfigurationWarnings()` — editor warning when `WorldPath` or `PreviewPath` is unset.
 
 ## Dependencies
 
-- Reads/writes `TerrainWorldComponent.MapType`, `.MapSize`, `.WorldAge`, `.Temperature`, `.Rainfall`, `.SeaLevel`, `.ResourceLevel`, `.Resources`, `.Projection`, `.Seed`; calls `.Build()` and `.StatusLine()`.
-- Populates its choosers from `TerrainShapePresets.DisplayNames()` and `TerrainMapSetup.MapSizeNames/WorldAgeNames/TemperatureNames/RainfallNames/SeaLevelNames/ResourceLevelNames/ResourceSetNames/ProjectionNames`, and casts selections back to `TerrainShape`, `TerrainMapSize`, `TerrainWorldAge`, `TerrainTemperature`, `TerrainRainfall`, `TerrainSeaLevel`, `TerrainResourceLevel`, `ResourceSet`, `TerrainProjection` (all defined alongside `TerrainWorldComponent`/`TerrainMapSetup`).
+- Reads/writes the world's setup axes and seed; calls `NewWorld()`, `Redraw()`, `PreviewExtent()` and `StatusLine()`.
+- Setup choices use `TerrainShapePresets` and `TerrainMapSetup` names and enums.
+  The combined view/style menu is mapped explicitly by `ApplyView`.
 - The `.Navigation.cs` partial (same class) reads `_world.PreviewExtent()` (defined in `TerrainWorldComponent.Drawing.cs`) to frame the preview, and manipulates the `_preview` `Node2D` this file resolves.
 
 ## Notes

@@ -19,6 +19,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitSpinner : KitControl
     {
+        /// <summary>A progress indicator, which is exactly what Bar covers.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+
         public enum SpinnerKind { Ring, Dots, Bar }
 
         [Export] public SpinnerKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; UpdateProcessing(); RefreshMinimumAndRedraw(); } }
@@ -87,18 +93,6 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (what == NotificationVisibilityChanged)
                 UpdateProcessing();
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private void UpdateProcessing()

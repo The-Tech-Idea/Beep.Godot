@@ -20,7 +20,7 @@ namespace Beep.ECS.Scenes
             // so a player with a save silently started over. Hidden when nothing is saved.
             // GetNodeOrNull (not the throwing GetNode) so a missing node warns instead of killing
             // every button wired after it. It also carries visibility, so it can't use ConnectPressed.
-            // Find<Control>, not Find<Button>: a KitButton is a KitControl, NOT a Godot Button,
+            // Find<Control>, not Find<Button>: a KitPushButton is a KitControl, NOT a Godot Button,
             // so this typed lookup silently returned null the moment the menu migrated onto the
             // kit — the scene kept its layout and quietly lost its wiring. The signal goes
             // through ConnectButton, which knows both kinds; visibility is set here, which is
@@ -60,7 +60,14 @@ namespace Beep.ECS.Scenes
         private void OnNewGamePressed()
         {
             string? entry = GameBuilder.GameInfo.Instance?.NewGameScenePath;
-            ChangeScene(!string.IsNullOrEmpty(entry) ? entry : GameApp.Instance?.GameScenePath);
+            string? target = !string.IsNullOrEmpty(entry) ? entry : GameApp.Instance?.GameScenePath;
+            if (string.IsNullOrEmpty(target) || !ResourceLoader.Exists(target))
+            {
+                ChangeScene(target);
+                return;
+            }
+            GameApp.Instance?.StartNewSession();
+            ChangeScene(target);
         }
 
         private void OnSaveGamePressed() => _saveLoadManager?.ShowSaveMenu();
@@ -74,7 +81,7 @@ namespace Beep.ECS.Scenes
         /// no game scene is loaded.</summary>
         private static int? NewestSlot()
         {
-            var manager = GameStateManagerComponent.Instance;
+            var manager = GameApp.Instance?.Saves;
             if (manager == null) return null;
 
             int? best = null;
@@ -90,7 +97,13 @@ namespace Beep.ECS.Scenes
 
         private void OnContinuePressed()
         {
-            var manager = GameStateManagerComponent.Instance;
+            string? target = GameApp.Instance?.GameScenePath;
+            if (string.IsNullOrEmpty(target) || !ResourceLoader.Exists(target))
+            {
+                ChangeScene(target);
+                return;
+            }
+            var manager = GameApp.Instance?.Saves;
             int? slot = NewestSlot();
             if (manager == null || slot == null)
             {

@@ -36,39 +36,14 @@ namespace Beep.ECS
         /// </summary>
         private static readonly MoistureBands Bands = new(0.20f, 0.38f, 0.78f);
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
-            // Distance to the OPEN SEA, in samples. A beach belongs to the
-            // ocean; a lake shore is a different thing with its own width.
-            var ocean = new bool[world.Count];
-            for (int index = 0; index < world.Count; index++)
-                ocean[index] = world.Water[index] == WaterBody.Ocean;
+            // Ocean sand is assigned after topology cleanup from an inward
+            // distance contour. Keep the underlying biome intact through reduction.
 
-            int[] fromOcean = TerrainGeometry.DistanceTo(ocean, world.Width, world.Height);
+            // Both shore types are applied after reduction, retaining this
+            // underlying biome for continuous distance-based rendering.
 
-            // BeachWidth is in TILES, so it has to be converted to the sample
-            // grid the field is measured on. Before this the beach was whatever
-            // touched the sea - ONE SAMPLE - which is an eighth of a tile, and
-            // never survived the majority reduction to tiles. The map had a
-            // beach setting, a beach rule, and no beaches.
-            int beachSamples = Mathf.RoundToInt(
-                Mathf.Max(0.0f, settings.BeachWidth) * world.SamplesPerCell);
-
-            // A lake gets its own shore, measured the same way but from the lake
-            // rather than the sea. Sharing the ocean's field would put a beach
-            // round every pond at whatever width the coast uses, and the two are
-            // not the same thing: a sea beach is surf-built and wide, a lake
-            // shore is a thin rim.
-            var lakes = new bool[world.Count];
-            for (int index = 0; index < world.Count; index++)
-                lakes[index] = world.Water[index] == WaterBody.Lake;
-
-            int[] fromLake = TerrainGeometry.DistanceTo(lakes, world.Width, world.Height);
-            int lakeShoreSamples = Mathf.RoundToInt(
-                Mathf.Max(0.0f, settings.LakeShoreWidth) * world.SamplesPerCell);
-
-            // After the beach field, because the quota counts only the cells the
-            // rainfall table decides - and a beach is decided before it.
             MoistureBands bands = Bands;
 
             for (int y = 0; y < world.Height; y++)
@@ -77,7 +52,7 @@ namespace Beep.ECS
                 {
                     int index = world.Index(x, y);
                     world.Terrain[index] = world.Land[index]
-                        ? LandKind(world, settings, bands, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y)
+                        ? LandKind(world, settings, bands, index)
                         : WaterKind(world, x, y);
                 }
             }
@@ -88,7 +63,7 @@ namespace Beep.ECS
         /// shallow fresh water; open sea is deep only clear of the shelf, so
         /// the painter gets a real continental shelf instead of one flat blue.
         /// </summary>
-        private static string WaterKind(TerrainWorld world, int x, int y)
+        private static string WaterKind(TerrainGenerationBuffer world, int x, int y)
         {
             WaterBody body = world.Water[world.Index(x, y)];
 
@@ -101,11 +76,10 @@ namespace Beep.ECS
         }
 
         private static string LandKind(
-            TerrainWorld world, TerrainGenerationSettings settings, MoistureBands bands,
-            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples,
-            int index, int x, int y)
+            TerrainGenerationBuffer world, TerrainGenerationSettings settings, MoistureBands bands,
+            int index)
         {
-            string? early = EarlyKind(world, settings, fromOcean, beachSamples, fromLake, lakeShoreSamples, index, x, y);
+            string? early = EarlyKind(world, settings, index);
             if (early is not null)
                 return early;
 
@@ -121,55 +95,25 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Everything decided BEFORE rainfall: a themed preset, the beach, the
-        /// peaks, and cold that nothing grows through. Null where the cell falls
-        /// through to the rainfall table.
-        ///
-        /// It is one method, and both the classifier and the quota call it. A
-        /// quota counted over all land instead would be a fraction of a
-        /// population the table never sees - ask for 30% dry grassland, get 24%,
-        /// with nothing to say where the rest went.
+        /// Preset, shore and temperature decisions before rainfall classification.
+        /// Null lets the cell fall through to the moisture table.
         /// </summary>
         private static string? EarlyKind(
-            TerrainWorld world, TerrainGenerationSettings settings,
-            int[] fromOcean, int beachSamples, int[] fromLake, int lakeShoreSamples,
-            int index, int x, int y)
+            TerrainGenerationBuffer world, TerrainGenerationSettings settings,
+            int index)
         {
             // An explicitly themed preset overrides climate entirely, so the
             // preset dropdown still means what it says.
-            string? themed = ThemedKind(world, settings, index);
+            string? themed = ThemedKind(settings.Preset, world.Elevation[index]);
             if (themed is not null)
                 return themed;
 
-            // A beach of the requested width wherever flat land meets the sea.
-            if (beachSamples > 0
-                && world.Relief[index] == TerrainRelief.Flat
-                && fromOcean[index] <= beachSamples)
-            {
-                return "sand";
-            }
-
-            // The lake's own rim.
-            if (lakeShoreSamples > 0
-                && world.Relief[index] == TerrainRelief.Flat
-                && fromLake[index] <= lakeShoreSamples)
-            {
-                return "sand";
-            }
-
             float temperature = world.Temperature[index];
 
-            // Mountains are their own terrain, as in Civilization, and take a
-            // snow cap where it is cold enough for one to persist.
-            if (world.Relief[index] == TerrainRelief.Mountains)
-                return settings.UseClimateBiomeMaps && temperature < 0.42f ? "snow" : "rock";
-
-            // A game that does not want climate biomes gets plain terrain from
-            // its preset instead: one ground type, a shore, and rock on the
-            // heights. Turning the climate model off must not leave the map
-            // half-classified.
+            // Relief is independent of ground cover. Hills and mountains keep
+            // their biome; the relief/object renderer supplies exposed rocks.
             if (!settings.UseClimateBiomeMaps)
-                return world.Relief[index] == TerrainRelief.Hills ? "gravel" : PlainGround(settings.Preset);
+                return PlainGround(settings.Preset);
 
             // Cold dominates: nothing grows regardless of rainfall.
             if (temperature < 0.16f)
@@ -202,10 +146,9 @@ namespace Beep.ECS
         /// Preset-driven terrain for the themed presets. Returns null for the
         /// climate-driven presets so the biome table decides.
         /// </summary>
-        private static string? ThemedKind(TerrainWorld world, TerrainGenerationSettings settings, int index)
+        internal static string? ThemedKind(TerrainPreset preset, float elevation)
         {
-            float elevation = world.Elevation[index];
-            return settings.Preset switch
+            return preset switch
             {
                 TerrainPreset.Desert => elevation >= 0.72f ? "rock" : "desert",
                 TerrainPreset.Sand => elevation >= 0.78f ? "rock" : "sand",
@@ -218,7 +161,7 @@ namespace Beep.ECS
             };
         }
 
-        private static bool TouchesLand(TerrainWorld world, int x, int y)
+        private static bool TouchesLand(TerrainGenerationBuffer world, int x, int y)
         {
             foreach (int neighbour in TerrainGeometry.Neighbours(x, y, world.Width, world.Height))
             {

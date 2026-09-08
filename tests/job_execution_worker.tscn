@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs" id="follower"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorkerComponent.cs" id="worker"]
+
+[node name="WorkerBody" type="Node2D"]
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+
+[node name="Follower" type="Node" parent="."]
+script = ExtResource("follower")
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+DriveCharacterBody = false
+AutoAdvancePath = false
+Speed = 160.0
+SetZIndexFromY = false
+
+[node name="Worker" type="Node" parent="."]
+script = ExtResource("worker")
+JobQueuePath = NodePath("../../../Jobs")
+GridPath = NodePath("../../../Grid")
+PathFollowerPath = NodePath("../Follower")
+ExecutionPath = NodePath("../../../Executor")
+AutoClaimJobs = false

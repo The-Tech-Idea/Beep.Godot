@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate terrain artwork on green backgrounds. No props or built-in ramps. No collision or navigation configured.",
+  "assets": [
+    {
+      "file": "grassy_foothill_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "Create ONE broad low grassy foothill terrain sprite for front-style elevated orthographic 2.5D game. Reference only for painterly detail and camera, NOT its vertical cliff shape. A natural wide softly rounded mound with broad gently domed crown and continuous shallow grassy slopes descending on front, left and right to a clean perimeter. No vertical plateau walls, no terraces. Muted meadow-green short grass texture covers entire mound, subtle natural tonal variation and fine blades but NO individual tufts, flowers, bushes or trees. Hillside shape defined clearly by upper-left lighting, front and right slopes darker. Detailed hand-painted natural terrain, not low-poly or photorealistic. Single coherent landform, landscape 3:2 composition fully visible with generous margin. OPAQUE SOLID bright chroma GREEN RGB 0,255,0 background sharply distinct from muted grass. No ground plane outside hill, no halo, cast shadow, ramps, paths, stairs, water, props, text or checkerboard.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-86ee0de0-18c5-4e0b-bdaf-d723bd15bdf9.png"
+    },
+    {
+      "file": "rocky_ridge_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "Create ONE natural low elongated grey granite mountain RIDGE terrain sprite, extending horizontally with uneven crest of three unequal weathered high points joined by saddles. Same detailed painterly stone style as reference but NOT a flat plateau. All surfaces including crest are grey granite. Irregular broad fractured rock masses and inclined rock faces, no repeating columns, no stacked identical blocks. Front-facing elevated orthographic 2.5D camera, visible top planes and outward sloping left/right faces, upper-left lighting. Ridge has solid continuous supported foundation, low foothill scale, much wider than tall. Whole landform fully visible with generous green margins on landscape 3:2 canvas. OPAQUE uniform vivid GREEN RGB 0,255,0 backdrop. No floor plane beyond landform, ground shadows, plants, snow, water, props, caves, paths, ramps, stairs or text. Natural hand-painted game art, not low-poly.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-8180e413-289e-4b0d-8a29-5ef98b95105a.png"
+    },
+    {
+      "file": "shallow_grassy_valley_01_green.png",
+      "reference": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-86ee0de0-18c5-4e0b-bdaf-d723bd15bdf9.png",
+      "prompt": "Create ONE shallow grassy VALLEY terrain sprite. Use reference for grass material, painterly quality, upper-left light and elevated front orthographic 2.5D view. Change landform to two unequal low rounded grassy hills, one left and one right, joined by a BROAD LOW grassy valley floor open toward viewer and rear. The center is distinctly concave, not a third hill; gentle continuous slopes into valley, all parts connected within one clean terrain perimeter. Muted meadow-green short grass covers everything. No cliffs, paths, ramps, stairs, water, trees, flowers, props, ground tufts, dirt rim or ground outside perimeter. Entire piece fully visible with generous margin, landscape 3:2. OPAQUE SOLID vivid GREEN RGB 0,255,0 background clearly distinct from grass. No exterior shadows or halo. Detailed natural painterly art, not low-poly.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-467d9911-d0c7-48b7-875d-1f3d79b87591.png"
+    },
+    {
+      "file": "low_mountain_pass_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "Create ONE LOW MOUNTAIN PASS terrain sprite in grey granite matching reference painterly rock material. Two unequal low craggy rocky shoulders left and right framing a wide open shallow central saddle corridor running front-to-back. Entire piece including the central low rocky floor is one coherent supported landform, grey granite everywhere. Central corridor stays low with no ramp, stairs, path markings or elevated bridge. Visible front cliff faces and outward-facing LEFT and RIGHT exterior rock walls flare toward their bases, no inward pinching or floating overhangs. Broad natural fractured rock masses, irregular crests, varied stone sizes, not repeated vertical columns. Elevated front orthographic 2.5D camera, visible tops, no diamond isometric rotation. Upper-left light, detailed natural painterly fantasy art, NOT low-poly. Entire terrain fully in frame with generous margins, landscape 3:2. OPAQUE solid vivid GREEN RGB 0,255,0 background. No ground outside landform, external shadow, vegetation, snow, water, cave arch, props, text.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-03952e94-fbc6-4db9-82ce-8e20b3d1c8af.png"
+    }
+  ]
+}

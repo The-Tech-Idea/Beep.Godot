@@ -188,15 +188,7 @@ namespace Beep.ECS
         }
 
         private void ResolveReferences()
-        {
-            if (_spawner != null && GodotObject.IsInstanceValid(_spawner))
-                return;
-
-            if (!SpawnerPath.IsEmpty)
-                _spawner = GetNodeOrNull<GridWorkerSpawnerComponent>(SpawnerPath);
-            else if (IsInsideTree())
-                _spawner = EntityComponent.FindComponent<GridWorkerSpawnerComponent>(GetTree()?.CurrentScene);
-        }
+            => EntityComponent.Resolve(this, SpawnerPath, ref _spawner);
 
         private bool BindExistingControls()
         {

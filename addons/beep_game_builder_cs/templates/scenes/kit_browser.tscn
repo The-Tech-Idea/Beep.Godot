@@ -72,6 +72,18 @@ custom_minimum_size = Vector2(180, 44)
 layout_mode = 2
 script = ExtResource("5_option")
 
+[node name="MaterialCaption" type="Label" parent="Margin/Root/Header"]
+layout_mode = 2
+theme_type_variation = &"BeepCaption"
+text = "Material:"
+vertical_alignment = 1
+script = ExtResource("4_label")
+
+[node name="MaterialPicker" type="OptionButton" parent="Margin/Root/Header"]
+custom_minimum_size = Vector2(200, 44)
+layout_mode = 2
+script = ExtResource("5_option")
+
 [node name="BuildStampLabel" type="Label" parent="Margin/Root/Header"]
 layout_mode = 2
 theme_type_variation = &"BeepCaption"

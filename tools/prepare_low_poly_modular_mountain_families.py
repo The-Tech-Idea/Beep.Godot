@@ -28,6 +28,9 @@ FAMILIES = [
     },
 ]
 
+STYLE_ID = "mountain_prefab_1"
+STYLE_LABEL = "Mountain Prefab 1"
+
 PLATE_BOXES = {
     "plate_base": (0, 20, 1024, 625),
     "plate_middle": (40, 590, 984, 1080),
@@ -45,6 +48,7 @@ RAMP_BOXES = {
 }
 
 SMALL_RAMP_WIDTH_RATIO = 0.31
+RAMP_RUN_SCALE = 0.72
 
 
 def fit_width(image: Image.Image, width: int) -> Image.Image:
@@ -55,6 +59,14 @@ def fit_width(image: Image.Image, width: int) -> Image.Image:
 def fit_height(image: Image.Image, height: int) -> Image.Image:
     width = round(image.width * height / image.height)
     return image.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def shorten_ramp_run(image: Image.Image, direction: str) -> Image.Image:
+    if direction == "front":
+        size = (image.width, max(1, round(image.height * RAMP_RUN_SCALE)))
+    else:
+        size = (max(1, round(image.width * RAMP_RUN_SCALE)), image.height)
+    return image.resize(size, Image.Resampling.LANCZOS)
 
 
 def pack_sheet(assets: list[tuple[str, Image.Image]], path: Path, columns: int) -> dict[str, dict[str, int]]:
@@ -221,6 +233,8 @@ def ramp_module(ramp_id: str, direction: str, path: Path, image: Image.Image) ->
             "y": 0.12 if direction != "front" else 0.08,
         },
         "display_scale": 1.0,
+        "run_scale": RAMP_RUN_SCALE,
+        "level_rise": 1.0,
         "walkable": True,
         "climbable": True,
     }
@@ -243,10 +257,13 @@ def build_family(family: dict[str, str]) -> dict[str, str]:
         for asset_id, box in RAMP_BOXES.items()
     }
     small_ramp_length = round(plates["plate_top"].width * SMALL_RAMP_WIDTH_RATIO)
-    ramp_left = fit_width(authored_ramps["upper_left"], small_ramp_length)
+    authored_left = authored_ramps["upper_left"]
+    if family_id == "alpine_snow":
+        authored_left = ImageOps.mirror(authored_left)
+    ramp_left = shorten_ramp_run(fit_width(authored_left, small_ramp_length), "left")
     ramps = {
         "ramp_left": ramp_left,
-        "ramp_front": fit_height(authored_ramps["entry_front"], small_ramp_length),
+        "ramp_front": shorten_ramp_run(fit_height(authored_ramps["entry_front"], small_ramp_length), "front"),
         "ramp_right": ImageOps.mirror(ramp_left),
     }
     for obsolete_id in RAMP_BOXES:
@@ -326,6 +343,8 @@ def build_family(family: dict[str, str]) -> dict[str, str]:
     manifest = {
         "schema_version": 2,
         "pack_id": f"modular_front_2_5d_{family_id}",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
         "theme_id": family_id,
         "theme_label": family["label"],
         "projection": "front_2_5d",
@@ -333,6 +352,8 @@ def build_family(family: dict[str, str]) -> dict[str, str]:
         "base_prefabs": [
             {
                 "id": "three_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - {family['label']}",
+                "style_id": STYLE_ID,
                 "file": relative(stack_path),
                 "preview": relative(stack_preview_path),
                 "level_count": 3,
@@ -343,6 +364,8 @@ def build_family(family: dict[str, str]) -> dict[str, str]:
             },
             {
                 "id": "one_level_wide_no_ramps",
+                "display_name": f"{STYLE_LABEL} - {family['label']} (One Level)",
+                "style_id": STYLE_ID,
                 "file": relative(output / "plate_base.png"),
                 "preview": relative(output / "plate_base.png"),
                 "level_count": 1,
@@ -386,6 +409,9 @@ def build_family(family: dict[str, str]) -> dict[str, str]:
     return {
         "id": family_id,
         "label": family["label"],
+        "display_name": f"{STYLE_LABEL} - {family['label']}",
+        "style_id": STYLE_ID,
+        "style_label": STYLE_LABEL,
         "manifest": relative(manifest_path),
         "three_level_preview": relative(stack_preview_path),
         "assembled_ramp_preview": relative(assembled_ramp_preview_path),

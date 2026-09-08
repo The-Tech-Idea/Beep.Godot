@@ -98,13 +98,54 @@ namespace Beep.ECS
         {
             Vector2I extent = new(Mathf.Max(1, size.X), Mathf.Max(1, size.Y));
 
-            layer.Clear();
-            layer.RenderingQuadrantSize = Mathf.Max(extent.X, extent.Y) + 1;
+            int quadrantSize = Mathf.Max(extent.X, extent.Y) + 1;
+            if (layer.RenderingQuadrantSize != quadrantSize)
+                layer.RenderingQuadrantSize = quadrantSize;
+
+            var streaming = layer.GetNodeOrNull<TerrainSurfaceStreamingComponent>("SurfaceStreaming");
+            // Keep the existing shader coordinate origin. Streaming changes which
+            // quads exist, not the material field or the terrain generation recipe.
+            if (!Engine.IsEditorHint() && (long)extent.X * extent.Y > 65536)
+            {
+                if (streaming is null)
+                {
+                    streaming = new TerrainSurfaceStreamingComponent { Name = "SurfaceStreaming" };
+                    layer.AddChild(streaming);
+                }
+                streaming.EnsureConfigured(extent);
+                return;
+            }
+            if (streaming is not null)
+            {
+                layer.RemoveChild(streaming);
+                streaming.QueueFree();
+            }
+
+            // Keep valid geometry intact during shader-data refreshes. Read the
+            // actual cells so authored holes and edits are repaired as well.
+            var bounds = new Rect2I(Vector2I.Zero, extent);
+            if (layer.GetUsedRect() == bounds)
+            {
+                // One native filter replaces three managed/native calls per cell.
+                // Matching area AND bounds proves every position has the right tile.
+                var matching = layer.GetUsedCellsById(0, Vector2I.Zero, 0);
+                if (matching.Count == checked(extent.X * extent.Y)) return;
+            }
+
+            var used = layer.GetUsedCells();
+            foreach (Vector2I cell in used)
+                if (!bounds.HasPoint(cell)) layer.EraseCell(cell);
 
             for (int y = 0; y < extent.Y; y++)
             {
                 for (int x = 0; x < extent.X; x++)
-                    layer.SetCell(new Vector2I(x, y), 0, Vector2I.Zero);
+                {
+                    var cell = new Vector2I(x, y);
+                    if (layer.GetCellSourceId(cell) != 0
+                        || layer.GetCellAtlasCoords(cell) != Vector2I.Zero
+                        || layer.GetCellAlternativeTile(cell) != 0)
+                        layer.SetCell(cell, 0, Vector2I.Zero);
+                }
             }
         }
     }

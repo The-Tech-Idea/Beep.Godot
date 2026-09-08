@@ -23,7 +23,7 @@ namespace Beep.GameBuilder
     /// KitPushButton / KitPanelContainer to existing nodes and never retypes or reparents one.
     /// Both derive from the Godot control they replace, so `text`, `Pressed +=`, Find&lt;Button&gt;
     /// and every other typed lookup keep working — that property is the only reason a bulk
-    /// conversion is safe, and it is why nothing here offers a "replace with KitButton" mode.
+    /// conversion is safe, and it is why nothing here offers a "replace with KitPushButton" mode.
     /// </summary>
     public static partial class BeepMcpKitCommands
     {
@@ -198,7 +198,7 @@ namespace Beep.GameBuilder
         {
             ("KitPushButton", "Button with kit chrome; drop-in", "Button"),
             ("KitPanelContainer", "PanelContainer with kit chrome; drop-in", "PanelContainer"),
-            ("KitButton", "Button with overhanging attachments (badges)", "-"),
+            ("KitPushButton", "Button with overhanging attachments (badges)", "-"),
             ("KitPanel", "frame + recessed well + overhanging banner", "-"),
             ("KitLabelValue", "welded label/value pair, opposite polarity", "-"),
             ("KitMeter", "segmented bar; track in the fill's own hue", "ProgressBar"),

@@ -19,10 +19,40 @@
 uniform sampler2D coast_map : filter_linear, repeat_disable;
 uniform float coast_range = 5.0;
 uniform vec2 map_size = vec2(96.0, 60.0);
+// Absolute grid coordinate of the local data texture's first cell.
+uniform vec2 map_origin = vec2(0.0);
 
 // How many tiles one repeat of a material texture covers. Larger means the
 // texture detail is bigger relative to a tile.
-uniform float texture_tiles = 6.0;
+uniform float ground_texture_tiles = 12.0;
+uniform float water_texture_tiles = 6.0;
+// Zero inherits ground scale. Beach and submerged sand must use the same repeat.
+uniform float sand_texture_tiles = 0.0;
+uniform float ground_seam_blend : hint_range(0.0, 0.125) = 0.0;
+
+vec3 sample_ground(sampler2D albedo, vec2 uv, vec2 dx, vec2 dy) {
+	vec3 colour = textureGrad(albedo, uv, dx, dy).rgb;
+	if (ground_seam_blend <= 0.0) { return colour; }
+	vec2 p = fract(uv);
+	vec2 weight = 0.5 * (vec2(1.0) - smoothstep(vec2(0.0), vec2(ground_seam_blend), min(p, vec2(1.0) - p)));
+	// Mirrored counterpart samples make either side of a repeat converge to
+	// the same colour. Interiors keep the original sample; alpha is untouched.
+	if (weight.x > 0.0) {
+		colour = mix(colour, textureGrad(albedo, vec2(1.0 - p.x, p.y), dx * vec2(-1.0, 1.0), dy * vec2(-1.0, 1.0)).rgb, weight.x);
+	}
+	if (weight.y > 0.0) {
+		vec3 opposite = textureGrad(albedo, vec2(p.x, 1.0 - p.y), dx * vec2(1.0, -1.0), dy * vec2(1.0, -1.0)).rgb;
+		if (weight.x > 0.0) {
+			opposite = mix(opposite, textureGrad(albedo, vec2(1.0) - p, -dx, -dy).rgb, weight.x);
+		}
+		colour = mix(colour, opposite, weight.y);
+	}
+	return colour;
+}
+
+float sand_repeat_tiles() {
+	return sand_texture_tiles > 0.0 ? max(0.25, sand_texture_tiles) : max(1.0, ground_texture_tiles);
+}
 
 uniform sampler2D tex_sand : repeat_enable, filter_linear_mipmap;
 uniform sampler2D tex_shallow : repeat_enable, filter_linear_mipmap;
@@ -135,6 +165,8 @@ struct SeaState {
 // outward otherwise.
 SeaState sea_state(vec2 tile, vec2 uv, float in_map, float t) {
 	SeaState sea;
+	// Field UVs stay crop-local; textures, noise and wave phase belong to the grid.
+	tile += map_origin;
 
 	// The shore frame, from the gradient of the distance field: which way is
 	// out to sea, and which way the coast runs. Everything that MOVES on the
@@ -164,7 +196,7 @@ SeaState sea_state(vec2 tile, vec2 uv, float in_map, float t) {
 	// these coordinates by a shore-relative vector was a mistake - that
 	// direction converges from every side inside a lake, and a per-pixel
 	// varying translation SHEARS the texture into marbled smears.
-	vec2 world_uv = tile / texture_tiles;
+	vec2 world_uv = tile / water_texture_tiles;
 	vec2 water_uv = world_uv + vec2(
 		sin((world_uv.y * 7.0) + (t * 0.7)),
 		cos((world_uv.x * 6.0) + (t * 0.5))) * wave_amount;
@@ -174,15 +206,17 @@ SeaState sea_state(vec2 tile, vec2 uv, float in_map, float t) {
 	// stays flat however close to the shore it is. Outside the map it is all
 	// open sea, and safely so: sd saturates there, which puts the surf band's
 	// falloff at zero.
-	vec4 coast = texture(coast_map, uv);
-	float sd = mix(coast_range, (coast.r - 0.5) * 2.0 * coast_range, in_map);
+	vec2 edge_uv = clamp(uv, vec2(0.0), vec2(1.0));
+	vec4 coast = texture(coast_map, edge_uv);
+	float edge_distance = (coast.r - 0.5) * 2.0 * coast_range;
+	// Extend offshore distance instead of abruptly replacing it at the map
+	// rectangle. Unlike clamping alone, the extension fades to deep open water.
+	float beyond_edge = length((uv - edge_uv) * map_size);
+	float offshore_distance = min(coast_range, max(0.0, edge_distance) + beyond_edge);
+	float sd = mix(offshore_distance, edge_distance, in_map);
 	float open_sea = mix(1.0, smoothstep(0.35, 0.75, coast.g), in_map);
-	// The field is one value per sub-tile, so its contours are still faceted
-	// and surf drawn on them looks like survey lines. Two octaves of wobble
-	// break that up: a broad one to meander the whole band, a finer one to
-	// roughen each crest.
-	sd += (value_noise(tile * 1.1) - 0.5) * 0.30;
-	sd += (value_noise((tile * 3.4) + vec2(5.3, 9.1)) - 0.5) * 0.18;
+    // Coast geometry is authoritative. Noise animates water colour/foam below,
+    // never the distance shared by sea, sand and inland ground.
 	sea.sd = sd;
 	sea.open_sea = open_sea;
 
@@ -194,10 +228,11 @@ SeaState sea_state(vec2 tile, vec2 uv, float in_map, float t) {
 		smoothstep(0.0, max(0.001, deep_tiles), sd));
 
 	// Shallow water is water OVER sand, so the bottom shows through near the
-	// shore. Sampled on world_uv, not the drifting water_uv: a seabed that
+	// shore. Shares the ground repeat, not the drifting water_uv: a seabed that
 	// swims with the surface reads as fog, not as depth.
 	float shallow = 1.0 - smoothstep(0.0, max(0.001, shallow_tiles), sd);
-	water_col = mix(water_col, texture(tex_sand, world_uv).rgb * tint_sand, shallow * shallow_sand);
+	vec2 sand_uv = tile / sand_repeat_tiles();
+	water_col = mix(water_col, sample_ground(tex_sand, sand_uv, dFdx(sand_uv), dFdy(sand_uv)) * tint_sand, shallow * shallow_sand);
 
 	// Swell, in two parts, because "which way is the sea moving" has two
 	// honest answers. Near the coast it moves TOWARD the beach: a luminance

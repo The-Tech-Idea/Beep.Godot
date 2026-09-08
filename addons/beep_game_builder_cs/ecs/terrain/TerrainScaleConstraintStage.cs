@@ -45,16 +45,20 @@ namespace Beep.ECS
         /// were mostly lake when the woods were sown, so nothing could be sown
         /// on them, and they finished as bare grassland once the lakes drained.
         /// </summary>
-        public static void ApplyTerrain(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void ApplyTerrain(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             if (!settings.UseScaleRules)
                 return;
 
             DrainOversizedLakes(world);
             DrainSmallLakes(world);
-            LevelSmallRelief(world);
+            // Themed ground is classified by elevation, not by relief tiers.
+            // Flattening a volcanic outcrop must not turn its basalt into lava/grass.
+            bool themedGround = TerrainBiomeStage.ThemedKind(settings.Preset, 0f) is not null;
+            LevelSmallRelief(world, themedGround);
             ClearShortRivers(world);
-            GroundPeakMaterial(world);
+            ClearOrphanWaterSamples(world);
+            if (!themedGround) GroundPeakMaterial(world);
         }
 
         /// <summary>
@@ -72,7 +76,7 @@ namespace Beep.ECS
         /// one that breaks whenever a new stage is added. Enforced in one place,
         /// last, it holds however the map got here.
         /// </summary>
-        private static void GroundPeakMaterial(TerrainWorld world)
+        private static void GroundPeakMaterial(TerrainGenerationBuffer world)
         {
             for (int index = 0; index < world.CellTerrain.Length; index++)
             {
@@ -83,9 +87,9 @@ namespace Beep.ECS
                 if (!PeakKinds.Contains(world.CellTerrain[index]))
                     continue;
 
-                SetTile(
-                    world, index, WaterBody.None,
-                    NeighbourLand(world, index, PeakKinds) ?? "grass", land: true);
+                ReplacePeakMaterial(
+                    world, index, NeighbourLand(world, index, PeakKinds) ?? "grass",
+                    clearRelief: false);
             }
         }
 
@@ -93,7 +97,7 @@ namespace Beep.ECS
         /// The constraints on what STANDS on the land, which can only run once
         /// it has been placed.
         /// </summary>
-        public static void ApplyFeatures(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void ApplyFeatures(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             if (!settings.UseScaleRules)
                 return;
@@ -112,7 +116,7 @@ namespace Beep.ECS
         /// on. Largest first, until what remains is a lake district rather than
         /// a lagoon.
         /// </summary>
-        private static void DrainOversizedLakes(TerrainWorld world)
+        private static void DrainOversizedLakes(TerrainGenerationBuffer world)
         {
             var bodies = new List<List<int>>();
             var bodyOf = new int[world.CellsWide * world.CellsHigh];
@@ -193,7 +197,7 @@ namespace Beep.ECS
         /// made one map look like two.
         /// </summary>
         private static void SetTile(
-            TerrainWorld world, int cell, WaterBody water, string terrain, bool land)
+            TerrainGenerationBuffer world, int cell, WaterBody water, string terrain, bool land)
         {
             world.CellWater[cell] = water;
             world.CellTerrain[cell] = terrain;
@@ -223,7 +227,7 @@ namespace Beep.ECS
         }
 
         /// <summary>Land, or a lake inside it - anything that is not open sea.</summary>
-        private static bool InLandmass(TerrainWorld world, int at)
+        private static bool InLandmass(TerrainGenerationBuffer world, int at)
         {
             if (world.CellWater[at] == WaterBody.Lake)
                 return true;
@@ -245,7 +249,7 @@ namespace Beep.ECS
 
         /// <summary>The commonest dry-land terrain in a landmass.</summary>
         private static string? DominantLand(
-            TerrainWorld world, List<int> body, HashSet<string>? exclude = null)
+            TerrainGenerationBuffer world, List<int> body, HashSet<string>? exclude = null)
         {
             var counts = new Dictionary<string, int>();
             foreach (int index in body)
@@ -279,7 +283,7 @@ namespace Beep.ECS
         /// A lake below the minimum is drained and becomes the land around it.
         /// Left in, a small map reads as puddled rather than lakeside.
         /// </summary>
-        private static void DrainSmallLakes(TerrainWorld world)
+        private static void DrainSmallLakes(TerrainGenerationBuffer world)
         {
             foreach (List<int> region in Regions(world, at => world.CellWater[at] == WaterBody.Lake))
             {
@@ -300,7 +304,7 @@ namespace Beep.ECS
         /// is not a range, and it is the single loudest piece of scatter on a
         /// small map because relief is drawn a whole level higher.
         /// </summary>
-        private static void LevelSmallRelief(TerrainWorld world)
+        private static void LevelSmallRelief(TerrainGenerationBuffer world, bool themedGround)
         {
             foreach (List<int> region in Regions(world, at => world.CellRelief[at] != TerrainRelief.Flat))
             {
@@ -318,9 +322,33 @@ namespace Beep.ECS
                     // the commonest neighbour outright hands a snowfield back
                     // its own snow - the relief goes flat, the terrain does not,
                     // and the map grows arctic ground at sea level.
-                    if (world.CellTerrain[index] is "rock" or "snow" or "gravel")
-                        world.CellTerrain[index] = NeighbourLand(world, index, PeakKinds) ?? "grass";
+                    string terrain = !themedGround && PeakKinds.Contains(world.CellTerrain[index])
+                        ? NeighbourLand(world, index, PeakKinds) ?? "grass"
+                        : world.CellTerrain[index];
+                    ReplacePeakMaterial(world, index, terrain, clearRelief: true, replaceMaterial: !themedGround);
                 }
+            }
+        }
+
+        private static void ReplacePeakMaterial(
+            TerrainGenerationBuffer world, int cell, string terrain, bool clearRelief, bool replaceMaterial = true)
+        {
+            if (replaceMaterial) world.CellTerrain[cell] = terrain;
+            int samples = world.SamplesPerCell;
+            int startX = (cell % world.CellsWide) * samples;
+            int startY = (cell / world.CellsWide) * samples;
+            for (int y = startY; y < startY + samples; y++)
+            for (int x = startX; x < startX + samples; x++)
+            {
+                int sample = world.Index(x, y);
+                // Removing a relief tier is not reclamation or excavation:
+                // retain fine shores, non-peak biome detail, elevation and shade.
+                if (!world.Land[sample])
+                    continue;
+                if (clearRelief)
+                    world.Relief[sample] = TerrainRelief.Flat;
+                if (replaceMaterial && PeakKinds.Contains(world.Terrain[sample]))
+                    world.Terrain[sample] = terrain;
             }
         }
 
@@ -328,7 +356,7 @@ namespace Beep.ECS
         /// A watercourse too short to be a river is removed. A river that peters
         /// out after two tiles reads as a rendering fault, not as water.
         /// </summary>
-        private static void ClearShortRivers(TerrainWorld world)
+        private static void ClearShortRivers(TerrainGenerationBuffer world)
         {
             foreach (List<int> region in Regions(world, at => world.CellWater[at] == WaterBody.River))
             {
@@ -337,9 +365,55 @@ namespace Beep.ECS
 
                 foreach (int index in region)
                 {
-                    world.CellWater[index] = WaterBody.None;
-                    if (world.CellTerrain[index] is "shallow_water" or "deep_water")
-                        world.CellTerrain[index] = NeighbourLand(world, index) ?? "grass";
+                    SetTile(
+                        world, index, WaterBody.None,
+                        NeighbourLand(world, index) ?? "grass", land: true);
+                }
+            }
+        }
+
+        private static void ClearOrphanWaterSamples(TerrainGenerationBuffer world)
+        {
+            // Reduction can put a body's thin fringe in an otherwise dry cell.
+            // Clearing only the removed water cells leaves that fringe behind.
+            var seen = new bool[world.Count];
+            var region = new List<int>();
+            for (int start = 0; start < world.Count; start++)
+            {
+                WaterBody kind = world.Water[start];
+                if (seen[start] || kind is not (WaterBody.Lake or WaterBody.River)) continue;
+                region.Clear();
+                region.Add(start);
+                seen[start] = true;
+                bool retained = false;
+                for (int read = 0; read < region.Count; read++)
+                {
+                    int current = region[read];
+                    int x = current % world.Width, y = current / world.Width;
+                    int cell = world.CellIndex(x / world.SamplesPerCell, y / world.SamplesPerCell);
+                    retained |= world.CellWater[cell] == kind;
+                    for (int side = 0; side < 4; side++)
+                    {
+                        int nx = x + (side == 0 ? -1 : side == 1 ? 1 : 0);
+                        int ny = y + (side == 2 ? -1 : side == 3 ? 1 : 0);
+                        if (!world.InBounds(nx, ny)) continue;
+                        int next = world.Index(nx, ny);
+                        if (seen[next] || world.Water[next] != kind) continue;
+                        seen[next] = true;
+                        region.Add(next);
+                    }
+                }
+                if (retained) continue;
+                foreach (int sample in region)
+                {
+                    int cell = world.CellIndex((sample % world.Width) / world.SamplesPerCell,
+                        (sample / world.Width) / world.SamplesPerCell);
+                    world.Water[sample] = world.CellWater[cell];
+                    world.Land[sample] = world.CellWater[cell] == WaterBody.None;
+                    world.Terrain[sample] = world.CellTerrain[cell];
+                    world.Relief[sample] = world.CellRelief[cell];
+                    world.Elevation[sample] = world.CellElevation[cell];
+                    world.Shade[sample] = world.CellShade[cell];
                 }
             }
         }
@@ -348,7 +422,7 @@ namespace Beep.ECS
         /// A clump of woods below the minimum is cleared. Single trees dotted
         /// across a map are the vegetation equivalent of biome confetti.
         /// </summary>
-        private static void ThinLoneFeatures(TerrainWorld world)
+        private static void ThinLoneFeatures(TerrainGenerationBuffer world)
         {
             foreach (List<int> region in Regions(world, at => world.Feature[at].Length > 0))
             {
@@ -370,7 +444,7 @@ namespace Beep.ECS
         /// The land terrain bordering a cell, whichever borders it most. What a
         /// removed feature's tile becomes: the honest answer is its surroundings.
         /// </summary>
-        private static string? NeighbourLand(TerrainWorld world, int index, HashSet<string>? exclude = null)
+        private static string? NeighbourLand(TerrainGenerationBuffer world, int index, HashSet<string>? exclude = null)
         {
             int wide = world.CellsWide;
             int x = index % wide;
@@ -413,7 +487,7 @@ namespace Beep.ECS
         /// <summary>
         /// Every four-connected run of tiles matching the test, on the tile grid.
         /// </summary>
-        private static List<List<int>> Regions(TerrainWorld world, System.Func<int, bool> matches)
+        private static List<List<int>> Regions(TerrainGenerationBuffer world, System.Func<int, bool> matches)
         {
             int wide = world.CellsWide;
             int high = world.CellsHigh;

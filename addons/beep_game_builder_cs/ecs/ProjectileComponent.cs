@@ -124,6 +124,10 @@ namespace Beep.ECS
         private void OnCollision(Node n)
         {
             if (_area == null || IsOwnedByShooter(n)) return;
+            var attacker = ActorComponent.ForBody(Shooter);
+            var victim = ActorComponent.ForBody(n);
+            if (attacker?.Registry is not null && victim is not null
+                && !attacker.Registry.AreHostile(attacker.OwnerId, victim.OwnerId)) return;
             if (!HeightGatePasses(n)) return;
 
             var health = EntityComponent.FindComponent<HealthComponent>(n, false);

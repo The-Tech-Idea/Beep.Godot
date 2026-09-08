@@ -1,226 +1,184 @@
 using Godot;
 using System;
 
-namespace Beep.ECS
+namespace Beep.ECS;
+
+/// <summary>Scene adapter for the shared production process: authored recipes,
+/// wallet binding, clock deadlines, signals and save integration.</summary>
+[Tool]
+[GlobalClass]
+public partial class GridProductionComponent : Node, ISaveable, IActorResidencyGuard
 {
-    /// <summary>
-    /// Attach to a building Node to run simple resource production cycles. It
-    /// consumes input resources from GridResourceWalletComponent, waits for the
-    /// recipe duration, then adds outputs back to the wallet.
-    /// </summary>
-    [Tool]
-    [GlobalClass]
-    public partial class GridProductionComponent : Node
+    public enum ProductionState { Idle, Producing, Paused }
+    [Signal] public delegate void ProductionStartedEventHandler(string recipeId);
+    [Signal] public delegate void ProductionCompletedEventHandler(string recipeId);
+    [Signal] public delegate void ProductionRejectedEventHandler(string recipeId, string reason);
+    [Signal] public delegate void ProductionStateChangedEventHandler(int state);
+
+    private readonly GridProductionProcess _localProduction = new();
+    private GridProductionProcess _production => WorldSimulation?.FindProcess(_boundProductionId) ?? _localProduction;
+    private GridResourceWalletComponent? _wallet;
+    private bool _transitioning => _production.IsTransitioning;
+    private bool _advancingWork => _production.IsAdvancing;
+
+    public GridProductionComponent()
     {
-        public enum ProductionState
+        _production.ResolveWallet = () =>
         {
-            Idle,
-            Producing,
-            Paused
-        }
+            EntityComponent.Resolve(this, ResourceWalletPath, ref _wallet);
+            return _wallet;
+        };
+        _production.Started += id => EmitSignal(SignalName.ProductionStarted, id);
+        _production.Completed += id => EmitSignal(SignalName.ProductionCompleted, id);
+        _production.Rejected += (id, reason) => EmitSignal(SignalName.ProductionRejected, id, reason);
+        _production.StateChanged += state => EmitSignal(SignalName.ProductionStateChanged, (int)state);
+    }
 
-        [Signal] public delegate void ProductionStartedEventHandler(string recipeId);
-        [Signal] public delegate void ProductionCompletedEventHandler(string recipeId);
-        [Signal] public delegate void ProductionRejectedEventHandler(string recipeId, string reason);
-        [Signal] public delegate void ProductionStateChangedEventHandler(int state);
+    [Export] public bool ParticipatesInSave { get; set; } = true;
+    [Export] public string SaveKey { get; set; } = "grid_production.state";
+    [Export] public NodePath ResourceWalletPath { get; set; } = new("");
+    [Export] public NodePath WorkClockPath { get; set; } = new("");
+    [Export] public Godot.Collections.Array Recipes { get => _production.Recipes; set => _production.Recipes = value; }
+    [Export] public string ActiveRecipeId { get => _production.ActiveRecipeId; set => _production.ActiveRecipeId = value; }
+    [Export] public bool AutoStart { get; set; }
+    [Export] public bool Loop { get => _production.Loop; set => _production.Loop = value; }
+    [Export] public bool ConsumeInputsOnStart { get => _production.ConsumeInputsOnStart; set => _production.ConsumeInputsOnStart = value; }
 
-        [Export] public NodePath ResourceWalletPath { get; set; } = new("");
-        [Export] public Godot.Collections.Array Recipes { get; set; } = new();
-        [Export] public string ActiveRecipeId { get; set; } = "";
-        [Export] public bool AutoStart { get; set; } = false;
-        [Export] public bool Loop { get; set; } = true;
-        [Export] public bool ConsumeInputsOnStart { get; set; } = true;
+    public ProductionState State => _production.State;
+    public string CurrentRecipeId => _production.CurrentRecipeId;
+    public float RemainingTurns => (float)Math.Max(0, _production.RemainingTurns - ProductionElapsedTurns);
+    public float EffectiveRemainingTurns => float.IsFinite(RemainingTurns) ? Math.Max(0, RemainingTurns) : 0;
+    public double PendingWorkTurns => _production.PendingWorkTurns;
+    public float Progress01 => _production.RecipeDuration(CurrentRecipeId) is > 0 and var duration
+        ? Mathf.Clamp(1 - EffectiveRemainingTurns / duration, 0, 1) : 0;
 
-        public ProductionState State { get; private set; } = ProductionState.Idle;
-        public float RemainingSeconds { get; private set; }
-        public string CurrentRecipeId { get; private set; } = "";
-        public float Progress01
+    public override void _Ready()
+    {
+        if (Engine.IsEditorHint()) { SetProcess(false); return; }
+        if (BindWorldSimulation())
         {
-            get
-            {
-                GridProductionRecipe? recipe = FindRecipe(CurrentRecipeId);
-                if (recipe == null)
-                    return 0f;
-                return Mathf.Clamp(1f - EffectiveRemainingSeconds / recipe.EffectiveDurationSeconds, 0f, 1f);
-            }
-        }
-        public float EffectiveRemainingSeconds => float.IsFinite(RemainingSeconds) && RemainingSeconds > 0f ? RemainingSeconds : 0f;
-
-        private GridResourceWalletComponent? _wallet;
-
-        public override void _Ready()
-        {
-            ResolveReferences();
-            SetProcess(!Engine.IsEditorHint());
-            if (!Engine.IsEditorHint() && AutoStart)
-                StartProduction(ActiveRecipeId);
+            SetProcess(false);
+            StartAutomatically();
             UpdateConfigurationWarnings();
+            return;
         }
-
-        public override string[] _GetConfigurationWarnings()
+        _productionClock = GridWorkClockComponent.FindFor(this, WorkClockPath);
+        if (_productionClock is not null)
         {
-            if (ResourceWalletPath.IsEmpty)
-                return new[] { "ResourceWalletPath should point to a GridResourceWalletComponent." };
-            return Array.Empty<string>();
+            _productionClock.TreeExiting += RetainScheduledProgress;
+            _productionClock.TreeEntered += ScheduleProduction;
         }
+        SetProcess(_productionClock is null);
+        ScheduleProduction();
+        StartAutomatically();
+        if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
+        UpdateConfigurationWarnings();
+    }
 
-        public override void _Process(double delta)
+    public override void _ExitTree()
+    {
+        UnbindWorldSimulation();
+        RetainScheduledProgress();
+        if (GodotObject.IsInstanceValid(_productionClock))
         {
-            if (!IsProcessing() || Engine.IsEditorHint())
-                return;
-
-            Tick(delta);
+            _productionClock!.TreeExiting -= RetainScheduledProgress;
+            _productionClock.TreeEntered -= ScheduleProduction;
         }
+        _productionClock = null;
+        RequestReady();
+        if (ParticipatesInSave) RemoveFromGroup(SaveableHelper.Group);
+    }
 
-        public void Tick(double delta)
-        {
-            if (State != ProductionState.Producing)
-                return;
+    public override string[] _GetConfigurationWarnings() => !SimulationPath.IsEmpty
+        ? Array.Empty<string>() : ResourceWalletPath.IsEmpty
+            ? new[] { "ResourceWalletPath should point to a GridResourceWalletComponent." } : Array.Empty<string>();
 
-            float step = DeltaSeconds(delta);
-            if (step <= 0f)
-                return;
+    public override void _Process(double delta)
+    {
+        if (!Engine.IsEditorHint()) Tick(delta);
+    }
 
-            RemainingSeconds = Mathf.Max(0f, EffectiveRemainingSeconds - step);
-            if (RemainingSeconds <= 0f)
-                CompleteProduction();
-        }
+    public void Tick(double delta) => AdvanceWork(GridWorkClockBinding.TurnsForDelta(delta));
 
-        public bool StartProduction(string recipeId = "")
-        {
-            ResolveReferences();
-            if (_wallet == null)
-                return Reject(recipeId, "missing_resource_wallet");
+    public void AdvanceWork(float turns)
+    {
+        if (_usesWorldSimulation) { WorldSimulation?.AdvanceProduction(_boundProductionId, turns); return; }
+        if (_transitioning || _advancingWork || State != ProductionState.Producing
+            || !float.IsFinite(turns) || turns <= 0) return;
+        double elapsed = ScheduledElapsedTurns;
+        CancelProductionDeadline();
+        AdvanceProduction(turns + elapsed);
+    }
 
-            if (State != ProductionState.Idle)
-                return Reject(string.IsNullOrWhiteSpace(recipeId) ? CurrentRecipeId : recipeId, "already_producing");
+    private void AdvanceProduction(double turns)
+    {
+        try { _production.Advance(turns); }
+        finally { ScheduleProduction(); }
+    }
 
-            GridProductionRecipe? recipe = ResolveRecipe(recipeId);
-            if (recipe == null)
-                return Reject(recipeId, "missing_recipe");
+    public bool StartProduction(string recipeId = "")
+    {
+        if (_usesWorldSimulation) return EnsureWorldActorLink() && WorldSimulation?.StartProduction(_boundProductionId,
+            string.IsNullOrWhiteSpace(recipeId) ? ActiveRecipeId : recipeId) == true;
+        try { return _production.Start(recipeId); }
+        finally { ScheduleProduction(); }
+    }
 
-            if (!recipe.HasOutputs())
-                return Reject(recipe.RecipeId, "missing_outputs");
+    public void PauseProduction()
+    {
+        if (_usesWorldSimulation) { WorldSimulation?.PauseProduction(_boundProductionId); return; }
+        if (_transitioning || State != ProductionState.Producing) return;
+        RetainScheduledProgress();
+        _production.Pause();
+    }
 
-            if (ConsumeInputsOnStart && !_wallet.Spend(recipe.Inputs))
-                return Reject(recipe.RecipeId, "missing_inputs");
+    public void ResumeProduction()
+    {
+        if (_usesWorldSimulation) { WorldSimulation?.ResumeProduction(_boundProductionId); return; }
+        _production.Resume();
+        ScheduleProduction();
+    }
 
-            CurrentRecipeId = recipe.RecipeId;
-            ActiveRecipeId = recipe.RecipeId;
-            RemainingSeconds = recipe.EffectiveDurationSeconds;
-            SetState(ProductionState.Producing);
-            EmitSignal(SignalName.ProductionStarted, recipe.RecipeId);
-            return true;
-        }
+    public void CancelProduction(bool refundInputs = false)
+    {
+        if (_usesWorldSimulation) { WorldSimulation?.CancelProduction(_boundProductionId, refundInputs); return; }
+        if (_transitioning) return;
+        CancelProductionDeadline();
+        _production.Cancel(refundInputs);
+    }
 
-        public void PauseProduction()
-        {
-            if (State == ProductionState.Producing)
-                SetState(ProductionState.Paused);
-        }
+    public bool CompleteProduction()
+    {
+        if (_usesWorldSimulation) return WorldSimulation?.CompleteProduction(_boundProductionId) == true;
+        if (_transitioning || State != ProductionState.Producing) return false;
+        CancelProductionDeadline();
+        try { return _production.Complete(); }
+        finally { ScheduleProduction(); }
+    }
 
-        public void ResumeProduction()
-        {
-            if (State == ProductionState.Paused)
-                SetState(ProductionState.Producing);
-        }
+    public Godot.Collections.Dictionary CaptureState() => _production.Capture(ProductionElapsedTurns);
 
-        public void CancelProduction(bool refundInputs = false)
-        {
-            GridProductionRecipe? recipe = FindRecipe(CurrentRecipeId);
-            if (refundInputs && ConsumeInputsOnStart && recipe != null)
-                _wallet?.Refund(recipe.Inputs);
+    public void RestoreState(Godot.Collections.Dictionary state)
+    {
+        if (_usesWorldSimulation) { WorldSimulation?.RestoreProduction(_boundProductionId, state); return; }
+        if (_transitioning) return;
+        CancelProductionDeadline();
+        _production.Restore(state);
+        ScheduleProduction();
+    }
 
-            CurrentRecipeId = "";
-            RemainingSeconds = 0f;
-            SetState(ProductionState.Idle);
-        }
+    public GridProductionRecipe? FindRecipe(string recipeId) => _production.FindRecipe(recipeId);
 
-        public bool CompleteProduction()
-        {
-            ResolveReferences();
-            GridProductionRecipe? recipe = FindRecipe(CurrentRecipeId);
-            if (_wallet == null || recipe == null)
-            {
-                CancelProduction();
-                return false;
-            }
+    public void Save(GameBuilder.GameStateData state)
+    {
+        if (!SimulationPath.IsEmpty) return;
+        if (!string.IsNullOrWhiteSpace(SaveKey)) state.GameData[SaveKey] = CaptureState();
+    }
 
-            foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(recipe.Outputs))
-            {
-                if (amount <= 0 || string.IsNullOrWhiteSpace(resourceId))
-                    continue;
-                _wallet.AddAmount(resourceId, amount);
-            }
-
-            string completedRecipe = recipe.RecipeId;
-            CurrentRecipeId = "";
-            RemainingSeconds = 0f;
-            SetState(ProductionState.Idle);
-            EmitSignal(SignalName.ProductionCompleted, completedRecipe);
-
-            if (Loop)
-                StartProduction(completedRecipe);
-
-            return true;
-        }
-
-        public GridProductionRecipe? FindRecipe(string recipeId)
-        {
-            if (string.IsNullOrWhiteSpace(recipeId))
-                return null;
-
-            string normalized = Normalize(recipeId);
-            foreach (GridProductionRecipe recipe in GridProductionRecipe.Enumerate(Recipes))
-                if (recipe != null && Normalize(recipe.RecipeId) == normalized)
-                    return recipe;
-
-            return null;
-        }
-
-        private GridProductionRecipe? ResolveRecipe(string recipeId)
-        {
-            if (!string.IsNullOrWhiteSpace(recipeId))
-                return FindRecipe(recipeId);
-
-            if (!string.IsNullOrWhiteSpace(ActiveRecipeId))
-                return FindRecipe(ActiveRecipeId);
-
-            foreach (GridProductionRecipe recipe in GridProductionRecipe.Enumerate(Recipes))
-                if (recipe != null)
-                    return recipe;
-
-            return null;
-        }
-
-        private bool Reject(string recipeId, string reason)
-        {
-            EmitSignal(SignalName.ProductionRejected, recipeId, reason);
-            return false;
-        }
-
-        private void SetState(ProductionState state)
-        {
-            if (State == state)
-                return;
-
-            State = state;
-            EmitSignal(SignalName.ProductionStateChanged, (int)state);
-        }
-
-        private void ResolveReferences()
-        {
-            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
-                _wallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-        }
-
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_');
-
-        private static float DeltaSeconds(double delta)
-            => double.IsFinite(delta) && delta > 0.0 ? (float)Mathf.Min(delta, 86400.0) : 0f;
-
+    public void Load(GameBuilder.GameStateData state)
+    {
+        if (!SimulationPath.IsEmpty) return;
+        if (!string.IsNullOrWhiteSpace(SaveKey) && state.GameData.TryGetValue(SaveKey, out Variant value)
+            && GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary saved)) RestoreState(saved);
     }
 }

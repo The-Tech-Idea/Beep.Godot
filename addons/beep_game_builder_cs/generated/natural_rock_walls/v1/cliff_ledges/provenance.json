@@ -1,0 +1,90 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate source sprites on green backgrounds. Visual proportions, not calibrated tile geometry. No engine placement or collision changes.",
+  "assets": [
+    {
+      "material": "grey_granite",
+      "kind": "small_ledge",
+      "file": "grey_granite_small_ledge_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-17b188ea-f99b-483b-a839-4ff39a169939.png",
+      "prompt": "Create ONE separate grey granite terrain sprite: a compact projecting rock ledge, shallow flat rocky top, chunky chipped front lip, tapering rocky underside, short back attachment edge. Not a freestanding tall pillar. Reference is MATERIAL STYLE only, not shape. Front elevated orthographic 2.5D game view with visible top, front thickness and side depth; upper-left light. Detailed painterly weathered irregular rock, no low-poly look or repeated masonry columns. Uniform material over entire object. Entire silhouette with generous margin. OPAQUE flat vivid green RGB 0,255,0 background, NOT transparency, black, or scenery. No ground, plants, soil, detached debris, external cast shadows, labels or other objects. Standalone overlay asset to place onto existing cliff."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "wide_shelf",
+      "file": "grey_granite_wide_shelf_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-05cc6ed0-b494-42be-916f-b7b0d0925c45.png",
+      "prompt": "Create ONE separate grey granite terrain sprite: a long wide horizontal rock shelf, width four times its thickness, irregular flat rocky top, chipped uneven front edge, tapering visible underside, straight rear attachment edge. No legs. Reference is MATERIAL STYLE only, not shape. Front elevated orthographic 2.5D game view with visible top, front thickness and side depth; upper-left light. Detailed painterly weathered irregular rock, no low-poly look or repeated masonry columns. Uniform material over entire object. Entire silhouette with generous margin. OPAQUE flat vivid green RGB 0,255,0 background, NOT transparency, black, or scenery. No ground, plants, soil, detached debris, external cast shadows, labels or other objects. Standalone overlay asset to place onto existing cliff."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "deep_overhang",
+      "file": "grey_granite_deep_overhang_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-89e3c500-a398-4922-afe3-61061089a5e7.png",
+      "prompt": "Create ONE separate grey granite terrain sprite: a deep natural cliff overhang, thick projecting rocky roof above a recessed concave rock back wall, open sheltered recess beneath the lip. No floor slab, no arch pillars, no enclosed cave. Visible dark rocky underside, not a black painted hole. Reference is MATERIAL STYLE only, not shape. Front elevated orthographic 2.5D game view with visible top, front thickness and side depth; upper-left light. Detailed painterly weathered irregular rock, no low-poly look or repeated masonry columns. Uniform material over entire object. Entire silhouette with generous margin. OPAQUE flat vivid green RGB 0,255,0 background, NOT transparency, black, or scenery. No ground, plants, soil, detached debris, external cast shadows, labels or other objects. Standalone overlay asset to place onto existing cliff."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "small_ledge",
+      "file": "red_sandstone_small_ledge_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-fa352ef7-9088-4cb4-8cfe-158a67293c0a.png",
+      "prompt": "Material-only edit of this small_ledge: replace grey granite on all surfaces with warm red-orange natural sandstone, irregular sedimentary layers and weathered cracks. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "wide_shelf",
+      "file": "red_sandstone_wide_shelf_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-20be11c4-2238-42cb-bda1-4b653a917196.png",
+      "prompt": "Material-only edit of this wide_shelf: replace grey granite on all surfaces with warm red-orange natural sandstone, irregular sedimentary layers and weathered cracks. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "deep_overhang",
+      "file": "red_sandstone_deep_overhang_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-2277e1e4-d7c5-4f79-b4b5-7309c6065eae.png",
+      "prompt": "Material-only edit of this deep_overhang: replace grey granite on all surfaces with warm red-orange natural sandstone, irregular sedimentary layers and weathered cracks. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "small_ledge",
+      "file": "volcanic_basalt_small_ledge_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-715f7e3c-beaf-44ce-841f-4c6081bd92a1.png",
+      "prompt": "Material-only edit of this small_ledge: replace grey granite on all surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "wide_shelf",
+      "file": "volcanic_basalt_wide_shelf_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-5a0edf6d-9e15-455e-9e28-ef6da6068056.png",
+      "prompt": "Material-only edit of this wide_shelf: replace grey granite on all surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "deep_overhang",
+      "file": "volcanic_basalt_deep_overhang_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ce37d171-a7d3-4df9-a31f-813f2da086ff.png",
+      "prompt": "Material-only edit of this deep_overhang: replace grey granite on all surfaces with charcoal grey cooled volcanic basalt, irregular fractures and subtle pores, no lava or glow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "small_ledge",
+      "file": "pale_limestone_small_ledge_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-80d83b97-9949-4e10-9238-0c9f851c2705.png",
+      "prompt": "Material-only edit of this small_ledge: replace grey granite on all surfaces with pale warm ivory natural limestone, subtle erosion pockets and weathered cracks, not snow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "wide_shelf",
+      "file": "pale_limestone_wide_shelf_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-8669a776-6026-4ea8-8c12-f99c05c9fe29.png",
+      "prompt": "Material-only edit of this wide_shelf: replace grey granite on all surfaces with pale warm ivory natural limestone, subtle erosion pockets and weathered cracks, not snow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "deep_overhang",
+      "file": "pale_limestone_deep_overhang_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-fda3d475-2489-40cd-b988-e61dfe87c703.png",
+      "prompt": "Material-only edit of this deep_overhang: replace grey granite on all surfaces with pale warm ivory natural limestone, subtle erosion pockets and weathered cracks, not snow. Preserve silhouette, shape, dimensions, recessed underside, camera, position and light. Detailed painterly terrain sprite not low-poly. Preserve OPAQUE vivid green background. No plants, ground, soil, external shadow, text, or props."
+    }
+  ]
+}

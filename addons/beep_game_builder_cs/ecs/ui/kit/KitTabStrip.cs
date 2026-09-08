@@ -252,17 +252,30 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(72f * count, Mathf.Clamp(fs * 1.75f, 26f, 34f));
         }
 
+        /// <summary>Move to the next enabled tab, reporting whether it moved. The bounds are
+        /// checked here rather than left to FindEnabledTab, so that at the first or last tab the
+        /// key is released and focus walks on to the panel instead of stalling on the strip.</summary>
+        private bool SelectByArrow(Vector2I dir)
+        {
+            int count = GetTabCount();
+            if (count <= 0) return false;
+
+            int target;
+            if (dir.X <= -KitChrome.Jump) target = FindEnabledTab(0, 1);
+            else if (dir.X >= KitChrome.Jump) target = FindEnabledTab(count - 1, -1);
+            else if (dir.X < 0) target = CurrentTab <= 0 ? -1 : FindEnabledTab(CurrentTab - 1, -1);
+            else if (dir.X > 0) target = CurrentTab >= count - 1 ? -1 : FindEnabledTab(CurrentTab + 1, 1);
+            else return false;
+
+            if (target < 0 || target >= count || target == CurrentTab) return false;
+            SelectKeyboardTab(target);
+            return true;
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
-            {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                int count = GetTabCount();
-                if (dir.X <= -9999 && count > 0) { SelectKeyboardTab(FindEnabledTab(0, 1)); AcceptEvent(); return; }
-                if (dir.X >= 9999 && count > 0) { SelectKeyboardTab(FindEnabledTab(count - 1, -1)); AcceptEvent(); return; }
-                if (dir.X < 0 && count > 0) { SelectKeyboardTab(FindEnabledTab(CurrentTab - 1, -1)); AcceptEvent(); return; }
-                if (dir.X > 0 && count > 0) { SelectKeyboardTab(FindEnabledTab(CurrentTab + 1, 1)); AcceptEvent(); return; }
-            }
+            if (KitChrome.NavigateOrRelease(this, @event, SelectByArrow))
+                return;
 
             if (@event is InputEventMouseMotion motion)
             {
@@ -316,11 +329,9 @@ namespace Beep.ECS.UI.Kit
                                           "tab_disabled", "tab_focus", "button_pressed",
                                           "button_highlight" })
                 KitChrome.SetEmptyStyleboxOverride(this, sb);
-            int fs = UiSurface.FontSize(this);
             KitChrome.SetColorOverrideIfChanged(this, "font_selected_color", new Color(0, 0, 0, 0));
             KitChrome.SetColorOverrideIfChanged(this, "font_unselected_color", new Color(0, 0, 0, 0));
             KitChrome.SetColorOverrideIfChanged(this, "font_hovered_color", new Color(0, 0, 0, 0));
-            int count = Mathf.Max(1, GetTabCount() > 0 ? GetTabCount() : Tabs.Count);
             KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
             _suppressing = false;
         }
@@ -378,6 +389,11 @@ namespace Beep.ECS.UI.Kit
             return next;
         }
 
+        /// <summary>Show tooltips in the kit's chrome. Derives from TabBar, so it cannot inherit
+        /// KitControl's override and calls the shared builder itself.</summary>
+        public override Godot.Control? _MakeCustomTooltip(string forText)
+            => KitChrome.MakeTooltip(this, forText);
+
         private static bool SameTabs(IReadOnlyList<Tab> left, IReadOnlyList<Tab> right)
         {
             if (left.Count != right.Count) return false;
@@ -398,6 +414,12 @@ namespace Beep.ECS.UI.Kit
                 AddTab(tab.Text);
                 if (tab.Icon != null)
                     SetTabIcon(index, tab.Icon);
+
+                // TabBar resolves tooltips in C++, so a _GetTooltip override on this script is
+                // never consulted — its per-tab tooltip is the mechanism the engine actually
+                // reads. A strip divides its width evenly and ellipsizes what will not fit, so on
+                // a narrow strip this is the only place the whole label can be read.
+                SetTabTooltip(index, tab.Text ?? "");
             }
         }
 

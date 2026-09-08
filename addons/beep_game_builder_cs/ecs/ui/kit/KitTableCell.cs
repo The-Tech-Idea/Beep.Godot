@@ -2,10 +2,24 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// One cell of a drawn table: a piece of text on the kit's plate, ellipsized to its column.
+    ///
+    /// A table is built from these rather than from Labels because a cell has to carry the genre's
+    /// material and its own alignment while still shrinking to whatever width the column ends up
+    /// with. <see cref="TableComponent"/> and <c>BeepDataGrid</c> lay them out; the cell owns only
+    /// how one value looks.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitTableCell : KitControl
     {
+        /// <summary>A cell region of a table -- a container for content.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         [Export]
         public string CellText
         {
@@ -44,18 +58,6 @@ namespace Beep.ECS.UI.Kit
             float pad = Mathf.Max(4f, fs * 0.45f);
             float width = TextWidth(_text, Role) + pad * 2f;
             return new Vector2(Mathf.Max(fs * 4f, width), Mathf.Max(18f, fs * 1.55f));
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private float TextWidth(string text, UiSurface.TextRole role)

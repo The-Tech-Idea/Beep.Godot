@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProductionComponent.cs" id="production"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_house.png" id="image"]
+
+[node name="Sawmill" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("image")
+scale = Vector2(2, 2)
+
+[node name="Name" type="Label" parent="."]
+offset_left = -65.0
+offset_top = 65.0
+offset_right = 65.0
+offset_bottom = 93.0
+text = "Sawmill"
+horizontal_alignment = 1
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+
+[node name="Production" type="Node" parent="."]
+script = ExtResource("production")
+SimulationPath = NodePath("../../../ProductionSimulation")
+ActiveRecipeId = "planks"

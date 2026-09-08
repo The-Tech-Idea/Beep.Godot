@@ -122,16 +122,13 @@ namespace Beep.ECS.UI
             _resolving = false;
         }
 
-        // Same lookup PickupComponent uses: prefer an explicit path, else find GameFlow in the
-        // current scene (it sits on the main scene alongside the board). Cached once resolved.
-        private GameFlowComponent? ResolveGameFlow()
-        {
-            if (_flow != null && GodotObject.IsInstanceValid(_flow)) return _flow;
-            if (!GameFlowPath.IsEmpty) _flow = GetNodeOrNull<GameFlowComponent>(GameFlowPath);
-            if (_flow == null && GetTree()?.CurrentScene is { } scene)
-                _flow = EntityComponent.FindComponent<GameFlowComponent>(scene, true);
-            return _flow;
-        }
+        // The one wiring rule (EntityComponent.Resolve): the authored path when there is one,
+        // else GameFlow found in the current scene (it sits on the main scene alongside the
+        // board); cached and re-resolved when stale. This was the last hand-written copy of
+        // that rule outside the grid. One edge is intended: a SET but broken GameFlowPath
+        // yields null (and the warning above) rather than silently finding another GameFlow -
+        // explicit always wins.
+        private GameFlowComponent? ResolveGameFlow() => Resolve(GameFlowPath, ref _flow);
 
         private System.Collections.Generic.List<Vector2I> FindMatches()
         {

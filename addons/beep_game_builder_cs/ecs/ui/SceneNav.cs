@@ -42,8 +42,11 @@ namespace Beep.ECS.UI
             // Always unpause when leaving a scene. Navigation can be triggered from the pause overlay
             // (the main menu shown over a frozen game), and GetTree().Paused persists across a scene
             // change — so without this the destination scene would load frozen. Tearing down the scene
-            // means the pause flag must not survive.
-            tree.Paused = false;
+            // means the pause flag must not survive. Through the master's one door, so the resume is
+            // announced (GameResumed) like every other.
+            GameApp.Instance?.SetPaused(false);
+            GameApp.Instance?.SetGameRunning(false);
+            GameApp.Instance?.Saves?.SuspendSession();
 
             // If the current scene ships a SceneTransitionComponent, fade out through it and
             // swap scenes when the fade finishes. Without this the Transition node in the menus

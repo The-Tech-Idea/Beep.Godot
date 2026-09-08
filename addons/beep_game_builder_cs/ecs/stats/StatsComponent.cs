@@ -10,9 +10,9 @@ namespace Beep.ECS
     /// owned by the entity is read by both damage paths with nothing to fork.
     ///
     /// It is also the single ticker for modifier durations — <see cref="StatModifier.Duration"/> is
-    /// decremented here off the genre's clock (per frame in a real-time genre, once per turn in a
-    /// turn-based one, detected by whether a <see cref="TurnManager"/> autoload is in the tree).
-    /// Producers (EquipmentComponent, StatusEffectComponent) only <see cref="AddModifier"/> /
+    /// decremented here off <see cref="GameClock"/>, one beat at a time. A beat is one second in a
+    /// real-time game and one turn in a turn-based one, so this component never asks which axis it
+    /// is on. Producers (EquipmentComponent, StatusEffectComponent) only <see cref="AddModifier"/> /
     /// <see cref="RemoveBySource"/>; they never tick.
     ///
     /// Blind — no parent-type requirement. Equipment/stats are data on any node.
@@ -26,7 +26,12 @@ namespace Beep.ECS
         [Export] public Stat[] Stats { get; set; } = System.Array.Empty<Stat>();
 
         private readonly Dictionary<StringName, Stat> _byId = new();
-        private bool _turnBased;
+
+        // The game clock ticks modifier durations. This component does not ask
+        // which time axis it is on - one beat is one second in a real-time game
+        // and one turn in a turn-based one, so the same TickDurations(beats) is
+        // correct on both.
+        private GameClock? _clock;
 
         private bool _loaded;
 
@@ -36,8 +41,15 @@ namespace Beep.ECS
             EnsureLoaded();
 
             if (Engine.IsEditorHint()) return;
-            _turnBased = TurnManager.Instance != null;
-            if (_turnBased) TurnManager.Instance!.TurnEnded += OnTurnEnded;
+
+            _clock = GameApp.Instance?.Clock;
+            if (_clock != null)
+                _clock.Advanced += OnAdvanced;
+
+            // No GameApp at all means a bare scene with no declared axis - a
+            // template opened on its own, or a headless probe. Self-tick in real
+            // time so those keep working; a real game always has the clock.
+            SetProcess(_clock == null);
         }
 
         /// <summary>Build this entity's OWN stat instances from the authored templates, once. Each
@@ -99,14 +111,15 @@ namespace Beep.ECS
             return created;
         }
 
+        private void OnAdvanced(double beats)
+            => TickDurations(double.IsFinite(beats) ? Mathf.Max(0f, (float)beats) : 0f);
+
         public override void _Process(double delta)
         {
-            // Real-time only; a turn-based genre ticks from TurnEnded, once per turn.
-            if (Engine.IsEditorHint() || _turnBased) return;
+            // Only reached in the no-clock standalone case; SetProcess is off otherwise.
+            if (Engine.IsEditorHint()) return;
             TickDurations(double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f);
         }
-
-        private void OnTurnEnded(int turn) => TickDurations(1f);
 
         private void TickDurations(float amount)
         {
@@ -115,8 +128,9 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (_turnBased && TurnManager.Instance != null)
-                TurnManager.Instance.TurnEnded -= OnTurnEnded;
+            if (_clock != null && GodotObject.IsInstanceValid(_clock))
+                _clock.Advanced -= OnAdvanced;
+            _clock = null;
             base._ExitTree();
         }
     }

@@ -42,13 +42,13 @@ namespace Beep.ECS.Scenes
                 case Button btn:
                     btn.Pressed += handler;
                     return;
-                // KitButton no longer needs a case: it IS a Button now, so the case above catches
+                // KitPushButton no longer needs a case: it IS a Button now, so the case above catches
                 // it. That is the whole argument for deriving from the real Godot type -- this
                 // switch existed BECAUSE the kit had button-shaped Controls that `is Button`
                 // silently skipped, and every screen migrated onto them would have kept its layout
                 // and quietly lost all its wiring.
                 //
-                // KitIconButton is gone from here for the same reason KitButton was: it derives
+                // KitIconButton is gone from here for the same reason KitPushButton was: it derives
                 // from Button now, so `case Button` catches it. What is left are the widgets with
                 // no Godot equivalent to derive from.
                 case KitNodeCard card:

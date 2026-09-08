@@ -1,0 +1,80 @@
+# DUP-01 — One terrain renderer lifecycle contract
+
+**Type:** duplication fix · **Area:** `ecs/terrain/*Renderer*`, `TerrainTransitionLayerComponent`, `TerrainMapOverlayComponent`, `TerrainWorldComponent.Drawing.cs` · **Status:** proposed 2026-09-08 · **Effort:** M (2–3 days) · **Risk:** medium (touches every renderer; `TerrainWorldComponent` is being edited by another session)
+
+## Finding
+
+Every terrain renderer carries its own copy of the same four pieces of lifecycle plumbing, and the world orchestrator hand-wires each renderer by name because there is no contract to call.
+
+| Copy | Count | Files |
+|---|---|---|
+| `private void QueueRebuild()` deferred coalescer (`_rebuildQueued` flag + `CallDeferred`) | 9 | `TerrainFeatureRendererComponent`, `TerrainIsometricAutotileRendererComponent`, `TerrainIsometricFeatureRendererComponent`, `TerrainIsometricRendererComponent`, `TerrainMapOverlayComponent`, `TerrainPaintedRendererComponent`, `TerrainReliefRendererComponent`, `TerrainResourceRendererComponent`, `TerrainTileRendererComponent` |
+| `private void ResolveCells()` / `DisconnectCells()` — subscribe/unsubscribe `CellChanged`/`CellsChanged` with the same `IsInstanceValid` dance | 4 / 7 | the same set plus `TerrainTransitionLayerComponent`, `GridCellOverlayComponent` |
+| `_EnterTree` re-resolve + `_Notification(NotificationVisibilityChanged)` → rebuild | ~8 | the same set |
+| `ResolveGenerator()` with `IsInstanceValid` re-check and `TerrainBoundsCheck.WarnIfMismatched` | 9 | the same set |
+
+`TerrainWorldComponent.Drawing.cs:32-229` `Draw()` then sets `BoundsOrigin`, `BoundsSize`, `Visible` and calls `Rebuild()`/`Refresh()` on each of nine renderers individually, with a `switch` on `TerrainProjection` deciding which are shown. Adding a tenth renderer means editing the orchestrator, the projection switch and copying the four blocks above.
+
+`docs/ENGINE_ENHANCEMENT_PLAN.md` Phase 2/3 already consolidated `TerrainTextures`, `TerrainAuthoring.EnsureLayer` and `TerrainLayers` for exactly this reason ("three views, three answers to one question"); the lifecycle plumbing was left.
+
+## Why it matters
+
+- The nine `QueueRebuild` copies are where ENH-01 (eviction-aware invalidation) has to land. Landing it nine times is how the painted renderer became the only chunk-aware listener while eight others stayed eviction-blind.
+- `TerrainWorldComponent.Draw()` is the single largest hand-maintained wiring block in the terrain engine and is a live collision point with the level/campaign work.
+- A renderer that forgets `DisconnectCells` in `_ExitTree` keeps a freed node subscribed to `GridCellDataComponent` — the class of bug Phase 1.9 fixed for the orchestrator's own references.
+
+## Design
+
+One abstract base, `TerrainRendererComponent : Node2D` (or `Node` for the non-drawing ones), owning:
+
+```csharp
+public abstract partial class TerrainRendererComponent : Node2D
+{
+    [Export] public NodePath TerrainGeneratorPath { get; set; }
+    [Export] public NodePath CellDataPath { get; set; }
+    [Export] public Vector2I BoundsOrigin { get; set; }
+    [Export] public Vector2I BoundsSize { get; set; }
+    [Export] public bool RefreshOnReady { get; set; } = true;
+
+    protected TerrainGeneratorComponent? Generator { get; private set; }
+    protected GridCellDataComponent? Cells { get; private set; }
+
+    /// One deferred rebuild per frame however many changes arrive.
+    protected void QueueRebuild();
+    /// Chunk-scoped hook; default calls QueueRebuild. ENH-01 lands here once.
+    protected virtual void OnCellsChanged(TerrainChangeKind kind, IReadOnlyList<Vector2I> chunks) => QueueRebuild();
+    protected virtual void OnCellChanged(Vector2I cell, TerrainChangeKind kind) => QueueRebuild();
+    public abstract void Rebuild();
+    /// What the world orchestrator calls instead of hand-setting three properties.
+    public void Configure(Vector2I origin, Vector2I size, bool visible);
+}
+```
+
+`_Ready`/`_EnterTree`/`_ExitTree`/`_Notification` live on the base; subclasses override `Rebuild()` and, where they already are chunk-aware (painted, collision), `OnCellsChanged`.
+
+`TerrainWorldComponent.Draw()` becomes a loop over `[Export] Godot.Collections.Array<NodePath> Renderers` (or discovery of `TerrainRendererComponent` children) filtered by a `Projection` property each renderer declares (`TerrainProjection[] ShownIn`). The projection switch disappears; the orchestrator no longer knows renderer type names.
+
+`TerrainTransitionLayerComponent` (per-biome dual-grid, owned by the tile renderer) and `TerrainCollisionComponent` join the base as well; `GridCellOverlayComponent`/`GridTileMapLayerBridgeComponent` (grid side) get the same `OnCellsChanged` signature through a small grid-side listener helper so the signal contract is one shape on both sides.
+
+## Steps
+
+1. Add `TerrainRendererComponent` with the four blocks; port `TerrainResourceRendererComponent` first (smallest, already has `Rebuild`).
+2. Port the remaining eight renderers one by one; delete their private copies (compiler is the sweep — `no-legacy` rule).
+3. Add `ShownIn` per renderer; rewrite `TerrainWorldComponent.Draw()` as the loop. Keep `GeneratorPath`/`PaintedRendererPath` exports working by resolving them into the renderer list (scene files unchanged).
+4. Regenerate `docs/terrain-engine/*` pages for the moved members.
+
+## Guards (each must fail before the fix)
+
+- Contract-scan pin: no file under `ecs/terrain/` other than `TerrainRendererComponent.cs` declares `private void QueueRebuild(`, `ResolveCells(` or `DisconnectCells(`. Mutation: re-add one copy → scan fails.
+- Pin: `TerrainWorldComponent.Drawing.cs` contains no renderer type name (`TerrainTileRendererComponent`, …) — only the base type. Mutation: reintroduce one `_tile.Rebuild()` → fails.
+- `renderer_reporting_probe.gd` (existing, 9 renderers) stays green; add: free a renderer mid-scene, edit a cell, assert no `ObjectDisposedException`/error log (the `_ExitTree` unsubscribe). Mutation: remove the base's `DisconnectCells` → probe logs the error.
+
+## Dependencies / collisions
+
+- Prerequisite for **ENH-01** and **ENH-02** (they add `TerrainChangeKind` to the hook the base introduces).
+- **Collision:** `TerrainWorldComponent` is being edited by the level/campaign session (`TerrainRecipe`, `NewWorldOnReady`). Land the base first; rewrite `Draw()` only after coordinating.
+- `SeededTerrainPropScatterComponent` and `TerrainDataLayersComponent` are deliberately *not* renderers (one is authoring, one is a query surface) and stay off the base.
+
+## Out of scope
+
+Rendering behaviour, materials, z-order (`TerrainLayers`) — unchanged. Genre-specific renderers remain separate classes; only lifecycle plumbing moves.

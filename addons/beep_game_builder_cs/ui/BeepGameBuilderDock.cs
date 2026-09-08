@@ -186,6 +186,17 @@ public partial class BeepGameBuilderDock : VBoxContainer
         galleryBtn.Pressed += OpenThemeGallery;
         b.AddChild(galleryBtn);
 
+        var kitBtn = new Button { Text = "🎛 Open UI Kit Browser (switch skins live)" };
+        kitBtn.Pressed += OpenKitBrowser;
+        b.AddChild(kitBtn);
+        b.AddChild(new Label
+        {
+            Text = "Every kit widget on one page. Play the scene, then use the Genre dropdown at "
+                 + "the top to switch skin — the same widgets and the same data redraw in each "
+                 + "genre's silhouette, palette and font.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        });
+
         b.AddChild(new HSeparator());
         _newScreenName = new LineEdit { PlaceholderText = "New screen name (e.g. Shop, RaceResults)" };
         b.AddChild(_newScreenName);
@@ -576,6 +587,21 @@ public partial class BeepGameBuilderDock : VBoxContainer
         if (!ResourceLoader.Exists(src)) { Log($"✗ {src} is missing."); return; }
         EditorInterface.Singleton.OpenSceneFromPath(src);
         Log("Opened the Theme Gallery — press F5-equivalent (Play Scene) to interact with it.");
+    }
+
+    /// <summary>
+    /// Open the widget browser — every kit widget on one page, with a live genre picker.
+    ///
+    /// It had no way in. The dock opened only the Theme Gallery, which shows NATIVE controls under
+    /// a theme; the one scene that shows the kit's OWN widgets, and lets you switch skin and watch
+    /// them redraw, existed solely for probes and captures.
+    /// </summary>
+    private void OpenKitBrowser()
+    {
+        const string src = "res://addons/beep_game_builder_cs/templates/scenes/kit_browser.tscn";
+        if (!ResourceLoader.Exists(src)) { Log($"✗ {src} is missing."); return; }
+        EditorInterface.Singleton.OpenSceneFromPath(src);
+        Log("Opened the UI Kit Browser — play the scene, then switch skin with the Genre dropdown.");
     }
 
     /// <summary>Stamp a new screen that already follows the repo's conventions (themed opaque

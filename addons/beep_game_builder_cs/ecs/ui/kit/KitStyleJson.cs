@@ -86,6 +86,17 @@ namespace Beep.ECS.UI.Kit
             g.Studs = k.ContainsKey("studs") ? (int)k["studs"].AsDouble() : g.Studs;
 
             g.PixelSize = F(k, "pixel_size", g.PixelSize);
+            // `material` is a NAME, not a path. The removed texture system put a per-theme path in
+            // theme JSON and that is what could not scale; a theme names one of the sprite sets the
+            // build ships, or "none" to take the genre back to procedural drawing. An unrecognised
+            // name warns inside KitSprite rather than resolving to a silent default.
+            if (k.ContainsKey("material"))
+            {
+                string material = k["material"].AsString().Trim();
+                g.Material = material.ToLowerInvariant() is "none" or ""
+                    ? KitSprite.Procedural
+                    : KitSprite.HasMaterial(material) ? material : g.Material;
+            }
             if (k.ContainsKey("register"))
                 g.Register = Enum<KitRegister>(k["register"].AsString(), genre, "register") ?? g.Register;
             if (k.ContainsKey("frame_mode"))
@@ -118,7 +129,7 @@ namespace Beep.ECS.UI.Kit
             "select_button", "select_panel", "select_slot", "select_bar", "select_chip",
             "register", "pixel_size", "gloss_style", "edge_run", "text_treatment",
             "height_ratio", "pad_ratio", "rim", "bevel", "gloss", "sparkle", "well_shade",
-            "rim_brightness", "studs", "frame_mode", "hairline_px",
+            "rim_brightness", "studs", "frame_mode", "hairline_px", "material",
         };
 
         /// <summary>

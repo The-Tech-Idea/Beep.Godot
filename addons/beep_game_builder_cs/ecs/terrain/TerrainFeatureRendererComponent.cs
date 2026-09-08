@@ -25,8 +25,14 @@ namespace Beep.ECS
     public partial class TerrainFeatureRendererComponent : Node2D
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        [Export] public NodePath CellDataPath { get; set; } = new("");
+        [Export] public NodePath GridPath { get; set; } = new("");
+        [Export] public TerrainMapArt? MapArt { get; set; }
+        [Export] public TerrainPropSizing? PropSizing { get; set; }
+        private TerrainPropSizing Sizing => PropSizing ?? TerrainPropSizing.Standard;
 
         [ExportGroup("Map")]
+        [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(96, 60);
         [Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
         [Export] public int Seed { get; set; } = 31415;
@@ -35,6 +41,8 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string WoodsSheetPath { get; set; } = "";
         [Export(PropertyHint.Range, "1,16,1")] public int WoodsColumns { get; set; } = 4;
         [Export(PropertyHint.Range, "1,16,1")] public int WoodsRows { get; set; } = 4;
+        /// <summary>Terrain-to-frame choices, e.g. "grass,dry_grass=0,1,4". Empty uses the whole sheet.</summary>
+        [Export] public string[] WoodsFrameBindings { get; set; } = System.Array.Empty<string>();
         [Export(PropertyHint.File, "*.png,*.webp")] public string JungleSheetPath { get; set; } = "";
         [Export(PropertyHint.Range, "1,16,1")] public int JungleColumns { get; set; } = 4;
         [Export(PropertyHint.Range, "1,16,1")] public int JungleRows { get; set; } = 4;
@@ -46,8 +54,8 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,16,1")] public int MarshRows { get; set; } = 4;
 
         [ExportGroup("Look")]
-        [Export(PropertyHint.Range, "0.2,3,0.05")] public float SpriteScale { get; set; } = 0.62f;
-        [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 4;
+        [Export] public Vector2 SpriteAnchor { get; set; } = new(0.5f, 0.92f);
+        [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 1;
 
         /// <summary>
         /// Extra canopies on a dense stand. Closed forest and open woodland come
@@ -55,8 +63,8 @@ namespace Beep.ECS
         /// covered, so drawing both at one density would throw away the
         /// distinction the generator just made.
         /// </summary>
-        [Export(PropertyHint.Range, "0,8,1")] public int ForestExtraSprites { get; set; } = 3;
-        [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.18f;
+        [Export(PropertyHint.Range, "0,8,1")] public int ForestExtraSprites { get; set; } = 1;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.85f;
         [Export(PropertyHint.Range, "0,0.6,0.01")] public float ScaleJitter { get; set; } = 0.18f;
         // No z index export. This one was the reason the trees were missing
         // from the tile view: it was declared, set to -84 in three scenes, and
@@ -71,11 +79,18 @@ namespace Beep.ECS
         // renderer's.
 
         /// <summary>One drawn sprite: sheet region, where, and how big.</summary>
-        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY);
+        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, Vector2 Anchor);
 
         private TerrainGeneratorComponent? _generator;
+        private GridCellDataComponent? _cells;
+        private GridProjectionComponent? _grid;
+        private bool _rebuildQueued;
+        private bool _hasRebuildAttempt;
+        public int StampCount => _stamps.Count;
         private readonly Dictionary<string, Texture2D> _sheets = new();
+        private (string Woods, string Jungle, string Oasis, string Marsh)? _loadedSheetPaths;
         private readonly List<Stamp> _stamps = new();
+        private readonly TerrainFeatureFrameBindings _woodsFrames = new();
 
 
 
@@ -88,20 +103,93 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            ResolveCells();
             if (RefreshOnReady && !Engine.IsEditorHint())
                 CallDeferred(nameof(Rebuild));
         }
 
+        public override void _ExitTree()
+        {
+            ResetStreaming();
+            _stamps.Clear();
+            DisconnectCells();
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = null;
+            _rebuildQueued = false;
+        }
+
+        public override void _EnterTree()
+        {
+            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+                Callable.From(() =>
+                {
+                    if (!IsInsideTree()) return;
+                    ResolveCells();
+                    ResolveGrid();
+                    QueueRebuild();
+                }).CallDeferred();
+        }
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
+        private void DisconnectCells()
+        {
+            if (_cells is not null && GodotObject.IsInstanceValid(_cells))
+            {
+                _cells.CellChanged -= OnCellChanged;
+                _cells.CellsChanged -= QueueRebuild;
+            }
+            _cells = null;
+        }
+
+        private void ResolveCells()
+        {
+            var cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
+            if (cells == _cells) return;
+            DisconnectCells();
+            _cells = cells;
+            if (_cells is null || Engine.IsEditorHint()) return;
+            _cells.CellChanged += OnCellChanged;
+            _cells.CellsChanged += QueueRebuild;
+        }
+
+        private void OnCellChanged(int x, int y)
+        {
+            var cell = new Vector2I(x, y);
+            if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(cell) && !InvalidateFeatureCell(cell)) QueueRebuild();
+        }
+
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
+        }
+
         public override string[] _GetConfigurationWarnings()
-            => TerrainGeneratorPath.IsEmpty
+            => TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : System.Array.Empty<string>();
 
         /// <summary>Rebuilds every feature sprite from the generator.</summary>
         public void Rebuild()
         {
+            ResetStreaming();
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
+            ResolveCells();
+            ResolveGrid();
             // The mipmaps built above are only used if the node asks for them.
-            TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+            TextureFilter = MapArt?.PixelArt == true ? TextureFilterEnum.NearestWithMipmaps : TextureFilterEnum.LinearWithMipmaps;
 
             // Above all terrain, below the markers. Everything is drawn from
             // this one node in painter's order, so the whole batch shares the
@@ -110,16 +198,20 @@ namespace Beep.ECS
             ZAsRelative = false;
             ResolveGenerator();
             _stamps.Clear();
-            if (_generator is null)
+            if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null)
+                || (!GridPath.IsEmpty && _grid is null))
             {
-                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no features were drawn.");
+                GD.PushWarning($"[{Name}] configured terrain or grid source is missing; no features were drawn.");
                 QueueRedraw();
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (_cells is null && _generator is not null)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             LoadSheets();
-            if (_sheets.Count == 0)
+            _woodsFrames.Load(WoodsFrameBindings, Mathf.Max(1, WoodsColumns) * Mathf.Max(1, WoodsRows), Name);
+            if (_sheets.Count == 0 && (MapArt is null ||
+                MapArt.Trees.Count + MapArt.Oasis.Count + MapArt.Marsh.Count == 0))
             {
                 GD.PushWarning($"[{Name}] no feature sheets loaded, so no features were drawn.");
                 QueueRedraw();
@@ -128,26 +220,25 @@ namespace Beep.ECS
 
             // Resolved ONCE per rebuild rather than once per cell; see
             // TerrainGeneratorComponent.ResolveField.
-            GeneratedTerrainField field = _generator.ResolveField();
+            ITerrainSurfaceData source = _cells is null ? _generator!.ResolveField() : new LiveTerrainSurfaceData(_cells);
+            Vector2I sourceOrigin = _cells is null ? Vector2I.Zero : BoundsOrigin;
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             float tile = Mathf.Max(1, TileSize);
-
+            if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > 65536)
+            {
+                BeginStreaming(source, sourceOrigin, size, tile);
+                QueueRedraw();
+                return;
+            }
+            System.Func<Vector2, bool> waterAt = _cells is not null
+                ? TerrainCoastField.CreateLiveWaterSampler(_cells, BoundsOrigin, size)
+                : ((GeneratedTerrainField)source).IsWaterAtPosition;
+            bool Dry(Vector2 at) => new Rect2(Vector2.Zero, (Vector2)size).HasPoint(at) && !waterAt(at);
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
                 {
-                    string feature = field.FeatureAtCell(new Vector2I(x, y));
-                    if (feature.Length == 0)
-                        continue;
-
-                    if (!TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows) || sheet is null)
-                        continue;
-
-                    int clump = Mathf.Max(1, SpritesPerTile)
-                        + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle
-                            ? Mathf.Max(0, ForestExtraSprites) : 0);
-                    for (int i = 0; i < clump; i++)
-                        AddStamp(sheet, columns, rows, x, y, tile, i);
+                    BuildCell(source, sourceOrigin, tile, x, y, Dry, _stamps);
                 }
             }
 
@@ -161,6 +252,33 @@ namespace Beep.ECS
         {
             foreach (Stamp stamp in _stamps)
                 DrawTextureRectRegion(stamp.Sheet, stamp.Target, stamp.Region);
+        }
+
+        private void BuildCell(ITerrainSurfaceData source, Vector2I sourceOrigin, float tile,
+            int x, int y, System.Func<Vector2, bool> dry, List<Stamp> stamps)
+        {
+            var cell = new Vector2I(x, y);
+            string feature = source.FeatureAtCell(sourceOrigin + cell);
+            if (feature.Length == 0) return;
+            var art = MapArt?.FeatureTextures(feature);
+            bool individual = art is { Count: > 0 };
+            bool hasSheet = TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows);
+            if (!individual && (!hasSheet || sheet is null)) return;
+            int[]? frames = _sheets.TryGetValue("woods", out var woods) && sheet == woods
+                ? _woodsFrames.For(source.TerrainAtCell(sourceOrigin + cell)) : null;
+            int clump = Mathf.Clamp(SpritesPerTile, 1, 8)
+                + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle ? Mathf.Clamp(ForestExtraSprites, 0, 8) : 0);
+            System.Span<Vector2> offsets = stackalloc Vector2[TerrainFeatureScatter.MaximumCount];
+            int count = TerrainFeatureScatter.Fill(offsets[..clump], BoundsOrigin + cell, Seed,
+                PositionJitter, (Vector2)cell + Vector2.One * 0.5f, dry);
+            for (int i = 0; i < count; i++)
+            {
+                Texture2D selected = individual ? art![Mathf.FloorToInt(TerrainGeometry.Hash01(
+                    BoundsOrigin.X + x, BoundsOrigin.Y + y, Seed + 811 + i * 97) * art.Count) % art.Count] : sheet!;
+                if (!GodotObject.IsInstanceValid(selected)) continue;
+                AddStamp(selected, individual ? 1 : columns, individual ? 1 : rows, individual ? null : frames,
+                    x, y, tile, i, offsets[i], feature, stamps);
+            }
         }
 
         private bool TryDescribe(string feature, out Texture2D? sheet, out int columns, out int rows)
@@ -197,7 +315,8 @@ namespace Beep.ECS
             return true;
         }
 
-        private void AddStamp(Texture2D sheet, int columns, int rows, int x, int y, float tile, int slot)
+        private void AddStamp(Texture2D sheet, int columns, int rows, int[]? frames, int x, int y, float tile, int slot,
+            Vector2 jitter, string feature, List<Stamp> stamps)
         {
             // Texture2D.GetSize returns floats, so the frame is computed and
             // then floored to whole pixels for the atlas region.
@@ -205,32 +324,50 @@ namespace Beep.ECS
             var frame = new Vector2I(
                 Mathf.FloorToInt(sheetSize.X / columns),
                 Mathf.FloorToInt(sheetSize.Y / rows));
-            int index = Mathf.FloorToInt(TerrainGeometry.Hash01(x, y, Seed + 811 + (slot * 97)) * columns * rows) % (columns * rows);
-            var region = new Rect2(new Vector2(index % columns, index / columns) * frame, frame);
+            if (frame.X <= 0 || frame.Y <= 0) return;
+            Vector2I cell = BoundsOrigin + new Vector2I(x, y);
+            int count = frames?.Length ?? (columns * rows);
+            int roll = Mathf.FloorToInt(TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 811 + (slot * 97)) * count) % count;
+            int index = frames is null ? roll : frames[roll];
+            var region = Sizing.VisibleRegion(sheet, columns, rows, index);
+            frame = (Vector2I)region.Size;
+            if (frame.X <= 0 || frame.Y <= 0) return;
+
+            Vector2 centre = ((Vector2)cell + Vector2.One * 0.5f) * tile;
+            Vector2 across = Vector2.Right * tile, down = Vector2.Down * tile;
+            if (_grid is not null)
+            {
+                centre = ToLocal(_grid.CellToWorld(cell));
+                Vector2[] corners = _grid.CellCorners(cell);
+                if (!centre.IsFinite() || corners.Length != 4) return;
+                for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
+                across = corners[1] - corners[0];
+                down = corners[3] - corners[0];
+                tile = Mathf.Min(across.Length(), down.Length());
+            }
 
             // Scale so the sprite covers roughly one tile regardless of how
             // large the source art is.
             float fit = tile / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
-            float jitterScale = 1.0f + ((TerrainGeometry.Hash01(x, y, Seed + 907 + (slot * 89)) - 0.5f) * 2.0f * ScaleJitter);
-            Vector2 drawn = (Vector2)frame * fit * SpriteScale * jitterScale;
+            float jitterScale = 1.0f + ((TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 907 + (slot * 89)) - 0.5f) * 2.0f * ScaleJitter);
+            float scale = Sizing.SizeInCells(feature, jitterScale);
+            Vector2 drawn = (Vector2)frame * fit * scale;
 
-            var centre = new Vector2(
-                (x + 0.5f + ((TerrainGeometry.Hash01(x, y, Seed + 1013 + (slot * 71)) - 0.5f) * PositionJitter)) * tile,
-                // Nudged up so the trunk sits at the tile centre and the canopy
-                // overhangs upward, which is how the eye reads depth.
-                (y + 0.42f + ((TerrainGeometry.Hash01(x, y, Seed + 1117 + (slot * 67)) - 0.5f) * PositionJitter)) * tile);
+            centre += across * jitter.X + down * jitter.Y;
 
-            _stamps.Add(new Stamp(
+            stamps.Add(new Stamp(
                 sheet,
                 region,
-                new Rect2(centre - (drawn * 0.5f), drawn),
-                centre.Y));
+                new Rect2(centre - (drawn * SpriteAnchor), drawn),
+                centre.Y, centre));
         }
 
         private void LoadSheets()
         {
-            if (_sheets.Count > 0)
-                return;
+            var paths = (WoodsSheetPath, JungleSheetPath, OasisSheetPath, MarshSheetPath);
+            if (_loadedSheetPaths == paths) return;
+            _loadedSheetPaths = paths;
+            _sheets.Clear();
 
             Add("woods", WoodsSheetPath);
             Add("jungle", JungleSheetPath);
@@ -256,10 +393,41 @@ namespace Beep.ECS
 
         private void ResolveGenerator()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _generator = TerrainGeneratorPath.IsEmpty ? null
+                : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+        }
+
+        private void ResolveGrid()
+        {
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            if (_grid == grid) return;
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = grid;
+            if (_grid is not null && !Engine.IsEditorHint()) _grid.GeometryChanged += QueueRebuild;
+        }
+
+        /// <summary>Actual drawn centers, in local coordinates, including deterministic jitter.</summary>
+        public Vector2[] GetStampCenters()
+        {
+            var centers = new Vector2[_stamps.Count];
+            for (int i = 0; i < centers.Length; i++) centers[i] = _stamps[i].Target.GetCenter();
+            return centers;
+        }
+
+        /// <summary>Actual ground anchors, independent of the artwork's SpriteAnchor.</summary>
+        public Vector2[] GetStampAnchors()
+        {
+            var anchors = new Vector2[_stamps.Count];
+            for (int i = 0; i < anchors.Length; i++) anchors[i] = _stamps[i].Anchor;
+            return anchors;
+        }
+
+        /// <summary>Actual sprite-frame bounds in renderer-local units, including size jitter.</summary>
+        public Godot.Collections.Array<Rect2> GetStampBounds()
+        {
+            var bounds = new Godot.Collections.Array<Rect2>();
+            foreach (var stamp in _stamps) bounds.Add(stamp.Target);
+            return bounds;
         }
 
     }

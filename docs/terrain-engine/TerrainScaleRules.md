@@ -1,6 +1,6 @@
 # TerrainScaleRules
 
-Support utility in the terrain pipeline — a pure-math, stateless class with no dependency on `TerrainWorld` or any generation stage; it only computes numbers other code (a generation-settings assembler and `TerrainScaleConstraintStage`) consumes.
+Support utility in the terrain pipeline — a pure-math, stateless class with no dependency on `TerrainGenerationBuffer` or any generation stage; it only computes numbers other code (a generation-settings assembler and `TerrainScaleConstraintStage`) consumes.
 
 `TerrainScaleRules` derives climate and biome-region-size constraints from a map's size rather than requiring them to be hand-tuned per map. It embodies two rules: a map only spans as much latitude/climate range as its height is a fraction of a full "planet" height (`WorldHeightTiles = 240`), so a small map sits in one climate band instead of sampling the whole range in a few dozen tiles; and every biome region must cover a fixed *absolute* tile count (`RegionTilesTarget = 80`) to survive, so the number of distinct biomes/features scales with map area rather than being a fixed count or a fixed share. It also holds the standalone minimum/maximum tile-count constants (`MinLakeTiles`, `MinReliefTiles`, `MinRiverTiles`, `MinFeatureTiles`, `MaxLakeShareOfLandmass`) that `TerrainScaleConstraintStage` reads directly.
 
@@ -16,7 +16,7 @@ Support utility in the terrain pipeline — a pure-math, stateless class with no
 
 ## Dependencies
 
-- None within `addons/beep_game_builder_cs/ecs/terrain/` — this file only uses `Godot.Vector2I`/`Godot.Mathf` and defines its own types; it does not read or write `TerrainWorld`, `TerrainGenerationSettings`, or any other terrain file.
+- None within `addons/beep_game_builder_cs/ecs/terrain/` — this file only uses `Godot.Vector2I`/`Godot.Mathf` and defines its own types; it does not read or write `TerrainGenerationBuffer`, `TerrainGenerationSettings`, or any other terrain file.
 - Consumed by: `TerrainGeneratorComponent` (calls `TerrainScaleRules.For(size, LandmassScale)` when assembling a `TerrainGenerationSettings`, only when `UseScaleRules` is on) and `TerrainScaleConstraintStage` (reads the five `Min*`/`Max*` constants directly, not through `Rules`/`For`).
 
 ## Notes

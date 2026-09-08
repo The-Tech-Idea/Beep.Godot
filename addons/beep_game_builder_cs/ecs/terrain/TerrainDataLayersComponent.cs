@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Beep.ECS
 {
     /// <summary>
-    /// What each cell of the generated map IS, as real tile data a game can ask
+    /// What each cell of the generated map IS, as recipe metadata a game can ask
     /// about: terrain, resource, feature, relief, water and passability.
     ///
     /// WHY A LAYER OF ITS OWN rather than reading the layers that draw the map.
@@ -15,10 +15,10 @@ namespace Beep.ECS
     /// have to know which VIEW is on screen, and would stop working when the
     /// player switched. These layers are the same whichever view draws.
     ///
-    /// They are invisible and contribute nothing to the picture. That is the
-    /// point: they are the map's data, kept in the form Godot already has for
-    /// per-tile data, so a developer uses get_cell_tile_data and the TileSet
-    /// editor rather than an API peculiar to this addon.
+    /// Runtime queries read the published field directly, without duplicating
+    /// its arrays or allocating invisible tiles. MaterializeTileLayers enables
+    /// an explicit native TileData view for authoring/export and direct TileSet
+    /// inspection. Those optional layers are invisible and physically inert.
     ///
     /// EIGHT layers, not one, because the facts vary independently: a cell's
     /// terrain, the resource on it, what swims in its water, what lies under
@@ -35,38 +35,27 @@ namespace Beep.ECS
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
 
         [ExportGroup("Map")]
+        [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(64, 64);
 
         /// <summary>
-        /// Must match the cell size of the view being queried, so a cell here is
-        /// the same cell there.
+        /// Size of metadata atlas tiles. Logical cell queries do not depend on the view's projection.
         /// </summary>
         [Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
         [Export] public bool RefreshOnReady { get; set; } = true;
+        /// <summary>Explicit native TileData authoring/export view. Runtime queries need no tiles.</summary>
+        [Export] public bool MaterializeTileLayers { get; set; }
 
-        [ExportGroup("Body")]
-        /// <summary>
-        /// Give every cell a collision shape and a navigation polygon on the
-        /// layer for the GROUND it is - land, water or steep - so a game can
-        /// decide what that means with ordinary collision masks.
-        ///
-        /// Nothing here decides whether water stops anyone. Off entirely for a
-        /// map that is only ever looked at, since both cost memory per tile.
-        /// </summary>
-        [Export] public bool GenerateCollision { get; set; } = true;
-        [Export] public bool GenerateNavigation { get; set; } = true;
-
-        /// <summary>Collision bit for open land.</summary>
-        [Export(PropertyHint.Layers2DPhysics)] public uint LandCollisionLayer { get; set; } = 2;
-
-        /// <summary>Collision bit for sea, lake and river.</summary>
-        [Export(PropertyHint.Layers2DPhysics)] public uint WaterCollisionLayer { get; set; } = 4;
-
-        /// <summary>Collision bit for rock and cliffs.</summary>
-        [Export(PropertyHint.Layers2DPhysics)] public uint SteepCollisionLayer { get; set; } = 8;
+        private GeneratedTerrainField? _field;
+        private Vector2I _publishedOrigin;
+        private Vector2I _publishedSize;
+        private readonly HashSet<Vector2I> _publishedStarts = new();
+        private bool _materialized;
 
         private TerrainGeneratorComponent? _generator;
+        /// <summary>Stable identity of the published underground map, including absolute bounds.</summary>
+        public string UndergroundIdentity { get; private set; } = "";
         private TileMapLayer? _terrain;
         private TileMapLayer? _resources;
         private TileMapLayer? _features;
@@ -100,23 +89,38 @@ namespace Beep.ECS
         /// <summary>Rewrites every cell's data from the generator.</summary>
         public void Rebuild()
         {
-            _generator ??= TerrainGeneratorPath.IsEmpty
+            _generator = TerrainGeneratorPath.IsEmpty
                 ? null
                 : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
             if (_generator is null)
             {
+                _field = null;
+                _publishedStarts.Clear();
+                ClearLayers();
                 GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no cell data was written.");
                 return;
             }
             TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
-            // Resolved ONCE per rebuild rather than once per cell: this method
-            // scans the whole map twice, and every public per-cell accessor on
-            // the generator otherwise rebuilds and compares its ~30-field
-            // settings record before returning this same cached field.
+            // Resolve once. Runtime metadata binds directly; optional native
+            // materialization scans this field without repeated settings checks.
             GeneratedTerrainField field = _generator.ResolveField();
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
+            _field = field;
+            _publishedOrigin = BoundsOrigin;
+            _publishedSize = size;
+            _publishedStarts.Clear();
+            foreach (Vector2I start in field.StartPositions)
+                if (start.X >= 0 && start.Y >= 0 && start.X < size.X && start.Y < size.Y)
+                    _publishedStarts.Add(BoundsOrigin + start);
+            _materialized = MaterializeTileLayers;
+            if (!_materialized)
+            {
+                ReleaseLayers();
+                UpdateUndergroundIdentity(field, size);
+                return;
+            }
             Vector2I cell = new(Mathf.Max(1, TileSize), Mathf.Max(1, TileSize));
 
             // The values actually present on THIS map, so a tile is only made for
@@ -173,13 +177,7 @@ namespace Beep.ECS
             // catalogue knows. A tile per absent biome is a tile nothing ever
             // points at.
             _terrain = EnsureLayer("TerrainData", _terrain, cell, new List<string>(_generator.TerrainKindsPresent()), _terrainTiles,
-                (data, value) =>
-                {
-                    TerrainTileSets.Describe(data, value);
-                    if (GenerateCollision || GenerateNavigation)
-                        TerrainTileSets.ShapeCell(data, value, cell);
-                },
-                body: GenerateCollision || GenerateNavigation);
+                (data, value) => TerrainTileSets.Describe(data, value));
             _resources = EnsureLayer("ResourceData", _resources, cell, new List<string>(resources), _resourceTiles,
                 (data, value) => TerrainTileSets.Describe(data, string.Empty, resource: value));
             _features = EnsureLayer("FeatureData", _features, cell, new List<string>(features), _featureTiles,
@@ -199,14 +197,7 @@ namespace Beep.ECS
                     TerrainTileSets.DescribeUnderground(data, id, RichnessOfBand(band), depth);
                 });
 
-            _terrain.Clear();
-            _resources.Clear();
-            _features.Clear();
-            _relief.Clear();
-            _continents.Clear();
-            _starts.Clear();
-            _liquid.Clear();
-            _underground.Clear();
+            ClearLayers();
 
             for (int y = 0; y < size.Y; y++)
             {
@@ -232,6 +223,7 @@ namespace Beep.ECS
                             field.UndergroundDepthAtCell(at)));
                 }
             }
+            UpdateUndergroundIdentity(field, size);
 
             foreach (Vector2I start in field.StartPositions)
             {
@@ -240,11 +232,42 @@ namespace Beep.ECS
             }
         }
 
-        private static void Paint(
+        private void Paint(
             TileMapLayer layer, Dictionary<string, int> tiles, Vector2I cell, string value)
         {
             if (value.Length > 0 && tiles.TryGetValue(value, out int column))
-                layer.SetCell(cell, 0, new Vector2I(column, 0));
+                layer.SetCell(BoundsOrigin + cell, 0, new Vector2I(column, 0));
+        }
+
+        private void ClearLayers()
+        {
+            UndergroundIdentity = "";
+            foreach (var layer in new[] { _terrain, _resources, _features, _relief, _continents, _starts, _liquid, _underground })
+                if (GodotObject.IsInstanceValid(layer)) layer!.Clear();
+        }
+
+        private void ReleaseLayers()
+        {
+            foreach (string name in new[] { "TerrainData", "ResourceData", "FeatureData", "ReliefData",
+                         "ContinentData", "StartData", "LiquidData", "UndergroundData" })
+                if (GetNodeOrNull<TileMapLayer>(name) is { } layer)
+                {
+                    RemoveChild(layer);
+                    layer.QueueFree();
+                }
+            _terrain = _resources = _features = _relief = _continents = _starts = _liquid = _underground = null;
+            foreach (var table in new[] { _terrainTiles, _resourceTiles, _featureTiles, _reliefTiles,
+                         _continentTiles, _startTiles, _liquidTiles, _undergroundTiles }) table.Clear();
+        }
+
+        private void UpdateUndergroundIdentity(GeneratedTerrainField field, Vector2I size)
+            => UndergroundIdentity = field.UndergroundIdentity(BoundsOrigin, size);
+
+        private bool HasPublishedCell(Vector2I cell)
+        {
+            Vector2I local = cell - _publishedOrigin;
+            return _field is not null && local.X >= 0 && local.Y >= 0
+                && local.X < _publishedSize.X && local.Y < _publishedSize.Y;
         }
 
         /// <summary>
@@ -258,18 +281,16 @@ namespace Beep.ECS
             Vector2I cell,
             IReadOnlyList<string> values,
             Dictionary<string, int> tiles,
-            System.Action<TileData?, string> describe,
-            bool body = false)
+            System.Action<TileData?, string> describe)
         {
             TileMapLayer layer = existing is not null && GodotObject.IsInstanceValid(existing)
                 ? existing
                 : TerrainAuthoring.EnsureLayer(this, name);
 
-            // Data, not decoration - but collision and navigation are served
-            // from a hidden layer just as well as a visible one.
+            // Recipe metadata must not create a second physical or navigable world.
             layer.Visible = false;
-            layer.CollisionEnabled = GenerateCollision;
-            layer.NavigationEnabled = GenerateNavigation;
+            layer.CollisionEnabled = false;
+            layer.NavigationEnabled = false;
 
             tiles.Clear();
             int count = Mathf.Max(1, values.Count);
@@ -283,12 +304,6 @@ namespace Beep.ECS
             };
 
             TileSet tileSet = TerrainTileSets.Create(cell);
-            if (body)
-            {
-                TerrainTileSets.DefineBody(
-                    tileSet,
-                    new[] { LandCollisionLayer, WaterCollisionLayer, SteepCollisionLayer });
-            }
             for (int i = 0; i < values.Count; i++)
             {
                 var coords = new Vector2I(i, 0);
@@ -310,22 +325,32 @@ namespace Beep.ECS
 
         // ---- reading a cell -------------------------------------------------
         //
-        // Convenience over get_cell_tile_data(cell).get_custom_data(name), which
-        // is what these do and what a developer can equally call themselves - the
-        // layers are public below for exactly that. They ANSWER questions; none
-        // of them acts on the answer.
+        // Queries use the published field by default. With MaterializeTileLayers,
+        // they read the optional native TileData view, also exposed below.
         //
         //     var data := $CellData/TerrainData.get_cell_tile_data(cell)
         //     if data: print(data.get_custom_data("terrain"))
 
-        /// <summary>Terrain kind at a cell, or empty when outside the map.</summary>
-        public string TerrainAt(Vector2I cell) => Read(_terrain, cell, TerrainTileSets.Cell.Terrain).AsString();
+        /// <summary>
+        /// The terrain kind the GENERATOR gave a cell, or empty when outside the
+        /// map. Named for what it is: the recipe's answer, regenerated from the
+        /// axes and seed, not the live map. The live kind - what the player has
+        /// cleared, flooded or built over, and what the save carries - is
+        /// GridCellDataComponent's alone, and no grid rule reads this for it.
+        /// </summary>
+        public string GeneratedTerrainAt(Vector2I cell) => _materialized
+            ? Read(_terrain, cell, TerrainTileSets.Cell.Terrain).AsString()
+            : HasPublishedCell(cell) ? _field!.TerrainAtCell(cell - _publishedOrigin) : "";
 
         /// <summary>Resource id on a cell, or empty where there is none.</summary>
-        public string ResourceAt(Vector2I cell) => Read(_resources, cell, TerrainTileSets.Cell.Resource).AsString();
+        public string ResourceAt(Vector2I cell) => _materialized
+            ? Read(_resources, cell, TerrainTileSets.Cell.Resource).AsString()
+            : HasPublishedCell(cell) ? _field!.ResourceAtCell(cell - _publishedOrigin) : "";
 
         /// <summary>Feature on a cell - "woods", "marsh" - or empty.</summary>
-        public string FeatureAt(Vector2I cell) => Read(_features, cell, TerrainTileSets.Cell.Feature).AsString();
+        public string FeatureAt(Vector2I cell) => _materialized
+            ? Read(_features, cell, TerrainTileSets.Cell.Feature).AsString()
+            : HasPublishedCell(cell) ? _field!.FeatureAtCell(cell - _publishedOrigin) : "";
 
         /// <summary>
         /// Relief band at a cell - Flat, Hills or Mountains, as TerrainRelief
@@ -333,58 +358,66 @@ namespace Beep.ECS
         /// ReliefAt, rather than the terrain layer's Cell.Relief - which is a
         /// different unit, TerrainLayers' drawing z-order derived from kind.
         /// </summary>
-        public int ReliefAt(Vector2I cell) => Read(_relief, cell, TerrainTileSets.Cell.Relief).AsInt32();
+        public int ReliefAt(Vector2I cell) => _materialized
+            ? Read(_relief, cell, TerrainTileSets.Cell.Relief).AsInt32()
+            : HasPublishedCell(cell) ? (int)_field!.ReliefAtCell(cell - _publishedOrigin) : 0;
 
         /// <summary>Whether the cell is sea, lake or river. A fact about the map.</summary>
-        public bool IsWaterAt(Vector2I cell) => Read(_terrain, cell, TerrainTileSets.Cell.IsWater).AsBool();
+        public bool IsWaterAt(Vector2I cell) => _materialized
+            ? Read(_terrain, cell, TerrainTileSets.Cell.IsWater).AsBool()
+            : TerrainTileSets.IsWaterKind(GeneratedTerrainAt(cell));
 
-        /// <summary>
-        /// The CONVENTIONAL default for whether a cell can be entered on foot -
-        /// not water, not rock.
-        ///
-        /// Read it or ignore it. Nothing in the addon acts on it: collision and
-        /// navigation are generated per GROUND KIND on their own layers, so
-        /// whether a swimmer crosses water, or a climber crosses rock, is decided
-        /// by that agent's collision mask and navigation layers and never here. A
-        /// game whose rules differ from this default is not fighting anything -
-        /// it simply reads terrain or is_water instead.
-        /// </summary>
-        public bool PassableAt(Vector2I cell) => Read(_terrain, cell, TerrainTileSets.Cell.Passable).AsBool();
+        /// <summary>Generated ground's conventional passability, not live navigation rules.</summary>
+        public bool PassableAt(Vector2I cell) => _materialized
+            ? Read(_terrain, cell, TerrainTileSets.Cell.Passable).AsBool()
+            : HasPublishedCell(cell) && TerrainTileSets.GroundOf(GeneratedTerrainAt(cell)) == TerrainTileSets.Ground.Land;
 
         /// <summary>
         /// Landmass index the cell belongs to. 0 for water, off-map, and
         /// unbuilt layers alike - land continents count from 1, so 0 always
         /// means "no continent" rather than a real id.
         /// </summary>
-        public int ContinentAt(Vector2I cell) => Read(_continents, cell, TerrainTileSets.Cell.Continent).AsInt32();
+        public int ContinentAt(Vector2I cell) => _materialized
+            ? Read(_continents, cell, TerrainTileSets.Cell.Continent).AsInt32()
+            : HasPublishedCell(cell) ? _field!.ContinentAtCell(cell - _publishedOrigin) : 0;
 
         /// <summary>Whether the generator recommended this cell as a player start.</summary>
-        public bool IsStartPositionAt(Vector2I cell) => Read(_starts, cell, TerrainTileSets.Cell.StartPosition).AsBool();
+        public bool IsStartPositionAt(Vector2I cell) => _materialized
+            ? Read(_starts, cell, TerrainTileSets.Cell.StartPosition).AsBool() : _publishedStarts.Contains(cell);
 
         /// <summary>
-        /// Every recommended start cell, read off the painted start layer so it
-        /// answers from the same data a get_used_cells caller would see.
+        /// Every recommended start cell in absolute map coordinates.
         /// </summary>
         public Godot.Collections.Array<Vector2I> StartCells()
-            => _starts is not null && GodotObject.IsInstanceValid(_starts)
+            => !_materialized ? new Godot.Collections.Array<Vector2I>(_publishedStarts)
+                : _starts is not null && GodotObject.IsInstanceValid(_starts)
                 ? _starts.GetUsedCells()
                 : new Godot.Collections.Array<Vector2I>();
 
         /// <summary>The liquid-stratum resource in a water cell - fish and kin - or empty.</summary>
-        public string LiquidResourceAt(Vector2I cell) => Read(_liquid, cell, TerrainTileSets.Cell.LiquidResource).AsString();
+        public string LiquidResourceAt(Vector2I cell) => _materialized
+            ? Read(_liquid, cell, TerrainTileSets.Cell.LiquidResource).AsString()
+            : HasPublishedCell(cell) ? _field!.LiquidResourceAtCell(cell - _publishedOrigin) : "";
 
         /// <summary>The underground resource beneath a cell, or empty. Invisible on the map.</summary>
-        public string UndergroundResourceAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundResource).AsString();
+        public string UndergroundResourceAt(Vector2I cell) => _materialized
+            ? Read(_underground, cell, TerrainTileSets.Cell.UndergroundResource).AsString()
+            : HasPublishedCell(cell) ? _field!.UndergroundResourceAtCell(cell - _publishedOrigin) : "";
 
         /// <summary>Underground richness 0..1 (banded) where a deposit exists, else 0.</summary>
-        public float UndergroundRichnessAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundRichness).AsSingle();
+        public float UndergroundRichnessAt(Vector2I cell) => _materialized
+            ? Read(_underground, cell, TerrainTileSets.Cell.UndergroundRichness).AsSingle()
+            : UndergroundResourceAt(cell).Length > 0
+                ? RichnessOfBand(RichnessBand(_field!.UndergroundRichnessAtCell(cell - _publishedOrigin))) : 0f;
 
         /// <summary>Underground depth band, as (int)ResourceDepth; check the id first.</summary>
-        public int UndergroundDepthAt(Vector2I cell) => Read(_underground, cell, TerrainTileSets.Cell.UndergroundDepth).AsInt32();
+        public int UndergroundDepthAt(Vector2I cell) => _materialized
+            ? Read(_underground, cell, TerrainTileSets.Cell.UndergroundDepth).AsInt32()
+            : UndergroundResourceAt(cell).Length > 0 ? _field!.UndergroundDepthAtCell(cell - _publishedOrigin) : 0;
 
         /// <summary>Richness banded to four steps, so a field needs four tiles per id, not one per float.</summary>
         private static int RichnessBand(float richness)
-            => Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp(richness, 0.0f, 1.0f) * 4.0f), 0, 3);
+            => TerrainUndergroundIdentity.RichnessBand(richness);
 
         private static float RichnessOfBand(int band) => (band + 0.5f) / 4.0f;
 
@@ -405,7 +438,7 @@ namespace Beep.ECS
             return data is null ? default : data.GetCustomData(field);
         }
 
-        /// <summary>Terrain kind, water; also the collision and navigation body.</summary>
+        /// <summary>Generated terrain metadata only. No collision or navigation body.</summary>
         public TileMapLayer? TerrainLayer => _terrain;
 
         /// <summary>Resource ids, on the cells that have one.</summary>

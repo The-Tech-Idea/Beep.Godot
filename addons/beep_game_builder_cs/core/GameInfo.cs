@@ -175,11 +175,30 @@ public partial class GameInfo : Resource
     [Export] public int ForecastDays { get; set; } = 7;
 
     [ExportGroup("Time")]
-    /// <summary>The genre's time axis: "realtime" (default) or "turns", set from genre.json
-    /// tuning.time_axis. Real-time genres tick durations per frame (using Engine.time_scale);
-    /// turn-based genres tick them per turn via the TurnManager autoload. One axis per game —
-    /// nothing mixes — so a Duration needs no unit tag. See phase-7 in the plans.</summary>
-    [Export] public string TimeAxis { get; set; } = "realtime";
+    /// <summary>
+    /// The genre's time axis, set from genre.json tuning.time_axis. This is the
+    /// single DECLARATION of how the game measures time: GameApp reads it once
+    /// and configures GameClock with it, and nothing else in the addon ever asks
+    /// which axis it is on. One axis per game — nothing mixes — so a duration
+    /// needs no unit tag; the same authored number is seconds on Realtime and
+    /// turns on Turns.
+    /// </summary>
+    [Export] public ECS.GameTimeAxis TimeAxis { get; set; } = ECS.GameTimeAxis.Realtime;
+
+    /// <summary>
+    /// The real-time day length in seconds a genre gets when it declares the
+    /// axis without declaring a day. One constant, read by the export default
+    /// below and by the genre generator, so the two cannot disagree.
+    /// </summary>
+    public const double DefaultRealtimeBeatsPerDay = 45.0;
+
+    /// <summary>
+    /// Beats in one in-game day — the cascade divisor GameClock uses to derive
+    /// days, seasons and years from the one beat counter, the way OpenTTD
+    /// derives its date from date_fract. On the turn axis this is 1, so one
+    /// end-turn is one day; on the real-time axis it is a day length in seconds.
+    /// </summary>
+    [Export(PropertyHint.Range, "0.01,86400,0.01")] public double BeatsPerDay { get; set; } = DefaultRealtimeBeatsPerDay;
 
     [ExportGroup("Save/Load")]
     [Export] public bool EnableGameStateManager { get; set; } = true;

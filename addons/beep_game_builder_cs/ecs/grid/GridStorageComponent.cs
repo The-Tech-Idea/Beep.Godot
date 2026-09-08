@@ -15,6 +15,10 @@ namespace Beep.ECS
     /// Attach under a placed building beside its GridObjectComponent. Give
     /// each storage its own SaveKey; the contents are world state and
     /// round-trip through saves.
+    ///
+    /// AllowedResourceIds/AllowedResourceTags decide what CanAccept lets in;
+    /// the tag list, when Catalog is wired, accepts by resource TYPE
+    /// (ResourceDefinition.Tags) instead of one id at a time.
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -28,8 +32,31 @@ namespace Beep.ECS
         /// <summary>Total units the storage takes, across every resource in it.</summary>
         [Export(PropertyHint.Range, "1,999999,1")] public int Capacity { get; set; } = 200;
 
-        /// <summary>Resource ids this storage accepts; empty accepts anything.</summary>
+        /// <summary>
+        /// Resource ids this storage accepts; empty (together with
+        /// AllowedResourceTags) accepts anything. Checked before
+        /// AllowedResourceTags - an exact id listed here is always accepted,
+        /// catalog or not.
+        /// </summary>
         [Export] public Godot.Collections.Array<string> AllowedResourceIds { get; set; } = new();
+
+        /// <summary>
+        /// The shared resource-type catalog, consulted for AllowedResourceTags
+        /// - optional. Without it, only AllowedResourceIds (or accepting
+        /// anything, when both lists are empty) decides.
+        /// </summary>
+        [Export] public ResourceCatalog? Catalog { get; set; }
+
+        /// <summary>
+        /// Resource TAGS this storage accepts, checked against Catalog -
+        /// e.g. "ore" accepts any catalog resource tagged "ore" without
+        /// listing every ore id by hand, so a resource the catalog adds
+        /// later is storable here with no scene edit. Applies ON TOP OF
+        /// AllowedResourceIds, never instead of it. Only checked when
+        /// Catalog is wired; an id the catalog does not recognize can never
+        /// match a tag, which is what closes a typo'd resource id out.
+        /// </summary>
+        [Export] public Godot.Collections.Array<string> AllowedResourceTags { get; set; } = new();
 
         private readonly Dictionary<string, int> _stored = new(StringComparer.OrdinalIgnoreCase);
 
@@ -37,12 +64,21 @@ namespace Beep.ECS
         {
             if (!Engine.IsEditorHint() && ParticipatesInSave)
                 AddToGroup(SaveableHelper.Group);
+            UpdateConfigurationWarnings();
         }
 
         public override void _ExitTree()
         {
+            ClearMaterialClaims();
             if (ParticipatesInSave)
                 RemoveFromGroup(SaveableHelper.Group);
+        }
+
+        public override string[] _GetConfigurationWarnings()
+        {
+            if (AllowedResourceTags.Count > 0 && Catalog == null)
+                return new[] { "AllowedResourceTags is set but Catalog is empty - tag filtering has no effect, and any id not also listed in AllowedResourceIds will be rejected." };
+            return Array.Empty<string>();
         }
 
         public int CurrentLoad
@@ -62,14 +98,39 @@ namespace Beep.ECS
         {
             if (string.IsNullOrWhiteSpace(resourceId))
                 return false;
-            if (AllowedResourceIds.Count == 0)
+            if (AllowedResourceIds.Count == 0 && AllowedResourceTags.Count == 0)
                 return true;
 
+            return AcceptsResourceType(resourceId.Trim());
+        }
+
+        /// <summary>
+        /// HOOK: the acceptance rule once at least one of AllowedResourceIds/
+        /// AllowedResourceTags is configured (an unconfigured storage accepts
+        /// everything and never reaches this method - see CanAccept). The
+        /// default checks the exact-id list first, then - only when Catalog
+        /// is wired - whether the catalog's definition for the id carries any
+        /// of AllowedResourceTags. Override to replace the rule entirely
+        /// (category-based, a per-project scheme) without touching Load/Unload.
+        /// </summary>
+        protected virtual bool AcceptsResourceType(string resourceId)
+        {
             foreach (string allowed in AllowedResourceIds)
             {
-                if (string.Equals(allowed?.Trim(), resourceId.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(allowed?.Trim(), resourceId, StringComparison.OrdinalIgnoreCase))
                     return true;
             }
+
+            if (Catalog != null && AllowedResourceTags.Count > 0
+                && Catalog.Find(resourceId) is { } definition)
+            {
+                foreach (string tag in AllowedResourceTags)
+                {
+                    if (definition.HasTag(tag))
+                        return true;
+                }
+            }
+
             return false;
         }
 
@@ -96,7 +157,7 @@ namespace Beep.ECS
 
             string id = resourceId.Trim();
             int held = Stored(id);
-            int released = Mathf.Min(amount, held);
+            int released = Mathf.Min(amount, Available(id));
             if (released <= 0)
                 return 0;
 
@@ -113,6 +174,30 @@ namespace Beep.ECS
             => !string.IsNullOrWhiteSpace(resourceId) && _stored.TryGetValue(resourceId.Trim(), out int amount)
                 ? amount
                 : 0;
+
+        public bool CanProvide(Godot.Collections.Array amounts)
+        {
+            if (!GridResourceAmount.TryTotals(amounts, out var totals)) return false;
+            foreach ((string id, int amount) in totals)
+                if (Available(id) < amount) return false;
+            return true;
+        }
+
+        public bool TryConsume(Godot.Collections.Array amounts)
+        {
+            if (!GridResourceAmount.TryTotals(amounts, out var totals)) return false;
+            foreach ((string id, int amount) in totals)
+                if (Available(id) < amount) return false;
+            foreach ((string id, int amount) in totals)
+            {
+                int remaining = Stored(id) - amount;
+                if (remaining == 0) _stored.Remove(id);
+                else _stored[id] = remaining;
+            }
+            foreach (string id in totals.Keys)
+                EmitSignal(SignalName.StorageChanged, id, Stored(id), CurrentLoad);
+            return true;
+        }
 
         public Godot.Collections.Array<string> StoredIds()
         {
@@ -132,6 +217,7 @@ namespace Beep.ECS
 
         public void RestoreState(Godot.Collections.Dictionary state)
         {
+            ClearMaterialClaims();
             _stored.Clear();
             if (!state.ContainsKey("contents")
                 || !GridVariantReader.TryDictionary(state["contents"], out Godot.Collections.Dictionary contents))

@@ -108,10 +108,45 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
-        private void RefreshVisualAndRedraw()
+        /// <summary>
+        /// The genre this widget is drawing for, resolved once in <c>_Ready</c> and again on a
+        /// theme change.
+        ///
+        /// Exposed because 36 draw paths were calling <see cref="KitChrome.GenreOf"/> again inside
+        /// <c>_Draw</c> — an ancestor walk per repaint — purely because this field was private.
+        /// </summary>
+        protected string Genre => _genre;
+
+        /// <summary>
+        /// Repaint, without re-measuring. Protected because it was private, and so 46 widgets each
+        /// declared their own byte-identical copy of it rather than inherit one.
+        /// </summary>
+        protected void RefreshVisualAndRedraw()
         {
             QueueRedraw();
         }
+
+        /// <summary>
+        /// Re-measure and repaint, for a change that alters the widget's natural size.
+        ///
+        /// The <c>IsInsideTree</c> guard is the point: of the 27 widgets that had written their own
+        /// copy of this, five guarded it and 22 called <c>UpdateMinimumSize()</c> unconditionally.
+        /// The guarded five were right — a widget can take a property change before it is in the
+        /// tree — so that is the version everything now shares.
+        /// </summary>
+        protected void RefreshMinimumAndRedraw()
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
+
+        /// <summary>Draw this widget's focus ring, using the genre already resolved on the base.
+        /// Saves every widget re-resolving the genre in its own draw call.</summary>
+        protected void DrawFocusRing(Rect2 r, KitShape shape, float widthScale = 1f)
+            => KitChrome.DrawFocusRing(this, _genre, r, shape, widthScale);
+
+        /// <summary>Show tooltips in the kit's own chrome. One override here covers every drawn
+        /// widget; the ones deriving from a native Godot type each call
+        /// <see cref="KitChrome.MakeTooltip"/> from their own override.</summary>
+        public override Godot.Control? _MakeCustomTooltip(string forText)
+            => KitChrome.MakeTooltip(this, forText);
 
         protected void ApplyInputDefaults(MouseFilterEnum? mouseFilter = null, FocusModeEnum? focusMode = null)
         {
@@ -534,24 +569,43 @@ namespace Beep.ECS.UI.Kit
                 return p.ToArray();
             }
 
-            /// <summary>Sci-fi HUD frame: two diagonally opposite corners cut LONG, the other
-            /// two square, plus a shallow notch bitten out of the top edge. The notch is the
-            /// second tell of the family and costs nothing to carry.</summary>
+            /// <summary>
+            /// Sci-fi HUD frame: two diagonally opposite corners cut LONG, the other two square,
+            /// plus a shallow notch bitten out of the top edge on wide plates.
+            ///
+            /// The ASYMMETRY is the family's tell, not the size of the cut. It used to be
+            /// `min(h * 0.62, w * 0.28)`: on a 130x48 button that is a 30px diagonal, over half
+            /// the height, and it sliced straight through the label; on a 64px icon button it
+            /// removed a corner large enough to read as damage rather than as design. Cut from
+            /// the SHORT side instead, so a wide button and a square tile lose the same corner.
+            ///
+            /// The notch has the same problem and a narrower fix: bitten out of a long HUD bar it
+            /// is the family's second tell, but on a square button it is a sixth of the top edge
+            /// and reads as a chunk missing. It needs a long edge to sit in, so it is drawn only
+            /// where there is one.
+            /// </summary>
             static Vector2[] Asym(float x, float y, float w, float h)
             {
-                float d = Mathf.Min(h * 0.62f, w * 0.28f);       // the long diagonal cut
-                float nw = Mathf.Min(w * 0.16f, h * 0.9f);       // notch width
-                float nd = h * 0.16f;                            // notch depth
-                float nx = x + w * 0.60f;
-                return new[]
+                float d = Mathf.Min(w, h) * 0.28f;               // the long diagonal cut
+                var p = new List<Vector2> { new(x + d, y) };
+
+                if (w >= h * 2.2f)
                 {
-                    new Vector2(x + d, y),
-                    new Vector2(nx, y), new Vector2(nx + nw * 0.22f, y + nd),
-                    new Vector2(nx + nw * 0.78f, y + nd), new Vector2(nx + nw, y),
-                    new Vector2(x + w, y),
-                    new Vector2(x + w, y + h - d), new Vector2(x + w - d, y + h),
-                    new Vector2(x, y + h), new Vector2(x, y + d),
-                };
+                    float nw = w * 0.16f;                        // notch width
+                    float nd = Mathf.Min(w, h) * 0.16f;          // notch depth
+                    float nx = x + w * 0.60f;
+                    p.Add(new Vector2(nx, y));
+                    p.Add(new Vector2(nx + nw * 0.22f, y + nd));
+                    p.Add(new Vector2(nx + nw * 0.78f, y + nd));
+                    p.Add(new Vector2(nx + nw, y));
+                }
+
+                p.Add(new Vector2(x + w, y));
+                p.Add(new Vector2(x + w, y + h - d));
+                p.Add(new Vector2(x + w - d, y + h));
+                p.Add(new Vector2(x, y + h));
+                p.Add(new Vector2(x, y + d));
+                return p.ToArray();
             }
 
             /// <summary>Pixel-era stepped corner: a staircase instead of an arc.</summary>
@@ -671,6 +725,35 @@ namespace Beep.ECS.UI.Kit
             return Mathf.Round(v / px) * px;
         }
 
+        /// <summary>
+        /// Draw the widget's OWN PLATE — the one surface its content sits on.
+        ///
+        /// Identical to <see cref="DrawShape"/> except that it takes the sprite branch when the
+        /// genre declares artwork, so it says something <c>DrawShape</c> cannot: that this
+        /// particular rect is the widget, not a knob, a tick, a badge or a well drawn inside it.
+        /// That distinction has to be stated rather than inferred — a slot grid's selection halo
+        /// and a slider's track are both drawn with the genre's own class shape, and swapping
+        /// either for a nine-slice plate would be wrong.
+        ///
+        /// The artwork stands in for the GENRE'S OWN SILHOUETTE for this widget class and nothing
+        /// else, so the sprite branch is taken only when <paramref name="shape"/> is that
+        /// silhouette. A nine-slice has one outline, a rounded rectangle; a chip that has chosen
+        /// to be a pill or a pentagon, or a widget whose scene set <see cref="OverrideShape"/>,
+        /// has said something specific about its form and keeps it. That check lives here rather
+        /// than at each call site so the rule has one owner and a widget can always ask for its
+        /// plate without also having to know the answer.
+        /// </summary>
+        protected void DrawPlate(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
+        {
+            if (shape == KitMaterial.WidgetShapeForGenre(Genre, WidgetClass)
+                && KitSprite.TryPlate(this, Geo, WidgetClass, State, shape, r, fill, out KitSprite.Plate art))
+            {
+                KitSprite.Draw(this, art);
+                return;
+            }
+            DrawShape(r, shape, fill, rim, rimWidth);
+        }
+
         protected void DrawShape(Rect2 r, KitShape shape, Color fill, Color rim, float rimWidth)
         {
             // A sub-pixel rect cannot produce a valid polygon. Segmented meters generate these
@@ -754,7 +837,7 @@ namespace Beep.ECS.UI.Kit
         // ── THE UNIT ──────────────────────────────────────────────────────────────────────
         //
         // One metric for the whole theme, taken from the same font size the widget's own size is
-        // derived from (KitButton: `fs * HeightRatio`). Every decorative metric is a multiple of
+        // derived from (KitPushButton: `fs * HeightRatio`). Every decorative metric is a multiple of
         // it.
         //
         // WHY. Corner, rim and shadow used to be re-derived from the WIDGET's pixel
@@ -913,6 +996,29 @@ namespace Beep.ECS.UI.Kit
 
             var host = OutlinePoly(shp, r, cornerPx, g.Shear, g.Wobble, Unit);
             Vector2[] cur = host;
+
+            // ARTWORK, when the genre declares a sprite set. Deliberately the same branch
+            // KitChrome.DrawPlate takes, because the alternative is that a widget's MATERIAL
+            // depends on which base class it happens to derive from -- the exact failure that once
+            // left the native-derived widgets with a plate and no shading while their KitControl
+            // siblings kept both.
+            //
+            // It sits AFTER the silhouette is settled, not before, because the pixel register
+            // rewrites Round into Stepped a few lines up and KitSprite refuses a stepped outline:
+            // deciding this any earlier would hand a pixel theme an anti-aliased corner, which is
+            // the one thing that register exists to prevent.
+            //
+            // The edge run still draws over the top: it is a constructed frame the sci-fi genres
+            // declare, not part of the plate, and a genre could reasonably want both.
+            if (KitSprite.TryPlate(this, g, WidgetClass, State, shp, r, face, out KitSprite.Plate art))
+            {
+                KitShadow.Draw(this, g.Shadow,
+                               OutlinePoly(shp, art.Rect, cornerPx, g.Shear, g.Wobble, Unit),
+                               art.Rect, Unit, face);
+                KitSprite.Draw(this, art);
+                KitEdge.Draw(this, g.EdgeRun, r, rimPx, RimColor(), g.Shear, g.Wobble);
+                return;
+            }
 
             // SHADOW FIRST, under everything -- see KitChrome.DrawPlate for why it is not a
             // member of the register's stack.
@@ -1096,8 +1202,10 @@ namespace Beep.ECS.UI.Kit
             var inner = OffsetPoly(host, -t * 0.6f);
             if (inner.Length < 3) return;
 
-            Color hi = new(1, 1, 1, 0.22f * g.Bevel * amount);
-            Color lo = new(0, 0, 0, 0.26f * g.Bevel * amount);
+            // Alphas unchanged; the hue now follows the theme's declared bevel colours.
+            var (bevelLight, bevelDark) = UiSurface.Bevel(this);
+            Color hi = bevelLight with { A = 0.22f * g.Bevel * amount };
+            Color lo = bevelDark with { A = 0.26f * g.Bevel * amount };
 
             // The CASUAL register omits the dark half: that family expresses depth with a thick
             // outline and a top band, and raking a shadow across the plate reads as painted.

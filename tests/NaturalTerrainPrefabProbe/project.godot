@@ -1,0 +1,12 @@
+config_version=5
+[application]
+config/name="NaturalTerrainPrefabProbe"
+run/main_scene="res://probe.tscn"
+[display]
+window/size/viewport_width=1680
+window/size/viewport_height=760
+[dotnet]
+project/assembly_name="NaturalTerrainPrefabProbe"
+[rendering]
+renderer/rendering_method="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.08, 0.1, 0.11, 1)

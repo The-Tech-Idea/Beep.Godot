@@ -1,0 +1,194 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Generated source artwork on green backgrounds. Not calibrated collision or pixel-perfect connection geometry. Existing approved granite horizontal span retained.",
+  "baseline": "grey_granite_bridge_left_right_01_green.png",
+  "geometry_references": [
+    {
+      "kind": "left_right",
+      "source": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/stone_bridges/grey_granite_bridge_left_right_01_green.png"
+    },
+    {
+      "kind": "front_back",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a442ff5d-912e-4979-af33-46c01acac2bb.png"
+    },
+    {
+      "kind": "broken_left",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-efc4c744-ea5f-41d1-a74e-31238c504ab7.png"
+    },
+    {
+      "kind": "broken_right",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-7bd497b3-e7a8-46ea-9497-91d6fe251a92.png"
+    },
+    {
+      "kind": "broken_near",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-31b69b74-4845-446a-93b6-8eafa0ea54f8.png"
+    },
+    {
+      "kind": "broken_far",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-812ce1c4-d0a4-4618-8e2c-44931b44a607.png"
+    }
+  ],
+  "assets": [
+    {
+      "material": "grey_granite",
+      "kind": "front_back",
+      "file": "grey_granite_bridge_front_back_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a442ff5d-912e-4979-af33-46c01acac2bb.png",
+      "prompt": "Create the FRONT-TO-BACK orientation of this approved narrow natural granite bridge sprite. Not a 2D image rotation: redraw using SAME elevated front orthographic 2.5D game camera and upper-left light, with bridge LENGTH aligned vertically on image, near landing at bottom and far landing at top. Same narrow deck and shallow arch profile, both end landings at same world elevation, no ramp. Visible upper walking surface and small side rock thickness. Parallel deck edges with NO perspective taper; no diagonal orientation. Intact single natural granite span, rock material same as reference, irregular broken surfaces, no regular masonry. Opaque solid bright green background all around and under bridge, isolated fully with clear margins, no terrain attached, plants, props, rails, water, ground patch, text or cast background shadow. Portrait canvas. Do not make a staircase or steep raised ramp."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "broken_left",
+      "file": "grey_granite_bridge_broken_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-efc4c744-ea5f-41d1-a74e-31238c504ab7.png",
+      "prompt": "Edit reference into ONLY the LEFT broken end of this bridge. Keep exactly original canvas, camera, scale, material, lighting and positioning. Remove the right half and central 15% of span, replace removed region with solid green background. Keep original left landing and its short attached arch segment ending in a visibly jagged fractured exposed granite tip toward center. No floating debris. Do not center or enlarge the retained end. This is one separate broken bridge end sprite, NOT a whole bridge or pair. Opaque bright green everywhere else, no new props, ground, plants, text or shadow. Preserve full original image dimensions."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "broken_right",
+      "file": "grey_granite_bridge_broken_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-7bd497b3-e7a8-46ea-9497-91d6fe251a92.png",
+      "prompt": "Edit reference into ONLY the RIGHT broken end of this bridge. Keep exactly original canvas, camera, scale, material, lighting and positioning. Remove the left half and central 15% of span, replace removed region with solid green background. Keep original right landing and its short attached arch segment ending in a visibly jagged fractured exposed granite tip toward center. No floating debris. Do not center or enlarge the retained end. This is one separate broken bridge end sprite, NOT a whole bridge or pair. Opaque bright green everywhere else, no new props, ground, plants, text or shadow. Preserve full original image dimensions."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "broken_near",
+      "file": "grey_granite_bridge_broken_near_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-31b69b74-4845-446a-93b6-8eafa0ea54f8.png",
+      "prompt": "Edit reference into ONLY the NEAR broken end of this FRONT-TO-BACK bridge. Retain BOTTOM near landing and its attached short deck segment; remove opposite half and middle 15% completely to green. Keep original canvas size, exact camera, image position, scale, granite material and lighting; do not zoom or recenter. The tip pointing toward center is jagged broken exposed rock. ONE separate fragment only, not whole span, not two ends. Solid bright green remaining canvas, no debris plants props text ground or shadow. Near and far mean screen bottom and top."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "broken_far",
+      "file": "grey_granite_bridge_broken_far_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-812ce1c4-d0a4-4618-8e2c-44931b44a607.png",
+      "prompt": "Edit reference into ONLY the FAR broken end of this FRONT-TO-BACK bridge. Retain TOP far landing and its attached short deck segment; remove opposite half and middle 15% completely to green. Keep original canvas size, exact camera, image position, scale, granite material and lighting; do not zoom or recenter. The tip pointing toward center is jagged broken exposed rock. ONE separate fragment only, not whole span, not two ends. Solid bright green remaining canvas, no debris plants props text ground or shadow. Near and far mean screen bottom and top."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "left_right",
+      "file": "red_sandstone_bridge_left_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a274c315-f106-438b-bbdc-0cc9b1be1c7a.png",
+      "prompt": "Material edit of this bridge sprite (left_right). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and intact span. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken the bridge."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "front_back",
+      "file": "red_sandstone_bridge_front_back_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-03af2c94-6b02-4720-827c-1c2592ff03d3.png",
+      "prompt": "Material edit of this bridge sprite (front_back). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and intact span. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken the bridge."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "broken_left",
+      "file": "red_sandstone_bridge_broken_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ff4712d2-5091-45b2-bb74-22d1709e72de.png",
+      "prompt": "Material edit of this bridge sprite (broken_left). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and broken edge location; do NOT complete the missing bridge. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken the bridge."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "broken_right",
+      "file": "red_sandstone_bridge_broken_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-dd35b41d-a36d-46ee-b13a-6e09df6b7c24.png",
+      "prompt": "Material edit of this bridge fragment (broken_right). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and broken edge location; do NOT complete missing bridge. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken bridge."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "broken_near",
+      "file": "red_sandstone_bridge_broken_near_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-4212ec41-afed-4a6e-9a7b-283f093c9642.png",
+      "prompt": "Material edit of this bridge fragment (broken_near). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and broken edge location; do NOT complete missing bridge. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken bridge."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "broken_far",
+      "file": "red_sandstone_bridge_broken_far_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ed3e2809-777a-4741-90ec-f0f7185d14d5.png",
+      "prompt": "Material edit of this bridge fragment (broken_far). Preserve EXACT object count, silhouette, orientation, canvas size, camera, image placement, deck width, shallow arch height and broken edge location; do NOT complete missing bridge. Replace entire granite surface with warm red-orange sandstone with natural thin sedimentary layers, chipped irregular rock edges. Same detailed painterly 2.5D game style and upper-left light. Same opaque bright green background in all empty space. No plants, ground patches, water, text, props, railings, additional supports, debris or shadows on background. Do not rotate, recenter, zoom, extend or thicken bridge."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "left_right",
+      "file": "volcanic_basalt_bridge_left_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-be7a348b-0d34-4ea5-ad7d-c1805f6943e9.png",
+      "prompt": "Material edit of bridge sprite (left_right). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep intact span. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "front_back",
+      "file": "volcanic_basalt_bridge_front_back_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-bfecd6aa-e106-4afe-87a3-e28e7a49b97f.png",
+      "prompt": "Material edit of bridge sprite (front_back). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep intact span. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "broken_left",
+      "file": "volcanic_basalt_bridge_broken_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-806e08b2-8d77-4f37-80b6-f77fd8196d06.png",
+      "prompt": "Material edit of bridge sprite (broken_left). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "broken_right",
+      "file": "volcanic_basalt_bridge_broken_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-850cbe9f-149a-4fa1-a372-2802a11ffa67.png",
+      "prompt": "Material edit of bridge fragment (broken_right). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "broken_near",
+      "file": "volcanic_basalt_bridge_broken_near_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-33146ee8-10a1-4bc6-9326-d971c0a51603.png",
+      "prompt": "Material edit of bridge fragment (broken_near). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "broken_far",
+      "file": "volcanic_basalt_bridge_broken_far_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-aa4d65be-421e-490e-86e8-12b0dc32f533.png",
+      "prompt": "Material edit of bridge fragment (broken_far). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with charcoal grey cooled basalt with irregular angular fractures and subtle pores, no lava or glow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "left_right",
+      "file": "pale_limestone_bridge_left_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-dfea8d8a-3f37-4fdd-9295-76d59f87e700.png",
+      "prompt": "Material edit of bridge sprite (left_right). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep intact span. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "front_back",
+      "file": "pale_limestone_bridge_front_back_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-e5832121-5025-4df3-8522-4bb562768247.png",
+      "prompt": "Material edit of bridge sprite (front_back). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep intact span. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "broken_left",
+      "file": "pale_limestone_bridge_broken_left_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-e1848bf1-7060-4301-80bc-c3ba86400a48.png",
+      "prompt": "Material edit of bridge sprite (broken_left). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "broken_right",
+      "file": "pale_limestone_bridge_broken_right_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-89927a6f-9539-4a5c-b67a-aa35de0b6208.png",
+      "prompt": "Material edit of bridge sprite (broken_right). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "broken_near",
+      "file": "pale_limestone_bridge_broken_near_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-6cc47dd4-5c34-40ed-9d0b-f7926704c00c.png",
+      "prompt": "Material edit of bridge sprite (broken_near). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "broken_far",
+      "file": "pale_limestone_bridge_broken_far_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-185e63af-b1d2-461f-be42-b6fffd88c02d.png",
+      "prompt": "Material edit of bridge sprite (broken_far). Preserve exact silhouette, orientation, canvas, camera, placement, narrow deck width and shallow arch profile. Keep ONLY this broken end; do not fill missing bridge. Replace all granite with pale warm ivory limestone with weathered eroded surfaces, irregular cracks and small erosion pockets, not snow. Natural irregular stone, detailed painterly 2.5D, upper-left light. Solid bright green empty background unchanged. No plants ground water text props rails debris background shadow. Do not rotate recenter zoom extend or thicken."
+    }
+  ]
+}

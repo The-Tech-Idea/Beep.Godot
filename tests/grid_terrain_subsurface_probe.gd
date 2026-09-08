@@ -274,7 +274,7 @@ func _run() -> void:
 	rig.add_child(extractor)
 	await process_frame
 
-	# Default cycle is 1.5s with no catalog; each 1.6s tick is one cycle.
+	# Default cycle is 1.5 turns with no catalog; each 1.6-turn tick is one cycle.
 	for i in remaining0 + 4:
 		extractor.call("Tick", 1.6)
 	var pumped: int = int(wallet.call("GetAmount", deposit_id))
@@ -529,10 +529,43 @@ func _run() -> void:
 	await process_frame
 	rig3_extractor.call("Tick", 0.1)
 	check(int(extraction.get("ExtractorCount")) == 1, "the shipped extractor registers with the extraction manager")
-	check(float(extraction.call("EstimatedRatePerSecond", "probe_oil")) > 0.0,
+	check(float(extraction.call("EstimatedRatePerTurn", "probe_oil")) > 0.0,
 		"the manager reports the fleet's extraction rate")
 	rig3.free()
 	check(int(extraction.get("ExtractorCount")) == 0, "a freed extractor leaves the registry")
+
+	# Registration is a CONTRACT, and it can be refused. A node that does not
+	# answer the extractor shape used to join the registry silently and only
+	# fail later, at read time, in IsActivelyExtracting.
+	var not_an_extractor := Node.new()
+	not_an_extractor.name = "NotAnExtractor"
+	root.add_child(not_an_extractor)
+	var refused: bool = bool(extraction.call("Register", not_an_extractor))
+	check(not refused and int(extraction.get("ExtractorCount")) == 0,
+		"a node that does not answer IsExtracting/ActiveResourceId is refused, not silently registered")
+
+	# RegisterOnReady is the orchestrator's lever - the same one
+	# GridHaulerComponent carries - and turning it off must keep the rig OUT of
+	# the registry, not merely delay it by a frame: Tick retries registration.
+	var unregistered_rig := Node2D.new()
+	unregistered_rig.name = "UnregisteredRig"
+	root.add_child(unregistered_rig)
+	var unregistered_object: Node = GRID_OBJECT.new()
+	unregistered_object.set("Cell", start)
+	unregistered_object.set("Footprint", Vector2i.ONE)
+	unregistered_object.set("BlocksNavigation", false)
+	unregistered_rig.add_child(unregistered_object)
+	var unregistered_extractor: Node = EXTRACTOR.new()
+	unregistered_extractor.set("SubsurfaceStorePath", NodePath("../../TransportStore"))
+	unregistered_extractor.set("ExtractionManagerPath", NodePath("../../ExtractionManager"))
+	unregistered_extractor.set("Catalog", probe_catalog)
+	unregistered_extractor.set("RegisterOnReady", false)
+	unregistered_rig.add_child(unregistered_extractor)
+	await process_frame
+	unregistered_extractor.call("Tick", 0.1)
+	check(int(extraction.get("ExtractorCount")) == 0,
+		"RegisterOnReady false keeps the extractor out of the registry, through _Ready AND the per-tick retry")
+	unregistered_rig.free()
 
 	# The pipeline hookup: the extractor is BOTH PORTS. With DeliverVia =
 	# Buffer its yield fills its own unload port, Transfer draws it into a
@@ -651,7 +684,7 @@ func _run() -> void:
 	# NO authored resource list: the chain asks its links what they hold.
 	var pipe: Node = PIPELINE.new()
 	pipe.name = "Pipe"
-	pipe.set("FlowRatePerSecond", 1000.0)
+	pipe.set("FlowRatePerTurn", 1000.0)
 	root.add_child(pipe)
 	pipe.set("Chain", [NodePath("../PipeRig/PipeExtractor"), NodePath("../MidTank"), NodePath("../SinkTank")])
 

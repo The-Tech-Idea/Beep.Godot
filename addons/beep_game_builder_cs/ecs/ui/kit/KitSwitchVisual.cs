@@ -2,6 +2,14 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// The drawn face of a switch — a track with a knob at one end — and nothing else.
+    ///
+    /// It has no pressed state, no toggle and no signal on purpose. The BEHAVIOUR belongs to a real
+    /// Godot button: <see cref="KitToggle"/> and <see cref="ToggleSwitchComponent"/> own whether the
+    /// switch is on, and hand that down here to be painted. Giving this its own toggle state would
+    /// put the answer in two places, and they would disagree the first time one was set in code.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitSwitchVisual : Control
@@ -49,12 +57,10 @@ namespace Beep.ECS.UI.Kit
                                Mathf.Clamp(fs * 2.0f, 24f, 34f));
         }
 
+        // Derives from a native Godot type, so it cannot inherit KitControl's copy; it forwards to
+        // the one shared body instead of restating it.
         private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
 
         private void RefreshVisualAndRedraw()
         {

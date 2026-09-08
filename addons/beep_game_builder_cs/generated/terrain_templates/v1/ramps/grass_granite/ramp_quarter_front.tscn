@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/terrain_templates/v1/ramps/grass_granite/ramp_quarter_front.tres" id="1"]
+
+[node name="ramp_quarter_front" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -34.307692)
+scale = Vector2(0.3076923076923077, 0.3076923076923077)
+texture = ExtResource("1")

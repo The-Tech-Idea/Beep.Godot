@@ -1,0 +1,191 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_lab.gd" id="lab"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorRegistryComponent.cs" id="registry"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/PlayerContextComponent.cs" id="player"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorDefinition.cs" id="definition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorOrdersControllerComponent.cs" id="orders"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorOverviewComponent.cs" id="overview"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_worker.tscn" id="worker"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="painted"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraDemandComponent.cs" id="camera_demand"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs" id="navigation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridJobQueueComponent.cs" id="jobs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs" id="camera"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres" id="art"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="panel"]
+
+[sub_resource type="Resource" id="worker_definition"]
+script = ExtResource("definition")
+Id = "worker"
+Scene = ExtResource("worker")
+Capabilities = 9
+Footprint = Vector2(28, 22)
+VisualSize = Vector2(58, 48)
+FeetAnchor = Vector2(0.5, 0.82)
+
+[node name="ActorLab" type="Node2D"]
+script = ExtResource("lab")
+
+[node name="World" type="Node" parent="."]
+script = ExtResource("world")
+GeneratorPath = NodePath("../Generator")
+GridPath = NodePath("../Grid")
+NavigationPath = NodePath("../Navigation")
+PaintedRendererPath = NodePath("../Painted")
+MapArt = ExtResource("art")
+BuildOnReady = false
+ParticipatesInSave = false
+UseCustomBounds = true
+CustomBounds = Vector2i(48, 32)
+UseCustomClimateSpan = true
+ClimateLatitudeSpan = 0.08
+
+[node name="Grid" type="Node2D" parent="."]
+script = ExtResource("grid")
+DrawGrid = false
+TrackMouseCell = false
+
+[node name="Cells" type="Node" parent="."]
+script = ExtResource("cells")
+
+[node name="CameraDemand" type="Node" parent="."]
+script = ExtResource("camera_demand")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+BoundsCells = Rect2i(0, 0, 48, 32)
+
+[node name="Navigation" type="Node" parent="."]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+BlockedTerrainKinds = Array[String](["water", "sea", "ocean", "deep_water", "shallow_water", "lava"])
+
+[node name="Generator" type="Node" parent="."]
+script = ExtResource("generator")
+CellDataPath = NodePath("../Cells")
+GenerateOnReady = false
+TopologySamplesPerCell = 8
+
+[node name="Painted" type="Node2D" parent="."]
+script = ExtResource("painted")
+TerrainGeneratorPath = NodePath("../Generator")
+RefreshOnReady = false
+
+[node name="Registry" type="Node" parent="."]
+script = ExtResource("registry")
+ActorsRootPath = NodePath("../Actors")
+ChunkCellDataPath = NodePath("../Cells")
+ChunkGridPath = NodePath("../Grid")
+Definitions = Array[ExtResource("definition")]([SubResource("worker_definition")])
+
+[node name="Player" type="Node" parent="."]
+script = ExtResource("player")
+PlayerId = "settlement"
+FactionId = "settlement"
+ControlMode = 1
+RegistryPath = NodePath("../Registry")
+
+[node name="Jobs" type="Node" parent="."]
+script = ExtResource("jobs")
+OwnerId = "settlement"
+ActorRegistryPath = NodePath("../Registry")
+ChunkCellDataPath = NodePath("../Cells")
+RemoveCompletedJobs = false
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Orders" type="Node2D" parent="."]
+script = ExtResource("orders")
+z_index = 4095
+PlayerPath = NodePath("../Player")
+GridPath = NodePath("../Grid")
+NavigationPath = NodePath("../Navigation")
+OverviewPath = NodePath("../Overview")
+
+[node name="Overview" type="Node2D" parent="."]
+script = ExtResource("overview")
+PlayerPath = NodePath("../Player")
+z_index = 4094
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Controller" type="Node" parent="Camera2D"]
+script = ExtResource("camera")
+MinZoom = Vector2(0.15, 0.15)
+MaxZoom = Vector2(3, 3)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Toolbar" type="PanelContainer" parent="HUD"]
+anchor_right = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = 60.0
+script = ExtResource("panel")
+
+[node name="Row" type="HFlowContainer" parent="HUD/Toolbar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Settlement Actors"
+custom_minimum_size = Vector2(150, 0)
+
+[node name="Spawn" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Recruit"
+script = ExtResource("button")
+
+[node name="Select" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Select all"
+script = ExtResource("button")
+
+[node name="Work" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Assign work"
+script = ExtResource("button")
+
+[node name="Stop" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Stop"
+script = ExtResource("button")
+
+[node name="Escort" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Escort"
+disabled = true
+tooltip_text = "Assign the selected group to a leader, then move that leader."
+script = ExtResource("button")
+
+[node name="Save" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Save"
+script = ExtResource("button")
+
+[node name="Load" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Restore"
+script = ExtResource("button")
+
+[node name="Fit" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Fit map"
+script = ExtResource("button")
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 76.0
+offset_right = 1050.0
+offset_bottom = 102.0
+text = "Generating terrain..."
+mouse_filter = 2

@@ -1,0 +1,19 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "natural_wall_01_approved_green.png",
+  "assets": [
+    {
+      "file": "red_sandstone_01_green.png",
+      "prompt": "Create a RED SANDSTONE material variation of this approved natural cliff wall game asset. Preserve its overall width, height, framing, front-facing elevated orthographic 2.5D camera and painterly rendering. Change the GEOLOGY, not just the colors: warm muted terracotta red sandstone with visible irregular horizontal sediment layers, eroded ledges, broad weathered angular slabs and chipped edges. Different rock arrangement with mixed large and small masses, no identical pillars, no regular bricks, no flat texture wallpaper, no low-poly triangles. Narrow bare stony upper lip, no green vegetation. Natural broken rock feet, no detached objects. Same upper-left light and approximately same relief depth as reference. One continuous wall completely visible, green margin around it. Opaque solid bright chroma green #00FF00 background. No water, ramps, stairs, cave, arch, buildings, trees, text, grid, transparency or checkerboard. Not a tile atlas or complete mountain."
+    },
+    {
+      "file": "volcanic_basalt_01_green.png",
+      "prompt": "Create a VOLCANIC BASALT variation of the approved natural cliff wall reference. Same overall wall width and height, margins, slightly elevated front-facing orthographic 2.5D camera, detailed painterly game rendering and upper-left lighting. Change the geological forms, not just recolor: dark charcoal basalt with angular fractured massive slabs, chipped sharp edges, occasional small porous surfaces, irregular intersecting cooling cracks and recessed pockets. Subtle neutral grey highlights keep all shapes readable. Avoid identical hexagonal columns or repeated pillars; avoid regular masonry, flat wallpaper, shiny plastic or flat low-poly triangles. No lava, red glow or flames: this is cooled natural basalt. Narrow bare rocky top lip and naturally broken feet, no vegetation or detached stones. ONE continuous wall with same relief and scale as reference, not a mountain or atlas. Whole subject visible against opaque solid bright chroma green #00FF00 background. No ramps, stairs, caves, arches, props, text, checkerboard, transparency or external ground shadow."
+    },
+    {
+      "file": "pale_limestone_01_green.png",
+      "prompt": "Create a PALE WEATHERED LIMESTONE material variation of this approved natural cliff wall game asset. Match overall wall width and height, image framing, slightly elevated front-facing orthographic 2.5D perspective, hand-painted detail and upper-left lighting. New geology and arrangement, NOT a simple recolor: pale warm grey and ivory limestone, broad irregular weathered faces, shallow solution pockets, occasional horizontal bedding seams, softened chipped edges and broken ledges. Mixed large and small rock masses with believable depth, subtle darker grey recesses, no black dramatic cracks, no identical pillars, regular bricks, low-poly triangles or flat stone wallpaper. Same narrow rocky upper lip and uneven feet; no grass or ground plants. One continuous wall entirely visible with bright green margins. Solid opaque chroma green #00FF00 background, no transparency/checkerboard. No ramps, stairs, cave holes, arches, detached rocks, structures, water, text or grid. This is standalone natural wall artwork, not a tile template or full mountain."
+    }
+  ],
+  "status": "Opaque green-background artwork; not calibrated seamless tile assets."
+}

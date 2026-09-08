@@ -57,11 +57,9 @@ namespace Beep.ECS
         /// <summary>
         /// Width of the sand beach where land meets the OPEN SEA, in tiles.
         ///
-        /// It reads in tiles because that is the unit anyone thinks in, and
-        /// because the previous rule - "land touching the sea" - was one SAMPLE
-        /// wide, an eighth of a tile, which never survived the reduction to
-        /// tiles. The setting existed, the rule existed, and the map had no
-        /// beaches at all.
+        /// Zero disables ocean beaches. Positive widths are inward Euclidean
+        /// offsets of the fine ocean contour, not a minimum whole-cell ring.
+        /// This changes ground cover, not the land/water footprint or relief.
         /// </summary>
         [Export(PropertyHint.Range, "0,4,0.05")] public float BeachWidth { get; set; } = 1.0f;
 
@@ -131,10 +129,13 @@ namespace Beep.ECS
         /// survive - so the number of biomes falls out of the area. A small
         /// island gets one climate and one or two biomes; a full-size map gets
         /// pole to pole and many. Off by default so existing scenes keep the map
-        /// they were tuned against; ClimateLatitudeSpan and
-        /// MinBiomeRegionFraction are ignored while it is on.
+        /// they were tuned against. MinBiomeRegionFraction is derived while it
+        /// is on; ClimateLatitudeSpan is derived unless UseCustomClimateSpan is on.
         /// </summary>
         [Export] public bool UseScaleRules { get; set; }
+
+        /// <summary>Use an explicit geographic span while retaining biome region scale rules.</summary>
+        [Export] public bool UseCustomClimateSpan { get; set; }
 
         /// <summary>
         /// Smallest a biome region may be, as a fraction of the land.
@@ -193,7 +194,7 @@ namespace Beep.ECS
         /// region - otherwise fifty tiles are asked to hold every climate on
         /// the planet and the result is an island with an ice cap and a jungle.
         /// </summary>
-        [Export(PropertyHint.Range, "0.05,1,0.01")] public float ClimateLatitudeSpan { get; set; } = 1.0f;
+        [Export(PropertyHint.Range, "0,1,0.001")] public float ClimateLatitudeSpan { get; set; } = 1.0f;
 
         /// <summary>
         /// Where that band sits: 0 is the equator, 1 a pole. Only read when the
@@ -226,36 +227,56 @@ namespace Beep.ECS
             return Array.Empty<string>();
         }
 
+        /// <summary>
+        /// Generates the field for the current settings and, where a
+        /// GridCellDataComponent is wired, loads it with the result - the map
+        /// loader's one write. Returns how many cells were written: zero with
+        /// no cells wired, which is a legitimate shape (a map viewer, a lab
+        /// with no grid) and not a failure - the field is generated and every
+        /// renderer draws from it regardless. Restoring a saved world does not
+        /// come through here at all; TerrainWorldComponent.RestoreWorld
+        /// resolves the field without touching the cells.
+        /// </summary>
         public int GenerateTerrain()
         {
             ResolveReferences();
+            TerrainGenerationSettings settings = CurrentSettings();
+            GeneratedTerrainField field = FieldFor(settings);
             if (_cells == null)
             {
-                GD.PushWarning($"[{Name}] TerrainGeneratorComponent cannot generate without GridCellDataComponent.");
+                EmitSignal(SignalName.TerrainGenerated, 0);
                 return 0;
             }
 
-            TerrainGenerationSettings settings = CurrentSettings();
-            GeneratedTerrainField field = FieldFor(settings);
+            int generated = _cells.LoadGeneratedCells(GeneratedCells(settings, field), ClearExistingCells, NormalizeKind(DefaultTerrainKind));
+            EmitSignal(SignalName.TerrainGenerated, generated);
+            return generated;
+        }
 
-            // The typed handoff. Building one marshalled Godot Dictionary per
-            // cell just to hand a whole map to the cell model allocated ten
-            // thousand Variants per build on a standard map.
-            var generated = new List<(Vector2I Cell, string Terrain)>(settings.Size.X * settings.Size.Y);
+        // Stream the typed handoff: retaining a second map-sized list is not
+        // necessary when the cell store consumes every record exactly once.
+        private static IEnumerable<(Vector2I Cell, string Terrain, string Feature, int Relief, float Shade, float Elevation, string WaterSource, GridTerrainWaterPatch WaterPatch, string InlandTerrain, float BeachWidth, GridTerrainWaterPatch? LakePatch, float LakeWidth)> GeneratedCells(
+            TerrainGenerationSettings settings, GeneratedTerrainField field)
+        {
             for (int y = 0; y < settings.Size.Y; y++)
             {
                 for (int x = 0; x < settings.Size.X; x++)
                 {
-                    generated.Add((
+                    yield return (
                         settings.Origin + new Vector2I(x, y),
-                        field.TerrainAtCell(new Vector2I(x, y))));
+                        field.TerrainAtCell(new Vector2I(x, y)),
+                        field.FeatureAtCell(new Vector2I(x, y)),
+                        (int)field.ReliefAtCell(new Vector2I(x, y)),
+                        field.ShadeAtPosition(new Vector2(x + 0.5f, y + 0.5f)),
+                        field.ElevationAtCell(new Vector2I(x, y)),
+                        field.WaterSourceAtCell(new Vector2I(x, y)),
+                        field.WaterPatchAtCell(new Vector2I(x, y)),
+                        field.InlandTerrainAtCell(new Vector2I(x, y)), field.BeachWidth,
+                        field.LakeShoreWidth > 0f ? field.LakePatchAtCell(new Vector2I(x, y)) : null,
+                        field.ReliefAtCell(new Vector2I(x, y)) == TerrainRelief.Flat ? field.LakeShoreWidth : 0f);
                 }
             }
 
-            _cells.DefaultTerrainKind = NormalizeKind(DefaultTerrainKind);
-            _cells.LoadGeneratedCells(generated, ClearExistingCells);
-            EmitSignal(SignalName.TerrainGenerated, generated.Count);
-            return generated.Count;
         }
 
         // NOTE: these are deliberately NOT overloads. Godot exposes script
@@ -512,6 +533,53 @@ namespace Beep.ECS
         /// </summary>
         internal GeneratedTerrainField ResolveField() => FieldFor(CurrentSettings());
 
+        internal TerrainGenerationSettings CaptureGenerationSettings() => CurrentSettings();
+
+        internal Godot.Collections.Dictionary CaptureConfiguration()
+        {
+            var configuration = new Godot.Collections.Dictionary();
+            foreach (Godot.Collections.Dictionary property in GetPropertyList())
+            {
+                var usage = (PropertyUsageFlags)property["usage"].AsInt64();
+                if ((usage & (PropertyUsageFlags.ScriptVariable | PropertyUsageFlags.Storage)) !=
+                    (PropertyUsageFlags.ScriptVariable | PropertyUsageFlags.Storage)) continue;
+                StringName name = property["name"].AsStringName();
+                configuration[name] = Get(name);
+            }
+            return configuration;
+        }
+
+        internal void ApplyConfiguration(Godot.Collections.Dictionary configuration)
+        {
+            foreach (Variant name in configuration.Keys) Set(name.AsStringName(), configuration[name]);
+        }
+
+        internal GridCellDataComponent.GeneratedPublication? PreparePublication(TerrainGenerationSettings settings, GeneratedTerrainField field)
+        {
+            ResolveReferences();
+            return _cells is null ? null : new GridCellDataComponent.GeneratedPublication(_cells,
+                GeneratedCells(settings, field), NormalizeKind(DefaultTerrainKind));
+        }
+
+        internal bool PublicationMatches(GridCellDataComponent.GeneratedPublication publication)
+        {
+            ResolveReferences();
+            return publication.IsFor(_cells);
+        }
+
+        internal void PublishField(TerrainGenerationSettings settings, GeneratedTerrainField field,
+            GridCellDataComponent.GeneratedPublication? publication = null)
+        {
+            _fieldSettings = settings;
+            _field = field;
+            if (publication is null) GenerateTerrain();
+            else
+            {
+                publication.Commit();
+                EmitSignal(SignalName.TerrainGenerated, publication.Loaded);
+            }
+        }
+
         private GeneratedTerrainField FieldFor(TerrainGenerationSettings settings)
         {
             if (_field is not null && _fieldSettings is { } cached && cached == settings)
@@ -532,14 +600,12 @@ namespace Beep.ECS
             // decided; it does not decide it.
             Vector2I size = EffectiveBoundsSize;
 
-            // Either the map's size decides the climate window and the minimum
-            // biome region, or the exports do. One owner per fact: when the
-            // rules are on they are the answer, and the two exports are not
-            // quietly blended with them.
+            // Region sizing remains automatic even when a game supplies the
+            // geographic climate span independently of its tile resolution.
             TerrainScaleRules.Rules scale = UseScaleRules
                 ? TerrainScaleRules.For(size, LandmassScale)
                 : new TerrainScaleRules.Rules(
-                    Mathf.Clamp(ClimateLatitudeSpan, 0.05f, 1.0f),
+                    Mathf.Clamp(ClimateLatitudeSpan, 0.0f, 1.0f),
                     Mathf.Clamp(MinBiomeRegionFraction, 0.0f, 0.5f));
 
             return new TerrainGenerationSettings(
@@ -562,19 +628,13 @@ namespace Beep.ECS
                 Mathf.Max(0.0f, OceanMarginTiles),
                 Mathf.Max(0.0f, CoastlineRaggedness),
                 Mathf.Clamp(AltitudeCooling, 0.0f, 1.0f),
-                scale.LatitudeSpan,
+                UseCustomClimateSpan ? Mathf.Clamp(ClimateLatitudeSpan, 0.0f, 1.0f) : scale.LatitudeSpan,
                 Mathf.Clamp(ClimateLatitudeCentre, 0.0f, 1.0f),
                 Mathf.Max(0.1f, TemperatureFrequencyMultiplier), Mathf.Max(0.1f, MoistureFrequencyMultiplier));
         }
 
         private void ResolveReferences()
-        {
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-        }
+            => _cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
 
         private static string NormalizeKind(string value)
             => string.IsNullOrWhiteSpace(value) ? "grass" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');

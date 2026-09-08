@@ -29,8 +29,9 @@ namespace Beep.ECS
 
         private CharacterBody2D? _body;
         private bool _isGliding;
+        private float _glideX;
 
-        public bool IsGliding => _isGliding;
+        public bool IsGliding => IsActive && _isGliding;
 
         private StatusEffectComponent? _statusEffects;
 
@@ -39,28 +40,29 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            ProcessPhysicsPriority = -6;
         }
 
         public override void _PhysicsProcess(double delta)
         {
-            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            if (Engine.IsEditorHint() || !GodotObject.IsInstanceValid(_body)) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (!IsActive || actor is { IsActive: false } or { IsDead: true } or { HasOrders: true }
+                || GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }
+                || GetSiblingComponent<DashComponent>() is { IsDashing: true }
+                || CharacterMotion.HasKnockback(_body!) || _statusEffects?.HasEffect("stun") == true)
             {
-                if (_isGliding)
-                {
-                    _isGliding = false;
-                    EmitSignal(SignalName.GlideEnded);
-                }
+                CancelGlide();
                 return;
             }
             // Gate input reads so absent actions don't spam per-frame errors pre-generation.
-            if (!InputActionsAvailable(GlideAction, "move_left", "move_right")) return;
+            if (actor is null && !InputActionsAvailable(GlideAction, "move_left", "move_right")) { CancelGlide(); return; }
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
-            bool onFloor = _body.IsOnFloor();
-            bool falling = _body.Velocity.Y > 0;
-            bool inputHeld = Input.IsActionPressed(GlideAction);
+            bool onFloor = CharacterMotion.IsOnFloor(_body);
+            bool falling = _body.Velocity.Y > 0 || (_isGliding && _body.Velocity.Y == 0);
+            bool inputHeld = actor?.IsAbilityHeld(GlideAction) ?? Input.IsActionPressed(GlideAction);
 
             // Can glide: in air (not on floor), falling, input held.
             bool canGlide = !onFloor && falling && inputHeld;
@@ -74,13 +76,13 @@ namespace Beep.ECS
                 }
 
                 // Horizontal air control during glide.
-                float inputX = Input.GetAxis("move_left", "move_right");
+                float inputX = actor?.MoveIntent.X ?? Input.GetAxis("move_left", "move_right");
                 float targetX = inputX * EffectiveGlideAirSpeed;
-                float newX = Mathf.MoveToward(_body.Velocity.X, targetX, EffectiveGlideAccel * dt);
+                _glideX = Mathf.MoveToward(_body.Velocity.X, targetX, EffectiveGlideAccel * dt);
 
                 // CAP the descent at GlideFallSpeed. +Y is down, so this must be Min: Max let any
                 // faster fall through, so gliding never actually slowed the fall.
-                _body.Velocity = new Vector2(newX, Mathf.Min(EffectiveGlideFallSpeed, _body.Velocity.Y));
+                // The owning controller applies this cap after its gravity and acceleration.
             }
             else if (_isGliding)
             {
@@ -90,6 +92,19 @@ namespace Beep.ECS
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        internal Vector2 ApplyVelocity(Vector2 ordinary) => IsGliding ? new(_glideX, Mathf.Min(ordinary.Y, EffectiveGlideFallSpeed)) : ordinary;
+        public void CancelGlide()
+        {
+            if (!_isGliding) return;
+            _isGliding = false;
+            EmitSignal(SignalName.GlideEnded);
+        }
+        public override void _ExitTree()
+        {
+            CancelGlide(); _body = null; _statusEffects = null; _glideX = 0;
+            RequestReady(); base._ExitTree();
+        }
 
         private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }

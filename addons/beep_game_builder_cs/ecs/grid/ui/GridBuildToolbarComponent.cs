@@ -9,10 +9,13 @@ namespace Beep.ECS
     /// Simple build palette for grid builder/farming/settler scenes. It reads
     /// GridBuildCatalogComponent and creates category/build buttons that call
     /// BeginPlacement on the selected build.
+    ///
+    /// Authored-control binding, the editor-owner stamp and node-name
+    /// sanitising are GridPanelComponent's; this file owns only the palette.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridBuildToolbarComponent : Control
+    public partial class GridBuildToolbarComponent : GridPanelComponent
     {
         [Signal] public delegate void BuildButtonPressedEventHandler(string buildId);
         [Signal] public delegate void BuildButtonRejectedEventHandler(string buildId, string reason);
@@ -23,8 +26,6 @@ namespace Beep.ECS
         [Export] public NodePath InteractionModePath { get; set; } = new("");
         [Export] public NodePath CategoryRowPath { get; set; } = new("");
         [Export] public NodePath BuildGridPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoSwitchInteractionMode { get; set; } = true;
         [Export] public bool HideUnaffordable { get; set; } = false;
         [Export] public Vector2 ButtonMinimumSize { get; set; } = new(120, 56);
@@ -296,15 +297,21 @@ namespace Beep.ECS
             return string.IsNullOrEmpty(cost) ? label : $"{label}\n{cost}";
         }
 
+        /// <summary>
+        /// What the player needs to judge a build before committing: what it
+        /// costs from the wallet now, and what the SITE will demand - the ground
+        /// it takes, the material that must be hauled to it, and the turns of
+        /// work it needs. The site line is read through GridSitePorts, so a
+        /// GDScript or dictionary-authored build answers it identically.
+        /// </summary>
         private string Tooltip(GridBuildDefinition build)
         {
             string label = string.IsNullOrWhiteSpace(build.DisplayName) ? build.BuildId : build.DisplayName;
             string cost = CostText(build);
-            Vector2I footprint = build.EffectiveFootprint;
-            string size = $"{footprint.X}x{footprint.Y}";
+            string site = GridSitePorts.Describe(build);
             return string.IsNullOrEmpty(cost)
-                ? $"{label}\nFootprint {size}"
-                : $"{label}\nCost {cost}\nFootprint {size}";
+                ? $"{label}\n{site}"
+                : $"{label}\nCost {cost}\n{site}";
         }
 
         private static string CostText(GridBuildDefinition build)
@@ -321,20 +328,9 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_catalog == null || !GodotObject.IsInstanceValid(_catalog))
-                _catalog = !BuildCatalogPath.IsEmpty
-                    ? GetNodeOrNull<GridBuildCatalogComponent>(BuildCatalogPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridBuildCatalogComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
-                _wallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_interactionMode == null || !GodotObject.IsInstanceValid(_interactionMode))
-                _interactionMode = !InteractionModePath.IsEmpty
-                    ? GetNodeOrNull<GridInteractionModeComponent>(InteractionModePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridInteractionModeComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, BuildCatalogPath, ref _catalog);
+            EntityComponent.Resolve(this, ResourceWalletPath, ref _wallet);
+            EntityComponent.Resolve(this, InteractionModePath, ref _interactionMode);
         }
 
         public bool UsesSceneControls()
@@ -354,26 +350,10 @@ namespace Beep.ECS
         }
 
         private HBoxContainer? FindCategoryRow()
-        {
-            if (!CategoryRowPath.IsEmpty && GetNodeOrNull<HBoxContainer>(CategoryRowPath) is { } pathRow)
-                return pathRow;
-
-            if (FindChild("Categories", recursive: true, owned: false) is HBoxContainer childRow)
-                return childRow;
-
-            return GetParent()?.FindChild("Categories", recursive: true, owned: false) as HBoxContainer;
-        }
+            => FindControl<HBoxContainer>(CategoryRowPath, "Categories");
 
         private GridContainer? FindBuildGrid()
-        {
-            if (!BuildGridPath.IsEmpty && GetNodeOrNull<GridContainer>(BuildGridPath) is { } pathGrid)
-                return pathGrid;
-
-            if (FindChild("Builds", recursive: true, owned: false) is GridContainer childGrid)
-                return childGrid;
-
-            return GetParent()?.FindChild("Builds", recursive: true, owned: false) as GridContainer;
-        }
+            => FindControl<GridContainer>(BuildGridPath, "Builds");
 
         private void DisconnectButtons()
         {
@@ -392,20 +372,6 @@ namespace Beep.ECS
             _buildGrid = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
-
-        private static string SafeName(string value)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? "Item" : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return result.Replace(' ', '_');
-        }
+        private static string SafeName(string value) => SafeName(value, "Item");
     }
 }

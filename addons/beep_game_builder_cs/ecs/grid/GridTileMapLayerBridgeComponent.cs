@@ -189,15 +189,8 @@ namespace Beep.ECS
                     ? GetNodeOrNull<TileMapLayer>(TileMapLayerPath)
                     : null;
 
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_roads == null || !GodotObject.IsInstanceValid(_roads))
-                _roads = !RoadPath.IsEmpty
-                    ? GetNodeOrNull<GridRoadComponent>(RoadPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, CellDataPath, ref _cells);
+            EntityComponent.Resolve(this, RoadPath, ref _roads);
 
             // Subscribe to whatever was just resolved. Signals were connected
             // only in _Ready, so a source that resolved later - a path assigned

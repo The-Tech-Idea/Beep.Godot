@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="1"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="2"]
+
+[node name="SessionTerrain" type="Node"]
+
+[node name="Generator" type="Node" parent="."]
+script = ExtResource("1")
+Mode = 0
+TopologySamplesPerCell = 2
+
+[node name="World" type="Node" parent="."]
+script = ExtResource("2")
+GeneratorPath = NodePath("../Generator")
+MapSize = 0
+Seed = 41

@@ -37,6 +37,9 @@ render_mode blend_mix;
 // ADDITION 1 - the projection. Half the diamond a tile occupies, which is what
 // turns a local position back into a tile coordinate.
 uniform vec2 cell_size = vec2(111.0, 64.0);
+// TileMapLayer batches use a centre-relative vertex origin. Polygon2D uses
+// its authored local vertices directly; applying the batch offset shifts water.
+uniform bool tile_batch = true;
 
 // Which projection the surface is drawn in: 0 isometric, 1 top-down. The water
 // is identical either way - only the step that recovers which tile a fragment
@@ -101,10 +104,15 @@ void vertex() {
 	// "Redefinition of 'vertex'", and a shader that fails to compile is not
 	// skipped - the item draws UNSHADED, so the sea came out as a flat white
 	// field of blank tiles rather than as nothing at all.
-	surface_local = VERTEX;
+	// Both square and diamond batches originate at the first cell center.
+	// Restore layer-local pixels before either projection inverts the coordinates.
+	surface_local = VERTEX + (tile_batch ? cell_size * 0.5 : vec2(0.0));
 }
 
 void fragment() {
+	// Preserve the tile's diamond cutout and CanvasItem opacity. Replacing
+	// this alpha paints each atlas rectangle over its neighboring diamonds.
+	float surface_alpha = COLOR.a;
 	// ADDITION 1. Diamond-down isometric places a tile at
 	//   world = ((x - y) * w/2, (x + y) * h/2)
 	// so inverting it gives the tile back. Sampling by screen UV instead would
@@ -124,8 +132,7 @@ void fragment() {
 	if (flat_projection > 0.5) {
 		// Top-down: local pixels ARE the map, so dividing by the cell size gives
 		// the tile directly. A square TileMapLayer puts cell (0,0) across
-		// 0..cell_size, so no half-cell correction belongs here - map_to_local
-		// reports a cell's CENTRE, which is a different question.
+		// 0..cell_size; vertex() has already restored the batch's half-cell offset.
 		tile = local_pos / max(cell_size, vec2(1.0));
 	} else {
 		float ex = (local_pos.x - half_cell.x) / half_cell.x;
@@ -162,5 +169,5 @@ void fragment() {
 	// leave bare. Same field, same shoreline, different compositing.
 	float on_water = mix(1.0, smoothstep(-0.35, 0.15, sea.sd), flat_projection);
 
-	COLOR = vec4(water_col, max(depth_alpha, sea.foam) * on_water);
+	COLOR = vec4(water_col, max(depth_alpha, sea.foam) * on_water * surface_alpha);
 }

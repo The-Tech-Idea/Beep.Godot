@@ -16,6 +16,9 @@ namespace Beep.ECS
         [Signal] public delegate void SpawnRejectedEventHandler(string reason);
 
         [Export] public PackedScene? UnitScene { get; set; }
+        [Export] public ActorDefinition? UnitDefinition { get; set; }
+        [Export] public string OwnerId { get; set; } = "";
+        [Export] public NodePath ActorRegistryPath { get; set; } = new("");
         [Export] public NodePath UnitsRootPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath NavigationPath { get; set; } = new("");
@@ -64,9 +67,12 @@ namespace Beep.ECS
             ResolveReferences();
             if (!Engine.IsEditorHint() && AutoSpawnOnReady)
             {
-                int count = EffectiveInitialWorkers;
-                for (int i = 0; i < count; i++)
-                    SpawnWorker(SpawnCell + new Vector2I(i, 0));
+                GameStateManagerComponent.AfterWorldReady(this, () =>
+                {
+                    int count = EffectiveInitialWorkers;
+                    for (int i = 0; i < count; i++)
+                        SpawnWorker(SpawnCell + new Vector2I(i, 0));
+                });
             }
 
             UpdateConfigurationWarnings();
@@ -112,22 +118,44 @@ namespace Beep.ECS
 
             string workerId = NextWorkerId();
             unit.Name = UniqueUnitName(workerId);
-            _unitsRoot.AddChild(unit);
-            unit.GlobalPosition = _grid.CellToWorld(cell);
+            if (ActorComponent.ForBody(unit) is { } actor)
+            {
+                var registry = ActorRegistryPath.IsEmpty ? null : GetNodeOrNull<ActorRegistryComponent>(ActorRegistryPath);
+                if (registry is null || registry.FindPlayer(OwnerId) is null)
+                {
+                    unit.Free();
+                    return Reject("missing_actor_registry_or_owner");
+                }
+                actor.ActorId = "";
+                actor.OwnerId = OwnerId;
+                actor.RegistryPath = registry.GetPath();
+                actor.Definition = UnitDefinition ?? actor.Definition;
+                if (actor.Definition is null)
+                {
+                    unit.Free();
+                    return Reject("missing_actor_definition");
+                }
+            }
 
             GridPathFollowerComponent follower = EnsurePathFollower(unit);
             GridWorkerComponent worker = EnsureWorker(unit, workerId, follower);
 
-            follower.GridPath = follower.GetPathTo(_grid);
-            follower.NavigationPath = follower.GetPathTo(_navigation);
+            follower.GridPath = _grid.GetPath();
+            follower.NavigationPath = _navigation.GetPath();
             follower.Speed = EffectiveDefaultUnitSpeed;
             follower.DriveCharacterBody = DriveCharacterBody;
             follower.SetZIndexFromY = SetZIndexFromY;
 
-            worker.JobQueuePath = worker.GetPathTo(_jobs);
-            worker.GridPath = worker.GetPathTo(_grid);
-            worker.PathFollowerPath = worker.GetPathTo(follower);
+            worker.JobQueuePath = _jobs.GetPath();
+            worker.GridPath = _grid.GetPath();
+            worker.PathFollowerPath = new NodePath("../" + follower.Name);
             worker.WorkerId = workerId;
+
+            Vector2 spawnPosition = _grid.CellToWorld(cell);
+            unit.Position = _unitsRoot is Node2D units2D ? units2D.ToLocal(spawnPosition) : spawnPosition;
+            _unitsRoot.AddChild(unit);
+            if (ActorComponent.ForBody(unit) is { } registered)
+                workerId = worker.WorkerId = registered.ActorId;
 
             _spawnedUnits.Add(unit);
             EmitSignal(SignalName.UnitSpawned, unit, workerId, cell.X, cell.Y);
@@ -158,8 +186,14 @@ namespace Beep.ECS
 
         private Node2D? CreateUnitNode()
         {
-            if (UnitScene != null)
-                return UnitScene.Instantiate() as Node2D;
+            var scene = UnitDefinition?.Scene ?? UnitScene;
+            if (scene != null)
+            {
+                var instance = scene.Instantiate();
+                if (instance is Node2D body2D) return body2D;
+                instance.Free();
+                return null;
+            }
 
             var body = new CharacterBody2D();
             body.AddChild(new Polygon2D
@@ -296,30 +330,11 @@ namespace Beep.ECS
                     ? GetNodeOrNull<Node>(UnitsRootPath)
                     : GetParent();
 
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty
-                    ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cellData == null || !GodotObject.IsInstanceValid(_cellData))
-                _cellData = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
+            EntityComponent.Resolve(this, NavigationPath, ref _navigation);
+            EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
+            EntityComponent.Resolve(this, CellDataPath, ref _cellData);
+            EntityComponent.Resolve(this, PlacementPath, ref _placement);
         }
 
     }

@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_visuals.tscn" id="visuals"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorDefinition.cs" id="definition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorAnimationComponent.cs" id="animation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorPresentationComponent.cs" id="presentation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/PlatformerController.cs" id="controller"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/templates/scenes/actors/animation_platformer.tres" id="profile"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_idle.png" id="idle"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_walk1.png" id="walk1"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_walk2.png" id="walk2"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_jump.png" id="jump"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_fall.png" id="fall"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_hurt.png" id="hurt"]
+
+[sub_resource type="Resource" id="Definition"]
+script = ExtResource("definition")
+Id = "adventurer"
+VisualSize = Vector2(48, 64)
+Footprint = Vector2(24, 12)
+
+[sub_resource type="RectangleShape2D" id="Shape"]
+size = Vector2(24, 48)
+
+[sub_resource type="SpriteFrames" id="Frames"]
+animations = [{"frames": [{"duration": 1.0, "texture": ExtResource("idle")}], "loop": true, "name": &"idle", "speed": 5.0}, {
+"frames": [{"duration": 1.0, "texture": ExtResource("walk1")}, {"duration": 1.0, "texture": ExtResource("walk2")}], "loop": true, "name": &"move", "speed": 8.0}, {
+"frames": [{"duration": 1.0, "texture": ExtResource("jump")}], "loop": true, "name": &"jump", "speed": 5.0}, {
+"frames": [{"duration": 1.0, "texture": ExtResource("fall")}], "loop": true, "name": &"fall", "speed": 5.0}, {
+"frames": [{"duration": 1.0, "texture": ExtResource("hurt")}], "loop": false, "name": &"hurt", "speed": 5.0}]
+
+[node name="Adventurer" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -24)
+shape = SubResource("Shape")
+
+[node name="Visuals" parent="." instance=ExtResource("visuals")]
+
+[node name="AnimatedSprite2D" parent="Visuals" index="0"]
+sprite_frames = SubResource("Frames")
+animation = &"idle"
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+Definition = SubResource("Definition")
+
+[node name="Controller" type="Node" parent="."]
+script = ExtResource("controller")
+Speed = 220.0
+Gravity = 1000.0
+JumpVelocity = -440.0
+
+[node name="Animation" type="Node" parent="."]
+script = ExtResource("animation")
+AnimationTargetPath = NodePath("../Visuals/AnimatedSprite2D")
+Profile = ExtResource("profile")
+
+[node name="Presentation" type="Node2D" parent="."]
+script = ExtResource("presentation")
+SpritePath = NodePath("../Visuals/AnimatedSprite2D")
+
+[editable path="Visuals"]

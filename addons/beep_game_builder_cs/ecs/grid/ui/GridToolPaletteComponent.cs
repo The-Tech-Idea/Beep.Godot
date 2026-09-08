@@ -199,15 +199,8 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_tools == null || !GodotObject.IsInstanceValid(_tools))
-                _tools = !ToolActionPath.IsEmpty
-                    ? GetNodeOrNull<GridToolActionComponent>(ToolActionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridToolActionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_interactionMode == null || !GodotObject.IsInstanceValid(_interactionMode))
-                _interactionMode = !InteractionModePath.IsEmpty
-                    ? GetNodeOrNull<GridInteractionModeComponent>(InteractionModePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridInteractionModeComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, ToolActionPath, ref _tools);
+            EntityComponent.Resolve(this, InteractionModePath, ref _interactionMode);
         }
 
         private bool BindExistingButtons()

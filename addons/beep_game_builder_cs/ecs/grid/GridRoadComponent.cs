@@ -8,10 +8,18 @@ namespace Beep.ECS
     /// Stores player-built roads/paths on grid cells and exposes movement-cost
     /// helpers for GridNavigationComponent. Use it for dirt paths, roads, rails,
     /// trails, or any top-down/isometric route network.
+    ///
+    /// Persistence is owned by GridWorldStateComponent, the same as
+    /// GridCellDataComponent/GridPlacementComponent/GridNavigationComponent/
+    /// GridSelectionComponent/GridJobQueueComponent - this component used to
+    /// also implement ISaveable and join the save group under its own key,
+    /// so a save/load wrote and read road data through two independent
+    /// owners at once, in an order the save group's iteration does not
+    /// guarantee, each overwriting the other's result.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridRoadComponent : Node2D, ISaveable
+    public partial class GridRoadComponent : Node2D
     {
         [Signal] public delegate void RoadChangedEventHandler(int x, int y, string kind, bool hasRoad);
         [Signal] public delegate void RoadsChangedEventHandler();
@@ -19,8 +27,6 @@ namespace Beep.ECS
 
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
-        [Export] public bool ParticipatesInSave { get; set; } = true;
-        [Export] public string SaveKey { get; set; } = "grid_roads.state";
         [Export] public string DefaultRoadKind { get; set; } = "dirt_path";
         [Export] public bool TreatCellDataBlockedAsUnroadable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnroadable { get; set; } = true;
@@ -44,16 +50,8 @@ namespace Beep.ECS
         public override void _Ready()
         {
             ResolveReferences();
-            if (!Engine.IsEditorHint() && ParticipatesInSave)
-                AddToGroup(SaveableHelper.Group);
             SetProcess(Engine.IsEditorHint());
             UpdateConfigurationWarnings();
-        }
-
-        public override void _ExitTree()
-        {
-            if (ParticipatesInSave)
-                RemoveFromGroup(SaveableHelper.Group);
         }
 
         public override void _Process(double delta)
@@ -68,8 +66,6 @@ namespace Beep.ECS
                 return new[] { "GridPath should point to a GridProjectionComponent." };
             if (DefaultRoadCostMultiplier <= 0f || DefaultRoadCostMultiplier > 1f)
                 return new[] { "DefaultRoadCostMultiplier should be greater than 0 and at most 1." };
-            if (string.IsNullOrWhiteSpace(SaveKey))
-                return new[] { "SaveKey must not be empty when roads participate in saves." };
             return Array.Empty<string>();
         }
 
@@ -212,6 +208,16 @@ namespace Beep.ECS
             return roads;
         }
 
+        /// <summary>
+        /// Dictionary-shaped snapshot of the road set, for a caller that wants
+        /// one value rather than the raw array GetRoads()/LoadRoads() work
+        /// with directly. Not part of ISaveable: GridWorldStateComponent is
+        /// the sole save/load owner for roads (it calls GetRoads()/LoadRoads()
+        /// directly, not these) - a second, independent ISaveable on this
+        /// component used to write the identical road data to a second save
+        /// key, so a save/load could silently disagree with itself depending
+        /// on which of the two ran last.
+        /// </summary>
         public Godot.Collections.Dictionary CaptureState()
             => new()
             {
@@ -271,22 +277,6 @@ namespace Beep.ECS
             QueueRedraw();
         }
 
-        public void Save(GameBuilder.GameStateData state)
-        {
-            if (!string.IsNullOrWhiteSpace(SaveKey))
-                state.GameData[SaveKey] = CaptureState();
-        }
-
-        public void Load(GameBuilder.GameStateData state)
-        {
-            if (!string.IsNullOrWhiteSpace(SaveKey)
-                && state.GameData.TryGetValue(SaveKey, out Variant value)
-                && GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary saved))
-            {
-                RestoreState(saved);
-            }
-        }
-
         private void DrawRoadCell(Vector2I cell)
         {
             if (_grid == null)
@@ -308,15 +298,8 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cells == null || !GodotObject.IsInstanceValid(_cells))
-                _cells = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
+            EntityComponent.Resolve(this, CellDataPath, ref _cells);
         }
 
         private static Godot.Collections.Array ReadArray(Godot.Collections.Dictionary state, string key)

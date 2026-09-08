@@ -1,0 +1,131 @@
+extends SceneTree
+
+const GRID = preload("res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs")
+const ISO = preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricAutotileRendererComponent.cs")
+const WORLD = preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs")
+const TILES = preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs")
+const GENERATOR = preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs")
+const CAMERA_CONTROLLER = preload("res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs")
+const FRAMING = preload("res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs")
+var failures: Array[String] = []
+
+func _initialize() -> void:
+	call_deferred("run")
+
+func check(ok: bool, message: String) -> void:
+	if not ok:
+		failures.append(message)
+		print("[terrain-view-grid] FAIL: " + message)
+
+func run() -> void:
+	var host := Node2D.new()
+	host.position = Vector2(140, -80)
+	host.rotation = 0.23
+	host.scale = Vector2(1.4, 0.8)
+	root.add_child(host)
+	var renderer = ISO.new()
+	renderer.name = "Iso"
+	renderer.set("RefreshOnReady", false)
+	var map_origin := Vector2i(-11, 17)
+	renderer.set("BoundsOrigin", map_origin)
+	renderer.position = Vector2(65, -35)
+	renderer.rotation = -0.17
+	host.add_child(renderer)
+	var grid = GRID.new()
+	grid.set("DrawGrid", false)
+	grid.set("TrackMouseCell", false)
+	grid.position = Vector2(-93, 201)
+	root.add_child(grid)
+	var tiles := TileSet.new()
+	tiles.tile_size = Vector2i(96, 48)
+	renderer.set("Tiles", tiles)
+	var layer = renderer.call("GetTerrainLayer")
+	layer.position = Vector2(18, 31)
+	grid.set("TileMapLayerPath", grid.get_path_to(layer))
+	for shape in [TileSet.TILE_SHAPE_SQUARE, TileSet.TILE_SHAPE_ISOMETRIC]:
+		tiles.tile_shape = shape
+		for layout in range(6):
+			tiles.tile_layout = layout
+			for cell in [Vector2i.ZERO, Vector2i(7, 3), Vector2i(-3, -5)]:
+				var expected = layer.to_global(layer.map_to_local(cell))
+				check(grid.call("CellToWorld", cell).distance_to(expected) < 0.001, "Cell center differs from native layer")
+				check(grid.call("WorldToCell", expected) == cell, "Transformed picking failed")
+				var corners = grid.call("CellCorners", cell)
+				var center := Vector2.ZERO
+				for point in corners:
+					center += grid.to_global(point)
+				check(corners.size() == 4 and (center / 4).distance_to(expected) < 0.001, "Outline transform differs from placement")
+			var extent: Rect2 = renderer.call("GridExtent", Vector2i(9, 7))
+			for y in range(7):
+				for x in range(9):
+					check(extent.has_point(renderer.to_local(layer.to_global(layer.map_to_local(map_origin + Vector2i(x, y))))), "Preview omits a shifted native cell")
+	var world = WORLD.new()
+	world.set("BuildOnReady", false)
+	world.set("ParticipatesInSave", false)
+	world.set("IsometricAutotileRendererPath", NodePath("../Iso"))
+	world.set("Projection", 3)
+	world.set("MapSize", 0)
+	host.add_child(world)
+	var expected_extent = renderer.transform * renderer.call("GridExtent", Vector2i(32, 32))
+	check(world.call("PreviewExtent").is_equal_approx(expected_extent), "World bypassed native extent or renderer offset")
+	check(world.call("WorldExtent").is_equal_approx(host.global_transform * expected_extent), "Camera extent ignored transformed parent")
+	var generator = GENERATOR.new()
+	generator.name = "Generator"
+	generator.set("GenerateOnReady", false)
+	generator.set("BoundsSize", Vector2i(32, 32))
+	generator.set("Mode", 0)
+	host.add_child(generator)
+	world.set("GeneratorPath", NodePath("../Generator"))
+	var starts = generator.call("GetStartPositions")
+	var start_cell: Vector2i = starts[0] if starts.size() > 0 else Vector2i.ZERO
+	var expected_start = layer.to_global(layer.map_to_local(map_origin + start_cell))
+	check(world.call("StartPositionGlobal").distance_to(expected_start) < 0.01, "Start focus differs from native tile position")
+	var flat = TILES.new()
+	flat.name = "Flat"
+	flat.set("RefreshOnReady", false)
+	flat.set("AtlasTileSize", Vector2i(96, 48))
+	host.add_child(flat)
+	world.set("TileRendererPath", NodePath("../Flat"))
+	world.set("Projection", 1)
+	check(world.call("PreviewExtent").size == Vector2(3072, 1536), "Tiles view used painted tile dimensions")
+	flat.position = Vector2(-37, 53)
+	flat.scale = Vector2(1.2, 0.75)
+	var flat_extent = flat.transform * Rect2(Vector2.ZERO, Vector2(3072, 1536))
+	check(world.call("PreviewExtent").is_equal_approx(flat_extent), "Flat renderer offset was ignored")
+	check(world.call("WorldExtent").is_equal_approx(host.global_transform * flat_extent), "Flat camera extent ignored parent transform")
+	var camera := Camera2D.new()
+	root.add_child(camera)
+	var controller = CAMERA_CONTROLLER.new()
+	controller.set("MinZoom", Vector2(0.01, 0.01))
+	camera.add_child(controller)
+	var framing = FRAMING.new()
+	framing.set("WorldPath", world.get_path())
+	framing.set("CameraPath", camera.get_path())
+	framing.set("CameraControllerPath", controller.get_path())
+	root.add_child(framing)
+	framing.call("FrameWholeMap")
+	var global_extent: Rect2 = world.call("WorldExtent")
+	check(camera.global_position.distance_to(global_extent.get_center()) < 0.01, "Camera did not focus global map center")
+	check(controller.get("BoundsPosition").distance_to(global_extent.position) < 0.01, "Camera bounds are not global")
+	framing.call("FrameStartPosition")
+	check(camera.global_position.distance_to(world.call("StartPositionGlobal")) < 0.01, "Camera start focus remained local")
+	var replacement = WORLD.new()
+	replacement.set("BuildOnReady", false)
+	replacement.set("ParticipatesInSave", false)
+	replacement.set("MapSize", 0)
+	root.add_child(replacement)
+	framing.set("WorldPath", replacement.get_path())
+	framing.call("FrameWholeMap")
+	check(camera.global_position.distance_to(replacement.call("WorldExtent").get_center()) < 0.01, "Framing retained its previous live world")
+	camera.global_position = Vector2(-123, -456)
+	world.emit_signal("WorldBuilt", Vector2i(32, 32))
+	check(camera.global_position == Vector2(-123, -456), "Framing remained subscribed to the previous world")
+	replacement.emit_signal("WorldBuilt", Vector2i(32, 32))
+	check(camera.global_position.distance_to(replacement.call("WorldExtent").get_center()) < 0.01, "Framing missed replacement world events")
+	replacement.free()
+	framing.free()
+	camera.free()
+	grid.free()
+	host.free()
+	print("[terrain-view-grid] OK" if failures.is_empty() else "[terrain-view-grid] FAILED")
+	quit(0 if failures.is_empty() else 1)

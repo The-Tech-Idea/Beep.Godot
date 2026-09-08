@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="TerrainMapArt" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="1_qlpt8"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs" id="2_y7g0d"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rkion"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(2, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qronj"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(315, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_auikk"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(629, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mxsoh"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(943, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r7fyb"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(315, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5t5te"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(2, 316, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c4lvh"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uwv8e"]
+atlas = ExtResource("1_qlpt8")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[resource]
+script = ExtResource("2_y7g0d")
+GroundDetail = 0.16
+TextureRepeatCells = 1.5
+GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_rkion"), SubResource("AtlasTexture_qronj"), SubResource("AtlasTexture_auikk"), SubResource("AtlasTexture_mxsoh"), SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e")])

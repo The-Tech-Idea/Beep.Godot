@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ActorAnimationProfile" format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorAnimationProfile.cs" id="profile"]
+
+[resource]
+script = ExtResource("profile")
+Directions = 2
+UseGroundedStates = false

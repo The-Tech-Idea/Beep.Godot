@@ -8,15 +8,17 @@ namespace Beep.ECS
     /// <summary>
     /// Compact HUD strip for GridResourceWalletComponent. It displays every
     /// non-zero wallet entry as a resource label and refreshes on wallet changes.
+    ///
+    /// Authored-control binding, the editor-owner stamp and node-name
+    /// sanitising are GridPanelComponent's; this file owns only the wallet
+    /// strip itself.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridResourceBarComponent : Control
+    public partial class GridResourceBarComponent : GridPanelComponent
     {
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath RowPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool HideZeroAmounts { get; set; } = true;
         [Export] public bool SortByResourceId { get; set; } = true;
         [Export] public Vector2 BadgeMinimumSize { get; set; } = new(96, 32);
@@ -212,12 +214,7 @@ namespace Beep.ECS
         }
 
         private void ResolveReferences()
-        {
-            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
-                _wallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-        }
+            => EntityComponent.Resolve(this, ResourceWalletPath, ref _wallet);
 
         private bool BindExistingLabels()
         {
@@ -260,33 +257,12 @@ namespace Beep.ECS
             => BoundResourceIds.Length > 0 || FindResourceRow() != null;
 
         private HBoxContainer? FindResourceRow()
-        {
-            if (!RowPath.IsEmpty && GetNodeOrNull<HBoxContainer>(RowPath) is { } pathRow)
-                return pathRow;
-
-            if (FindChild("ResourceBar", recursive: true, owned: false) is HBoxContainer resourceBar)
-                return resourceBar;
-
-            if (FindChild("GeneratedResourceBar", recursive: true, owned: false) is HBoxContainer generatedBar)
-                return generatedBar;
-
-            if (GetParent()?.FindChild("ResourceBar", recursive: true, owned: false) is HBoxContainer parentResourceBar)
-                return parentResourceBar;
-
-            return GetParent()?.FindChild("GeneratedResourceBar", recursive: true, owned: false) as HBoxContainer;
-        }
+            => FindControl<HBoxContainer>(RowPath, "ResourceBar", "GeneratedResourceBar");
 
         private Label? FindResourceLabel(string resourceId, int index)
         {
-            if (BoundLabelPaths.Length > index && !BoundLabelPaths[index].IsEmpty
-                && GetNodeOrNull<Label>(BoundLabelPaths[index]) is { } pathLabel)
-                return pathLabel;
-
-            string nodeName = $"Resource_{SafeName(resourceId)}";
-            if (FindChild(nodeName, recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild(nodeName, recursive: true, owned: false) as Label;
+            NodePath path = BoundLabelPaths.Length > index ? BoundLabelPaths[index] : new NodePath("");
+            return FindControl<Label>(path, $"Resource_{SafeName(resourceId)}");
         }
 
         private void RefreshBoundLabels()
@@ -309,21 +285,7 @@ namespace Beep.ECS
             _boundLabels.Clear();
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
-
-        private static string SafeName(string value)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? "Resource" : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return result.Replace(' ', '_');
-        }
+        private static string SafeName(string value) => SafeName(value, "Resource");
 
         private static string Normalize(string value)
             => string.IsNullOrWhiteSpace(value) ? "" : value.Trim();

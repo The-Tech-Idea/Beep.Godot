@@ -10,7 +10,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridWorkerComponent : GameplayComponent
+    public partial class GridWorkerComponent : GameplayComponent, IWorker, ISaveable, IActorResidencyGuard
     {
         public enum WorkerState
         {
@@ -28,6 +28,13 @@ namespace Beep.ECS
         [Export] public NodePath JobQueuePath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath PathFollowerPath { get; set; } = new("");
+
+        /// <summary>
+        /// The clock that decides what a turn of work is. Empty finds one
+        /// scene-wide; with none anywhere the worker burns work off its own
+        /// frame delta, so a template scene or a headless probe still runs.
+        /// </summary>
+        [Export] public NodePath WorkClockPath { get; set; } = new("");
         [Export] public string WorkerId { get; set; } = "";
         [Export] public bool AutoClaimJobs { get; set; } = true;
 
@@ -44,24 +51,67 @@ namespace Beep.ECS
 
         public WorkerState State { get; private set; } = WorkerState.Idle;
         public string CurrentJobId { get; private set; } = "";
-        public float WorkRemainingSeconds { get; private set; }
+
+        /// <summary>Turns of work left on the current job - the grid's one unit.</summary>
+        public float WorkRemainingTurns
+        {
+            get => HasWorldExecution && GodotObject.IsInstanceValid(_queue)
+                ? _queue!.GetJobRemainingTurns(CurrentJobId) : _workRemainingTurns;
+            private set => _workRemainingTurns = value;
+        }
+        private float _workRemainingTurns;
+
+        /// <summary>IWorker.IsWorking - executing the job's work timer right now,
+        /// not idle and not still travelling to it.</summary>
+        public bool IsWorking => State == WorkerState.Working;
 
         private GridJobQueueComponent? _queue;
         private GridProjectionComponent? _grid;
         private GridPathFollowerComponent? _follower;
         private Node2D? _body;
+        private GridWorkClockComponent? _workClock;
+        private bool _workClockConnected;
         private float _claimTimer;
         private bool _wasMoving;
+        private Vector2I _workCell;
         public float EffectiveClaimInterval => Mathf.Max(0.01f, float.IsFinite(ClaimIntervalSeconds) ? ClaimIntervalSeconds : 0.25f);
         public float EffectiveWorkSpeed => Mathf.Max(0.01f, float.IsFinite(WorkSpeedMultiplier) ? WorkSpeedMultiplier : 1f);
 
         public override void _Ready()
         {
             base._Ready();
-            WorkerId = string.IsNullOrWhiteSpace(WorkerId) ? $"{GetParent()?.Name ?? Name}_{GetInstanceId()}" : WorkerId.Trim();
+            var actor = ActorComponent.ForBody(GetParent());
+            WorkerId = actor is { ActorId.Length: > 0 } ? actor.ActorId
+                : string.IsNullOrWhiteSpace(WorkerId) ? $"{GetParent()?.Name ?? Name}_{GetInstanceId()}" : WorkerId.Trim();
             ResolveReferences();
+            BindExecution();
+            if (!Engine.IsEditorHint())
+                BindWorkClock();
             SetProcess(!Engine.IsEditorHint());
             UpdateConfigurationWarnings();
+        }
+
+        public override void _ExitTree()
+        {
+            if (!HasWorldExecution && _queue != null && GodotObject.IsInstanceValid(_queue) && !string.IsNullOrEmpty(CurrentJobId))
+                _queue.ReleaseJob(CurrentJobId, WorkerId);
+            if (_workClockConnected && _workClock != null && GodotObject.IsInstanceValid(_workClock))
+                _workClock.WorkTick -= OnWorkTick;
+            _workClockConnected = false;
+            UnbindExecution();
+            base._ExitTree();
+        }
+
+        private void BindWorkClock()
+        {
+            if (!ExecutionPath.IsEmpty) return;
+            _workClock = GridWorkClockComponent.FindFor(this, WorkClockPath);
+
+            if (_workClock == null || _workClockConnected)
+                return;
+
+            _workClock.WorkTick += OnWorkTick;
+            _workClockConnected = true;
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -83,9 +133,24 @@ namespace Beep.ECS
 
         public void Tick(double delta)
         {
+            if (State == WorkerState.Idle && !AutoClaimJobs) return;
+            if (ActorComponent.ForBody(GetParent()) is { } actor && (!actor.IsActive || actor.IsDead)) return;
             ResolveReferences();
             if (_queue == null || _grid == null || _follower == null || _body == null)
                 return;
+
+            if (_worldOwned && !HasWorldExecution)
+            {
+                if (_queue.GetJobState(CurrentJobId) == GridJobQueueComponent.GridJobState.Completed) NotifyJobCompleted();
+                else CancelCurrentJob("world_execution_ended");
+                return;
+            }
+
+            if (State != WorkerState.Idle && !HasCurrentClaim())
+            {
+                CancelCurrentJob("job_no_longer_claimed");
+                return;
+            }
 
             float effectiveDelta = delta > 0.0 && double.IsFinite(delta) ? (float)delta : 0f;
 
@@ -99,13 +164,17 @@ namespace Beep.ECS
 
             if (State == WorkerState.Working)
             {
-                WorkRemainingSeconds -= effectiveDelta * EffectiveWorkSpeed;
-                if (WorkRemainingSeconds <= 0f)
-                    CompleteCurrentJob();
+                // Work is measured in TURNS and advances on the work clock, not
+                // on frames - that is what lets one authored duration mean the
+                // same thing in a turn-based game and an RTS. Walking to the
+                // site and polling for a job stay real-time on both axes: a
+                // worker animates between turns, it does not teleport.
+                if (ExecutionPath.IsEmpty && _workClock == null)
+                    AdvanceWork(effectiveDelta);
                 return;
             }
 
-            if (!AutoClaimJobs)
+            if (!AutoClaimJobs || ActorComponent.ForBody(_body) is { HasOrders: true })
                 return;
 
             _claimTimer -= effectiveDelta;
@@ -116,8 +185,90 @@ namespace Beep.ECS
             }
         }
 
+        /// <summary>
+        /// Burns turns of work off the claimed job. Bound to
+        /// GridWorkClockComponent.WorkTick when the scene has one; called
+        /// directly from Tick when it does not, so a template scene or a
+        /// headless probe still runs with nothing driving it.
+        /// </summary>
+        public void AdvanceWork(float turns)
+        {
+            if (!ExecutionPath.IsEmpty) return;
+            if (!IsActive || State != WorkerState.Working) return;
+            if (ActorComponent.ForBody(GetParent()) is { } actor && (!actor.IsActive || actor.IsDead)) return;
+            ResolveReferences();
+            if (_queue == null)
+                return;
+            if (!HasCurrentClaim())
+            {
+                CancelCurrentJob("job_no_longer_claimed");
+                return;
+            }
+
+            if (!float.IsFinite(turns) || turns <= 0f)
+                return;
+
+            var result = _queue.AdvanceClaimedWork(CurrentJobId, WorkerId, _workCell, turns, EffectiveWorkSpeed);
+            WorkRemainingTurns = _queue.GetJobRemainingTurns(CurrentJobId);
+            if (result == GridJobQueueComponent.WorkAdvanceResult.Completed)
+                NotifyJobCompleted();
+            else if (result == GridJobQueueComponent.WorkAdvanceResult.Rejected)
+                CancelCurrentJob("work_advance_rejected");
+        }
+
+        private void OnWorkTick(float turns) => AdvanceWork(turns);
+
+        public void Save(GameBuilder.GameStateData state)
+        {
+            state.GameData["worker"] = new Godot.Collections.Dictionary
+            {
+                ["id"] = WorkerId, ["job"] = CurrentJobId, ["state"] = (int)State,
+                ["remaining"] = WorkRemainingTurns, ["work_x"] = _workCell.X, ["work_y"] = _workCell.Y,
+                ["world_owned"] = _worldOwned
+            };
+        }
+
+        public void Load(GameBuilder.GameStateData state)
+        {
+            if (!state.GameData.TryGetValue("worker", out var saved)) return;
+            ResolveReferences();
+            var record = saved.AsGodotDictionary();
+            if (GridVariantReader.Bool(record, "world_owned", false)
+                || (GodotObject.IsInstanceValid(_execution) && _execution!.GetWorkerJob(WorkerId).Length > 0))
+            {
+                SynchronizeExecution();
+                return;
+            }
+            WorkerId = record["id"].AsString();
+            CurrentJobId = record["job"].AsString();
+            WorkRemainingTurns = record["remaining"].AsSingle();
+            _workCell = new(record["work_x"].AsInt32(), record["work_y"].AsInt32());
+            var restoredState = (WorkerState)record["state"].AsInt32();
+            if (CurrentJobId.Length > 0 && _queue is not null)
+            {
+                if (_queue.GetJobState(CurrentJobId) == GridJobQueueComponent.GridJobState.Queued)
+                    _queue.ClaimJob(CurrentJobId, WorkerId);
+                if (_queue.GetJobClaimedBy(CurrentJobId) != WorkerId
+                    || !_queue.TryReserveWorkCell(CurrentJobId, WorkerId, _workCell))
+                {
+                    _queue.ReleaseJob(CurrentJobId, WorkerId);
+                    CurrentJobId = "";
+                    restoredState = WorkerState.Idle;
+                }
+            }
+            if (_queue is null || CurrentJobId.Length == 0)
+            {
+                CurrentJobId = "";
+                WorkRemainingTurns = 0;
+                restoredState = WorkerState.Idle;
+            }
+            _wasMoving = _follower?.IsMoving == true;
+            SetState(restoredState);
+        }
+
         public bool ClaimNextJob()
         {
+            if (ActorComponent.ForBody(GetParent()) is { } actor && (!actor.IsActive || actor.IsDead)) return false;
             ResolveReferences();
             if (_queue == null || _grid == null || _follower == null || _body == null || State != WorkerState.Idle)
                 return false;
@@ -133,7 +284,7 @@ namespace Beep.ECS
         public bool AssignJob(string jobId)
         {
             ResolveReferences();
-            if (_queue == null || State != WorkerState.Idle || string.IsNullOrEmpty(jobId))
+            if (_queue == null || State != WorkerState.Idle || !CanAcceptJob(jobId))
                 return false;
 
             if (_queue.GetJobState(jobId) == GridJobQueueComponent.GridJobState.Queued)
@@ -151,15 +302,29 @@ namespace Beep.ECS
             return BeginClaimedJob(jobId);
         }
 
+        public bool CanAcceptJob(string jobId)
+        {
+            if (ActorComponent.ForBody(GetParent()) is { } actor && (!actor.IsActive || actor.IsDead)) return false;
+            ResolveReferences();
+            if (_queue is null || string.IsNullOrWhiteSpace(jobId) || !_queue.HasJob(jobId)
+                || !_queue.CanWorkerClaim(WorkerId)) return false;
+            if (AllowedJobKinds.Count > 0 && !AllowedJobKinds.Contains(_queue.GetJobKind(jobId))) return false;
+            var state = _queue.GetJobState(jobId);
+            return state == GridJobQueueComponent.GridJobState.Queued
+                || (state == GridJobQueueComponent.GridJobState.Claimed && _queue.GetJobClaimedBy(jobId) == WorkerId);
+        }
+
         public void CancelCurrentJob(string reason = "worker_cancelled")
         {
             string failedJob = CurrentJobId;
+            if (HasWorldExecution) _execution!.StopWork(WorkerId, true);
+            _worldOwned = false;
             if (!string.IsNullOrEmpty(CurrentJobId) && _queue != null)
                 _queue.ReleaseJob(CurrentJobId, WorkerId);
 
             _follower?.CancelMove();
             CurrentJobId = "";
-            WorkRemainingSeconds = 0f;
+            WorkRemainingTurns = 0f;
             SetState(WorkerState.Idle);
             EmitSignal(SignalName.WorkerFailedJob, WorkerId, failedJob, reason);
         }
@@ -177,7 +342,23 @@ namespace Beep.ECS
             string kind = _queue.GetJobKind(jobId);
             EmitSignal(SignalName.WorkerClaimedJob, WorkerId, jobId, kind, cell.X, cell.Y);
 
-            if (!_follower.MoveToCell(cell))
+            if (_queue.GetJobState(jobId) != GridJobQueueComponent.GridJobState.Claimed
+                || _queue.GetJobClaimedBy(jobId) != WorkerId)
+            {
+                CancelCurrentJob("job_no_longer_claimed");
+                return false;
+            }
+
+            // Stand where the job says to stand - a build site names a cell
+            // just outside its blocked footprint - and only if that cell is
+            // unreachable fall back to the job cell itself, so a job that
+            // set no approach cell (or one behind a wall) behaves exactly as
+            // before.
+            Vector2I approach = _queue.GetReservedWorkCell(jobId);
+            bool moving = approach.X != int.MinValue && approach != cell && _follower.MoveToCell(approach);
+            if (!moving)
+                moving = _queue.TryReserveWorkCell(jobId, WorkerId, cell) && _follower.MoveToCell(cell);
+            if (!moving)
             {
                 _queue.ReleaseJob(jobId, WorkerId);
                 string failedJob = CurrentJobId;
@@ -188,12 +369,30 @@ namespace Beep.ECS
             }
 
             _wasMoving = true;
+            _workCell = _follower.DestinationCell;
             SetState(WorkerState.MovingToJob);
             return true;
         }
 
         private void StartWorkOrFail()
         {
+            if (_follower is null || !_follower.HasReachedDestination || _follower.DestinationCell != _workCell)
+            {
+                if (_follower is { IsMoving: false } && _follower.LastMoveFailure.Length > 0
+                    && _queue is not null && _queue.HasJob(CurrentJobId))
+                {
+                    Vector2I fallback = _queue.GetJobCell(CurrentJobId);
+                    if (_workCell != fallback && _queue.TryReserveWorkCell(CurrentJobId, WorkerId, fallback)
+                        && _follower.MoveToCell(fallback))
+                    {
+                        _workCell = fallback;
+                        _wasMoving = true;
+                        return;
+                    }
+                }
+                CancelCurrentJob("job_destination_not_reached");
+                return;
+            }
             if (_queue == null || string.IsNullOrEmpty(CurrentJobId))
             {
                 SetState(WorkerState.Idle);
@@ -223,13 +422,23 @@ namespace Beep.ECS
                 return;
             }
 
-            WorkRemainingSeconds = Mathf.Max(0.01f, _queue.GetJobWorkSeconds(CurrentJobId));
+            WorkRemainingTurns = _queue.GetJobRemainingTurns(CurrentJobId);
             SetState(WorkerState.Working);
+            if (!ExecutionPath.IsEmpty)
+            {
+                if (!GodotObject.IsInstanceValid(_execution) || !_execution!.BeginWork(WorkerId, CurrentJobId, EffectiveWorkSpeed))
+                {
+                    CancelCurrentJob("world_execution_rejected");
+                    return;
+                }
+                _worldOwned = true;
+            }
             EmitSignal(SignalName.WorkerStartedJob, WorkerId, CurrentJobId);
         }
 
-        private void CompleteCurrentJob()
+        private void NotifyJobCompleted()
         {
+            _worldOwned = false;
             if (_queue == null || string.IsNullOrEmpty(CurrentJobId))
             {
                 SetState(WorkerState.Idle);
@@ -237,19 +446,16 @@ namespace Beep.ECS
             }
 
             string jobId = CurrentJobId;
-            if (!_queue.CompleteJob(jobId, WorkerId))
-            {
-                CurrentJobId = "";
-                WorkRemainingSeconds = 0f;
-                SetState(WorkerState.Idle);
-                EmitSignal(SignalName.WorkerFailedJob, WorkerId, jobId, "complete_rejected");
-                return;
-            }
             CurrentJobId = "";
-            WorkRemainingSeconds = 0f;
+            WorkRemainingTurns = 0f;
             SetState(WorkerState.Idle);
             EmitSignal(SignalName.WorkerCompletedJob, WorkerId, jobId);
         }
+
+        private bool HasCurrentClaim()
+            => _queue is not null && _queue.GetJobState(CurrentJobId) == GridJobQueueComponent.GridJobState.Claimed
+                && _queue.GetJobClaimedBy(CurrentJobId) == WorkerId
+                && _queue.GetReservedWorkCell(CurrentJobId) == _workCell;
 
         private void SetState(WorkerState state)
         {
@@ -267,16 +473,11 @@ namespace Beep.ECS
                 _body = GetParent() as Node2D;
             }
 
-            if (_queue == null || !GodotObject.IsInstanceValid(_queue))
-                _queue = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
+            Resolve(JobQueuePath, ref _queue);
+            Resolve(GridPath, ref _grid);
 
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
+            // Not the shared rule: the follower is a sibling on the same body,
+            // never found scene-wide.
             if (_follower == null || !GodotObject.IsInstanceValid(_follower))
                 _follower = !PathFollowerPath.IsEmpty
                     ? GetNodeOrNull<GridPathFollowerComponent>(PathFollowerPath)

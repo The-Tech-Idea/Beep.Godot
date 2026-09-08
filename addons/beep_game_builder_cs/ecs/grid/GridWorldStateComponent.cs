@@ -33,7 +33,7 @@ namespace Beep.ECS
         [Export] public bool CaptureSelection { get; set; } = true;
         [Export] public bool CaptureJobs { get; set; } = true;
 
-        private const int SnapshotVersion = 1;
+        private const int SnapshotVersion = 2;
 
         private GridPlacementComponent? _placement;
         private GridNavigationComponent? _navigation;
@@ -73,7 +73,7 @@ namespace Beep.ECS
             };
 
             if (CaptureCellData && _cellData != null)
-                state["cell_data"] = _cellData.GetCells();
+                state["cell_chunks"] = _cellData.CaptureChunkState();
 
             if (CapturePlacementOccupancy && _placement != null)
                 state["occupied_cells"] = _placement.GetOccupiedCells();
@@ -99,10 +99,16 @@ namespace Beep.ECS
 
         public void RestoreState(Godot.Collections.Dictionary state)
         {
+            if (GridVariantReader.Int(state, "version") != SnapshotVersion)
+                throw new System.FormatException("Unsupported grid-world snapshot version.");
             ResolveReferences();
 
             if (CaptureCellData && _cellData != null)
-                _cellData.LoadCells(ReadArray(state, "cell_data"));
+            {
+                if (!state.TryGetValue("cell_chunks", out var chunks) || chunks.VariantType != Variant.Type.Dictionary)
+                    throw new System.FormatException("Grid-world snapshot is missing cell chunks.");
+                _cellData.RestoreChunkState(chunks.AsGodotDictionary());
+            }
 
             if (CaptureGridObjects)
                 ReleaseGridObjectFootprints();
@@ -164,41 +170,23 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
+            _objectsRoot = !ObjectsRootPath.IsEmpty
+                ? GetNodeOrNull<Node>(ObjectsRootPath)
+                : IsInsideTree() ? GetTree().CurrentScene : null;
 
-            if (_navigation == null || !GodotObject.IsInstanceValid(_navigation))
-                _navigation = !NavigationPath.IsEmpty
-                    ? GetNodeOrNull<GridNavigationComponent>(NavigationPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridNavigationComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_selection == null || !GodotObject.IsInstanceValid(_selection))
-                _selection = !SelectionPath.IsEmpty
-                    ? GetNodeOrNull<GridSelectionComponent>(SelectionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridSelectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_jobs == null || !GodotObject.IsInstanceValid(_jobs))
-                _jobs = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cellData == null || !GodotObject.IsInstanceValid(_cellData))
-                _cellData = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_roads == null || !GodotObject.IsInstanceValid(_roads))
-                _roads = !RoadPath.IsEmpty
-                    ? GetNodeOrNull<GridRoadComponent>(RoadPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridRoadComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_objectsRoot == null || !GodotObject.IsInstanceValid(_objectsRoot))
-                _objectsRoot = !ObjectsRootPath.IsEmpty
-                    ? GetNodeOrNull<Node>(ObjectsRootPath)
-                    : IsInsideTree() ? GetTree()?.CurrentScene : null;
+            // Snapshot operations resolve current paths, never a previous world's cache.
+            // Unwired collaborators are discovered only within this snapshot's root.
+            _placement = ResolveStateComponent<GridPlacementComponent>(PlacementPath);
+            _navigation = ResolveStateComponent<GridNavigationComponent>(NavigationPath);
+            _selection = ResolveStateComponent<GridSelectionComponent>(SelectionPath);
+            _jobs = ResolveStateComponent<GridJobQueueComponent>(JobQueuePath);
+            _cellData = ResolveStateComponent<GridCellDataComponent>(CellDataPath);
+            _roads = ResolveStateComponent<GridRoadComponent>(RoadPath);
         }
+
+        private T? ResolveStateComponent<T>(NodePath path) where T : Node
+            => !path.IsEmpty ? GetNodeOrNull<T>(path)
+                : _objectsRoot as T ?? EntityComponent.FindComponent<T>(_objectsRoot);
 
         private static Godot.Collections.Array ReadArray(Godot.Collections.Dictionary state, string key)
             => GridVariantReader.Array(state, key);
@@ -231,7 +219,7 @@ namespace Beep.ECS
                     continue;
 
                 GridObjectComponent? gridObject = GetNodeOrNull<GridObjectComponent>(new NodePath(path));
-                if (gridObject == null || !GodotObject.IsInstanceValid(gridObject))
+                if (gridObject == null || _objectsRoot == null || !IsNodeWithin(gridObject, _objectsRoot))
                     continue;
 
                 if (entry.ContainsKey("state")
@@ -250,6 +238,8 @@ namespace Beep.ECS
         {
             ResolveReferences();
             var objects = new List<GridObjectComponent>();
+            if (_objectsRoot == null)
+                return objects;
 
             if (IsInsideTree())
             {
@@ -257,7 +247,7 @@ namespace Beep.ECS
                 {
                     if (node is not GridObjectComponent gridObject)
                         continue;
-                    if (_objectsRoot != null && !IsNodeWithin(gridObject, _objectsRoot))
+                    if (!IsNodeWithin(gridObject, _objectsRoot))
                         continue;
                     objects.Add(gridObject);
                 }
@@ -279,12 +269,7 @@ namespace Beep.ECS
         }
 
         private static bool IsNodeWithin(Node node, Node root)
-        {
-            for (Node? current = node; current != null; current = current.GetParent())
-                if (current == root)
-                    return true;
-            return false;
-        }
+            => node == root || root.IsAncestorOf(node);
 
         private static Godot.Collections.Array<Vector2I> ReadCells(Godot.Collections.Dictionary state, string key)
         {

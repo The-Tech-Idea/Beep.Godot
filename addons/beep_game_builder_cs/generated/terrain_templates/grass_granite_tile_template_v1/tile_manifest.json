@@ -1,0 +1,443 @@
+{
+  "tile_size": 64,
+  "terrain_mode": "corners_and_sides",
+  "masks": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    25,
+    27,
+    29,
+    31,
+    35,
+    39,
+    43,
+    47,
+    59,
+    63,
+    70,
+    71,
+    78,
+    79,
+    95,
+    103,
+    111,
+    127,
+    140,
+    141,
+    142,
+    143,
+    157,
+    159,
+    175,
+    191,
+    206,
+    207,
+    223,
+    239,
+    255
+  ],
+  "mask_bit_offsets": [
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      -1,
+      0
+    ],
+    [
+      0,
+      -1
+    ],
+    [
+      1,
+      -1
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      -1,
+      1
+    ],
+    [
+      -1,
+      -1
+    ]
+  ],
+  "terrain_tiles": [
+    {
+      "mask": 0,
+      "atlas": [
+        0,
+        0
+      ]
+    },
+    {
+      "mask": 1,
+      "atlas": [
+        1,
+        0
+      ]
+    },
+    {
+      "mask": 2,
+      "atlas": [
+        2,
+        0
+      ]
+    },
+    {
+      "mask": 3,
+      "atlas": [
+        3,
+        0
+      ]
+    },
+    {
+      "mask": 4,
+      "atlas": [
+        4,
+        0
+      ]
+    },
+    {
+      "mask": 5,
+      "atlas": [
+        5,
+        0
+      ]
+    },
+    {
+      "mask": 6,
+      "atlas": [
+        6,
+        0
+      ]
+    },
+    {
+      "mask": 7,
+      "atlas": [
+        7,
+        0
+      ]
+    },
+    {
+      "mask": 8,
+      "atlas": [
+        0,
+        1
+      ]
+    },
+    {
+      "mask": 9,
+      "atlas": [
+        1,
+        1
+      ]
+    },
+    {
+      "mask": 10,
+      "atlas": [
+        2,
+        1
+      ]
+    },
+    {
+      "mask": 11,
+      "atlas": [
+        3,
+        1
+      ]
+    },
+    {
+      "mask": 12,
+      "atlas": [
+        4,
+        1
+      ]
+    },
+    {
+      "mask": 13,
+      "atlas": [
+        5,
+        1
+      ]
+    },
+    {
+      "mask": 14,
+      "atlas": [
+        6,
+        1
+      ]
+    },
+    {
+      "mask": 15,
+      "atlas": [
+        7,
+        1
+      ]
+    },
+    {
+      "mask": 25,
+      "atlas": [
+        0,
+        2
+      ]
+    },
+    {
+      "mask": 27,
+      "atlas": [
+        1,
+        2
+      ]
+    },
+    {
+      "mask": 29,
+      "atlas": [
+        2,
+        2
+      ]
+    },
+    {
+      "mask": 31,
+      "atlas": [
+        3,
+        2
+      ]
+    },
+    {
+      "mask": 35,
+      "atlas": [
+        4,
+        2
+      ]
+    },
+    {
+      "mask": 39,
+      "atlas": [
+        5,
+        2
+      ]
+    },
+    {
+      "mask": 43,
+      "atlas": [
+        6,
+        2
+      ]
+    },
+    {
+      "mask": 47,
+      "atlas": [
+        7,
+        2
+      ]
+    },
+    {
+      "mask": 59,
+      "atlas": [
+        0,
+        3
+      ]
+    },
+    {
+      "mask": 63,
+      "atlas": [
+        1,
+        3
+      ]
+    },
+    {
+      "mask": 70,
+      "atlas": [
+        2,
+        3
+      ]
+    },
+    {
+      "mask": 71,
+      "atlas": [
+        3,
+        3
+      ]
+    },
+    {
+      "mask": 78,
+      "atlas": [
+        4,
+        3
+      ]
+    },
+    {
+      "mask": 79,
+      "atlas": [
+        5,
+        3
+      ]
+    },
+    {
+      "mask": 95,
+      "atlas": [
+        6,
+        3
+      ]
+    },
+    {
+      "mask": 103,
+      "atlas": [
+        7,
+        3
+      ]
+    },
+    {
+      "mask": 111,
+      "atlas": [
+        0,
+        4
+      ]
+    },
+    {
+      "mask": 127,
+      "atlas": [
+        1,
+        4
+      ]
+    },
+    {
+      "mask": 140,
+      "atlas": [
+        2,
+        4
+      ]
+    },
+    {
+      "mask": 141,
+      "atlas": [
+        3,
+        4
+      ]
+    },
+    {
+      "mask": 142,
+      "atlas": [
+        4,
+        4
+      ]
+    },
+    {
+      "mask": 143,
+      "atlas": [
+        5,
+        4
+      ]
+    },
+    {
+      "mask": 157,
+      "atlas": [
+        6,
+        4
+      ]
+    },
+    {
+      "mask": 159,
+      "atlas": [
+        7,
+        4
+      ]
+    },
+    {
+      "mask": 175,
+      "atlas": [
+        0,
+        5
+      ]
+    },
+    {
+      "mask": 191,
+      "atlas": [
+        1,
+        5
+      ]
+    },
+    {
+      "mask": 206,
+      "atlas": [
+        2,
+        5
+      ]
+    },
+    {
+      "mask": 207,
+      "atlas": [
+        3,
+        5
+      ]
+    },
+    {
+      "mask": 223,
+      "atlas": [
+        4,
+        5
+      ]
+    },
+    {
+      "mask": 239,
+      "atlas": [
+        5,
+        5
+      ]
+    },
+    {
+      "mask": 255,
+      "atlas": [
+        6,
+        5
+      ]
+    }
+  ],
+  "walls": {
+    "phases": 6,
+    "region_size": [
+      64,
+      80
+    ],
+    "caps": [
+      "none",
+      "left",
+      "right",
+      "isolated"
+    ],
+    "rows": [
+      "middle",
+      "bottom"
+    ],
+    "ordering": "atlas_x = phase * 4 + cap; phase = map_x modulo 6"
+  },
+  "source_region_top": [
+    4,
+    3,
+    490,
+    468
+  ],
+  "notes": "47 connectivity combinations assembled from the compact template. Not 47 separate material variants."
+}

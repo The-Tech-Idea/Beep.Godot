@@ -35,7 +35,20 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class TerrainWorldCameraComponent : Node
     {
-        [Export] public NodePath WorldPath { get; set; } = new("");
+        private NodePath _worldPath = new("");
+        [Export] public NodePath WorldPath
+        {
+            get => _worldPath;
+            set
+            {
+                _worldPath = value;
+                if (IsNodeReady() && !Engine.IsEditorHint())
+                {
+                    BindWorld();
+                    if (_world?.BuiltSize.X > 0) OnWorldBuilt(_world.BuiltSize);
+                }
+            }
+        }
         [Export] public NodePath CameraPath { get; set; } = new("");
         [Export] public NodePath CameraControllerPath { get; set; } = new("");
 
@@ -68,14 +81,15 @@ namespace Beep.ECS
             // happening to be the only one in the scene.
             _camera?.MakeCurrent();
 
-            if (_world is not null)
-                _world.WorldBuilt += OnWorldBuilt;
+            if (_world?.BuiltSize.X > 0)
+                OnWorldBuilt(_world.BuiltSize);
         }
 
         public override void _ExitTree()
         {
             if (_world is not null && GodotObject.IsInstanceValid(_world))
                 _world.WorldBuilt -= OnWorldBuilt;
+            _world = null;
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -89,7 +103,7 @@ namespace Beep.ECS
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && key.Keycode == FrameMapKey)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == FrameMapKey)
                 FrameWholeMap();
         }
 
@@ -132,7 +146,7 @@ namespace Beep.ECS
 
             ApplyBounds();
             _controller.SetZoomLevel(Mathf.Max(0.02f, SceneZoom), immediate: true);
-            _controller.FocusWorld(_world.StartPositionView(), immediate: true);
+            _controller.FocusWorld(_world.StartPositionGlobal(), immediate: true);
         }
 
         /// <summary>
@@ -141,7 +155,7 @@ namespace Beep.ECS
         /// </summary>
         private Rect2 ApplyBounds()
         {
-            Rect2 extent = _world!.PreviewExtent();
+            Rect2 extent = _world!.WorldExtent();
             _controller!.BoundsPosition = extent.Position;
             _controller.BoundsSize = extent.Size;
             return extent;
@@ -149,13 +163,19 @@ namespace Beep.ECS
 
         private void Resolve()
         {
-            if (_world is null || !GodotObject.IsInstanceValid(_world))
-                _world = WorldPath.IsEmpty ? null : GetNodeOrNull<TerrainWorldComponent>(WorldPath);
-            _camera ??= GetNodeOrNull<Camera2D>(CameraPath);
-            if (_controller is null || !GodotObject.IsInstanceValid(_controller))
-                _controller = CameraControllerPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<GridCameraControllerComponent>(CameraControllerPath);
+            BindWorld();
+            _camera = CameraPath.IsEmpty ? null : GetNodeOrNull<Camera2D>(CameraPath);
+            _controller = CameraControllerPath.IsEmpty
+                ? null : GetNodeOrNull<GridCameraControllerComponent>(CameraControllerPath);
+        }
+
+        private void BindWorld()
+        {
+            var next = WorldPath.IsEmpty ? null : GetNodeOrNull<TerrainWorldComponent>(WorldPath);
+            if (_world == next) return;
+            if (GodotObject.IsInstanceValid(_world)) _world!.WorldBuilt -= OnWorldBuilt;
+            _world = next;
+            if (_world is not null && !Engine.IsEditorHint()) _world.WorldBuilt += OnWorldBuilt;
         }
     }
 }

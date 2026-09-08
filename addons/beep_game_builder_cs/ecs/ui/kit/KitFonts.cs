@@ -57,11 +57,28 @@ namespace Beep.ECS.UI.Kit
         {
             [KitFontRole.Sans] = "NotoSans-Variable.ttf",
             [KitFontRole.Condensed] = "Audex-Regular.ttf",
-            [KitFontRole.Rounded] = "Kenney_Blocks.ttf",
+            // Kenney_Future, not Kenney_Blocks.
+            //
+            // Blocks is a solid-square DISPLAY face: its counters -- the holes in B, U, O, A --
+            // are filled, which is the whole look. That is fine on a title and unreadable as body
+            // copy, and KitGeometry.Font is ONE face used for every string a genre draws, captions
+            // included. Rendered at caption size the cardgame board showed "PLAY" as "PLRY" and
+            // "BUTTONS" as a row of blocks. Three genres take this role (cardgame, platformer,
+            // puzzle), so all three were illegible below title size.
+            //
+            // Future is the addon's own bundled fallback: a geometric game sans with real
+            // counters that still reads as a game face rather than as office type. The soft
+            // display look survives where it belongs, in the shape and material axes.
+            [KitFontRole.Rounded] = "Kenney_Future.ttf",
             [KitFontRole.Heavy] = "Kenney_Thick.ttf",
             [KitFontRole.Pixel] = "Kenney_Pixel.ttf",
             [KitFontRole.Mono] = "Kenney_Mini_Square_Mono.ttf",
-            // Serif, Blackletter and Handwritten are deliberately absent. See fonts/LICENSE.txt.
+            // The storybook serif rpg and survival ask for, from the project's own font library
+            // under the SIL OFL. Before this the role fell to the Heavy substitute, so four themes
+            // asked for a serif and got a slab -- the warning said so, and nobody could act on it
+            // because no face existed to point at.
+            [KitFontRole.Serif] = "EBGaramond-Regular.ttf",
+            // Blackletter and Handwritten remain absent. See fonts/LICENSE.txt.
         };
 
         /// <summary>
@@ -78,7 +95,6 @@ namespace Beep.ECS.UI.Kit
         /// </summary>
         private static readonly Dictionary<KitFontRole, KitFontRole> Substitute = new()
         {
-            [KitFontRole.Serif] = KitFontRole.Heavy,          // slab weight over technical sans
             [KitFontRole.Blackletter] = KitFontRole.Heavy,    // gothic display -> heaviest shipped
             [KitFontRole.Handwritten] = KitFontRole.Rounded,  // soft marker -> soft display
         };

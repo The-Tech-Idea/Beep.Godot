@@ -2,15 +2,8 @@ using Godot;
 
 namespace Beep.ECS.UI
 {
-    /// <summary>RPG HUD: Level, Health, Mana and the tracked Quest.
-    ///
-    /// Driven by <see cref="RpgPartyComponent"/>. Health, Mana and Quest were previously
-    /// registered as <c>Placeholder(...)</c>, so those three readouts kept whatever text was
-    /// typed into the scene and never moved. Placeholder is now the FALLBACK for a scene with no
-    /// party component, not the normal path.
-    ///
-    /// Level still falls back to <c>BindLevel</c> (GameApp) when there is no party component, so
-    /// a project that only tracks a level in save data keeps working.</summary>
+    /// <summary>RPG stats and quest readouts. An explicit player path follows possession;
+    /// otherwise the scene-level RPG state drives an actorless genre HUD.</summary>
     [Tool]
     [GlobalClass]
     public partial class RpgHudComponent : GenreHudComponent
@@ -22,15 +15,33 @@ namespace Beep.ECS.UI
 
         /// <summary>Optional toast host for level-ups and death.</summary>
         [Export] public NodePath AlertHostPath { get; set; } = new("");
+        /// <summary>When assigned, bind only the possessed actor's stats. Relative to the HUD host.</summary>
+        [Export] public NodePath PlayerPath { get; set; } = new("");
 
         protected override string Genre => "rpg";
 
         private RpgPartyComponent? _party;
+        private PlayerContextComponent? _player;
         private ToastNotificationComponent? _alerts;
         private Godot.Control? _level, _health, _mana, _quest;
 
         protected override void Wire()
         {
+            DisconnectParty();
+            if (GodotObject.IsInstanceValid(_player)) _player!.PossessionChanged -= OnPossession;
+            _player = null;
+            if (!PlayerPath.IsEmpty)
+            {
+                _level = ResolveReadout(LevelPath, "level");
+                _health = ResolveReadout(HealthPath, "health");
+                _mana = ResolveReadout(ManaPath, "mana");
+                _quest = ResolveReadout(QuestPath, "quest");
+                _alerts = ResolveNode<ToastNotificationComponent>(AlertHostPath);
+                _player = ResolveNode<PlayerContextComponent>(PlayerPath);
+                if (_player is not null) _player.PossessionChanged += OnPossession;
+                OnPossession(_player?.PossessedActorId ?? "");
+                return;
+            }
             _party = FindInScene<RpgPartyComponent>();
 
             if (_party == null)
@@ -50,6 +61,12 @@ namespace Beep.ECS.UI
             _quest = ResolveReadout(QuestPath, "quest");
             _alerts = ResolveNode<ToastNotificationComponent>(AlertHostPath);
 
+            ConnectParty();
+        }
+
+        private void ConnectParty()
+        {
+            if (_party is null) return;
             _party.StatsChanged += OnStats;
             _party.QuestChanged += OnQuest;
             _party.LeveledUp += OnLevelUp;
@@ -58,9 +75,32 @@ namespace Beep.ECS.UI
             OnQuest();
         }
 
+        private void OnPossession(string actorId)
+        {
+            DisconnectParty();
+            if (_player?.Registry?.FindActor(actorId)?.Body is { } body)
+                foreach (Node child in body.GetChildren())
+                    if (child is RpgPartyComponent stats) { _party = stats; break; }
+            if (_party is not null) { ConnectParty(); return; }
+            foreach (var control in new[] { _level, _health, _mana, _quest })
+            {
+                SetReadout(control, "", 0);
+                if (control is not null) control.TooltipText = "";
+                Tint(control, null);
+            }
+        }
+
         public override void _ExitTree()
         {
             base._ExitTree();
+            if (GodotObject.IsInstanceValid(_player)) _player!.PossessionChanged -= OnPossession;
+            _player = null;
+            DisconnectParty();
+            RequestReady();
+        }
+
+        private void DisconnectParty()
+        {
             if (_party != null && GodotObject.IsInstanceValid(_party))
             {
                 _party.StatsChanged -= OnStats;

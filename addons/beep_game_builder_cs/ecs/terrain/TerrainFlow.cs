@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -27,13 +28,15 @@ namespace Beep.ECS
         /// <paramref name="flow"/> with accumulation. Returns the land count.
         /// </summary>
         public static int Accumulate(
-            TerrainWorld world, int[] flowsTo, int[] order, float[] flow)
+            TerrainGenerationBuffer world, int[] flowsTo, int[] order, float[] flow, CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             int count = world.Count;
             int land = 0;
 
             for (int index = 0; index < count; index++)
             {
+                if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 flowsTo[index] = -1;
                 flow[index] = 0.0f;
                 if (world.Land[index])
@@ -44,11 +47,15 @@ namespace Beep.ECS
                 return 0;
 
             for (int i = 0; i < land; i++)
+            {
+                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 flowsTo[order[i]] = Downhill(world, order[i]);
+            }
 
             // Highest first, so a cell's own accumulation is complete before it
             // is handed downstream. This is what lets one pass do the work.
             Array.Sort(order, 0, land, new HighestFirst(world.Elevation));
+            cancellation.ThrowIfCancellationRequested();
 
             for (int i = 0; i < land; i++)
                 flow[order[i]] = 1.0f;
@@ -56,6 +63,7 @@ namespace Beep.ECS
             for (int i = 0; i < land; i++)
             {
                 int from = order[i];
+                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 int to = flowsTo[from];
                 if (to >= 0 && world.Land[to])
                     flow[to] += flow[from];
@@ -73,7 +81,7 @@ namespace Beep.ECS
         /// sending their water toward the coast keeps the network connected
         /// instead of leaving ponds of accumulation scattered inland.
         /// </summary>
-        public static int Downhill(TerrainWorld world, int current)
+        public static int Downhill(TerrainGenerationBuffer world, int current)
         {
             int x = current % world.Width;
             int y = current / world.Width;

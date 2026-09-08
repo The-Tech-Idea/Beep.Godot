@@ -71,8 +71,12 @@ namespace Beep.ECS
         {
             if (Engine.IsEditorHint()) return;
             if (_body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && !actor.CanDrive(this)) return;
 
-            if (ReadInput)
+            if (actor is not null)
+                DesiredDirection = actor.MoveIntent;
+            else if (ReadInput)
             {
                 DesiredDirection = InputActionsAvailable("move_left", "move_right", "move_up", "move_down")
                     ? Input.GetVector("move_left", "move_right", "move_up", "move_down")
@@ -84,7 +88,7 @@ namespace Beep.ECS
             // Actually drive the body. Computing Velocity and stopping there is what made
             // this component inert in every scene that shipped it.
             _body.Velocity = IsFinite(Velocity) ? Velocity : Vector2.Zero;
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
             // Take back what the collision solver actually allowed, so running into a wall
             // doesn't keep accumulating speed into it.
             Velocity = _body.Velocity;

@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_roads.gdshader" id="1_20y71"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/brick.png" id="2_d0j8u"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="3_kjamw"]
+
+[resource]
+shader = ExtResource("1_20y71")
+shader_parameter/brick_texture = ExtResource("2_d0j8u")
+shader_parameter/terrain_texture = ExtResource("3_kjamw")
+shader_parameter/pixel_art = false

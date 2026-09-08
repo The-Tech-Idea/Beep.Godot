@@ -30,9 +30,9 @@ namespace Beep.ECS.Scenes
                 UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
                 return;
             }
-            // The genre-screen overlay paused the tree; the battle must run, so unpause first.
-            var tree = GetTree();
-            if (tree != null) tree.Paused = false;
+            // The genre-screen overlay paused the tree; the battle must run, so unpause first -
+            // through the master's one door, like every other pause write.
+            GameApp.Instance?.SetPaused(false);
             UI.SceneNav.ChangeScene(this, battle);
         }
     }

@@ -5,13 +5,21 @@ namespace Beep.ECS
 {
     /// <summary>
     /// The registry of everything currently extracting: every derrick, mine
-    /// and custom rig announces itself here, and HUDs, objectives and game
-    /// logic ask ONE node instead of crawling the tree.
+    /// and custom rig announces itself here, so game logic asks ONE node
+    /// instead of crawling the tree. GridObjectiveEventBinderComponent wires
+    /// each registered GridExtractorComponent's ExtractionCycle to objective
+    /// progress under the same resource id GridResourceNodeComponent.Gathered
+    /// already uses, so a "collect N wood" objective advances the same way
+    /// whichever path acquired it. No dedicated HUD panel ships for this
+    /// registry, though - GridWorkerStatusPanelComponent,
+    /// GridProductionPanelComponent, and GridJobBoardComponent cover workers,
+    /// production, and jobs, but extraction and transport
+    /// (GridTransportManagerComponent) have none.
     ///
     /// EXPANDABLE BY REGISTRATION, not by type: Register accepts any Node
     /// that answers the IGridExtractor shape by name - Get("IsExtracting"),
     /// Get("ActiveResourceId"), optionally the rate methods
-    /// CurrentAmountPerCycle/CurrentCycleSeconds - so a GDScript extractor
+    /// CurrentAmountPerCycle/CurrentCycleTurns - so a GDScript extractor
     /// participates exactly like the shipped C# one. The shipped
     /// GridExtractorComponent registers itself automatically when a manager
     /// exists in the scene.
@@ -25,14 +33,40 @@ namespace Beep.ECS
 
         private readonly List<Node> _extractors = new();
 
-        /// <summary>Adds an extractor to the registry; duplicates are ignored.</summary>
-        public void Register(Node extractor)
+        // The extractor contract is answered by PROPERTY, not by method, so
+        // this cannot be the HasMethod check GridTransportManagerComponent
+        // uses for its transporters - Get returns a Nil Variant for a property
+        // the registrant does not have, which is the same "does it answer the
+        // shape" question one level down.
+        private static readonly StringName IsExtractingProperty = new("IsExtracting");
+        private static readonly StringName ActiveResourceIdProperty = new("ActiveResourceId");
+
+        /// <summary>
+        /// Adds an extractor to the registry. Registering the same node twice
+        /// is a no-op that still reports success. Returns false, with a named
+        /// warning, for a node that does not answer the extractor contract:
+        /// without this check a malformed registrant joined silently and only
+        /// failed later, at read time, in IsActivelyExtracting.
+        /// </summary>
+        public bool Register(Node extractor)
         {
-            if (extractor == null || !GodotObject.IsInstanceValid(extractor) || _extractors.Contains(extractor))
-                return;
+            if (extractor == null || !GodotObject.IsInstanceValid(extractor))
+                return false;
+
+            if (_extractors.Contains(extractor))
+                return true;
+
+            if (extractor.Get(IsExtractingProperty).VariantType == Variant.Type.Nil
+                || extractor.Get(ActiveResourceIdProperty).VariantType == Variant.Type.Nil)
+            {
+                GD.PushWarning($"[{Name}] {extractor.Name} does not answer the extractor contract "
+                    + "(IsExtracting, ActiveResourceId) and was not registered.");
+                return false;
+            }
 
             _extractors.Add(extractor);
             EmitSignal(SignalName.ExtractorRegistered, extractor);
+            return true;
         }
 
         public void Unregister(Node extractor)
@@ -77,11 +111,13 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Units per second currently flowing for a resource, summed over the
+        /// Units per TURN currently flowing for a resource, summed over the
         /// active extractors that expose their rate (the shipped one does; a
         /// custom extractor without the rate methods counts as unknown, 0).
+        /// The unit is the turn because a cycle is: the same number reads as
+        /// units per in-game day on either time axis.
         /// </summary>
-        public float EstimatedRatePerSecond(string resourceId)
+        public float EstimatedRatePerTurn(string resourceId)
         {
             Prune();
             float total = 0f;
@@ -89,13 +125,13 @@ namespace Beep.ECS
             {
                 if (!IsActivelyExtracting(extractor, resourceId))
                     continue;
-                if (!extractor.HasMethod("CurrentAmountPerCycle") || !extractor.HasMethod("CurrentCycleSeconds"))
+                if (!extractor.HasMethod("CurrentAmountPerCycle") || !extractor.HasMethod("CurrentCycleTurns"))
                     continue;
 
-                float seconds = extractor.Call("CurrentCycleSeconds").AsSingle();
+                float turns = extractor.Call("CurrentCycleTurns").AsSingle();
                 int amount = extractor.Call("CurrentAmountPerCycle").AsInt32();
-                if (seconds > 0f && amount > 0)
-                    total += amount / seconds;
+                if (turns > 0f && amount > 0)
+                    total += amount / turns;
             }
             return total;
         }

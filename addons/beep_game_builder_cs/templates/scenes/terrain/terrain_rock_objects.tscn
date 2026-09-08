@@ -1,0 +1,19 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainReliefRendererComponent.cs" id="relief"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/rocks/Rock1_1.png" id="large_stone"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/rocks/Rock1_2.png" id="small_stone"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/rocks/Rock4_1.png" id="large_moss"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/rocks/Rock4_2.png" id="small_moss"]
+
+[node name="RockObjects" type="Node2D"]
+script = ExtResource("relief")
+RefreshOnReady = false
+HillsTextures = Array[Texture2D]([ExtResource("small_stone"), ExtResource("small_moss")])
+MountainsTextures = Array[Texture2D]([ExtResource("large_stone"), ExtResource("large_moss")])
+HillsCoverage = 0.35
+MountainsCoverage = 0.55
+ScaleJitter = 0.12
+HillsPerTile = 1
+MountainsPerTile = 1
+PositionJitter = 0.75

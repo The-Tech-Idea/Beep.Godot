@@ -168,25 +168,10 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_interaction == null || !GodotObject.IsInstanceValid(_interaction))
-                _interaction = !InteractionModePath.IsEmpty
-                    ? GetNodeOrNull<GridInteractionModeComponent>(InteractionModePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridInteractionModeComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_selection == null || !GodotObject.IsInstanceValid(_selection))
-                _selection = !SelectionPath.IsEmpty
-                    ? GetNodeOrNull<GridSelectionComponent>(SelectionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridSelectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_tools == null || !GodotObject.IsInstanceValid(_tools))
-                _tools = !ToolActionPath.IsEmpty
-                    ? GetNodeOrNull<GridToolActionComponent>(ToolActionPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridToolActionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, InteractionModePath, ref _interaction);
+            EntityComponent.Resolve(this, SelectionPath, ref _selection);
+            EntityComponent.Resolve(this, ToolActionPath, ref _tools);
+            EntityComponent.Resolve(this, PlacementPath, ref _placement);
         }
 
         public bool UsesSceneControls()

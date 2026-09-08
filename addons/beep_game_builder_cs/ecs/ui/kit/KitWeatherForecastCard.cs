@@ -2,10 +2,25 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// One day of a weather forecast: the day, a drawn condition glyph, a temperature and a wind
+    /// reading, on a single card.
+    ///
+    /// The glyph is drawn rather than a texture, like everything else in the kit, so a forecast row
+    /// reskins with the genre instead of carrying art that belongs to one look.
+    /// <see cref="WeatherForecastUI"/> builds a row of these, preferring a scene the developer
+    /// authored and falling back to this when none is set.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitWeatherForecastCard : KitControl
     {
+        /// <summary>A message surface, not a pressable. It had been falling through to the base's
+        /// Button default, which decided its corner radius and its selection cue as well as -- once
+        /// the genre had artwork -- which sprite it was cut from, and it rendered as a glossy button
+        /// with a raised lip.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         [Export] public string DayText { get => _dayText; set { string next = value ?? ""; if (_dayText == next) return; _dayText = next; RefreshMinimumAndRedraw(); } }
         [Export] public string WeatherGlyph { get => _weatherGlyph; set { string next = value ?? ""; if (_weatherGlyph == next) return; _weatherGlyph = next; RefreshMinimumAndRedraw(); } }
         [Export] public string TemperatureText { get => _temperatureText; set { string next = value ?? ""; if (_temperatureText == next) return; _temperatureText = next; RefreshMinimumAndRedraw(); } }
@@ -33,18 +48,6 @@ namespace Beep.ECS.UI.Kit
             width = Mathf.Max(width, TextWidth(_dayText, UiSurface.TextRole.Small) + fs * 1.4f);
             width = Mathf.Max(width, TextWidth(_windText, UiSurface.TextRole.Small) + fs * 1.4f);
             return new Vector2(width, Mathf.Max(76f, fs * 6.1f));
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private float TextWidth(string text, UiSurface.TextRole role)

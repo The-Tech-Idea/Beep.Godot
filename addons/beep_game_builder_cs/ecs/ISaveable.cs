@@ -67,10 +67,18 @@ namespace Beep.ECS
 			if (tree == null) return saveables;
 
 			foreach (var node in tree.GetNodesInGroup(Group))
-				if (node is ISaveable saveable)
+				if ((node == root || root.IsAncestorOf(node)) && !IsLeavingTree(node)
+					&& node is ISaveable saveable && ActorComponent.OwningActor(node) is null)
 					saveables.Add(saveable);
 
 			return saveables;
+		}
+
+		private static bool IsLeavingTree(Node node)
+		{
+			for (Node? current = node; current != null; current = current.GetParent())
+				if (current.IsQueuedForDeletion()) return true;
+			return false;
 		}
 
 		/// <summary>Participating ISaveables of a specific component type (e.g. HealthComponent).</summary>

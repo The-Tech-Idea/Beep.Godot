@@ -167,12 +167,20 @@ namespace Beep.ECS.UI.Kit
             var g = Geo;
             int fs = UiSurface.FontSize(this);
 
+            // Locked ink, drained TOWARDS the plate rather than to a fixed near-black.
+            //
+            // It was `new Color(0.12f, 0.12f, 0.14f, 1f)` — a literal that only reads as "drained"
+            // on a light plate. On any dark skin it is the plate colour, so a locked icon button
+            // rendered as an empty square and was indistinguishable from an ordinary one. Pulling
+            // the normal ink toward the face keeps the contrast direction correct either way.
+            static Color LockedInk(Color ink, Color face) => ink.Lerp(face, 0.55f);
+
             // Square, from the shorter side, so a stretched host still yields a square button.
             float s = Mathf.Min(Size.X, Size.Y);
             var plate = new Rect2((Size.X - s) * 0.5f, (Size.Y - s) * 0.5f, s, s);
 
-            KitChrome.DrawPlate(this, _genre, plate,
-                                KitChrome.StateFace(UiSurface.Of(this), State), State, fs / 14f,
+            Color plateFace = KitChrome.StateFace(UiSurface.Of(this), State);
+            KitChrome.DrawPlate(this, _genre, plate, plateFace, State, fs / 14f,
                                 KitWidgetClass.Button);
 
             if (Accent != UiSurface.Role.Neutral && Interactive)
@@ -194,7 +202,7 @@ namespace Beep.ECS.UI.Kit
             {
                 Color mod = Colors.White;
                 if (State == KitState.Disabled) mod = new Color(0.72f, 0.72f, 0.72f, 0.9f);
-                else if (State == KitState.Locked) mod = new Color(0.12f, 0.12f, 0.14f, 1f);
+                else if (State == KitState.Locked) mod = LockedInk(Colors.White, plateFace);
                 DrawTextureRect(icon, box, false, mod);
             }
             else if (!string.IsNullOrEmpty(_glyph))
@@ -208,7 +216,7 @@ namespace Beep.ECS.UI.Kit
                     glyph = KitChrome.EllipsizeText(font, glyph, size, gs);
                     Vector2 m = font.GetStringSize(glyph, HorizontalAlignment.Left, -1, size);
                     Color col = UiSurface.Text(this);
-                    if (State == KitState.Locked) col = new Color(0.12f, 0.12f, 0.14f, 1f);
+                    if (State == KitState.Locked) col = LockedInk(col, plateFace);
                     else if (State == KitState.Disabled) col = col with { A = 0.55f };
                     KitChrome.DrawText(this, _genre, font, new Vector2(plate.Position.X + (s - m.X) * 0.5f, plate.Position.Y + (s + m.Y * 0.6f) * 0.5f),
                                glyph, size, col);

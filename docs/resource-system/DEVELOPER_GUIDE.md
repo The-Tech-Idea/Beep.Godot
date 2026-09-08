@@ -60,6 +60,14 @@ flowchart TB
 - **A deposit's rules** — the catalog definition for its id: full amount, yield per gather, gather seconds, job kind, whether it occupies its cell, and its `NodeScene` (a tree scene for wood, a rock for stone; the scatter's single `ResourceScene` is the fallback). The node's own exports apply only to ids the catalog does not define.
 - **This deposit's state** — the node: which cell, how much is left, depleted or not.
 - **Balances** — the wallet, and only the wallet. Costs and yields are lists of `GridResourceAmount`; ids are normalized lowercase.
+- **What a tank or truck will carry** — optionally, the catalog again. `ecs/grid/GridStorageComponent`
+  and `GridHaulerComponent` (the physical cargo layer - `ILoadPort`/`IUnloadPort`/`IStorage`/
+  `ITransporter`, unrelated to the wallet) can each take an optional `Catalog` reference and an
+  `AllowedResourceTags` list: with both set, `CanAccept` accepts a resource by `ResourceDefinition.Tags`
+  instead of needing every id in `AllowedResourceIds` by hand, and rejects an id the catalog does
+  not recognize at all - closing the door on a typo'd resource id silently landing in a tank. This
+  is additive: a storage/hauler with neither list set still accepts anything, exactly as before.
+  See `docs/grid-system/GridStorageComponent.md`/`GridHaulerComponent.md`.
 
 ## Categories and color
 

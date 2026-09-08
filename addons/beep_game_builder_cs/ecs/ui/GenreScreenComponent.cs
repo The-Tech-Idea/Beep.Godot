@@ -182,7 +182,8 @@ namespace Beep.ECS.UI
             _pausedByUs = false;
             if (PauseWhileOpen && GetTree() is { } tree && !tree.Paused)
             {
-                tree.Paused = true;
+                // Read the tree flag; write it only through the master's one door.
+                GameApp.Instance?.SetPaused(true);
                 _pausedByUs = true;
             }
 
@@ -221,7 +222,7 @@ namespace Beep.ECS.UI
         {
             if (!_pausedByUs) return;
             _pausedByUs = false;
-            if (GetTree() is { } tree) tree.Paused = false;
+            GameApp.Instance?.SetPaused(false);
         }
         private bool _pausedByUs;
 

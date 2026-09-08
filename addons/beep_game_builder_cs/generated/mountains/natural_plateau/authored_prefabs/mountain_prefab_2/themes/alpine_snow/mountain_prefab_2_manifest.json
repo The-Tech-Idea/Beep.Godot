@@ -1,0 +1,209 @@
+{
+  "schema_version": 2,
+  "pack_id": "natural_plateau_front_2_5d_alpine_snow",
+  "style_id": "mountain_prefab_2",
+  "style_label": "Mountain Prefab 2 - Natural Plateau",
+  "theme_id": "alpine_snow",
+  "theme_label": "Alpine Snow",
+  "projection": "front_2_5d",
+  "visual_only": true,
+  "plate_modules": [
+    {
+      "id": "plate_base",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/plate_base.png",
+      "image_size": [
+        587,
+        396
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_middle",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/plate_middle.png",
+      "image_size": [
+        519,
+        348
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_top",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/plate_top.png",
+      "image_size": [
+        337,
+        252
+      ],
+      "walkable": true
+    }
+  ],
+  "base_prefabs": [
+    {
+      "id": "natural_plateau_three_level_no_ramps",
+      "display_name": "Mountain Prefab 2 - Alpine Snow",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/natural_plateau_three_level_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/natural_plateau_three_level_no_ramps_preview.png",
+      "level_count": 3,
+      "image_size": [
+        593,
+        624
+      ],
+      "strict_nested_footprints": true,
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 308,
+            "y": 434
+          },
+          "z_index": 0
+        },
+        {
+          "plate": "plate_middle",
+          "level": 1,
+          "center": {
+            "x": 252,
+            "y": 326
+          },
+          "z_index": 10
+        },
+        {
+          "plate": "plate_top",
+          "level": 2,
+          "center": {
+            "x": 212,
+            "y": 118
+          },
+          "z_index": 20
+        }
+      ],
+      "sockets": []
+    },
+    {
+      "id": "natural_plateau_extra_wide",
+      "display_name": "Mountain Prefab 2 - Alpine Snow Base Plate",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/natural_plateau_one_level.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/natural_plateau_one_level_preview.png",
+      "level_count": 1,
+      "image_size": [
+        587,
+        396
+      ],
+      "strict_nested_footprints": true,
+      "decorative_paths": false,
+      "gameplay_metadata": false,
+      "fill_tile": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/surface_fill_tile.png",
+      "fill_tile_size": [
+        512,
+        512
+      ],
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 293,
+            "y": 198
+          },
+          "z_index": 0
+        }
+      ],
+      "sockets": []
+    }
+  ],
+  "ramp_modules": [],
+  "jump_step_modules": [
+    {
+      "id": "step_quarter",
+      "display_name": "Alpine Snow Step Quarter",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/step_quarter.png",
+      "alias_id": "plate_quarter_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/plate_quarter_height.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/fit_preview.png",
+      "image_size": [
+        245,
+        63
+      ],
+      "height_class": "quarter",
+      "relative_level_height": 0.25,
+      "placement": "manual"
+    },
+    {
+      "id": "step_half",
+      "display_name": "Alpine Snow Step Half",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/step_half.png",
+      "alias_id": "plate_half_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/plate_half_height.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/fit_preview.png",
+      "image_size": [
+        285,
+        126
+      ],
+      "height_class": "half",
+      "relative_level_height": 0.5,
+      "placement": "manual"
+    }
+  ],
+  "sockets": [],
+  "atlas_sheets": [
+    {
+      "id": "mountain_prefab_2_plates_alpine_snow",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/mountain_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "plate_base": {
+          "x": 24,
+          "y": 24,
+          "width": 587,
+          "height": 396
+        },
+        "plate_middle": {
+          "x": 635,
+          "y": 24,
+          "width": 519,
+          "height": 348
+        },
+        "plate_top": {
+          "x": 24,
+          "y": 444,
+          "width": 337,
+          "height": 252
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_2_manual_steps_alpine_snow",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/manual_step_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "step_quarter": {
+          "x": 24,
+          "y": 24,
+          "width": 245,
+          "height": 63
+        },
+        "step_half": {
+          "x": 293,
+          "y": 24,
+          "width": 285,
+          "height": 126
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_2_one_level_alpine_snow",
+      "file": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/one_level_mountain_sheet.png",
+      "transparent": true,
+      "regions": {
+        "natural_plateau_one_level": {
+          "x": 24,
+          "y": 24,
+          "width": 587,
+          "height": 396
+        }
+      }
+    }
+  ]
+}

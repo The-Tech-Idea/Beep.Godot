@@ -23,11 +23,9 @@ namespace Beep.ECS
         [Export] public bool TemperatureAffectsHealth { get; set; } = true;
         [Export] public bool HungerAffectsHealth { get; set; } = true;
 
-        /// <summary>Include this entity's health in saves. Tick it on the player only.
-        ///
-        /// Off by default because this component is blind (see the class note): GameStateData
-        /// keeps one Combat slot, so if every enemy's health saved too, the last one scanned
-        /// would win and loading would set the player and every enemy to that value.</summary>
+        /// <summary>Opt into the scene-level save walk. Registered actors capture this component
+        /// in their own scope regardless of this flag. Actorless saves have one Combat slot,
+        /// so only one scene-level health source should opt in to a given flat save scope.</summary>
         [Export] public bool ParticipatesInSave { get; set; } = false;
 
         [Signal] public delegate void DamagedEventHandler(float amount, float newHealth);
@@ -98,10 +96,8 @@ namespace Beep.ECS
             NormalizeHealth();
             if (!float.IsFinite(damage.Amount) || damage.Amount <= 0f) return;
 
-            // Invincibility (i-frames) blocks all incoming damage, including True — this is the
-            // canonical "invincible" channel that DashComponent's i-frames and game code apply
-            // via a sibling StatusEffectComponent. Nothing honored it before, so dash i-frames
-            // (GrantIFrames, on by default) advertised protection and delivered none.
+            // Dash protection has its own lifetime; ending a dash must not erase an unrelated buff.
+            if (GetSiblingComponent<DashComponent>() is { IsInvincible: true }) return;
             if (_statusEffects != null && _statusEffects.HasEffect("invincible")) return;
 
             float actual;
@@ -154,6 +150,19 @@ namespace Beep.ECS
             if (applied <= 0f) return;
             EmitSignal(SignalName.Healed, applied, CurrentHealth);
             EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
+        }
+
+        /// <summary>Change capacity without creating a heal, revive or damage event.</summary>
+        public void SetMaximumHealth(float maximum, bool preserveFraction = false)
+        {
+            NormalizeHealth();
+            float before = CurrentHealth;
+            float previousMax = MaxHealth;
+            float fraction = HealthPercent;
+            MaxHealth = float.IsFinite(maximum) ? Mathf.Max(1f, maximum) : 1f;
+            CurrentHealth = preserveFraction ? fraction * MaxHealth : Mathf.Min(CurrentHealth, MaxHealth);
+            if (CurrentHealth != before || MaxHealth != previousMax)
+                EmitSignal(SignalName.HealthChanged, CurrentHealth, MaxHealth);
         }
 
         /// <summary>Bring the entity back to life at <paramref name="toHealth"/> (default full).

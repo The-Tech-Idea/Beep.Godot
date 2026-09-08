@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_visuals.tscn" id="visuals"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorPresentationComponent.cs" id="presentation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorAnimationComponent.cs" id="animation"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/templates/scenes/actors/animation_topdown.tres" id="profile"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/TopDownController.cs" id="controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs" id="follower"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMotionGateComponent.cs" id="terrain_gate"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_idle.png" id="idle"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_walk1.png" id="walk1"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/assets/textures/actors/adventurer/adventurer_walk2.png" id="walk2"]
+
+[sub_resource type="CircleShape2D" id="feet"]
+radius = 10.0
+
+[sub_resource type="SpriteFrames" id="frames"]
+animations = [{"frames": [{"duration": 1.0, "texture": ExtResource("idle")}], "loop": true, "name": &"idle", "speed": 5.0}, {"frames": [{"duration": 1.0, "texture": ExtResource("walk1")}, {"duration": 1.0, "texture": ExtResource("walk2")}], "loop": true, "name": &"move", "speed": 8.0}]
+
+[node name="Companion" type="CharacterBody2D"]
+motion_mode = 1
+collision_layer = 2
+collision_mask = 13
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("feet")
+
+[node name="Visuals" parent="." instance=ExtResource("visuals")]
+
+[node name="AnimatedSprite2D" parent="Visuals" index="0"]
+sprite_frames = SubResource("frames")
+animation = &"idle"
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+RegistryPath = NodePath("../../../Registry")
+
+[node name="Controller" type="Node" parent="."]
+script = ExtResource("controller")
+Speed = 150.0
+
+[node name="PathFollower" type="Node" parent="."]
+script = ExtResource("follower")
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+Speed = 180.0
+DriveCharacterBody = true
+
+[node name="Animation" type="Node" parent="."]
+script = ExtResource("animation")
+AnimationTargetPath = NodePath("../Visuals/AnimatedSprite2D")
+Profile = ExtResource("profile")
+
+[node name="TerrainMotionGate" type="Node" parent="."]
+script = ExtResource("terrain_gate")
+GridPath = NodePath("../../../Grid")
+CellDataPath = NodePath("../../../Cells")
+CollisionPath = NodePath("../../../TerrainCollision")
+
+[node name="Presentation" type="Node2D" parent="."]
+script = ExtResource("presentation")
+SpritePath = NodePath("../Visuals/AnimatedSprite2D")
+PlayerPath = NodePath("../../../Player")
+
+[editable path="Visuals"]

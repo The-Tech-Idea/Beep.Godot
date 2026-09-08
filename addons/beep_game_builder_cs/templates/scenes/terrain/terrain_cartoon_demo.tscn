@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn" id="lab"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres" id="art"]
+
+[node name="CartoonTerrainLab" instance=ExtResource("lab")]
+
+[node name="World" parent="." index="0"]
+MapArt = ExtResource("art")

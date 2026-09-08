@@ -329,6 +329,7 @@ namespace Beep.ECS.UI
                     SemanticWarning = HexColor(cd, "semantic_warning"),
                     SemanticInfo = HexColor(cd, "semantic_info")
                 };
+                WarnUnknownKeys(cd, "colors", KnownColorKeys, theme.Id);
             }
 
             // Parse geometry block (12 numbers).
@@ -351,6 +352,7 @@ namespace Beep.ECS.UI
                     PadBottom = Int(gd, "pad_bottom"),
                     FontSize = Int(gd, "font_size", 14)
                 };
+                WarnUnknownKeys(gd, "geometry", KnownGeometryKeys, theme.Id);
             }
 
             // Parse animation block (6 fields).
@@ -366,6 +368,7 @@ namespace Beep.ECS.UI
                     EnableShadowLift = Bool(ad, "shadow_lift", true),
                     EnableFocusGlow = Bool(ad, "focus_glow", true)
                 };
+                WarnUnknownKeys(ad, "animation", KnownAnimationKeys, theme.Id);
             }
 
             // Scan palette files (everything except theme.json).
@@ -473,6 +476,56 @@ namespace Beep.ECS.UI
         /// <summary>Get a nested sub-dictionary from the shapes block, or empty if missing.</summary>
         private static Godot.Collections.Dictionary ShapeSub(Godot.Collections.Dictionary d, string key)
             => d.ContainsKey(key) ? d[key].AsGodotDictionary() : new Godot.Collections.Dictionary();
+
+        private static readonly HashSet<string> KnownColorKeys = new()
+        {
+            "surface_primary", "surface_hover", "surface_pressed", "surface_disabled",
+            "text_primary", "text_hover", "text_disabled", "text_on_dark",
+            "accent_primary", "accent_secondary",
+            "border_normal", "border_hover", "border_focus",
+            "border_bevel_light", "border_bevel_dark", "shadow_color",
+            "bg_panel", "bg_canvas",
+            "semantic_success", "semantic_danger", "semantic_warning", "semantic_info",
+        };
+
+        private static readonly HashSet<string> KnownGeometryKeys = new()
+        {
+            "corner_radius", "border_left", "border_top", "border_right", "border_bottom",
+            "shadow_size", "shadow_offset_x", "shadow_offset_y",
+            "pad_left", "pad_right", "pad_top", "pad_bottom", "font_size",
+        };
+
+        private static readonly HashSet<string> KnownAnimationKeys = new()
+        {
+            "hover_scale", "hover_duration", "press_scale", "press_duration",
+            "shadow_lift", "focus_glow",
+        };
+
+        private static readonly HashSet<string> _warnedThemeKeys = new();
+
+        /// <summary>
+        /// Report keys a block does not understand, instead of dropping them in silence.
+        ///
+        /// The `kit` block has had this since it shipped — see `KitStyleJson.WarnUnknownKeys`, and
+        /// its reasoning applies here word for word. These three blocks did not, so
+        /// `boarder_focus` or `corner_raduis` parsed as valid JSON, set nothing, and left the
+        /// author staring at a colour that would not change. It is worse here than in the kit
+        /// block: a missing colour falls back to WHITE, which is loud on screen and says nothing
+        /// about why.
+        /// </summary>
+        private static void WarnUnknownKeys(Godot.Collections.Dictionary block, string blockName,
+                                            HashSet<string> known, string themeId)
+        {
+            foreach (var key in block.Keys)
+            {
+                string name = key.AsString();
+                if (known.Contains(name)) continue;
+                if (_warnedThemeKeys.Add($"{themeId}/{blockName}/{name}"))
+                    GD.PushWarning($"[SkinCatalog] theme '{themeId}' declares {blockName}.{name}, "
+                                 + "which is not a key this block understands, so it is doing "
+                                 + "nothing. Check the spelling against docs/GAME_UI_KIT_SPEC.md.");
+            }
+        }
 
         /// <summary>Parse a #RRGGBB or #RRGGBBAA hex string into a Godot Color.</summary>
         private static Color HexColor(Godot.Collections.Dictionary d, string key)

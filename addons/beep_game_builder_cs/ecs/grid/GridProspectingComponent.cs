@@ -26,6 +26,7 @@ namespace Beep.ECS
     {
         [Signal] public delegate void CellsSurveyedEventHandler(int x, int y, int discoveredCount);
         [Signal] public delegate void DepositDiscoveredEventHandler(int x, int y, string resourceId);
+        [Signal] public delegate void DiscoveryChangedEventHandler();
 
         [Export] public bool ParticipatesInSave { get; set; } = true;
         [Export] public string SaveKey { get; set; } = "grid_prospecting.state";
@@ -33,7 +34,17 @@ namespace Beep.ECS
         [Export] public NodePath DataLayersPath { get; set; } = new("");
 
         /// <summary>True means everything is visible and surveys are moot.</summary>
-        [Export] public bool RevealAll { get; set; } = true;
+        private bool _revealAll = true;
+        [Export] public bool RevealAll
+        {
+            get => _revealAll;
+            set
+            {
+                if (_revealAll == value) return;
+                _revealAll = value;
+                if (IsInsideTree()) EmitSignal(SignalName.DiscoveryChanged);
+            }
+        }
 
         [Export] public string SurveyJobKind { get; set; } = "survey";
 
@@ -118,6 +129,7 @@ namespace Beep.ECS
             }
 
             EmitSignal(SignalName.CellsSurveyed, cell.X, cell.Y, discovered);
+            if (discovered > 0) EmitSignal(SignalName.DiscoveryChanged);
             return discovered;
         }
 
@@ -149,7 +161,7 @@ namespace Beep.ECS
 
         public void RestoreState(Godot.Collections.Dictionary state)
         {
-            RevealAll = GridVariantReader.Bool(state, "reveal_all", RevealAll);
+            _revealAll = GridVariantReader.Bool(state, "reveal_all", RevealAll);
             _discovered.Clear();
             foreach (Variant value in GridVariantReader.Array(state, "cells"))
             {
@@ -157,6 +169,7 @@ namespace Beep.ECS
                 if (cell.X != int.MinValue && cell.Y != int.MinValue)
                     _discovered.Add(cell);
             }
+            EmitSignal(SignalName.DiscoveryChanged);
         }
 
         public void Save(GameBuilder.GameStateData state)
@@ -180,16 +193,11 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_queue == null || !GodotObject.IsInstanceValid(_queue))
-                _queue = !JobQueuePath.IsEmpty
-                    ? GetNodeOrNull<GridJobQueueComponent>(JobQueuePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, JobQueuePath, ref _queue);
 
             // Explicit wire only, like every other DataLayersPath.
-            if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
-                _dataLayers = !DataLayersPath.IsEmpty
-                    ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
-                    : null;
+            _dataLayers = !DataLayersPath.IsEmpty
+                ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath) : null;
         }
     }
 }

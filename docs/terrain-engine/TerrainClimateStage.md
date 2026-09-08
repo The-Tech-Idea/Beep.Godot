@@ -6,13 +6,13 @@ Temperature is modeled primarily as a function of latitude (via `world.Latitude`
 
 ## Public API
 
-- `static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the sole entry point. Iterates every `(x, y)` sample in `world`, computes `world.Temperature[index]` from latitude/altitude/noise and `world.Moisture[index]` from moisture noise/maritime/rain-shadow/aridity/temperature-scaling, and writes both back into `world`.
+- `static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)` — the sole entry point. Iterates every `(x, y)` sample in `world`, computes `world.Temperature[index]` from latitude/altitude/noise and `world.Moisture[index]` from moisture noise/maritime/rain-shadow/aridity/temperature-scaling, and writes both back into `world`.
 
 (`WindStepX`, `Maritime`, `SubtropicalAridity`, `RainShadow` are private helpers, not public API.)
 
 ## Dependencies
 
-- Reads `TerrainWorld.Width`, `.Height`, `.Height` (for `bandWander`), `.Index(x,y)`, `.TileCentre(x,y)`, `.Latitude(y, offset, span, centre)`, `.Elevation`, `.CoastDistance`, `.SamplesPerCell`, `.Land`, `.InBounds(x,y)`; **writes** `TerrainWorld.Temperature[index]` and `TerrainWorld.Moisture[index]` (`TerrainWorld.cs`).
+- Reads `TerrainGenerationBuffer.Width`, `.Height`, `.Height` (for `bandWander`), `.Index(x,y)`, `.TileCentre(x,y)`, `.Latitude(y, offset, span, centre)`, `.Elevation`, `.CoastDistance`, `.SamplesPerCell`, `.Land`, `.InBounds(x,y)`; **writes** `TerrainGenerationBuffer.Temperature[index]` and `TerrainGenerationBuffer.Moisture[index]` (`TerrainGenerationBuffer.cs`).
 - Reads `TerrainNoiseSet.Temperature` and `.Moisture` (`FastNoiseLite.GetNoise2D`) (`TerrainNoiseSet.cs`).
 - Reads `TerrainGenerationSettings.ClimateLatitudeSpan`, `.ClimateLatitudeCentre`, `.AltitudeCooling` (`TerrainGenerationSettings.cs`).
 - Calls `TerrainGeometry.Normalized(float)` (`TerrainGeometry.cs`) to remap the signed moisture-noise sample into `[0, 1]`.

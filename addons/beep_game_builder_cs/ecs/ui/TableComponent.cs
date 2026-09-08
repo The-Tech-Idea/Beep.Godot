@@ -289,7 +289,7 @@ namespace Beep.ECS.UI
                 return;
             }
 
-            if (e is InputEventKey key && KitChrome.IsConfirmKey(key))
+            if (KitChrome.IsConfirm(e))
             {
                 EmitSignal(SignalName.RowClicked, rowIdx, values);
                 row.AcceptEvent();

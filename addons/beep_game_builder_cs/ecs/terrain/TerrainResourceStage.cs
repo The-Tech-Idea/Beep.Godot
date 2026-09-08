@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 namespace Beep.ECS
@@ -53,22 +54,20 @@ namespace Beep.ECS
         /// one - which is what stops the map generating a resource the economy
         /// has never heard of.
         /// </summary>
-        private static ResourceCatalog CatalogueFor(TerrainGenerationSettings settings)
-            => settings.ResourceCatalog ?? ResourceCatalogs.For(settings.ResourceSet);
-
-
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, TerrainResourceRules? rules = null)
         {
             if (settings.ResourceDensity <= 0.0f)
                 return;
 
-            ResourceCatalog catalogue = CatalogueFor(settings);
+            rules ??= TerrainResourceRules.Capture(settings);
             int wide = world.CellsWide;
             int high = world.CellsHigh;
-            var placed = new List<(Vector2I Cell, string Id)>();
+            var spacing = new PlacementRows(wide);
+            var choices = new Dictionary<(string, TerrainRelief, ResourceStratum), WeightedChoices>();
 
             for (int cellY = 0; cellY < high; cellY++)
             {
+                spacing.BeginRow(cellY);
                 for (int cellX = 0; cellX < wide; cellX++)
                 {
                     int cell = (cellY * wide) + cellX;
@@ -85,18 +84,23 @@ namespace Beep.ECS
                     // Underground fields are a different shape entirely and
                     // have their own stage.
                     ResourceStratum stratum = isLand ? ResourceStratum.Surface : ResourceStratum.Liquid;
-                    string chosen = Choose(catalogue, terrain, world.CellRelief[cell], stratum, settings.Seed, cellX, cellY);
+                    var key = (terrain, world.CellRelief[cell], stratum);
+                    if (!choices.TryGetValue(key, out WeightedChoices? candidates))
+                    {
+                        candidates = new WeightedChoices(rules, terrain, world.CellRelief[cell], stratum);
+                        choices.Add(key, candidates);
+                    }
+                    string chosen = candidates.Choose(settings.Seed, cellX, cellY);
                     if (chosen.Length == 0)
                         continue;
 
-                    if (!FarEnough(placed, cellX, cellY, chosen))
+                    if (!spacing.TryPlace(cellX, cellY, chosen))
                         continue;
 
                     if (isLand)
                         world.Resource[cell] = chosen;
                     else
                         world.CellLiquidResource[cell] = chosen;
-                    placed.Add((new Vector2I(cellX, cellY), chosen));
                 }
             }
         }
@@ -105,63 +109,76 @@ namespace Beep.ECS
         /// Picks among everything this terrain supports, weighted, using a hash
         /// so the choice is stable for a seed.
         /// </summary>
-        private static string Choose(
-            ResourceCatalog catalogue, string terrain, TerrainRelief relief, ResourceStratum stratum, int seed, int cellX, int cellY)
+        private sealed class WeightedChoices
         {
-            float total = 0.0f;
-            foreach (ResourceDefinition definition in catalogue.Resources)
+            private readonly List<(string Id, float Weight)> _entries = new();
+            private readonly float _total;
+
+            public WeightedChoices(TerrainResourceRules rules, string terrain, TerrainRelief relief, ResourceStratum stratum)
             {
-                if (definition.Stratum == stratum && Supports(definition, terrain, relief))
-                    total += definition.Weight;
+                foreach (TerrainResourceRules.Entry definition in rules.Entries)
+                {
+                    if (definition.Stratum != stratum || !definition.Supports(terrain, relief))
+                        continue;
+                    _entries.Add((definition.Id, definition.Weight));
+                    _total += definition.Weight;
+                }
             }
-            if (total <= 0.0f)
+
+            public string Choose(int seed, int cellX, int cellY)
+            {
+                if (_total <= 0.0f)
+                    return string.Empty;
+                // Preserve catalog order and subtraction, including float rounding,
+                // so this optimization does not change seeded resource placement.
+                float roll = TerrainGeometry.Hash01(cellX, cellY, seed + 63611) * _total;
+                foreach (var (id, weight) in _entries)
+                {
+                    roll -= weight;
+                    if (roll <= 0.0f)
+                        return id;
+                }
                 return string.Empty;
-
-            float roll = TerrainGeometry.Hash01(cellX, cellY, seed + 63611) * total;
-            foreach (ResourceDefinition definition in catalogue.Resources)
-            {
-                if (definition.Stratum != stratum || !Supports(definition, terrain, relief))
-                    continue;
-                roll -= definition.Weight;
-                if (roll <= 0.0f)
-                    return definition.Id;
             }
-            return string.Empty;
         }
-
-        internal static bool Supports(ResourceDefinition definition, string terrain, TerrainRelief relief)
-        {
-            if (definition.RequiresRelief && relief != (TerrainRelief)definition.RequiredRelief)
-                return false;
-
-            foreach (string allowed in definition.TerrainKinds)
-            {
-                if (allowed == terrain)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>The catalog for these settings, for the sibling stages.</summary>
-        internal static ResourceCatalog ActiveCatalogue(TerrainGenerationSettings settings)
-            => CatalogueFor(settings);
 
         /// <summary>
         /// Keeps copies of one resource apart, so a map does not end up with all
         /// its iron in a single valley.
         /// </summary>
-        private static bool FarEnough(List<(Vector2I Cell, string Id)> placed, int cellX, int cellY, string id)
+        private sealed class PlacementRows
         {
-            foreach ((Vector2I cell, string existing) in placed)
+            private readonly int _width;
+            private readonly string?[] _rows;
+
+            public PlacementRows(int width)
             {
-                if (existing != id)
-                    continue;
-                int dx = cell.X - cellX;
-                int dy = cell.Y - cellY;
-                if ((dx * dx) + (dy * dy) < SameResourceSpacing * SameResourceSpacing)
-                    return false;
+                _width = width;
+                _rows = new string?[checked(width * SameResourceSpacing)];
             }
-            return true;
+
+            public void BeginRow(int y)
+                => Array.Clear(_rows, y % SameResourceSpacing * _width, _width);
+
+            public bool TryPlace(int x, int y, string id)
+            {
+                // Generation is row-major. Only this row and the preceding three
+                // can contain a placement strictly less than four cells away.
+                for (int nearY = Math.Max(0, y - SameResourceSpacing + 1); nearY <= y; nearY++)
+                {
+                    int dy = nearY - y;
+                    int row = nearY % SameResourceSpacing * _width;
+                    for (int nearX = Math.Max(0, x - SameResourceSpacing + 1);
+                         nearX <= Math.Min(_width - 1, x + SameResourceSpacing - 1); nearX++)
+                    {
+                        int dx = nearX - x;
+                        if (dx * dx + dy * dy < SameResourceSpacing * SameResourceSpacing && _rows[row + nearX] == id)
+                            return false;
+                    }
+                }
+                _rows[y % SameResourceSpacing * _width + x] = id;
+                return true;
+            }
         }
 
         /// <summary>

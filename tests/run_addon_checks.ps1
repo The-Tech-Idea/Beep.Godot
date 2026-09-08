@@ -17,6 +17,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot headless smoke failed."
 }
 
+Write-Host "[addon-checks] Godot game clock axes probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\game_clock_axes_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot game clock axes probe failed."
+}
+
 Write-Host "[addon-checks] Godot render probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\render_scene_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
 if ($LASTEXITCODE -ne 0) {
@@ -59,6 +65,18 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot kit check-controls contrast probe failed."
 }
 
+Write-Host "[addon-checks] Godot badge placement probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\badge_placement_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot badge placement probe failed."
+}
+
+Write-Host "[addon-checks] Godot kit sprite material probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_sprite_material_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot kit sprite material probe failed."
+}
+
 Write-Host "[addon-checks] Godot kit compact minimum probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_compact_minimum_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
 if ($LASTEXITCODE -ne 0) {
@@ -81,6 +99,30 @@ Write-Host "[addon-checks] Godot kit empty collection probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_empty_collection_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
 if ($LASTEXITCODE -ne 0) {
     throw "Godot kit empty collection probe failed."
+}
+
+Write-Host "[addon-checks] Godot kit theme switch stability probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_theme_switch_stability_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot kit theme switch stability probe failed."
+}
+
+Write-Host "[addon-checks] Godot kit inventory carry probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_inventory_carry_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot kit inventory carry probe failed."
+}
+
+Write-Host "[addon-checks] Godot kit ability bar probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_ability_bar_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot kit ability bar probe failed."
+}
+
+Write-Host "[addon-checks] Godot kit tooltip probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\kit_tooltip_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 45
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot kit tooltip probe failed."
 }
 
 Write-Host "[addon-checks] Godot weather forecast item scene probe"
@@ -135,6 +177,36 @@ Write-Host "[addon-checks] Godot grid terrain transition probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_transition_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
 if ($LASTEXITCODE -ne 0) {
     throw "Godot grid terrain transition probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain building probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_building_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain building probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid terrain subsurface probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_terrain_subsurface_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid terrain subsurface probe failed."
+}
+
+Write-Host "[addon-checks] Godot terrain world recipe probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_world_recipe_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot terrain world recipe probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid resource catalog ports probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_resource_catalog_ports_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid resource catalog ports probe failed."
+}
+
+Write-Host "[addon-checks] Godot grid worker build effects probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_worker_build_effects_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid worker build effects probe failed."
 }
 
 Write-Host "[addon-checks] Godot kit label role probe"

@@ -101,7 +101,7 @@ namespace Beep.ECS.UI.Kit
                 MouseExited += ClearHandleHover;
                 _eventsHooked = true;
             }
-            RefreshKitMinimumSize();
+            KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
         public override void _Notification(int what)
@@ -109,23 +109,6 @@ namespace Beep.ECS.UI.Kit
             base._Notification(what);
             if (KitChrome.ShouldClearPointerState(this, what))
                 ClearHandleHover();
-        }
-
-        private void RefreshKitMinimumSize()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            RefreshKitMinimumSize();
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private void ClearHandleHover()
@@ -138,7 +121,7 @@ namespace Beep.ECS.UI.Kit
         public override Vector2 _GetMinimumSize()
         {
             int fs = UiSurface.FontSize(this);
-            string genre = KitChrome.GenreOf(this);
+            string genre = Genre;
             float handlePad = HandleSize * 0.5f;
             float width = fs * 14f;
             float height = fs * 8f;
@@ -194,7 +177,7 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && KitChrome.IsConfirmKey(key))
+            if (KitChrome.IsConfirm(@event))
             {
                 Collapsed = !Collapsed;
                 AcceptEvent();
@@ -237,7 +220,7 @@ namespace Beep.ECS.UI.Kit
                 // shade rather than the raised one.
                 DrawMaterial(body, ActiveShape);
 
-                string genre = KitChrome.GenreOf(this);
+                string genre = Genre;
                 KitChrome.DrawPanelHeader(this, genre, body, _title, HeaderStyle,
                                           KitChrome.PanelHeaderShape(genre), BannerShade,
                                           TitleFontScale);
@@ -258,7 +241,7 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(plate.B, info.B, 0.32f), 1f);
             }
             DrawShape(h, KitShape.Round, plate, ink, Mathf.Max(1f, Geo.Rim * 0.6f * (fs / 14f)));
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), h, KitShape.Round, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, h, KitShape.Round, 0.8f);
 
             DrawChevron(h);
         }

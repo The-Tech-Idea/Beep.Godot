@@ -76,6 +76,8 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && (actor.HasOrders || !actor.CanDrive(this))) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
             if (!IsFinite(_moveDir)) _moveDir = Vector2.Zero;
@@ -103,7 +105,7 @@ namespace Beep.ECS
 
             float finalSpeed = NonNegative(_stats?.GetValue("move_speed", EffectiveSpeed) ?? EffectiveSpeed);
             _body.Velocity = _body.Velocity.MoveToward(_moveDir * finalSpeed, 800f * dt);
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
         }
 
         private void UpdateAI(float delta)
@@ -186,6 +188,21 @@ namespace Beep.ECS
 
         private Node2D? FindNearestInGroup(string group)
         {
+            var actor = ActorComponent.ForBody(_body);
+            if (actor?.Registry is { } registry)
+            {
+                Node2D? target = null;
+                float distance = EffectiveDetectionRange;
+                Vector2 extent = Vector2.One * distance;
+                foreach (string id in registry.QueryActors(new Rect2(_body!.GlobalPosition - extent, extent * 2)))
+                    if (registry.FindActor(id) is { Body: { } candidate, IsDead: false } other
+                        && registry.AreHostile(actor.OwnerId, other.OwnerId))
+                    {
+                        float d = _body.GlobalPosition.DistanceTo(candidate.GlobalPosition);
+                        if (d < distance) { distance = d; target = candidate; }
+                    }
+                return target;
+            }
             var nodes = GetTree().GetNodesInGroup(group);
             Node2D? nearest = null;
             float minDist = EffectiveDetectionRange;

@@ -1,5 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/painted_ground_tiling.tres" id="material_tiling"]
+
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
@@ -21,14 +23,16 @@ RefreshOnReady = true
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(20, 12)
 TileSize = 64
-GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/grass.png"
-DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_grass.png"
+GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png"
+DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
 DirtTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dirt.png"
 SnowTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png"
 MudTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
 GravelTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/gravel.png"
-RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/rock.png"
+RockTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/bedrock_ground.png"
+MaterialTiling = ExtResource("material_tiling")
+LavaTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/lava_ground.png"
 ShallowWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_shallow.png"
 DeepWaterTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/water_deep.png"
 

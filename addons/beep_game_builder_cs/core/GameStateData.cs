@@ -138,6 +138,9 @@ namespace Beep.GameBuilder
 		/// </summary>
 		public Dictionary<string, Variant> GameData { get; set; } = new();
 
+		/// <summary>Explicit game choices retained across captures, unlike component-owned GameData.</summary>
+		public Dictionary<string, Variant> CustomData { get; set; } = new();
+
 		/// <summary>Bumped when the on-disk shape changes in a way FromJsonString can't
 		/// infer. Missing keys already degrade gracefully; a key whose *meaning* changed
 		/// cannot be detected without this, and it can't be retrofitted once saves exist.</summary>
@@ -156,7 +159,8 @@ namespace Beep.GameBuilder
 				{ "session", Session.ToDict() },
 				{ "world", World.ToDict() },
 				{ "features", GodotConv.ToDict(Features) },
-				{ "game_data", GodotConv.ToDict(GameData) }
+				{ "game_data", GodotConv.ToDict(GameData) },
+				{ "custom_data", GodotConv.ToDict(CustomData) }
 			};
 			return Json.Stringify(dict, "  ");
 		}
@@ -190,6 +194,7 @@ namespace Beep.GameBuilder
 			if (root.ContainsKey("world")) World = WorldStateData.FromDict(root["world"].AsGodotDictionary());
 			if (root.ContainsKey("features")) Features = GodotConv.ToVariantDict(root["features"].AsGodotDictionary());
 			if (root.ContainsKey("game_data")) GameData = GodotConv.ToVariantDict(root["game_data"].AsGodotDictionary());
+			if (root.ContainsKey("custom_data")) CustomData = GodotConv.ToVariantDict(root["custom_data"].AsGodotDictionary());
 			return true;
 		}
 	}
@@ -503,6 +508,17 @@ namespace Beep.GameBuilder
 		public string GameMode { get; set; } = "Story";
 		public float DifficultyMultiplier { get; set; } = 1.0f;
 
+		/// <summary>
+		/// The game clock, as the three facts GameClock.RestoreState re-derives
+		/// Day from: beats elapsed, turns ended, beats into the current day. Per
+		/// run, so Session and not Progression. Day itself is not stored - it is
+		/// a function of these and BeatsPerDay, and storing it too would be a
+		/// second owner.
+		/// </summary>
+		public double ClockElapsed { get; set; } = 0.0;
+		public int ClockTurn { get; set; } = 0;
+		public double ClockDayFraction { get; set; } = 0.0;
+
 		public Godot.Collections.Dictionary ToDict() => new()
 		{
 			{ "session_score", SessionScore },
@@ -510,7 +526,10 @@ namespace Beep.GameBuilder
 			{ "selected_vehicle", SelectedVehicle },
 			{ "difficulty", Difficulty },
 			{ "game_mode", GameMode },
-			{ "difficulty_multiplier", DifficultyMultiplier }
+			{ "difficulty_multiplier", DifficultyMultiplier },
+			{ "clock_elapsed", ClockElapsed },
+			{ "clock_turn", ClockTurn },
+			{ "clock_day_fraction", ClockDayFraction }
 		};
 
 		public static SessionStateData FromDict(Godot.Collections.Dictionary d) => new()
@@ -520,7 +539,10 @@ namespace Beep.GameBuilder
 			SelectedVehicle = d.TryGetValue("selected_vehicle", out var ve) ? ve.AsString() : "",
 			Difficulty = d.TryGetValue("difficulty", out var df) ? (int)df : 1,
 			GameMode = d.TryGetValue("game_mode", out var gm) ? gm.AsString() : "Story",
-			DifficultyMultiplier = d.TryGetValue("difficulty_multiplier", out var dm) ? (float)dm : 1.0f
+			DifficultyMultiplier = d.TryGetValue("difficulty_multiplier", out var dm) ? (float)dm : 1.0f,
+			ClockElapsed = d.TryGetValue("clock_elapsed", out var ce) ? ce.AsDouble() : 0.0,
+			ClockTurn = d.TryGetValue("clock_turn", out var ct) ? (int)ct : 0,
+			ClockDayFraction = d.TryGetValue("clock_day_fraction", out var cf) ? cf.AsDouble() : 0.0
 		};
 	}
 }

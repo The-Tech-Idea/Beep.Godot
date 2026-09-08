@@ -1,0 +1,119 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/shoreline_contour_lab.gd" id="1"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="2"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/shoreline_contour_debug.gdshader" id="3"]
+
+[sub_resource type="ShaderMaterial" id="ContourMaterial"]
+resource_local_to_scene = true
+shader = ExtResource("3")
+
+[sub_resource type="StyleBoxFlat" id="ToolbarStyle"]
+bg_color = Color(0.1, 0.115, 0.12, 1)
+border_width_bottom = 1
+border_color = Color(0.3, 0.34, 0.35, 1)
+
+[node name="ShorelineContourLab" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Generator" type="Node" parent="."]
+script = ExtResource("2")
+BoundsSize = Vector2i(64, 40)
+Seed = 31415
+Landform = 1
+LandmassScale = 0.65
+TopologySamplesPerCell = 12
+BeachWidth = 0.0
+LakeCoverage = 0.0
+RiverDensity = 0.0
+ResourceDensity = 0.0
+FeatureDensity = 0.0
+StartPositionCount = 0
+
+[node name="Surface" type="ColorRect" parent="."]
+visible = false
+material = SubResource("ContourMaterial")
+offset_right = 2048.0
+offset_bottom = 1280.0
+mouse_filter = 2
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(1024, 640)
+zoom = Vector2(0.5, 0.5)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Toolbar" type="PanelContainer" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("ToolbarStyle")
+
+[node name="Margin" type="MarginContainer" parent="HUD/Toolbar"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Controls" type="HBoxContainer" parent="HUD/Toolbar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Shoreline contours"
+
+[node name="Landform" type="OptionButton" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+item_count = 3
+popup/item_0/text = "Mainland"
+popup/item_0/id = 0
+popup/item_1/text = "Island"
+popup/item_1/id = 1
+popup/item_2/text = "Archipelago"
+popup/item_2/id = 2
+
+[node name="SeedLabel" type="Label" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+text = "Seed"
+
+[node name="Seed" type="SpinBox" parent="HUD/Toolbar/Margin/Controls"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+max_value = 2147483647.0
+value = 31415.0
+
+[node name="WidthLabel" type="Label" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+text = "Beach (cells)"
+
+[node name="Width" type="SpinBox" parent="HUD/Toolbar/Margin/Controls"]
+custom_minimum_size = Vector2(95, 0)
+layout_mode = 2
+max_value = 4.0
+step = 0.25
+value = 1.0
+
+[node name="Generate" type="Button" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+text = "Generate"
+
+[node name="Fit" type="Button" parent="HUD/Toolbar/Margin/Controls"]
+layout_mode = 2
+text = "Fit map"
+
+[node name="Status" type="Label" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -34.0
+offset_right = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+text = "Preparing coastline..."

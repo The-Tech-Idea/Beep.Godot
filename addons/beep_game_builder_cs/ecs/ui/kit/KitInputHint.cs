@@ -62,6 +62,18 @@ namespace Beep.ECS.UI.Kit
 
         public void AddKey(string key) => Keys = WithAdded(_keys, key);
 
+        /// <summary>Drop one key from the chord, reporting whether the index named one.</summary>
+        public bool RemoveKey(int index)
+        {
+            if (index < 0 || index >= _keys.Length) return false;
+
+            string[] next = new string[_keys.Length - 1];
+            for (int i = 0, w = 0; i < _keys.Length; i++)
+                if (i != index) next[w++] = _keys[i];
+            Keys = next;
+            return true;
+        }
+
         public void ClearKeys() => Keys = System.Array.Empty<string>();
 
         public override Vector2 _GetMinimumSize()
@@ -84,13 +96,6 @@ namespace Beep.ECS.UI.Kit
                 w += fs * 0.5f + TextWidth(font, KitCase(_action), UiSurface.FontSize(this, UiSurface.TextRole.Caption));
 
             return new Vector2(Mathf.Max(fs * 9f, w), h);
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
         }
 
         private static bool SameKeys(string[] left, string[] right)
@@ -129,6 +134,16 @@ namespace Beep.ECS.UI.Kit
         public override void _Draw()
         {
             if (Size.X < 12f || Size.Y < 8f) return;
+
+            // A hint with no keys is just a floating verb — the glyph is the whole point of the
+            // widget, so an empty Keys array is worth naming rather than drawing around.
+            if (_keys.Length == 0)
+            {
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Keys");
+                return;
+            }
+
             var font = KitFont();
             if (font == null) return;
 

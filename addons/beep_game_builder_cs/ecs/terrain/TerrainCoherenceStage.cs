@@ -75,7 +75,7 @@ namespace Beep.ECS
             "desert", "dry_grass", "grass", "swamp", "jungle", "snow", "tundra", "rock", "gravel",
         };
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             Smooth(world, settings);
             AbsorbSmallRegions(world, settings);
@@ -95,7 +95,7 @@ namespace Beep.ECS
         /// most. It cannot simply be deleted: the tiles have to become
         /// something, and the honest answer is whatever surrounds them.
         /// </summary>
-        private static void AbsorbSmallRegions(TerrainWorld world, TerrainGenerationSettings settings)
+        private static void AbsorbSmallRegions(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             float fraction = settings.MinBiomeRegionFraction;
             if (fraction <= 0.0f)
@@ -146,7 +146,7 @@ namespace Beep.ECS
         }
 
         /// <summary>Absorbs every undersized region once; true if anything changed.</summary>
-        private static bool AbsorbOnce(TerrainWorld world, int minSamples, string fallback)
+        private static bool AbsorbOnce(TerrainGenerationBuffer world, int minSamples, string fallback)
         {
             var seen = new bool[world.Terrain.Length];
             var region = new List<int>();
@@ -203,19 +203,9 @@ namespace Beep.ECS
                 if (region.Count >= minSamples)
                     continue;
 
-                // A peak material is only somewhere a RAISED region may go.
-                //
-                // Rock and gravel are in the target set so a dissolved snow cap
-                // has a destination - a peak ringed only by rock would otherwise
-                // have no candidate and survive by default. Nothing restricted
-                // that to peaks, though, so a FLAT region beside a rocky summit
-                // was absorbed into rock as well, and bare stone spread across
-                // level ground. It survives the reduction to tiles because that
-                // takes a tile's terrain from the samples in its own relief
-                // band: flat samples carrying rock give a flat rock tile.
-                //
-                // Measured on a twelve-island chain: three islands came out 66
-                // to 70% rock while only 9 to 11% of them was raised at all.
+                // Raised snow/tundra regions may merge into exposed peak material.
+                // Rainfall ground cover must not become rock just because it is
+                // elevated or touches a rocky neighbour.
                 int raised = 0;
                 foreach (int at in region)
                 {
@@ -223,7 +213,7 @@ namespace Beep.ECS
                         raised++;
                 }
 
-                if (raised * 2 < region.Count)
+                if (Rainfall.Contains(kind) || raised * 2 < region.Count)
                 {
                     foreach (string peak in PeakMaterials)
                         borders.Remove(peak);
@@ -258,7 +248,7 @@ namespace Beep.ECS
             return changed;
         }
 
-        private static void Smooth(TerrainWorld world, TerrainGenerationSettings settings)
+        private static void Smooth(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             int passes = settings.BiomeCoherencePasses;
             if (passes <= 0)

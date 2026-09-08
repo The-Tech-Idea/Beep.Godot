@@ -1,0 +1,90 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate source artwork on green backgrounds. Broken arch contains two standing remnants together in one sprite. No engine collision or placement configured.",
+  "assets": [
+    {
+      "material": "grey_granite",
+      "kind": "narrow",
+      "file": "grey_granite_arch_narrow_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-7a45dba3-a56d-4807-b279-10b52cf5208e.png",
+      "prompt": "Correct this arch sprite: OPAQUE SOLID VIVID GREEN #00FF00 background everywhere outside stone INCLUDING the central opening. NOT transparent, NOT black. Restyle stone to detailed hand-painted fantasy terrain game art with broad grey shapes and fine cracks, remove photographic grain. Preserve arch opening, visible rock side depth and asymmetry. Entire arch fits with 10 percent green margin all sides. Front elevated 2.5D view, upper-left lighting. No plants floor ground shadow or text. Single narrow granite arch."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "wide",
+      "file": "grey_granite_arch_wide_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-60e120fb-e1ed-49f9-9a6d-e986baa65da8.png",
+      "prompt": "Create a wide natural granite arch sprite matching reference painterly rock style, elevated front 2.5D camera and upper-left lighting. A much wider complete arch with a broad open passage, opening twice as wide as tall; strong irregular legs and intact overhead rock, not a flat bridge. Landscape composition. Visible side depth. Varied geological cracks not repeated masonry. Opaque flat bright green #00FF00 background including entire opening. Whole object fully within image with green margin. No plants floor ground shadows detached debris text or props.\nCorrection: Background correction only. Replace ALL background, including opening between rocks and any dark or glowing background, with perfectly uniform OPAQUE vivid chroma GREEN RGB 0,255,0. Not transparent or black. Preserve the entire rock object unchanged, all cracks, silhouette, camera and lighting. No shadow or halo outside stone. Keep full silhouette with green margin."
+    },
+    {
+      "material": "grey_granite",
+      "kind": "broken",
+      "file": "grey_granite_arch_broken_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a1a7602d-997d-45c9-b4c3-64eee6f856bc.png",
+      "prompt": "Create a broken natural granite arch sprite matching reference painterly rock style, elevated front 2.5D camera and upper-left lighting. A ruined broken arch: two standing unequal natural rock legs with short inward-curving remnants, large missing central upper span with jagged breaks, no floating rocks. Both remnants together form ONE ruined landmark. Square composition. Visible side depth. Varied geological cracks not repeated masonry. Opaque flat bright green #00FF00 background including entire opening. Whole object fully within image with green margin. No plants floor ground shadows detached debris text or props.\nCorrection: Background correction only. Replace ALL background, including opening between rocks and any dark or glowing background, with perfectly uniform OPAQUE vivid chroma GREEN RGB 0,255,0. Not transparent or black. Preserve the entire rock object unchanged, all cracks, silhouette, camera and lighting. No shadow or halo outside stone. Keep full silhouette with green margin."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "narrow",
+      "file": "red_sandstone_arch_narrow_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-45e96c91-2a52-41ca-93bd-84d93ae436a1.png",
+      "prompt": "Material-only edit: turn this narrow granite arch into warm red-orange natural sandstone with irregular sedimentary layers. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "wide",
+      "file": "red_sandstone_arch_wide_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-6b3b94a4-087b-4683-bd1d-189a4318576e.png",
+      "prompt": "Material-only edit: turn this wide granite arch into warm red-orange natural sandstone with irregular sedimentary layers. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "red_sandstone",
+      "kind": "broken",
+      "file": "red_sandstone_arch_broken_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-bc66d69a-94ac-4900-9bcb-7b6a6def6d1c.png",
+      "prompt": "Material-only edit: turn this broken granite arch into warm red-orange natural sandstone with irregular sedimentary layers. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "narrow",
+      "file": "volcanic_basalt_arch_narrow_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c93bcfe6-de60-412a-ad65-0540b8445af8.png",
+      "prompt": "Material-only edit: turn this narrow granite arch into charcoal grey cooled volcanic basalt with varied angular fractures and subtle pores, no lava or glow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "wide",
+      "file": "volcanic_basalt_arch_wide_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-be2a75cb-415f-4700-b965-0a903bc06cb9.png",
+      "prompt": "Material-only edit: turn this wide granite arch into charcoal grey cooled volcanic basalt with varied angular fractures and subtle pores, no lava or glow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "volcanic_basalt",
+      "kind": "broken",
+      "file": "volcanic_basalt_arch_broken_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-37eec2b6-498e-465d-9424-72fbb5c4e619.png",
+      "prompt": "Material-only edit: turn this broken granite arch into charcoal grey cooled volcanic basalt with varied angular fractures and subtle pores, no lava or glow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "narrow",
+      "file": "pale_limestone_arch_narrow_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-4e0fecef-9d30-48a7-b083-fda0fd2040a8.png",
+      "prompt": "Material-only edit: turn this narrow granite arch into pale warm ivory natural weathered limestone, subtle eroded pockets and cracks, not snow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "wide",
+      "file": "pale_limestone_arch_wide_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-aa75e120-abf0-4101-8456-ba4df470f7c9.png",
+      "prompt": "Material-only edit: turn this wide granite arch into pale warm ivory natural weathered limestone, subtle eroded pockets and cracks, not snow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    },
+    {
+      "material": "pale_limestone",
+      "kind": "broken",
+      "file": "pale_limestone_arch_broken_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-247963fa-e362-48d1-8f81-ae04249af96f.png",
+      "prompt": "Material-only edit: turn this broken granite arch into pale warm ivory natural weathered limestone, subtle eroded pockets and cracks, not snow. Keep shape, opening, breaks, position, camera, depth and light unchanged. Painterly detailed game sprite not low-poly. Crucial preserve OPAQUE vivid green background everywhere outside rock including opening. No plants floor shadows props text. Do not rebuild broken span."
+    }
+  ]
+}

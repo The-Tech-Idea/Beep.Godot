@@ -1,6 +1,6 @@
 extends SceneTree
 
-const KIT_BUTTON_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs")
+const KIT_BUTTON_SCRIPT := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs")
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -63,7 +63,7 @@ func _run() -> void:
 			if _differs(color, bg.color):
 				return _fail("Badge or chrome painted into inter-button gap at " + str(Vector2i(x, y)) + ": " + str(color))
 
-	print("[kit-button-badge] OK: badged KitButton reserves width and keeps badge paint inside its own rect.")
+	print("[kit-button-badge] OK: badged KitPushButton reserves width and keeps badge paint inside its own rect.")
 	quit(0)
 
 func _differs(a: Color, b: Color) -> bool:

@@ -37,7 +37,7 @@ public partial class OutlineProbe : Node
                 KitShadow.Enabled = false;
                 KitRim.Enabled = rim;
 
-                var plate = new KitButton { Text = "" };
+                var plate = new KitPushButton { Text = "" };
                 root.AddChild(plate);
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                 plate.Size = new Vector2(360, 220);

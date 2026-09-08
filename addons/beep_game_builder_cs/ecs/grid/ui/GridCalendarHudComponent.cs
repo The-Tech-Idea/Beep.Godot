@@ -69,13 +69,13 @@ namespace Beep.ECS
             if (!ShowProgress || _progress == null)
                 return;
 
-            if (_calendar == null || !GodotObject.IsInstanceValid(_calendar))
+            // The day fraction belongs to the clock, not the calendar - the
+            // calendar knows which day it is, not how far through it we are.
+            GridWorkClockComponent? workClock = ResolveWorkClock();
+            if (workClock == null)
                 return;
 
-            if (!_calendar.AutoAdvance && !Engine.IsEditorHint())
-                return;
-
-            _progress.Value = Mathf.RoundToInt(_calendar.DayProgress * 100f);
+            _progress.Value = Mathf.RoundToInt(workClock.DayProgress01 * 100f);
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -198,25 +198,24 @@ namespace Beep.ECS
         }
 
         public float DayProgress01()
-        {
-            ResolveReferences();
-            return _calendar?.DayProgress ?? 0f;
-        }
+            => ResolveWorkClock()?.DayProgress01 ?? 0f;
+
+        /// <summary>
+        /// The work clock, which owns the fraction of a day in progress. Found
+        /// scene-wide; a scene with none simply shows no progress rather than
+        /// inventing one.
+        /// </summary>
+        private GridWorkClockComponent? ResolveWorkClock()
+            => EntityComponent.Resolve(this, new NodePath(""), ref _workClock);
 
         private void OnDayAdvanced(int day, int season, int year) => RefreshHud();
         private void OnSeasonChanged(int season, int year) => RefreshHud();
         private void OnYearChanged(int year) => RefreshHud();
 
-        private void ResolveReferences()
-        {
-            if (_calendar != null && GodotObject.IsInstanceValid(_calendar))
-                return;
+        private GridWorkClockComponent? _workClock;
 
-            if (!CalendarPath.IsEmpty)
-                _calendar = GetNodeOrNull<GridCalendarComponent>(CalendarPath);
-            else if (IsInsideTree())
-                _calendar = EntityComponent.FindComponent<GridCalendarComponent>(GetTree()?.CurrentScene);
-        }
+        private void ResolveReferences()
+            => EntityComponent.Resolve(this, CalendarPath, ref _calendar);
 
         public bool UsesSceneControls()
             => !DateLabelPath.IsEmpty || !DayProgressPath.IsEmpty || !AdvanceButtonPath.IsEmpty

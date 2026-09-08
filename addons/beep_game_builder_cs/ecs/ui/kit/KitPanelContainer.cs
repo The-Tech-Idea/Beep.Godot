@@ -9,7 +9,7 @@ namespace Beep.ECS.UI.Kit
     /// this script, and the panel keeps laying out its children exactly as before while rendering
     /// a real game frame. Nothing reparents, and every <c>GetNode&lt;PanelContainer&gt;</c> or
     /// <c>is PanelContainer</c> lookup keeps working — which matters, because a kit widget that is
-    /// NOT the Godot type it replaces silently breaks those, as KitButton did to ConnectButton.
+    /// NOT the Godot type it replaces silently breaks those, as KitPushButton did to ConnectButton.
     ///
     /// WHY IT DERIVES FROM PanelContainer RATHER THAN KitControl
     /// --------------------------------------------------------
@@ -100,8 +100,12 @@ namespace Beep.ECS.UI.Kit
             if (_refreshing) return;
             _refreshing = true;
 
-            float h = Mathf.Max(Size.Y, 1f);
-            float frame = FramePx(h);
+            // Font-derived, never Size. This is the worst instance of the loop in the kit: the
+            // margins written below ARE what a PanelContainer's minimum size is computed from, and
+            // Refresh() also runs on NotificationResized — so the container fed its own height into
+            // its own margins on every resize, with no ownership guard to damp it.
+            int fs = UiSurface.FontSize(this);
+            float frame = FramePx(fs * 2.4f);
             float banner = HeaderRoom();
 
             bool marginsChanged = KitChrome.SetEmptyStyleboxOverride(
@@ -118,9 +122,12 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
+        /// <summary>Header room measured from the FONT. It fed Size.Y in as the host height, and
+        /// this value becomes part of the top content margin, which is part of the minimum size,
+        /// which is where Size.Y comes from.</summary>
         private float HeaderRoom()
             => KitChrome.PanelHeaderRoom(this, _genre, _title, SharedHeaderStyle(),
-                                         TitleFontScale, Size.Y);
+                                         TitleFontScale, UiSurface.FontSize(this) * 2.4f);
 
         private float BodyOverhang()
             => KitChrome.PanelHeaderOverhang(this, _genre, _title, SharedHeaderStyle(),
@@ -169,7 +176,7 @@ namespace Beep.ECS.UI.Kit
                                      Mathf.Min(body.Size.X, body.Size.Y) * 0.05f);
                 var well = Inset(body, ft);
                 if (well.Size.X > 4 && well.Size.Y > 4)
-                    KitChrome.DrawShape(this, _genre, well, ActiveShape, Tint(face, g.WellShade),
+                    KitChrome.DrawShape(this, _genre, well, ActiveShape, KitChrome.RecessFace(face, g.WellShade),
                                         ink, Mathf.Max(1f, rimPx * 0.5f));
             }
 
@@ -190,7 +197,7 @@ namespace Beep.ECS.UI.Kit
                 var well = Inset(body, inset);
                 if (well.Size.X > 4f && well.Size.Y > 4f)
                     KitChrome.DrawShape(this, _genre, well, ActiveShape,
-                                        Tint(face, Geo.WellShade) with { A = panel.A * 0.75f },
+                                        KitChrome.RecessFace(face, Geo.WellShade) with { A = panel.A * 0.75f },
                                         ink with { A = 0.24f }, 1f);
             }
 

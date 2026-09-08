@@ -206,11 +206,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(side, side);
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         public override void _GuiInput(InputEvent @event)
         {
             KitChrome.ActivateOnClickOrConfirm(this, @event,
@@ -231,9 +226,10 @@ namespace Beep.ECS.UI.Kit
             // The WELL is recessed: a slot is a hole you put a thing in, not a raised plate.
             // WellShade exists precisely because reusing the readout's Recessed shade (0.12) drew
             // slots as black holes.
-            Color well = new(surface.R * g.WellShade,
-                             surface.G * g.WellShade,
-                             surface.B * g.WellShade, 1f);
+            // …and the same multiply drew them as black holes anyway on a dark skin, where 0.79 of
+            // a near-black surface is still that surface. RecessFace lifts instead when there is
+            // no room left to darken.
+            Color well = KitChrome.RecessFace(surface, g.WellShade) with { A = 1f };
             if (Locked) well = new Color(well.R * 0.82f, well.G * 0.82f, well.B * 0.86f, 1f);
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.6f);
@@ -307,7 +303,7 @@ namespace Beep.ECS.UI.Kit
                 KitSelect.Draw(this, g.SelectFor(WidgetClass), KitChrome.Poly(SlotShape, body, g),
                                body, UiSurface.Semantic(this, UiSurface.Role.Info), Mathf.Max(1.5f, rimPx));
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, SlotShape, 0.8f);
+            KitChrome.DrawFocusRing(this, Genre, body, SlotShape, 0.8f);
         }
 
         private void DrawInset(Rect2 r, Color well)

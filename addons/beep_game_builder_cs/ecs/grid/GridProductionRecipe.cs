@@ -13,11 +13,16 @@ namespace Beep.ECS
     {
         [Export] public string RecipeId { get; set; } = "planks";
         [Export] public string DisplayName { get; set; } = "Planks";
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float DurationSeconds { get; set; } = 4f;
+        /// <summary>
+        /// Turns of work one cycle takes. A turn is a day, so the authored
+        /// number means the same amount of world time whether the game runs on
+        /// turns or in real time - the same unit a build site's BuildTurns uses.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float DurationTurns { get; set; } = 4f;
         [Export] public Godot.Collections.Array Inputs { get; set; } = new();
         [Export] public Godot.Collections.Array Outputs { get; set; } = new();
 
-        public float EffectiveDurationSeconds => Mathf.Max(0.01f, float.IsFinite(DurationSeconds) ? DurationSeconds : 0.01f);
+        public float EffectiveDurationTurns => Mathf.Max(0.01f, float.IsFinite(DurationTurns) ? DurationTurns : 0.01f);
 
         public bool HasOutputs()
         {
@@ -46,7 +51,7 @@ namespace Beep.ECS
                 {
                     RecipeId = ReadString(data, "RecipeId", "recipe_id", "recipe"),
                     DisplayName = ReadString(data, "DisplayName", "display_name", ""),
-                    DurationSeconds = ReadFloat(data, "DurationSeconds", "duration_seconds", 4f),
+                    DurationTurns = ReadFloat(data, "DurationTurns", "duration_turns", 4f),
                     Inputs = ReadArray(data, "Inputs", "inputs"),
                     Outputs = ReadArray(data, "Outputs", "outputs")
                 };
@@ -65,7 +70,7 @@ namespace Beep.ECS
             {
                 RecipeId = ReadString(resource, "RecipeId", "recipe_id", "recipe"),
                 DisplayName = ReadString(resource, "DisplayName", "display_name", ""),
-                DurationSeconds = ReadFloat(resource, "DurationSeconds", "duration_seconds", 4f),
+                DurationTurns = ReadFloat(resource, "DurationTurns", "duration_turns", 4f),
                 Inputs = ReadArray(resource, "Inputs", "inputs"),
                 Outputs = ReadArray(resource, "Outputs", "outputs")
             };

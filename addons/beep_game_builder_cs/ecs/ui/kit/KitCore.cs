@@ -432,6 +432,22 @@ namespace Beep.ECS.UI.Kit
         /// <summary>Which reference family this genre is drawn from. See <see cref="KitRegister"/>.</summary>
         public KitRegister Register = KitRegister.Carved;
 
+        /// <summary>
+        /// Which SPRITE SET this genre's plates are cut from, or `""` for the procedural stack.
+        ///
+        /// The one axis on this class that is not a number: a plate is either arithmetic over the
+        /// surface colour or it is artwork multiplied by it, and no interpolation between the two
+        /// means anything. Empty is the default and keeps every genre exactly as it drew before;
+        /// a theme overrides it with `kit.material`, so a genre can take artwork under one skin
+        /// and not another. See <see cref="KitSprite"/> for why the art is neutral and what it
+        /// deliberately does not cover.
+        ///
+        /// A genre whose identity IS its silhouette — the sci-fi asymmetric cut, racing's speed
+        /// wedge, the torn parchment — should stay empty. A nine-slice has one outline, a rounded
+        /// rectangle, and taking it would trade that genre's tell for depth it does not need.
+        /// </summary>
+        public string Material = KitSprite.Procedural;
+
         /// <summary>Which frame regime this genre uses. See <see cref="KitFrameMode"/>.</summary>
         public KitFrameMode FrameMode = KitFrameMode.Structural;
         /// <summary>Constant thickness for <see cref="KitFrameMode.Hairline"/>, in px at 14pt.</summary>
@@ -557,7 +573,11 @@ namespace Beep.ECS.UI.Kit
             ["rpg"]         = new() { Register = KitRegister.Carved, OutlineShade = 2.05f, Corner = .12f, HeightRatio = 2.45f, PadRatio = 1.55f, Rim = 2.4f, Bevel = 1.05f, Gloss = .45f, Sparkle = .18f, Studs = 0, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.70f, Shadow = KitShadowDef.Soft(), CornerPanel = .08f, CornerSlot = .18f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Serif },
             ["survival"]    = new() { Register = KitRegister.Carved, OutlineShade = 1.85f, Corner = .10f, HeightRatio = 2.35f, PadRatio = 1.45f, Rim = 2.3f, Bevel = 1.0f, Gloss = .18f, Studs = 0, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.65f, Shadow = KitShadowDef.Soft(), CornerPanel = .08f, CornerSlot = .16f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Serif },
             ["strategy"]    = new() { Register = KitRegister.Carved, OutlineShade = 1.90f, Corner = .04f, HeightRatio = 2.25f, PadRatio = 1.35f, Rim = 2.0f, Bevel = 0.75f, Gloss = .20f, Studs = 1, FrameMode = KitFrameMode.Structural,  RimBrightness = 1.80f, Shadow = KitShadowDef.Hard(), CornerPanel = .03f, CornerSlot = .08f, CornerBar = .10f, CornerChip = .50f, Font = KitFontRole.Condensed, UpperCase = true, SelectSlot = KitSelectCue.Glow | KitSelectCue.Border },
-            ["citybuilder"] = new() { Register = KitRegister.Carved, OutlineShade = 1.85f, Corner = .05f, HeightRatio = 2.20f, PadRatio = 1.35f, Rim = 1.8f, Bevel = 0.6f, Gloss = .24f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 1.75f, Shadow = KitShadowDef.Hard(), CornerPanel = .04f, CornerSlot = .08f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Condensed, UpperCase = true, SelectSlot = KitSelectCue.Glow | KitSelectCue.Border },
+            // citybuilder is the first genre cut from artwork rather than arithmetic -- see
+            // KitSprite. It is the right one to take it: its register is Carved, so it wants a
+            // frame around a separate plate, and its silhouette is Round, which is exactly what a
+            // nine-slice is. Nothing of its identity is spent by adopting the sprite.
+            ["citybuilder"] = new() { Register = KitRegister.Carved, Material = "ui_pack", OutlineShade = 1.85f, Corner = .05f, HeightRatio = 2.20f, PadRatio = 1.35f, Rim = 1.8f, Bevel = 0.6f, Gloss = .24f,            FrameMode = KitFrameMode.Structural,  RimBrightness = 1.75f, Shadow = KitShadowDef.Hard(), CornerPanel = .04f, CornerSlot = .08f, CornerBar = .50f, CornerChip = .50f, Font = KitFontRole.Condensed, UpperCase = true, SelectSlot = KitSelectCue.Glow | KitSelectCue.Border },
 
             ["platformer"]  = new() { Register = KitRegister.Casual, Corner = .26f, HeightRatio = 2.55f, PadRatio = 1.65f, Rim = 2.8f, Bevel = 1.05f, Gloss = .62f,            FrameMode = KitFrameMode.None,        RimBrightness = 0.18f, Shadow = KitShadowDef.Extrude(), OutlineShade = 0.16f, CornerPanel = .20f, CornerSlot = .16f, CornerBar = .50f, CornerChip = .50f, Wobble = .004f, Font = KitFontRole.Rounded, UpperCase = true, SelectButton = KitSelectCue.Underline, SelectSlot = KitSelectCue.Border },
             ["puzzle"]      = new() { Register = KitRegister.Casual, Corner = .24f, HeightRatio = 2.55f, PadRatio = 1.60f, Rim = 2.2f, Bevel = 1.0f, Gloss = .72f, Sparkle = .24f, FrameMode = KitFrameMode.None,   RimBrightness = 0.18f, Shadow = KitShadowDef.None, OutlineShade = 1.70f, CornerPanel = .22f, CornerSlot = .18f, CornerBar = .50f, CornerChip = .50f, Wobble = .006f, Font = KitFontRole.Rounded, UpperCase = true },

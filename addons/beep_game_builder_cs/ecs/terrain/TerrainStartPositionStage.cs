@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -20,9 +21,11 @@ namespace Beep.ECS
     {
         /// <summary>Radius, in tiles, of the ring a start is judged on.</summary>
         private const int WorkRadius = 3;
+        private readonly record struct Candidate(Vector2I Cell, float Score, int Continent);
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             // The SAME clamp TerrainGenerationSettings.RequestedStartPositionCount
             // reports, so what this stage aims for and what a diagnostic calls
             // "requested" can never be two different numbers.
@@ -33,42 +36,41 @@ namespace Beep.ECS
             int wide = world.CellsWide;
             int high = world.CellsHigh;
 
-            var candidates = new List<Vector2I>();
-            var score = new Dictionary<Vector2I, float>();
-            var continent = new Dictionary<Vector2I, int>();
+            int count = 0;
+            for (int y = 0; y < high; y++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                for (int x = 0; x < wide; x++)
+                    if (Eligible(world, world.CellIndex(x, y))) count++;
+            }
+            var candidates = new List<Candidate>(count);
 
             for (int cellY = 0; cellY < high; cellY++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 for (int cellX = 0; cellX < wide; cellX++)
                 {
                     int index = world.CellIndex(cellX, cellY);
-                    if (world.CellWater[index] != WaterBody.None)
-                        continue;
-
-                    // Nobody starts on a peak or an icecap.
-                    if (world.CellRelief[index] == TerrainRelief.Mountains)
-                        continue;
-                    if (world.CellTerrain[index] is "snow" or "ice" or "rock")
-                        continue;
+                    if (!Eligible(world, index)) continue;
 
                     var cell = new Vector2I(cellX, cellY);
-                    candidates.Add(cell);
-                    score[cell] = Score(world, cellX, cellY);
-                    continent[cell] = world.CellContinent[index];
+                    candidates.Add(new(cell, Score(world, cellX, cellY), world.CellContinent[index]));
                 }
             }
             if (candidates.Count == 0)
                 return;
 
-            candidates.Sort((left, right) => score[right].CompareTo(score[left]));
+            cancellation.ThrowIfCancellationRequested();
+            candidates.Sort(static (left, right) => right.Score.CompareTo(left.Score));
+            cancellation.ThrowIfCancellationRequested();
 
             float minimumSeparation = Mathf.Max(4.0f, Mathf.Min(wide, high) / (float)Mathf.Max(2, wanted) * 1.6f);
             var used = new HashSet<int>();
 
             // First pass gives every continent a start before any continent gets
             // a second; the second pass fills whatever is left by score.
-            Take(world, candidates, score, continent, minimumSeparation, wanted, used, oncePerContinent: true);
-            Take(world, candidates, score, continent, minimumSeparation, wanted, used, oncePerContinent: false);
+            Take(world, candidates, minimumSeparation, wanted, used, true, cancellation);
+            Take(world, candidates, minimumSeparation, wanted, used, false, cancellation);
 
             // Unlike a landmass shortfall - which the diagnostics report by
             // pairing RequestedLandmassCount beside LandComponentCount - a start
@@ -84,24 +86,30 @@ namespace Beep.ECS
             }
         }
 
+        private static bool Eligible(TerrainGenerationBuffer world, int index)
+            => world.CellWater[index] == WaterBody.None && world.CellRelief[index] != TerrainRelief.Mountains
+                && world.CellTerrain[index] is not ("snow" or "ice" or "rock" or "lava");
+
         private static void Take(
-            TerrainWorld world,
-            List<Vector2I> candidates,
-            Dictionary<Vector2I, float> score,
-            Dictionary<Vector2I, int> continent,
+            TerrainGenerationBuffer world,
+            List<Candidate> candidates,
             float minimumSeparation,
             int wanted,
             HashSet<int> usedContinents,
-            bool oncePerContinent)
+            bool oncePerContinent,
+            CancellationToken cancellation)
         {
             float minimumSeparationSquared = minimumSeparation * minimumSeparation;
 
-            foreach (Vector2I candidate in candidates)
+            int visited = 0;
+            foreach (Candidate entry in candidates)
             {
+                if ((visited++ & 255) == 0) cancellation.ThrowIfCancellationRequested();
+                Vector2I candidate = entry.Cell;
                 if (world.StartPositions.Count >= wanted)
                     return;
 
-                int on = continent[candidate];
+                int on = entry.Continent;
                 if (oncePerContinent && !usedContinents.Add(on))
                     continue;
 
@@ -131,7 +139,7 @@ namespace Beep.ECS
         /// <summary>
         /// Judges the tiles a first city would work, not just the tile itself.
         /// </summary>
-        private static float Score(TerrainWorld world, int cellX, int cellY)
+        private static float Score(TerrainGenerationBuffer world, int cellX, int cellY)
         {
             float food = 0.0f;
             float production = 0.0f;

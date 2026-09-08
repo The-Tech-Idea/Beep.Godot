@@ -1,4 +1,4 @@
-<Project Sdk="Godot.NET.Sdk/4.7.1">
+<Project Sdk="Godot.NET.Sdk/4.7.0">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
@@ -17,8 +17,29 @@
          that project's own .csproj (also Godot.NET.Sdk) compiles them the same way. -->
   </PropertyGroup>
   <ItemGroup>
+    <!-- A chunk archive encodes a 32x32 chunk as one VarToBytes array of 100-300 KB. At the runtime's
+         default 85 KB threshold every one of them went to the large-object heap, and the gen2
+         collections that forced over a 200 MB live world were 100-200 ms main-thread stalls in the
+         retirement harness; measured with this threshold raised, the worst frame fell from 214 ms to
+         69 ms. 1 MB keeps those arrays in the small-object heap without moving anything else. -->
+    <RuntimeHostConfigurationOption Include="System.GC.LOHThreshold" Value="1048576" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="tests/DataBinderHostSmoke.cs" />
     <Compile Include="tests/GridPlacementSmoke.cs" />
     <Compile Include="tests/CoreGameplaySmoke.cs" />
+    <Compile Include="tests/TerrainFinalTopologySmoke.cs" />
+    <Compile Include="tests/TerrainResourceScaleSmoke.cs" />
+    <Compile Include="tests/TerrainStartScaleSmoke.cs" />
+    <Compile Include="tests/TerrainScratchLifetimeSmoke.cs" />
+    <Compile Include="tests/TerrainSampleValuesSmoke.cs" />
+    <Compile Include="tests/ComponentLookupSmoke.cs" />
+    <Compile Include="tests/NavigationQuerySmoke.cs" />
+    <Compile Include="tests/TerrainIdentitySmoke.cs" />
+    <Compile Include="tests/TerrainGenerationJobSmoke.cs" />
+    <Compile Include="tests/TerrainHugeGenerationSmoke.cs" />
+    <Compile Include="tests/TerrainWaterSurfaceSmoke.cs" />
+    <Compile Include="tests/TerrainCoastFilterSmoke.cs" />
+    <Compile Include="tests/TerrainShorelineContourSmoke.cs" />
   </ItemGroup>
 </Project>

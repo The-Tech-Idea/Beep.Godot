@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="1_theme"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/scenes/KitGallery.cs" id="2_script"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitButton.cs" id="k_button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="k_button"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs" id="k_labelvalue"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="k_meter"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitIconButton.cs" id="k_iconbutton"]

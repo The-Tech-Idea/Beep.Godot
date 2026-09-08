@@ -1,0 +1,90 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Twelve material variants of four terrain sprites. Green backgrounds. Shapes visually matched, not pixel-exact registered. Artwork only; no engine configuration.",
+  "assets": [
+    {
+      "file": "red_sandstone/foothill_01_green.png",
+      "material": "red_sandstone",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/grassy_foothill_01_green.png",
+      "prompt": "Material-only variant of attached grassy_foothill. Preserve exact landform silhouette, height, width, footprint, camera, framing, slopes and upper-left lighting. Replace all grass or grey stone with RED SANDSTONE and dry reddish earth: muted terracotta rock, russet cracks, lighter dusty red-orange upper surfaces. Smooth original slopes remain smoothly shaped dry earth with fine mineral texture; originally craggy surfaces remain naturally fractured red rock. NO grass. Detailed painterly front-style 2.5D terrain, not low-poly. Keep entire landform intact, same landscape canvas. Opaque solid bright GREEN RGB 0,255,0 background. No props, plants, ramps, paths, stairs, ground beyond perimeter, cast shadow, text, water or added structures. One sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-15b71b19-d37c-4afe-800b-8f8cbf33bb98.png"
+    },
+    {
+      "file": "red_sandstone/rocky_ridge_01_green.png",
+      "material": "red_sandstone",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/rocky_ridge_01_green.png",
+      "prompt": "Material-only variant of attached rocky_ridge. Preserve exact landform silhouette, height, width, footprint, camera, framing, slopes and upper-left lighting. Replace all grass or grey stone with RED SANDSTONE and dry reddish earth: muted terracotta rock, russet cracks, lighter dusty red-orange upper surfaces. Smooth original slopes remain smoothly shaped dry earth with fine mineral texture; originally craggy surfaces remain naturally fractured red rock. NO grass. Detailed painterly front-style 2.5D terrain, not low-poly. Keep entire landform intact, same landscape canvas. Opaque solid bright GREEN RGB 0,255,0 background. No props, plants, ramps, paths, stairs, ground beyond perimeter, cast shadow, text, water or added structures. One sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-960ebec0-ac4b-4dd2-a5ed-2875d9f65705.png"
+    },
+    {
+      "file": "red_sandstone/shallow_valley_01_green.png",
+      "material": "red_sandstone",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/shallow_grassy_valley_01_green.png",
+      "prompt": "Edit attached shallow_grassy_valley terrain to red sandstone/dry earth biome. Preserve silhouette, exact slopes, height, width, central low open corridor, original footprint, framing, camera and lighting. Replace ALL grass or grey rock with muted terracotta red sandstone, dusty reddish dry mineral soil on smooth slopes and central floor, red fractured rock on originally craggy walls. Fully replace grass blade texture with fine dry mineral grains. No added peaks or architecture. Same painterly front-style elevated orthographic 2.5D art. Opaque solid vivid GREEN RGB 0,255,0 background remains unchanged. Entire piece intact with green margins. No props, vegetation, paths, ramps, stairs, shadows outside terrain, text, water or ground beyond boundary. One landscape sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-09154007-fd37-40c1-bf92-c30e26c3f626.png"
+    },
+    {
+      "file": "red_sandstone/low_mountain_pass_01_green.png",
+      "material": "red_sandstone",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Edit attached low_mountain_pass terrain to red sandstone/dry earth biome. Preserve silhouette, exact slopes, height, width, central low open corridor, original footprint, framing, camera and lighting. Replace ALL grass or grey rock with muted terracotta red sandstone, dusty reddish dry mineral soil on smooth slopes and central floor, red fractured rock on originally craggy walls. Fully replace grass blade texture with fine dry mineral grains. No added peaks or architecture. Same painterly front-style elevated orthographic 2.5D art. Opaque solid vivid GREEN RGB 0,255,0 background remains unchanged. Entire piece intact with green margins. No props, vegetation, paths, ramps, stairs, shadows outside terrain, text, water or ground beyond boundary. One landscape sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f21db535-e001-4360-98ef-a9225007e060.png"
+    },
+    {
+      "file": "volcanic_basalt/foothill_01_green.png",
+      "material": "volcanic_basalt",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/grassy_foothill_01_green.png",
+      "prompt": "Edit grassy_foothill to a volcanic basalt terrain variant. Shape lock: preserve silhouette, footprint, slope geometry, width, height, original camera and framing. Material replacement NOT simple recolor: entirely remove grass blades and replace soft surfaces with fine dark volcanic grit and weathered compact ash. Existing craggy rock becomes naturally fractured charcoal BASALT with medium-grey edge highlights, deep fissures and subtle porous texture. Upper-left light, readable surfaces, not almost black. No glowing lava or extra objects. Same detailed hand-painted elevated front orthographic 2.5D art. Opaque SOLID bright GREEN RGB 0,255,0 background, entire landform intact in landscape canvas. No props, plants, ramps, stairs, paths, smoke, external shadows, text or ground beyond boundary.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-0fe26c89-3a2e-40a9-971d-e60d03f163d3.png"
+    },
+    {
+      "file": "volcanic_basalt/rocky_ridge_01_green.png",
+      "material": "volcanic_basalt",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/rocky_ridge_01_green.png",
+      "prompt": "Edit rocky_ridge to a volcanic basalt terrain variant. Shape lock: preserve silhouette, footprint, slope geometry, width, height, original camera and framing. Material replacement NOT simple recolor: entirely remove grass blades and replace soft surfaces with fine dark volcanic grit and weathered compact ash. Existing craggy rock becomes naturally fractured charcoal BASALT with medium-grey edge highlights, deep fissures and subtle porous texture. Upper-left light, readable surfaces, not almost black. No glowing lava or extra objects. Same detailed hand-painted elevated front orthographic 2.5D art. Opaque SOLID bright GREEN RGB 0,255,0 background, entire landform intact in landscape canvas. No props, plants, ramps, stairs, paths, smoke, external shadows, text or ground beyond boundary.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-2cc78be7-4276-46e4-9800-8985ad4bcc12.png"
+    },
+    {
+      "file": "volcanic_basalt/shallow_valley_01_green.png",
+      "material": "volcanic_basalt",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/shallow_grassy_valley_01_green.png",
+      "prompt": "Material edit of shallow_grassy_valley: volcanic basalt biome. Preserve entire original terrain silhouette, height, width, framing, lower open center, slopes, footprint and elevated front orthographic 2.5D camera. Replace grass completely with dark fine volcanic mineral grit, NOT black grass. Rock faces become naturally fractured charcoal basalt with readable grey highlights and subtle porous texture; valley floor compact ash-grey mineral soil. Same painterly style and upper-left light. No lava, glow, plants, props, water, ramps, stairs, marked paths, added structures, external shadows or text. Opaque SOLID vivid GREEN RGB 0,255,0 background; entire terrain intact, same landscape canvas, no floor beyond perimeter.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c1a5eca5-be14-4971-87d5-7a880acba131.png"
+    },
+    {
+      "file": "volcanic_basalt/low_mountain_pass_01_green.png",
+      "material": "volcanic_basalt",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Material edit of low_mountain_pass: volcanic basalt biome. Preserve entire original terrain silhouette, height, width, framing, lower open center, slopes, footprint and elevated front orthographic 2.5D camera. Replace grass completely with dark fine volcanic mineral grit, NOT black grass. Rock faces become naturally fractured charcoal basalt with readable grey highlights and subtle porous texture; valley floor compact ash-grey mineral soil. Same painterly style and upper-left light. No lava, glow, plants, props, water, ramps, stairs, marked paths, added structures, external shadows or text. Opaque SOLID vivid GREEN RGB 0,255,0 background; entire terrain intact, same landscape canvas, no floor beyond perimeter.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-7d2f6029-dbc9-4752-bc65-85c08d465e68.png"
+    },
+    {
+      "file": "alpine_snow/foothill_01_green.png",
+      "material": "alpine_snow",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/grassy_foothill_01_green.png",
+      "prompt": "Create alpine snow material variant of attached grassy_foothill. Preserve original silhouette, slopes, footprint, camera, height, width and framing exactly. Replace grass with soft wind-packed WHITE SNOW, fine snow grain and gentle powder undulations, NO grass blade texture. On originally craggy terrain use natural blue-grey alpine rock on steep faces, snow settled on upward-facing shelves and crest, no oversized snow overhangs. Same detailed painterly front elevated orthographic 2.5D game art and upper-left lighting; pale blue snow shadows show hill shape. Entire landform remains grounded and intact. Opaque SOLID vivid GREEN RGB 0,255,0 background unchanged. No plants, trees, props, water, ground beyond perimeter, external cast shadow, ramps, stairs, paths, ice spikes, text or glow. One landscape sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-966c793e-6ce0-4ec1-b72e-e9d0706eea2c.png"
+    },
+    {
+      "file": "alpine_snow/rocky_ridge_01_green.png",
+      "material": "alpine_snow",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/rocky_ridge_01_green.png",
+      "prompt": "Create alpine snow material variant of attached rocky_ridge. Preserve original silhouette, slopes, footprint, camera, height, width and framing exactly. Replace grass with soft wind-packed WHITE SNOW, fine snow grain and gentle powder undulations, NO grass blade texture. On originally craggy terrain use natural blue-grey alpine rock on steep faces, snow settled on upward-facing shelves and crest, no oversized snow overhangs. Same detailed painterly front elevated orthographic 2.5D game art and upper-left lighting; pale blue snow shadows show hill shape. Entire landform remains grounded and intact. Opaque SOLID vivid GREEN RGB 0,255,0 background unchanged. No plants, trees, props, water, ground beyond perimeter, external cast shadow, ramps, stairs, paths, ice spikes, text or glow. One landscape sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-18e2b48d-4e4e-4c1f-b74b-58422b6736ca.png"
+    },
+    {
+      "file": "alpine_snow/shallow_valley_01_green.png",
+      "material": "alpine_snow",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/shallow_grassy_valley_01_green.png",
+      "prompt": "Create alpine snow material variant of attached shallow_grassy_valley. Preserve silhouette, original hills/walls, width, height, footprint, central low open corridor, framing and elevated front orthographic 2.5D camera. Replace grass and smooth terrain surfaces with soft WHITE wind-packed snow, subtle powder texture not white grass. Existing steep rock walls remain visible as blue-grey alpine stone with snow settled on upward faces and small ledges. Keep original gentle slopes and low center; do not add new peaks or obstructions. Upper-left light and pale blue shadows, same detailed painterly natural terrain style. Opaque solid vivid GREEN RGB 0,255,0 background unchanged; same landscape canvas. No props, plants, paths, ramps, stairs, water, ground beyond outline, exterior cast shadow, text, glow or oversized icicles. One sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-257f65ea-3c28-4d8d-b062-c87f5e6fb1bb.png"
+    },
+    {
+      "file": "alpine_snow/low_mountain_pass_01_green.png",
+      "material": "alpine_snow",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/foothills/low_mountain_pass_01_green.png",
+      "prompt": "Create alpine snow material variant of attached low_mountain_pass. Preserve silhouette, original hills/walls, width, height, footprint, central low open corridor, framing and elevated front orthographic 2.5D camera. Replace grass and smooth terrain surfaces with soft WHITE wind-packed snow, subtle powder texture not white grass. Existing steep rock walls remain visible as blue-grey alpine stone with snow settled on upward faces and small ledges. Keep original gentle slopes and low center; do not add new peaks or obstructions. Upper-left light and pale blue shadows, same detailed painterly natural terrain style. Opaque solid vivid GREEN RGB 0,255,0 background unchanged; same landscape canvas. No props, plants, paths, ramps, stairs, water, ground beyond outline, exterior cast shadow, text, glow or oversized icicles. One sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-00674f88-6c57-4e54-a9c6-5c81f5e5387c.png"
+    }
+  ]
+}

@@ -26,7 +26,7 @@ namespace Beep.ECS.Scenes
             if (this.Find<Button>(buttonName) is { } btn)
                 btn.Pressed += () =>
                 {
-                    GameStateManagerComponent.Instance?.SetGameData("unit_action", actionId);
+                    GameApp.Instance?.Saves?.SetGameData("unit_action", actionId);
                     UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
                 };
             else

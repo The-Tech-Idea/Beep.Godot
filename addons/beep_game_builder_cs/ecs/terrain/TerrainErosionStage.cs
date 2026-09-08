@@ -1,4 +1,5 @@
 using Godot;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -96,8 +97,9 @@ namespace Beep.ECS
         /// </summary>
         private const int Passes = 12;
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             if (settings.ErosionStrength <= 0.0f)
                 return;
 
@@ -106,7 +108,7 @@ namespace Beep.ECS
             var order = new int[count];
             var flow = new float[count];
 
-            int land = TerrainFlow.Accumulate(world, flowsTo, order, flow);
+            int land = TerrainFlow.Accumulate(world, flowsTo, order, flow, cancellation);
             if (land == 0)
                 return;
 
@@ -120,11 +122,20 @@ namespace Beep.ECS
             // map. Against the median, a typical cell sits near one and actually
             // gets cut, while the trunks are held by the clamp below rather than
             // running away.
-            var sorted = new float[land];
+            // Diffusion overwrites every land entry before reading it, so its
+            // scratch can first hold the temporary drainage median sample.
+            var settled = new float[count];
             for (int i = 0; i < land; i++)
-                sorted[i] = flow[order[i]];
-            System.Array.Sort(sorted);
-            float typical = Mathf.Max(1.0f, sorted[land / 2]);
+                settled[i] = flow[order[i]];
+            System.Array.Sort(settled, 0, land);
+            cancellation.ThrowIfCancellationRequested();
+            float typical = Mathf.Max(1.0f, settled[land / 2]);
+            for (int i = 0; i < land; i++)
+            {
+                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
+                int index = order[i];
+                flow[index] = Mathf.Min(MaxDrainageFactor, Mathf.Pow(flow[index] / typical, DrainageExponent));
+            }
 
             // Two scalars, because the two processes are not the same size.
             // Multiplying the diffusion by the incision constant as well made
@@ -132,12 +143,14 @@ namespace Beep.ECS
             // moved: the whole map changed 2.9% rather than 2.6%.
             float dial = Mathf.Clamp(settings.ErosionStrength, 0.0f, 4.0f);
             float strength = Strength * dial;
-            var settled = new float[count];
+            float[] elevation = world.Elevation;
 
             for (int pass = 0; pass < Passes; pass++)
             {
+            cancellation.ThrowIfCancellationRequested();
             for (int i = 0; i < land; i++)
             {
+                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 int index = order[i];
                 int to = flowsTo[index];
                 if (to < 0)
@@ -146,24 +159,23 @@ namespace Beep.ECS
                 // Slope toward where this cell drains. Flat ground is not cut
                 // even when a great deal of water crosses it - that is a
                 // floodplain, and a river there spreads rather than incises.
-                float slope = Mathf.Max(0.0f, world.Elevation[index] - world.Elevation[to]);
+                float slope = Mathf.Max(0.0f, elevation[index] - elevation[to]);
                 if (slope <= 0.0f)
                     continue;
 
                 // Clamped so a trunk stream cuts harder than a hillside without
                 // cutting a trench to the map floor.
-                float drainage = Mathf.Min(
-                    MaxDrainageFactor, Mathf.Pow(flow[index] / typical, DrainageExponent));
+                float drainage = flow[index];
                 float lowering = strength * drainage * slope;
 
                 // Never below the cell it drains into: a cell cut lower than its
                 // own outlet is a pit, and pits break the drainage network the
                 // rivers are about to be read from.
-                world.Elevation[index] = Mathf.Max(
-                    world.Elevation[to], world.Elevation[index] - lowering);
+                elevation[index] = Mathf.Max(
+                    elevation[to], elevation[index] - lowering);
             }
 
-            Diffuse(world, order, land, settled, dial);
+            Diffuse(world, settled, dial, cancellation);
             }
         }
 
@@ -180,13 +192,17 @@ namespace Beep.ECS
         /// drag the coastline down and drown it a little more every pass.
         /// </summary>
         private static void Diffuse(
-            TerrainWorld world, int[] order, int land, float[] settled, float strength)
+            TerrainGenerationBuffer world, float[] settled, float strength, CancellationToken cancellation)
         {
-            for (int i = 0; i < land; i++)
+            float[] elevation = world.Elevation;
+            bool[] land = world.Land;
+            int width = world.Width, height = world.Height;
+            for (int index = 0; index < world.Count; index++)
             {
-                int index = order[i];
-                int x = index % world.Width;
-                int y = index / world.Width;
+                if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
+                if (!land[index]) continue;
+                int x = index % width;
+                int y = index / width;
 
                 float total = 0.0f;
                 int counted = 0;
@@ -195,25 +211,28 @@ namespace Beep.ECS
                 {
                     int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
                     int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                    if (!world.InBounds(nx, ny))
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= height)
                         continue;
 
-                    int at = world.Index(nx, ny);
-                    if (!world.Land[at])
+                    int at = ny * width + nx;
+                    if (!land[at])
                         continue;
 
-                    total += world.Elevation[at];
+                    total += elevation[at];
                     counted++;
                 }
 
                 settled[index] = counted == 0
-                    ? world.Elevation[index]
-                    : world.Elevation[index]
-                        + (Diffusion * strength * ((total / counted) - world.Elevation[index]));
+                    ? elevation[index]
+                    : elevation[index]
+                        + (Diffusion * strength * ((total / counted) - elevation[index]));
             }
 
-            for (int i = 0; i < land; i++)
-                world.Elevation[order[i]] = Mathf.Clamp(settled[order[i]], 0.0f, 1.0f);
+            for (int index = 0; index < world.Count; index++)
+            {
+                if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
+                if (land[index]) elevation[index] = Mathf.Clamp(settled[index], 0.0f, 1.0f);
+            }
         }
     }
 }

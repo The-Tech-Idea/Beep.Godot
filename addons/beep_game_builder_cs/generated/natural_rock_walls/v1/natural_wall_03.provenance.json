@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "file": "natural_wall_03_green.png",
+  "reference": "natural_wall_01_approved_green.png",
+  "prompt": "Generate natural rock wall VARIATION 3 for the same 2D front-facing 2.5D game asset family as this approved reference. Match its overall wall width and height, canvas framing, elevated orthographic front camera, painterly granite rendering, upper-left lighting, neutral grey palette, narrow olive rocky lip, and opaque bright green background. The NEW arrangement should feature broad fractured slabs, diagonal cracks, irregular recessed pockets and low projecting rock shoulders; noticeably FEWER upright pillar-like formations. Do not repeat the reference's rock placement. Keep coherent natural stone volume, varied large and small rock masses, gently irregular near-level upper edge, broken natural feet around the same baseline. ONE continuous wall with green margin all around. No regular masonry, identical columns, repeating motifs, flat stone wallpaper or low-poly triangles. No large plateau surface, ramps, stairs, cave opening, arch, plants at feet, trees, flowers, loose detached rocks, water, labels or grid. This is standalone wall art, NOT a tile template or atlas. Solid chroma green #00FF00 outside the wall; no transparency, checkerboard, gradients, glow or cast shadows on the green.",
+  "status": "Opaque green-background source artwork; edge-to-edge connectivity not calibrated."
+}

@@ -42,12 +42,12 @@ func _initialize() -> void:
 	for i in range(20): await process_frame
 	var gen = root_node.find_child("TerrainGenerator", true, false)
 	gen.Landform = 2
+	if "--diagnose-footprint" in OS.get_cmdline_user_args():
+		gen.LakeCoverage = 0.0
+		gen.RiverDensity = 0.0
 
-	# The coverage the Archipelago preset actually ships. The demo scene sits at
-	# 0.70, and 70% land in twelve masses on a 48x48 map - each pair separated by
-	# a four-tile channel the beach cannot bridge - does not fit. Asserting a
-	# count the geometry forbids would only be testing the arithmetic of the
-	# failure path.
+	# The archipelago preset's 30% coverage. This fixture counts only logical
+	# land regions of at least 20 tiles, after lakes and rivers have been carved.
 	gen.LandmassScale = 0.30
 	var failed := 0
 
@@ -74,17 +74,8 @@ func _initialize() -> void:
 			var worst: float = 0.0 if m.is_empty() else 1.0
 			for entry in m:
 				worst = min(worst, entry.fill)
-			# 48x48 has room for eleven of the twelve, not twelve. Each mass is
-			# about 58 tiles - a 8.5-tile island - and each pair needs a
-			# four-tile channel between them, because anything narrower is
-			# bridged by the beach and the two read as one landmass. That is a
-			# 12.5-tile pitch across a lattice whose columns are 12 tiles wide,
-			# so one island has nowhere to go. The generator grows the ones that
-			# fit, gives the last one's share to them, and REPORTS eleven of
-			# twelve rather than claiming twelve - which is checked above.
-			#
-			# The expectation is exact rather than "at least": a drop to nine
-			# would be a regression and has to fail here.
+			# This seed retains eleven regions above this probe's 20-tile cutoff
+			# at 48x48. This measured count is not a geometric impossibility proof.
 			var expect: int = want
 			if size == Vector2i(48, 48) and want == 12:
 				expect = 11

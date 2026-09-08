@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/citybuilder/icons/icon_house.png" id="art"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridObjectComponent.cs" id="object"]
+
+[node name="Shelter" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("art")
+
+[node name="GridObject" type="Node" parent="."]
+script = ExtResource("object")

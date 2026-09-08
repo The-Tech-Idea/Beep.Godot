@@ -6,6 +6,13 @@ public partial class GridPlacementSmoke : Node
 {
     public string Failure { get; private set; } = string.Empty;
 
+    public bool RunFollowerChecks()
+    {
+        Failure = string.Empty;
+        return VerifyPathFollowerMovesBody() && VerifyPathFollowerBoundsInvalidTuning()
+            && VerifyGridJobQueueAndWorker() && VerifyGridWorkerBoundsInvalidTuning();
+    }
+
     public bool Run()
     {
         Failure = string.Empty;
@@ -16,6 +23,9 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyPlacementOccupancy()) return false;
         if (!VerifyPlacementUsesCellDataTerrain()) return false;
         if (!VerifyPlacementMarksNavigationFootprint()) return false;
+        if (!VerifyPlacementDefinitionPolicyIsPerBuild()) return false;
+        if (!VerifyQueueabilityIsOneRule()) return false;
+        if (!VerifySiteContract()) return false;
         if (!VerifyGridInteractionMode()) return false;
         if (!VerifyGridInteractionModeBar()) return false;
         if (!VerifyGridInteractionStatus()) return false;
@@ -35,7 +45,7 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyPathFollowerBoundsInvalidTuning()) return false;
         if (!VerifyGridSelectionState()) return false;
         if (!VerifyGridCameraController()) return false;
-        if (!VerifyGridJobQueueBoundsInvalidWorkSeconds()) return false;
+        if (!VerifyGridJobQueueBoundsInvalidWorkTurns()) return false;
         if (!VerifyGridJobQueueAndWorker()) return false;
         if (!VerifyGridWorkerBoundsInvalidTuning()) return false;
         if (!VerifyGridWorkerRejectsClaimedJob()) return false;
@@ -168,6 +178,230 @@ public partial class GridPlacementSmoke : Node
 
         placement.SetFootprintOccupied(anchor, false);
         if (!Expect(placement.CanPlace(anchor), "Cleared footprint should be placeable again."))
+            return false;
+
+        return true;
+    }
+
+    // Every site answers the same three questions - the ground it takes, the
+    // material it needs, and the turns of work - through one contract, whether
+    // it is a typed C# definition or a dictionary authored in GDScript or JSON.
+    // Turns, not seconds: one authored number that means the same amount of
+    // world time on the turn axis and the real-time one.
+    private bool VerifySiteContract()
+    {
+        var typed = new GridBuildDefinition
+        {
+            BuildId = "granary",
+            Footprint = new Vector2I(3, 2),
+            BuildTurns = 5,
+            RequiredMaterials = new Godot.Collections.Array
+            {
+                new Godot.Collections.Dictionary { ["resource_id"] = "planks", ["amount"] = 4 }
+            }
+        };
+
+        string typedDescription = GridSitePorts.Describe(typed);
+        bool typedOk = GridSitePorts.AnswersSiteShape(typed)
+            && GridSitePorts.Footprint(typed) == new Vector2I(3, 2)
+            && GridSitePorts.Turns(typed) == 5
+            && typedDescription.Contains("3x2")
+            && typedDescription.Contains("planks 4")
+            && typedDescription.Contains("5 turns");
+
+        if (!Expect(typedOk, $"A typed GridBuildDefinition did not report its three site facts: \"{typedDescription}\"."))
+            return false;
+
+        // The same three questions, asked of a loosely authored site.
+        var loose = new Godot.Collections.Dictionary
+        {
+            ["site_footprint"] = new Godot.Collections.Dictionary { ["x"] = 2, ["y"] = 2 },
+            ["site_materials"] = new Godot.Collections.Array
+            {
+                new Godot.Collections.Dictionary { ["resource_id"] = "stone", ["amount"] = 2 }
+            },
+            ["site_turns"] = 3
+        };
+
+        bool looseOk = GridSitePorts.AnswersSiteShape(loose)
+            && GridSitePorts.Footprint(loose) == new Vector2I(2, 2)
+            && GridSitePorts.Turns(loose) == 3;
+
+        if (!Expect(looseOk, $"A duck-typed site did not answer the same contract: \"{GridSitePorts.Describe(loose)}\"."))
+            return false;
+
+        // A footprint is never smaller than a cell, and turns are never negative,
+        // however badly the source is authored.
+        var malformed = new Godot.Collections.Dictionary
+        {
+            ["site_footprint"] = new Godot.Collections.Dictionary { ["x"] = 0, ["y"] = -4 },
+            ["site_turns"] = -9
+        };
+        bool boundedOk = GridSitePorts.Footprint(malformed) == Vector2I.One
+            && GridSitePorts.Turns(malformed) == 0;
+
+        if (!Expect(boundedOk, "GridSitePorts did not bound a malformed footprint/turn count."))
+            return false;
+
+        return true;
+    }
+
+    // A build definition's OccupiesCells/SetZIndexFromY govern THAT build, not
+    // the component from then on. They used to be written straight into the
+    // exported properties, which have no restore path anywhere in the file, so
+    // selecting one catalog build with either set false silently re-configured
+    // every later placement too.
+    private bool VerifyPlacementDefinitionPolicyIsPerBuild()
+    {
+        var root = new Node { Name = "GridPlacementDefinitionPolicySmokeRoot" };
+        AddChild(root);
+
+        var grid = new GridProjectionComponent
+        {
+            Name = "Grid",
+            Projection = GridProjectionComponent.GridProjection.TopDown,
+            TileSize = new Vector2(16, 16)
+        };
+        root.AddChild(grid);
+
+        var buildings = new Node2D { Name = "Buildings" };
+        root.AddChild(buildings);
+
+        var placement = new GridPlacementComponent
+        {
+            Name = "Placement",
+            GridPath = new NodePath("../Grid"),
+            PlacementRootPath = new NodePath("../Buildings"),
+            UseMouseInput = false,
+            KeepPlacingAfterConfirm = false,
+            MarkPlacedCellsOccupied = true,
+            SetZIndexFromY = true
+        };
+        root.AddChild(placement);
+
+        var sceneRoot = new Node2D { Name = "DefinitionPolicySceneRoot" };
+        var scene = new PackedScene();
+        Error packResult = scene.Pack(sceneRoot);
+        sceneRoot.Free();
+        if (!Expect(packResult == Error.Ok, $"PackedScene.Pack for placement definition-policy smoke returned {packResult}."))
+        {
+            root.QueueFree();
+            return false;
+        }
+
+        var looseDecoration = new GridBuildDefinition
+        {
+            BuildId = "loose_decoration",
+            DisplayName = "Loose Decoration",
+            Scene = scene,
+            Footprint = Vector2I.One,
+            OccupiesCells = false,
+            SetZIndexFromY = false
+        };
+
+        placement.BeginPlacement(looseDecoration, chargeCostOnConfirm: false);
+        placement.MovePreviewToCell(new Vector2I(2, 2));
+        Node2D? decorationPlaced = placement.ConfirmPlacement();
+
+        bool definitionHonoured = decorationPlaced != null
+            && !placement.IsOccupied(new Vector2I(2, 2))
+            && decorationPlaced.ZIndex == 0;
+
+        // The exports themselves must be untouched - they are the component's
+        // own inspector-owned defaults, not scratch space for the last build.
+        bool exportsIntact = placement.MarkPlacedCellsOccupied && placement.SetZIndexFromY;
+
+        // The next placement is NOT from a definition, so it is governed by
+        // those defaults again.
+        placement.BeginPlacement(scene, "plain_prop");
+        placement.MovePreviewToCell(new Vector2I(5, 5));
+        Node2D? plainPlaced = placement.ConfirmPlacement();
+
+        int expectedZ = Mathf.RoundToInt(grid.CellToWorld(new Vector2I(5, 5)).Y);
+        bool defaultsRestored = plainPlaced != null
+            && placement.IsOccupied(new Vector2I(5, 5))
+            && plainPlaced.ZIndex == expectedZ;
+
+        root.QueueFree();
+
+        if (!Expect(definitionHonoured, "GridPlacement did not honour a definition's own OccupiesCells/SetZIndexFromY."))
+            return false;
+
+        if (!Expect(exportsIntact, "GridPlacement overwrote its own MarkPlacedCellsOccupied/SetZIndexFromY exports with a definition's policy."))
+            return false;
+
+        if (!Expect(defaultsRestored, "A non-definition placement inherited the last selected build's occupancy/z-sorting policy instead of the component's own defaults."))
+            return false;
+
+        return true;
+    }
+
+    // Both queueing paths - the click/toolbar tool and the settler-style
+    // selection command - ask ONE rule. They used to derive it independently
+    // and had already diverged: only the selection path consulted the CellData
+    // Blocked flag, so the same cell was queueable through one and not the
+    // other, with nothing documenting the asymmetry as intended.
+    private bool VerifyQueueabilityIsOneRule()
+    {
+        var root = new Node { Name = "GridQueueabilitySmokeRoot" };
+        AddChild(root);
+
+        var cells = new GridCellDataComponent { Name = "Cells", DefaultTerrainKind = "grass" };
+        cells.AddFlag(new Vector2I(2, 2), GridCellDataComponent.CellFlags.Blocked);
+        cells.SetTerrainKind(new Vector2I(3, 3), "water");
+        root.AddChild(cells);
+
+        var jobs = new GridJobQueueComponent { Name = "Jobs" };
+        root.AddChild(jobs);
+
+        var tools = new GridToolActionComponent
+        {
+            Name = "Tools",
+            CellDataPath = new NodePath("../Cells"),
+            JobQueuePath = new NodePath("../Jobs"),
+            CurrentAction = GridToolActionComponent.ToolAction.QueueJob,
+            RejectCellDataBlockedCellsForJobs = true
+        };
+        root.AddChild(tools);
+
+        var command = new GridSelectionJobCommandComponent
+        {
+            Name = "Commands",
+            CellDataPath = new NodePath("../Cells"),
+            JobQueuePath = new NodePath("../Jobs"),
+            TreatCellDataBlockedAsUnqueueable = true
+        };
+        root.AddChild(command);
+
+        Vector2I blocked = new(2, 2);
+        Vector2I water = new(3, 3);
+        Vector2I open = new(1, 1);
+
+        bool bothRejectBlocked = !tools.ApplyToCell(blocked, GridToolActionComponent.ToolAction.QueueJob)
+            && !command.CanQueueJobAt(blocked);
+        bool bothRejectWater = !tools.ApplyToCell(water, GridToolActionComponent.ToolAction.QueueJob)
+            && !command.CanQueueJobAt(water);
+        bool bothAcceptOpen = tools.ApplyToCell(open, GridToolActionComponent.ToolAction.QueueJob)
+            && command.CanQueueJobAt(open);
+
+        // Turned off on both, the flag stops deciding on both.
+        tools.RejectCellDataBlockedCellsForJobs = false;
+        command.TreatCellDataBlockedAsUnqueueable = false;
+        bool bothAcceptBlockedWhenOff = tools.ApplyToCell(blocked, GridToolActionComponent.ToolAction.QueueJob)
+            && command.CanQueueJobAt(blocked);
+
+        root.QueueFree();
+
+        if (!Expect(bothRejectBlocked, "The tool and selection queueing paths disagreed about a CellData-Blocked cell."))
+            return false;
+
+        if (!Expect(bothRejectWater, "The tool and selection queueing paths disagreed about blocked terrain."))
+            return false;
+
+        if (!Expect(bothAcceptOpen, "The tool and selection queueing paths rejected an open, workable cell."))
+            return false;
+
+        if (!Expect(bothAcceptBlockedWhenOff, "Turning the CellData-Blocked check off did not reach both queueing paths."))
             return false;
 
         return true;
@@ -1012,12 +1246,12 @@ public partial class GridPlacementSmoke : Node
         GridBuildDefinition? dictionaryBuild = catalog.FindBuild("dict_shed");
         bool dictionaryBuildOk = dictionaryBuild != null
             && dictionaryBuild.EffectiveFootprint == Vector2I.One
-            && Mathf.IsEqualApprox(dictionaryBuild.EffectiveBuildSeconds, 0f)
+            && dictionaryBuild.EffectiveBuildTurns == 0
             && catalog.CostSummary("dict_shed")["coins"].AsInt32() == 3
             && catalog.CanAfford("dict_shed");
         if (!dictionaryBuildOk)
         {
-            Failure = $"GridBuildCatalog dictionary definition details: found={dictionaryBuild != null}, footprint={dictionaryBuild?.EffectiveFootprint.ToString() ?? "null"}, seconds={dictionaryBuild?.EffectiveBuildSeconds.ToString() ?? "null"}, cost={(catalog.CostSummary("dict_shed").ContainsKey("coins") ? catalog.CostSummary("dict_shed")["coins"].AsInt32().ToString() : "missing")}, affordable={catalog.CanAfford("dict_shed")}.";
+            Failure = $"GridBuildCatalog dictionary definition details: found={dictionaryBuild != null}, footprint={dictionaryBuild?.EffectiveFootprint.ToString() ?? "null"}, turns={dictionaryBuild?.EffectiveBuildTurns.ToString() ?? "null"}, cost={(catalog.CostSummary("dict_shed").ContainsKey("coins") ? catalog.CostSummary("dict_shed")["coins"].AsInt32().ToString() : "missing")}, affordable={catalog.CanAfford("dict_shed")}.";
             root.QueueFree();
             return false;
         }
@@ -1131,14 +1365,14 @@ public partial class GridPlacementSmoke : Node
         {
             BuildId = "shed",
             DisplayName = "Shed",
-            BuildSeconds = 2.5f,
+            BuildTurns = 3,
             JobKind = "build"
         });
         catalog.Builds.Add(new GridBuildDefinition
         {
             BuildId = "instant_path",
             DisplayName = "Instant Path",
-            BuildSeconds = 0f,
+            BuildTurns = 0,
             JobKind = "build"
         });
         root.AddChild(catalog);
@@ -1161,7 +1395,7 @@ public partial class GridPlacementSmoke : Node
             && !string.IsNullOrEmpty(jobId)
             && jobs.GetJobKind(jobId) == "build"
             && jobs.GetJobCell(jobId) == new Vector2I(6, 7)
-            && Mathf.IsEqualApprox(jobs.GetJobWorkSeconds(jobId), 2.5f)
+            && Mathf.IsEqualApprox(jobs.GetJobWorkTurns(jobId), 3f)
             && buildSites.ActiveBuildSiteCount == 1
             && placed.GetMeta("grid_build_site_state", "").AsString() == "under_construction";
 
@@ -1183,7 +1417,7 @@ public partial class GridPlacementSmoke : Node
         {
             BuildId = "paid_hut",
             DisplayName = "Paid Hut",
-            BuildSeconds = 3f,
+            BuildTurns = 3,
             JobKind = "build",
             Costs = new Godot.Collections.Array
             {
@@ -1724,7 +1958,10 @@ public partial class GridPlacementSmoke : Node
         }
 
         for (int i = 0; i < 20 && follower.IsMoving; i++)
+        {
+            nav.ProcessPathRequests();
             follower.AdvancePath(0.05);
+        }
 
         Vector2 expected = grid.CellToWorld(new Vector2I(3, 0));
         bool arrived = body.GlobalPosition.DistanceTo(expected) <= 0.1f;
@@ -1929,7 +2166,7 @@ public partial class GridPlacementSmoke : Node
         {
             Name = "Jobs",
             RemoveCompletedJobs = false,
-            DefaultWorkSeconds = 0.1f
+            DefaultWorkTurns = 0.1f
         };
         root.AddChild(queue);
 
@@ -1980,6 +2217,7 @@ public partial class GridPlacementSmoke : Node
 
         for (int i = 0; i < 20 && follower.IsMoving; i++)
         {
+            nav.ProcessPathRequests();
             follower.AdvancePath(0.05);
             worker.Tick(0.05);
         }
@@ -2004,16 +2242,16 @@ public partial class GridPlacementSmoke : Node
         return true;
     }
 
-    private bool VerifyGridJobQueueBoundsInvalidWorkSeconds()
+    private bool VerifyGridJobQueueBoundsInvalidWorkTurns()
     {
         var queue = new GridJobQueueComponent
         {
-            DefaultWorkSeconds = float.NaN,
+            DefaultWorkTurns = float.NaN,
             RemoveCompletedJobs = false
         };
 
         string added = queue.AddJob(new Vector2I(1, 2), "clear_land", float.NaN);
-        float addedSeconds = queue.GetJobWorkSeconds(added);
+        float addedTurns = queue.GetJobWorkTurns(added);
 
         var saved = new Godot.Collections.Array
         {
@@ -2022,18 +2260,18 @@ public partial class GridPlacementSmoke : Node
                 ["id"] = "loaded_1",
                 ["kind"] = "repair",
                 ["cell"] = new Vector2I(3, 4),
-                ["work_seconds"] = float.NaN
+                ["work_turns"] = float.NaN
             }
         };
         queue.LoadJobs(saved);
-        float loadedSeconds = queue.GetJobWorkSeconds("loaded_1");
+        float loadedTurns = queue.GetJobWorkTurns("loaded_1");
 
-        bool bounded = float.IsFinite(addedSeconds)
-            && addedSeconds >= 0.01f
-            && float.IsFinite(loadedSeconds)
-            && loadedSeconds >= 0.01f;
+        bool bounded = float.IsFinite(addedTurns)
+            && addedTurns >= 0.01f
+            && float.IsFinite(loadedTurns)
+            && loadedTurns >= 0.01f;
 
-        if (!Expect(bounded, $"GridJobQueue did not bound invalid work seconds. added={addedSeconds}, loaded={loadedSeconds}."))
+        if (!Expect(bounded, $"GridJobQueue did not bound invalid work turns. added={addedTurns}, loaded={loadedTurns}."))
             return false;
 
         return true;
@@ -2097,6 +2335,7 @@ public partial class GridPlacementSmoke : Node
 
         string jobId = queue.AddJob(Vector2I.Zero, "clear_land", 0.01f);
         bool assigned = worker.AssignJob(jobId);
+        nav.ProcessPathRequests();
         follower.AdvancePath(double.NaN);
         worker.Tick(double.NaN);
         follower.AdvancePath(0.05);
@@ -2781,7 +3020,7 @@ public partial class GridPlacementSmoke : Node
         {
             RecipeId = "planks",
             DisplayName = "Planks",
-            DurationSeconds = 2f
+            DurationTurns = 2f
         };
         recipe.Inputs.Add(new GridResourceAmount { ResourceId = "wood", Amount = 2 });
         recipe.Outputs.Add(new GridResourceAmount { ResourceId = "plank", Amount = 3 });
@@ -2831,7 +3070,7 @@ public partial class GridPlacementSmoke : Node
         {
             ["recipe_id"] = "dictionary_planks",
             ["display_name"] = "Dictionary Planks",
-            ["duration_seconds"] = -0.5f,
+            ["duration_turns"] = -0.5f,
             ["inputs"] = new Godot.Collections.Array
             {
                 new Godot.Collections.Dictionary
@@ -2856,11 +3095,11 @@ public partial class GridPlacementSmoke : Node
         bool dictionaryProduction = dictionaryStarted
             && wallet.GetAmount("bark") == 0
             && wallet.GetAmount("mulch") == 4
-            && Mathf.IsEqualApprox(production.FindRecipe("dictionary_planks")?.EffectiveDurationSeconds ?? 0f, 0.01f);
+            && Mathf.IsEqualApprox(production.FindRecipe("dictionary_planks")?.EffectiveDurationTurns ?? 0f, 0.01f);
         if (!dictionaryProduction)
         {
             GridProductionRecipe? readRecipe = production.FindRecipe("dictionary_planks");
-            Failure = $"GridProduction dictionary recipe details: started={dictionaryStarted}, bark={wallet.GetAmount("bark")}, mulch={wallet.GetAmount("mulch")}, recipeFound={readRecipe != null}, duration={readRecipe?.EffectiveDurationSeconds.ToString() ?? "null"}, state={production.State}.";
+            Failure = $"GridProduction dictionary recipe details: started={dictionaryStarted}, bark={wallet.GetAmount("bark")}, mulch={wallet.GetAmount("mulch")}, recipeFound={readRecipe != null}, duration={readRecipe?.EffectiveDurationTurns.ToString() ?? "null"}, state={production.State}.";
             root.QueueFree();
             return false;
         }
@@ -2872,7 +3111,7 @@ public partial class GridPlacementSmoke : Node
         production.Tick(-1.0);
         bool invalidDeltaIgnored = invalidDeltaStarted
             && production.State == GridProductionComponent.ProductionState.Producing
-            && Mathf.IsEqualApprox(production.EffectiveRemainingSeconds, 2f)
+            && Mathf.IsEqualApprox(production.EffectiveRemainingTurns, 2f)
             && production.Progress01 < 0.01f;
         production.Tick(2.1);
         bool invalidDeltaCycleStillCompletes = production.State == GridProductionComponent.ProductionState.Idle
@@ -2929,7 +3168,7 @@ public partial class GridPlacementSmoke : Node
         {
             RecipeId = "planks",
             DisplayName = "Planks",
-            DurationSeconds = 2f
+            DurationTurns = 2f
         };
         recipe.Inputs.Add(new GridResourceAmount { ResourceId = "wood", Amount = 2 });
         recipe.Outputs.Add(new GridResourceAmount { ResourceId = "plank", Amount = 3 });
@@ -3211,7 +3450,7 @@ public partial class GridPlacementSmoke : Node
         var recipe = new GridProductionRecipe
         {
             RecipeId = "planks",
-            DurationSeconds = 0.01f
+            DurationTurns = 0.01f
         };
         recipe.Inputs.Add(new GridResourceAmount { ResourceId = "wood", Amount = 1 });
         recipe.Outputs.Add(new GridResourceAmount { ResourceId = "plank", Amount = 1 });
@@ -3663,7 +3902,7 @@ public partial class GridPlacementSmoke : Node
             SelectionPath = new NodePath("../Selection"),
             JobQueuePath = new NodePath("../Jobs"),
             JobKind = "clear_land",
-            WorkSeconds = 0.25f,
+            WorkTurns = 0.25f,
             Priority = 3,
             ClearSelectionAfterQueue = true
         };
@@ -3742,7 +3981,7 @@ public partial class GridPlacementSmoke : Node
             CellDataPath = new NodePath("../Cells"),
             NavigationPath = new NodePath("../Navigation"),
             JobKind = "clear_land",
-            WorkSeconds = 0.25f,
+            WorkTurns = 0.25f,
             ClearSelectionAfterQueue = false
         };
         root.AddChild(command);
@@ -3795,20 +4034,20 @@ public partial class GridPlacementSmoke : Node
             Name = "ClearLandCommand",
             SelectionPath = new NodePath("../Selection"),
             JobQueuePath = new NodePath("../Jobs"),
-            WorkSeconds = float.NaN
+            WorkTurns = float.NaN
         };
         root.AddChild(command);
 
-        int queued = command.QueueRectangle(Vector2I.Zero, Vector2I.Zero, workSeconds: float.NaN);
+        int queued = command.QueueRectangle(Vector2I.Zero, Vector2I.Zero, workTurns: float.NaN);
         string jobId = queue.GetJobs().Count > 0 ? queue.GetJobs()[0]["id"].AsString() : "";
-        float workSeconds = string.IsNullOrEmpty(jobId) ? 0f : queue.GetJobWorkSeconds(jobId);
+        float workTurns = string.IsNullOrEmpty(jobId) ? 0f : queue.GetJobWorkTurns(jobId);
         bool bounded = queued == 1
-            && float.IsFinite(command.EffectiveWorkSeconds)
-            && float.IsFinite(workSeconds)
-            && workSeconds >= 0.01f;
+            && float.IsFinite(command.EffectiveWorkTurns)
+            && float.IsFinite(workTurns)
+            && workTurns >= 0.01f;
         root.QueueFree();
 
-        if (!Expect(bounded, $"GridSelectionJobCommand did not bound invalid work seconds. queued={queued}, work={workSeconds}."))
+        if (!Expect(bounded, $"GridSelectionJobCommand did not bound invalid work turns. queued={queued}, work={workTurns}."))
             return false;
 
         return true;
@@ -4048,7 +4287,7 @@ public partial class GridPlacementSmoke : Node
             CropId = " ",
             CropDaysToMature = -10,
             JobKind = " ",
-            JobWorkSeconds = float.NaN,
+            JobWorkTurns = float.NaN,
             RoadKind = " ",
             RoadCostMultiplier = float.NaN
         };
@@ -4069,8 +4308,8 @@ public partial class GridPlacementSmoke : Node
             && queued
             && !string.IsNullOrEmpty(jobId)
             && jobs.GetJobKind(jobId) == "work"
-            && float.IsFinite(jobs.GetJobWorkSeconds(jobId))
-            && jobs.GetJobWorkSeconds(jobId) >= 0.01f
+            && float.IsFinite(jobs.GetJobWorkTurns(jobId))
+            && jobs.GetJobWorkTurns(jobId) >= 0.01f
             && tools.EffectiveCropDaysToMature == 0;
         root.QueueFree();
 
@@ -4135,7 +4374,7 @@ public partial class GridPlacementSmoke : Node
             Name = "Command",
             JobQueuePath = new NodePath("../Jobs"),
             JobKind = "clear_land",
-            WorkSeconds = 0.1f
+            WorkTurns = 0.1f
         };
         root.AddChild(command);
 
@@ -4196,13 +4435,13 @@ public partial class GridPlacementSmoke : Node
             ["season"] = "3",
             ["day_of_season"] = "99",
             ["absolute_day"] = new Resource(),
-            ["day_clock"] = "12.5",
             ["days_per_season"] = "14"
         });
+        // A stale "day_clock" key from an older save is simply ignored now - the
+        // fraction of a day in progress belongs to the game clock.
         bool calendarOk = calendar.Year == 2
             && calendar.Season == GridCalendarComponent.GridSeason.Winter
-            && calendar.DayOfSeason == 14
-            && Mathf.IsEqualApprox(calendar.DayProgress, 12.5f / calendar.EffectiveSecondsPerDay);
+            && calendar.DayOfSeason == 14;
 
         var wallet = new GridResourceWalletComponent { Name = "Wallet", ApplyStartingResourcesOnReady = false };
         root.AddChild(wallet);
@@ -4296,7 +4535,7 @@ public partial class GridPlacementSmoke : Node
                 ["kind"] = "clear_land",
                 ["cell"] = new Godot.Collections.Dictionary { ["x"] = "8", ["y"] = "9" },
                 ["priority"] = "2",
-                ["work_seconds"] = "3.5",
+                ["work_turns"] = "3.5",
                 ["state"] = "claimed",
                 ["claimed_by"] = "worker"
             },
@@ -4309,7 +4548,7 @@ public partial class GridPlacementSmoke : Node
         });
         bool jobsOk = jobs.GetJobCell("job_1") == new Vector2I(8, 9)
             && jobs.GetJobState("job_1") == GridJobQueueComponent.GridJobState.Claimed
-            && Mathf.IsEqualApprox(jobs.GetJobWorkSeconds("job_1"), 3.5f)
+            && Mathf.IsEqualApprox(jobs.GetJobWorkTurns("job_1"), 3.5f)
             && jobs.ClaimedCount == 1
             && !jobs.HasJob("bad_job");
 
@@ -4393,7 +4632,7 @@ public partial class GridPlacementSmoke : Node
         {
             ["build_id"] = "well",
             ["footprint"] = new Godot.Collections.Dictionary { ["x"] = "2", ["y"] = "2" },
-            ["build_seconds"] = "3.25",
+            ["build_turns"] = "3",
             ["blocks_navigation"] = "false",
             ["costs"] = new Godot.Collections.Array
             {
@@ -4405,7 +4644,7 @@ public partial class GridPlacementSmoke : Node
             && build != null
             && build.BuildId == "well"
             && build.Footprint == new Vector2I(2, 2)
-            && Mathf.IsEqualApprox(build.BuildSeconds, 3.25f)
+            && build.BuildTurns == 3
             && !build.BlocksNavigation
             && GridResourceAmount.TryRead(new Godot.Collections.Dictionary { ["resource_id"] = "wood", ["amount"] = "2" }, out _, out int amount)
             && amount == 2
@@ -4417,9 +4656,9 @@ public partial class GridPlacementSmoke : Node
             && objective != null
             && objective.TargetCount == 2
             && !objective.ActiveOnStart
-            && GridProductionRecipe.TryRead(new Godot.Collections.Dictionary { ["recipe_id"] = "planks", ["duration_seconds"] = "2.5" }, out GridProductionRecipe? recipe)
+            && GridProductionRecipe.TryRead(new Godot.Collections.Dictionary { ["recipe_id"] = "planks", ["duration_turns"] = "2.5" }, out GridProductionRecipe? recipe)
             && recipe != null
-            && Mathf.IsEqualApprox(recipe.DurationSeconds, 2.5f);
+            && Mathf.IsEqualApprox(recipe.DurationTurns, 2.5f);
 
         root.QueueFree();
 
@@ -5056,24 +5295,18 @@ public partial class GridPlacementSmoke : Node
             && calendar.Season == GridCalendarComponent.GridSeason.Spring
             && calendar.DayOfSeason == 1;
 
-        calendar.SecondsPerDay = float.NaN;
         calendar.DaysPerSeason = -5;
         calendar.RestoreState(new Godot.Collections.Dictionary
         {
             ["year"] = 0,
             ["season"] = 99,
             ["day_of_season"] = 500,
-            ["day_clock"] = double.NaN,
             ["days_per_season"] = -12
         });
-        calendar.AutoAdvance = true;
-        calendar._Process(double.NaN);
-        bool invalidStateBounded = calendar.EffectiveSecondsPerDay > 0f
-            && calendar.EffectiveDaysPerSeason == 1
+        bool invalidStateBounded = calendar.EffectiveDaysPerSeason == 1
             && calendar.Year == 1
             && calendar.Season == GridCalendarComponent.GridSeason.Winter
-            && calendar.DayOfSeason == 1
-            && Mathf.IsZeroApprox(calendar.DayProgress);
+            && calendar.DayOfSeason == 1;
         root.QueueFree();
 
         if (!Expect(firstDay, "GridCalendar did not advance the first day without early crop maturity."))
@@ -5102,8 +5335,7 @@ public partial class GridPlacementSmoke : Node
         var calendar = new GridCalendarComponent
         {
             Name = "Calendar",
-            DaysPerSeason = 2,
-            SecondsPerDay = 10f
+            DaysPerSeason = 2
         };
         calendar.SetDate(1, GridCalendarComponent.GridSeason.Spring, 1);
         root.AddChild(calendar);

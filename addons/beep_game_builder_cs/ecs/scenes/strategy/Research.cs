@@ -35,7 +35,7 @@ namespace Beep.ECS.Scenes
 
         private void SelectTech(string techId)
         {
-            GameStateManagerComponent.Instance?.SetGameData("research_selection", techId);
+            GameApp.Instance?.Saves?.SetGameData("research_selection", techId);
             UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
         }
     }

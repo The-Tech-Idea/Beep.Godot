@@ -1,0 +1,9 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "file": "grey_granite_bridge_left_right_01_green.png",
+  "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b5558f14-e1a8-4dfa-ba0e-ba7770d6e089.png",
+  "prompt": "Create ONE intact natural GREY GRANITE STONE BRIDGE sprite for a front-facing elevated orthographic 2.5D game. Reference image is material/painterly style and lighting reference ONLY, do not reproduce plateau. Bridge runs horizontally LEFT TO RIGHT across image, NOT diagonal isometric and NOT toward camera. A slender continuous natural rock span with a reasonably level narrow upper walking surface and a low irregular arch underside, open green space underneath. Span length about four times its projected deck depth; compact shallow rock thickness, not a giant mountain or massive tall gateway. Both left and right end landings are level at identical elevation and terminate in short clean rocky contact ends so developer can place onto terrain. Entire surface natural neutral grey granite, irregular fractures and chipped edges, fine mineral texture matching reference, no regular masonry blocks. Upper-left lighting, detailed painterly style, clearly visible upper surface and front-facing thickness. One isolated intact bridge only. Solid opaque chroma GREEN #00FF00 background, including open space beneath arch. Clear margins on all sides. No attached cliffs, ground patches, water, plants, moss, railings, ropes, planks, pillars, stairs, ramps, props, text or background cast shadow. Landscape composition. This is one proportion-review example, not a sprite sheet.",
+  "status": "proportion review example",
+  "background": "opaque green",
+  "note": "Artwork only; no collision or terrain alignment has been authored."
+}

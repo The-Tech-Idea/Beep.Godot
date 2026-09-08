@@ -2,6 +2,18 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// One entry in a build menu: an icon, a name, its cost and how many are already owned, on a
+    /// tile sized to a grid rather than to its text.
+    ///
+    /// It IS a Godot <see cref="Button"/>, for the same reason <see cref="KitPushButton"/> is — a build
+    /// palette is wired with <c>Pressed</c>, <c>Disabled</c> and often a <c>ButtonGroup</c>, and a
+    /// Control that merely looks like a button has none of them.
+    ///
+    /// <c>FixedSize</c> exists because a palette is a grid: tiles that each measured themselves
+    /// from their own label would step raggedly, so a toolbar sets one size and every tile takes
+    /// it. Left at zero, the tile falls back to measuring itself.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitBuildTile : Button
@@ -146,7 +158,9 @@ namespace Beep.ECS.UI.Kit
             _suppressing = true;
             float fs = UiSurface.FontSize(this);
             KitChrome.Suppress(this, new[] { "normal", "hover", "pressed", "disabled", "focus" },
-                               Geo.FramePx(Mathf.Max(Size.Y, fs * 4f)), fs * 0.35f, fs * 0.25f);
+                               // Font-derived, never Size: this frame becomes the content margin
+                               // Godot computes the tile's minimum size from.
+                               Geo.FramePx(fs * 4f), fs * 0.35f, fs * 0.25f);
             _suppressing = false;
         }
 
@@ -200,6 +214,13 @@ namespace Beep.ECS.UI.Kit
             plate = KitChrome.StateFace(plate, state);
             int fs = UiSurface.FontSize(this);
             var body = new Rect2(Vector2.Zero, Size);
+            // Same rule as KitPushButton: the plate yields the room the owned badge hangs into.
+            if (!string.IsNullOrEmpty(_ownedText))
+            {
+                float over = KitChrome.BadgeOverhang(this);
+                body = new Rect2(body.Position.X, body.Position.Y + over,
+                                 Mathf.Max(1f, body.Size.X - over), Mathf.Max(1f, body.Size.Y - over));
+            }
             KitChrome.DrawPlate(this, _genre, body, plate, state, fs / 14f);
             KitChrome.DrawFocusRing(this, _genre, body, KitChrome.Shape(_genre), 0.8f);
 

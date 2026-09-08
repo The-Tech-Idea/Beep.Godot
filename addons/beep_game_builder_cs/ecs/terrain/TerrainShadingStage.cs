@@ -23,14 +23,13 @@ namespace Beep.ECS
         private const float MinimumShade = 0.70f;
         private const float MaximumShade = 1.30f;
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             // Zero leaves every sample unlit, which is the flat look a game gets
             // when it does not want relief shading at all.
             if (settings.HillshadeStrength <= 0.0f)
                 return;
 
-            float strength = Strength * settings.HillshadeStrength;
             for (int y = 0; y < world.Height; y++)
             {
                 for (int x = 0; x < world.Width; x++)
@@ -48,18 +47,29 @@ namespace Beep.ECS
                     float up = ElevationAt(world, x, y - 1);
                     float down = ElevationAt(world, x, y + 1);
 
-                    float slopeX = (right - left) * 0.5f;
-                    float slopeY = (down - up) * 0.5f;
-
-                    // Dot the surface gradient with the light: a slope tilted
-                    // toward the light gets a positive term, away gets negative.
-                    float lit = ((slopeX * LightDirection.X) + (slopeY * LightDirection.Y)) * strength;
-                    world.Shade[index] = Mathf.Clamp(1.0f + lit, MinimumShade, MaximumShade);
+                    world.Shade[index] = FromGradient(left, right, up, down, settings.HillshadeStrength);
                 }
             }
         }
 
-        private static float ElevationAt(TerrainWorld world, int x, int y)
+        /// <summary>Local cell gradient over a snapshot whose water elevations are zero.</summary>
+        public static float AtCell(float[] elevations, Vector2I size, Vector2I cell)
+        {
+            int row = cell.Y * size.X;
+            return FromGradient(elevations[row + Mathf.Max(0, cell.X - 1)],
+                elevations[row + Mathf.Min(size.X - 1, cell.X + 1)],
+                elevations[Mathf.Max(0, cell.Y - 1) * size.X + cell.X],
+                elevations[Mathf.Min(size.Y - 1, cell.Y + 1) * size.X + cell.X], 1f);
+        }
+
+        private static float FromGradient(float left, float right, float up, float down, float strength)
+        {
+            float lit = ((right - left) * LightDirection.X + (down - up) * LightDirection.Y)
+                * 0.5f * Strength * strength;
+            return Mathf.Clamp(1f + lit, MinimumShade, MaximumShade);
+        }
+
+        private static float ElevationAt(TerrainGenerationBuffer world, int x, int y)
         {
             int clampedX = Mathf.Clamp(x, 0, world.Width - 1);
             int clampedY = Mathf.Clamp(y, 0, world.Height - 1);

@@ -127,6 +127,23 @@ namespace Beep.ECS.UI.Kit
             }
         }
 
+        /// <summary>Change the rating, reporting whether it changed. At zero stars or full marks
+        /// the key is released rather than swallowed, so the player can leave the widget.</summary>
+        private bool RateByArrow(Vector2I dir)
+        {
+            int wanted;
+            if (dir.X <= -KitChrome.Jump) wanted = 0;
+            else if (dir.X >= KitChrome.Jump) wanted = Total;
+            else if (dir.X < 0) wanted = Earned - 1;
+            else if (dir.X > 0) wanted = Earned + 1;
+            else return false;
+
+            wanted = Mathf.Clamp(wanted, 0, Total);
+            if (wanted == Earned) return false;
+            Earned = wanted;
+            return true;
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (!Editable)
@@ -135,15 +152,8 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
-            if (@event is InputEventKey key)
-            {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.X <= -9999) { Earned = 0; AcceptEvent(); }
-                else if (dir.X >= 9999) { Earned = Total; AcceptEvent(); }
-                else if (dir.X < 0) { Earned = Mathf.Max(0, Earned - 1); AcceptEvent(); }
-                else if (dir.X > 0) { Earned = Mathf.Min(Total, Earned + 1); AcceptEvent(); }
+            if (KitChrome.NavigateOrRelease(this, @event, RateByArrow))
                 return;
-            }
 
             if (@event is InputEventMouseMotion mm)
             {
@@ -187,12 +197,10 @@ namespace Beep.ECS.UI.Kit
             KitChrome.SetAutoMinimumSize(this, _GetMinimumSize());
         }
 
+        // Derives from a native Godot type, so it cannot inherit KitControl's copy; it forwards to
+        // the one shared body instead of restating it.
         private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
+            => KitChrome.RefreshMinimumAndRedraw(this, _GetMinimumSize());
 
         private void RefreshVisualAndRedraw()
         {
@@ -233,7 +241,7 @@ namespace Beep.ECS.UI.Kit
                 // reads even in a thumbnail.
                 if (i < Earned) c.Y -= Size.Y * 0.06f;
                 if (i == _hover) c.Y -= Size.Y * 0.04f;
-                DrawStar(c, r, i < Earned ? lit : dim, ink);
+                KitChrome.DrawStar(this, c, r, i < Earned ? lit : dim, ink);
                 if (Editable && i == _hover)
                     DrawArc(c, r * 1.08f, 0f, Mathf.Tau, 24,
                             UiSurface.SemanticOrDerived(this, UiSurface.Role.Info), Mathf.Max(1.2f, r * 0.08f));
@@ -244,20 +252,5 @@ namespace Beep.ECS.UI.Kit
                                         KitMaterial.WidgetShapeForGenre(_genre, Class), 0.8f);
         }
 
-        private void DrawStar(Vector2 c, float r, Color fill, Color ink)
-        {
-            var pts = new Vector2[10];
-            for (int i = 0; i < 10; i++)
-            {
-                float rad = (i % 2 == 0) ? r : r * 0.44f;
-                float ang = -Mathf.Pi * 0.5f + i * Mathf.Pi / 5f;
-                pts[i] = c + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * rad;
-            }
-            DrawColoredPolygon(pts, fill);
-            var closed = new Vector2[11];
-            pts.CopyTo(closed, 0);
-            closed[10] = pts[0];
-            DrawPolyline(closed, ink, Mathf.Max(1.5f, r * 0.12f));
-        }
     }
 }

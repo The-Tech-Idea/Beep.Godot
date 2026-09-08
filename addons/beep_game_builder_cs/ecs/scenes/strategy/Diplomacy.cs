@@ -29,7 +29,7 @@ namespace Beep.ECS.Scenes
             if (this.Find<Button>(buttonName) is not { } btn) return;
             btn.Pressed += () =>
             {
-                GameStateManagerComponent.Instance?.SetGameData(SelectionKey, buttonName);
+                GameApp.Instance?.Saves?.SetGameData(SelectionKey, buttonName);
                 if (this.Find<Label>("FactionTitle") is { } title) title.Text = btn.Text;
             };
         }

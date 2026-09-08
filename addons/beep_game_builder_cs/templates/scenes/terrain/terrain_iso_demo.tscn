@@ -98,9 +98,7 @@ JungleFrame = 53
 SwampFrame = 10
 GravelFrame = 28
 RockFrame = 49
-ShallowWaterFrame = 23
-DeepWaterFrame = 55
-TerrainVariants = PackedStringArray("grass=54,54,54,9", "dry_grass=2,2,4,22", "gravel=28,28,8,16", "rock=49,49,29", "sand=24,24,19", "snow=20,20,1,12", "swamp=10,10,52,27", "tundra=48,48,47", "ice=5,5,6")
+TerrainVariants = PackedStringArray("grass=54", "dry_grass=2,2,4,22", "gravel=28,28,8,16", "rock=49,49,29", "sand=24,24,19", "snow=20,20,1,12", "swamp=10,10,52,27", "tundra=48,48,47", "ice=5,5,6")
 
 [node name="IsoFeatures" type="Node2D" parent="World"]
 script = ExtResource("iso_features")
@@ -113,7 +111,6 @@ WoodsColumns = 8
 WoodsRows = 1
 WoodsFrameBindings = PackedStringArray("grass=0,1,2,3,4,0,2,4,5", "dry_grass=2,3,4,2,3,4,6", "jungle,swamp=0,1,2", "desert,sand=6", "gravel,rock=1,3,7", "tundra,snow,ice=7")
 MarshSheetPath = "res://addons/beep_game_builder_cs/textures/iso/iso_marsh_8x1.png"
-SpriteScale = 1.05
 SpritesPerTile = 2
 ForestExtraSprites = 2
 PositionJitter = 0.45

@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate resource pickup artwork on green backgrounds. Runtime display scale and pickup behavior not configured.",
+  "assets": [
+    {
+      "file": "iron_ore_chunk_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/iron_ore_01_green.png",
+      "prompt": "Use case: stylized-concept. Generate ONE small collectible iron ore CHUNK game pickup, not a mining boulder. Reference provides material and painterly style ONLY. Fist-sized irregular angular fragment predominantly dark steel-grey iron with broad silver-grey metallic broken faces and a small amount of rusty grey stone matrix. Simple strong recognizable silhouette, few large readable planes, painterly texture, no low-poly look. Elevated front 2.5D orthographic view, upper-left lighting, centered object occupying about 60 percent of square canvas. Opaque uniform vivid green background RGB 0,255,0. No ground, shadow, plants, debris, text, tools, ingots, sparkles, glow or multiple objects.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-9849d523-d0f3-41cb-a886-c92edbb8ce94.png"
+    },
+    {
+      "file": "copper_ore_chunk_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/copper_ore_01_green.png",
+      "prompt": "Create ONE small copper ore chunk collectible game pickup. Reference only for painterly material, NOT full boulder shape. Single compact fist-sized angular fragment with dominant rich copper-orange metallic broken faces and small charcoal-grey stone matrix along bottom. Few large readable planes and irregular silhouette suitable for inventory icon. Natural painterly surface not a low-poly mesh, not refined ingot. Elevated front orthographic 2.5D camera and upper-left light. Centered with generous margins on opaque uniform bright green RGB 0,255,0 background. No ground, cast shadow, plants, detached debris, text, glow, sparkles, tools or extra items.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-a9503ff3-5e37-4d58-b404-4121f095a8da.png"
+    },
+    {
+      "file": "gold_nugget_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/gold_ore_01_green.png",
+      "prompt": "Generate ONE small natural GOLD NUGGET collectible game sprite. Reference for hand-painted material and lighting only, NOT large boulder shape. A compact irregular rounded lumpy nugget, golden yellow metallic surface with warm ochre crevices and broad pale golden highlights. Nearly all gold with only a tiny grey mineral inclusion. Distinct squat asymmetric silhouette, few bold readable forms for small inventory use. Not an ingot, coin, jewelry or pile. Detailed painterly fantasy 2.5D art, elevated front orthographic view, light upper-left. Centered with generous margins on solid opaque vivid green RGB 0,255,0 background. No floor, shadow, plants, debris, text, glow, sparkles or extra objects.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c42af0ad-38d7-4f20-bff5-41610c631244.png"
+    },
+    {
+      "file": "blue_crystal_shard_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/crystal_cluster_01_green.png",
+      "prompt": "Generate ONE blue crystal SHARD collectible game pickup. Reference only for blue material and painterly style. One detached elongated sapphire-blue crystal prism, pointed at one end and rough broken at the other, tilted diagonally from lower-left to upper-right. No cluster and NO rock base. Broad blue faces, cyan and pale blue highlights contained within opaque crystal silhouette. Clearly readable small inventory item. Hand-painted detailed fantasy 2.5D art, elevated front orthographic perspective, upper-left lighting. Centered generous margins on opaque uniform vivid green RGB 0,255,0 background. No ground, cast shadow, glow, sparkles, plants, debris, text, tools, jewelry or extra objects.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-c5a488be-791f-48dc-83bf-cd1cb67e6acd.png"
+    }
+  ]
+}

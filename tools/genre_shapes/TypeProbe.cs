@@ -2,7 +2,7 @@ using Godot;
 using Beep.ECS.UI;
 using Beep.ECS.UI.Kit;
 
-/// KitButton must now BE a Button: typed lookup, inherited Text/Disabled, and a real Pressed.
+/// KitPushButton must now BE a Button: typed lookup, inherited Text/Disabled, and a real Pressed.
 public partial class TypeProbe : Node
 {
     public override void _Ready()
@@ -14,7 +14,7 @@ public partial class TypeProbe : Node
         root.Size = new Vector2(400, 300);
         AddChild(root);
 
-        var kb = new KitButton { Name = "Buy", Text = "BUY", BadgeText = "25" };
+        var kb = new KitPushButton { Name = "Buy", Text = "BUY", BadgeText = "25" };
         kb.Size = new Vector2(200, 56);
         root.AddChild(kb);
 

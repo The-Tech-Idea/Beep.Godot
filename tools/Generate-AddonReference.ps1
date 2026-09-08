@@ -10,7 +10,13 @@ $markdownPath = Join-Path $docsRoot "ADDON_REFERENCE.md"
 $htmlPath = Join-Path $docsRoot "addon-reference.html"
 
 function ConvertTo-Summary([string]$source, [int]$classIndex) {
-    $prefixStart = [Math]::Max(0, $classIndex - 1800)
+    # The look-back has to contain the WHOLE summary block, opening tag included, or the match
+    # fails and the class is reported as having no description at all. At 1800 characters it did
+    # not: KitPushButton carries a 28-line summary explaining why it derives from Button, and its
+    # opening tag fell outside the window, so the generated reference listed it — and every other
+    # thoroughly documented class — with a bare "-". Taking the LAST summary before the class
+    # already prevents picking up a neighbour's, so the window only needs to be generous.
+    $prefixStart = [Math]::Max(0, $classIndex - 8000)
     $prefix = $source.Substring($prefixStart, $classIndex - $prefixStart)
     $matches = [regex]::Matches($prefix, '(?s)///\s*<summary>\s*(.*?)\s*///\s*</summary>')
     if ($matches.Count -eq 0) {

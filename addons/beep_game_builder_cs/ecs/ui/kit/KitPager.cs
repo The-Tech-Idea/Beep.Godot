@@ -110,32 +110,21 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(fs * (ShowJump ? 12f : 9f), fs * 2.2f);
         }
 
-        private void RefreshMinimumAndRedraw()
+        /// <summary>Turn the page, reporting whether it turned. This widget already declined the
+        /// key on the first and last page; the shared helper now makes that the rule everywhere.</summary>
+        private bool TurnPage(Vector2I dir)
         {
-            if (IsInsideTree())
-            {
-                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-                UpdateMinimumSize();
-            }
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
+            if (dir.X <= -KitChrome.Jump && _page > 0) { Page = 0; return true; }
+            if (dir.X >= KitChrome.Jump && _page < _count - 1) { Page = _count - 1; return true; }
+            if (dir.X < 0 && _page > 0) { Page = _page - 1; return true; }
+            if (dir.X > 0 && _page < _count - 1) { Page = _page + 1; return true; }
+            return false;
         }
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
-            {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.X <= -9999 && _page > 0) { Page = 0; AcceptEvent(); }
-                else if (dir.X >= 9999 && _page < _count - 1) { Page = _count - 1; AcceptEvent(); }
-                else if (dir.X < 0 && _page > 0) { Page = _page - 1; AcceptEvent(); }
-                else if (dir.X > 0 && _page < _count - 1) { Page = _page + 1; AcceptEvent(); }
+            if (KitChrome.NavigateOrRelease(this, @event, TurnPage))
                 return;
-            }
 
             if (@event is InputEventMouseMotion mm)
             {
@@ -189,7 +178,7 @@ namespace Beep.ECS.UI.Kit
             var body = new Rect2(Vector2.Zero, Size);
             float rimPx = Mathf.Max(1f, Geo.Rim * 0.7f * (fs / 14f));
 
-            DrawShape(body, KitMaterial.WidgetShapeForGenre(KitChrome.GenreOf(this), KitWidgetClass.Chip),
+            DrawShape(body, KitMaterial.WidgetShapeForGenre(Genre, KitWidgetClass.Chip),
                       KitChrome.WellFace(FaceColor()), ink, rimPx);
             for (float x = w; x < inner + 0.1f; x += w)
                 DrawDivider(x, ink, rimPx);
@@ -233,8 +222,8 @@ namespace Beep.ECS.UI.Kit
                            t, tf, UiSurface.Text(this));
             }
 
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
-                                    KitMaterial.WidgetShapeForGenre(KitChrome.GenreOf(this), KitWidgetClass.Chip));
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size),
+                                    KitMaterial.WidgetShapeForGenre(Genre, KitWidgetClass.Chip));
         }
 
         private void DrawDivider(float x, Color ink, float rimPx)

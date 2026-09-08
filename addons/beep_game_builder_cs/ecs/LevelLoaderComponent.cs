@@ -46,6 +46,7 @@ namespace Beep.ECS
             base._Ready();
             // Runtime only: instancing a level into the tree would pollute the scene in-editor.
             if (Engine.IsEditorHint()) return;
+            GameApp.Instance?.Saves?.BeginWorldLoad(this);
 
             int level = GameApp.Instance?.CurrentLevel ?? FirstLevelIndex;
             if (level < FirstLevelIndex) level = FirstLevelIndex; // e.g. fresh start (CurrentLevel = -1)
@@ -56,14 +57,23 @@ namespace Beep.ECS
         /// first, so this doubles as a runtime level transition.</summary>
         public void LoadLevel(int level)
         {
-            if (!IsActive) return;
+            var saves = GameApp.Instance?.Saves;
+            saves?.BeginWorldLoad(this);
+            bool success = false;
+            try { success = TryLoadLevel(level); }
+            finally { saves?.CompleteWorldLoad(this, success); }
+        }
+
+        private bool TryLoadLevel(int level)
+        {
+            if (!IsActive) return false;
 
             _container = LevelContainerPath != null ? GetNodeOrNull(LevelContainerPath) : GetParent();
             if (_container == null)
             {
                 GD.PushError($"[{Name}] LevelContainer not found (LevelContainerPath={LevelContainerPath}).");
                 EmitSignal(SignalName.LevelLoadFailed, level, "container not found");
-                return;
+                return false;
             }
 
             int idx = level - FirstLevelIndex;
@@ -71,11 +81,14 @@ namespace Beep.ECS
             {
                 string reason = idx < 0 || idx >= Levels.Count ? "no scene for level" : "invalid level scene";
                 EmitSignal(SignalName.LevelLoadFailed, level, reason);
-                return;
+                return false;
             }
 
             if (_currentLevelInstance != null && GodotObject.IsInstanceValid(_currentLevelInstance))
+            {
+                _currentLevelInstance.GetParent()?.RemoveChild(_currentLevelInstance);
                 _currentLevelInstance.QueueFree();
+            }
 
             _currentLevelInstance = scene.Instantiate();
             _container.AddChild(_currentLevelInstance);
@@ -83,6 +96,7 @@ namespace Beep.ECS
 
             MovePlayerToSpawn();
             EmitSignal(SignalName.LevelLoaded, level);
+            return true;
         }
 
         /// <summary>Reposition the player onto the level's "PlayerSpawn" marker, if both exist.</summary>

@@ -44,17 +44,19 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && !actor.CanDrive(this)) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
-            if (!InputActionsAvailable("move_left", "move_right", "move_up", "move_down"))
+            if (actor is null && !InputActionsAvailable("move_left", "move_right", "move_up", "move_down"))
             {
                 _body.Velocity = _body.Velocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
-                _body.MoveAndSlide();
+                CharacterMotion.Move(_body);
                 return;
             }
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
-            var input = isStunned ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_up", "move_down");
+            var input = isStunned ? Vector2.Zero : actor?.MoveIntent ?? Input.GetVector("move_left", "move_right", "move_up", "move_down");
 
             float finalSpeed = NonNegative(_stats?.GetValue("move_speed", EffectiveSpeed) ?? EffectiveSpeed);
 
@@ -75,7 +77,7 @@ namespace Beep.ECS
                     EmitSignal(SignalName.Stopped);
                 }
             }
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;

@@ -132,18 +132,6 @@ namespace Beep.ECS.UI.Kit
             RefreshMinimumAndRedraw();
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private float TextWidth(string text, UiSurface.TextRole role)
         {
             if (string.IsNullOrEmpty(text)) return 0f;
@@ -174,7 +162,7 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(plate.B, UiSurface.Semantic(this, UiSurface.Role.Info).B, 0.18f), 1f);
 
             DrawShape(r, ActiveShape, plate, ink, Mathf.Max(1f, g.Rim * 0.5f * (fs / 14f)));
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape, 0.75f);
+            KitChrome.DrawFocusRing(this, Genre, r, ActiveShape, 0.75f);
             if (font == null) return;
 
             Color txt = _sel && UiSurface.Luminance(plate) > 0.5f

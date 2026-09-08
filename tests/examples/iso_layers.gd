@@ -181,12 +181,8 @@ func _initialize() -> void:
 			var c := Vector2i(x, y)
 			var kind: String = gen.TerrainKindAt(c)
 			if kind == "deep_water" or kind == "shallow_water":
-				# A river sits AT ground level, so it belongs on the ground layer
-				# even though it is water. The sea and lakes stay holes in that
-				# layer - the bed shows through them - but a river is one tile
-				# wide and a one-tile hole is hidden entirely behind the block
-				# sprite of the tile in front of it, which made the drainage
-				# network invisible.
+				# Rivers use an animated surface at ground height; they are not
+				# static tiles in the land layer. Count the water batch separately.
 				if gen.WaterSourceAt(c) == "river":
 					rivers += 1
 				continue
@@ -248,12 +244,11 @@ func _initialize() -> void:
 	check(bed_cells == bedded,
 		"a seabed under every see-through water cell, and none beyond (%d of %d)"
 			% [bed_cells, bedded])
-	# Exact, not "at least": a stray tile on the ground layer is as much a
-	# defect as a missing one, and counting rivers in is what keeps this an
-	# equality rather than a licence to draw anything there.
-	check(counts.get(1, 0) == land + rivers,
-		"ground covers every land cell and every river, and nothing else (%d of %d land + %d rivers)"
-			% [counts.get(1, 0), land, rivers])
+	check(counts.get(1, 0) == land,
+		"ground covers exactly the land cells (%d of %d)" % [counts.get(1, 0), land])
+	for entry in stack:
+		if entry["kind"] == "water":
+			check(entry["river_cells"] == rivers, "Animated surface covers every river cell")
 	check(counts.get(2, 0) == raised,
 		"second level covers exactly the raised cells (%d of %d)" % [counts.get(2, 0), raised])
 	check(raised > 0 and counts.get(1, 0) > counts.get(2, 0),
@@ -263,8 +258,6 @@ func _initialize() -> void:
 	# what separates a real stack from the old partition-plus-filler, which wrote
 	# a block into every layer below a cell and landed on the same totals.
 	var ground_layer = iso.get_node("IsoLevel1")
-	var cols: int = iso.SheetColumns
-	var shallow := Vector2i(int(iso.ShallowWaterFrame) % cols, int(iso.ShallowWaterFrame) / cols)
 	var sampled := 0
 	var ground_is_terrain := 0
 	for y in range(size.y):
@@ -275,7 +268,7 @@ func _initialize() -> void:
 				continue
 			sampled += 1
 			var g: Vector2i = ground_layer.get_cell_atlas_coords(c)
-			if g != Vector2i(-1, -1) and g != shallow:
+			if g != Vector2i(-1, -1):
 				ground_is_terrain += 1
 	check(sampled > 0 and ground_is_terrain == sampled,
 		"every land cell's ground tile is its own terrain (%d of %d)" % [ground_is_terrain, sampled])
@@ -302,7 +295,7 @@ func _initialize() -> void:
 	# and a whole biome silently stops being distinguishable.
 	var frame_names := ["GrassFrame", "DryGrassFrame", "DesertFrame", "SandFrame",
 		"TundraFrame", "SnowFrame", "IceFrame", "JungleFrame", "SwampFrame",
-		"GravelFrame", "RockFrame", "ShallowWaterFrame", "DeepWaterFrame"]
+		"GravelFrame", "RockFrame"]
 	var seen := {}
 	var clashes: Array[String] = []
 	var total: int = int(iso.SheetColumns) * int(iso.SheetRows)
@@ -317,6 +310,10 @@ func _initialize() -> void:
 	check(clashes.is_empty(),
 		"every terrain has its own frame in the atlas" if clashes.is_empty() else str(clashes))
 
+	root_node.queue_free()
+	await process_frame
+	await process_frame
+	check(not is_instance_valid(root_node), "the inspected scene unloads before engine shutdown")
 	if failures.is_empty():
 		print("\nPASS: sea -> ground -> hills -> peaks -> props by level")
 		quit(0)

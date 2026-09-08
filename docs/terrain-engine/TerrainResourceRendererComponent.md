@@ -1,5 +1,32 @@
 # TerrainResourceRendererComponent
 
+## Live Resource Binding
+
+Automatic refresh pauses while hidden and catches up when a previously attempted view is shown.
+Reattachment restores resource and grid bindings; explicit `Rebuild()` still works while hidden.
+The world controller keeps inactive bounds/origin current.
+
+`ResourceRootPath` optionally selects a subtree of live `GridResourceNodeComponent` instances.
+When configured, icons read those nodes' IDs and remaining amounts, not the generated field.
+Gathering, restoring, adding and removing nodes refreshes the view through a shared observer.
+A missing configured root draws no icons. Empty keeps the generated surface/liquid preview.
+The renderer does not own resource balances. `IconCount` exposes the baked icon count.
+
+Custom sheet-path changes reload textures; custom IconOrder changes rebuild frame mappings.
+Mappings beyond the configured sheet capacity are ignored. Generator path changes take effect
+on Rebuild even if the previous generator remains alive. Standalone callers changing paths or
+properties directly must call Rebuild. Optional GridPath uses native cell centers and cell edges
+through the grid/renderer transforms. BoundsOrigin defines the absolute logical rectangle; generated
+queries remain local. TileSize supplies square spacing only without a grid. VerticalOffset is a
+renderer-local vertical lift scaled by the cell edge length. Missing explicit grids clear icons.
+GeometryChanged refreshes cached positions; GetIconCenters returns those baked local centers.
+TerrainWorldComponent binds the selected grid before rebuilding this view in flat projections.
+
+`tests/terrain_live_resource_view_probe.gd` covers live depletion/restore, subtree isolation,
+node addition/removal, missing roots and changed custom mappings for both icon and overlay views.
+It also verifies baked icon centers under rectangular/isometric native layouts, transformed parents,
+negative logical origins and grid geometry notifications. World live-source tests verify grid binding.
+
 Renderer / game-facing component in the terrain pipeline — a `Node2D` a scene places alongside a `TerrainGeneratorComponent` to draw the resources the generator already assigned per tile.
 
 `TerrainResourceRendererComponent` reads `TerrainGeneratorComponent.ResourceAt(cell)` for every cell in its own `BoundsSize` and, for each cell that holds a resource id it has a frame for, draws that frame from an icon sheet on a dark circular backplate. Icons come from either a bundled preset sheet chosen by the generator's `ResourceSet` (`FollowGenerator`, the default) or a sheet/grid/order configured directly on the node (`Custom`). A resource id with no matching frame in the active `IconOrder` is deliberately drawn as nothing rather than substituted with a wrong icon. It exists because previously the only thing rendering the generator's per-tile resource assignments was a debug overlay of coloured circles in the terrain lab — in a running game the twenty-odd resource kinds the generator computes every run were invisible.
@@ -31,7 +58,7 @@ Also defined in this file: the public `ResourceIconSource` enum (`FollowGenerato
 - Reads the `ResourceSet` enum, defined in `TerrainResourceStage.cs`.
 - Calls `TerrainLayers.ZForMarkers()` (`TerrainLayers.cs`) to place icons above props in the shared z-order stack.
 - Calls `TerrainTextures.Load(path, name, description)` (`TerrainTextures.cs`) to load the icon sheet texture.
-- Writes nothing back to the generator or `TerrainWorld` — purely a reader/renderer.
+- Writes nothing back to the generator or `TerrainGenerationBuffer` — purely a reader/renderer.
 
 ## Notes
 

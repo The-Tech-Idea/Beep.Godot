@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -9,19 +8,30 @@ namespace Beep.ECS
     /// Compact HUD panel for GridProductionComponent buildings. It scans a
     /// production root, shows machine/recipe state, and exposes start, pause,
     /// resume, and cancel commands without custom game UI glue.
+    ///
+    /// The panel surface itself - authored-control binding, the generated
+    /// fallback layout, and the row diff - is GridListPanelComponent's; this
+    /// file owns only the machine roster and the production commands.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridProductionPanelComponent : Control
+    public partial class GridProductionPanelComponent : GridListPanelComponent
     {
         [Signal] public delegate void ProductionCommandRequestedEventHandler(string machinePath, string command, string recipeId);
 
         [Export] public NodePath ProductionRootPath { get; set; } = new("");
-        [Export] public NodePath TitleLabelPath { get; set; } = new("");
-        [Export] public NodePath SummaryLabelPath { get; set; } = new("");
-        [Export] public NodePath RowsContainerPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
+
+        /// <summary>
+        /// Optional. Wired (or found scene-wide when empty), a placement this
+        /// reports via PlacementPlaced is checked for a GridProductionComponent
+        /// and appended to the cached roster instead of triggering a full
+        /// re-walk of ProductionRootPath. A machine added some OTHER way - one
+        /// hand-placed in the scene without going through GridPlacementComponent,
+        /// or added after this panel's first refresh with no placement signal
+        /// at all - is missed by the incremental path; call
+        /// InvalidateMachineCache() after adding one that way.
+        /// </summary>
+        [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public bool AutoRefresh { get; set; } = true;
 
         /// <summary>
@@ -31,14 +41,22 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "0.05,5,0.05")] public float RefreshIntervalSeconds { get; set; } = 0.25f;
         [Export(PropertyHint.Range, "1,24,1")] public int MaxVisibleMachines { get; set; } = 6;
-        [Export] public string TitleText { get; set; } = "Production";
-        [Export] public Vector2 PanelMinimumSize { get; set; } = new(246, 142);
+
+        public GridProductionPanelComponent()
+        {
+            TitleText = "Production";
+            PanelMinimumSize = new Vector2(246, 142);
+        }
+
+        protected override string GeneratedRootName => "GeneratedProductionPanel";
+        protected override string RowNamePrefix => "Production";
 
         private Node? _productionRoot;
-        private Label? _title;
-        private Label? _summary;
-        private VBoxContainer? _rows;
-        private readonly Dictionary<string, Label> _rowLabels = new();
+        private GridPlacementComponent? _placement;
+        private bool _placementConnected;
+        private List<GridProductionComponent>? _cachedMachines;
+        private readonly Dictionary<GridProductionComponent, string> _machineKeys = new();
+        private float _refreshAccumulator;
 
         public override void _Ready()
         {
@@ -49,6 +67,16 @@ namespace Beep.ECS
             SetProcess(AutoRefresh || Engine.IsEditorHint());
             UpdateConfigurationWarnings();
         }
+
+        public override void _ExitTree()
+        {
+            DisconnectPlacement();
+        }
+
+        /// <summary>Forces the next Machines() call to re-walk ProductionRootPath
+        /// from scratch, for a roster change this panel's incremental cache
+        /// cannot see on its own (see the PlacementPath doc comment).</summary>
+        public void InvalidateMachineCache() => _cachedMachines = null;
 
         public override void _Process(double delta)
         {
@@ -62,8 +90,6 @@ namespace Beep.ECS
             _refreshAccumulator = 0f;
             RefreshPanel();
         }
-
-        private float _refreshAccumulator;
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -86,69 +112,17 @@ namespace Beep.ECS
             if (!GenerateControlsWhenPathsEmpty)
                 return;
 
-            ClearChildren();
-            _rowLabels.Clear();
-
-            var panel = new PanelContainer
-            {
-                Name = "GeneratedProductionPanel",
-                CustomMinimumSize = PanelMinimumSize,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            AddChild(panel);
-            SetEditedOwner(panel);
-
-            var layout = new VBoxContainer
-            {
-                Name = "Content",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(layout, "separation", 4);
-            panel.AddChild(layout);
-            SetEditedOwner(layout);
-
-            _title = new Label
-            {
-                Name = "Title",
-                Text = TitleText,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
-            };
-            KitChrome.SetColorOverrideIfChanged(_title, "font_color", Colors.White);
-            layout.AddChild(_title);
-            SetEditedOwner(_title);
-
-            _summary = new Label
-            {
-                Name = "Summary",
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            KitChrome.SetColorOverrideIfChanged(_summary, "font_color", new Color(0.86f, 0.89f, 0.92f));
-            layout.AddChild(_summary);
-            SetEditedOwner(_summary);
-
-            _rows = new VBoxContainer
-            {
-                Name = "Rows",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(_rows, "separation", 2);
-            layout.AddChild(_rows);
-            SetEditedOwner(_rows);
-
+            BuildGeneratedPanel();
             RefreshPanel();
         }
 
         public void RefreshPanel()
         {
             ResolveReferences();
-            if (_summary == null || _rows == null)
+            if (!ControlsReady)
                 return;
 
-            if (_title != null)
-                _title.Text = TitleText;
+            ApplyTitleText();
 
             var machines = Machines();
             int active = 0;
@@ -156,69 +130,30 @@ namespace Beep.ECS
                 if (machine.State == GridProductionComponent.ProductionState.Producing)
                     active++;
 
-            _summary.Text = $"Machines {machines.Count} | Active {active}";
+            SummaryLabel!.Text = $"Machines {machines.Count} | Active {active}";
 
-            // Rows updated IN PLACE; added or removed only when the machine set
-            // changes. Recreating every Label per refresh was pure node churn.
-            var seen = new HashSet<string>();
-            int shown = 0;
+            UpdateRows(MachineRows(machines), MaxVisibleMachines);
+        }
+
+        private IEnumerable<GridPanelRow> MachineRows(List<GridProductionComponent> machines)
+        {
             foreach (GridProductionComponent machine in machines)
-            {
-                if (shown >= MaxVisibleMachines)
-                    break;
-
-                string key = MachineKey(machine);
-                if (!seen.Add(key))
-                    continue;
-
-                if (!_rowLabels.TryGetValue(key, out Label? row) || !GodotObject.IsInstanceValid(row))
-                {
-                    row = new Label
-                    {
-                        Name = $"Production_{SafeName(key)}",
-                        TooltipText = key,
-                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                        CustomMinimumSize = new Vector2(0, 22)
-                    };
-                    _rows.AddChild(row);
-                    SetEditedOwner(row);
-                    _rowLabels[key] = row;
-                }
-
-                row.Text = TextForMachine(machine);
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(machine.State));
-                // Reused rows still follow the sorted key order.
-                _rows.MoveChild(row, shown);
-                shown++;
-            }
-
-            var stale = new List<string>();
-            foreach ((string key, Label row) in _rowLabels)
-            {
-                if (seen.Contains(key))
-                    continue;
-
-                if (GodotObject.IsInstanceValid(row))
-                {
-                    _rows.RemoveChild(row);
-                    row.QueueFree();
-                }
-                stale.Add(key);
-            }
-            foreach (string key in stale)
-                _rowLabels.Remove(key);
+                yield return new GridPanelRow(
+                    CachedKey(machine),
+                    TextForMachine(machine),
+                    ColorForState(machine.State));
         }
 
         public string SummaryText()
         {
             RefreshPanel();
-            return _summary?.Text ?? "";
+            return SummaryLabel?.Text ?? "";
         }
 
         public string TextForMachine(string machinePath)
         {
             RefreshPanel();
-            return _rowLabels.TryGetValue(machinePath, out Label? label) ? label.Text : "";
+            return RowText(machinePath);
         }
 
         public string TextForMachine(GridProductionComponent machine)
@@ -234,8 +169,7 @@ namespace Beep.ECS
                 : $"{name}: {state} {recipe}{progress}";
         }
 
-        public int VisibleMachineRowCount()
-            => _rowLabels.Count;
+        public int VisibleMachineRowCount() => RowCount;
 
         public bool StartMachine(string machinePath, string recipeId = "")
         {
@@ -289,103 +223,119 @@ namespace Beep.ECS
         private GridProductionComponent? FindMachine(string machinePath)
         {
             foreach (GridProductionComponent machine in Machines())
-                if (string.Equals(MachineKey(machine), machinePath, StringComparison.OrdinalIgnoreCase)
+                if (string.Equals(CachedKey(machine), machinePath, StringComparison.OrdinalIgnoreCase)
                     || string.Equals(MachineName(machine), machinePath, StringComparison.OrdinalIgnoreCase)
                     || string.Equals(machine.Name, machinePath, StringComparison.OrdinalIgnoreCase))
                     return machine;
             return null;
         }
 
+        /// <summary>
+        /// Cached and only rebuilt on a genuine roster change - a new machine
+        /// arrives via GridPlacementComponent.PlacementPlaced (appended, no
+        /// re-walk), and a freed one drops out on the cheap IsInstanceValid
+        /// prune below - rather than re-walking ProductionRootPath's whole
+        /// subtree every refresh tick.
+        /// </summary>
         private List<GridProductionComponent> Machines()
         {
             ResolveReferences();
+            if (_cachedMachines == null)
+                RebuildMachineCache();
+            else
+                PruneInvalidMachines();
+            return _cachedMachines!;
+        }
+
+        private void RebuildMachineCache()
+        {
             var machines = new List<GridProductionComponent>();
             if (_productionRoot != null)
                 CollectMachines(_productionRoot, machines);
-            machines.Sort((a, b) => string.Compare(MachineKey(a), MachineKey(b), StringComparison.OrdinalIgnoreCase));
-            return machines;
+            SortMachines(machines);
+            _cachedMachines = machines;
+
+            _machineKeys.Clear();
+            foreach (GridProductionComponent machine in machines)
+                _machineKeys[machine] = MachineKey(machine);
+        }
+
+        private void PruneInvalidMachines()
+        {
+            for (int i = _cachedMachines!.Count - 1; i >= 0; i--)
+            {
+                if (GodotObject.IsInstanceValid(_cachedMachines[i]))
+                    continue;
+
+                _machineKeys.Remove(_cachedMachines[i]);
+                _cachedMachines.RemoveAt(i);
+            }
+        }
+
+        private void SortMachines(List<GridProductionComponent> machines)
+            => machines.Sort((a, b) => string.Compare(MachineKey(a), MachineKey(b), StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Each machine's sort/row key, computed once and cached -
+        /// MachineKey walks the node to the scene root and allocates a fresh
+        /// string on every call, which RefreshPanel used to do 2-3 times per
+        /// machine every tick via the sort comparator and the seen.Add loop.</summary>
+        private string CachedKey(GridProductionComponent machine)
+        {
+            if (!_machineKeys.TryGetValue(machine, out string? key))
+            {
+                key = MachineKey(machine);
+                _machineKeys[machine] = key;
+            }
+            return key;
+        }
+
+        private void OnPlacementPlaced(string buildId, Node2D placed, int x, int y)
+        {
+            if (_cachedMachines == null)
+                return;
+
+            GridProductionComponent? machine = EntityComponent.FindComponent<GridProductionComponent>(placed, recursive: true);
+            if (machine == null || _cachedMachines.Contains(machine))
+                return;
+
+            _cachedMachines.Add(machine);
+            _machineKeys[machine] = MachineKey(machine);
+            SortMachines(_cachedMachines);
+        }
+
+        private void ConnectPlacement()
+        {
+            if (_placement == null || _placementConnected)
+                return;
+
+            _placement.PlacementPlaced += OnPlacementPlaced;
+            _placementConnected = true;
+        }
+
+        private void DisconnectPlacement()
+        {
+            if (_placement != null && GodotObject.IsInstanceValid(_placement) && _placementConnected)
+                _placement.PlacementPlaced -= OnPlacementPlaced;
+            _placementConnected = false;
         }
 
         private void ResolveReferences()
         {
             if (_productionRoot == null || !GodotObject.IsInstanceValid(_productionRoot))
                 _productionRoot = !ProductionRootPath.IsEmpty ? GetNodeOrNull<Node>(ProductionRootPath) : null;
-        }
 
-        public bool UsesSceneControls()
-            => !TitleLabelPath.IsEmpty || !SummaryLabelPath.IsEmpty || !RowsContainerPath.IsEmpty
-            || FindTitleLabel() != null || FindSummaryLabel() != null || FindRowsContainer() != null;
-
-        private bool BindExistingControls()
-        {
-            if (!UsesSceneControls())
-                return false;
-
-            Label? title = FindTitleLabel();
-            Label? summary = FindSummaryLabel();
-            VBoxContainer? rows = FindRowsContainer();
-
-            if (summary == null || rows == null)
-                return false;
-
-            _title = title;
-            _summary = summary;
-            _rows = rows;
-            _rowLabels.Clear();
-            return true;
-        }
-
-        private bool HasAuthoredControls()
-            => FindSummaryLabel() != null && FindRowsContainer() != null;
-
-        private Label? FindTitleLabel()
-        {
-            if (!TitleLabelPath.IsEmpty && GetNodeOrNull<Label>(TitleLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Title", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Title", recursive: true, owned: false) as Label;
-        }
-
-        private Label? FindSummaryLabel()
-        {
-            if (!SummaryLabelPath.IsEmpty && GetNodeOrNull<Label>(SummaryLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Summary", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Summary", recursive: true, owned: false) as Label;
-        }
-
-        private VBoxContainer? FindRowsContainer()
-        {
-            if (!RowsContainerPath.IsEmpty && GetNodeOrNull<VBoxContainer>(RowsContainerPath) is { } pathRows)
-                return pathRows;
-
-            if (FindChild("Rows", recursive: true, owned: false) is VBoxContainer childRows)
-                return childRows;
-
-            return GetParent()?.FindChild("Rows", recursive: true, owned: false) as VBoxContainer;
-        }
-
-        private void ClearChildren()
-        {
-            foreach (Node child in GetChildren())
-                child.QueueFree();
-            _title = null;
-            _summary = null;
-            _rows = null;
-        }
-
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
+            if (_placement != null && !GodotObject.IsInstanceValid(_placement))
+            {
+                _placement = null;
+                _placementConnected = false;
+            }
+            // Never resolved in the editor - placement is a runtime roster
+            // source only.
+            if (_placement == null && !Engine.IsEditorHint())
+            {
+                EntityComponent.Resolve(this, PlacementPath, ref _placement);
+                ConnectPlacement();
+            }
         }
 
         private static void CollectMachines(Node node, List<GridProductionComponent> machines)
@@ -419,13 +369,5 @@ namespace Beep.ECS
                 GridProductionComponent.ProductionState.Paused => new Color(1f, 0.78f, 0.22f),
                 _ => new Color(0.82f, 0.86f, 0.9f)
             };
-
-        private static string SafeName(string value)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? "Machine" : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return result.Replace(' ', '_').Replace('/', '_').Replace('\\', '_').Replace(':', '_');
-        }
     }
 }

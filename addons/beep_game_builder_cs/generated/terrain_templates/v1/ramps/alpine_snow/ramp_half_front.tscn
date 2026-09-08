@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/terrain_templates/v1/ramps/alpine_snow/ramp_half_front.tres" id="1"]
+
+[node name="ramp_half_front" type="Node2D"]
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -41.660377)
+scale = Vector2(0.3018867924528302, 0.3018867924528302)
+texture = ExtResource("1")

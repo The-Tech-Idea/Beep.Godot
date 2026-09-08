@@ -2,11 +2,11 @@
 
 World-data model: the finished, queryable output of one terrain-generation run, sitting between the generation stages and every renderer/gameplay component that reads the map.
 
-`GeneratedTerrainField` is the read-only result object `TerrainFieldBuilder.Build` hands back once all generation stages have run. It holds the map at two resolutions drawn from the same `TerrainWorld` data: gameplay-tile arrays (one value per cell — terrain kind, water body, continent id, resource, relief, elevation, feature) for anything that moves, paths or builds on the map, and finer sub-tile sample arrays (terrain, water, shade) for the painter, so a coastline or biome boundary can curve within a tile instead of stepping around tile corners. Both views come from the same run, so the two can differ in sub-tile detail but a tile-resolution query and the majority of its own sub-samples never disagree. It is `internal sealed`, so it is only ever handed out through a public wrapper such as `TerrainGeneratorComponent.ResolveField()`.
+`GeneratedTerrainField` is the read-only result object `TerrainFieldBuilder.Build` hands back once all generation stages have run. It holds the map at two resolutions drawn from the same `TerrainGenerationBuffer` data: gameplay-tile arrays (one value per cell — terrain kind, water body, continent id, resource, relief, elevation, feature) for anything that moves, paths or builds on the map, and finer sub-tile sample arrays (terrain, water, shade) for the painter, so a coastline or biome boundary can curve within a tile instead of stepping around tile corners. Both views come from the same run, so the two can differ in sub-tile detail but a tile-resolution query and the majority of its own sub-samples never disagree. It is `internal sealed`, so it is only ever handed out through a public wrapper such as `TerrainGeneratorComponent.ResolveField()`.
 
 ## Public API
 
-- `GeneratedTerrainField(TerrainWorld world, TerrainGenerationDiagnostics diagnostics)` — constructor; copies references to `world`'s cell- and sample-resolution arrays and captures `world.StartPositions` and the diagnostics for the run.
+- `GeneratedTerrainField(TerrainGenerationBuffer world, TerrainGenerationDiagnostics diagnostics)` — constructor; copies references to `world`'s cell- and sample-resolution arrays and captures `world.StartPositions` and the diagnostics for the run.
 - `TerrainGenerationDiagnostics Diagnostics { get; }` — the diagnostics object passed in at construction (timing/stats from the generation run).
 - `IReadOnlyList<Vector2I> StartPositions { get; }` — fair player start tiles, in gameplay tile coordinates.
 - `string TerrainAtCell(Vector2I cell)` — terrain kind string at a gameplay tile.
@@ -26,9 +26,9 @@ All indexing (`CellIndex`, `SampleIndex`, `SampleIndexAt`, `CornersAt`) clamps c
 
 ## Dependencies
 
-- Reads `TerrainWorld` (`CellsWide`, `CellsHigh`, `SamplesPerCell`, `Width`, `Height`, `CellTerrain`, `CellWater`, `CellContinent`, `Resource`, `CellRelief`, `CellElevation`, `Feature`, `Terrain`, `Water`, `Shade`, `StartPositions`) — all consumed once, at construction, and cached as private arrays.
+- Reads `TerrainGenerationBuffer` (`CellsWide`, `CellsHigh`, `SamplesPerCell`, `Width`, `Height`, `CellTerrain`, `CellWater`, `CellContinent`, `Resource`, `CellRelief`, `CellElevation`, `Feature`, `Terrain`, `Water`, `Shade`, `StartPositions`) — all consumed once, at construction, and cached as private arrays.
 - Reads `TerrainGenerationDiagnostics` only as an opaque value passed through the constructor to the `Diagnostics` property.
-- Uses the `WaterBody` and `TerrainRelief` enums, both defined in `TerrainWorld.cs`.
+- Uses the `WaterBody` and `TerrainRelief` enums, both defined in `TerrainGenerationBuffer.cs`.
 - Constructed by `TerrainFieldBuilder.Build`/`Finish` (`TerrainFieldBuilder.cs`), which is the only place that calls `new GeneratedTerrainField(...)`.
 - Consumed by `TerrainGeneratorComponent` (`ResolveField()` and its per-cell/per-position query wrappers) and by `TerrainCoastField` (`generator.ResolveField()`), both outside this batch.
 

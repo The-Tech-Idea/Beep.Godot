@@ -48,6 +48,11 @@ namespace Beep.ECS.UI
     /// <summary>
     /// Animation behaviour for hover, press, and focus transitions.
     /// Each preset chooses its own feel — bouncy, snappy, smooth, or none.
+    ///
+    /// REACH: every field here is applied by `ThemePresetComponent.SetupButtonAnimations`, which
+    /// runs only over nodes that are a Godot <c>Button</c> or a subclass of one. Sliders, panels
+    /// and the custom-drawn KitControl widgets get none of it, whatever a theme declares. That is
+    /// worth knowing before adding a field here and expecting it to reach the whole kit.
     /// </summary>
     public struct AnimationConfig
     {
@@ -63,10 +68,15 @@ namespace Beep.ECS.UI
         /// <summary>Duration of the press scale tween in seconds.</summary>
         public float PressScaleDuration;
 
-        /// <summary>Whether the button lifts slightly on hover (shadow depth change).</summary>
+        /// <summary>Whether the button rises 2px on hover, widening the gap to its drawn shadow so
+        /// it reads as lifting off the surface. It does NOT change any shadow property — an earlier
+        /// version of this comment claimed a "shadow depth change", which no code performs.</summary>
         public bool EnableShadowLift;
 
-        /// <summary>Whether a focus glow ring appears on keyboard/gamepad focus.</summary>
+        /// <summary>Whether the button TINTS on focus: its <c>modulate</c> tweens toward a blend of
+        /// the accent and the on-dark text colour, and back on blur. It is not a drawn ring — the
+        /// kit's focus ring is <see cref="Kit.KitChrome.DrawFocusRing"/>, which is separate, always
+        /// on, and contrast-checked.</summary>
         public bool EnableFocusGlow;
         // Note: all animation values come from theme.json's "animation" block.
         // No hardcoded defaults — if a theme.json is missing the block, the struct

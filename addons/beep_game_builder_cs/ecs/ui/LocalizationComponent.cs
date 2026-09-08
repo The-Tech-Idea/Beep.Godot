@@ -16,8 +16,8 @@ namespace Beep.ECS.UI
     /// "MENU_PLAY" key never fires and switching language does nothing. The shipped CSV is therefore
     /// keyed on the English chrome strings; the developer extends it with their OWN on-screen strings.
     ///
-    /// Place as an autoload ("Locale") or in the boot scene. Other components access
-    /// it via <see cref="Instance"/> or <see cref="SettingsComponent.ApplyLocaleSettings"/>.
+    /// GameApp owns this component. Other components access it via
+    /// <c>GameApp.Instance?.Locale</c> or <see cref="SettingsComponent.ApplyLocaleSettings"/>.
     ///
     /// CSV format (Godot standard) — first column is the source English, echoed in `en`:
     ///   keys,en,es,ja
@@ -50,29 +50,8 @@ namespace Beep.ECS.UI
         private readonly HashSet<string> _loadedLocales = new();
         private readonly List<string> _csvPaths = new();
 
-        private static LocalizationComponent? _instance;
-
-        /// <summary>The autoloaded LocalizationComponent, or null.</summary>
-        public static LocalizationComponent? Instance
-        {
-            get
-            {
-                if (_instance != null && GodotObject.IsInstanceValid(_instance)) return _instance;
-                if (Engine.GetMainLoop() is SceneTree tree
-                    && tree.Root.GetNodeOrNull<LocalizationComponent>("/root/Locale") is { } lc)
-                {
-                    _instance = lc;
-                    return lc;
-                }
-                return null;
-            }
-        }
-
-        public override void _EnterTree()
-        {
-            if (GetParent() == GetTree()?.Root)
-                _instance = this;
-        }
+        // No static Instance and no /root/Locale lookup: GameApp owns this
+        // component and hands it out as GameApp.Instance.Locale. One door.
 
         public override void _Ready()
         {
@@ -80,7 +59,7 @@ namespace Beep.ECS.UI
             if (Engine.IsEditorHint()) return;
             LoadAll();
             // Apply saved locale from settings if available.
-            var settings = SettingsComponent.Instance;
+            var settings = GameApp.Instance?.Settings;
             if (settings != null && !string.IsNullOrEmpty(settings.Language))
                 SetLanguage(settings.Language);
             else

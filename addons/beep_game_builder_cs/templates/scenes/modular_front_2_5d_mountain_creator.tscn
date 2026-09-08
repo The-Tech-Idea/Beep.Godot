@@ -2,11 +2,10 @@
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/ModularMountainPrefabComponent.cs" id="1_modular_mountain"]
 
-[node name="ModularFront25DMountainCreator" type="Node2D"]
+[node name="MountainPrefab1Creator" type="Node2D"]
 script = ExtResource("1_modular_mountain")
+PrefabStyle = 0
+MaterialTheme = 0
 PackManifestPath = "res://addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/modular_mountain_pack_manifest.json"
 BasePrefabId = "three_level_wide_no_ramps"
-EntranceRamp = 2
-Level0To1Ramp = 1
-Level1To2Ramp = 2
 GenerateOnReady = true

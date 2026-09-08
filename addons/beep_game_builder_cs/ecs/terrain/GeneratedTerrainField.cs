@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -20,7 +21,7 @@ namespace Beep.ECS
     /// map look like blocks - which is exactly what the fine field exists to
     /// avoid.
     /// </summary>
-    internal sealed class GeneratedTerrainField
+    internal sealed class GeneratedTerrainField : ITerrainSurfaceData
     {
         private readonly int _wide;
         private readonly int _high;
@@ -30,6 +31,9 @@ namespace Beep.ECS
 
         // Gameplay-tile resolution.
         private readonly string[] _terrain;
+        private readonly string[] _inlandTerrain;
+        public float BeachWidth { get; }
+        public float LakeShoreWidth { get; }
         private readonly WaterBody[] _water;
         private readonly int[] _continent;
         private readonly string[] _resource;
@@ -42,11 +46,13 @@ namespace Beep.ECS
         private readonly string[] _feature;
 
         // Sub-tile sample resolution, for painting.
-        private readonly string[] _sampleTerrain;
-        private readonly WaterBody[] _sampleWater;
-        private readonly float[] _sampleShade;
+        private readonly TerrainSampleKinds _sampleTerrain;
+        private readonly TerrainSampleValues<WaterBody> _sampleWater;
+        private readonly TerrainSampleValues<float> _sampleShade;
+        private readonly byte[] _undergroundDigest;
 
-        public GeneratedTerrainField(TerrainWorld world, TerrainGenerationDiagnostics diagnostics)
+        public GeneratedTerrainField(TerrainGenerationBuffer world, TerrainGenerationDiagnostics diagnostics,
+            CancellationToken cancellation = default)
         {
             _wide = world.CellsWide;
             _high = world.CellsHigh;
@@ -55,6 +61,9 @@ namespace Beep.ECS
             _fieldHeight = world.Height;
 
             _terrain = world.CellTerrain;
+            _inlandTerrain = world.CellInlandTerrain;
+            BeachWidth = world.BeachWidth;
+            LakeShoreWidth = world.LakeShoreWidth;
             _water = world.CellWater;
             _continent = world.CellContinent;
             _resource = world.Resource;
@@ -66,13 +75,19 @@ namespace Beep.ECS
             _elevation = world.CellElevation;
             _feature = world.Feature;
 
-            _sampleTerrain = world.Terrain;
-            _sampleWater = world.Water;
-            _sampleShade = world.Shade;
+            _sampleTerrain = world.PackTerrain(cancellation);
+            _sampleWater = world.PackWater(cancellation);
+            _sampleShade = world.PackShade(cancellation);
 
             StartPositions = world.StartPositions;
             Diagnostics = diagnostics;
+            _undergroundDigest = TerrainUndergroundIdentity.Content(this, new(_wide, _high), cancellation);
         }
+
+        internal string UndergroundIdentity(Vector2I origin, Vector2I size)
+            => TerrainUndergroundIdentity.Compose(origin, size,
+                size == new Vector2I(_wide, _high) ? _undergroundDigest
+                    : TerrainUndergroundIdentity.Content(this, size));
 
         public TerrainGenerationDiagnostics Diagnostics { get; }
 
@@ -82,6 +97,7 @@ namespace Beep.ECS
         // ---- Gameplay tile queries -------------------------------------------------
 
         public string TerrainAtCell(Vector2I cell) => _terrain[CellIndex(cell.X, cell.Y)];
+        public string InlandTerrainAtCell(Vector2I cell) => _inlandTerrain[CellIndex(cell.X, cell.Y)];
 
         /// <summary>"ocean", "lake", "river", or empty for dry land.</summary>
         public string WaterSourceAtCell(Vector2I cell) => _water[CellIndex(cell.X, cell.Y)] switch
@@ -127,6 +143,19 @@ namespace Beep.ECS
         /// <summary>True where a prop must never be placed.</summary>
         public bool IsWaterAtPosition(Vector2 position)
             => _sampleWater[SampleIndexAt(position)] != WaterBody.None;
+
+        internal GridTerrainWaterPatch WaterPatchAtCell(Vector2I cell)
+            => GridTerrainWaterPatch.Create(_samplesPerCell, (x, y) =>
+                _sampleWater[(cell.Y * _samplesPerCell + y) * _fieldWidth
+                    + cell.X * _samplesPerCell + x] != WaterBody.None);
+
+        internal GridTerrainWaterPatch LakePatchAtCell(Vector2I cell)
+            => GridTerrainWaterPatch.Create(_samplesPerCell, (x, y) =>
+                _sampleWater[(cell.Y * _samplesPerCell + y) * _fieldWidth
+                    + cell.X * _samplesPerCell + x] == WaterBody.Lake);
+
+        internal bool IsLakeAtPosition(Vector2 position)
+            => _sampleWater[SampleIndexAt(position)] == WaterBody.Lake;
 
         /// <summary>
         /// How much of the area around a position is water, from 0 to 1.

@@ -106,11 +106,6 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private float FooterHeight() => Footer switch
         {
             FooterKind.Status => Mathf.Clamp(Size.Y * 0.16f, 22f, 30f),
@@ -155,8 +150,8 @@ namespace Beep.ECS.UI.Kit
                                   Mathf.Lerp(face.B, l, 0.93f), 1f);
             }
 
-            DrawShape(body, ActiveShape, plate, _locked ? ink : RimColor(), rimPx);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), body, ActiveShape, 0.8f);
+            DrawPlate(body, ActiveShape, plate, _locked ? ink : RimColor(), rimPx);
+            KitChrome.DrawFocusRing(this, Genre, body, ActiveShape, 0.8f);
             if (_hover && !_locked)
                 KitSelect.Draw(this, Geo.SelectFor(WidgetClass),
                                KitChrome.Poly(ActiveShape, body, Geo), body,
@@ -210,7 +205,24 @@ namespace Beep.ECS.UI.Kit
             Color fc = _locked
                 ? new Color(plate.R * 0.7f, plate.G * 0.7f, plate.B * 0.72f, 1f)
                 : UiSurface.Semantic(this, FooterRole);
+
+            // WELDED means the seam disappears, and it did not.
+            //
+            // Both pieces were drawn with the genre's full silhouette, so the card's rounded
+            // BOTTOM corners met the footer's rounded TOP corners and left a dark notch on each
+            // side with a hairline between them. Two rounded edges facing each other is the one
+            // thing a weld cannot be: the compound read as a card with a separate bar shoved under
+            // it, which is exactly what the art pass says this element is not.
+            //
+            // So the footer keeps the rounded outline on its FREE edge and is squared off where it
+            // meets the card, by overpainting the top of its own corner band and carrying that
+            // band up over the card's bottom edge to close the hairline.
             DrawShape(foot, ActiveShape, fc, ink, Mathf.Max(1f, rimPx * 0.7f));
+            float weld = Mathf.Min(CornerPx(foot), foot.Size.Y * 0.5f);
+            if (weld > 0.5f)
+                DrawShape(new Rect2(foot.Position.X, foot.Position.Y - weld,
+                                    foot.Size.X, weld * 2f),
+                          KitShape.Rect, fc, new Color(0, 0, 0, 0), 0f);
 
             if (font == null || string.IsNullOrEmpty(_footer)) return;
             DrawFittedText(font, foot.Grow(-Mathf.Max(3f, foot.Size.Y * 0.14f)), _footer,

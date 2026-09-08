@@ -87,18 +87,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(Mathf.Max(fs * 9.5f, labelW + valueW + weld), h);
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private float TextWidth(string text, UiSurface.TextRole role)
         {
             if (string.IsNullOrEmpty(text)) return 0f;
@@ -144,7 +132,7 @@ namespace Beep.ECS.UI.Kit
             }
 
             float rimPx = Mathf.Max(1f, g.Rim * 0.5f * (fs / 14f));
-            DrawShape(body, ActiveShape, plate, ink, rimPx);
+            DrawPlate(body, ActiveShape, plate, ink, rimPx);
             DrawLine(new Vector2(labelRect.End.X + weld * 0.5f, Size.Y * 0.18f),
                      new Vector2(labelRect.End.X + weld * 0.5f, Size.Y * 0.82f),
                      ink with { A = 0.46f },

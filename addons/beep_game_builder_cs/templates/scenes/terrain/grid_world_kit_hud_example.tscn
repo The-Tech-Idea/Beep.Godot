@@ -150,7 +150,7 @@ BoundsSize = Vector2i(36, 24)
 
 [node name="Jobs" type="Node" parent="."]
 script = ExtResource("jobs")
-DefaultWorkSeconds = 1.5
+DefaultWorkTurns = 1.5
 
 [node name="Resources" type="Node" parent="."]
 script = ExtResource("wallet")

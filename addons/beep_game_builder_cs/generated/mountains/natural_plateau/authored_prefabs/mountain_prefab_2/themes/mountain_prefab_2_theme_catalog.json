@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "catalog_id": "mountain_prefab_2_material_themes",
+  "style_id": "mountain_prefab_2",
+  "style_label": "Mountain Prefab 2 - Natural Plateau",
+  "themes": [
+    {
+      "id": "sandstone",
+      "label": "Low Poly Sandstone",
+      "display_name": "Mountain Prefab 2 - Low Poly Sandstone",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/sandstone/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/sandstone/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/sandstone/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/sandstone/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "grass_granite",
+      "label": "Grass + Granite",
+      "display_name": "Mountain Prefab 2 - Grass + Granite",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grass_granite/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grass_granite/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grass_granite/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grass_granite/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "grey_rock",
+      "label": "Grey Rock",
+      "display_name": "Mountain Prefab 2 - Grey Rock",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grey_rock/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grey_rock/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grey_rock/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/grey_rock/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "volcanic_basalt",
+      "label": "Volcanic Basalt",
+      "display_name": "Mountain Prefab 2 - Volcanic Basalt",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/volcanic_basalt/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/volcanic_basalt/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/volcanic_basalt/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/volcanic_basalt/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "meadow_hill",
+      "label": "Gentle Meadow Hill",
+      "display_name": "Mountain Prefab 2 - Gentle Meadow Hill",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/meadow_hill/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/meadow_hill/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/meadow_hill/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/meadow_hill/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "red_rock_mesa",
+      "label": "Red Rock Mesa",
+      "display_name": "Mountain Prefab 2 - Red Rock Mesa",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/red_rock_mesa/manual_step_plate_sheet.png"
+    },
+    {
+      "id": "alpine_snow",
+      "label": "Alpine Snow",
+      "display_name": "Mountain Prefab 2 - Alpine Snow",
+      "style_id": "mountain_prefab_2",
+      "style_label": "Mountain Prefab 2 - Natural Plateau",
+      "manifest": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/mountain_prefab_2_manifest.json",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/fit_preview.png",
+      "plate_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/mountain_plate_sheet.png",
+      "step_sheet": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/alpine_snow/manual_step_plate_sheet.png"
+    }
+  ],
+  "step_plate_preview": "addons/beep_game_builder_cs/generated/mountains/natural_plateau/authored_prefabs/mountain_prefab_2/themes/mountain_prefab_2_all_step_plates_preview.png"
+}

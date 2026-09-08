@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Depleted artwork variants; placement visually matched to originals, not pixel-exact registered. No engine behavior configured.",
+  "assets": [
+    {
+      "file": "iron_ore_depleted_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/iron_ore_01_green.png",
+      "prompt": "Use case: precise-object-edit. Edit this iron resource sprite into its DEPLETED mined-out state. Preserve the exact canvas framing, base footprint, bottom contact position, camera angle, upper-left lighting and detailed painterly style. Remove almost all metallic iron seams, leaving only tiny dull dark traces. Break away the upper central rock mass into a lower jagged excavated surface with angular cavities; retain the original lower outer rock base so it reads as the same node after mining. Do not enlarge or recenter the remnant. Keep opaque vivid green background, no transparency, no ground, plants, detached rubble, tools, text, glow or external shadow. One sprite only.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f0558f7f-5229-45c0-85e5-360edabbe142.png"
+    },
+    {
+      "file": "copper_ore_depleted_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/copper_ore_01_green.png",
+      "prompt": "Use case: precise-object-edit. Make a depleted mined-out state of this copper resource sprite. Preserve canvas size, framing, lower outer rock base footprint and bottom contact position exactly, same elevated front 2.5D camera and upper-left lighting, same detailed painterly texture. Remove almost all copper orange veins, leaving only a few dull tiny copper flecks in deep cracks. Break away upper central mass leaving a visibly jagged scooped-out fractured crown, lower than original. Retain recognizable original base, no recentering or zooming. Solid opaque bright green background. No ground, plants, detached debris, tools, labels, glow or external shadow. ONE sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-04b48865-d253-4713-8bec-273f9eaf76a4.png"
+    },
+    {
+      "file": "gold_ore_depleted_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/gold_ore_01_green.png",
+      "prompt": "Use case: precise-object-edit. Edit this gold ore game sprite into a depleted mining state. Preserve canvas framing and size, original lower base footprint and bottom contact location, same elevated front 2.5D view, painterly detailed rock texture and upper-left light. Most golden veins have been extracted: leave only a few tiny dull gold specks deep in cracks, no broad gold areas. Upper central mass chipped away forming jagged excavated cavities and a broken lower crown. Preserve recognizable outer base. Do not recenter or enlarge. Opaque solid bright green background. No ground or plants, detached rubble, tools, glow, sparkles, text, external shadows. One sprite.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-4329aea9-6b0a-4478-bb5b-c670e76f78ce.png"
+    },
+    {
+      "file": "crystal_cluster_depleted_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/ore_rocks/crystal_cluster_01_green.png",
+      "prompt": "Use case: precise-object-edit. Create depleted mined-out version of this crystal node. KEEP the original grey rock base exactly in its original lower canvas position with same footprint, scale, outline, camera and upper-left lighting. Remove ALL tall blue crystals and pointed tops; replace them with very short broken jagged dull blue crystal stubs flush to the rock base, showing fractured flat cross-sections. Only small blue traces remain. Upper canvas becomes empty GREEN where tall crystals were. Do NOT recenter, zoom, enlarge or move the rock base upward to fill empty space. Same square canvas and detailed painterly 2.5D game art. Solid opaque vivid green background. No ground, plants, detached debris, tools, text, sparkles, glow, external cast shadows. ONE depleted node.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f31826a2-7fa4-47e6-a915-e19d232edb0b.png"
+    }
+  ]
+}

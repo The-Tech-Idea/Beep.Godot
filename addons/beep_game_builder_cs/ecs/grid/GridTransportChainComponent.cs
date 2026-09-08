@@ -9,7 +9,7 @@ namespace Beep.ECS
     /// nodes answering the port contracts - first the source (an extractor's
     /// buffer, a tank), anything in between (tanks, buffers, even parked
     /// transporters: every ITransporter is both ports), last the sink - and
-    /// every tick material moves one link along at FlowRatePerSecond, each
+    /// every tick material moves one link along at FlowRatePerTurn, each
     /// hop the same safe hand-off the whole logistics layer uses
     /// (GridPorts.Transfer). A crude pipeline, a conveyor line, a train of
     /// cars, a bucket brigade of boats: same component, different links and
@@ -52,21 +52,47 @@ namespace Beep.ECS
         [Export] public Godot.Collections.Array<NodePath> Chain { get; set; } = new();
 
         /// <summary>
-        /// Units per second the chain moves - the transport-speed dial, and
-        /// why a pipeline is not a truck: a pipe flows continuously and fast,
-        /// a conveyor slower, a mule train slower still.
+        /// Units per TURN the chain moves - the transport-speed dial, and why
+        /// a pipeline is not a truck: a pipe flows continuously and fast, a
+        /// conveyor slower, a mule train slower still. A turn is a day, so the
+        /// authored throughput means the same amount of world material on the
+        /// turn axis and the real-time one.
         /// </summary>
-        [Export(PropertyHint.Range, "0.1,9999,0.1")] public float FlowRatePerSecond { get; set; } = 6f;
+        [Export(PropertyHint.Range, "0.1,9999,0.1")] public float FlowRatePerTurn { get; set; } = 6f;
+
+        /// <summary>
+        /// The clock that decides what a turn of flow is. Empty finds one
+        /// scene-wide; with none anywhere the chain runs off its own frame
+        /// delta at one turn per second.
+        /// </summary>
+        [Export] public NodePath WorkClockPath { get; set; } = new("");
 
         public bool IsBlocked { get; private set; }
 
         private readonly List<Node> _links = new();
+        private readonly GridWorkClockBinding _workClock = new();
         private double _flowBudget;
 
         public override void _Ready()
         {
-            SetProcess(!Engine.IsEditorHint());
+            if (!Engine.IsEditorHint())
+            {
+                // Throughput is measured in TURNS, so the chain advances on the
+                // work clock - otherwise a turn-based game would have pipelines
+                // flowing in real time while everything else waited for a turn.
+                bool bound = _workClock.Bind(this, WorkClockPath, AdvanceWork);
+                SetProcess(!bound);
+            }
+            else
+            {
+                SetProcess(false);
+            }
             UpdateConfigurationWarnings();
+        }
+
+        public override void _ExitTree()
+        {
+            _workClock.Unbind();
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -78,19 +104,31 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
+            // Reached only when no work clock was found - a template scene
+            // opened on its own, or a headless probe. SetProcess is off otherwise.
             if (Engine.IsEditorHint())
                 return;
 
-            Tick(delta);
+            AdvanceWork(GridWorkClockBinding.TurnsForDelta(delta));
         }
 
-        public void Tick(double delta)
+        /// <summary>
+        /// Moves material by turns of flow. Kept public under its old name so a
+        /// caller that steps the chain deliberately still can; one turn is one
+        /// second on the real-time axis, so the meaning is unchanged there.
+        /// </summary>
+        public void Tick(double delta) => AdvanceWork(GridWorkClockBinding.TurnsForDelta(delta));
+
+        /// <summary>Moves one hop's worth of material per turn. Bound to the work clock.</summary>
+        public void AdvanceWork(float turns)
         {
             if (!ResolveLinks())
                 return;
 
-            double step = double.IsFinite(delta) && delta > 0.0 ? System.Math.Min(delta, 86400.0) : 0.0;
-            _flowBudget += step * Mathf.Max(0.1f, FlowRatePerSecond);
+            if (!float.IsFinite(turns) || turns <= 0f)
+                return;
+
+            _flowBudget += turns * Mathf.Max(0.1f, FlowRatePerTurn);
             int budget = (int)_flowBudget;
             if (budget <= 0)
                 return;

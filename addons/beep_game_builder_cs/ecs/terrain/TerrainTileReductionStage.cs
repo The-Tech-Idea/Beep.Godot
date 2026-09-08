@@ -33,7 +33,7 @@ namespace Beep.ECS
         /// </summary>
         private const float RiverTileFraction = 0.10f;
 
-        public static void Apply(TerrainWorld world)
+        public static void Apply(TerrainGenerationBuffer world)
         {
             int wide = world.CellsWide;
             int high = world.CellsHigh;

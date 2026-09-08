@@ -59,9 +59,13 @@ namespace Beep.ECS
     public partial class TerrainResourceRendererComponent : Node2D
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        /// <summary>Optional subtree of live resource nodes; empty shows generated resources.</summary>
+        [Export] public NodePath ResourceRootPath { get; set; } = new("");
+        [Export] public NodePath GridPath { get; set; } = new("");
 
         [ExportGroup("Map")]
         [Export] public Vector2I BoundsSize { get; set; } = new(96, 60);
+        [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
         [ExportGroup("Icons")]
@@ -148,24 +152,57 @@ namespace Beep.ECS
         private int _columns = 4;
         private int _rows = 4;
         private string[] _order = Array.Empty<string>();
-        private ResourceSet? _presetApplied;
+        private string _loadedSheetPath = "";
+        private TerrainResourceViewBinding? _liveResources;
+        private bool _rebuildQueued;
+        private bool _hasRebuildAttempt;
+        private GridProjectionComponent? _grid;
         private readonly Dictionary<string, int> _frames = new();
         private readonly List<Icon> _icons = new();
+        public int IconCount => _icons.Count;
 
         public override void _Ready()
         {
+            ResolveGenerator();
             if (RefreshOnReady && !Engine.IsEditorHint())
                 CallDeferred(nameof(Rebuild));
         }
 
+        public override void _ExitTree()
+        {
+            _liveResources?.Dispose();
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = null;
+            _rebuildQueued = false;
+        }
+
+        public override void _EnterTree()
+        {
+            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+                Callable.From(() =>
+                {
+                    if (!IsInsideTree()) return;
+                    ResolveGenerator();
+                    QueueRebuild();
+                }).CallDeferred();
+        }
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
         public override string[] _GetConfigurationWarnings()
-            => TerrainGeneratorPath.IsEmpty
+            => TerrainGeneratorPath.IsEmpty && ResourceRootPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : Array.Empty<string>();
 
         /// <summary>Rebuilds every resource icon from the generator.</summary>
         public void Rebuild()
         {
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
             ZIndex = TerrainLayers.ZForMarkers();
             ZAsRelative = false;
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
@@ -173,7 +210,7 @@ namespace Beep.ECS
             ResolveGenerator();
             _icons.Clear();
             ApplyPreset();
-            if (_generator is null || !LoadSheet())
+            if ((_generator is null && ResourceRootPath.IsEmpty) || (!GridPath.IsEmpty && _grid is null) || !LoadSheet())
             {
                 GD.PushWarning(
                     _generator is null
@@ -182,13 +219,12 @@ namespace Beep.ECS
                 QueueRedraw();
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            if (_generator is not null && ResourceRootPath.IsEmpty)
+                TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
 
             // Resolved ONCE per rebuild rather than once per cell: every public
             // per-position accessor on the generator rebuilds and compares its
             // ~30-field settings record before returning this same cached field.
-            GeneratedTerrainField field = _generator.ResolveField();
-
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             float tile = Mathf.Max(1, TileSize);
             int columns = Mathf.Max(1, _columns);
@@ -198,28 +234,25 @@ namespace Beep.ECS
                 Mathf.FloorToInt(sheetSize.X / columns),
                 Mathf.FloorToInt(sheetSize.Y / rows));
 
-            for (int y = 0; y < size.Y; y++)
+            foreach (var (cell, resource) in ResourceEntries(size))
             {
-                for (int x = 0; x < size.X; x++)
+                if (resource.Length == 0 || !_frames.TryGetValue(resource, out int index)) continue;
+                Vector2 centre = ((Vector2)cell + Vector2.One * 0.5f) * tile;
+                float cellScale = tile;
+                if (_grid is not null)
                 {
-                    string resource = field.ResourceAtCell(new Vector2I(x, y));
-                    if (resource.Length == 0 || !_frames.TryGetValue(resource, out int index))
-                        continue;
-
-                    var region = new Rect2(
-                        new Vector2(index % columns, index / columns) * frame, frame);
-                    float fit = tile / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
-                    Vector2 drawn = (Vector2)frame * fit * IconScale;
-                    var centre = new Vector2(
-                        (x + 0.5f) * tile,
-                        (y + 0.5f + VerticalOffset) * tile);
-
-                    _icons.Add(new Icon(
-                        region,
-                        new Rect2(centre - (drawn * 0.5f), drawn),
-                        centre,
-                        Mathf.Max(drawn.X, drawn.Y) * 0.58f));
+                    centre = ToLocal(_grid.CellToWorld(cell));
+                    Vector2[] corners = _grid.CellCorners(cell);
+                    if (!centre.IsFinite() || corners.Length < 3) continue;
+                    for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
+                    cellScale = Mathf.Min(corners[0].DistanceTo(corners[1]), corners[1].DistanceTo(corners[2]));
                 }
+                centre.Y += VerticalOffset * cellScale;
+                var region = new Rect2(new Vector2(index % columns, index / columns) * frame, frame);
+                float fit = cellScale / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
+                Vector2 drawn = (Vector2)frame * fit * IconScale;
+                _icons.Add(new Icon(region, new Rect2(centre - drawn * 0.5f, drawn),
+                    centre, Mathf.Max(drawn.X, drawn.Y) * 0.58f));
             }
             QueueRedraw();
         }
@@ -264,14 +297,6 @@ namespace Beep.ECS
                 return;
             }
 
-            // Only drop the cached texture when the set actually changed;
-            // reloading a 1K sheet on every rebuild is pure waste.
-            if (_presetApplied != set)
-            {
-                _sheet = null;
-                _frames.Clear();
-                _presetApplied = set;
-            }
             _sheetPath = preset.Path;
             _columns = preset.Columns;
             _rows = preset.Rows;
@@ -280,27 +305,75 @@ namespace Beep.ECS
 
         private bool LoadSheet()
         {
+            if (_loadedSheetPath != _sheetPath) _sheet = null;
+            _loadedSheetPath = _sheetPath;
             if (_sheet is null && !string.IsNullOrWhiteSpace(_sheetPath))
                 _sheet = TerrainTextures.Load(_sheetPath, Name, "the resource icon sheet");
 
-            if (_frames.Count == 0 && _order is { Length: > 0 })
+            _frames.Clear();
+            if (_order is { Length: > 0 })
             {
-                for (int i = 0; i < _order.Length; i++)
+                for (int i = 0; i < _order.Length && i < Mathf.Max(1, _columns) * Mathf.Max(1, _rows); i++)
                 {
                     string id = _order[i];
                     if (!string.IsNullOrWhiteSpace(id))
                         _frames[id] = i;
                 }
             }
-            return _sheet is not null && _frames.Count > 0;
+            return _sheet is not null && _frames.Count > 0
+                && _sheet.GetWidth() >= Mathf.Max(1, _columns) && _sheet.GetHeight() >= Mathf.Max(1, _rows);
         }
 
         private void ResolveGenerator()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _generator = TerrainGeneratorPath.IsEmpty ? null : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _liveResources ??= new TerrainResourceViewBinding(QueueRebuild);
+            _liveResources.Bind(ResourceRootPath.IsEmpty ? null : GetNodeOrNull<Node>(ResourceRootPath));
+            var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            if (grid == _grid) return;
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = grid;
+            if (_grid is not null && !Engine.IsEditorHint()) _grid.GeometryChanged += QueueRebuild;
+        }
+
+        private IEnumerable<(Vector2I Cell, string Resource)> ResourceEntries(Vector2I size)
+        {
+            if (!ResourceRootPath.IsEmpty)
+            {
+                if (_liveResources is not null)
+                    foreach (var entry in _liveResources.Entries())
+                        if (new Rect2I(BoundsOrigin, size).HasPoint(entry.Cell)) yield return entry;
+                yield break;
+            }
+            var field = _generator!.ResolveField();
+            for (int y = 0; y < size.Y; y++)
+                for (int x = 0; x < size.X; x++)
+                {
+                    var cell = new Vector2I(x, y);
+                    string resource = field.ResourceAtCell(cell);
+                    if (resource.Length == 0) resource = field.LiquidResourceAtCell(cell);
+                    if (resource.Length > 0) yield return (BoundsOrigin + cell, resource);
+                }
+        }
+
+        /// <summary>Current drawn icon centers in this node's local coordinates.</summary>
+        public Vector2[] GetIconCenters()
+        {
+            var centers = new Vector2[_icons.Count];
+            for (int i = 0; i < centers.Length; i++) centers[i] = _icons[i].Centre;
+            return centers;
+        }
+
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
         }
     }
 }

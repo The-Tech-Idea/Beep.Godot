@@ -49,7 +49,7 @@ namespace Beep.ECS.Scenes
                 GD.PushWarning($"[{Name}] Craft pressed with no recipe selected — nothing recorded.");
                 return;
             }
-            GameStateManagerComponent.Instance?.SetGameData(SelectionKey, _selectedRecipe);
+            GameApp.Instance?.Saves?.SetGameData(SelectionKey, _selectedRecipe);
             UI.SceneNav.CloseOrReturn(this, GameApp.Instance?.GameScenePath);
         }
     }

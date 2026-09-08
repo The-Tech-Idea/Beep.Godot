@@ -25,15 +25,17 @@ namespace Beep.ECS.Scenes
             // was a dead button. Wire it to the same save action. It is named ConfirmSaveButton —
             // it used to be a second "SaveButton", which a name lookup cannot tell from the rail's.
             this.ConnectButton("ConfirmSaveButton", OnSavePressed);
-            this.ConnectButton("ResumeButton", () => { GetTree().Paused = false; QueueFree(); });
-            this.ConnectButton("QuitButton", () => { GetTree().Paused = false; ChangeScene(GameApp.Instance?.MainMenuPath); });
+            // Resume through the master's one door, so the pause menu's close announces
+            // GameResumed like every other resume in the game.
+            this.ConnectButton("ResumeButton", () => { GameApp.Instance?.SetPaused(false); QueueFree(); });
+            this.ConnectButton("QuitButton", () => { GameApp.Instance?.SetPaused(false); ChangeScene(GameApp.Instance?.MainMenuPath); });
         }
 
         /// <summary>Write the autosave slot through the GameStateManager autoload. Was a
         /// GD.Print TODO; a real save system exists, so this now actually saves.</summary>
         private void OnSavePressed()
         {
-            var manager = GameStateManagerComponent.Instance;
+            var manager = GameApp.Instance?.Saves;
             if (manager == null)
             {
                 GD.PushError($"[{Name}] Save pressed but no GameStateManager autoload is registered.");

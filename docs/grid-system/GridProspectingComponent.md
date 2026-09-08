@@ -1,0 +1,26 @@
+# GridProspectingComponent
+
+Optional discovery: the underground stratum starts hidden and survey work reveals it, cell by cell — prospecting, seismic lines, licence surveys. It implements `ISaveable`.
+
+It defaults to *off* as a mechanic: `RevealAll` is `true` by default, which makes `IsDiscovered` answer `true` everywhere, so a game that doesn't want the fog-of-war mechanic never notices this component exists even if it's present in the scene. Turning `RevealAll` off means only surveyed cells answer true — a survey overlay, or any game logic consulting `IsDiscovered`, then genuinely hides the rest. Surveys arrive as ordinary jobs on the shared job queue rather than a bespoke input path: a job of kind `SurveyJobKind` (`"survey"` by default) is queued on a cell (by the tool palette, a scripted crew, anything that can queue a job), and when `GridJobQueueComponent` reports it complete, the area around that cell is discovered. The doc comment is explicit that the discovered set is the *one* fact this component owns — what actually lies under the cells stays with the data layers, read directly rather than mediated through this component.
+
+## Public API
+- `bool IsDiscovered(Vector2I cell)` — `RevealAll || _discovered.Contains(cell)`.
+- `int DiscoveredCount { get; }` — size of the discovered set (meaningless while `RevealAll` is true, since nothing needs to be added to the set for `IsDiscovered` to answer true).
+- `int Survey(Vector2I cell)` — reveals the `SurveyRadius`-square around `cell` (inclusive, so radius 0 reveals just the cell), returns how many cells were *newly* discovered. Emits `DepositDiscovered` once per distinct resource id newly revealed in the square, then `CellsSurveyed` once for the whole call.
+- `void ConnectQueue()` / `void DisconnectQueue()` — wires/unwires the `JobCompleted` event from the resolved `GridJobQueueComponent`; idempotent (no-ops if already connected to the same queue, or not connected).
+- `Godot.Collections.Dictionary CaptureState()` / `void RestoreState(Godot.Collections.Dictionary state)` — public snapshot/restore of `RevealAll` and the discovered cell set.
+- `void Save(GameBuilder.GameStateData state)` / `void Load(GameBuilder.GameStateData state)` — ordinary public `ISaveable` implementation under `SaveKey`.
+- Exports: `ParticipatesInSave`, `SaveKey`, `JobQueuePath`, `DataLayersPath`, `RevealAll`, `SurveyJobKind`, `SurveyRadius`, `AutoConnect`.
+- Signals: `CellsSurveyed(int x, int y, int discoveredCount)`, `DepositDiscovered(int x, int y, string resourceId)`.
+
+## Dependencies
+- Resolves `GridJobQueueComponent` at `JobQueuePath` (explicit, or scene-wide `EntityComponent.FindComponent` fallback) and `TerrainDataLayersComponent` at `DataLayersPath` (explicit-only — its own code comment: "like every other `DataLayersPath`," matching `GridSubsurfaceStoreComponent`'s stated reasoning in this batch).
+- Subscribes to `GridJobQueueComponent.JobCompleted` (outside this batch) if `AutoConnect` is true, and on completion calls `GridJobQueueComponent.GetJobKind(jobId)` / `.GetJobCell(jobId)` (outside this batch) to decide whether the completed job was a survey and where.
+- Calls `TerrainDataLayersComponent.UndergroundResourceAt(Vector2I)` (outside this batch) directly inside `Survey` — the same data-layer read `GridSubsurfaceStoreComponent.ResourceIdAt` (this batch) makes, but independently: this component never calls into `GridSubsurfaceStoreComponent`, and nothing in this batch calls into `GridProspectingComponent` from `GridSubsurfaceStoreComponent` or `GridExtractorComponent` — extraction is not gated on discovery anywhere in this batch.
+- Joins `SaveableHelper.Group` on `_Ready` (outside this batch), matching `GridStorageComponent` and `GridSubsurfaceStoreComponent`.
+
+## Notes
+- Extraction is entirely independent of prospecting in this batch: `GridExtractorComponent.TryBind`/`DepositBlockReason` never consult `GridProspectingComponent.IsDiscovered`. A game wanting "you can't work what you haven't surveyed" would need to wire that gate itself (e.g. in an overridden `DepositBlockReason`) — this is a real design point worth knowing, not a bug, since the doc comment frames prospecting purely as a *visibility* mechanic ("the survey overlay ... then hide the rest"), not an extraction gate.
+- `NormalizeKind` lowercases and replaces spaces with underscores (`kind.Trim().ToLowerInvariant().Replace(' ', '_')`) but — unlike `GridTerrainRules.Normalize` in this same batch — does *not* also replace dashes with underscores. `GridTerrainRules`'s own doc comment calls out exactly this class of drift ("one normalizer forgot the space-and-dash replacement") as the reason it was written; this file's `NormalizeKind` predates or was never migrated to `GridTerrainRules` and is a second, narrower normalizer for job *kind* strings rather than terrain *kind* strings, so it is not clearly the same duplicate `GridTerrainRules` was created to fix — but it is the same shape of risk (a hand-rolled normalize living outside the one consolidated helper) if a job kind is ever authored with a dash.
+- `Save`/`Load` are ordinary public methods (not explicit interface implementations), consistent with `GridSubsurfaceStoreComponent` and for the same reason — no colliding `Load(string, int)` port method on this component.

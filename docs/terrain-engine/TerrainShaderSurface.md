@@ -7,12 +7,25 @@ The sea and the painted-ground blend used to be drawn on a `Sprite2D` stretched 
 ## Public API
 
 - `static TileSet BuildTileSet(Vector2I cellSize, bool isometric)` — builds a one-source, one-tile `TileSet` sized to `cellSize` (clamped to at least 2×2). For `isometric: true` it rasterizes a diamond (`|dx|/w + |dy|/h <= 1`) into an RGBA8 image and leaves the rest transparent; for `isometric: false` it fills the whole tile white. Wraps the tile in a `TileSetAtlasSource` and delegates the actual `TileSet` construction to `TerrainTileSets.Create(size, isometric)` before adding the source.
-- `static void Fill(TileMapLayer layer, Vector2I size)` — clears `layer` and sets cell `(0,0)` at tile source 0 for every cell in the `size.X × size.Y` rectangle starting at the origin `(0,0)`. Also sets `layer.RenderingQuadrantSize = max(size.X, size.Y) + 1`, forcing the whole filled area into one rendering quadrant so the per-fragment `VERTEX` position the shader reads doesn't reset at a quadrant boundary. Filling must start at the origin (not an arbitrary rect) because a negative-index cell falls in a different quadrant regardless of quadrant size; callers wanting margin move the layer node itself and pass the shift to the shader.
+- `static void Fill(TileMapLayer layer, Vector2I size)` reconciles the origin-based rectangle with source 0, atlas coordinate `(0,0)`, alternative 0. Correct cells remain untouched; holes and changed tiles are repaired, and cells outside the requested extent are erased. It updates `RenderingQuadrantSize` only when necessary to keep the surface in one quadrant. Sizes clamp to at least one cell per axis. Callers wanting a nonzero world origin move the layer rather than filling negative rendering cells.
+
+Repeated shader-data refreshes therefore do not clear and recreate tile geometry.
+The normal path checks `GetUsedRect()` and the count returned by
+`GetUsedCellsById(0, Vector2I.Zero, 0)`. Matching bounds and the complete matching
+tile count prove the rectangle is valid without three managed/native queries per
+cell. This still performs a native bulk scan, not constant-time cached validation.
+If either check fails, the helper repairs individual tiles and removes outliers.
+
+The [Godot TileMapLayer API](https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html#class-tilemaplayer-method-get-used-cells-by-id)
+supports simultaneous source, atlas and alternative filtering. Checking only
+bounds/count without those filters would incorrectly accept a substituted tile.
+The painted-origin probe covers wrong sources, atlas coordinates, alternatives,
+holes, outliers and bounds changes, as well as unchanged geometry notifications.
 
 ## Dependencies
 
 - Calls `TerrainTileSets.Create(Vector2I, bool)` to build the base `TileSet` (adds its own one atlas source on top).
-- Consumed by (not read by this file, but its callers): `TerrainIsometricRendererComponent`, `TerrainPaintedRendererComponent`, `TerrainTileRendererComponent` — each builds a water/painted-ground `TileMapLayer` via `BuildTileSet` + `Fill`. No other file in this batch reads or writes through `TerrainShaderSurface`.
+- `Fill` is used by `TerrainPaintedRendererComponent` and `TerrainTileRendererComponent` for their continuous ground/water surfaces.
 
 ## Notes
 

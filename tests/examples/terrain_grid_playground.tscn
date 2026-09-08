@@ -1,0 +1,238 @@
+[gd_scene load_steps=22 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_splat_demo.tscn" id="base"]
+[ext_resource type="Script" path="res://tests/examples/terrain_grid_playground.gd" id="demo"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs" id="navigation"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs" id="wallet"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridResourceNodeComponent.cs" id="deposit"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/grid_worker_unit.tscn" id="truck"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainCollisionComponent.cs" id="collision"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridWorldStateComponent.cs" id="snapshot"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridJobQueueComponent.cs" id="jobs"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridJobEffectComponent.cs" id="effects"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridToolActionComponent.cs" id="tools"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs" id="meter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPlacementComponent.cs" id="placement"]
+[ext_resource type="PackedScene" path="res://tests/examples/terrain_shelter.tscn" id="shelter"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridBuildCatalogComponent.cs" id="catalog"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridBuildDefinition.cs" id="definition"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridBuildSiteComponent.cs" id="sites"]
+
+[sub_resource type="Resource" id="shelter_definition"]
+script = ExtResource("definition")
+BuildId = "shelter"
+DisplayName = "Shelter"
+Scene = ExtResource("shelter")
+BuildTurns = 1
+SetZIndexFromY = false
+
+[node name="TerrainGridPlayground" instance=ExtResource("base")]
+script = ExtResource("demo")
+
+[node name="Grid" type="Node2D" parent="World"]
+script = ExtResource("grid")
+DrawGrid = false
+TrackMouseCell = false
+
+[node name="Navigation" type="Node" parent="World"]
+script = ExtResource("navigation")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+
+[node name="Wallet" type="Node" parent="World"]
+script = ExtResource("wallet")
+
+[node name="TerrainCollision" type="Node2D" parent="World"]
+script = ExtResource("collision")
+RefreshOnReady = false
+
+[node name="Deposits" type="Node2D" parent="World"]
+
+[node name="Buildings" type="Node2D" parent="World"]
+
+[node name="Placement" type="Node2D" parent="World"]
+script = ExtResource("placement")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+NavigationPath = NodePath("../Navigation")
+PlacementRootPath = NodePath("../Buildings")
+PlacementScene = ExtResource("shelter")
+PlacementId = "shelter"
+UseMouseInput = false
+KeepPlacingAfterConfirm = false
+SetZIndexFromY = false
+
+[node name="Jobs" type="Node" parent="World"]
+script = ExtResource("jobs")
+
+[node name="BuildCatalog" type="Node" parent="World"]
+script = ExtResource("catalog")
+Builds = [SubResource("shelter_definition")]
+
+[node name="BuildSites" type="Node" parent="World"]
+script = ExtResource("sites")
+PlacementPath = NodePath("../Placement")
+BuildCatalogPath = NodePath("../BuildCatalog")
+JobQueuePath = NodePath("../Jobs")
+NavigationPath = NodePath("../Navigation")
+UnderConstructionModulate = Color(1, 0.8, 0.35, 1)
+
+[node name="Tools" type="Node" parent="World"]
+script = ExtResource("tools")
+GridPath = NodePath("../Grid")
+CellDataPath = NodePath("../Cells")
+NavigationPath = NodePath("../Navigation")
+JobQueuePath = NodePath("../Jobs")
+JobKind = "clear_land"
+JobWorkTurns = 1.0
+RejectNavigationBlockedCellsForJobs = true
+RejectCellDataBlockedCellsForJobs = true
+
+[node name="JobEffects" type="Node" parent="World"]
+script = ExtResource("effects")
+JobQueuePath = NodePath("../Jobs")
+CellDataPath = NodePath("../Cells")
+ToolActionPath = NodePath("../Tools")
+ClearLandGathersResourceNode = false
+AutoConnect = false
+
+[node name="Snapshot" type="Node" parent="World"]
+script = ExtResource("snapshot")
+ParticipatesInSave = false
+ObjectsRootPath = NodePath("..")
+CellDataPath = NodePath("../Cells")
+NavigationPath = NodePath("../Navigation")
+CaptureGridObjects = false
+CapturePlacementOccupancy = false
+CaptureSelection = false
+CaptureJobs = false
+CaptureRoads = false
+
+[node name="Stone" type="Node2D" parent="World/Deposits"]
+script = ExtResource("deposit")
+UseExplicitCell = true
+ResourceId = "stone"
+Amount = 3
+ResourceWalletPath = NodePath("../../Wallet")
+
+[node name="Truck" parent="World" instance=ExtResource("truck")]
+collision_mask = 12
+
+[node name="PathFollower" parent="World/Truck" index="7"]
+GridPath = NodePath("../../Grid")
+NavigationPath = NodePath("../../Navigation")
+Speed = 240.0
+SetZIndexFromY = false
+
+[node name="GridWorker" parent="World/Truck" index="8"]
+AutoClaimJobs = false
+WorkerId = "terrain_truck"
+GridPath = NodePath("../../Grid")
+JobQueuePath = NodePath("../../Jobs")
+
+[node name="Resources" parent="World" index="5"]
+ResourceRootPath = NodePath("../Deposits")
+
+[node name="CameraController" parent="Camera" index="0"]
+KeepViewportInsideBounds = true
+
+[node name="WorldBuilder" parent="." index="4"]
+GridPath = NodePath("../World/Grid")
+NavigationPath = NodePath("../World/Navigation")
+CollisionPath = NodePath("../World/TerrainCollision")
+MapSize = 0
+ParticipatesInSave = false
+
+[node name="Help" parent="HUD" index="1"]
+visible = false
+
+[node name="Toolbar" type="HBoxContainer" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 640.0
+offset_bottom = 52.0
+theme_override_constants/separation = 8
+
+[node name="Move" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Move"
+
+[node name="Gather" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Gather"
+
+[node name="Flatten" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Flatten"
+
+[node name="Flood" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Flood"
+
+[node name="Regenerate" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(120, 40)
+script = ExtResource("button")
+text = "Regenerate"
+
+[node name="Save" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Save"
+
+[node name="Load" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(100, 40)
+script = ExtResource("button")
+text = "Load"
+
+[node name="ClearJob" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(110, 40)
+script = ExtResource("button")
+text = "Clear job"
+
+[node name="CancelJobs" type="Button" parent="HUD/Toolbar"]
+custom_minimum_size = Vector2(120, 40)
+script = ExtResource("button")
+text = "Cancel jobs"
+
+[node name="JobProgress" type="ProgressBar" parent="HUD"]
+visible = false
+offset_left = 16.0
+offset_top = 144.0
+offset_right = 216.0
+offset_bottom = 164.0
+mouse_filter = 2
+max_value = 1.0
+show_percentage = false
+script = ExtResource("meter")
+
+[node name="BuildingToolbar" type="HBoxContainer" parent="HUD"]
+offset_left = 16.0
+offset_top = 92.0
+offset_right = 310.0
+offset_bottom = 132.0
+theme_override_constants/separation = 8
+
+[node name="Place" type="Button" parent="HUD/BuildingToolbar"]
+custom_minimum_size = Vector2(150, 40)
+script = ExtResource("button")
+text = "Place shelter"
+
+[node name="Demolish" type="Button" parent="HUD/BuildingToolbar"]
+custom_minimum_size = Vector2(130, 40)
+script = ExtResource("button")
+text = "Demolish"
+
+[node name="ActionStatus" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 60.0
+offset_right = 700.0
+offset_bottom = 88.0
+text = "Generating"
+
+[editable path="World/Truck"]

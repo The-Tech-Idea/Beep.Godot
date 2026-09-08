@@ -56,14 +56,10 @@ namespace Beep.ECS
             // open it — a pausable node is frozen while paused. Only _UnhandledInput is affected; this
             // component has no _Process, so gameplay stays frozen behind the overlay.
             ProcessMode = ProcessModeEnum.Always;
-            // Mark game as running
-            if (GameApp.Instance != null)
-                GameApp.Instance.SetGameRunning(true);
-
             // Every gameplay entry point comes through here, so this is where a run's state
             // is established: apply a save queued by Continue/Load, or seed fresh state for
             // a new run. Without it nothing ever called NewGame() and every save no-opped.
-            GameStateManagerComponent.Instance?.BeginSession();
+            GameApp.Instance?.Saves?.BeginSession();
 
             // Seed from GameInfo tuning if available (target score, etc.).
             var info = GameBuilder.GameInfo.Instance;
@@ -89,12 +85,13 @@ namespace Beep.ECS
             // (which re-fired the completion each time). Reset() re-arms it for the next level.
             if (Score >= TargetScore && TargetScore > 0 && !_levelCompleteEmitted)
             {
-                _levelCompleteEmitted = true;
-                EmitSignal(SignalName.LevelComplete);
+                TriggerLevelComplete();
             }
         }
 
         private bool _levelCompleteEmitted;
+        private bool _gameOverEmitted;
+        private int _navigationGeneration;
 
         public void LoseLife(int amount = 1)
         {
@@ -102,7 +99,7 @@ namespace Beep.ECS
             Lives = Mathf.Max(0, Lives - amount);
             EmitSignal(SignalName.LivesChanged, Lives);
             if (AutoLoseOnZeroLives && Lives <= 0)
-                EmitSignal(SignalName.GameOver);
+                TriggerGameOver();
         }
 
         public void GainLife(int amount = 1)
@@ -117,12 +114,25 @@ namespace Beep.ECS
             Score = 0;
             Lives = startLives;
             _levelCompleteEmitted = false;   // re-arm the level-complete latch for the new level
+            _gameOverEmitted = false;
+            _navigationGeneration++;
             EmitSignal(SignalName.ScoreChanged, Score);
             EmitSignal(SignalName.LivesChanged, Lives);
         }
 
-        public void TriggerGameOver() => EmitSignal(SignalName.GameOver);
-        public void TriggerLevelComplete() => EmitSignal(SignalName.LevelComplete);
+        public void TriggerGameOver()
+        {
+            if (!IsActive || _gameOverEmitted || _levelCompleteEmitted) return;
+            _gameOverEmitted = true;
+            EmitSignal(SignalName.GameOver);
+        }
+
+        public void TriggerLevelComplete()
+        {
+            if (!IsActive || _gameOverEmitted || _levelCompleteEmitted) return;
+            _levelCompleteEmitted = true;
+            EmitSignal(SignalName.LevelComplete);
+        }
 
         /// <summary>Called when the GameOver signal fires. If AutoNavigateOnEnd is true,
         /// changes scene to the GameOver path from GameInfo after an optional delay.</summary>
@@ -149,14 +159,13 @@ namespace Beep.ECS
         public void OnLevelComplete()
         {
             if (!AutoNavigateOnEnd) return;
-            // Use LevelCompletePath if set (puzzle), otherwise LevelResultsPath (platformer),
-            // otherwise fall back to game over.
+            // A successful level with no result route returns to the main menu.
             var info = GameBuilder.GameInfo.Instance;
             string path = FirstExistingPath(info?.LevelCompletePath,
                                             info?.LevelResultsPath,
-                                            GameApp.Instance?.GameOverScenePath,
-                                            info?.ResolveGameOverScenePath(),
-                                            GameBuilder.GameInfo.DefaultGameOverScenePath);
+                                            GameApp.Instance?.MainMenuPath,
+                                            info?.ResolveMainMenuPath(),
+                                            GameBuilder.GameInfo.DefaultMainMenuPath);
             NavigateToScene(path);
         }
 
@@ -170,6 +179,7 @@ namespace Beep.ECS
             }
 
             float delay = EffectiveNavigateDelay;
+            int generation = ++_navigationGeneration;
             if (delay > 0f)
             {
                 // Defer the scene change so animations can play first.
@@ -179,7 +189,7 @@ namespace Beep.ECS
                     var timer = tree.CreateTimer(delay);
                     timer.Timeout += () =>
                     {
-                        if (GodotObject.IsInstanceValid(this) && IsActive)
+                        if (GodotObject.IsInstanceValid(this) && IsInsideTree() && IsActive && generation == _navigationGeneration)
                         {
                             var t = GetTree();
                             t?.ChangeSceneToFile(path);
@@ -287,7 +297,9 @@ namespace Beep.ECS
             (tree.CurrentScene ?? GetParent()).AddChild(host);
             _pauseOverlay = host;
 
-            tree.Paused = true;
+            // Through the master's one door, never the tree flag directly, so the
+            // pause announces itself (GamePaused) from the same place every time.
+            GameApp.Instance?.SetPaused(true);
             _pausedByUs = true;
         }
 
@@ -295,8 +307,7 @@ namespace Beep.ECS
         /// close can't resume the game underneath a screen someone else paused for.</summary>
         public void ClosePauseMenu()
         {
-            var tree = GetTree();
-            if (tree != null && _pausedByUs) tree.Paused = false;
+            if (_pausedByUs) GameApp.Instance?.SetPaused(false);
             _pausedByUs = false;
             if (GodotObject.IsInstanceValid(_pauseOverlay))
                 _pauseOverlay!.QueueFree();

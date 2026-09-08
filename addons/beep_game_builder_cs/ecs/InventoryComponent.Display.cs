@@ -69,6 +69,23 @@ namespace Beep.ECS
         {
             SlotUpdated += OnSlotUpdated;
             InventoryChanged += RefreshAllSlots;
+            CarryChanged += OnCarryChanged;
+        }
+
+        /// <summary>
+        /// Mark the slot currently in hand.
+        ///
+        /// Uses the slot's own Selected state rather than a tint invented here, so the cue is
+        /// whichever one the genre declares — a fill, an outline, a lift — and a carried slot
+        /// looks like a selected slot everywhere else in that genre does.
+        /// </summary>
+        private void OnCarryChanged(int slot)
+        {
+            foreach (var pair in _slotViews)
+            {
+                if (!GodotObject.IsInstanceValid(pair.Value)) continue;
+                pair.Value.Selected = pair.Key == slot;
+            }
         }
 
         /// <summary>Free the grid and tooltip this partial injected into the parent Control.

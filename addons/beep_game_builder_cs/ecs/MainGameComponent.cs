@@ -68,7 +68,11 @@ namespace Beep.ECS
             if (Engine.IsEditorHint()) return;
             ResolveRoots();
             ConfigureFromGameInfo();
-            if (AutoStart) CallDeferred(nameof(StartGame));
+            if (AutoStart)
+            {
+                GameApp.Instance?.Saves?.BeginWorldLoad(this);
+                CallDeferred(nameof(StartGame));
+            }
         }
 
         private void ResolveRoots()
@@ -120,11 +124,20 @@ namespace Beep.ECS
 
         public void LoadLevel(int level)
         {
+            var saves = GameApp.Instance?.Saves;
+            saves?.BeginWorldLoad(this);
+            bool success = false;
+            try { success = TryLoadLevel(level); }
+            finally { saves?.CompleteWorldLoad(this, success); }
+        }
+
+        private bool TryLoadLevel(int level)
+        {
             if (_levelRoot == null)
             {
                 EmitSignal(SignalName.LevelLoadFailed, level, "LevelRoot missing");
                 GD.PushError("[MainGame] LevelRoot missing. Add World/LevelRoot or set LevelRootPath.");
-                return;
+                return false;
             }
 
             int index = level - FirstLevelIndex;
@@ -133,7 +146,7 @@ namespace Beep.ECS
                 string reason = $"no level path for level {level} in genre '{GenreId()}'";
                 EmitSignal(SignalName.LevelLoadFailed, level, reason);
                 GD.PushError($"[MainGame] {reason}.");
-                return;
+                return false;
             }
 
             string path = _resolvedLevelPaths[index];
@@ -142,17 +155,21 @@ namespace Beep.ECS
             {
                 EmitSignal(SignalName.LevelLoadFailed, level, "PackedScene load failed");
                 GD.PushError($"[MainGame] Could not load level scene: {path}");
-                return;
+                return false;
             }
 
             if (_currentLevel != null && GodotObject.IsInstanceValid(_currentLevel))
+            {
+                _currentLevel.GetParent()?.RemoveChild(_currentLevel);
                 _currentLevel.QueueFree();
+            }
 
             _currentLevel = packed.Instantiate();
             _levelRoot.AddChild(_currentLevel);
             PlacePlayerAtSpawn();
             SetupLevelCamera();
             EmitSignal(SignalName.LevelLoaded, level, _currentLevel);
+            return true;
         }
 
         private void EnsurePlayer()

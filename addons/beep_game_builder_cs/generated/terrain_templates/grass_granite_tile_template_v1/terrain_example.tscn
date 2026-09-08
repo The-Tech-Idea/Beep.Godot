@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/generated/terrain_templates/grass_granite_tile_template_v1/terrain_example.gd" id="1"]
+
+[node name="GrassGraniteTerrainExample" type="Node2D"]
+script = ExtResource("1")

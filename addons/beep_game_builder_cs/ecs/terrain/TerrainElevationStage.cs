@@ -18,7 +18,7 @@ namespace Beep.ECS
     internal static class TerrainElevationStage
     {
 
-        public static void Apply(TerrainWorld world, TerrainNoiseSet noise)
+        public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise)
         {
             int[] fromWater = TerrainGeometry.DistanceTo(Negate(world.Land), world.Width, world.Height);
             fromWater.CopyTo(world.CoastDistance, 0);
@@ -71,7 +71,7 @@ namespace Beep.ECS
         /// and carving after would label the land from a shape that no longer
         /// exists - the valleys would be full of tiles still marked mountain.
         /// </summary>
-        public static void Classify(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Classify(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             // Zero fractions mean a game that does not want relief at all, so
             // nothing is promoted above flat.

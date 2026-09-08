@@ -32,7 +32,7 @@ namespace Beep.ECS
         private float _cooldownTimer;
         private bool _isHovering;
 
-        public bool IsHovering => _isHovering;
+        public bool IsHovering => IsActive && _isHovering;
 
         private StatusEffectComponent? _statusEffects;
 
@@ -41,30 +41,30 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            ProcessPhysicsPriority = -5;
         }
 
         public override void _PhysicsProcess(double delta)
         {
-            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            if (Engine.IsEditorHint() || !GodotObject.IsInstanceValid(_body)) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (!IsActive || actor is { IsActive: false } or { IsDead: true } or { HasOrders: true }
+                || GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }
+                || GetSiblingComponent<DashComponent>() is { IsDashing: true }
+                || CharacterMotion.HasKnockback(_body!) || _statusEffects?.HasEffect("stun") == true)
             {
-                if (_isHovering)
-                {
-                    _isHovering = false;
-                    _cooldownTimer = EffectiveHoverCooldown;
-                    EmitSignal(SignalName.HoverEnded);
-                }
+                CancelHover();
                 return;
             }
             // Gate input reads so an absent action doesn't spam per-frame errors pre-generation.
-            if (!InputActionsAvailable(HoverAction)) return;
+            if (actor is null && !InputActionsAvailable(HoverAction)) { CancelHover(); return; }
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
 
             _cooldownTimer = Mathf.Max(0, _cooldownTimer - dt);
 
-            bool onFloor = _body.IsOnFloor();
-            bool inputHeld = Input.IsActionPressed(HoverAction);
+            bool onFloor = CharacterMotion.IsOnFloor(_body);
+            bool inputHeld = actor?.IsAbilityHeld(HoverAction) ?? Input.IsActionPressed(HoverAction);
 
             // Can hover: in air, input held, time remaining, not on cooldown.
             if (inputHeld && !onFloor && _hoverTimer < EffectiveMaxHoverTime && _cooldownTimer <= 0)
@@ -76,7 +76,7 @@ namespace Beep.ECS
                 }
                 // CAP the descent at HoverGravity (+Y is down): Max let a fast fall through, so
                 // hover never floated. Min holds the fall speed to the gentle hover value.
-                _body.Velocity = new Vector2(_body.Velocity.X, Mathf.Min(EffectiveHoverGravity, _body.Velocity.Y));
+                // CharacterMotion applies the cap after the controller's gravity.
                 _hoverTimer += dt;
             }
             else if (_isHovering)
@@ -92,6 +92,20 @@ namespace Beep.ECS
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        internal Vector2 ApplyVelocity(Vector2 ordinary) => IsHovering ? new(ordinary.X, Mathf.Min(ordinary.Y, EffectiveHoverGravity)) : ordinary;
+        public void CancelHover()
+        {
+            if (!_isHovering) return;
+            _isHovering = false; _cooldownTimer = EffectiveHoverCooldown;
+            EmitSignal(SignalName.HoverEnded);
+        }
+        public override void _ExitTree()
+        {
+            CancelHover(); _body = null; _statusEffects = null;
+            _hoverTimer = _cooldownTimer = 0;
+            RequestReady(); base._ExitTree();
+        }
 
         private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }

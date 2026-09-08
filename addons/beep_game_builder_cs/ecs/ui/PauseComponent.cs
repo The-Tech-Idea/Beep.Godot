@@ -73,7 +73,9 @@ namespace Beep.ECS.UI
         public void Pause()
         {
             if (!IsActive || _overlay == null || GetTree().Paused) return;
-            GetTree().Paused = true;
+            // The tree flag is read here but written only through the master's
+            // one door, so every pause in the game announces itself the same way.
+            GameApp.Instance?.SetPaused(true);
             SetOverlayVisible(true);
             if (PauseAudio) SetAudioPaused(true);
             EmitSignal(SignalName.Paused);
@@ -83,7 +85,7 @@ namespace Beep.ECS.UI
         {
             if (!IsActive || _overlay == null || !GetTree().Paused) return;
             SetOverlayVisible(false);
-            GetTree().Paused = false;
+            GameApp.Instance?.SetPaused(false);
             if (PauseAudio) SetAudioPaused(false);
             EmitSignal(SignalName.Resumed);
         }

@@ -1,0 +1,198 @@
+{
+  "schema_version": 2,
+  "pack_id": "modular_front_2_5d_sandstone",
+  "style_id": "mountain_prefab_1",
+  "style_label": "Mountain Prefab 1",
+  "theme_id": "sandstone",
+  "theme_label": "Low Poly Sandstone",
+  "projection": "front_2_5d",
+  "plate_modules": [
+    {
+      "id": "plate_base",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/plate_base.png",
+      "image_size": [
+        550,
+        379
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_middle",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/plate_middle.png",
+      "image_size": [
+        339,
+        219
+      ],
+      "walkable": true
+    },
+    {
+      "id": "plate_top",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/plate_top.png",
+      "image_size": [
+        263,
+        168
+      ],
+      "walkable": true
+    }
+  ],
+  "base_prefabs": [
+    {
+      "id": "three_level_wide_no_ramps",
+      "display_name": "Mountain Prefab 1 - Low Poly Sandstone",
+      "style_id": "mountain_prefab_1",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/three_level_wide_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/three_level_wide_no_ramps_preview.png",
+      "level_count": 3,
+      "image_size": [
+        538,
+        637
+      ],
+      "strict_nested_footprints": true,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 560,
+            "y": 560
+          },
+          "z_index": 0
+        },
+        {
+          "plate": "plate_middle",
+          "level": 1,
+          "center": {
+            "x": 560,
+            "y": 350
+          },
+          "z_index": 10
+        },
+        {
+          "plate": "plate_top",
+          "level": 2,
+          "center": {
+            "x": 560,
+            "y": 190
+          },
+          "z_index": 20
+        }
+      ],
+      "sockets": []
+    },
+    {
+      "id": "one_level_wide_no_ramps",
+      "display_name": "Mountain Prefab 1 - Low Poly Sandstone (One Level)",
+      "style_id": "mountain_prefab_1",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/one_level_wide_no_ramps.png",
+      "preview": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/one_level_wide_no_ramps_preview.png",
+      "level_count": 1,
+      "image_size": [
+        550,
+        379
+      ],
+      "strict_nested_footprints": true,
+      "plate_assembly": [
+        {
+          "plate": "plate_base",
+          "level": 0,
+          "center": {
+            "x": 275,
+            "y": 189
+          },
+          "z_index": 0
+        }
+      ],
+      "sockets": []
+    }
+  ],
+  "ramp_modules": [],
+  "jump_step_modules": [
+    {
+      "id": "step_quarter",
+      "display_name": "Low Poly Sandstone Plate Quarter Height",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/step_quarter.png",
+      "alias_id": "plate_quarter_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/plate_quarter_height.png",
+      "image_size": [
+        245,
+        42
+      ],
+      "height_class": "quarter",
+      "relative_level_height": 0.25,
+      "placement": "manual"
+    },
+    {
+      "id": "step_half",
+      "display_name": "Low Poly Sandstone Plate Half Height",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/step_half.png",
+      "alias_id": "plate_half_height",
+      "alias_file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/plate_half_height.png",
+      "image_size": [
+        285,
+        84
+      ],
+      "height_class": "half",
+      "relative_level_height": 0.5,
+      "placement": "manual"
+    }
+  ],
+  "atlas_sheets": [
+    {
+      "id": "mountain_plates_sandstone",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/mountain_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "plate_base": {
+          "x": 24,
+          "y": 24,
+          "width": 550,
+          "height": 379
+        },
+        "plate_middle": {
+          "x": 598,
+          "y": 24,
+          "width": 339,
+          "height": 219
+        },
+        "plate_top": {
+          "x": 24,
+          "y": 427,
+          "width": 263,
+          "height": 168
+        }
+      }
+    },
+    {
+      "id": "mountain_prefab_1_manual_steps_sandstone",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/manual_step_plate_sheet.png",
+      "transparent": true,
+      "regions": {
+        "step_quarter": {
+          "x": 24,
+          "y": 24,
+          "width": 245,
+          "height": 42
+        },
+        "step_half": {
+          "x": 293,
+          "y": 24,
+          "width": 285,
+          "height": 84
+        }
+      }
+    },
+    {
+      "id": "one_level_mountain_sandstone",
+      "file": "addons/beep_game_builder_cs/generated/mountains/low_poly_sandstone/authored_prefabs/modular_front_2_5d/one_level_mountain_sheet.png",
+      "transparent": true,
+      "regions": {
+        "one_level_wide_no_ramps": {
+          "x": 24,
+          "y": 24,
+          "width": 550,
+          "height": 379
+        }
+      }
+    }
+  ]
+}

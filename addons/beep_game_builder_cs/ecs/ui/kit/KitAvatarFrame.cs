@@ -15,6 +15,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitAvatarFrame : KitControl
     {
+        /// <summary>A framed cell holding a portrait, which is what Slot means -- the same object as an equipment cell with a different payload.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Slot;
+
         [Export] public Texture2D? Portrait { get => _art; set { if (_art == value) return; _art = value; RefreshVisualAndRedraw(); } }
         private Texture2D? _art;
 
@@ -66,11 +72,6 @@ namespace Beep.ECS.UI.Kit
         {
             KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
             UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
             QueueRedraw();
         }
 

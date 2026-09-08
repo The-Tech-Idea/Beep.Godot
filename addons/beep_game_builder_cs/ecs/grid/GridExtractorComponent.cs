@@ -51,7 +51,7 @@ namespace Beep.ECS
 
     [Tool]
     [GlobalClass]
-    public partial class GridExtractorComponent : GameplayComponent, IExtractor
+    public partial class GridExtractorComponent : GameplayComponent, IExtractor, ISaveable
     {
         [Signal] public delegate void ExtractionStartedEventHandler(string resourceId);
         [Signal] public delegate void ExtractionCycleEventHandler(string resourceId, int amount, int remaining);
@@ -59,12 +59,31 @@ namespace Beep.ECS
         [Signal] public delegate void ExtractionStalledEventHandler(string resourceId);
         [Signal] public delegate void ExtractionResumedEventHandler(string resourceId);
 
+        [Export] public bool ParticipatesInSave { get; set; } = true;
+
+        /// <summary>
+        /// Only the output buffer round-trips through a save - what a cycle
+        /// has already drawn up and not yet handed off, real economic value
+        /// that would otherwise vanish on reload. Binding state (which
+        /// deposit, IsExtracting, the cycle clock) is not saved because it is
+        /// not lost: _Ready re-derives it by calling TryBind again against
+        /// the also-persisted GridSubsurfaceStoreComponent.
+        /// </summary>
+        [Export] public string SaveKey { get; set; } = "grid_extractor.state";
+
         [Export] public NodePath DataLayersPath { get; set; } = new("");
         [Export] public NodePath SubsurfaceStorePath { get; set; } = new("");
         [Export] public NodePath ResourceWalletPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
         [Export] public NodePath TransportManagerPath { get; set; } = new("");
         [Export] public NodePath ExtractionManagerPath { get; set; } = new("");
+
+        /// <summary>
+        /// The clock that decides what a turn of extraction is. Empty finds one
+        /// scene-wide; with none anywhere the pump runs off its own frame delta
+        /// at one turn per second.
+        /// </summary>
+        [Export] public NodePath WorkClockPath { get; set; } = new("");
         [Export] public ExtractorDelivery DeliverVia { get; set; } = ExtractorDelivery.Wallet;
 
         /// <summary>Units the output buffer holds when DeliverVia is Buffer.</summary>
@@ -84,8 +103,20 @@ namespace Beep.ECS
         [Export] public bool RequireCompleteBuild { get; set; } = true;
         [Export] public bool AutoStart { get; set; } = true;
 
-        /// <summary>Overrides the definition's GatherSeconds when above zero.</summary>
-        [Export(PropertyHint.Range, "0,600,0.01")] public float CycleSecondsOverride { get; set; } = 0f;
+        /// <summary>
+        /// Whether this extractor announces itself to the extraction manager on
+        /// its own. Left false, an orchestrator controls registration timing and
+        /// order itself - the same lever GridHaulerComponent carries for the
+        /// transport manager.
+        /// </summary>
+        [Export] public bool RegisterOnReady { get; set; } = true;
+
+        /// <summary>
+        /// Turns of work one cycle takes, overriding the definition's when
+        /// above zero. A turn is a day, so the authored number means the same
+        /// amount of world time on the turn axis and the real-time one.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,600,0.01")] public float CycleTurnsOverride { get; set; } = 0f;
 
         /// <summary>Overrides the definition's AmountPerGather when above zero.</summary>
         [Export(PropertyHint.Range, "0,9999,1")] public int AmountPerCycleOverride { get; set; } = 0;
@@ -162,6 +193,40 @@ namespace Beep.ECS
             return ids;
         }
 
+        public Godot.Collections.Dictionary CaptureState()
+            => new Godot.Collections.Dictionary
+            {
+                ["buffer_id"] = _bufferId,
+                ["buffer_amount"] = _bufferAmount,
+            };
+
+        public void RestoreState(Godot.Collections.Dictionary state)
+        {
+            string id = GridVariantReader.String(state, "buffer_id", "");
+            int amount = Mathf.Max(0, GridVariantReader.Int(state, "buffer_amount", 0));
+            _bufferId = amount > 0 ? id : "";
+            _bufferAmount = _bufferId.Length > 0 ? amount : 0;
+        }
+
+        // Explicit interface implementation: ISaveable.Load(state) would
+        // otherwise overload the ILoadPort Load(resourceId, amount) above,
+        // making every duck hand-off ambiguous under Godot's name-based Call.
+        void ISaveable.Save(GameBuilder.GameStateData state)
+        {
+            if (!string.IsNullOrWhiteSpace(SaveKey))
+                state.GameData[SaveKey] = CaptureState();
+        }
+
+        void ISaveable.Load(GameBuilder.GameStateData state)
+        {
+            if (string.IsNullOrWhiteSpace(SaveKey))
+                return;
+
+            if (state.GameData.TryGetValue(SaveKey, out Variant value)
+                && GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary saved))
+                RestoreState(saved);
+        }
+
         private TerrainDataLayersComponent? _dataLayers;
         private GridSubsurfaceStoreComponent? _store;
         private GridResourceWalletComponent? _wallet;
@@ -170,6 +235,7 @@ namespace Beep.ECS
         private GridTransportManagerComponent? _transport;
         private GridExtractionManagerComponent? _extractionManager;
         private readonly List<Vector2I> _depositCells = new();
+        private readonly GridWorkClockBinding _workClock = new();
         private float _cycleClock;
         private bool _bound;
         private bool _registered;
@@ -179,16 +245,34 @@ namespace Beep.ECS
             base._Ready();
             ResolveReferences();
             if (!Engine.IsEditorHint())
-                TryRegisterWithManager();
-            SetProcess(!Engine.IsEditorHint());
+            {
+                // An extraction cycle is measured in TURNS, so it advances on
+                // the work clock - otherwise a turn-based game would have
+                // derricks pumping in real time while everything else waited
+                // for a turn.
+                bool bound = _workClock.Bind(this, WorkClockPath, AdvanceWork);
+                SetProcess(!bound);
+
+                if (RegisterOnReady)
+                    TryRegisterWithManager();
+                if (ParticipatesInSave)
+                    AddToGroup(SaveableHelper.Group);
+            }
+            else
+            {
+                SetProcess(false);
+            }
             UpdateConfigurationWarnings();
         }
 
         public override void _ExitTree()
         {
+            _workClock.Unbind();
             if (_registered && _extractionManager != null && GodotObject.IsInstanceValid(_extractionManager))
                 _extractionManager.Unregister(this);
             _registered = false;
+            if (ParticipatesInSave)
+                RemoveFromGroup(SaveableHelper.Group);
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -200,15 +284,29 @@ namespace Beep.ECS
 
         public override void _Process(double delta)
         {
-            if (!IsActive || Engine.IsEditorHint())
+            // Reached only when no work clock was found - a template scene
+            // opened on its own, or a headless probe. SetProcess is off otherwise.
+            if (Engine.IsEditorHint())
                 return;
 
-            Tick(delta);
+            AdvanceWork(GridWorkClockBinding.TurnsForDelta(delta));
         }
 
-        public void Tick(double delta)
+        /// <summary>
+        /// Advances the pump by turns of work. Kept public under its old name
+        /// so a caller that steps extraction deliberately still can; one turn
+        /// is one second on the real-time axis, so the meaning is unchanged
+        /// there.
+        /// </summary>
+        public void Tick(double delta) => AdvanceWork(GridWorkClockBinding.TurnsForDelta(delta));
+
+        /// <summary>Runs whole cycles out of the turns elapsed. Bound to the work clock.</summary>
+        public void AdvanceWork(float turns)
         {
-            if (!_registered)
+            if (!IsActive)
+                return;
+
+            if (!_registered && RegisterOnReady)
                 TryRegisterWithManager();
 
             if (!_bound)
@@ -224,15 +322,14 @@ namespace Beep.ECS
             if (!IsExtracting)
                 return;
 
-            float step = double.IsFinite(delta) && delta > 0.0 ? (float)Mathf.Min(delta, 86400.0) : 0f;
-            if (step <= 0f)
+            if (!float.IsFinite(turns) || turns <= 0f)
                 return;
 
-            _cycleClock += step;
-            float cycleSeconds = CycleSeconds();
-            while (_cycleClock >= cycleSeconds && IsExtracting)
+            _cycleClock += turns;
+            float cycleTurns = CycleTurns();
+            while (_cycleClock >= cycleTurns && IsExtracting)
             {
-                _cycleClock -= cycleSeconds;
+                _cycleClock -= cycleTurns;
                 RunCycle();
             }
         }
@@ -361,8 +458,8 @@ namespace Beep.ECS
             _wallet?.AddAmount(resourceId, amount);
         }
 
-        /// <summary>Seconds per extraction cycle right now, for rate displays.</summary>
-        public float CurrentCycleSeconds() => CycleSeconds();
+        /// <summary>Turns per extraction cycle right now, for rate displays.</summary>
+        public float CurrentCycleTurns() => CycleTurns();
 
         /// <summary>Units per extraction cycle right now, for rate displays.</summary>
         public int CurrentAmountPerCycle() => AmountPerCycle();
@@ -373,8 +470,10 @@ namespace Beep.ECS
             if (_extractionManager == null || _registered)
                 return;
 
-            _extractionManager.Register(this);
-            _registered = true;
+            // Registration can be REFUSED, so the flag records what the manager
+            // actually did - marking it true regardless would leave a rejected
+            // extractor believing it was registered and never retrying.
+            _registered = _extractionManager.Register(this);
         }
 
         /// <summary>
@@ -474,10 +573,14 @@ namespace Beep.ECS
             return false;
         }
 
-        private float CycleSeconds()
+        private float CycleTurns()
         {
-            if (CycleSecondsOverride > 0f && float.IsFinite(CycleSecondsOverride))
-                return CycleSecondsOverride;
+            if (CycleTurnsOverride > 0f && float.IsFinite(CycleTurnsOverride))
+                return CycleTurnsOverride;
+            // ResourceDefinition.GatherSeconds belongs to the terrain resource
+            // catalog, which is shared with the by-hand gathering path and is
+            // not this component's to rename; the number it carries is read
+            // here as TURNS, the unit every timed grid subsystem measures in.
             float fromDefinition = Catalog?.Find(ActiveResourceId)?.GatherSeconds ?? 1.5f;
             return Mathf.Max(0.05f, float.IsFinite(fromDefinition) ? fromDefinition : 1.5f);
         }
@@ -525,30 +628,11 @@ namespace Beep.ECS
                     ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
                     : null;
 
-            if (_store == null || !GodotObject.IsInstanceValid(_store))
-                _store = !SubsurfaceStorePath.IsEmpty
-                    ? GetNodeOrNull<GridSubsurfaceStoreComponent>(SubsurfaceStorePath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridSubsurfaceStoreComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_wallet == null || !GodotObject.IsInstanceValid(_wallet))
-                _wallet = !ResourceWalletPath.IsEmpty
-                    ? GetNodeOrNull<GridResourceWalletComponent>(ResourceWalletPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridResourceWalletComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_transport == null || !GodotObject.IsInstanceValid(_transport))
-                _transport = !TransportManagerPath.IsEmpty
-                    ? GetNodeOrNull<GridTransportManagerComponent>(TransportManagerPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridTransportManagerComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_extractionManager == null || !GodotObject.IsInstanceValid(_extractionManager))
-                _extractionManager = !ExtractionManagerPath.IsEmpty
-                    ? GetNodeOrNull<GridExtractionManagerComponent>(ExtractionManagerPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridExtractionManagerComponent>(GetTree()?.CurrentScene) : null;
+            Resolve(SubsurfaceStorePath, ref _store);
+            Resolve(ResourceWalletPath, ref _wallet);
+            Resolve(GridPath, ref _grid);
+            Resolve(TransportManagerPath, ref _transport);
+            Resolve(ExtractionManagerPath, ref _extractionManager);
         }
     }
 }

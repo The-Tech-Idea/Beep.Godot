@@ -2,10 +2,25 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// One line of HUD text at a declared <see cref="UiSurface.TextRole"/> — a score, a timer, a
+    /// combo count, an interaction prompt.
+    ///
+    /// It exists so a readout states its INTENT rather than a size. A scene that sets a 32px font
+    /// override has pinned a size the theme cannot reach, and switching theme or geometry leaves it
+    /// stranded while everything around it rescales; a scene that says <c>Title</c> or
+    /// <c>Caption</c> keeps its place in the type scale whatever the skin does.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitHudText : KitControl
     {
+        /// <summary>A message surface, not a pressable. It had been falling through to the base's
+        /// Button default, which decided its corner radius and its selection cue as well as -- once
+        /// the genre had artwork -- which sprite it was cut from, and it rendered as a glossy button
+        /// with a raised lip.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         [Export] public string Text { get => _text; set { string next = value ?? ""; if (_text == next) return; _text = next; RefreshMinimumAndRedraw(); } }
         [Export]
         public UiSurface.TextRole Role
@@ -54,18 +69,6 @@ namespace Beep.ECS.UI.Kit
             float pad = Mathf.Max(6f, fs * 0.7f);
             float width = TextWidth(_text, Role) + pad * 2f;
             return new Vector2(Mathf.Max(fs * 3f, width), Mathf.Max(18f, fs * 1.6f));
-        }
-
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         private float TextWidth(string text, UiSurface.TextRole role)

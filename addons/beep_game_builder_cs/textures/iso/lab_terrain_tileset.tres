@@ -1,0 +1,66 @@
+[gd_resource type="TileSet" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/iso/kenney_voxel_tops.png" id="tops"]
+
+[sub_resource type="TileSetAtlasSource" id="atlas"]
+texture = ExtResource("tops")
+texture_region_size = Vector2i(111, 64)
+6:6/0 = 0
+6:6/0/terrain_set = 0
+6:6/0/terrain = 0
+2:0/0 = 0
+2:0/0/terrain_set = 0
+2:0/0/terrain = 1
+0:3/0 = 0
+0:3/0/terrain_set = 0
+0:3/0/terrain = 2
+3:2/0 = 0
+3:2/0/terrain_set = 0
+3:2/0/terrain = 3
+5:6/0 = 0
+5:6/0/terrain_set = 0
+5:6/0/terrain = 4
+2:1/0 = 0
+2:1/0/terrain_set = 0
+2:1/0/terrain = 5
+0:6/0 = 0
+0:6/0/terrain_set = 0
+0:6/0/terrain = 6
+4:2/0 = 0
+4:2/0/terrain_set = 0
+4:2/0/terrain = 7
+5:0/0 = 0
+5:0/0/terrain_set = 0
+5:0/0/terrain = 8
+4:3/0 = 0
+4:3/0/terrain_set = 0
+4:3/0/terrain = 9
+1:6/0 = 0
+1:6/0/terrain_set = 0
+1:6/0/terrain = 10
+7:2/0 = 0
+7:2/0/terrain_set = 0
+7:2/0/terrain = 11
+7:6/0 = 0
+7:6/0/terrain_set = 0
+7:6/0/terrain = 12
+
+[resource]
+tile_shape = 1
+tile_layout = 5
+tile_size = Vector2i(111, 64)
+terrain_set_0/mode = 1
+terrain_set_0/terrain_0/name = "grass"
+terrain_set_0/terrain_1/name = "dry_grass"
+terrain_set_0/terrain_2/name = "sand"
+terrain_set_0/terrain_3/name = "desert"
+terrain_set_0/terrain_4/name = "jungle"
+terrain_set_0/terrain_5/name = "swamp"
+terrain_set_0/terrain_6/name = "tundra"
+terrain_set_0/terrain_7/name = "snow"
+terrain_set_0/terrain_8/name = "ice"
+terrain_set_0/terrain_9/name = "gravel"
+terrain_set_0/terrain_10/name = "rock"
+terrain_set_0/terrain_11/name = "water"
+terrain_set_0/terrain_12/name = "deep_water"
+sources/0 = SubResource("atlas")

@@ -1,42 +1,75 @@
 # TerrainIsometricFeatureRendererComponent
 
-Renderer: a `[Tool][GlobalClass] Node2D` that stamps sprite "props" (woods, forest, jungle, marsh, oasis) onto the isometric terrain view for whichever cells the generator marks as carrying a feature.
+Draws woods, forest, jungle, marsh and oasis props on the current isometric
+block surface. It is a view consumer, not a separate map model.
 
-This is the isometric-projection counterpart to the flat view's feature renderer (`TerrainFeatureRendererComponent`, outside this batch): same generator-reported feature data, different projection. It never recomputes the isometric transform itself — it asks a linked `TerrainIsometricRendererComponent` for a cell's surface (top-face) position and land/water status, because that component owns the projection math, elevation rule and layer offsets, and the doc comment is explicit that a second copy of that arithmetic drifts the moment any of those change (with "a tree standing beside its own hill instead of on it" as the visible symptom). It draws one `LevelProps` child node per elevation level above the ground (sea excluded, since features are land-only) so that a prop is Z-ordered against the terrain of the level it actually stands on rather than floating over every tile.
+## Sources And Lifecycle
 
-## Public API
+IsometricRendererPath selects TerrainIsometricRendererComponent. Its resolved
+ITerrainSurfaceData supplies live cells or generated preview data. The feature
+renderer uses field-local cells; the surface owner handles BoundsOrigin.
 
-- `[Export] NodePath TerrainGeneratorPath` — path to the `TerrainGeneratorComponent` supplying feature/terrain-kind/relief data per cell.
-- `[Export] NodePath IsometricRendererPath` — path to the `TerrainIsometricRendererComponent` that owns the isometric projection this renderer places props against.
-- `[Export] Vector2I BoundsSize` — map size in cells, default `(48, 48)`; a third independent copy of the map-size export pattern seen in the other renderers in this batch.
-- `[Export] int Seed` — seed for this renderer's own per-prop hashing (frame choice, scale/position jitter), default `40961`; independent of the generator's `Seed`.
-- `[Export] string WoodsSheetPath`, `JungleSheetPath`, `MarshSheetPath`, `OasisSheetPath` (each `PropertyHint.File, "*.png,*.webp"`) — sprite-sheet texture paths per feature family; a family with an empty path is simply never drawn for that feature (jungle/oasis silently fall back to the woods sheet if their own path is empty — see `TryDescribe`; marsh does not fall back).
-- `[Export] int WoodsColumns`, `WoodsRows` (1-16 each) — grid layout of the woods sheet, default 4x4.
-- `[Export] string[] WoodsFrameBindings` — `"kind[,kind...]=frame[,frame...]"` entries restricting which woods-sheet frames a given terrain kind may roll (e.g. cherry-blossom/autumn/snow frames kept off plain-green terrain); empty means the whole sheet is fair game for every kind. Only applies to the woods sheet — jungle/marsh/oasis sheets always use every frame they have (single-subject sheets, per `TryDescribe`).
-- `[Export] float SpriteScale` (0.1-2) — sprite width as a fraction of one isometric diamond's width.
-- `[Export] int SpritesPerTile` (1-8) — base sprite count stamped per featured tile.
-- `[Export] int ForestExtraSprites` (0-8) — additional sprites added only for `Forest`/`Jungle` features, on top of `SpritesPerTile`.
-- `[Export] float PositionJitter` (0-1), `ScaleJitter` (0-0.6) — per-sprite randomized offset (within the diamond, not a square) and scale variance, both deterministic per-cell/per-slot via a hash, not `GD.Randf`.
-- `[Export] bool RefreshOnReady` — same on-ready-defer-unless-editor pattern as the autotile renderer; turn off when a controller drives `Rebuild()` after generating.
-- `override void _Ready()` — conditionally defers `Rebuild()`.
-- `override string[] _GetConfigurationWarnings()` — warns only if `IsometricRendererPath` is empty (does not warn on empty `TerrainGeneratorPath`, sheet paths, or bindings — see Notes).
-- `void Rebuild()` — resolves the generator and isometric renderer, clears all level-prop buffers, loads sheets/frame bindings, and for every cell in `BoundsSize` that has a non-empty `FeatureAt` and is a land cell (`IsLandCell`), resolves a sheet+region (with woods-specific frame restriction), computes the cell's stack level via `TerrainLayers.LevelFor(kind, relief)` clamped into the valid prop range, and stamps `SpritesPerTile` (+`ForestExtraSprites` for forest/jungle) sprite instances into that level's draw list with position/scale jitter; each level's stamps are then sorted back-to-front by their base Y for correct isometric painter's-order draw, and every level node is queued for redraw. Warns (does not throw) and draws nothing if the generator or isometric renderer is unresolved, or if no sheets loaded at all.
-- `Godot.Collections.Array<Godot.Collections.Dictionary> GetLayerDiagnostics()` — one dictionary per prop level (`kind: "props"`, `level`, `z`, `relative_z`, `cells`), meant to pair with the terrain renderer's own diagnostics so a guard can assert the whole Z stack interleaves correctly.
+SurfaceRebuilt refreshes visible props synchronously. Hidden props defer the work and catch up
+when shown. Explicit Rebuild remains available while hidden. Rebinding disconnects the old surface;
+exit clears subscriptions/pending work, and reattachment reconnects previously attempted views.
+RefreshOnReady optionally defers initialization; turn it off when TerrainWorldComponent owns the
+build. The controller sets prop visibility/bounds before rebuilding the surface, so projection
+switches retain synchronous prop updates without rebuilding the hidden projection.
 
-## Dependencies
+BoundsSize limits the scan and is checked against the surface owner's bounds.
+Seed controls deterministic per-cell/per-slot frame, scale and scatter hashes,
+keyed by the surface owner's absolute cell rather than view-local coordinates.
+TerrainGeneratorPath is currently resolved for failure diagnostics; it is not an
+independent feature-data source.
 
-- Reads `TerrainGeneratorComponent.FeatureAt(Vector2I)`, `.TerrainKindAt(Vector2I)`, and `.ReliefAt(Vector2I)` per cell, resolved via `TerrainGeneratorPath`.
-- Reads `TerrainIsometricRendererComponent.SurfacePosition(Vector2I)` (top-face screen position), `.IsLandCell(Vector2I)`, and `.CellSize` (for diamond sizing and jitter scaling), resolved via `IsometricRendererPath`. This is the projection/elevation authority the class-level doc comment insists on not duplicating.
-- Reads `TerrainFeatureStage.Woods` / `.Forest` / `.Jungle` / `.Oasis` / `.Marsh` string constants (defined in `TerrainFeatureStage.cs`) to match against the generator's `FeatureAt` string and to decide sheet/frame selection and extra-sprite eligibility.
-- Reads `TerrainLayers.Count`, `.LevelFor(string terrain, int relief)`, and `.ZForProps(int level)` (all in `TerrainLayers.cs`) to size the level-node list, classify which stack level a cell's prop belongs to, and Z-order each level's node above its corresponding terrain level.
-- Calls `TerrainAuthoring.Adopt(node, this)` (in `TerrainAuthoring.cs`) when creating each generated `LevelProps` child node — the same authoring/ownership helper the autotile renderer uses via `EnsureLayer`.
-- Calls `TerrainTextures.Load(path, Name, description)` (in `TerrainTextures.cs`) to load each feature sheet texture, tolerating a missing/invalid path by simply not registering that sheet.
-- Does not read `TerrainGenerationSettings`, `GeneratedTerrainField`, or any `Terrain*Stage` file directly — all generation data comes through `TerrainGeneratorComponent`'s public API, consistent with every other renderer in this batch.
+## Placement
 
-## Notes
+SurfacePosition, SurfaceLevel and SurfaceCorners supply the actual top face.
+Corners are transformed through the terrain and feature nodes. Their edge vectors
+define scatter axes; the shorter transformed cell edge defines sprite fit. There is
+no second isometric projection formula in the feature renderer.
 
-- `_GetConfigurationWarnings()` only checks `IsometricRendererPath`; unlike the autotile renderer (which warns in the editor for a missing generator path or empty bindings), this component gives no editor-time warning for an empty `TerrainGeneratorPath` or for every sheet path being blank — those failures only surface at `Rebuild()` time via `GD.PushWarning`, and only if `RefreshOnReady` actually runs (i.e., not in the editor unless something else calls `Rebuild()`). A scene author who forgets to wire `TerrainGeneratorPath` gets no configuration-warning triangle in the editor for it here, unlike the equivalent omission on the autotile renderer.
-- `BoundsSize` and `Seed` are both independent, third/fourth copies of exports that already exist (with the same name and similar purpose) on `TerrainGeneratorComponent` and, for `BoundsSize`, on `TerrainIsometricAutotileRendererComponent` too. None of the three components cross-check that their copies agree; a mismatched `BoundsSize` here versus on the generator would silently under- or over-sample the map with no warning specific to that condition (same class of risk noted in the autotile renderer's doc).
-- Jungle and oasis features silently fall back to the woods sheet when their own sheet path is unset (`TryDescribe`'s `_sheets.ContainsKey("jungle") ? "jungle" : "woods"` and the oasis equivalent) — a deliberate fallback, but an unlabelled one: nothing warns that jungle tiles are being drawn with tree sprites when `JungleSheetPath`/`OasisSheetPath` are simply left blank. Marsh explicitly does *not* fall back (`_sheets.ContainsKey("marsh") ? "marsh" : string.Empty`), with a comment reasoning reeds are not trees — so the fallback behavior is inconsistent by design across feature kinds, and only the marsh case is commented.
-- `FramesFor` drops (does not clamp) an out-of-range frame index named in `WoodsFrameBindings`, with a per-terrain-kind one-shot warning (`_unbound` is used for the "no binding at all for this terrain" case, but there is no equivalent one-shot suppression for a malformed out-of-range frame — that warning fires on every `LoadWoodsFrames()` call, i.e., every `Rebuild()`, not just once).
-- Uses a hand-rolled integer hash (`Hash01`) for deterministic per-cell/per-slot randomization instead of Godot's RNG — consistent with wanting the same seed to reproduce the same prop layout regardless of call order, but it is a second, local randomness scheme distinct from whatever the generation-stage files use for their own noise/placement (not verified against those files in this batch).
+Trunks remain anchored to that surface; canopies extend above them. PropSizing,
+PositionJitter and ScaleJitter control their appearance. SpritesPerTile sets the
+base count; ForestExtraSprites adds clump density for forest and jungle.
+Both projections use TerrainFeatureScatter: twelve candidates per requested stamp,
+chosen for separation from earlier anchors in the cell and checked against fine
+water membership from the surface owner. A single dry-centre fallback is allowed
+when candidates fail; fully wet positions are not drawn. This does not constrain
+an entire canopy or give decorative sprites physical collision footprints.
+
+One LevelProps node draws each elevation band's stamps at TerrainLayers.ZForProps.
+Stamps are sorted by local trunk Y within each band. This is batched decoration,
+not a collection of physical or selectable tree objects.
+
+## Sheets
+
+WoodsSheetPath, JungleSheetPath, MarshSheetPath and OasisSheetPath select art.
+WoodsColumns and WoodsRows currently define the frame grid for all four sheets.
+Jungle/oasis fall back to woods if their sheet is absent; marsh does not.
+
+WoodsFrameBindings accepts entries such as `tundra,snow=7`. The shared
+TerrainFeatureFrameBindings parser restricts frames whenever woods is the chosen
+sheet, including jungle/oasis falling back to woods. Malformed or out-of-range
+entries warn; unbound terrain falls back to the whole sheet. Dedicated
+jungle/marsh/oasis sheets use all their own frames.
+
+Changing sheet paths invalidates the texture cache on Rebuild. Clearing a path
+removes its cached art. Zero-sized atlas frames are skipped. Editing image contents
+at an unchanged path is not a custom hot-reload mechanism.
+
+## Diagnostics And Verification
+
+GetLayerDiagnostics reports level, Z, relative-Z and stamp count.
+GetStampAnchors returns actual cached trunk anchors in feature-local coordinates.
+
+terrain_surface_height_probe verifies negative/nonzero origins, hills, native
+surface queries, deterministic trunk anchors under separate rotations and
+nonuniform scales, sheet removal/restoration, live flattening and flooding.
+World-live-source and view-grid probes also pass.
+TerrainWaterSurfaceSmoke additionally compares normalized flat/isometric anchors
+over 32 seeds on a mixed-water cell. See FEATURE_SCATTER.md for shared behavior.
+
+Transform-only changes require Rebuild or the owning surface's rebuild notification;
+automatic parent-transform tracking is not implemented. These probes do not
+certify canopy occlusion for every art sheet or provide physical tree collision.

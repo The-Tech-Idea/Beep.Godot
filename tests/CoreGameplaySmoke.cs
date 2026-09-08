@@ -8,6 +8,266 @@ public partial class CoreGameplaySmoke : Node
 {
     public string Failure { get; private set; } = string.Empty;
 
+    public bool CheckEvictedWrites(GridCellDataComponent cells)
+    {
+        Failure = "";
+        bool ok = true;
+        System.Action[] edits = {
+            () => cells.SetTerrainKind(new(-1, -1), "mud"),
+            () => cells.SetMetadata(new(-1, -1), "changed", true),
+            () => cells.FillTerrain(new Rect2I(-1, -1, 34, 34), "mud"),
+            () => cells.DefaultTerrainKind = "desert",
+            () => cells.LoadCells(new Godot.Collections.Array {
+                new Godot.Collections.Dictionary { ["cell"] = Vector2I.Zero, ["terrain"] = "mud" },
+                new Godot.Collections.Dictionary { ["cell"] = new Vector2I(-1, -1), ["terrain"] = "mud" }
+            }, false)
+        };
+        foreach (var edit in edits)
+        {
+            bool rejected = false;
+            try { edit(); }
+            catch (System.InvalidOperationException) { rejected = true; }
+            ok &= Expect(rejected, "Editing evicted data was not rejected.");
+        }
+        return ok && Expect(cells.CellCount == 1 && cells.GetTerrainKind(Vector2I.Zero) == "desert",
+            "Rejected bulk edit partially changed resident neighbors.");
+    }
+
+    public bool RunChunkAvailabilitySaveCheck()
+    {
+        var cells = new GridCellDataComponent();
+        AddChild(cells);
+        try
+        {
+            cells.SetTerrainKind(Vector2I.Zero, "water");
+            using var saved = cells.CaptureSingleChunkState(Vector2I.Zero);
+            cells.SetChunkAvailable(Vector2I.Zero, false);
+            bool rejected = false;
+            try { using var incomplete = cells.CaptureChunkState(); }
+            catch (System.InvalidOperationException) { rejected = true; }
+            bool ok = Expect(rejected && cells.CellCount == 1, "Unavailable world was captured as a complete snapshot.");
+            try { cells.RestoreSingleChunkState(Vector2I.One, saved); }
+            catch (System.FormatException) { }
+            ok &= Expect(!cells.IsChunkAvailable(Vector2I.Zero) && cells.CellCount == 1,
+                "Rejected publication cleared availability or mutated data.");
+            cells.RestoreChunkState(saved);
+            ok &= Expect(cells.UnavailableChunkCount == 0 && cells.GetTerrainKind(Vector2I.Zero) == "water",
+                "Complete world restore failed to clear transient readiness state.");
+            return ok;
+        }
+        finally { cells.Free(); }
+    }
+
+    public bool RunRpgProgressionIntegrationCheck()
+    {
+        Failure = "";
+        var host = new Node2D();
+        AddChild(host);
+        try
+        {
+            var registry = new ActorRegistryComponent { Name = "Registry" };
+            host.AddChild(registry);
+            var hero = new CharacterBody2D();
+            host.AddChild(hero);
+            var health = new HealthComponent { Name = "Health" };
+            var leveling = new LevelingComponent { Name = "Leveling" };
+            var rpg = new RpgPartyComponent { Name = "Rpg" };
+            hero.AddChild(health);
+            hero.AddChild(leveling);
+            hero.AddChild(rpg);
+            rpg.SetProcess(false);
+            var actor = new ActorComponent { ActorId = "hero", RegistryPath = registry.GetPath() };
+            hero.AddChild(actor);
+            int levels = 0;
+            rpg.LeveledUp += _ => levels++;
+            health.CurrentHealth = 20;
+            rpg.SpendMana(10);
+            var enemy = new Node2D();
+            host.AddChild(enemy);
+            var enemyHealth = new HealthComponent { CurrentHealth = 10, XpReward = 100.5f };
+            enemy.AddChild(enemyHealth);
+            enemyHealth.TakeDamage(new GameDamage(20, DamageType.True, hero));
+            bool ok = Expect(leveling.Level == 2 && rpg.Level == 2 && rpg.Xp == 0.5f && leveling.StatPoints == 3
+                && health.CurrentHealth == 94 && rpg.Mana == 48 && levels == 1, "A real kill did not update the single RPG progression source and derived pools.");
+            enemyHealth.TakeDamage(new GameDamage(20, DamageType.True, hero));
+            ok &= Expect(rpg.Xp == 0.5f && levels == 1, "Repeated damage to a corpse awarded duplicate kill XP.");
+            rpg.AwardXp(0.25f);
+            ok &= Expect(leveling.CurrentXp == 0.75f && rpg.Xp == 0.75f, "RPG rewards lost fractional XP or used another pool.");
+            health.CurrentHealth = 32;
+            rpg.SpendMana(7);
+            var saved = Json.ParseString(Json.Stringify(actor.CaptureActor())).AsGodotDictionary();
+            using var state = new GameStateData();
+            rpg.Save(state);
+            ok &= Expect(!state.GameData.ContainsKey("rpg.level") && !state.GameData.ContainsKey("rpg.xp"), "RPG save retained independent progression state.");
+            leveling.AddXp(1000);
+            int beforeRestore = levels;
+            // Put RPG state first: ActorComponent must load the source level before derived mana.
+            hero.MoveChild(rpg, 0);
+            actor.RestoreActor(saved);
+            ok &= Expect(leveling.Level == 2 && leveling.CurrentXp == 0.75f && leveling.StatPoints == 3
+                && rpg.Mana == 41 && health.CurrentHealth == 32 && levels == beforeRestore,
+                "Restoring progression replayed level-up rewards or loaded RPG pools before the level source.");
+            using var progression = new GameStateData();
+            leveling.Save(progression);
+            var record = progression.GameData["progression.leveling"].AsGodotDictionary();
+            record["points"] = -1;
+            bool rejected = false;
+            try { leveling.Load(progression); }
+            catch (System.FormatException) { rejected = true; }
+            ok &= Expect(rejected && leveling.Level == 2 && leveling.CurrentXp == 0.75f && leveling.StatPoints == 3,
+                "Malformed progression save changed live state before validation.");
+            host.RemoveChild(hero);
+            host.AddChild(hero);
+            rpg.SetProcess(false);
+            int beforeReattachAward = levels;
+            leveling.AddXp(150);
+            ok &= Expect(rpg.Level == 3 && levels == beforeReattachAward + 1, "Reattached progression lost or duplicated RPG subscriptions.");
+            health.TakeDamage(new GameDamage(1000, DamageType.True));
+            float xpBeforeDeathReward = leveling.CurrentXp;
+            leveling.AddXp(500);
+            ok &= Expect(leveling.CurrentXp == xpBeforeDeathReward && rpg.IsDead, "XP resurrected or progressed an ineligible dead character.");
+            return ok;
+        }
+        finally { host.Free(); }
+    }
+
+    public bool RunRpgHealthIntegrationCheck()
+    {
+        Failure = "";
+        var host = new Node2D();
+        AddChild(host);
+        try
+        {
+            var registry = new ActorRegistryComponent { Name = "Registry" };
+            host.AddChild(registry);
+            var player = new PlayerContextComponent { Name = "Player", RegistryPath = registry.GetPath(), ControlMode = PlayerControlMode.Direct };
+            host.AddChild(player);
+            player.SetPhysicsProcess(false);
+            var body = new CharacterBody2D();
+            host.AddChild(body);
+            var health = new HealthComponent { Name = "Health", Armor = 50 };
+            body.AddChild(health);
+            body.AddChild(new LevelingComponent { Name = "Leveling" });
+            var rpg = new RpgPartyComponent { Name = "Stats" };
+            body.AddChild(rpg);
+            rpg.SetProcess(false);
+            var actor = new ActorComponent { Name = "Actor", ActorId = "hero", OwnerId = player.PlayerId, RegistryPath = registry.GetPath() };
+            body.AddChild(actor);
+            int deaths = 0, rpgDeaths = 0, revives = 0, statChanges = 0;
+            health.Died += () => deaths++;
+            health.Revived += _ => revives++;
+            rpg.Died += () => rpgDeaths++;
+            rpg.StatsChanged += () => statChanges++;
+            bool ok = Expect(rpg.Health == 80 && health.CurrentHealth == 80 && health.MaxHealth == 80, "RPG startup did not configure shared health capacity.");
+            player.Possess("hero");
+            rpg.Damage(new GameDamage(20, DamageType.Physical));
+            ok &= Expect(rpg.Health == 70 && health.CurrentHealth == 70 && statChanges == 1, "RPG damage bypassed armor or emitted duplicate stat updates.");
+            health.TakeDamage(new GameDamage(5, DamageType.True));
+            ok &= Expect(rpg.Health == 65 && statChanges == 2, "Combat damage did not update RPG readouts.");
+            rpg.Heal(10);
+            ok &= Expect(health.CurrentHealth == 75, "RPG healing did not reach combat health.");
+            rpg.AwardXp(100);
+            ok &= Expect(rpg.Level == 2 && health.MaxHealth == 94 && rpg.Health == 94 && revives == 0, "Level growth did not use shared health or incorrectly revived a living actor.");
+            health.SetMaximumHealth(140);
+            health.CurrentHealth = 123.5f;
+            rpg.SpendMana(7);
+            var saved = Json.ParseString(Json.Stringify(actor.CaptureActor())).AsGodotDictionary();
+            using var rpgState = new GameStateData();
+            rpg.Save(rpgState);
+            ok &= Expect(!rpgState.GameData.ContainsKey("rpg.health"), "RPG save still stores a second HP pool.");
+            rpg.AwardXp(1000);
+            actor.RestoreActor(saved);
+            ok &= Expect(rpg.Level == 2 && health.MaxHealth == 140 && rpg.Health == 123.5f && rpg.Mana == 41, "Actor save lost fractional HP, runtime capacity or progression state.");
+            // Reverse authored save traversal to prove health/stats load order does not change HP.
+            body.MoveChild(rpg, 0);
+            rpg.AwardXp(1000);
+            actor.RestoreActor(saved);
+            ok &= Expect(health.CurrentHealth == 123.5f && health.MaxHealth == 140, "Health restore depends on authored child order.");
+            health.TakeDamage(new GameDamage(1000, DamageType.True));
+            ok &= Expect(actor.IsDead && rpg.IsDead && player.PossessedActorId == "" && deaths == 1 && rpgDeaths == 1, "Combat death disagrees with RPG/actor state or possession.");
+            rpg.Heal(100);
+            rpg.AwardXp(1000);
+            health.SetMaximumHealth(94, true);
+            ok &= Expect(rpg.IsDead && rpg.Level == 2 && deaths == 1, "Healing, XP or capacity changes resurrected a dead actor.");
+            rpg.Revive(0.5f);
+            ok &= Expect(!actor.IsDead && rpg.Health == 47 && revives == 1, "RPG revive did not use shared combat health.");
+            rpg.SpendMana(5);
+            int mana = rpg.Mana;
+            health.SetMaximumHealth(140);
+            host.RemoveChild(body);
+            host.AddChild(body);
+            rpg.SetProcess(false);
+            int before = statChanges;
+            health.TakeDamage(new GameDamage(1, DamageType.True));
+            ok &= Expect(rpg.Health == 46 && health.MaxHealth == 140 && rpg.Mana == mana && statChanges == before + 1, "Reattachment reset RPG pools/capacity or duplicated health subscriptions.");
+            return ok;
+        }
+        finally { host.Free(); }
+    }
+
+    public bool RunAbilitySaveValidationCheck()
+    {
+        var body = new CharacterBody2D();
+        AddChild(body);
+        EntityComponent[] components = { new DashComponent(), new HoverComponent(), new JumpComponent(),
+            new FlyComponent { EnableBanking = false }, new KnockbackComponent(), new WallJumpComponent(),
+            new GlideComponent(), new SlideComponent(), new PlatformerController() };
+        string[] keys = { "ability.dash", "ability.hover", "ability.jump", "ability.flight", "ability.knockback",
+            "ability.wall_jump", "ability.glide", "ability.slide", "ability.platformer" };
+        string[] timers = { "remaining", "elapsed", "remaining", "boost", "remaining", "stick", "gliding", "remaining", "coyote" };
+        bool passed = true;
+        for (int i = 0; i < components.Length; i++)
+        {
+            var component = components[i];
+            body.AddChild(component);
+            component.SetPhysicsProcess(false);
+            var participant = (ISaveable)component;
+            using var saved = new Beep.GameBuilder.GameStateData();
+            participant.Save(saved);
+            string before = Json.Stringify(saved.GameData[keys[i]]);
+            foreach (string malformed in new[] { "version", "active", timers[i] })
+            {
+                using var invalid = new Beep.GameBuilder.GameStateData();
+                if (!invalid.FromJsonString(saved.ToJson())) { passed = false; continue; }
+                var data = invalid.GameData[keys[i]].AsGodotDictionary();
+                data["active"] = false;
+                if (malformed == "version") data[malformed] = 2;
+                else if (malformed == "active") data[malformed] = "false";
+                else data[malformed] = -1;
+                bool rejected = false;
+                try { participant.Load(invalid); }
+                catch (System.FormatException) { rejected = true; }
+                using var after = new Beep.GameBuilder.GameStateData();
+                participant.Save(after);
+                passed &= rejected && Json.Stringify(after.GameData[keys[i]]) == before;
+            }
+        }
+        body.Free();
+        return passed;
+    }
+
+    public bool RunDashProtectionCheck()
+    {
+        var body = new CharacterBody2D();
+        AddChild(body);
+        var effects = new StatusEffectComponent(); body.AddChild(effects);
+        var health = new HealthComponent(); body.AddChild(health);
+        var dash = new DashComponent(); body.AddChild(dash);
+        bool started = dash.TryDash(Vector2.Right);
+        float before = health.CurrentHealth;
+        health.TakeDamage(new GameDamage(10, DamageType.True));
+        bool protectedDuringDash = health.CurrentHealth == before;
+        effects.ApplyEffect("invincible", 20);
+        dash.CancelDash();
+        health.TakeDamage(new GameDamage(10, DamageType.True));
+        bool otherBuffRetained = effects.HasEffect("invincible") && health.CurrentHealth == before;
+        effects.RemoveEffect("invincible");
+        health.TakeDamage(new GameDamage(10, DamageType.True));
+        bool vulnerableAfter = health.CurrentHealth == before - 10;
+        body.Free();
+        return started && protectedDuringDash && otherBuffRetained && vulnerableAfter;
+    }
+
     public bool Run()
     {
         Failure = string.Empty;
@@ -1618,12 +1878,15 @@ public partial class CoreGameplaySmoke : Node
             BaseMaxMana = -20,
             HealthPerLevel = -3,
             ManaPerLevel = -4,
-            BaseXpToLevel = -5,
-            XpCurve = float.NaN,
             ManaRegenPerSecond = float.NaN,
             LowThreshold = float.NaN
         };
-        AddChild(rpg);
+        var rpgBody = new Node2D();
+        AddChild(rpgBody);
+        var rpgHealth = new HealthComponent();
+        rpgBody.AddChild(rpgHealth);
+        rpgBody.AddChild(new LevelingComponent { BaseXp = 1 });
+        rpgBody.AddChild(rpg);
         bool rpgAuthoredBounded = rpg.MaxHealth == 1
             && rpg.MaxMana == 1
             && rpg.XpToNextLevel == 1
@@ -1638,9 +1901,9 @@ public partial class CoreGameplaySmoke : Node
         rpg._Process(double.NaN);
         bool rpgInvalidRegenIgnored = rpg.Mana == 0;
 
-        state.GameData["rpg.level"] = -4;
-        state.GameData["rpg.xp"] = -100;
-        state.GameData["rpg.health"] = double.NaN;
+        state.Combat.Health = float.NaN;
+        state.Combat.MaxHealth = 1;
+        rpgHealth.Load(state);
         state.GameData["rpg.mana"] = double.PositiveInfinity;
         rpg.Load(state);
         bool rpgLoadBounded = rpg.Level == 1
@@ -1799,7 +2062,7 @@ public partial class CoreGameplaySmoke : Node
         race.QueueFree();
         shooter.QueueFree();
         fsm.QueueFree();
-        rpg.QueueFree();
+        rpgBody.QueueFree();
         leveling.QueueFree();
         cards.QueueFree();
         strategy.QueueFree();

@@ -29,12 +29,8 @@ func _run() -> void:
 	root.add_child(generator)
 	await process_frame
 
-	# Coverage has a CEILING, and the contract is that the shortfall is reported
-	# rather than silently wrong. N separated masses plus the gap between them -
-	# which scales with BeachWidth - cannot cover an arbitrary share of a fixed
-	# map: measured on this 48x30 map, 4 islands saturate at 0.585 and 2 islands
-	# at 0.656, while both hit 0.25 and 0.50 exactly. Asking for N masses and
-	# getting N is the promise the engine keeps first.
+	# Separated masses and an outer ocean margin cannot fill an arbitrary share
+	# of a fixed map. Report any shortfall; BeachWidth no longer changes spacing.
 	#
 	# So this asserts what is actually owed: the request is met exactly where it
 	# fits, the target is always reported beside what was achieved, coverage never
@@ -104,6 +100,7 @@ func _run() -> void:
 		return
 
 	print("[grid-terrain-topology] OK: lake_cells=%d" % lake_cells)
+	print("[grid-terrain-topology] OK")
 	quit(0)
 
 func _continuous_centres_match(cells: Node, generator: Node) -> bool:

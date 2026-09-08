@@ -61,11 +61,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(fs * 7f, fs * 1.6f);
         }
 
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         public override void _Draw()
         {
             if (Size.X < 8f || Size.Y < 6f) return;
@@ -94,8 +89,10 @@ namespace Beep.ECS.UI.Kit
 
             switch (_kind)
             {
-                case HangerKind.Chain: DrawBracket(acc, ink, w); break;
-                case HangerKind.Rope: DrawBracket(acc, ink, w); break;
+                // Chain and Rope both drew the bracket instead, so three of the six kinds rendered
+                // identically and the two written drawers below were unreachable.
+                case HangerKind.Chain: DrawChain(lx, acc, ink, w); DrawChain(rx, acc, ink, w); break;
+                case HangerKind.Rope: DrawRope(lx, acc, ink, w); DrawRope(rx, acc, ink, w); break;
                 case HangerKind.Nail: DrawNail(Size.X * 0.5f, acc, ink); break;
                 case HangerKind.Tape: DrawTape(true, acc, ink); DrawTape(false, acc, ink); break;
                 case HangerKind.ScrollRoll: DrawRoll(acc, ink, w); break;
@@ -203,7 +200,31 @@ namespace Beep.ECS.UI.Kit
 
         private void DrawVine(float x, Color c, Color ink, float w)
         {
-            DrawBracket(c, ink, w);
+            // This ignored its x and drew the bracket, so a Vine hanger drew the same bracket
+            // twice on top of itself and no vine ever appeared.
+            //
+            // A vine has to WANDER: a straight stem with leaves pinned to it reads as a skewer.
+            // The lateral swing is a fraction of the widget height so it stays a vine at any size.
+            float swing = Mathf.Max(2f, Size.Y * 0.10f);
+            const int steps = 12;
+            var stem = new Vector2[steps + 1];
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = i / (float)steps;
+                stem[i] = new Vector2(x + Mathf.Sin(t * Mathf.Tau) * swing, t * Size.Y);
+            }
+            DrawPolyline(stem, c, Mathf.Max(1.5f, w * 0.8f));
+
+            // Leaves alternate sides. Both on one side reads as a feather, not as growth.
+            float leaf = Mathf.Max(3f, Size.Y * 0.16f);
+            for (int i = 2; i < steps; i += 3)
+            {
+                Vector2 at = stem[i];
+                bool right = (i / 3) % 2 == 0;
+                var bounds = new Rect2(right ? at.X : at.X - leaf * 1.4f, at.Y - leaf * 0.35f,
+                                       leaf * 1.4f, leaf * 0.7f);
+                DrawShape(bounds, KitShape.Ellipse, c, ink, Mathf.Max(1f, w * 0.4f));
+            }
         }
     }
 }

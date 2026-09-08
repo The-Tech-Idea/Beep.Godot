@@ -69,20 +69,22 @@ namespace Beep.ECS
         public override void _PhysicsProcess(double delta)
         {
             if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
+            var actor = ActorComponent.ForBody(_body);
+            if (actor is not null && !actor.CanDrive(this)) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             if (!IsFinite(_body.Velocity)) _body.Velocity = Vector2.Zero;
-            if (!InputActionsAvailable("move_left", "move_right", "jump"))
+            if (actor is null && !InputActionsAvailable("move_left", "move_right", "jump"))
             {
                 _body.Velocity = new Vector2(
                     Mathf.MoveToward(_body.Velocity.X, 0f, EffectiveFriction * dt),
                     _body.Velocity.Y);
-                _body.MoveAndSlide();
+                CharacterMotion.Move(_body);
                 return;
             }
 
             bool isStunned = StunBlocksMovement && _statusEffects != null && _statusEffects.HasEffect("stun");
-            var input = isStunned ? 0f : Input.GetAxis("move_left", "move_right");
-            bool onFloor = _body.IsOnFloor();
+            var input = isStunned ? 0f : actor?.MoveIntent.X ?? Input.GetAxis("move_left", "move_right");
+            bool onFloor = CharacterMotion.IsOnFloor(_body);
 
             // Gravity
             if (!onFloor) _body.Velocity += new Vector2(0, EffectiveGravity * dt);
@@ -92,7 +94,9 @@ namespace Beep.ECS
             else _coyoteTimer -= dt;
 
             // Jump buffer
-            if (!isStunned && Input.IsActionJustPressed("jump")) _jumpBufferTimer = EffectiveJumpBufferTime;
+            bool wallJumped = GetSiblingComponent<WallJumpComponent>() is { JumpedThisFrame: true };
+            if (wallJumped) _jumpBufferTimer = 0;
+            else if (_jumpComponent == null && !isStunned && (actor?.ConsumeJump() ?? Input.IsActionJustPressed("jump"))) _jumpBufferTimer = EffectiveJumpBufferTime;
             else _jumpBufferTimer -= dt;
 
             // Jump (skip if JumpComponent is handling it)
@@ -110,7 +114,7 @@ namespace Beep.ECS
                 Mathf.MoveToward(_body.Velocity.X, targetX,
                     (input != 0 ? EffectiveAcceleration : EffectiveFriction) * dt),
                 _body.Velocity.Y);
-            _body.MoveAndSlide();
+            CharacterMotion.Move(_body);
 
             if (input != 0) EmitSignal(SignalName.Moved, new Vector2(input, 0));
 

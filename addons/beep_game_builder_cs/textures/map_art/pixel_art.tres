@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="TerrainMapArt" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="1_lcc8o"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_tree.png" id="2_5jgmw"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs" id="3_liq4e"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rkion"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(2, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qronj"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(315, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_auikk"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(629, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mxsoh"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(943, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r7fyb"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(315, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5t5te"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(2, 316, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c4lvh"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uwv8e"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2fnx3"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(970, 1020, 268, 202)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qu2px"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(386, 1036, 183, 182)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qyukv"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(702, 1090, 157, 113)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fwchu"]
+atlas = ExtResource("2_5jgmw")
+region = Rect2(33, 24, 61, 80)
+filter_clip = true
+
+[resource]
+script = ExtResource("3_liq4e")
+DisplayName = "Pixel Art"
+PixelArt = true
+GrassColor = Color(0.43, 0.53, 0.29, 1)
+DryGrassColor = Color(0.56, 0.59, 0.33, 1)
+BeachColor = Color(0.76, 0.64, 0.43, 1)
+ShallowWaterColor = Color(0.30, 0.57, 0.68, 1)
+DeepWaterColor = Color(0.16, 0.38, 0.53, 1)
+TextureRepeatCells = 1.5
+GroundDetail = 0.24
+BlendWidth = 0.08
+GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_rkion"), SubResource("AtlasTexture_qronj"), SubResource("AtlasTexture_auikk"), SubResource("AtlasTexture_mxsoh"), SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e")])
+Trees = Array[Texture2D]([SubResource("AtlasTexture_fwchu")])
+Marsh = Array[Texture2D]([SubResource("AtlasTexture_qu2px")])
+SmallRocks = Array[Texture2D]([SubResource("AtlasTexture_qyukv")])
+LargeRocks = Array[Texture2D]([SubResource("AtlasTexture_2fnx3")])

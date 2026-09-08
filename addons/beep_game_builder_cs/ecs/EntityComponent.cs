@@ -1,4 +1,7 @@
 using Godot;
+using System;
+using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Beep.ECS
 {
@@ -90,15 +93,30 @@ namespace Beep.ECS
         /// Returns null if not found.
         /// </summary>
         protected T? GetSiblingComponent<T>() where T : EntityComponent
+            => FindDirectComponent<T>(GetParent(), this);
+
+        private static readonly ConditionalWeakTable<Node, DirectChildren> DirectComponentChildren = new();
+
+        // Shared by every component on a body; invalidate on native structural changes.
+        private sealed class DirectChildren
         {
-            if (GetParent() == null) return null;
-            foreach (var child in GetParent().GetChildren())
-            {
-                if (child is T comp && child != this)
-                    return comp;
-            }
+            private Node[]? _children;
+            public DirectChildren(Node parent) => parent.ChildOrderChanged += Invalidate;
+            private void Invalidate() => _children = null;
+            public Node[] Read(Node parent) => _children ??= parent.GetChildren().ToArray();
+        }
+
+        internal static T? FindDirectComponent<T>(Node? parent, Node? except = null) where T : Node
+        {
+            foreach (Node child in ReadDirectChildren(parent))
+                if (child is T match && child != except && GodotObject.IsInstanceValid(child)) return match;
             return null;
         }
+
+        internal static ReadOnlySpan<Node> ReadDirectChildren(Node? parent)
+            => GodotObject.IsInstanceValid(parent)
+                ? DirectComponentChildren.GetValue(parent!, static body => new(body)).Read(parent!)
+                : ReadOnlySpan<Node>.Empty;
 
         /// <summary>
         /// Find the first node of type <typeparamref name="T"/> under <paramref name="root"/>,
@@ -122,5 +140,44 @@ namespace Beep.ECS
             }
             return null;
         }
+
+        /// <summary>
+        /// The collaborator behind an exported NodePath: the authored path when
+        /// there is one, otherwise the first matching component in the scene.
+        /// Caches through <paramref name="cached"/> and re-resolves whenever
+        /// that reference goes stale, so a collaborator swapped or freed at
+        /// runtime is picked back up instead of leaving a dangling read.
+        ///
+        /// This is composition's one wiring rule, in one place. It was written
+        /// out by hand 113 times across 38 files as
+        /// <c>!Path.IsEmpty ? GetNodeOrNull&lt;T&gt;(Path) : IsInsideTree() ?
+        /// FindComponent&lt;T&gt;(GetTree()?.CurrentScene) : null</c> - and copies
+        /// drift: some cached, some re-resolved, some forgot the
+        /// IsInstanceValid check that makes a freed node recoverable.
+        ///
+        /// Explicit path first, scene search second, is deliberate: a scene that
+        /// wires a collaborator explicitly always wins over one that happens to
+        /// be found, so adding a second component of a type cannot silently
+        /// re-point everything that was searching for it.
+        /// </summary>
+        /// <param name="owner">The component doing the resolving. Static and
+        /// owner-taking rather than protected, because plenty of the components
+        /// that need this derive straight from <see cref="Node"/> rather than
+        /// from EntityComponent - composition should not require a base class.</param>
+        public static T? Resolve<T>(Node owner, NodePath path, ref T? cached) where T : class
+        {
+            if (cached is GodotObject existing && GodotObject.IsInstanceValid(existing))
+                return cached;
+
+            cached = !path.IsEmpty
+                ? owner.GetNodeOrNull<Node>(path) as T
+                : owner.IsInsideTree() ? FindComponent<T>(owner.GetTree()?.CurrentScene) : null;
+
+            return cached;
+        }
+
+        /// <summary>The same rule, for a component that already is an EntityComponent.</summary>
+        protected T? Resolve<T>(NodePath path, ref T? cached) where T : class
+            => Resolve(this, path, ref cached);
     }
 }

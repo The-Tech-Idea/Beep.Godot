@@ -110,13 +110,7 @@ namespace Beep.ECS
         }
 
         private GameFlowComponent? ResolveGameFlow()
-        {
-            if (_flow != null && GodotObject.IsInstanceValid(_flow)) return _flow;
-            if (!GameFlowPath.IsEmpty) _flow = GetNodeOrNull<GameFlowComponent>(GameFlowPath);
-            if (_flow == null && GetTree()?.CurrentScene is { } scene)
-                _flow = EntityComponent.FindComponent<GameFlowComponent>(scene, true);
-            return _flow;
-        }
+            => Resolve(GameFlowPath, ref _flow);
 
         public override void _ExitTree()
         {

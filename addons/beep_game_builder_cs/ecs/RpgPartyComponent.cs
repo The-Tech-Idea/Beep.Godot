@@ -4,12 +4,8 @@ using System.Collections.Generic;
 namespace Beep.ECS
 {
     /// <summary>
-    /// The RPG genre's character simulation: health, mana, experience and the active quest.
-    ///
-    /// <c>RpgHudComponent</c> registered Health, Mana and Quest as <c>Placeholder(...)</c>, so
-    /// those three readouts showed whatever text was typed into the scene and never moved. This
-    /// is the third genre to get a real one, after <see cref="CityEconomyComponent"/> and
-    /// <see cref="SurvivalVitalsComponent"/>, and follows their shape deliberately.
+    /// RPG growth tuning, mana and quests. Sibling HealthComponent and LevelingComponent
+    /// own combat health and progression, including their persistence.
     ///
     /// The parts that make it a character rather than three numbers:
     ///  - mana regenerates on a timer, health does NOT (healing is an action, not a wait —
@@ -33,37 +29,25 @@ namespace Beep.ECS
         [Export] public int HealthPerLevel { get; set; } = 14;
         [Export] public int ManaPerLevel { get; set; } = 8;
 
-        /// <summary>XP required for level 2. Later levels scale by <see cref="XpCurve"/>.</summary>
-        [Export] public int BaseXpToLevel { get; set; } = 100;
-        /// <summary>Superlinear so levelling slows down; 1.0 would make every level equal.</summary>
-        [Export(PropertyHint.Range, "1.0,2.0,0.05")] public float XpCurve { get; set; } = 1.35f;
-
         [Export] public float ManaRegenPerSecond { get; set; } = 1.6f;
 
         /// <summary>Below this fraction a bar is "low" — the threshold the HUD colours on.</summary>
         [Export(PropertyHint.Range, "0.05,0.5,0.01")] public float LowThreshold { get; set; } = 0.3f;
 
         // ── State ─────────────────────────────────────────────────────────────────────────
-        public int Level { get; private set; } = 1;
-        public int Xp { get; private set; }
-        public int Health { get; private set; }
+        public int Level => _leveling?.EffectiveLevel ?? 1;
+        public float Xp => _leveling?.CurrentXp ?? 0f;
+        public float Health => _health?.CurrentHealth ?? 0f;
         public int Mana { get; private set; }
 
-        public int MaxHealth => EffectiveMax(BaseMaxHealth, HealthPerLevel, Level);
+        public float MaxHealth => _health?.EffectiveMaxHealth ?? 1f;
+        private int ConfiguredMaxHealth => EffectiveMax(BaseMaxHealth, HealthPerLevel, Level);
         public int MaxMana => EffectiveMax(BaseMaxMana, ManaPerLevel, Level);
 
         /// <summary>XP needed to reach the next level from the start of this one.</summary>
-        public int XpToNextLevel
-        {
-            get
-            {
-                float curve = float.IsFinite(XpCurve) && XpCurve >= 1f ? XpCurve : 1f;
-                double required = Mathf.Max(1, BaseXpToLevel) * Mathf.Pow(Mathf.Max(1, Level), curve);
-                return ClampPositiveInt(required);
-            }
-        }
+        public float XpToNextLevel => _leveling?.XpNeeded ?? 1f;
 
-        public float HealthFraction => Mathf.Clamp((float)Mathf.Clamp(Health, 0, MaxHealth) / MaxHealth, 0f, 1f);
+        public float HealthFraction => _health?.HealthPercent ?? 0f;
         public float ManaFraction => Mathf.Clamp((float)Mathf.Clamp(Mana, 0, MaxMana) / MaxMana, 0f, 1f);
         public float XpFraction => Mathf.Clamp((float)Mathf.Max(0, Xp) / XpToNextLevel, 0f, 1f);
         public float EffectiveManaRegenPerSecond => NonNegativeFinite(ManaRegenPerSecond);
@@ -93,19 +77,64 @@ namespace Beep.ECS
         [Signal] public delegate void DiedEventHandler();
 
         private float _regenAccum;
+        private HealthComponent? _health;
+        private LevelingComponent? _leveling;
+        private ulong _boundHealthId;
+        private bool _initialized;
 
         public override void _Ready()
         {
             base._Ready();
-            Level = Mathf.Max(1, Level);
-            Health = MaxHealth;
-            Mana = MaxMana;
+            if (Engine.IsEditorHint()) return;
+            _leveling = GetSiblingComponent<LevelingComponent>();
+            if (_leveling is null)
+                GD.PushError($"[{Name}] RPG character stats require a sibling LevelingComponent; no independent progression state is created.");
+            else
+            {
+                _leveling.LevelUp += OnLevelUp;
+                _leveling.XpChanged += OnXpChanged;
+            }
+            _health = GetSiblingComponent<HealthComponent>();
+            if (_health is null)
+                GD.PushError($"[{Name}] RPG character stats require a sibling HealthComponent; no independent health pool is created.");
+            else
+            {
+                if (_boundHealthId != _health.GetInstanceId())
+                {
+                    _health.SetMaximumHealth(ConfiguredMaxHealth, true);
+                    _boundHealthId = _health.GetInstanceId();
+                }
+                _health.HealthChanged += OnHealthChanged;
+                _health.Died += OnHealthDied;
+            }
+            if (!_initialized) { Mana = MaxMana; _initialized = true; }
             if (ParticipatesInSave) AddToGroup(SaveableHelper.Group);
         }
 
+        public override void _ExitTree()
+        {
+            if (GodotObject.IsInstanceValid(_health))
+            {
+                _health!.HealthChanged -= OnHealthChanged;
+                _health.Died -= OnHealthDied;
+            }
+            _health = null;
+            if (GodotObject.IsInstanceValid(_leveling))
+            {
+                _leveling!.LevelUp -= OnLevelUp;
+                _leveling.XpChanged -= OnXpChanged;
+            }
+            _leveling = null;
+            RequestReady();
+            base._ExitTree();
+        }
+
+        private void OnHealthChanged(float current, float maximum) => EmitSignal(SignalName.StatsChanged);
+        private void OnHealthDied() => EmitSignal(SignalName.Died);
+
         public override void _Process(double delta)
         {
-            if (Engine.IsEditorHint() || IsDead || Mana >= MaxMana) return;
+            if (Engine.IsEditorHint() || !IsActive || IsDead || Mana >= MaxMana) return;
 
             // Accumulated rather than rounded per frame: at 1.6/s a per-frame RoundToInt is 0
             // every frame, so mana would never regenerate at all.
@@ -122,20 +151,17 @@ namespace Beep.ECS
         // ── Character API ─────────────────────────────────────────────────────────────────
 
         /// <summary>Apply damage. Returns true if this killed the character.</summary>
-        public bool Damage(int amount)
+        public bool Damage(GameDamage damage)
         {
-            if (amount <= 0 || IsDead) return false;
-            Health = Mathf.Max(0, Health - amount);
-            EmitSignal(SignalName.StatsChanged);
-            if (IsDead) EmitSignal(SignalName.Died);
+            if (!IsActive || IsDead || _health is null) return false;
+            _health.TakeDamage(damage);
             return IsDead;
         }
 
         public void Heal(int amount)
         {
             if (amount <= 0 || IsDead) return;
-            Health = Mathf.Min(MaxHealth, Health + amount);
-            EmitSignal(SignalName.StatsChanged);
+            _health?.Heal(amount);
         }
 
         /// <summary>Spend mana. Returns false and changes nothing when short — a caller must be
@@ -157,29 +183,27 @@ namespace Beep.ECS
         }
 
         /// <summary>Award XP, levelling as many times as it covers.</summary>
-        public void AwardXp(int amount)
+        public void AwardXp(float amount)
         {
-            if (amount <= 0 || IsDead) return;
-            Xp += amount;
-            // A loop, not an if: a boss award can span several levels at once, and handling one
-            // level per call would silently bank the rest.
-            while (Xp >= XpToNextLevel)
-            {
-                Xp -= XpToNextLevel;
-                Level++;
-                // Restoring on level-up is what makes it a reward. Scaling the maximum without
-                // refilling hands the player a bigger empty bar.
-                Health = MaxHealth;
-                Mana = MaxMana;
-                EmitSignal(SignalName.LeveledUp, Level);
-            }
+            if (!IsActive || IsDead) return;
+            _leveling?.AddXp(amount);
+        }
+
+        private void OnXpChanged(float current, float needed) => EmitSignal(SignalName.StatsChanged);
+
+        private void OnLevelUp(int level, int points)
+        {
+            _health?.SetMaximumHealth(ConfiguredMaxHealth);
+            _health?.Heal(MaxHealth);
+            Mana = MaxMana;
+            EmitSignal(SignalName.LeveledUp, level);
             EmitSignal(SignalName.StatsChanged);
         }
 
         public void Revive(float healthFraction = 1f)
         {
             float fraction = float.IsFinite(healthFraction) ? Mathf.Clamp(healthFraction, 0.01f, 1f) : 1f;
-            Health = Mathf.Max(1, Mathf.RoundToInt(MaxHealth * fraction));
+            _health?.Revive(Mathf.Max(1, Mathf.RoundToInt(MaxHealth * fraction)));
             Mana = MaxMana;
             EmitSignal(SignalName.StatsChanged);
         }
@@ -213,18 +237,12 @@ namespace Beep.ECS
             => _quests.TryGetValue(id, out var q) && q.IsComplete;
 
         // ── Persistence ───────────────────────────────────────────────────────────────────
-        private const string KLevel = "rpg.level";
-        private const string KXp = "rpg.xp";
-        private const string KHealth = "rpg.health";
         private const string KMana = "rpg.mana";
         private const string KQuests = "rpg.quests";
         private const string KActive = "rpg.quest_active";
 
         public void Save(GameBuilder.GameStateData state)
         {
-            state.GameData[KLevel] = Level;
-            state.GameData[KXp] = Xp;
-            state.GameData[KHealth] = Health;
             state.GameData[KMana] = Mana;
 
             var q = new Godot.Collections.Dictionary();
@@ -237,11 +255,7 @@ namespace Beep.ECS
         public void Load(GameBuilder.GameStateData state)
         {
             var d = state.GameData;
-            if (d.TryGetValue(KLevel, out var l)) Level = Mathf.Max(1, VariantToInt(l, 1));
-            if (d.TryGetValue(KXp, out var x)) Xp = Mathf.Max(0, VariantToInt(x, 0));
-            // Clamped AFTER Level is restored, because the maxima are derived from it — loading
-            // health before level would clamp against level 1's maximum and cap a level-20 save.
-            if (d.TryGetValue(KHealth, out var h)) Health = Mathf.Clamp(VariantToInt(h, MaxHealth), 0, MaxHealth);
+            // HealthComponent restores both HP and its saved capacity, including runtime modifiers.
             if (d.TryGetValue(KMana, out var m)) Mana = Mathf.Clamp(VariantToInt(m, MaxMana), 0, MaxMana);
 
             _quests.Clear();
@@ -275,13 +289,6 @@ namespace Beep.ECS
         {
             long total = (long)Mathf.Max(1, baseValue) + (long)Mathf.Max(0, perLevel) * (Mathf.Max(1, level) - 1L);
             return total > int.MaxValue ? int.MaxValue : (int)total;
-        }
-
-        private static int ClampPositiveInt(double value)
-        {
-            if (!double.IsFinite(value) || value <= 1.0)
-                return 1;
-            return value >= int.MaxValue ? int.MaxValue : Mathf.RoundToInt((float)value);
         }
 
         private static int VariantToInt(Variant value, int fallback)

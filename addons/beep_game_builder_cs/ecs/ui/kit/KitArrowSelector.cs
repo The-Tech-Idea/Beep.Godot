@@ -16,6 +16,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitArrowSelector : KitControl
     {
+        /// <summary>A stepper: the player presses its arrows to change the value, so it takes the button's corner and cue even though its body is drawn as a recessed strip.
+        /// Stated explicitly rather than inherited from KitControl's default, so that every
+        /// widget's class is a decision on the record instead of whatever the base happens
+        /// to return.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Button;
+
         public readonly List<string> Options = new();
 
         [Export]
@@ -146,30 +152,19 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(fs * 9f, fs * 2.1f);
         }
 
-        private void RefreshMinimumAndRedraw()
+        /// <summary>Step the option, reporting whether it moved. This widget already declined the
+        /// key when it could not step, which is the behaviour every directional widget now shares.</summary>
+        private bool StepByArrow(Vector2I dir)
         {
-            if (IsInsideTree())
-            {
-                KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-                UpdateMinimumSize();
-            }
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
+            if (dir.X < 0 && CanStep(-1)) { Step(-1); return true; }
+            if (dir.X > 0 && CanStep(1)) { Step(1); return true; }
+            return false;
         }
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
-            {
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.X < 0 && CanStep(-1)) { Step(-1); AcceptEvent(); }
-                else if (dir.X > 0 && CanStep(1)) { Step(1); AcceptEvent(); }
+            if (KitChrome.NavigateOrRelease(this, @event, StepByArrow))
                 return;
-            }
 
             if (@event is InputEventMouseMotion mm)
             {
@@ -241,8 +236,7 @@ namespace Beep.ECS.UI.Kit
             float rimPx = Mathf.Max(1f, g.Rim * 0.7f * (fs / 14f));
 
             var r = new Rect2(Vector2.Zero, Size);
-            float ps = g.WellShade;
-            DrawShape(r, ActiveShape, new Color(face.R * ps, face.G * ps, face.B * ps, 1f), ink, rimPx);
+            DrawShape(r, ActiveShape, KitChrome.RecessFace(face, g.WellShade) with { A = 1f }, ink, rimPx);
 
             float aw = ArrowW;
             DrawLine(new Vector2(aw, Size.Y * 0.18f), new Vector2(aw, Size.Y * 0.82f),
@@ -251,11 +245,11 @@ namespace Beep.ECS.UI.Kit
                      ink with { A = 0.45f }, Mathf.Max(1f, rimPx * 0.5f));
             DrawArrow(new Rect2(0f, 0f, aw, Size.Y), -1, ink, CanStep(-1), _hoverSide == -1);
             DrawArrow(new Rect2(Size.X - aw, 0f, aw, Size.Y), 1, ink, CanStep(1), _hoverSide == 1);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), r, ActiveShape);
+            KitChrome.DrawFocusRing(this, Genre, r, ActiveShape);
 
             if (Options.Count == 0)
             {
-                KitChrome.DrawEmptyPreview(this, KitChrome.GenreOf(this),
+                KitChrome.DrawEmptyPreview(this, Genre,
                                            new Rect2(aw, 0f, Mathf.Max(1f, Size.X - aw * 2f), Size.Y),
                                            KitShape.Pill, "Options");
                 return;

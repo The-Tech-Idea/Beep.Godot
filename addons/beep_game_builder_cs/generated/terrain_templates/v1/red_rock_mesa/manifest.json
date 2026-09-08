@@ -1,0 +1,168 @@
+{
+  "theme": "red_rock_mesa",
+  "assets": [
+    {
+      "id": "prefab_1_plate_large",
+      "png": "prefab_1_plate_large.png",
+      "texture": "prefab_1_plate_large.tres",
+      "region": [
+        31,
+        19,
+        597,
+        332
+      ],
+      "ground_pivot": [
+        298.5,
+        328
+      ],
+      "nominal_height_ratio": 1,
+      "measured_cliff_height": null,
+      "family": "prefab_1"
+    },
+    {
+      "id": "prefab_1_plate_medium",
+      "png": "prefab_1_plate_medium.png",
+      "texture": "prefab_1_plate_medium.tres",
+      "region": [
+        671,
+        73,
+        440,
+        265
+      ],
+      "ground_pivot": [
+        220.0,
+        261
+      ],
+      "nominal_height_ratio": 0.5,
+      "measured_cliff_height": null,
+      "family": "prefab_1"
+    },
+    {
+      "id": "prefab_1_plate_small",
+      "png": "prefab_1_plate_small.png",
+      "texture": "prefab_1_plate_small.tres",
+      "region": [
+        1171,
+        179,
+        299,
+        152
+      ],
+      "ground_pivot": [
+        149.5,
+        148
+      ],
+      "nominal_height_ratio": 0.25,
+      "measured_cliff_height": null,
+      "family": "prefab_1"
+    },
+    {
+      "id": "prefab_2_plate_large",
+      "png": "prefab_2_plate_large.png",
+      "texture": "prefab_2_plate_large.tres",
+      "region": [
+        15,
+        383,
+        631,
+        249
+      ],
+      "ground_pivot": [
+        315.5,
+        245
+      ],
+      "nominal_height_ratio": 1,
+      "measured_cliff_height": null,
+      "family": "prefab_2"
+    },
+    {
+      "id": "prefab_2_plate_medium",
+      "png": "prefab_2_plate_medium.png",
+      "texture": "prefab_2_plate_medium.tres",
+      "region": [
+        669,
+        430,
+        460,
+        198
+      ],
+      "ground_pivot": [
+        230.0,
+        194
+      ],
+      "nominal_height_ratio": 0.5,
+      "measured_cliff_height": null,
+      "family": "prefab_2"
+    },
+    {
+      "id": "prefab_2_plate_small",
+      "png": "prefab_2_plate_small.png",
+      "texture": "prefab_2_plate_small.tres",
+      "region": [
+        1169,
+        484,
+        338,
+        137
+      ],
+      "ground_pivot": [
+        169.0,
+        133
+      ],
+      "nominal_height_ratio": 0.25,
+      "measured_cliff_height": null,
+      "family": "prefab_2"
+    },
+    {
+      "id": "hill_round",
+      "png": "hill_round.png",
+      "texture": "hill_round.tres",
+      "region": [
+        40,
+        676,
+        566,
+        314
+      ],
+      "ground_pivot": [
+        283.0,
+        310
+      ],
+      "nominal_height_ratio": null,
+      "measured_cliff_height": null,
+      "family": "hill"
+    },
+    {
+      "id": "hill_square_sloped",
+      "png": "hill_square_sloped.png",
+      "texture": "hill_square_sloped.tres",
+      "region": [
+        659,
+        723,
+        487,
+        263
+      ],
+      "ground_pivot": [
+        243.5,
+        259
+      ],
+      "nominal_height_ratio": null,
+      "measured_cliff_height": null,
+      "family": "hill"
+    },
+    {
+      "id": "hill_small",
+      "png": "hill_small.png",
+      "texture": "hill_small.tres",
+      "region": [
+        1189,
+        791,
+        317,
+        189
+      ],
+      "ground_pivot": [
+        158.5,
+        185
+      ],
+      "nominal_height_ratio": null,
+      "measured_cliff_height": null,
+      "family": "hill"
+    }
+  ],
+  "heights_calibrated": false
+}

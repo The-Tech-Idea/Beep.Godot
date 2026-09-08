@@ -62,18 +62,6 @@ namespace Beep.ECS.UI.Kit
             return new Vector2(w, h);
         }
 
-        private void RefreshMinimumAndRedraw()
-        {
-            KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize());
-            UpdateMinimumSize();
-            QueueRedraw();
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
-        }
-
         private static float TailSizeFor(int fs) => Mathf.Clamp(fs * 0.9f, 10f, 20f);
 
         private static float LongestLineWidth(Font? font, string text, int fs)
@@ -122,7 +110,7 @@ namespace Beep.ECS.UI.Kit
             DrawTail(body, tail, face, RimColor(), rim);
             Font? font = KitFont();
             if (font != null)
-                KitChrome.DrawWrappedText(this, KitChrome.GenreOf(this), font, body.Grow(-_padding), _text,
+                KitChrome.DrawWrappedText(this, Genre, font, body.Grow(-_padding), _text,
                                           fs,
                                           UiSurface.Luminance(face) > 0.55f
                                               ? new Color(0.10f, 0.08f, 0.06f) : UiSurface.Text(this),

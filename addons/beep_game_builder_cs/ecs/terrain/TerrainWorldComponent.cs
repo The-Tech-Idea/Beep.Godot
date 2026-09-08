@@ -41,16 +41,39 @@ namespace Beep.ECS
     /// configures anything else. TerrainMapSetup owns what each axis means and
     /// TerrainGeneratorComponent.ApplyMapSetup owns how it reaches the
     /// generator; this component owns neither, it just carries the choice.
+    ///
+    /// THE RECIPE IS THE SAVE. The generated world - relief, elevation,
+    /// resources, start positions, the kind every cell began as - is a pure
+    /// function of the axes above and the seed, so that is what this
+    /// component persists: the recipe, not the eight-layer result. On load it
+    /// regenerates the same world and draws it, and writes NOTHING into the
+    /// grid's cells: the live map is GridCellDataComponent's, saved by
+    /// GridWorldStateComponent with every edit the player made, and a
+    /// regenerated world must not paint over it. That is the split OpenTTD
+    /// and Widelands keep - one saved tile array, and generation is what fills
+    /// it the first time. Before this the seed was never saved at all, so a
+    /// reload drew whatever the scene's authored Seed said, over cells restored
+    /// from a different world.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainWorldComponent : Node
+    public partial class TerrainWorldComponent : Node, ISaveable
     {
-        /// <summary>Raised after a world is generated and drawn.</summary>
+        /// <summary>
+        /// Raised after a world is generated and drawn - a new one from
+        /// <see cref="NewWorld"/> or the saved one from <see cref="RestoreWorld"/>.
+        /// A camera framing the map cares that there is a world, not which door
+        /// it came through.
+        /// </summary>
         [Signal] public delegate void WorldBuiltEventHandler(Vector2I size);
 
         [ExportGroup("Pipeline")]
         [Export] public NodePath GeneratorPath { get; set; } = new("");
+        /// <summary>Shared live map. When empty, uses the generator's CellDataPath.</summary>
+        [Export] public NodePath CellDataPath { get; set; } = new("");
+        [Export] public NodePath GridPath { get; set; } = new("");
+        [Export] public NodePath NavigationPath { get; set; } = new("");
+        [Export] public NodePath CollisionPath { get; set; } = new("");
 
         [ExportGroup("Renderers")]
         /// <summary>
@@ -92,14 +115,40 @@ namespace Beep.ECS
         [Export] public ResourceSet Resources { get; set; } = ResourceSet.Historical;
         [Export] public int Seed { get; set; } = 31415;
 
+        [ExportGroup("Exact Recipe")]
+        [Export] public bool UseCustomBounds { get; set; }
+        [Export] public Vector2I CustomBounds { get; set; } = new(64, 64);
+        [Export] public bool UseCustomLandCoverage { get; set; }
+        /// <summary>Land footprint before inland lakes/rivers. Overrides the shape/sea-level preset.</summary>
+        [Export(PropertyHint.Range, "0.05,0.92,0.01")] public float LandCoverage { get; set; } = 0.65f;
+        [Export] public bool UseCustomClimateSpan { get; set; }
+        /// <summary>Latitude range independent of tile resolution; zero is one latitude, one is planetary.</summary>
+        [Export(PropertyHint.Range, "0,1,0.001")] public float ClimateLatitudeSpan { get; set; } = 0.12f;
+
         [ExportGroup("Drawing")]
         [Export] public TerrainProjection Projection { get; set; } = TerrainProjection.Painted;
+        /// <summary>Optional flat-map art and prop limits; isometric art is independently authored.</summary>
+        [Export] public TerrainMapArt? MapArt { get; set; }
+        [Export] public TerrainPropSizing? PropSizing { get; set; }
 
         /// <summary>
-        /// Build the world once the scene is ready. This is what lets a demo be
-        /// a configured node rather than a controller script.
+        /// Build a NEW world once the scene is ready. This is what lets a demo
+        /// be a configured node rather than a controller script. Yields to a
+        /// save: when a load has already restored the recipe by the time the
+        /// deferred build runs, the build does not happen - a new world here
+        /// would fill the cells the save is about to restore, or just did.
         /// </summary>
         [Export] public bool BuildOnReady { get; set; } = true;
+
+        [ExportGroup("Save")]
+        /// <summary>
+        /// Whether this world joins the game's saveables. Off for a lab or a
+        /// map viewer that has no game state to belong to.
+        /// </summary>
+        [Export] public bool ParticipatesInSave { get; set; } = true;
+
+        /// <summary>The GameData key the recipe is saved under.</summary>
+        [Export] public string SaveKey { get; set; } = "terrain_world.recipe";
 
         /// <summary>
         /// Generates the map IN THE EDITOR, and saves it with the scene.
@@ -117,7 +166,12 @@ namespace Beep.ECS
         /// the editor, showing settings that could not be applied to anything.
         /// </summary>
         [ExportToolButton("Generate map")]
-        public Callable GenerateMap => Callable.From(Build);
+        public Callable GenerateMap => Callable.From(NewWorld);
+
+        /// <summary>Bumped when the saved recipe's shape changes.</summary>
+        private const int RecipeVersion = 3;
+
+        private bool _restoredFromSave;
 
         private TerrainGeneratorComponent? _generator;
         private TerrainPaintedRendererComponent? _painted;
@@ -130,30 +184,152 @@ namespace Beep.ECS
         private TerrainReliefRendererComponent? _relief;
         private TerrainResourceRendererComponent? _resources;
         private TerrainDataLayersComponent? _dataLayers;
-        private Node2D? _paintedNode;
-        private Node2D? _overlayNode;
 
         /// <summary>The size of the world last built, in tiles.</summary>
         public Vector2I BuiltSize { get; private set; }
 
         public override void _Ready()
         {
-            if (BuildOnReady && !Engine.IsEditorHint())
-                CallDeferred(nameof(Build));
+            if (Engine.IsEditorHint())
+                return;
+
+            if (ParticipatesInSave)
+                AddToGroup(SaveableHelper.Group);
+            if (BuildOnReady)
+            {
+                if (ParticipatesInSave) GameApp.Instance?.Saves?.BeginWorldLoad(this);
+                CallDeferred(nameof(NewWorldOnReady));
+            }
+        }
+
+        public override void _ExitTree()
+        {
+            RetireGeneration();
+            if (ParticipatesInSave)
+                RemoveFromGroup(SaveableHelper.Group);
         }
 
         public override string[] _GetConfigurationWarnings()
-            => GeneratorPath.IsEmpty
-                ? new[] { "GeneratorPath should point to a TerrainGeneratorComponent." }
-                : System.Array.Empty<string>();
+        {
+            if (RecipeError() is { } error) return new[] { error };
+            if (GeneratorPath.IsEmpty)
+                return new[] { "GeneratorPath should point to a TerrainGeneratorComponent." };
+            if (ParticipatesInSave && string.IsNullOrWhiteSpace(SaveKey))
+                return new[] { "SaveKey must not be empty while ParticipatesInSave is on." };
+            return System.Array.Empty<string>();
+        }
 
         /// <summary>
-        /// Generates the configured world and draws it in the configured
-        /// projection.
+        /// The deferred BuildOnReady target. A save restored between _Ready and
+        /// this call has already put the right world up; building a new one
+        /// now would refill the cells that save restored.
+        /// </summary>
+        private void NewWorldOnReady()
+        {
+            var saves = ParticipatesInSave ? GameApp.Instance?.Saves : null;
+            bool success = false;
+            try
+            {
+                if (BuiltSize.X > 0 || _restoredFromSave || saves?.HasPendingSaveRecord(SaveKey) == true)
+                {
+                    success = true;
+                    return;
+                }
+                NewWorld();
+                success = BuiltSize.X > 0 && BuiltSize.Y > 0;
+            }
+            finally { saves?.CompleteWorldLoad(this, success); }
+        }
+
+        /// <summary>
+        /// Generates a NEW world from the axes and seed, fills the grid's cells
+        /// with it, and draws it in the configured projection. The generator
+        /// acts as the map loader here - it writes the cells once, and from
+        /// then on the cells are the map.
         ///
         /// The size comes from the size AXIS rather than from a renderer's own
         /// bounds, and is then pushed to every renderer - so the projections
         /// cannot end up drawing different extents of the same world.
+        /// </summary>
+        public void NewWorld()
+        {
+            RetireGeneration();
+            if (!ConfigureGenerator(out Vector2I size))
+                return;
+
+            _generator!.GenerateTerrain();
+            Draw(size);
+            BuiltSize = size;
+            _builtRecipe = CaptureRecipe();
+
+            EmitSignal(SignalName.WorldBuilt, size);
+        }
+
+        /// <summary>
+        /// Regenerates the SAVED world from its recipe and draws it - the
+        /// field, the data layers, every renderer - and writes nothing into
+        /// the grid's cells. Those are the live map, restored by
+        /// GridWorldStateComponent with the player's edits in them; painting
+        /// the generator's original kinds back over them is exactly the bug
+        /// this method exists not to have.
+        ///
+        /// Order-free with respect to the other saveables: the world, the grid
+        /// state and the subsurface store each write disjoint stores, and the
+        /// store reads the regenerated layers lazily, never inside its Load.
+        /// </summary>
+        public void RestoreWorld()
+        {
+            RetireGeneration();
+            if (!ConfigureGenerator(out Vector2I size))
+                return;
+
+            // Regenerate recipe-only data without overwriting the live map.
+            _generator!.ResolveField();
+            Draw(size);
+            BuiltSize = size;
+            _builtRecipe = CaptureRecipe();
+
+            EmitSignal(SignalName.WorldBuilt, size);
+        }
+
+        /// <summary>Switches or refreshes views without generating or replacing live cells.</summary>
+        public void Redraw()
+        {
+            Resolve();
+            if (BuiltSize.X <= 0 || BuiltSize.Y <= 0 || !BindCellSource()) return;
+            Draw(BuiltSize, rebuildRecipeData: false);
+            EmitSignal(SignalName.WorldBuilt, BuiltSize);
+        }
+
+        private bool BindCellSource()
+        {
+            Node sourceOwner = CellDataPath.IsEmpty ? (Node?)_generator ?? this : this;
+            NodePath sourcePath = CellDataPath.IsEmpty ? _generator?.CellDataPath ?? new NodePath("") : CellDataPath;
+            var cells = sourcePath.IsEmpty ? null : sourceOwner.GetNodeOrNull<GridCellDataComponent>(sourcePath);
+            if (!sourcePath.IsEmpty && cells is null)
+            {
+                GD.PushWarning($"[{Name}] live cell source '{sourcePath}' on '{sourceOwner.Name}' is missing; world build/redraw cancelled.");
+                return false;
+            }
+
+            NodePath PathFrom(Node node) => cells is null ? new NodePath("") : node.GetPathTo(cells);
+            if (_generator is not null && cells is not null) _generator.CellDataPath = PathFrom(_generator);
+            if (_painted is not null) _painted.CellDataPath = PathFrom(_painted);
+            if (_tiles is not null) _tiles.CellDataPath = PathFrom(_tiles);
+            if (_iso is not null) _iso.CellDataPath = PathFrom(_iso);
+            if (_isometricAutotile is not null) _isometricAutotile.CellDataPath = PathFrom(_isometricAutotile);
+            if (_features is not null) _features.CellDataPath = PathFrom(_features);
+            if (_relief is not null) _relief.CellDataPath = PathFrom(_relief);
+            if (!CollisionPath.IsEmpty && GetNodeOrNull<TerrainCollisionComponent>(CollisionPath) is { } collision)
+                collision.CellDataPath = PathFrom(collision);
+            if (!NavigationPath.IsEmpty && GetNodeOrNull<GridNavigationComponent>(NavigationPath) is { } navigation)
+                navigation.CellDataPath = PathFrom(navigation);
+            return true;
+        }
+
+        /// <summary>
+        /// Pushes the axes onto the generator. Shared by both doors, so a new
+        /// world and a restored one are configured identically.
         ///
         /// FIVE MORE GENERATOR SETTINGS ARE OVERWRITTEN HERE, beyond the eleven
         /// ApplyMapSetup names on TerrainGeneratorComponent: BoundsSize, Seed,
@@ -161,43 +337,137 @@ namespace Beep.ECS
         /// UseScaleRules are both forced to true unconditionally. Both carry
         /// their own doc comments describing them as an Inspector switch; both
         /// are, in fact, always on for any scene that builds its world through
-        /// this component. Because of that, ClimateLatitudeSpan and
-        /// MinBiomeRegionFraction - the two exports UseScaleRules gates - can
-        /// never take effect on a TerrainWorldComponent-built world: a value
-        /// typed into either is accepted, stored, and silently discarded, the
-        /// same failure the ApplyMapSetup contract exists to prevent, one
-        /// method away from where that contract looks.
+        /// this component. MinBiomeRegionFraction is derived from scale rules.
+        /// ClimateLatitudeSpan is also derived unless this world's saved
+        /// UseCustomClimateSpan override supplies the geographic range.
         /// </summary>
-        public void Build()
+        private bool ConfigureGenerator(out Vector2I size)
         {
             Resolve();
+            size = UseCustomBounds ? CustomBounds : TerrainMapSetup.BoundsFor(MapSize);
+            if (RecipeError() is { } error)
+            {
+                GD.PushWarning($"[{Name}] {error} World generation cancelled.");
+                return false;
+            }
             if (_generator is null)
             {
                 GD.PushWarning($"[{Name}] no TerrainGeneratorComponent at GeneratorPath; no world was created.");
-                return;
+                return false;
             }
 
-            Vector2I size = TerrainMapSetup.BoundsFor(MapSize);
-            BuiltSize = size;
-
+            if (!BindCellSource()) return false;
             _generator.BoundsSize = size;
             _generator.Seed = Mathf.Max(0, Seed);
             _generator.ApplyMapSetup(
                 (int)MapType, (int)WorldAge, (int)Temperature,
                 (int)Rainfall, (int)SeaLevel, (int)ResourceLevel);
             _generator.ResourceSet = Resources;
+            if (UseCustomLandCoverage) _generator.LandmassScale = LandCoverage;
 
             // The climate model and the scale rules are what make the axes mean
             // what TerrainMapSetup says they mean; a world built without them
-            // would answer to the same dials differently. See the class-level
-            // doc comment above: this is a documented, unconditional override.
+            // would answer to the same dials differently. See the doc comment
+            // above: this is a documented, unconditional override.
             _generator.UseClimateBiomeMaps = true;
             _generator.UseScaleRules = true;
+            _generator.UseCustomClimateSpan = UseCustomClimateSpan;
+            if (UseCustomClimateSpan) _generator.ClimateLatitudeSpan = ClimateLatitudeSpan;
+            return true;
+        }
 
-            _generator.GenerateTerrain();
-            Draw(size);
+        private string? RecipeError()
+        {
+            if (UseCustomClimateSpan && (!float.IsFinite(ClimateLatitudeSpan) || ClimateLatitudeSpan < 0 || ClimateLatitudeSpan > 1))
+                return "ClimateLatitudeSpan must be finite and between zero and one.";
+            if (UseCustomBounds && (CustomBounds.X < 1 || CustomBounds.Y < 1))
+                return "CustomBounds must have positive width and height.";
+            if (UseCustomLandCoverage && (!float.IsFinite(LandCoverage) || LandCoverage < 0.05f || LandCoverage > 0.92f))
+                return "LandCoverage must be finite and between 0.05 and 0.92.";
+            return null;
+        }
 
-            EmitSignal(SignalName.WorldBuilt, size);
+        // ---- the recipe, saved ------------------------------------------------
+
+        /// <summary>
+        /// The recipe: the world axes and the seed, plus the size they produced
+        /// as a check. Not the layers - eight times ten thousand derivable
+        /// tiles - and not the generator's forty-field settings record, which
+        /// ConfigureGenerator overwrites from these anyway. The axes are the
+        /// authored document; everything else is derived from them.
+        /// </summary>
+        public Godot.Collections.Dictionary CaptureState() => _builtRecipe?.Duplicate(true) ?? CaptureRecipe();
+
+        private Godot.Collections.Dictionary CaptureRecipe() => new()
+        {
+            ["version"] = RecipeVersion,
+            ["map_type"] = (int)MapType,
+            ["map_size"] = (int)MapSize,
+            ["use_custom_bounds"] = UseCustomBounds,
+            ["custom_bounds"] = CustomBounds,
+            ["use_custom_land_coverage"] = UseCustomLandCoverage,
+            ["land_coverage"] = LandCoverage,
+            ["use_custom_climate_span"] = UseCustomClimateSpan,
+            ["climate_latitude_span"] = ClimateLatitudeSpan,
+            ["world_age"] = (int)WorldAge,
+            ["temperature"] = (int)Temperature,
+            ["rainfall"] = (int)Rainfall,
+            ["sea_level"] = (int)SeaLevel,
+            ["resource_level"] = (int)ResourceLevel,
+            ["resources"] = (int)Resources,
+            ["seed"] = Seed,
+            ["built_size"] = BuiltSize,
+        };
+
+        /// <summary>
+        /// Reads a saved recipe into the axes and regenerates that world - see
+        /// <see cref="RestoreWorld"/> for what it does and does not touch. Marks
+        /// the world as restored so a still-pending BuildOnReady stands down.
+        /// </summary>
+        public void RestoreState(Godot.Collections.Dictionary state)
+        {
+            MapType = (TerrainShape)GridVariantReader.Int(state, "map_type", (int)MapType);
+            MapSize = (TerrainMapSize)GridVariantReader.Int(state, "map_size", (int)MapSize);
+            UseCustomBounds = GridVariantReader.Bool(state, "use_custom_bounds", false);
+            CustomBounds = GridVariantReader.Vector2I(state, "custom_bounds", new Vector2I(64, 64));
+            UseCustomLandCoverage = GridVariantReader.Bool(state, "use_custom_land_coverage", false);
+            LandCoverage = GridVariantReader.Float(state, "land_coverage", 0.65f);
+            UseCustomClimateSpan = GridVariantReader.Bool(state, "use_custom_climate_span", false);
+            ClimateLatitudeSpan = GridVariantReader.Float(state, "climate_latitude_span", 0.12f);
+            WorldAge = (TerrainWorldAge)GridVariantReader.Int(state, "world_age", (int)WorldAge);
+            Temperature = (TerrainTemperature)GridVariantReader.Int(state, "temperature", (int)Temperature);
+            Rainfall = (TerrainRainfall)GridVariantReader.Int(state, "rainfall", (int)Rainfall);
+            SeaLevel = (TerrainSeaLevel)GridVariantReader.Int(state, "sea_level", (int)SeaLevel);
+            ResourceLevel = (TerrainResourceLevel)GridVariantReader.Int(state, "resource_level", (int)ResourceLevel);
+            Resources = (ResourceSet)GridVariantReader.Int(state, "resources", (int)Resources);
+            Seed = GridVariantReader.Int(state, "seed", Seed);
+            Vector2I savedSize = GridVariantReader.Vector2I(state, "built_size", Vector2I.Zero);
+
+            _restoredFromSave = true;
+            RestoreWorld();
+
+            // The one thing worth checking after a regeneration: the same axes
+            // must reproduce the same extent. If they do not, the meaning of a
+            // size step changed since the save, and the restored cells no
+            // longer line up with the world drawn under them.
+            if (savedSize != Vector2I.Zero && savedSize != BuiltSize)
+                GD.PushWarning($"[{Name}] the saved recipe was built at {savedSize} but reproduces {BuiltSize}; the restored cells and the regenerated world no longer share an extent.");
+        }
+
+        public void Save(GameBuilder.GameStateData state)
+        {
+            if (!string.IsNullOrWhiteSpace(SaveKey))
+                state.GameData[SaveKey] = CaptureState();
+        }
+
+        public void Load(GameBuilder.GameStateData state)
+        {
+            if (string.IsNullOrWhiteSpace(SaveKey))
+                return;
+
+            if (state.GameData.TryGetValue(SaveKey, out Variant value)
+                && GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary saved))
+                RestoreState(saved);
         }
 
         /// <summary>The generator's own report on the world it just made.</summary>
@@ -237,7 +507,16 @@ namespace Beep.ECS
                 d["underground_cell_count"].AsInt32(),
                 d["start_position_count"].AsInt32(),
                 d["requested_start_position_count"].AsInt32(),
-                d["generation_milliseconds"].AsInt64());
+                d["generation_milliseconds"].AsInt64()) + ViewStatus();
+        }
+
+        private string ViewStatus()
+        {
+            if (Projection != TerrainProjection.IsometricAutotile || _isometricAutotile is null) return "";
+            var report = _isometricAutotile.GetPaintDiagnostics();
+            if (!report.TryGetValue("valid", out var valid) || valid.AsBool()) return "";
+            if (report.TryGetValue("reason", out var reason)) return " | View incomplete: " + reason.AsString();
+            return $" | View incomplete: {report["missing"].AsInt32()} unmatched, {report["unmapped"].AsInt32()} unbound cells";
         }
 
         private static string LandformName(TerrainGeneratorComponent.LandformMode landform)
@@ -250,29 +529,22 @@ namespace Beep.ECS
 
         private void Resolve()
         {
-            // Every cached reference gets the same IsInstanceValid re-check the
-            // generator always had. `??=` alone kept a freed or replaced
-            // renderer node as a stale reference forever - the exact staleness
-            // bug each individual renderer's own ResolveGenerator was fixed for.
-            _generator = Refresh(_generator, GeneratorPath);
-            _painted = Refresh(_painted, PaintedRendererPath);
-            _paintedNode = Refresh(_paintedNode, PaintedRendererPath);
-            _tiles = Refresh(_tiles, TileRendererPath);
-            _iso = Refresh(_iso, IsometricRendererPath);
-            _isometricAutotile = Refresh(_isometricAutotile, IsometricAutotileRendererPath);
-            _features = Refresh(_features, FeaturesPath);
-            _isometricFeatures = Refresh(_isometricFeatures, IsometricFeaturesPath);
-            _overlay = Refresh(_overlay, MapOverlayPath);
-            _relief = Refresh(_relief, ReliefRendererPath);
-            _resources = Refresh(_resources, ResourceRendererPath);
-            _dataLayers = Refresh(_dataLayers, DataLayersPath);
-            _overlayNode = Refresh(_overlayNode, MapOverlayPath);
+            // Inspector path edits must also replace references to still-live nodes.
+            _generator = ResolvePath<TerrainGeneratorComponent>(GeneratorPath);
+            _painted = ResolvePath<TerrainPaintedRendererComponent>(PaintedRendererPath);
+            _tiles = ResolvePath<TerrainTileRendererComponent>(TileRendererPath);
+            _iso = ResolvePath<TerrainIsometricRendererComponent>(IsometricRendererPath);
+            _isometricAutotile = ResolvePath<TerrainIsometricAutotileRendererComponent>(IsometricAutotileRendererPath);
+            _features = ResolvePath<TerrainFeatureRendererComponent>(FeaturesPath);
+            _isometricFeatures = ResolvePath<TerrainIsometricFeatureRendererComponent>(IsometricFeaturesPath);
+            _overlay = ResolvePath<TerrainMapOverlayComponent>(MapOverlayPath);
+            _relief = ResolvePath<TerrainReliefRendererComponent>(ReliefRendererPath);
+            _resources = ResolvePath<TerrainResourceRendererComponent>(ResourceRendererPath);
+            _dataLayers = ResolvePath<TerrainDataLayersComponent>(DataLayersPath);
         }
 
-        /// <summary>The cached node if it is still alive, else a fresh resolve.</summary>
-        private T? Refresh<T>(T? cached, NodePath path) where T : Node
-            => cached is not null && GodotObject.IsInstanceValid(cached)
-                ? cached
-                : path.IsEmpty ? null : GetNodeOrNull<T>(path);
+        /// <summary>Resolve the current path, including edits that point to another live node.</summary>
+        private T? ResolvePath<T>(NodePath path) where T : Node
+            => path.IsEmpty ? null : GetNodeOrNull<T>(path);
     }
 }

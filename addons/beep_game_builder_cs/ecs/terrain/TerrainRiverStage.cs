@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -49,8 +50,9 @@ namespace Beep.ECS
         /// </summary>
         private const float RiverShareAtDensityOne = 0.0045f;
 
-        public static void Apply(TerrainWorld world, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, CancellationToken cancellation = default)
         {
+            cancellation.ThrowIfCancellationRequested();
             float density = Mathf.Clamp(settings.RiverDensity, 0.0f, 4.0f);
             if (density <= 0.0f)
                 return;
@@ -62,17 +64,19 @@ namespace Beep.ECS
 
             // The drainage network is shared with the erosion stage rather than
             // computed twice - see TerrainFlow.
-            int land = TerrainFlow.Accumulate(world, flowsTo, order, flow);
+            int land = TerrainFlow.Accumulate(world, flowsTo, order, flow, cancellation);
             if (land == 0)
                 return;
 
             float share = Mathf.Clamp(RiverShareAtDensityOne * density, 0.0f, 0.5f);
             float threshold = Threshold(flow, order, land, share);
+            cancellation.ThrowIfCancellationRequested();
             if (threshold <= 1.0f)
                 return;
 
             for (int i = 0; i < land; i++)
             {
+                if ((i & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 int index = order[i];
                 if (flow[index] < threshold)
                     continue;
@@ -104,7 +108,7 @@ namespace Beep.ECS
             return values[at];
         }
 
-        private static void Carve(TerrainWorld world, int index, int radius)
+        private static void Carve(TerrainGenerationBuffer world, int index, int radius)
         {
             int cx = index % world.Width;
             int cy = index / world.Width;

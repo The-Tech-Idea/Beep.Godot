@@ -143,10 +143,7 @@ namespace Beep.ECS
             data.SetCustomData(Cell.Feature, feature ?? string.Empty);
             data.SetCustomData(Cell.Relief, TerrainLayers.LevelForKind(kind));
             data.SetCustomData(Cell.IsWater, water);
-            // Passability follows GroundOf, so the flag and the physics layer a
-            // cell's body lands on can never disagree - the hand-written
-            // `kind != "rock"` version said lava was walkable while its body
-            // said Steep.
+            // This is generated ground classification, not the live agent's movement policy.
             data.SetCustomData(Cell.Passable, GroundOf(kind) == Ground.Land);
         }
 
@@ -225,7 +222,7 @@ namespace Beep.ECS
         public static bool IsLandKind(string terrainKind)
             => terrainKind.Length > 0 && !IsWaterKind(terrainKind);
 
-        /// <summary>Physics and navigation layer indices, by what the ground IS.</summary>
+        /// <summary>Generated ground classification, independent of an agent's movement policy.</summary>
         public enum Ground
         {
             /// <summary>Open land. Walkable.</summary>
@@ -238,99 +235,11 @@ namespace Beep.ECS
             Steep = 2,
         }
 
-        /// <summary>
-        /// Adds a physics and a navigation layer for EACH kind of ground, rather
-        /// than one "solid" layer.
-        ///
-        /// WHOSE DECISION IT IS. Whether water stops a character is a question
-        /// about the game, not about the map: one project wants a unit to swim,
-        /// the next wants the shore to be a wall, and a third wants boats that do
-        /// the opposite of both. A terrain engine that decides has taken that
-        /// choice away, and taken it away invisibly - the map simply behaves, and
-        /// the developer has to undo generated collision to disagree with it.
-        ///
-        /// So the map states what the ground IS and Godot's own layer masks say
-        /// what that means. Water, steep ground and open land each collide on
-        /// their own physics layer and navigate on their own navigation layer:
-        ///
-        ///   a walker    masks water + steep,   navigates Land
-        ///   a swimmer   masks steep,           navigates Water
-        ///   a boat      masks land + steep,    navigates Water
-        ///   an airship  masks nothing,         navigates any
-        ///
-        /// None of which this addon needs to know about. It is the mechanism
-        /// Godot already has for exactly this question.
-        /// </summary>
-        public static void DefineBody(TileSet tileSet, uint[]? collisionLayers = null)
-        {
-            // One physics and one navigation layer per Ground value, in order, so
-            // the enum IS the index and no mapping table can drift from it.
-            var grounds = System.Enum.GetValues<Ground>();
-
-            for (int i = tileSet.GetPhysicsLayersCount(); i < grounds.Length; i++)
-            {
-                tileSet.AddPhysicsLayer();
-
-                // Bit 1 is Godot's default for everything, so each ground gets a
-                // distinct bit above it: a mask of 0 would collide with nothing
-                // and a shared bit would make them indistinguishable.
-                uint bit = collisionLayers is not null && i < collisionLayers.Length
-                    ? collisionLayers[i]
-                    : 1u << (i + 1);
-
-                tileSet.SetPhysicsLayerCollisionLayer(i, bit);
-
-                // The tiles are the world: they are collided WITH, and collide
-                // with nothing themselves.
-                tileSet.SetPhysicsLayerCollisionMask(i, 0);
-            }
-
-            for (int i = tileSet.GetNavigationLayersCount(); i < grounds.Length; i++)
-                tileSet.AddNavigationLayer();
-        }
-
-        /// <summary>Which ground a terrain kind is, and so which layers it uses.</summary>
+        /// <summary>Classifies generated ground for descriptive tile metadata.</summary>
         public static Ground GroundOf(string terrainKind)
             => IsWaterKind(terrainKind) ? Ground.Water
                 : terrainKind is "rock" or "lava" ? Ground.Steep
                 : Ground.Land;
-
-        /// <summary>
-        /// Gives a tile its body: a collision polygon AND a navigation polygon,
-        /// both on the layer for the ground it is.
-        ///
-        /// Both, not one or the other. An earlier version gave water collision
-        /// and no navigation, which silently decided that nothing could ever
-        /// cross it - a swimming unit had nothing to path over even if its mask
-        /// let it through. Every cell is navigable on its own ground's layer and
-        /// solid on its own ground's layer; which of those a given agent honours
-        /// is chosen by that agent's mask and navigation layers.
-        /// </summary>
-        public static void ShapeCell(TileData? data, string terrainKind, Vector2I cellSize)
-        {
-            if (data is null)
-                return;
-
-            // Tile polygons are measured from the tile's CENTRE, not its corner.
-            var half = new Vector2(Mathf.Max(1, cellSize.X) * 0.5f, Mathf.Max(1, cellSize.Y) * 0.5f);
-            Vector2[] square =
-            {
-                new(-half.X, -half.Y),
-                new(half.X, -half.Y),
-                new(half.X, half.Y),
-                new(-half.X, half.Y),
-            };
-
-            int layer = (int)GroundOf(terrainKind);
-
-            data.AddCollisionPolygon(layer);
-            data.SetCollisionPolygonPoints(layer, 0, square);
-
-            var navigation = new NavigationPolygon();
-            navigation.SetVertices(square);
-            navigation.AddPolygon(new[] { 0, 1, 2, 3 });
-            data.SetNavigationPolygon(layer, navigation);
-        }
 
         /// <summary>
         /// Every terrain kind the generator can produce, so a data layer can hold

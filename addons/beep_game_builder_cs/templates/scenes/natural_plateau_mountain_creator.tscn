@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/ModularMountainPrefabComponent.cs" id="1_mountain_prefab"]
+
+[node name="MountainPrefab2NaturalPlateauCreator" type="Node2D"]
+script = ExtResource("1_mountain_prefab")
+PrefabStyle = 1
+MaterialTheme = 1
+BasePrefabId = "natural_plateau_three_level_no_ramps"
+GenerateOnReady = true

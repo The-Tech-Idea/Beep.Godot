@@ -1,0 +1,67 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "background": "opaque green",
+  "note": "Separate scatter art. Small, medium and cluster are roles; set final world scale in the editor. No collision or automatic terrain integration. Approved prior assets unchanged.",
+  "assets": [
+    {
+      "file": "red_sandstone_small_rock_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-85d9aee0-83aa-4a43-81d6-342eb1755aff.png",
+      "prompt": "Standalone 2.5D game sprite: One small squat irregular broken stone, uneven slanted top, natural angular outline. Red sandstone, warm burnt orange, thin irregular natural sediment layers on broken faces. Detailed painterly fantasy game art, front-facing elevated orthographic view, light upper left. NOT a mountain, plateau, mesa, cylinder, terrace, tiled pillar or flat-topped platform. Rounded weathering mixed with chipped edges, no obvious low-poly mesh. Isolated centrally on opaque bright chroma GREEN #00FF00. Square canvas, generous margins, no grass plants moss soil patch rubble fragments ground plane cast shadow text or props. Exactly one object."
+    },
+    {
+      "file": "red_sandstone_medium_boulder_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f5fb6e7b-1d7b-412c-8513-c8eb184944db.png",
+      "prompt": "Standalone 2.5D game sprite: One medium solitary boulder with a single uneven rounded angular crown, broad bulky shape, not stacked tiers. Red sandstone, warm burnt orange, thin irregular natural sediment layers on broken faces. Detailed painterly fantasy game art, front-facing elevated orthographic view, light upper left. NOT a mountain, plateau, mesa, cylinder, terrace, tiled pillar or flat-topped platform. Rounded weathering mixed with chipped edges, no obvious low-poly mesh. Isolated centrally on opaque bright chroma GREEN #00FF00. Square canvas, generous margins, no grass plants moss soil patch rubble fragments ground plane cast shadow text or props. Exactly one object."
+    },
+    {
+      "file": "red_sandstone_low_cluster_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-461f83d8-5671-4a50-a0a5-e6abb9deda9a.png",
+      "prompt": "Standalone 2.5D game sprite: Four naturally broken irregular rocks grouped low, one larger behind three smaller, slanted rough crowns all different, no round cylindrical forms. Red sandstone, warm burnt orange, thin irregular natural sediment layers on broken faces. Detailed painterly fantasy game art, front-facing elevated orthographic view, light upper left. NOT a mountain, plateau, mesa, cylinder, terrace, tiled pillar or flat-topped platform. Rounded weathering mixed with chipped edges, no obvious low-poly mesh. Isolated centrally on opaque bright chroma GREEN #00FF00. Square canvas, generous margins, no grass plants moss soil patch rubble fragments ground plane cast shadow text or props. A low spread of 4 touching stones, not a vertical stack."
+    },
+    {
+      "file": "volcanic_basalt_small_rock_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-9e3665a0-b56e-43b4-9d4a-10e5116eae83.png",
+      "prompt": "Material variant of this small_rock sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with charcoal grey cooled BASALT. Natural angular fractures, subtle porous surface, broad irregular broken faces, NOT sedimentary stripes or a mere recolor. No lava glow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural basalt cliffs. The cluster if present remains four loose rocks, never stacked tiers."
+    },
+    {
+      "file": "volcanic_basalt_medium_boulder_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-0e351b79-3bd8-4a3c-97e8-acdcb6afcec5.png",
+      "prompt": "Material variant of this medium_boulder sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with charcoal grey cooled BASALT. Natural angular fractures, subtle porous surface, broad irregular broken faces, NOT sedimentary stripes or a mere recolor. No lava glow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural basalt cliffs. The cluster if present remains four loose rocks, never stacked tiers."
+    },
+    {
+      "file": "volcanic_basalt_low_cluster_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-687ba4fd-d1ef-40bb-9949-78d4949fee05.png",
+      "prompt": "Material variant of this low_cluster sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with charcoal grey cooled BASALT. Natural angular fractures, subtle porous surface, broad irregular broken faces, NOT sedimentary stripes or a mere recolor. No lava glow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural basalt cliffs. The cluster if present remains four loose rocks, never stacked tiers."
+    },
+    {
+      "file": "pale_limestone_small_rock_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-79fcf619-e10a-422e-85b4-11a967e67f9d.png",
+      "prompt": "Material variant of this small_rock sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with pale warm grey ivory LIMESTONE. Natural weathered surfaces, shallow erosion pits, softer chipped edges and irregular fractures, NOT orange sediment stripes. No snow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural pale limestone cliffs. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    },
+    {
+      "file": "pale_limestone_medium_boulder_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-635c4119-aac5-4b1d-adc2-08cf20de776c.png",
+      "prompt": "Material variant of this medium_boulder sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with pale warm grey ivory LIMESTONE. Natural weathered surfaces, shallow erosion pits, softer chipped edges and irregular fractures, NOT orange sediment stripes. No snow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural pale limestone cliffs. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    },
+    {
+      "file": "pale_limestone_low_cluster_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f7a61265-31d4-4274-aff3-3d21ed487776.png",
+      "prompt": "Material variant of this low_cluster sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with pale warm grey ivory LIMESTONE. Natural weathered surfaces, shallow erosion pits, softer chipped edges and irregular fractures, NOT orange sediment stripes. No snow, grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural pale limestone cliffs. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    },
+    {
+      "file": "grey_granite_small_rock_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b50fa448-8f4e-4533-bc71-58d1b9d73094.png",
+      "prompt": "Material variant of this small_rock sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with natural neutral medium-grey GRANITE. Broad angular fractures, diagonal cracks, chipped weathered edges and fine mineral speckling, NOT sedimentary stripes. No grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural grey granite cliffs, no simplistic low-poly triangles. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    },
+    {
+      "file": "grey_granite_medium_boulder_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-1d4962e4-72dd-4adb-a47d-a40497bc5a80.png",
+      "prompt": "Material variant of this medium_boulder sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with natural neutral medium-grey GRANITE. Broad angular fractures, diagonal cracks, chipped weathered edges and fine mineral speckling, NOT sedimentary stripes. No grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural grey granite cliffs, no simplistic low-poly triangles. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    },
+    {
+      "file": "grey_granite_low_cluster_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-edcf1dd4-f8c2-4237-aff5-a37f2676080c.png",
+      "prompt": "Material variant of this low_cluster sprite. Keep object count, silhouette, composition, front elevated orthographic camera, upper-left lighting, margins and opaque green background unchanged. Replace all red sandstone with natural neutral medium-grey GRANITE. Broad angular fractures, diagonal cracks, chipped weathered edges and fine mineral speckling, NOT sedimentary stripes. No grass, plants, moss, ground patch, base, shadow outside rock, props or text. Detailed painterly 2.5D game scenery matching natural grey granite cliffs, no simplistic low-poly triangles. Cluster if present remains four loose rocks with irregular crowns, never stacked tiers."
+    }
+  ]
+}

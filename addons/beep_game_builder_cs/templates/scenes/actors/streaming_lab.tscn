@@ -1,0 +1,105 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/actors/actor_lab.tscn" id="base"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/templates/scenes/actors/streaming_lab.gd" id="lab"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellArchiveComponent.cs" id="archive"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs" id="button"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitCheckBox.cs" id="check"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/ui/kit/KitPanelContainer.cs" id="panel"]
+
+[node name="StreamingLab" instance=ExtResource("base")]
+script = ExtResource("lab")
+background_generation = true
+spawn_search_radius = 4
+
+[node name="World" parent="." index="0"]
+CustomBounds = Vector2i(300, 256)
+
+[node name="CameraDemand" parent="." index="3"]
+BoundsCells = Rect2i(0, 0, 300, 256)
+OverviewSurfacePath = NodePath("../Painted/SplatSurface/SurfaceStreaming")
+
+[node name="Generator" parent="." index="5"]
+TopologySamplesPerCell = 4
+
+[node name="Navigation" parent="." index="4"]
+LoadMissingTerrain = true
+
+[node name="Controller" parent="Camera2D" index="0"]
+MinZoom = Vector2(0.01, 0.01)
+
+[node name="Title" parent="HUD/Toolbar/Row" index="0"]
+text = "World Streaming"
+
+[node name="Save" parent="HUD/Toolbar/Row" index="5"]
+text = "Snapshot"
+tooltip_text = "Capture workers and jobs in memory"
+
+[node name="Load" parent="HUD/Toolbar/Row" index="6"]
+text = "Restore"
+tooltip_text = "Restore the captured workers and jobs"
+
+[node name="Status" parent="HUD" index="1"]
+anchor_right = 1.0
+offset_right = -16.0
+autowrap_mode = 2
+
+[node name="Home" type="Button" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Workers"
+script = ExtResource("button")
+
+[node name="Streaming" type="CheckBox" parent="HUD/Toolbar/Row"]
+layout_mode = 2
+text = "Auto archive"
+disabled = true
+button_pressed = true
+script = ExtResource("check")
+
+[node name="Archive" type="Node" parent="."]
+script = ExtResource("archive")
+CellDataPath = NodePath("../Cells")
+MaximumResidentChunks = 16
+MaximumResidentCells = 8192
+
+[node name="Loading" type="PanelContainer" parent="HUD"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -32.0
+offset_right = 260.0
+offset_bottom = 32.0
+script = ExtResource("panel")
+
+[node name="Row" type="HBoxContainer" parent="HUD/Loading"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Stage" type="Label" parent="HUD/Loading/Row"]
+layout_mode = 2
+custom_minimum_size = Vector2(190, 0)
+text = "Queued"
+
+[node name="Progress" type="ProgressBar" parent="HUD/Loading/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(160, 28)
+
+[node name="Cancel" type="Button" parent="HUD/Loading/Row"]
+layout_mode = 2
+text = "Cancel"
+script = ExtResource("button")
+
+[node name="Diagnostics" type="Label" parent="HUD"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -62.0
+offset_right = -16.0
+offset_bottom = -12.0
+autowrap_mode = 2
+text = "Waiting for world"
+mouse_filter = 2

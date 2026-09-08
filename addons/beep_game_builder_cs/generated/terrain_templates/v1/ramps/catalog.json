@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "grass_granite",
+      "manifest": "grass_granite/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "grey_rock",
+      "manifest": "grey_rock/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "sandstone",
+      "manifest": "sandstone/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "volcanic_basalt",
+      "manifest": "volcanic_basalt/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "meadow_hill",
+      "manifest": "meadow_hill/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "red_rock_mesa",
+      "manifest": "red_rock_mesa/manifest.json",
+      "count": 9
+    },
+    {
+      "id": "alpine_snow",
+      "manifest": "alpine_snow/manifest.json",
+      "count": 9
+    }
+  ],
+  "asset_count": 63,
+  "references": [
+    {
+      "file": "Art/TileSets/ForestTileSet/Tilemap_color5.png",
+      "role": "Top/front/side relationships; not exact 17-piece output layout"
+    },
+    {
+      "file": "Art/TileSets/isometric Cliff and Mountain Tileset Atlas.jfif",
+      "role": "Primary painted cliff style and volume"
+    },
+    {
+      "file": "Art/TileSets/Mountain Cliff Terrain Tile Atlas.jfif",
+      "role": "Material variation reference"
+    }
+  ],
+  "projection": "Front-facing elevated 2.5D; artist-authored, not calibrated geometry",
+  "heights_calibrated": false,
+  "existing_prefabs_replaced": false
+}

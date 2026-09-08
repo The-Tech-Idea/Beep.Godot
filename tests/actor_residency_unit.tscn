@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/actors/ActorComponent.cs" id="actor"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/HealthComponent.cs" id="health"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs" id="follower"]
+
+[node name="Ambient" type="Node2D"]
+
+[node name="Actor" type="Node" parent="."]
+script = ExtResource("actor")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("health")
+MaxHealth = 73.0
+CurrentHealth = 73.0
+
+[node name="Follower" type="Node" parent="."]
+script = ExtResource("follower")
+GridPath = NodePath("../../../Grid")
+NavigationPath = NodePath("../../../Navigation")
+DriveCharacterBody = false
+SetZIndexFromY = false

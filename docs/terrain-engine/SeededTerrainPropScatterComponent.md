@@ -34,7 +34,7 @@ This component reads terrain classification from either a live `TerrainGenerator
 - Reads `GridCellDataComponent.GetTerrainKind(Vector2I)` (defined in `GridCellDataComponent.cs`) when `CellDataPath` is assigned.
 - Reads `TerrainLayers.ZForProps(TerrainLayers.Ground)` (`TerrainLayers.cs`) to set each stamp's `ZIndex`.
 - Reads `TerrainTextures.Load(path, owner, what)` (`TerrainTextures.cs`) as the shared texture-loading helper for every configured sprite path.
-- Does not touch `TerrainAuthoring`, `TerrainWorld`, `TerrainGenerationSettings`, `TerrainBiomeStage`, or `TerrainClimateStage` — it works entirely off already-generated terrain-kind queries, not the raw generation fields.
+- Does not touch `TerrainAuthoring`, `TerrainGenerationBuffer`, `TerrainGenerationSettings`, `TerrainBiomeStage`, or `TerrainClimateStage` — it works entirely off already-generated terrain-kind queries, not the raw generation fields.
 
 ## Notes
 

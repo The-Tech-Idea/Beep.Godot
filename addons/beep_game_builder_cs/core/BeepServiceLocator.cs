@@ -4,24 +4,12 @@ using System.Collections.Generic;
 
 namespace Beep.GameBuilder;
 
-/// <summary>Simple service locator / DI container. Register and resolve services by type.</summary>
-public static class BeepServiceLocator
-{
-    private static readonly Dictionary<Type, object> _services = new();
-    private static readonly Dictionary<Type, Func<object?>> _factories = new();
-
-    public static void Register<T>(T instance) where T : notnull { _services[typeof(T)] = instance; }
-    public static void Register<T>(Func<T> factory) { _factories[typeof(T)] = () => factory(); }
-    public static T? Resolve<T>() where T : class
-    {
-        var t = typeof(T);
-        if (_services.TryGetValue(t, out var svc)) return svc as T;
-        if (_factories.TryGetValue(t, out var fac) && fac() is T inst) { _services[t] = inst; return inst; }
-        return null;
-    }
-    public static bool Has<T>() => _services.ContainsKey(typeof(T)) || _factories.ContainsKey(typeof(T));
-    public static void Clear() { _services.Clear(); _factories.Clear(); }
-}
+// A type-keyed service locator used to live here (BeepServiceLocator: Register/
+// Resolve/Has/Clear). Nothing registered into it and nothing resolved from it,
+// and it was a FOURTH way for classes to find each other beside GameApp's typed
+// accessors, NodePath exports and scene search. The two that remain are the
+// rule: GameApp.Instance.<Subsystem> for the game master, and
+// EntityComponent.Resolve<T> for scene-local collaborators.
 
 /// <summary>Grid-based menu navigation for keyboard/controller. Wrap a GridContainer and navigate with arrows.</summary>
 public class BeepGridNavigator

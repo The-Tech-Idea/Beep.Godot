@@ -2,10 +2,28 @@ using Godot;
 
 namespace Beep.ECS.UI.Kit
 {
+    /// <summary>
+    /// A right-click menu drawn in the kit's own chrome: a plate with one row per item, the row
+    /// under the pointer highlighted.
+    ///
+    /// It is <c>TopLevel</c>, so it is positioned in screen space rather than inside whatever
+    /// container happens to own it, and <see cref="PopupAt"/> clamps it back inside the viewport —
+    /// a menu opened near the right edge would otherwise draw half off-screen, which is the failure
+    /// every popup has the first time.
+    ///
+    /// Closes on <c>ui_cancel</c> or a click outside itself, and consumes that outside click so it
+    /// does not also press whatever was underneath.
+    /// </summary>
     [Tool]
     [GlobalClass]
     public partial class KitContextMenu : KitControl
     {
+        /// <summary>A message surface, not a pressable. It had been falling through to the base's
+        /// Button default, which decided its corner radius and its selection cue as well as -- once
+        /// the genre had artwork -- which sprite it was cut from, and it rendered as a glossy button
+        /// with a raised lip.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         [Export]
         public string[] Items
         {
@@ -82,6 +100,21 @@ namespace Beep.ECS.UI.Kit
             Items = next;
         }
 
+        /// <summary>Drop one item, reporting whether the index named one. The highlight follows the
+        /// removal so it never points past the end of a shortened menu.</summary>
+        public bool RemoveItem(int index)
+        {
+            if (index < 0 || index >= _items.Length) return false;
+
+            string[] next = new string[_items.Length - 1];
+            for (int i = 0, w = 0; i < _items.Length; i++)
+                if (i != index) next[w++] = _items[i];
+
+            if (index <= _hover) _hover = Mathf.Max(-1, _hover - 1);
+            Items = next;
+            return true;
+        }
+
         public void ClearItems()
         {
             Items = System.Array.Empty<string>();
@@ -89,28 +122,22 @@ namespace Beep.ECS.UI.Kit
 
         public override void _GuiInput(InputEvent @event)
         {
-            if (@event is InputEventKey key)
+            if (KitChrome.IsCancel(@event))
             {
-                if (KitChrome.IsCancelKey(key))
-                {
-                    Visible = false;
-                    _hover = -1;
-                    AcceptEvent();
-                    return;
-                }
-                Vector2I dir = KitChrome.DirectionFromKey(key);
-                if (dir.Y != 0)
-                {
-                    MoveHover(dir.Y);
-                    AcceptEvent();
-                    return;
-                }
-                if (KitChrome.IsConfirmKey(key) && _hover >= 0 && _hover < _items.Length)
-                {
-                    Select(_hover);
-                    AcceptEvent();
-                    return;
-                }
+                Visible = false;
+                _hover = -1;
+                AcceptEvent();
+                return;
+            }
+
+            if (KitChrome.NavigateOrRelease(this, @event, dir => dir.Y != 0 && MoveHover(dir.Y)))
+                return;
+
+            if (KitChrome.IsConfirm(@event) && _hover >= 0 && _hover < _items.Length)
+            {
+                Select(_hover);
+                AcceptEvent();
+                return;
             }
 
             if (@event is InputEventMouseMotion mm)
@@ -137,12 +164,16 @@ namespace Beep.ECS.UI.Kit
             _hover = -1;
         }
 
-        private void MoveHover(int delta)
+        /// <summary>Move the highlight, reporting whether it moved. At the first or last item the
+        /// key is released; the menu still closes on ui_cancel, so nothing is stranded.</summary>
+        private bool MoveHover(int delta)
         {
-            if (_items.Length == 0) return;
-            int next = _hover < 0 ? 0 : _hover + delta;
-            _hover = Mathf.Clamp(next, 0, _items.Length - 1);
+            if (_items.Length == 0) return false;
+            int next = Mathf.Clamp(_hover < 0 ? 0 : _hover + delta, 0, _items.Length - 1);
+            if (next == _hover) return false;
+            _hover = next;
             QueueRedraw();
+            return true;
         }
 
         private void NormalizeHover()
@@ -172,8 +203,19 @@ namespace Beep.ECS.UI.Kit
         public override void _Draw()
         {
             if (Size.X < 8f || Size.Y < 8f) return;
+
+            // With no items this drew an empty plate, which in the editor is indistinguishable
+            // from a broken widget. The preview says which array to fill and, like every other
+            // one in the kit, draws only under the editor and mutates nothing.
+            if (_items.Length == 0)
+            {
+                KitChrome.DrawEmptyPreview(this, Genre, new Rect2(Vector2.Zero, Size),
+                                           ActiveShape, "Items");
+                return;
+            }
+
             DrawMaterial(new Rect2(Vector2.Zero, Size), ActiveShape);
-            KitChrome.DrawFocusRing(this, KitChrome.GenreOf(this), new Rect2(Vector2.Zero, Size),
+            KitChrome.DrawFocusRing(this, Genre, new Rect2(Vector2.Zero, Size),
                                     ActiveShape, 0.75f);
 
             var font = KitFont();

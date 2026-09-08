@@ -292,9 +292,9 @@ namespace Beep.ECS
                 resource.AmountPerGather = EffectiveAmountPerGather;
                 resource.GatherJobKind = EffectiveGatherJobKind;
                 resource.GatherSeconds = EffectiveGatherSeconds;
+                resource.MarkCellOccupiedOnReady = MarkGeneratedCellsOccupied;
             }
             resource.GatherPriority = GatherPriority;
-            resource.MarkCellOccupiedOnReady = MarkGeneratedCellsOccupied;
             return node;
         }
 
@@ -345,28 +345,21 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            if (_grid == null || !GodotObject.IsInstanceValid(_grid))
-                _grid = !GridPath.IsEmpty
-                    ? GetNodeOrNull<GridProjectionComponent>(GridPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridProjectionComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, GridPath, ref _grid);
 
+            // Explicit wire only, never found scene-wide - see DataLayersPath.
             if (_dataLayers == null || !GodotObject.IsInstanceValid(_dataLayers))
                 _dataLayers = !DataLayersPath.IsEmpty
                     ? GetNodeOrNull<TerrainDataLayersComponent>(DataLayersPath)
                     : null;
 
+            // Not the shared rule: generated nodes land under the parent when
+            // no root is wired, never under a component found scene-wide.
             if (_resourceRoot == null || !GodotObject.IsInstanceValid(_resourceRoot))
                 _resourceRoot = !ResourceRootPath.IsEmpty ? GetNodeOrNull<Node>(ResourceRootPath) : GetParent();
 
-            if (_placement == null || !GodotObject.IsInstanceValid(_placement))
-                _placement = !PlacementPath.IsEmpty
-                    ? GetNodeOrNull<GridPlacementComponent>(PlacementPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridPlacementComponent>(GetTree()?.CurrentScene) : null;
-
-            if (_cellData == null || !GodotObject.IsInstanceValid(_cellData))
-                _cellData = !CellDataPath.IsEmpty
-                    ? GetNodeOrNull<GridCellDataComponent>(CellDataPath)
-                    : IsInsideTree() ? EntityComponent.FindComponent<GridCellDataComponent>(GetTree()?.CurrentScene) : null;
+            EntityComponent.Resolve(this, PlacementPath, ref _placement);
+            EntityComponent.Resolve(this, CellDataPath, ref _cellData);
         }
 
         private bool CanSpawnResourceAt(Vector2I cell, bool skipTerrainRules = false)

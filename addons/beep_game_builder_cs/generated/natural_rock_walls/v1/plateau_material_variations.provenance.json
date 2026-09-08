@@ -1,0 +1,22 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "reference": "red_sandstone_plateau_01_green.png",
+  "background": "opaque green",
+  "assets": [
+    {
+      "file": "volcanic_basalt_plateau_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-b6c7fe87-f376-44db-8452-01b5836c0c90.png",
+      "prompt": "Create a COOLED VOLCANIC BASALT material version of this APPROVED complete plateau. Preserve the geometry and composition: broad flat filled top, slightly narrower top footprint than base, outward-sloping exterior left/right faces continuous with front wall, same single elevation, exact camera/framing/proportions and upper-left light. Change material throughout TOP AND WALLS to charcoal grey basalt. Top is plain finely textured basalt, uncluttered and level. Walls have irregular angular fractured massive rock forms, sharp chipped edges and subtle porous detail, distinguishable natural slabs rather than repetitive pillars. Painterly detailed 2D front-style 2.5D game asset. Do not preserve sandstone sediment layers; use basalt geology, not merely black recolor. No lava, glow, grass, vegetation, objects, ramps, steps, inward walls, hollow center or additional tiers. Solid opaque bright chroma green #00FF00 background and clear margins. Not a template or atlas. Keep the same complete plateau silhouette and outward side profile."
+    },
+    {
+      "file": "pale_limestone_plateau_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-f4a535ac-0b91-4720-9cdb-c0166bc1b3a9.png",
+      "prompt": "Create a PALE WEATHERED LIMESTONE version of this approved COMPLETE plateau. Preserve its broad fully filled flat top, slightly narrower top footprint than rocky base, outward-sloping EXTERIOR left and right faces joined to front cliff, overall dimensions, framing, single elevation and elevated front orthographic 2.5D camera. Replace ALL top and wall materials with pale warm-grey/ivory limestone, not snow. Flat open finely textured limestone top without grass or objects. Natural weathered rock faces, shallow erosion pockets, broad irregular slabs, softened chipped edges, subtle bedding and recesses, varied rock sizes. Detailed hand-painted game art and same upper-left lighting. Not just recoloring sedimentary sandstone strata. No identical pillars, regular masonry, low-poly triangles, hollow center, inward walls, ramps, stairs, vegetation, water, props or extra layers. Bright opaque solid chroma green background #00FF00 around complete silhouette. Maintain approved outward side-wall profile and top area. Not an atlas or template."
+    },
+    {
+      "file": "grey_granite_plateau_01_green.png",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-8d337d08-cbbd-47c7-86f9-02aa7caa5eca.png",
+      "prompt": "Create a GREY GRANITE material version of this approved COMPLETE plateau. Preserve its broad fully filled flat top, slightly narrower top footprint than rocky base, outward-sloping EXTERIOR left and right faces joined to front cliff, overall dimensions, framing, single elevation and elevated front orthographic 2.5D camera. Replace ALL top and wall materials with natural neutral grey granite. Flat open finely textured granite top without grass or objects. Natural rock faces with varied large fractured masses, diagonal cracks, irregular broad slabs, chipped edges, subtle mineral speckling and recesses. Detailed hand-painted game art and same upper-left lighting. Use granite geology not horizontal sandstone sediment layers or just a recolor. No identical repeating pillars, regular masonry, low-poly triangles, hollow center, inward walls, ramps, stairs, vegetation, water, props or extra layers. Bright opaque solid chroma green background #00FF00 around complete silhouette. Maintain approved outward side-wall profile and top area. Not an atlas or template."
+    }
+  ]
+}

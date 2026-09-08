@@ -18,6 +18,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitOrnament : KitControl
     {
+        /// <summary>Decorative frame furniture, so it takes the container's corner rather than a button's.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Panel;
+
         public enum OrnamentKind { Crown, Wings, Laurel, Trophy, Starburst, RibbonTail }
 
         [Export] public OrnamentKind Kind { get => _kind; set { if (_kind == value) return; _kind = value; RefreshVisualAndRedraw(); } }
@@ -52,11 +58,6 @@ namespace Beep.ECS.UI.Kit
         {
             int fs = UiSurface.FontSize(this);
             return new Vector2(fs * 2.1f, fs * 1.35f);
-        }
-
-        private void RefreshVisualAndRedraw()
-        {
-            QueueRedraw();
         }
 
         public override void _Draw()

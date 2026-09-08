@@ -24,11 +24,8 @@ namespace Beep.ECS
         private CharacterBody2D? _body;
         private Vector2 _knockbackVelocity;
         private float _remaining;
-        // True when no sibling already integrates the body (a controller / mover). Knockback is
-        // blind — it also runs on crates and simple enemies with no controller — so on those it
-        // must drive MoveAndSlide itself; when a controller is present, calling MoveAndSlide here
-        // too moved the body twice per frame.
-        private bool _ownsIntegration;
+        public bool IsKnockedBack => IsActive && _remaining > 0;
+        public Vector2 CurrentImpulse => _knockbackVelocity;
 
         public override void _Ready()
         {
@@ -36,7 +33,7 @@ namespace Beep.ECS
             _body = GetParent() as CharacterBody2D;
             if (_body == null)
                 GD.PushError($"[Knockback] Parent must be CharacterBody2D, got {GetParent()?.GetType().Name}");
-            _ownsIntegration = !HasMovementAuthoritySibling();
+            ProcessPhysicsPriority = -10;
         }
 
         // A sibling that owns Velocity + MoveAndSlide each frame (a main controller or mover),
@@ -44,10 +41,17 @@ namespace Beep.ECS
         private bool HasMovementAuthoritySibling()
         {
             if (GetParent() is not Node parent) return false;
+            var actor = ActorComponent.ForBody(parent);
             foreach (var child in parent.GetChildren())
+            {
+                if (child is EntityComponent { IsActive: false }) continue;
+                if (actor is not null && !actor.CanDrive(child)) continue;
+                if (child is AIController && actor is { HasOrders: true }) continue;
+                if (child is GridPathFollowerComponent { IsMoving: true, DriveCharacterBody: true }) return true;
                 if (child is PlatformerController or TopDownController or ShooterController
-                    or AIController or MovementComponent or FlyComponent)
+                    or AIController or MovementComponent or FlyComponent or AnimalBehaviorComponent or FlockingComponent)
                     return true;
+            }
             return false;
         }
 
@@ -68,31 +72,30 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            // !IsActive included so a knockback in flight stops when the component is deactivated,
-            // rather than continuing to drive the body. (Instant-set controllers like ShooterController
-            // that write Velocity = input*speed each frame overwrite the impulse — a known limitation.)
+            // Controllers apply the impulse at final integration; only controller-less bodies move here.
             if (Engine.IsEditorHint() || _body == null || _remaining <= 0 || !IsActive) return;
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
             _remaining -= dt;
             if (!IsFinite(_knockbackVelocity)) _knockbackVelocity = Vector2.Zero;
             _knockbackVelocity = _knockbackVelocity.MoveToward(Vector2.Zero, EffectiveFriction * dt);
 
-            if (_ownsIntegration)
+            if (!HasMovementAuthoritySibling())
             {
                 // No controller to integrate for us — drive the body directly (SET, not +=, so a
                 // controller-less body doesn't accumulate velocity across frames).
                 _body.Velocity = _knockbackVelocity;
-                _body.MoveAndSlide();
-            }
-            else
-            {
-                // A controller owns MoveAndSlide; add the decaying impulse on top of its input
-                // velocity and let it integrate — no second MoveAndSlide here.
-                _body.Velocity += _knockbackVelocity;
+                CharacterMotion.Move(_body);
             }
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;
+
+        public override void _ExitTree()
+        {
+            _body = null; _remaining = 0; _knockbackVelocity = Vector2.Zero;
+            RequestReady();
+            base._ExitTree();
+        }
 
         private static bool IsFinite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
     }

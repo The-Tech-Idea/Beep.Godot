@@ -19,6 +19,12 @@ namespace Beep.ECS.UI.Kit
     [GlobalClass]
     public partial class KitRadialMeter : KitControl
     {
+        /// <summary>A meter, and the sibling KitOrbMeter already declares Bar; the two disagreed about what they are.
+        /// Declared rather than inherited: KitControl's default is Button, and that default
+        /// decides this widget's corner radius, its selection cue, its silhouette and which
+        /// sprite it is cut from.</summary>
+        protected override KitWidgetClass WidgetClass => KitWidgetClass.Bar;
+
         [Export(PropertyHint.Range, "0.0,1.0,0.001")]
         public float Value { get => _value; set { float next = Mathf.Clamp(value, 0f, 1f); if (Mathf.IsEqualApprox(_value, next)) return; _value = next; RefreshContentAndRedraw(); } }
         private float _value = 0.68f;

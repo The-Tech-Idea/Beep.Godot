@@ -12,7 +12,7 @@ namespace Beep.ECS.UI
     /// Example:
     /// var mgr = GetNode&lt;KeybindManagerComponent&gt;("KeybindMgr");
     /// mgr.Register("jump", Key.Space, () => player.Jump());
-    /// mgr.Register("pause", Key.Escape, () => GetTree().Paused = true);
+    /// mgr.Register("pause", Key.Escape, () => GameApp.Instance?.SetPaused(true));
     /// mgr.KeybindTriggered += (id) => GD.Print($"Triggered: {id}");
     /// // Player presses Space → fires player.Jump() and emits KeybindTriggered("jump")
     /// </summary>

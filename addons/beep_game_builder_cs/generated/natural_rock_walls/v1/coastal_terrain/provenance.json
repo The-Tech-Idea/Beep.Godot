@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in imagegen",
+  "note": "Separate coastal terrain artwork on green backgrounds. No water or engine behavior included.",
+  "assets": [
+    {
+      "file": "rocky_headland_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "One broad rocky coastal HEADLAND terrain sprite. Use attached image as rock material and detailed painterly game-art reference. A broad open plain granite plateau with an irregular projecting peninsula nose toward the front-right, solid medium-height cliffs around its entire footprint, both left and right side walls visible and flaring OUTWARD at base. Natural asymmetric coastal erosion with varied large rock masses, no repeated columns. Plain top is same grey granite as walls, subtle surface texture, no objects. Front-facing elevated orthographic 2.5D camera, not diamond isometric, upper-left lighting. Landscape 3:2 canvas, whole terrain fully intact with generous green margins. Background pure opaque solid bright green RGB 0,255,0. No water, foam, sand halo, plants, grass, buildings, props, ramps, paths, stairs, text, cast shadow outside silhouette or checkerboard. This is a standalone terrain asset, not a scenic illustration.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-dff9e047-2f06-44a7-8e63-6975d49b5cb7.png"
+    },
+    {
+      "file": "sheltered_rocky_cove_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "One sheltered rocky COVE terrain sprite in front-facing elevated orthographic 2.5D game art. Reference image supplies natural grey granite material, detailed painterly treatment and upper-left lighting, NOT shape. Create a broad horseshoe coastal landmass with a deep open inlet at front center: rock cliff arms on left and right joined at the back, unequal arms, broad plain granite surfaces above. Show the INNER cliff faces around the inlet clearly and outer flared solid walls. The inlet empty space must be the SAME solid green as background, for developer to place separate water later. No basin floor across inlet, no bridge, no arch or cave. Irregular varied fractured large rock masses, no identical repeating columns. Entire sprite fully visible with generous green margins, landscape 3:2. Pure opaque solid vivid green RGB 0,255,0 background. No water, foam, grass, plants, sand halo, ramps, stairs, props, paths, text, exterior ground or exterior cast shadow.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-661fb3b1-cb79-48fe-b1a8-a1d001712411.png"
+    },
+    {
+      "file": "low_shoreline_shelf_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "One LOW SHORELINE ROCK SHELF terrain sprite, front elevated orthographic 2.5D painterly game art matching reference grey granite rock texture and upper-left lighting. Very broad irregular low weather-eroded rock slab with shallow scalloped coastal outline and projecting fingers, large plain relatively flat top of same grey granite. Short visibly fractured outward-flared cliff edges only ONE QUARTER the wall height of reference, not a tall plateau. A few natural subtle cracks in top, not tiled or repeated. Visible left and right short side walls. Entire asset isolated with generous margins on landscape 3:2 canvas. Opaque perfectly solid vivid green RGB 0,255,0 background. No water, puddles, foam, plants, props, grass, paths, ramps, stairs, sand halo, text, external ground or external cast shadows. Standalone terrain, not scene.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-3230d04e-2475-4c21-b024-f76084f6af59.png"
+    },
+    {
+      "file": "tall_coastal_cliff_01_green.png",
+      "reference": "C:/Users/f_ald/source/repos/The-Tech-Idea/Beep.Godot/addons/beep_game_builder_cs/generated/natural_rock_walls/v1/grey_granite_plateau_01_green.png",
+      "prompt": "One TALL COASTAL CLIFF landmass terrain sprite. Use reference for natural detailed painterly grey granite game-art material and upper-left lighting. A long rugged steep sea-cliff with deep uneven fractures and widely varying large crags, with a broad enough plain granite plateau on top to read as solid terrain. Tall rock wall twice the reference height, wall occupies most of silhouette height; uneven cliff skyline, solid outward-flaring base, both left and right outward-facing side walls visible. Natural asymmetry and nonrepeating rock structure, not repeated round pillars, not brick wall, no low-poly faceting. Front-facing elevated orthographic 2.5D, not diagonal isometric. Fully framed landscape 3:2 with ample green margins. Opaque flat vivid green RGB 0,255,0 background. No sea or water, foam, sand, plants, grass, buildings, props, ramps, stairs, paths, text, detached rocks, outside ground or cast shadows beyond asset silhouette.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-2084bb0f-eafb-4cea-bd28-f95361bd0761.png"
+    }
+  ]
+}

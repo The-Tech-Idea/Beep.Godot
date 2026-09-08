@@ -1,0 +1,34 @@
+# GridNavigationComponent
+
+Grid-system component (a `Node`, `[Tool][GlobalClass]`) that runs A* pathfinding over a 2D grid. It stays cell-based and independent of any TileMap: it only borrows `GridProjectionComponent` to convert between world and cell coordinates, so the same search works for top-down or isometric worlds and for maps that are painted with `TileMap`, `TileMapLayer`, or nothing at all. Blocking and cost come from three optional collaborators the component wires up itself — `GridPlacementComponent` (built-on occupancy), `GridCellDataComponent` (a per-cell blocked flag and terrain kind), and `GridRoadComponent` (per-cell travel-cost multipliers) — plus an internal `HashSet<Vector2I>` of cells blocked directly through `SetBlocked`.
+
+The terrain kind a search judges by has one owner: `GridCellDataComponent`, read through `GridCellRules.TerrainKindAt` — the same static rule placement uses — rather than a copy of the precedence kept here. There is no `DataLayersPath` on this component any more: the terrain engine's data layers publish the *generated* world, not the live map, and while navigation could read them it carried its own inline copy of the layers-then-cells precedence that had to be fixed in step with `GridCellRules`. `BlockedTerrainKinds` also diverges on purpose from the equivalent list on the build-side components (placement, roads, spawner, scatter, tools): `shallow_water` is left out here, because a unit is allowed to wade through shallow water (at the 2.5x cost in `TerrainCostMultipliers`) even though nothing may be *built* there — the comment calls this "two different questions, two different lists." Internally, `FindCellPath` snapshots every collaborator, every normalized blocked-kind string, and every terrain-cost lookup into a private `Search` object once per call (`BuildSearch()`), because the previous per-step version re-resolved nodes and re-normalized strings on every neighbour probe of every visited cell — tens of thousands of allocations per search — and now each cell's terrain kind is computed at most once no matter how many neighbours ask for it.
+
+## Public API
+- `enum DiagonalPolicy { Never, Always, NoCornerCutting }` — whether/how diagonal steps are allowed; `NoCornerCutting` also requires both orthogonal cells adjacent to a diagonal move to be passable.
+- `[Signal] PathFound(int startX, int startY, int goalX, int goalY, int length)` / `[Signal] PathFailed(int startX, int startY, int goalX, int goalY, string reason)` — emitted at the end of every `FindCellPath` call, success or failure (`reason` is one of `start_blocked_or_out_of_bounds`, `goal_blocked_or_out_of_bounds`, `max_visited_cells`, `no_path`).
+- `[Export] NodePath GridPath / PlacementPath / RoadPath / CellDataPath` — explicit wires to the collaborators above, each through `EntityComponent.Resolve` (authored path first, scene-wide search second).
+- `[Export] bool UseBounds`, `Vector2I BoundsOrigin`, `Vector2I BoundsSize` — rectangular search bounds; cells outside are treated as not allowed regardless of blocking data.
+- `[Export] DiagonalPolicy Diagonals` — default `NoCornerCutting`.
+- `[Export] bool TreatPlacementOccupiedAsBlocked / TreatCellDataBlockedAsBlocked / TreatBlockedTerrainKindsAsBlocked` — independently toggle each blocking source.
+- `[Export] Godot.Collections.Array<string> BlockedTerrainKinds` — default `water, sea, ocean, deep_water, lava` (no `shallow_water` — see above).
+- `[Export] Godot.Collections.Dictionary TerrainCostMultipliers` — per-kind step-cost multipliers (e.g. `mud = 1.8`, `shallow_water = 2.5`), each clamped to `[0.05, 10]`.
+- `[Export] bool AllowBlockedStart` (default `true`) / `bool AllowBlockedGoal` (default `false`) — a search may start standing on a blocked cell but not target one.
+- `[Export(Range 16..200000)] int MaxVisitedCells` — search aborts with `max_visited_cells` past this count.
+- `public override void _Ready()` — resolves collaborators and updates configuration warnings.
+- `public override string[] _GetConfigurationWarnings()` — warns if `UseBounds` is on with a non-positive `BoundsSize`.
+- `public Godot.Collections.Array<Vector2I> FindCellPath(Vector2I start, Vector2I goal)` — the A* search; returns an empty array and emits `PathFailed` on any failure, otherwise the cell path (start through goal inclusive) and emits `PathFound`.
+- `public Godot.Collections.Array<Vector2> FindWorldPath(Vector2 startWorld, Vector2 goalWorld)` — converts through `GridProjectionComponent`, calls `FindCellPath`, converts the result back to world points; returns empty if no grid is resolved.
+- `public float TraversalCost(Vector2I from, Vector2I to)` — one-off step cost (terrain multiplier × road multiplier × diagonal factor) for external callers that want the cost without running a search.
+- `public bool IsBlocked(Vector2I cell)` — one-off blocked query built from a fresh `Search` snapshot.
+- `public bool IsInBounds(Vector2I cell)` — bounds check honoring `UseBounds`.
+- `public void SetBlocked(Vector2I cell, bool blocked)` / `public void ClearBlocked()` / `public Godot.Collections.Array<Vector2I> GetBlockedCells()` — manage the component's own ad hoc blocked-cell set, independent of placement/cell-data/terrain blocking.
+
+## Dependencies
+- Resolves `GridProjectionComponent` (world/cell conversion only — never consulted for blocking), `GridPlacementComponent` (`IsOccupied(cell)`), `GridRoadComponent` (`GetTraversalCostMultiplier(cell)`, `MinimumCostMultiplier`), and `GridCellDataComponent` (`HasFlag(cell, CellFlags.Blocked)`, and `GetTerrainKind(cell)` through `GridCellRules.TerrainKindAt`).
+- Confirmed from this batch: `GridPathFollowerComponent` resolves a `GridNavigationComponent` (via `NavigationPath` or scene-wide find) and calls `FindCellPath` inside `MoveToCell` — this file is called into by that one. `GridRoadComponent` does not call into this file; the dependency between them runs the other way (this file reads `GridRoadComponent`).
+
+## Notes
+- The private `Search` class and `BuildSearch()` snapshot are explicitly a performance fix, per the doc comment on `Search`: the earlier per-step implementation re-resolved every collaborator and re-normalized every `BlockedTerrainKinds` entry on each neighbour check, scaling allocations with the visited-cell count instead of the search setup.
+- `AllowBlockedStart` defaults `true` and `AllowBlockedGoal` defaults `false` — an intentional asymmetry (an agent can already be standing somewhere blocked, e.g. inside a partially-built structure, but a caller shouldn't be able to path *to* a blocked cell by mistake).
+- `BlockedTerrainKinds`' omission of `shallow_water` versus the build-side components' equivalent lists is called out directly in the source comment as deliberate, not an oversight — worth cross-referencing if `GridRoadComponent`'s or `GridPlacementComponent`'s blocked-kind lists are ever "reconciled" without checking this comment first.

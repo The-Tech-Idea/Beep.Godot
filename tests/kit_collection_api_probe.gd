@@ -8,6 +8,11 @@ const KIT_SPIN_WHEEL := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/Ki
 const KIT_TAB_STRIP := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitTabStrip.cs")
 const KIT_RADAR_CHART := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitRadarChart.cs")
 const KIT_TREE := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitTree.cs")
+const KIT_CONTEXT_MENU := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitContextMenu.cs")
+const KIT_INPUT_HINT := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitInputHint.cs")
+const KIT_DIALOG_BOX := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs")
+const KIT_LEVEL_PATH := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs")
+const KIT_BOOK_SPREAD := preload("res://addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs")
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -139,6 +144,77 @@ func _run() -> void:
 	tree.ClearNodes()
 	if (tree.get("NodeColumns") as PackedInt32Array).size() != 0 or tree.get("Selected") != -1:
 		return _fail("KitTree.ClearNodes did not clear nodes and reset selection.")
+
+	# Five widgets shipped a partial collection API — Set and Add but no Remove, or Set alone —
+	# so a caller could grow a list and never shrink it. The removals below also have to move the
+	# highlight, or a shortened list points at an index that is no longer there.
+	var menu = KIT_CONTEXT_MENU.new()
+	host.add_child(menu)
+	menu.set("Items", PackedStringArray(["Build", "Zone", "Demolish"]))
+	if not menu.RemoveItem(1):
+		return _fail("KitContextMenu.RemoveItem rejected a valid index.")
+	if (menu.get("Items") as PackedStringArray) != PackedStringArray(["Build", "Demolish"]):
+		return _fail("KitContextMenu.RemoveItem did not remove the expected item.")
+	if menu.RemoveItem(9):
+		return _fail("KitContextMenu.RemoveItem accepted an invalid index.")
+	menu.ClearItems()
+	if (menu.get("Items") as PackedStringArray).size() != 0:
+		return _fail("KitContextMenu.ClearItems did not empty the menu.")
+
+	var hint = KIT_INPUT_HINT.new()
+	host.add_child(hint)
+	hint.set("Keys", PackedStringArray(["Ctrl", "Shift", "E"]))
+	if not hint.RemoveKey(1):
+		return _fail("KitInputHint.RemoveKey rejected a valid index.")
+	if (hint.get("Keys") as PackedStringArray) != PackedStringArray(["Ctrl", "E"]):
+		return _fail("KitInputHint.RemoveKey did not remove the expected key.")
+	if hint.RemoveKey(5):
+		return _fail("KitInputHint.RemoveKey accepted an invalid index.")
+
+	var dialog = KIT_DIALOG_BOX.new()
+	host.add_child(dialog)
+	dialog.SetChoices(PackedStringArray(["Accept", "Haggle", "Refuse"]))
+	dialog.AddChoice("Leave")
+	if (dialog.get("Choices") as PackedStringArray).size() != 4:
+		return _fail("KitDialogBox.AddChoice did not append a choice.")
+	if not dialog.RemoveChoice(0):
+		return _fail("KitDialogBox.RemoveChoice rejected a valid index.")
+	if (dialog.get("Choices") as PackedStringArray)[0] != "Haggle":
+		return _fail("KitDialogBox.RemoveChoice removed the wrong choice.")
+	if dialog.RemoveChoice(-1):
+		return _fail("KitDialogBox.RemoveChoice accepted an invalid index.")
+	dialog.ClearChoices()
+	if (dialog.get("Choices") as PackedStringArray).size() != 0 or dialog.get("ChoicesVisible"):
+		return _fail("KitDialogBox.ClearChoices did not empty and hide the choice list.")
+
+	var levels = KIT_LEVEL_PATH.new()
+	host.add_child(levels)
+	# Remove an EARLIER level than the current one, and check Current still names the same level.
+	# Removing the current or the last one cannot show a bug here: RefreshLevels clamps to
+	# count - 1, which lands on the right answer by accident and makes the assertion vacuous.
+	levels.set("LevelLabels", PackedStringArray(["1", "2", "3", "4"]))
+	levels.set("Current", 2)
+	if not levels.RemoveLevel(0):
+		return _fail("KitLevelPath.RemoveLevel rejected a valid index.")
+	if levels.get("Current") != 1:
+		return _fail("KitLevelPath.RemoveLevel left Current pointing at a different level than before.")
+	if levels.RemoveLevel(6):
+		return _fail("KitLevelPath.RemoveLevel accepted an invalid index.")
+	if not levels.RemoveLevel(2):
+		return _fail("KitLevelPath.RemoveLevel rejected the last index.")
+	levels.ClearLevels()
+	if (levels.get("LevelLabels") as PackedStringArray).size() != 0 or levels.get("Current") != -1:
+		return _fail("KitLevelPath.ClearLevels did not empty levels and reset Current.")
+
+	var book = KIT_BOOK_SPREAD.new()
+	host.add_child(book)
+	book.set("Tabs", PackedStringArray(["Quests", "Bestiary", "Map"]))
+	if not book.RemoveTab(0):
+		return _fail("KitBookSpread.RemoveTab rejected a valid index.")
+	if (book.get("Tabs") as PackedStringArray) != PackedStringArray(["Bestiary", "Map"]):
+		return _fail("KitBookSpread.RemoveTab removed the wrong tab.")
+	if book.RemoveTab(4):
+		return _fail("KitBookSpread.RemoveTab accepted an invalid index.")
 
 	print("[kit-collection-api] OK: collection-backed kit widgets mutate through refresh-safe APIs.")
 	quit(0)

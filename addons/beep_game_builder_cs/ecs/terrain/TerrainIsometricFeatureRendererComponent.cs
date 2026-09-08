@@ -26,6 +26,8 @@ namespace Beep.ECS
     public partial class TerrainIsometricFeatureRendererComponent : Node2D
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
+        [Export] public TerrainPropSizing? PropSizing { get; set; }
+        private TerrainPropSizing Sizing => PropSizing ?? TerrainPropSizing.Standard;
 
         /// <summary>The isometric renderer that owns the projection.</summary>
         [Export] public NodePath IsometricRendererPath { get; set; } = new("");
@@ -56,8 +58,6 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string OasisSheetPath { get; set; } = "";
 
         [ExportGroup("Look")]
-        /// <summary>Sprite width as a fraction of one diamond's width.</summary>
-        [Export(PropertyHint.Range, "0.1,2,0.01")] public float SpriteScale { get; set; } = 0.62f;
         [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 2;
         [Export(PropertyHint.Range, "0,8,1")] public int ForestExtraSprites { get; set; } = 2;
         [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.30f;
@@ -69,7 +69,7 @@ namespace Beep.ECS
         /// </summary>
         [Export] public bool RefreshOnReady { get; set; } = true;
 
-        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY);
+        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, Vector2 Anchor, int Level);
 
         /// <summary>
         /// Draws the props belonging to ONE elevation level, at the z just above
@@ -99,17 +99,67 @@ namespace Beep.ECS
         private readonly List<LevelProps> _levels = new();
 
         /// <summary>Terrain kind to the frames of the woods sheet it may use.</summary>
-        private readonly Dictionary<string, int[]> _woodsFrames = new();
-        private readonly HashSet<string> _unbound = new();
+        private readonly TerrainFeatureFrameBindings _woodsFrames = new();
 
         private TerrainGeneratorComponent? _generator;
         private TerrainIsometricRendererComponent? _iso;
+        private TerrainIsometricRendererComponent? _connectedIso;
+        private bool _hasRebuildAttempt;
+        private bool _rebuildQueued;
         private readonly Dictionary<string, Texture2D> _sheets = new();
+        private (string, string, string, string)? _sheetPaths;
 
         public override void _Ready()
         {
+            Resolve();
             if (RefreshOnReady && !Engine.IsEditorHint())
                 CallDeferred(nameof(Rebuild));
+        }
+
+        public override void _ExitTree()
+        {
+            _residency = null;
+            _residentStamps.Clear();
+            SetProcess(false);
+            if (_connectedIso is not null && GodotObject.IsInstanceValid(_connectedIso))
+                _connectedIso.SurfaceRebuilt -= OnSurfaceRebuilt;
+            _connectedIso = null;
+            _rebuildQueued = false;
+        }
+
+        public override void _EnterTree()
+        {
+            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+                Callable.From(() =>
+                {
+                    if (!IsInsideTree()) return;
+                    Resolve();
+                    QueueRebuild();
+                }).CallDeferred();
+        }
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
+                QueueRebuild();
+        }
+
+        private void OnSurfaceRebuilt()
+        {
+            _hasRebuildAttempt = true;
+            if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+        }
+
+        private void QueueRebuild()
+        {
+            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
+            _rebuildQueued = true;
+            Callable.From(() =>
+            {
+                if (!_rebuildQueued) return;
+                _rebuildQueued = false;
+                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
+            }).CallDeferred();
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -120,6 +170,11 @@ namespace Beep.ECS
         /// <summary>Rebuilds every feature stamp from the generator.</summary>
         public void Rebuild()
         {
+            _residency = null;
+            _residentStamps.Clear();
+            SetProcess(false);
+            _hasRebuildAttempt = true;
+            _rebuildQueued = false;
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
 
             Resolve();
@@ -127,7 +182,8 @@ namespace Beep.ECS
             foreach (LevelProps level in _levels)
                 level.Stamps.Clear();
 
-            if (_generator is null || _iso is null)
+            ITerrainSurfaceData? field = _iso?.ResolveSurface();
+            if (field is null || _iso is null || !_iso.HasSurface)
             {
                 GD.PushWarning(
                     _generator is null
@@ -138,64 +194,83 @@ namespace Beep.ECS
             }
 
             LoadSheets();
-            LoadWoodsFrames();
+            _woodsFrames.Load(WoodsFrameBindings, Mathf.Max(1, WoodsColumns) * Mathf.Max(1, WoodsRows), Name);
             if (_sheets.Count == 0)
             {
                 GD.PushWarning($"[{Name}] no feature sheets loaded, so no features were drawn.");
                 Redraw();
                 return;
             }
-            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _generator.BoundsSize);
+            TerrainBoundsCheck.WarnIfMismatched(Name, BoundsSize, _iso.BoundsSize);
 
             // Resolved ONCE per rebuild rather than once per cell; see
             // TerrainGeneratorComponent.ResolveField.
-            GeneratedTerrainField field = _generator.ResolveField();
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            float diamond = Mathf.Max(8, _iso.CellSize.X);
+            bool stream = StreamLargeMaps && !Engine.IsEditorHint() && (long)size.X * size.Y > 65536;
+            var waterAt = _iso.CreateWaterSampler(stream);
+            bool Dry(Vector2 at) => new Rect2(Vector2.Zero, (Vector2)size).HasPoint(at) && !waterAt(at);
 
-            for (int y = 0; y < size.Y; y++)
+            void BuildCell(int x, int y, List<Stamp> stamps)
             {
-                for (int x = 0; x < size.X; x++)
-                {
+                    Span<Vector2> offsets = stackalloc Vector2[TerrainFeatureScatter.MaximumCount];
                     var cell = new Vector2I(x, y);
                     string feature = field.FeatureAtCell(cell);
                     // The field-taking overloads: the public per-cell wrappers
                     // would pay the generator's settings rebuild once per call,
                     // per wooded tile, per stamp.
                     if (feature.Length == 0 || !TerrainIsometricRendererComponent.IsLandCell(field, cell))
-                        continue;
+                        return;
 
                     if (!TryDescribe(feature, out Texture2D? sheet, out int columns, out int rows) || sheet is null)
-                        continue;
+                        return;
 
                     // Only the woods sheet is a climate mix; the others are one
                     // subject each, so they use every frame they have.
-                    int[]? frames = feature is TerrainFeatureStage.Woods or TerrainFeatureStage.Forest
-                        ? FramesFor(field.TerrainAtCell(cell), columns * rows)
-                        : null;
+                    int[]? frames = _sheets.TryGetValue("woods", out var woods) && sheet == woods
+                        ? _woodsFrames.For(field.TerrainAtCell(cell)) : null;
 
-                    Vector2 top = _iso.SurfacePosition(field, cell);
+                    Vector2 top = ToLocal(_iso.ToGlobal(_iso.SurfacePosition(field, cell)));
+                    var corners = _iso.SurfaceCorners(field, cell);
+                    if (corners.Length != 4) return;
+                    for (int i = 0; i < corners.Length; i++)
+                        corners[i] = ToLocal(_iso.ToGlobal(corners[i]));
+                    Vector2 across = corners[1] - corners[0];
+                    Vector2 down = corners[2] - corners[1];
+                    float diamond = corners[1].DistanceTo(corners[3]);
                     // A prop belongs to the level it stands on, so the terrain
                     // above can cover it.
                     int level = Mathf.Clamp(
-                        TerrainLayers.LevelFor(
-                            field.TerrainAtCell(cell), (int)field.ReliefAtCell(cell)),
+                        _iso.SurfaceLevel(field, cell),
                         FirstPropLevel, TerrainLayers.Count - 1)
                         - FirstPropLevel;
-                    int clump = Mathf.Max(1, SpritesPerTile)
+                    int clump = Mathf.Clamp(SpritesPerTile, 1, 8)
                         + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle
-                            ? Mathf.Max(0, ForestExtraSprites) : 0);
+                            ? Mathf.Clamp(ForestExtraSprites, 0, 8) : 0);
 
-                    for (int slot = 0; slot < clump; slot++)
-                        AddStamp(_levels[level].Stamps, sheet, columns, rows, frames, cell, top, diamond, slot);
-                }
+                    Vector2I identity = _iso.BoundsOrigin + cell;
+                    int count = TerrainFeatureScatter.Fill(offsets[..clump], identity, Seed,
+                        PositionJitter, (Vector2)cell + Vector2.One * 0.5f, Dry);
+                    for (int slot = 0; slot < count; slot++)
+                        AddStamp(stamps, sheet, columns, rows, frames, identity,
+                            top, across, down, diamond, slot, offsets[slot], feature, level);
             }
 
-            // Painter's order down the screen, which in isometric is also order
-            // away from the viewer.
-            foreach (LevelProps level in _levels)
-                level.Stamps.Sort((left, right) => left.SortY.CompareTo(right.SortY));
-            Redraw();
+            if (stream)
+            {
+                _residency = new TerrainPropResidency<Stamp>(this, null, _iso.BoundsOrigin, size, 1,
+                    FeatureChunkSize, BuildCell, _iso.VisiblePropCells, () =>
+                    {
+                        var transform = _iso.GetGlobalTransformWithCanvas();
+                        return Mathf.Max((transform.X * _iso.CellSize.X).Length(), (transform.Y * _iso.CellSize.Y).Length());
+                    });
+                SetProcess(true);
+                Redraw();
+                return;
+            }
+            for (int y = 0; y < size.Y; y++)
+            for (int x = 0; x < size.X; x++) BuildCell(x, y, _residentStamps);
+            _residentStamps.Sort((a, b) => a.Anchor.Y.CompareTo(b.Anchor.Y));
+            DistributeStamps();
         }
 
         /// <summary>
@@ -218,6 +293,15 @@ namespace Beep.ECS
                 });
             }
             return report;
+        }
+
+        /// <summary>Actual drawn trunk anchors, in this renderer's local coordinates.</summary>
+        public Godot.Collections.Array<Vector2> GetStampAnchors()
+        {
+            var anchors = new Godot.Collections.Array<Vector2>();
+            foreach (var level in _levels)
+                foreach (var stamp in level.Stamps) anchors.Add(stamp.Anchor);
+            return anchors;
         }
 
         private void Redraw()
@@ -261,34 +345,34 @@ namespace Beep.ECS
         private void AddStamp(
             List<Stamp> stamps,
             Texture2D sheet, int columns, int rows, int[]? frames,
-            Vector2I cell, Vector2 top, float diamond, int slot)
+            Vector2I cell, Vector2 top, Vector2 across, Vector2 down, float diamond, int slot, Vector2 jitterOffset, string feature, int level)
         {
             Vector2 sheetSize = sheet.GetSize();
             var frame = new Vector2I(
                 Mathf.FloorToInt(sheetSize.X / columns),
                 Mathf.FloorToInt(sheetSize.Y / rows));
+            if (frame.X <= 0 || frame.Y <= 0 || diamond <= 0) return;
             int count = frames?.Length ?? (columns * rows);
             int roll = Mathf.FloorToInt(TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 5101 + (slot * 83)) * count) % count;
             int index = frames is null ? roll : frames[roll];
-            var region = new Rect2(new Vector2(index % columns, index / columns) * frame, frame);
+            var region = Sizing.VisibleRegion(sheet, columns, rows, index);
+            frame = (Vector2I)region.Size;
+            if (frame.X <= 0 || frame.Y <= 0) return;
 
-            float fit = diamond / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
+            // A cell edge, not the diamond's diagonal: same unit as the flat renderer.
+            float fit = Mathf.Min(across.Length(), down.Length()) / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
             float jitter = 1.0f + ((TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 5227 + (slot * 79)) - 0.5f) * 2.0f * ScaleJitter);
-            Vector2 drawn = (Vector2)frame * fit * SpriteScale * jitter;
+            Vector2 drawn = (Vector2)frame * fit * Sizing.SizeInCells(feature, jitter);
 
             // Scatter within the diamond, not a square: an offset that ignores
             // the projection puts trees over the edge of their own tile.
-            float u = (TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 5333 + (slot * 71)) - 0.5f) * PositionJitter;
-            float v = (TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 5449 + (slot * 67)) - 0.5f) * PositionJitter;
-            var offset = new Vector2(
-                (u - v) * _iso!.CellSize.X * 0.5f,
-                (u + v) * _iso.CellSize.Y * 0.5f);
+            Vector2 offset = across * jitterOffset.X + down * jitterOffset.Y;
 
             // The trunk sits on the tile's top face; the canopy rises above it.
             Vector2 basePoint = top + offset;
             var target = new Rect2(
-                basePoint - new Vector2(drawn.X * 0.5f, drawn.Y * 0.86f), drawn);
-            stamps.Add(new Stamp(sheet, region, target, basePoint.Y));
+                basePoint - new Vector2(drawn.X * 0.5f, drawn.Y * 0.92f), drawn);
+            stamps.Add(new Stamp(sheet, region, target, basePoint, level));
         }
 
         private bool TryDescribe(string feature, out Texture2D? sheet, out int columns, out int rows)
@@ -310,65 +394,12 @@ namespace Beep.ECS
             return key.Length > 0 && _sheets.TryGetValue(key, out sheet);
         }
 
-        /// <summary>
-        /// The frames a terrain may use, or null for the whole sheet. An
-        /// out-of-range frame is dropped rather than clamped: clamping would
-        /// quietly draw the wrong tree, and this is a typo in the binding.
-        /// </summary>
-        private int[]? FramesFor(string terrain, int total)
-        {
-            if (_woodsFrames.Count == 0)
-                return null;
-            if (_woodsFrames.TryGetValue(terrain, out int[]? frames))
-                return frames;
-
-            // Bindings exist but this terrain is not in them - the author meant
-            // to control every climate and missed one, so say which.
-            if (_unbound.Add(terrain))
-                GD.PushWarning($"[{Name}] no WoodsFrameBindings entry for terrain '{terrain}'; using the whole sheet.");
-            _ = total;
-            return null;
-        }
-
-        private void LoadWoodsFrames()
-        {
-            _woodsFrames.Clear();
-            _unbound.Clear();
-            int total = Mathf.Max(1, WoodsColumns) * Mathf.Max(1, WoodsRows);
-
-            foreach (string entry in WoodsFrameBindings)
-            {
-                if (string.IsNullOrWhiteSpace(entry))
-                    continue;
-
-                string[] halves = entry.Split('=', StringSplitOptions.TrimEntries);
-                if (halves.Length != 2)
-                {
-                    GD.PushWarning($"[{Name}] woods binding '{entry}' is not \"kind[,kind...]=frame[,frame...]\".");
-                    continue;
-                }
-
-                var frames = new List<int>();
-                foreach (string piece in halves[1].Split(',', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    if (!int.TryParse(piece.Trim(), out int frame) || frame < 0 || frame >= total)
-                        GD.PushWarning($"[{Name}] woods binding '{entry}' names frame '{piece}', outside 0..{total - 1}.");
-                    else
-                        frames.Add(frame);
-                }
-
-                if (frames.Count == 0)
-                    continue;
-
-                foreach (string kind in halves[0].Split(',', StringSplitOptions.RemoveEmptyEntries))
-                    _woodsFrames[kind.Trim()] = frames.ToArray();
-            }
-        }
-
         private void LoadSheets()
         {
-            if (_sheets.Count > 0)
-                return;
+            var paths = (WoodsSheetPath, JungleSheetPath, MarshSheetPath, OasisSheetPath);
+            if (_sheetPaths == paths) return;
+            _sheetPaths = paths;
+            _sheets.Clear();
 
             Add("woods", WoodsSheetPath);
             Add("jungle", JungleSheetPath);
@@ -386,17 +417,36 @@ namespace Beep.ECS
                 _sheets[key] = texture;
         }
 
+        internal bool FollowsSurface(TerrainIsometricRendererComponent renderer)
+        {
+            Resolve();
+            return !Engine.IsEditorHint() && _connectedIso == renderer;
+        }
+
+        public Godot.Collections.Array<Rect2> GetStampBounds()
+        {
+            var bounds = new Godot.Collections.Array<Rect2>();
+            foreach (var level in _levels)
+                foreach (var stamp in level.Stamps) bounds.Add(stamp.Target);
+            return bounds;
+        }
+
         private void Resolve()
         {
-            if (_generator is null || !GodotObject.IsInstanceValid(_generator))
-                _generator = TerrainGeneratorPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
+            _generator = TerrainGeneratorPath.IsEmpty
+                ? null
+                : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
 
-            if (_iso is null || !GodotObject.IsInstanceValid(_iso))
-                _iso = IsometricRendererPath.IsEmpty
-                    ? null
-                    : GetNodeOrNull<TerrainIsometricRendererComponent>(IsometricRendererPath);
+            _iso = IsometricRendererPath.IsEmpty
+                ? null
+                : GetNodeOrNull<TerrainIsometricRendererComponent>(IsometricRendererPath);
+            if (_connectedIso != _iso)
+            {
+                if (_connectedIso is not null && GodotObject.IsInstanceValid(_connectedIso))
+                    _connectedIso.SurfaceRebuilt -= OnSurfaceRebuilt;
+                _connectedIso = _iso;
+                if (_connectedIso is not null && !Engine.IsEditorHint()) _connectedIso.SurfaceRebuilt += OnSurfaceRebuilt;
+            }
         }
 
     }

@@ -130,6 +130,20 @@ namespace Beep.ECS.UI.Kit
             QueueRedraw();
         }
 
+        /// <summary>Turn the dial, reporting whether the value actually changed. Either direction
+        /// on either axis turns it, because a knob reads as both a horizontal and a vertical
+        /// control depending on the panel it sits in.</summary>
+        private bool TurnByArrow(Vector2I dir)
+        {
+            double before = Value;
+            if (dir.X <= -KitChrome.Jump) Value = MinValue;
+            else if (dir.X >= KitChrome.Jump) Value = MaxValue;
+            else if (dir.X < 0 || dir.Y > 0) Value = Mathf.Max(MinValue, Value - Step * 12.0);
+            else if (dir.X > 0 || dir.Y < 0) Value = Mathf.Min(MaxValue, Value + Step * 12.0);
+            else return false;
+            return !Mathf.IsEqualApprox(Value, before);
+        }
+
         public override void _GuiInput(InputEvent @event)
         {
             if (!Editable)
@@ -138,15 +152,13 @@ namespace Beep.ECS.UI.Kit
                 return;
             }
 
+            if (KitChrome.NavigateOrRelease(this, @event, TurnByArrow))
+                return;
+
+            // A dial already at its stop has nowhere to turn, so the key is released there and
+            // focus moves on rather than the knob silently eating every further press.
             switch (@event)
             {
-                case InputEventKey key:
-                    Vector2I dir = KitChrome.DirectionFromKey(key);
-                    if (dir.X <= -9999) { Value = MinValue; AcceptEvent(); }
-                    else if (dir.X >= 9999) { Value = MaxValue; AcceptEvent(); }
-                    else if (dir.X < 0 || dir.Y > 0) { Value = Mathf.Max(MinValue, Value - Step * 12.0); AcceptEvent(); }
-                    else if (dir.X > 0 || dir.Y < 0) { Value = Mathf.Min(MaxValue, Value + Step * 12.0); AcceptEvent(); }
-                    break;
                 case InputEventMouseButton { ButtonIndex: MouseButton.Left } mb:
                     _drag = mb.Pressed;
                     if (mb.Pressed) { GrabFocus(); _dragStart = mb.Position.Y; _startValue = (float)Value; }

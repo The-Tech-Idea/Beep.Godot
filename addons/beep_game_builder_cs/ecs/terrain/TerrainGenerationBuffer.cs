@@ -1,0 +1,353 @@
+using Godot;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+namespace Beep.ECS
+{
+    /// <summary>How a water sample connects to the rest of the world.</summary>
+    internal enum WaterBody : byte
+    {
+        None = 0,
+        Ocean = 1,
+        Lake = 2,
+        River = 3,
+    }
+
+    /// <summary>
+    /// Temporary mutable arrays shared by the generation stages in one build.
+    /// TerrainFieldBuilder transfers the output arrays to GeneratedTerrainField.
+    /// This is not a scene controller or the live gameplay cell store.
+    /// </summary>
+    internal sealed class TerrainGenerationBuffer
+    {
+        public TerrainGenerationBuffer(int width, int height, int samplesPerCell)
+        {
+            Width = width;
+            Height = height;
+            SamplesPerCell = samplesPerCell;
+            int count = width * height;
+
+            _land = new bool[count];
+            _footprint = new bool[count];
+            _water = new WaterBody[count];
+            _terrain = new string[count];
+
+            StartPositions = new List<Vector2I>();
+        }
+
+        public int Width { get; }
+        public int Height { get; }
+        public int SamplesPerCell { get; }
+        public int Count => Width * Height;
+
+        /// <summary>True where the sample is dry land.</summary>
+        public bool[] Land => _land ?? throw new InvalidOperationException("Land mask has been released.");
+
+        /// <summary>
+        /// The landmass outline as the landmass stage chose it, before lakes
+        /// were carved out of it. This is what "Land Coverage" means and what
+        /// counts as one landmass: a lake inside an island does not make it two
+        /// islands, and an emergent inland sea was never part of a footprint.
+        /// </summary>
+        public bool[] Footprint => _footprint ?? throw new InvalidOperationException("Footprint mask has been released.");
+
+        /// <summary>Ocean reaches the map border; a lake never does.</summary>
+        public WaterBody[] Water => _water ?? throw new InvalidOperationException("Water samples have been packed and released.");
+
+        /// <summary>Normalized 0..1 height above sea level on land.</summary>
+        public float[] Elevation => Scratch(ref _elevation);
+
+        /// <summary>Normalized 0..1, 1 being hottest.</summary>
+        public float[] Temperature => _climateCompacted || _climateReleased
+            ? throw new InvalidOperationException("Fine climate is no longer available after biome classification.")
+            : Scratch(ref _temperature);
+
+        /// <summary>Normalized 0..1, 1 being wettest.</summary>
+        public float[] Moisture => _climateCompacted || _climateReleased
+            ? throw new InvalidOperationException("Fine climate is no longer available after biome classification.")
+            : Scratch(ref _moisture);
+
+        /// <summary>Flat, hills or mountains, assigned by elevation percentile.</summary>
+        public TerrainRelief[] Relief => Scratch(ref _relief);
+
+        /// <summary>Samples to the nearest water, 0 in water itself.</summary>
+        public int[] CoastDistance => _coastReleased
+            ? throw new InvalidOperationException("Coast distances are no longer available after river generation.")
+            : Scratch(ref _coastDistance);
+
+        /// <summary>Final terrain kind consumed by gameplay and rendering.</summary>
+        public string[] Terrain => _terrain ?? throw new InvalidOperationException("Terrain samples have been packed and released.");
+
+        /// <summary>
+        /// Multiplier on the painted base colour, 1 being unlit. Relief is
+        /// carried here rather than baked into the terrain kind, so a hill can
+        /// stay grassland and still read as a hill.
+        /// </summary>
+        public float[] Shade
+        {
+            get
+            {
+                if (_shadeReleased) throw new InvalidOperationException("Shade samples have been packed and released.");
+                if (_shade is null)
+                {
+                    _shade = new float[Count];
+                    Array.Fill(_shade, 1f);
+                }
+                return _shade;
+            }
+        }
+
+        private float[]? _elevation, _temperature, _moisture, _shade;
+        private bool[]? _land, _footprint;
+        private WaterBody[]? _water;
+        private string[]? _terrain;
+        private bool _shadeReleased;
+        private float[]? _cellTemperature, _cellMoisture;
+        private TerrainRelief[]? _relief;
+        private int[]? _coastDistance;
+        private bool _coastReleased, _scratchReleased;
+        private bool _climateCompacted, _climateReleased;
+        private string[]? _resource, _cellTerrain, _cellInlandTerrain, _feature, _cellLiquidResource, _cellUndergroundResource;
+        private WaterBody[]? _cellWater;
+        private TerrainRelief[]? _cellRelief;
+        private float[]? _cellElevation, _cellShade, _cellUndergroundRichness;
+        private int[]? _cellContinent;
+        private byte[]? _cellUndergroundDepth;
+        internal long CellPayloadBytes { get; private set; }
+
+        // Stages own one buffer on one worker. Output arrays need not overlap early-stage scratch.
+        private T[] CellValues<T>(ref T[]? values, T initial = default!)
+        {
+            if (values is not null) return values;
+            values = new T[checked(CellsWide * CellsHigh)];
+            if (!EqualityComparer<T>.Default.Equals(initial, default!)) Array.Fill(values, initial);
+            CellPayloadBytes += values.LongLength * System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
+            return values;
+        }
+
+        internal long ScratchPayloadBytes => ((_elevation?.LongLength ?? 0)
+            + (_temperature?.LongLength ?? 0) + (_moisture?.LongLength ?? 0)
+            + (_coastDistance?.LongLength ?? 0) + (_cellTemperature?.LongLength ?? 0)
+            + (_cellMoisture?.LongLength ?? 0)) * 4 + (_relief?.LongLength ?? 0);
+
+        internal float TemperatureAtCell(int cell)
+            => _climateReleased ? throw new InvalidOperationException("Climate scratch has been released.")
+                : _climateCompacted ? _cellTemperature![cell]
+                : Temperature[CellCentreIndex(cell % CellsWide, cell / CellsWide)];
+
+        internal float MoistureAtCell(int cell)
+            => _climateReleased ? throw new InvalidOperationException("Climate scratch has been released.")
+                : _climateCompacted ? _cellMoisture![cell]
+                : Moisture[CellCentreIndex(cell % CellsWide, cell / CellsWide)];
+
+        internal void CompactClimate(CancellationToken cancellation = default)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (_climateReleased || _scratchReleased) throw new InvalidOperationException("Climate scratch has been released.");
+            if (_climateCompacted) return;
+            float[] temperature = Temperature, moisture = Moisture;
+            float[] cellTemperature = temperature, cellMoisture = moisture;
+            if (SamplesPerCell != 1)
+            {
+                cellTemperature = new float[CellsWide * CellsHigh];
+                cellMoisture = new float[cellTemperature.Length];
+                for (int y = 0; y < CellsHigh; y++)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    for (int x = 0; x < CellsWide; x++)
+                    {
+                        int cell = CellIndex(x, y), sample = CellCentreIndex(x, y);
+                        cellTemperature[cell] = temperature[sample];
+                        cellMoisture[cell] = moisture[sample];
+                    }
+                }
+            }
+            cancellation.ThrowIfCancellationRequested();
+            _cellTemperature = cellTemperature;
+            _cellMoisture = cellMoisture;
+            _temperature = _moisture = null;
+            _climateCompacted = true;
+        }
+
+        internal void ReleaseClimate()
+        {
+            _temperature = _moisture = _cellTemperature = _cellMoisture = null;
+            _climateReleased = true;
+        }
+
+        private T[] Scratch<T>(ref T[]? data)
+        {
+            if (_scratchReleased) throw new InvalidOperationException("Generation scratch has been released.");
+            return data ??= new T[Count];
+        }
+
+        internal void ReleaseCoastDistances()
+        {
+            _coastDistance = null;
+            _coastReleased = true;
+        }
+
+        internal void ReleaseGenerationScratch()
+        {
+            ReleaseCoastDistances();
+            ReleaseClimate();
+            _elevation = null;
+            _relief = null;
+            _land = _footprint = null;
+            _scratchReleased = true;
+        }
+
+        internal TerrainSampleKinds PackTerrain(CancellationToken cancellation)
+        {
+            var packed = new TerrainSampleKinds(Terrain, Width, Height, cancellation);
+            _terrain = null;
+            return packed;
+        }
+
+        internal TerrainSampleValues<WaterBody> PackWater(CancellationToken cancellation)
+        {
+            var packed = new TerrainSampleValues<WaterBody>(Water, Width, Height, cancellation);
+            _water = null;
+            return packed;
+        }
+
+        internal TerrainSampleValues<float> PackShade(CancellationToken cancellation)
+        {
+            var packed = new TerrainSampleValues<float>(Shade, Width, Height, cancellation);
+            _shade = null;
+            _shadeReleased = true;
+            return packed;
+        }
+
+        /// <summary>
+        /// Resource per GAMEPLAY CELL, not per sample: a resource is something a
+        /// tile has, so storing it per sample would let one tile hold several.
+        /// Empty means none.
+        /// </summary>
+        public string[] Resource => CellValues(ref _resource, string.Empty);
+
+        /// <summary>Fair player start tiles, in gameplay cell coordinates.</summary>
+        public List<Vector2I> StartPositions { get; }
+
+        // The gameplay-resolution view of the world. These are the authoritative
+        // outputs: one value per tile, which is what a game actually moves,
+        // paths and builds on. The sample arrays above exist to decide these
+        // well, not to be consumed directly.
+
+        /// <summary>Terrain kind per gameplay tile.</summary>
+        public string[] CellTerrain => CellValues(ref _cellTerrain, "grass");
+
+        /// <summary>Ground beneath the generated ocean beach, before the coastal inset.</summary>
+        public string[] CellInlandTerrain => CellValues<string>(ref _cellInlandTerrain);
+        public float BeachWidth { get; set; }
+        public float LakeShoreWidth { get; set; }
+
+        /// <summary>Water body per gameplay tile; None means dry land.</summary>
+        public WaterBody[] CellWater => CellValues(ref _cellWater);
+
+        /// <summary>Relief per gameplay tile.</summary>
+        public TerrainRelief[] CellRelief => CellValues(ref _cellRelief);
+
+        /// <summary>
+        /// Land height per tile, 0 to 1, reduced from the sample grid.
+        ///
+        /// Relief only says flat, hills or mountains, which is enough to decide
+        /// what a tile IS and not enough to decide how it looks against its
+        /// neighbours: every tile of a range shares one band, so anything drawn
+        /// from relief alone is flat-topped. Height is the field that says which
+        /// part of a range is its crest.
+        /// </summary>
+        public float[] CellElevation => CellValues(ref _cellElevation);
+
+        /// <summary>Averaged hillshade per gameplay tile.</summary>
+        public float[] CellShade => CellValues(ref _cellShade, 1f);
+
+        /// <summary>Landmass id per gameplay tile; 0 is water.</summary>
+        public int[] CellContinent => CellValues(ref _cellContinent);
+
+        /// <summary>
+        /// Terrain feature per tile - woods, jungle, marsh, oasis - or empty.
+        /// A feature sits ON the terrain rather than replacing it, so a wooded
+        /// grassland tile is still grassland underneath.
+        /// </summary>
+        public string[] Feature => CellValues(ref _feature, string.Empty);
+
+        /// <summary>
+        /// Resource in the LIQUID stratum per tile - fish in the water column,
+        /// whatever the water kinds are skinned as - or empty. Separate from
+        /// Resource so each array keeps one meaning: Resource is the surface
+        /// stratum on land.
+        /// </summary>
+        public string[] CellLiquidResource => CellValues(ref _cellLiquidResource, string.Empty);
+
+        /// <summary>
+        /// Resource in the UNDERGROUND stratum per tile - beneath land or
+        /// seabed - or empty. Deposits are multi-cell fields, not markers.
+        /// </summary>
+        public string[] CellUndergroundResource => CellValues(ref _cellUndergroundResource, string.Empty);
+
+        /// <summary>Underground richness 0..1 where a deposit exists, else 0.</summary>
+        public float[] CellUndergroundRichness => CellValues(ref _cellUndergroundRichness);
+
+        /// <summary>Underground depth band per tile, as (byte)ResourceDepth.</summary>
+        public byte[] CellUndergroundDepth => CellValues(ref _cellUndergroundDepth);
+
+        public int CellIndex(int cellX, int cellY) => (cellY * CellsWide) + cellX;
+
+        public bool CellInBounds(int cellX, int cellY)
+            => cellX >= 0 && cellY >= 0 && cellX < CellsWide && cellY < CellsHigh;
+
+        public int CellsWide => Mathf.Max(1, Width / Mathf.Max(1, SamplesPerCell));
+        public int CellsHigh => Mathf.Max(1, Height / Mathf.Max(1, SamplesPerCell));
+
+        /// <summary>The sample at the centre of a gameplay cell.</summary>
+        public int CellCentreIndex(int cellX, int cellY)
+        {
+            int x = Mathf.Clamp((cellX * SamplesPerCell) + (SamplesPerCell / 2), 0, Width - 1);
+            int y = Mathf.Clamp((cellY * SamplesPerCell) + (SamplesPerCell / 2), 0, Height - 1);
+            return Index(x, y);
+        }
+
+        public int Index(int x, int y) => (y * Width) + x;
+
+        public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;
+
+        /// <summary>Tile-space position of a sample's centre.</summary>
+        public Vector2 TileCentre(int x, int y)
+            => new((x + 0.5f) / SamplesPerCell, (y + 0.5f) / SamplesPerCell);
+
+        /// <summary>
+        /// Latitude at a row: 0 at the equator, 1 at a pole.
+        ///
+        /// A WHOLE-WORLD map - span 1 - runs pole to equator to pole down its
+        /// height, which is what gives a Civilization map its structure. A small
+        /// map is not a whole world, and treating it as one is what puts an ice
+        /// cap, a desert and a jungle on the same island: the map is only fifty
+        /// tiles tall, so those fifty tiles get handed the entire climate range.
+        ///
+        /// Below span 1 the map becomes a WINDOW on one band instead - a gentle
+        /// gradient across it, centred where centre says. One hemisphere, one
+        /// climate, which is what a regional map actually is.
+        /// </summary>
+        /// <param name="y">Sample row.</param>
+        /// <param name="offsetSamples">Noise displacement of the climate band, in samples.</param>
+        /// <param name="span">Latitude range; one covers both hemispheres.</param>
+        /// <param name="centre">Regional latitude centre when span is below one.</param>
+        public float Latitude(int y, float offsetSamples, float span, float centre)
+        {
+            float down = (y + 0.5f + offsetSamples) / Height;
+            if (span >= 1.0f)
+                return Mathf.Abs((down * 2.0f) - 1.0f);
+
+            return Mathf.Clamp(centre + ((down - 0.5f) * span), 0.0f, 1.0f);
+        }
+    }
+
+    internal enum TerrainRelief : byte
+    {
+        Flat = 0,
+        Hills = 1,
+        Mountains = 2,
+    }
+}

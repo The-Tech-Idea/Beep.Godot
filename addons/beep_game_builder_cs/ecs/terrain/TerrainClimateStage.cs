@@ -20,7 +20,7 @@ namespace Beep.ECS
         /// <summary>Prevailing wind direction, in samples, for the rain shadow.</summary>
         private const int WindStepX = -1;
 
-        public static void Apply(TerrainWorld world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
+        public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise, TerrainGenerationSettings settings)
         {
             // How far, in samples, the climate bands may meander north or south.
             float bandWander = world.Height * 0.11f;
@@ -61,7 +61,7 @@ namespace Beep.ECS
         }
 
         /// <summary>1 on the coast, falling away inland.</summary>
-        private static float Maritime(TerrainWorld world, int index)
+        private static float Maritime(TerrainGenerationBuffer world, int index)
         {
             int distance = world.CoastDistance[index];
             if (distance == int.MaxValue)
@@ -90,7 +90,7 @@ namespace Beep.ECS
         /// Dries a tile that has higher ground upwind of it, producing the arid
         /// belt on the lee side of a mountain range.
         /// </summary>
-        private static float RainShadow(TerrainWorld world, int x, int y)
+        private static float RainShadow(TerrainGenerationBuffer world, int x, int y)
         {
             if (!world.Land[world.Index(x, y)])
                 return 0.0f;

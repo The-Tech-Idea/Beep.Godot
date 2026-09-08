@@ -36,9 +36,15 @@ namespace Beep.ECS
         private CollisionShape2D? _collision;
         private float _slideTimer;
         private float _slideDirection;
-        private Vector2 _originalShapeSize;
+        private float _slideSpeed;
+        private bool _inputHeld;
+        private bool _sliding;
+        private RectangleShape2D? _standingShape;
+        private RectangleShape2D? _slideShape;
+        private Transform2D _standingTransform;
 
-        public bool IsSliding => _slideTimer > 0;
+        public bool IsSliding => IsActive && _sliding;
+        public bool IsCollisionReduced => _slideShape is not null;
 
         private StatusEffectComponent? _statusEffects;
 
@@ -47,17 +53,16 @@ namespace Beep.ECS
             base._Ready();
             _body = ResolveBody2D();
             _statusEffects = GetSiblingComponent<StatusEffectComponent>();
+            ProcessPhysicsPriority = -4;
             // Find the collision shape to shrink during slide.
-            if (_body != null && ShrinkCollision)
+            if (_body != null)
             {
                 foreach (var child in _body.GetChildren())
                 {
                     if (child is CollisionShape2D cs)
                     {
                         _collision = cs;
-                        if (cs.Shape is RectangleShape2D rect)
-                            _originalShapeSize = rect.Size;
-                        else
+                        if (ShrinkCollision && cs.Shape is not RectangleShape2D)
                             GD.PushWarning($"[Slide] Collision shape must be RectangleShape2D for ShrinkCollision, got {cs.Shape?.GetType().Name}");
                         break;
                     }
@@ -67,11 +72,16 @@ namespace Beep.ECS
 
         public override void _PhysicsProcess(double delta)
         {
-            if (Engine.IsEditorHint() || _body == null || !GodotObject.IsInstanceValid(_body) || !IsActive) return;
-            if (_statusEffects != null && _statusEffects.HasEffect("stun"))
+            if (Engine.IsEditorHint() || !GodotObject.IsInstanceValid(_body)) return;
+            var actor = ActorComponent.ForBody(_body);
+            bool held = actor?.IsAbilityHeld(SlideAction)
+                ?? (InputActionsAvailable(SlideAction) && Input.IsActionPressed(SlideAction));
+            bool pressed = held && !_inputHeld;
+            _inputHeld = held;
+            if (IsInterrupted(actor))
             {
-                if (_slideTimer > 0)
-                    EndSlide();
+                CancelSlide();
+                TryRestoreCollision();
                 return;
             }
             float dt = double.IsFinite(delta) ? Mathf.Max(0f, (float)delta) : 0f;
@@ -80,60 +90,106 @@ namespace Beep.ECS
             if (_slideTimer > 0)
             {
                 _slideTimer -= dt;
-                // Decelerate during slide.
-                float currentSpeed = Mathf.MoveToward(Mathf.Abs(_body.Velocity.X), 0, EffectiveSlideDeceleration * dt);
-                _body.Velocity = new Vector2(_slideDirection * currentSpeed, _body.Velocity.Y);
-                // Only SET velocity — the sibling controller owns MoveAndSlide. Calling it here too
-                // integrated the body twice per frame (~2× slide distance), like Jump/Glide/WallJump
-                // which correctly only set Velocity.
-
-                if (_slideTimer <= 0 || !_body.IsOnFloor())
-                    EndSlide();
+                _slideSpeed = Mathf.MoveToward(_slideSpeed, 0, EffectiveSlideDeceleration * dt);
+                if (_slideTimer <= 0 || !CharacterMotion.IsOnFloor(_body) || _slideSpeed <= 0)
+                    CancelSlide();
             }
             else
             {
-                // Start slide: crouch + moving. Gate the input read so an absent action doesn't
-                // spam a per-frame error before the input map is generated.
-                if (InputActionsAvailable(SlideAction)
-                    && Input.IsActionPressed(SlideAction) && _body.IsOnFloor() && Mathf.Abs(_body.Velocity.X) > 50f)
-                {
-                    StartSlide();
-                }
+                if (pressed) TrySlide();
             }
+            if (_slideTimer <= 0) TryRestoreCollision();
         }
 
         public override void _ExitTree()
         {
+            CancelSlide();
+            RestoreCollision();
+            _body = null; _collision = null; _statusEffects = null;
+            _inputHeld = false; _slideSpeed = _slideDirection = 0;
+            RequestReady();
             base._ExitTree();
-            // StartSlide shrinks the CollisionShape2D's shape, which is a SHARED resource when
-            // several bodies reference the same .tres. Freed mid-slide, EndSlide never runs and
-            // the shape stays shrunk for every other instance. Restore it here.
-            if (ShrinkCollision && _slideTimer > 0 && _collision?.Shape is RectangleShape2D rect)
-                rect.Size = _originalShapeSize;
         }
 
-        private void StartSlide()
+        private bool IsInterrupted(ActorComponent? actor) => !IsActive
+            || actor is { IsActive: false } or { IsDead: true } or { HasOrders: true }
+            || GetSiblingComponent<GridPathFollowerComponent>() is { IsMoving: true }
+            || GetSiblingComponent<DashComponent>() is { IsDashing: true }
+            || CharacterMotion.HasKnockback(_body!) || _statusEffects?.HasEffect("stun") == true;
+
+        public bool TrySlide()
         {
-            if (EffectiveSlideDuration <= 0f || EffectiveSlideSpeed <= 0f)
-                return;
+            if (!GodotObject.IsInstanceValid(_body) || IsSliding || IsCollisionReduced
+                || IsInterrupted(ActorComponent.ForBody(_body)) || !CharacterMotion.IsOnFloor(_body!)
+                || !IsFinite(_body.Velocity) || Mathf.Abs(_body.Velocity.X) <= 50f
+                || EffectiveSlideDuration <= 0f || EffectiveSlideSpeed <= 0f) return false;
 
             _slideTimer = EffectiveSlideDuration;
+            _sliding = true;
             _slideDirection = _body!.Velocity.X >= 0 ? 1f : -1f;
-            float slideVelocity = Mathf.Min(Mathf.Abs(_body.Velocity.X), EffectiveSlideSpeed);
-            _body.Velocity = new Vector2(_slideDirection * slideVelocity, _body.Velocity.Y);
+            _slideSpeed = Mathf.Min(Mathf.Abs(_body.Velocity.X), EffectiveSlideSpeed);
 
-            if (ShrinkCollision && _collision?.Shape is RectangleShape2D rect)
-                rect.Size = new Vector2(_originalShapeSize.X, _originalShapeSize.Y * EffectiveHeightMultiplier);
+            if (ShrinkCollision && GodotObject.IsInstanceValid(_collision)
+                && !_collision!.Disabled && _collision.Shape is RectangleShape2D)
+                ReduceCollision(EffectiveHeightMultiplier);
 
             EmitSignal(SignalName.SlideStarted);
+            return true;
         }
 
-        private void EndSlide()
+        private void ReduceCollision(float ratio)
         {
+            if (_collision?.Shape is RectangleShape2D rect)
+            {
+                _standingShape = rect;
+                _standingTransform = _collision.Transform;
+                _slideShape = (RectangleShape2D)rect.Duplicate();
+                _slideShape.Size = new(rect.Size.X, rect.Size.Y * ratio);
+                _collision.Shape = _slideShape;
+                // Offset in the authored shape's local basis so the feet do not move.
+                _collision.Position = _standingTransform * new Vector2(0, (rect.Size.Y - _slideShape.Size.Y) * 0.5f);
+            }
+
+        }
+
+        public void CancelSlide()
+        {
+            bool wasSliding = _sliding;
+            _sliding = false;
             _slideTimer = 0;
-            if (ShrinkCollision && _collision?.Shape is RectangleShape2D rect)
-                rect.Size = _originalShapeSize;
-            EmitSignal(SignalName.SlideEnded);
+            if (wasSliding) EmitSignal(SignalName.SlideEnded);
+        }
+
+        internal Vector2 ApplyVelocity(Vector2 ordinary) => IsSliding ? new(_slideDirection * _slideSpeed, ordinary.Y) : ordinary;
+
+        private void TryRestoreCollision()
+        {
+            if (_slideShape is null) return;
+            if (!GodotObject.IsInstanceValid(_collision) || _collision!.Shape != _slideShape || _collision.Disabled)
+            { RestoreCollision(); return; }
+            var excluded = new Godot.Collections.Array<Rid> { _body!.GetRid() };
+            foreach (var exception in _body.GetCollisionExceptions())
+                if (GodotObject.IsInstanceValid(exception)) excluded.Add(exception.GetRid());
+            using var query = new PhysicsShapeQueryParameters2D
+            {
+                Shape = _standingShape,
+                Transform = _body!.GlobalTransform * _standingTransform,
+                CollisionMask = _body.CollisionMask,
+                Exclude = excluded
+            };
+            if (_body.GetWorld2D().DirectSpaceState.IntersectShape(query, 1).Count == 0)
+                RestoreCollision();
+        }
+
+        private void RestoreCollision()
+        {
+            if (_slideShape is null) return;
+            if (GodotObject.IsInstanceValid(_collision) && _collision!.Shape == _slideShape)
+            {
+                _collision.Shape = _standingShape;
+                _collision.Transform = _standingTransform;
+            }
+            _slideShape.Dispose(); _slideShape = null; _standingShape = null;
         }
 
         private static float NonNegative(float value) => float.IsFinite(value) ? Mathf.Max(0f, value) : 0f;

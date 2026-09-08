@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Beep.ECS
 {
@@ -39,72 +40,102 @@ namespace Beep.ECS
         private const int MaxFieldSamples = 1_250_000;
 
         public static GeneratedTerrainField Build(TerrainGenerationSettings settings)
+            => BuildPrepared(settings, TerrainResourceRules.Capture(settings));
+
+        internal static GeneratedTerrainField BuildPrepared(TerrainGenerationSettings settings,
+            TerrainResourceRules resources, CancellationToken cancellation = default,
+            Action<string, int>? progress = null)
         {
+            cancellation.ThrowIfCancellationRequested();
             Stopwatch stopwatch = Stopwatch.StartNew();
+            int completed = 0;
+            void Run(string name, Action stage)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                progress?.Invoke(name, completed);
+                stage();
+                cancellation.ThrowIfCancellationRequested();
+                completed++;
+            }
 
             int samplesPerCell = EffectiveSamplesPerCell(settings);
-            var world = new TerrainWorld(
+            var world = new TerrainGenerationBuffer(
                 settings.Size.X * samplesPerCell,
                 settings.Size.Y * samplesPerCell,
                 samplesPerCell);
 
             if (settings.Mode == TerrainMode.Plain)
-                return BuildPlain(world, settings, stopwatch);
+            {
+                progress?.Invoke("Plain terrain", 0);
+                GeneratedTerrainField plain = BuildPlain(world, settings, stopwatch, cancellation);
+                cancellation.ThrowIfCancellationRequested();
+                progress?.Invoke("Complete", 20);
+                return plain;
+            }
 
-            TerrainNoiseSet noise = TerrainNoiseSet.Create(settings);
-            TerrainLandmassStage.Apply(world, settings);
+            using TerrainNoiseSet noise = TerrainNoiseSet.Create(settings);
+            Run("Landmass", () => TerrainLandmassStage.Apply(world, settings));
             // Freeze the landmass outline before lakes are carved out of it.
             world.Land.CopyTo(world.Footprint, 0);
-            TerrainWaterStage.Apply(world, noise, settings);
-            TerrainElevationStage.Apply(world, noise);
+            Run("Water", () => TerrainWaterStage.Apply(world, noise, settings));
+            Run("Elevation", () => TerrainElevationStage.Apply(world, noise));
 
             // Water shapes the land before the land is named. Erosion carves the
             // valleys, and only then is the height cut into hills and mountains,
             // because those bands are percentiles of a field erosion changes.
-            TerrainErosionStage.Apply(world, settings);
-            TerrainElevationStage.Classify(world, settings);
-            TerrainClimateStage.Apply(world, noise, settings);
-            TerrainRiverStage.Apply(world, settings);
-            TerrainShadingStage.Apply(world, settings);
-            TerrainBiomeStage.Apply(world, settings);
+            Run("Erosion", () => TerrainErosionStage.Apply(world, settings, cancellation));
+            Run("Relief", () => TerrainElevationStage.Classify(world, settings));
+            Run("Climate", () => TerrainClimateStage.Apply(world, noise, settings));
+            Run("Rivers", () => TerrainRiverStage.Apply(world, settings, cancellation));
+            world.ReleaseCoastDistances();
+            Run("Shading", () => TerrainShadingStage.Apply(world, settings));
+            Run("Biomes", () => TerrainBiomeStage.Apply(world, settings));
 
             // Straight after the biome table, and before anything reads terrain
             // kinds: features, resources and start positions all ask what a tile
             // IS, and they must see the map the renderer will draw.
-            TerrainCoherenceStage.Apply(world, settings);
+            Run("Biome coherence", () => TerrainCoherenceStage.Apply(world, settings));
+            world.CompactClimate(cancellation);
 
             // Everything above works at sub-tile resolution because that is what
             // makes good coastlines. This collapses it to one value per gameplay
             // tile, which is the generator's actual output.
-            TerrainTileReductionStage.Apply(world);
-
-            // Gameplay layers read the reduced tile grid, so they run last.
-            TerrainContinentStage.Apply(world);
+            Run("Gameplay cells", () => TerrainTileReductionStage.Apply(world));
 
             // The land settles before anything is placed on it: a drained lake
             // becomes ground, and ground grows things.
-            TerrainScaleConstraintStage.ApplyTerrain(world, settings);
-            TerrainResourceStage.Apply(world, settings);
-            TerrainSubsurfaceStage.Apply(world, settings);
-            TerrainFeatureStage.Apply(world, noise, settings);
+            Run("Terrain constraints", () => TerrainScaleConstraintStage.ApplyTerrain(world, settings));
+            Run("Shorelines", () => TerrainShorelineStage.Apply(world, settings));
+            // Cleanup can reconnect land and turn water cells into land. Label
+            // the final topology before resources and start positions read it.
+            Run("Continents", () => TerrainContinentStage.Apply(world));
+            Run("Resources", () => TerrainResourceStage.Apply(world, settings, resources));
+            Run("Subsurface", () => TerrainSubsurfaceStage.Apply(world, settings, resources));
+            Run("Features", () => TerrainFeatureStage.Apply(world, noise, settings));
+            world.ReleaseClimate();
             // Last, and on the reduced tile grid: a feature has to reach a size
             // in TILES to exist, which is only meaningful once tiles exist. It
             // runs after the feature stage because woods are placed there, and
             // before start positions, which should not be put on a lake that is
             // about to be drained.
-            TerrainScaleConstraintStage.ApplyFeatures(world, settings);
+            Run("Feature constraints", () => TerrainScaleConstraintStage.ApplyFeatures(world, settings));
 
-            TerrainStartPositionStage.Apply(world, settings);
+            Run("Start positions", () => TerrainStartPositionStage.Apply(world, settings, cancellation));
 
             stopwatch.Stop();
-            return Finish(world, settings, stopwatch.ElapsedMilliseconds);
+            cancellation.ThrowIfCancellationRequested();
+            progress?.Invoke("Diagnostics", completed);
+            GeneratedTerrainField result = Finish(world, settings, stopwatch.ElapsedMilliseconds, cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            progress?.Invoke("Complete", 20);
+            return result;
         }
 
         /// <summary>A single uniform terrain, with no generation at all.</summary>
         private static GeneratedTerrainField BuildPlain(
-            TerrainWorld world,
+            TerrainGenerationBuffer world,
             TerrainGenerationSettings settings,
-            Stopwatch stopwatch)
+            Stopwatch stopwatch, CancellationToken cancellation)
         {
             string kind = PlainKind(settings.Preset);
             bool water = TerrainTileSets.IsWaterKind(kind);
@@ -117,6 +148,7 @@ namespace Beep.ECS
             // DefaultTerrainKind and Preset decided nothing.
             Array.Fill(world.Terrain, kind);
             Array.Fill(world.CellTerrain, kind);
+            Array.Fill(world.CellInlandTerrain, kind);
             if (water)
             {
                 Array.Fill(world.Water, WaterBody.Ocean);
@@ -132,13 +164,13 @@ namespace Beep.ECS
             }
 
             stopwatch.Stop();
-            return Finish(world, settings, stopwatch.ElapsedMilliseconds);
+            return Finish(world, settings, stopwatch.ElapsedMilliseconds, cancellation);
         }
 
         private static GeneratedTerrainField Finish(
-            TerrainWorld world,
+            TerrainGenerationBuffer world,
             TerrainGenerationSettings settings,
-            long elapsedMilliseconds)
+            long elapsedMilliseconds, CancellationToken cancellation)
         {
             int land = 0;
             int ocean = 0;
@@ -214,7 +246,10 @@ namespace Beep.ECS
                 world.Height,
                 elapsedMilliseconds);
 
-            return new GeneratedTerrainField(world, diagnostics);
+            // Output packing can allocate substantial memory; dead stage arrays must
+            // no longer be rooted by the buffer while that happens.
+            world.ReleaseGenerationScratch();
+            return new GeneratedTerrainField(world, diagnostics, cancellation);
         }
 
         private static int EffectiveSamplesPerCell(TerrainGenerationSettings settings)

@@ -12,6 +12,14 @@ namespace Beep.ECS
     {
         private int _draggedSlot = -1;
         private bool _isDragging;
+        private int _carrySlot = -1;
+
+        /// <summary>The slot lifted for a keyboard or gamepad move, or -1 when nothing is held.</summary>
+        public int CarrySlot => _carrySlot;
+
+        /// <summary>Emitted when a slot is lifted or put down, with the held slot or -1. Lets a
+        /// view mark what is in hand without polling.</summary>
+        [Signal] public delegate void CarryChangedEventHandler(int slot);
 
         /// <summary>Process hover timers. Called from _Process in the main partial.</summary>
         private void ProcessInteraction(double delta)
@@ -23,6 +31,20 @@ namespace Beep.ECS
         private void OnSlotGuiInput(InputEvent @event, int slot)
         {
             if (!IsActive) return;
+
+            // Keyboard and gamepad reordering. Everything below this branches on
+            // InputEventMouseButton, so until now an inventory could only be rearranged with a
+            // pointing device: MoveItem existed and had exactly one route to it, a mouse drag.
+            if (@event.IsActionPressed("ui_accept"))
+            {
+                CarryOrPlace(slot);
+                return;
+            }
+            if (@event.IsActionPressed("ui_cancel") && _carrySlot >= 0)
+            {
+                CancelCarry();
+                return;
+            }
 
             if (@event is InputEventMouseButton mouseBtn && mouseBtn.Pressed)
             {
@@ -58,6 +80,40 @@ namespace Beep.ECS
                     _draggedSlot = -1;
                 }
             }
+        }
+
+        /// <summary>
+        /// Lift the slot, or put down what is already held onto it.
+        ///
+        /// This is the same <see cref="MoveItem"/> the mouse drag reaches, driven by pressing
+        /// ui_accept twice — once to lift, once to place — so a player on a controller can
+        /// rearrange an inventory at all. Lifting an empty slot does nothing rather than picking
+        /// up a hole; placing onto the slot already held simply puts it back.
+        /// </summary>
+        public void CarryOrPlace(int slot)
+        {
+            if (!IsActive || slot < 0 || slot >= EffectiveSlotCount) return;
+
+            if (_carrySlot < 0)
+            {
+                if (IsSlotEmpty(slot)) return;
+                SetCarry(slot);
+                return;
+            }
+
+            int from = _carrySlot;
+            SetCarry(-1);
+            if (from != slot) MoveItem(from, slot);
+        }
+
+        /// <summary>Put down whatever is held, leaving it where it came from.</summary>
+        public void CancelCarry() => SetCarry(-1);
+
+        private void SetCarry(int slot)
+        {
+            if (_carrySlot == slot) return;
+            _carrySlot = slot;
+            EmitSignal(SignalName.CarryChanged, slot);
         }
 
         /// <summary>Handle mouse motion for hover detection on slots.</summary>

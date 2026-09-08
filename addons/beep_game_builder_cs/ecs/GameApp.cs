@@ -38,8 +38,14 @@ namespace Beep.ECS
         /// <summary>True if a game is currently running (started or loaded).
         /// False when on main menu or game over. Used to enable/disable Save button.</summary>
         [Export] public bool IsGameRunning { get; set; } = false;
-        /// <summary>True if game is paused (separate from IsGameRunning).</summary>
-        [Export] public bool IsPaused { get; set; } = false;
+        /// <summary>
+        /// Whether the game is paused. Read from the tree, never stored: the
+        /// SceneTree's pause flag is the one pause fact, this is a view of it,
+        /// and <see cref="SetPaused"/> is the one door that writes it. A stored
+        /// copy here drifted - it was never flipped, so playtime accrued under
+        /// the pause menu.
+        /// </summary>
+        public bool IsPaused => IsInsideTree() && GetTree().Paused;
         /// <summary>Current level / stage index (0-based). -1 = not in a level.</summary>
         [Export] public int CurrentLevel { get; set; } = -1;
         /// <summary>Total score accumulated this session (across levels).</summary>
@@ -111,9 +117,33 @@ namespace Beep.ECS
         [Signal] public delegate void SessionEndedEventHandler(bool won);
         [Signal] public delegate void DevModeToggledEventHandler(bool enabled);
 
-        /// <summary>Convenience: the nearest SettingsComponent (autoload or scene).
-        /// User settings (audio/display/language) are owned by SettingsComponent, not here.</summary>
-        public UI.SettingsComponent? Settings => UI.SettingsComponent.Instance;
+        // ── Owned subsystems ──
+        // GameApp is the game master and these are its members, constructed as
+        // children in a deterministic order, reached by typed accessor. This is
+        // the shape Widelands' Game (cmdqueue_, rng_, savehandler_) and Return to
+        // the Roots' Game (ggs_, em_, world_) both use.
+        //
+        // They were four independent autoloads with four static Instance
+        // properties, two of them registered conditionally - which let the SHAPE
+        // OF THE TREE carry configuration, and that is exactly how the turn axis
+        // came to be inferred from whether a node existed. One owner, one
+        // construction order, nothing inferred.
+        private GameClock? _clock;
+        private UI.SettingsComponent? _settings;
+        private UI.LocalizationComponent? _locale;
+        private GameStateManagerComponent? _saves;
+
+        /// <summary>The game's one clock. Every durational system advances off this.</summary>
+        public GameClock? Clock => _clock;
+
+        /// <summary>User settings — audio, display, language.</summary>
+        public UI.SettingsComponent? Settings => _settings;
+
+        /// <summary>Translations.</summary>
+        public UI.LocalizationComponent? Locale => _locale;
+
+        /// <summary>Save slots and ISaveable discovery.</summary>
+        public GameStateManagerComponent? Saves => _saves;
 
         /// <summary>The active static game config. Always returns a resource when GameApp exists,
         /// loading game_info.tres or creating defaults as needed.</summary>
@@ -140,8 +170,65 @@ namespace Beep.ECS
         public override void _EnterTree()
         {
             // Cache the autoload reference so callers don't walk the tree every read.
-            if (GetParent() == GetTree().Root)
-                _instance = this;
+            if (GetParent() != GetTree().Root)
+                return;
+
+            _instance = this;
+
+            // Only the real autoload builds the subsystems. [GlobalClass] means a
+            // second GameApp can be dropped into a scene, and that copy must not
+            // stand up a second clock; the editor gets none of this at all.
+            if (Engine.IsEditorHint())
+                return;
+
+            BuildSubsystems();
+        }
+
+        /// <summary>
+        /// Constructs the owned subsystems, in order, before anything's _Ready
+        /// runs — so a component that reads GameApp.Instance.Clock in its own
+        /// _Ready finds a clock that is already configured.
+        /// </summary>
+        private void BuildSubsystems()
+        {
+            GameBuilder.GameInfo info = EnsureInfo();
+
+            _clock = new GameClock { Name = "Clock", SimulationEnabled = false };
+            AddChild(_clock);
+            ReconfigureClock();
+
+            _settings = new UI.SettingsComponent { Name = "Settings" };
+            AddChild(_settings);
+
+            _locale = new UI.LocalizationComponent { Name = "Locale" };
+            AddChild(_locale);
+
+            // Always constructed. EnableGameStateManager disables saving; it no
+            // longer changes the shape of the tree, because a missing node is a
+            // fact other code starts inferring from.
+            _saves = new GameStateManagerComponent { Name = "Saves", IsActive = info.EnableGameStateManager };
+            AddChild(_saves);
+        }
+
+        /// <summary>
+        /// Configures the clock from the axis and cascade GameInfo DECLARES. This
+        /// is the only place in the addon that reads GameInfo.TimeAxis; nothing
+        /// else asks which axis it is on.
+        ///
+        /// Called once from BuildSubsystems, and again by whatever rewrites Info
+        /// after that - BeepGenreScene applying a genre's tuning at its _Ready,
+        /// a probe swapping the resource in. Without the second call the clock
+        /// kept the axis of whatever Info it saw first while Info itself said
+        /// something else, and the strategy genre's declared turns never reached
+        /// the clock a scene wired the README way.
+        /// </summary>
+        public void ReconfigureClock()
+        {
+            if (_clock == null)
+                return;
+
+            GameBuilder.GameInfo info = EnsureInfo();
+            _clock.Configure(info.TimeAxis, info.BeatsPerDay);
         }
 
         public override void _Ready()
@@ -240,6 +327,11 @@ namespace Beep.ECS
 
         public void ResetSession()
         {
+            SetGameRunning(false);
+            _clock?.RestoreState(0, 0, 0);
+            LastCheckpointLevel = -1;
+            LastCheckpointPosition = Vector2.Zero;
+            HasQuicksave = false;
             SessionScore = 0;
             CurrentLevel = -1;
             SelectedCharacter = "";
@@ -255,33 +347,49 @@ namespace Beep.ECS
 
         public void SetGameRunning(bool running)
         {
+            if (_clock != null) _clock.SimulationEnabled = running;
             if (IsGameRunning == running) return;
             IsGameRunning = running;
 
             if (running)
             {
-                SessionStartTicks = (long)Time.GetTicksMsec();
-                SessionPlaytimeSeconds = 0;
+                if (SessionStartTicks == 0) SessionStartTicks = (long)Time.GetTicksMsec();
                 EmitSignal(SignalName.SessionStarted);
             }
 
             EmitSignal(SignalName.GameRunningChanged, running);
         }
 
+        public void StartNewSession(string playerName = "Player")
+        {
+            ResetSession();
+            _saves?.NewGame(playerName);
+        }
+
         private static double DeltaSeconds(double delta) =>
             double.IsFinite(delta) ? System.Math.Max(0.0, delta) : 0.0;
 
+        /// <summary>
+        /// The one door to the pause fact. Every pause menu, genre screen and
+        /// scene change goes through here rather than writing SceneTree.Paused
+        /// itself, so pausing and resuming announce themselves (GamePaused /
+        /// GameResumed) from one place and the flag has one writer to read when
+        /// it is wrong. Seven components used to write the tree flag directly,
+        /// and this method - the announcer - had no callers at all.
+        /// </summary>
         public void SetPaused(bool paused)
         {
-            if (IsPaused == paused) return;
-            IsPaused = paused;
+            if (!IsInsideTree())
+                return;
+
+            SceneTree tree = GetTree();
+            if (tree.Paused == paused) return;
+            tree.Paused = paused;
 
             if (paused)
                 EmitSignal(SignalName.GamePaused);
             else
                 EmitSignal(SignalName.GameResumed);
-
-            GetTree().Paused = paused;
         }
 
         public void SetDifficulty(Difficulty difficulty)
@@ -394,6 +502,13 @@ namespace Beep.ECS
             sess.Difficulty = (int)CurrentDifficulty;
             sess.GameMode = GameMode;
             sess.DifficultyMultiplier = DifficultyMultiplier;
+
+            // The clock is the master's, so the master saves it: the three
+            // facts Day is re-derived from. Without them a turn-based save
+            // resumed at turn 0 with every duration's remaining beats intact.
+            sess.ClockElapsed = _clock?.Elapsed ?? 0.0;
+            sess.ClockTurn = _clock?.Turn ?? 0;
+            sess.ClockDayFraction = _clock?.DayFraction ?? 0.0;
         }
 
         public void Load(GameBuilder.GameStateData state)
@@ -410,6 +525,7 @@ namespace Beep.ECS
 
             // Restore the current-run session state (score, selection, difficulty, mode).
             var sess = state.Session;
+            SessionPlaytimeSeconds = System.Math.Max(0, state.Metadata.PlaytimeSeconds);
             SessionScore = sess.SessionScore;
             SelectedCharacter = sess.SelectedCharacter;
             SelectedVehicle = sess.SelectedVehicle;
@@ -420,6 +536,10 @@ namespace Beep.ECS
             SetDifficulty(CurrentDifficulty);
             if (sess.DifficultyMultiplier > 0f) DifficultyMultiplier = sess.DifficultyMultiplier;
             EmitSignal(SignalName.SessionScoreChanged, SessionScore);
+
+            // The clock was configured in BuildSubsystems, before any load can
+            // run, so BeatsPerDay is already right when Day is re-derived here.
+            _clock?.RestoreState(sess.ClockElapsed, sess.ClockTurn, sess.ClockDayFraction);
 
             // Last, and via SetLevel, so LevelChanged fires for anything listening.
             SetLevel(p.CurrentLevel);

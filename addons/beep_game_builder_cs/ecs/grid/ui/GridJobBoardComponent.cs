@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
@@ -9,30 +8,32 @@ namespace Beep.ECS
     /// Compact HUD panel for GridJobQueueComponent. It shows queued/claimed/done
     /// counts plus a short job list so builder and settlement games can expose
     /// what workers are doing without custom queue UI.
+    ///
+    /// The panel surface itself - authored-control binding, the generated
+    /// fallback layout, and the row diff - is GridListPanelComponent's; this
+    /// file owns only what a job row says and how jobs are ordered.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridJobBoardComponent : Control
+    public partial class GridJobBoardComponent : GridListPanelComponent
     {
         [Signal] public delegate void JobCancelRequestedEventHandler(string jobId);
 
         [Export] public NodePath JobQueuePath { get; set; } = new("");
-        [Export] public NodePath TitleLabelPath { get; set; } = new("");
-        [Export] public NodePath SummaryLabelPath { get; set; } = new("");
-        [Export] public NodePath RowsContainerPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool HideWhenEmpty { get; set; } = false;
         [Export] public bool ShowCompletedJobs { get; set; } = false;
         [Export(PropertyHint.Range, "1,20,1")] public int MaxVisibleJobs { get; set; } = 6;
-        [Export] public string TitleText { get; set; } = "Jobs";
-        [Export] public Vector2 PanelMinimumSize { get; set; } = new(220, 128);
+
+        public GridJobBoardComponent()
+        {
+            TitleText = "Jobs";
+            PanelMinimumSize = new Vector2(220, 128);
+        }
+
+        protected override string GeneratedRootName => "GeneratedJobBoard";
+        protected override string RowNamePrefix => "Job";
 
         private GridJobQueueComponent? _queue;
-        private Label? _title;
-        private Label? _summary;
-        private VBoxContainer? _jobRows;
-        private readonly Dictionary<string, Label> _rowLabels = new();
 
         public override void _Ready()
         {
@@ -73,134 +74,30 @@ namespace Beep.ECS
             if (!GenerateControlsWhenPathsEmpty)
                 return;
 
-            ClearChildren();
-            _rowLabels.Clear();
-
-            var panel = new PanelContainer
-            {
-                Name = "GeneratedJobBoard",
-                CustomMinimumSize = PanelMinimumSize,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            AddChild(panel);
-            SetEditedOwner(panel);
-
-            var layout = new VBoxContainer
-            {
-                Name = "Content",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(layout, "separation", 4);
-            panel.AddChild(layout);
-            SetEditedOwner(layout);
-
-            _title = new Label
-            {
-                Name = "Title",
-                Text = TitleText,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
-            };
-            KitChrome.SetColorOverrideIfChanged(_title, "font_color", Colors.White);
-            layout.AddChild(_title);
-            SetEditedOwner(_title);
-
-            _summary = new Label
-            {
-                Name = "Summary",
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            KitChrome.SetColorOverrideIfChanged(_summary, "font_color", new Color(0.86f, 0.89f, 0.92f));
-            layout.AddChild(_summary);
-            SetEditedOwner(_summary);
-
-            _jobRows = new VBoxContainer
-            {
-                Name = "Rows",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                SizeFlagsVertical = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(_jobRows, "separation", 2);
-            layout.AddChild(_jobRows);
-            SetEditedOwner(_jobRows);
-
+            BuildGeneratedPanel();
             RefreshBoard();
         }
 
         public void RefreshBoard()
         {
             ResolveReferences();
-            if (_summary == null || _jobRows == null)
+            if (!ControlsReady)
                 return;
 
-            if (_title != null)
-                _title.Text = TitleText;
+            ApplyTitleText();
 
             if (_queue == null)
             {
-                foreach (Node child in _jobRows.GetChildren())
-                    child.QueueFree();
-                _rowLabels.Clear();
-                _summary.Text = "Job queue missing";
+                ClearRows();
+                SummaryLabel!.Text = "Job queue missing";
                 Visible = !HideWhenEmpty;
                 return;
             }
 
-            _summary.Text = SummaryText();
+            SummaryLabel!.Text = SummaryText();
             Visible = !HideWhenEmpty || _queue.QueuedCount + _queue.ClaimedCount + _queue.CompletedCount > 0;
 
-            // Rows updated IN PLACE; added or removed only when the job set
-            // changes. QueueChanged fires on every claim and completion, so
-            // recreating every Label per refresh was constant node churn.
-            var seen = new HashSet<string>();
-            int shown = 0;
-            foreach (Godot.Collections.Dictionary job in VisibleJobs())
-            {
-                if (shown >= MaxVisibleJobs)
-                    break;
-
-                string id = DictString(job, "id", "");
-                if (string.IsNullOrEmpty(id) || !seen.Add(id))
-                    continue;
-
-                if (!_rowLabels.TryGetValue(id, out Label? row) || !GodotObject.IsInstanceValid(row))
-                {
-                    row = new Label
-                    {
-                        Name = $"Job_{SafeName(id)}",
-                        TooltipText = id,
-                        TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                        CustomMinimumSize = new Vector2(0, 22)
-                    };
-                    _jobRows.AddChild(row);
-                    SetEditedOwner(row);
-                    _rowLabels[id] = row;
-                }
-
-                row.Text = TextForJob(job);
-                KitChrome.SetColorOverrideIfChanged(row, "font_color", ColorForState(DictString(job, "state", "")));
-                // Reused rows still follow the sorted order (claimed first,
-                // then priority) instead of keeping their old position.
-                _jobRows.MoveChild(row, shown);
-                shown++;
-            }
-
-            var stale = new List<string>();
-            foreach ((string id, Label row) in _rowLabels)
-            {
-                if (seen.Contains(id))
-                    continue;
-
-                if (GodotObject.IsInstanceValid(row))
-                {
-                    _jobRows.RemoveChild(row);
-                    row.QueueFree();
-                }
-                stale.Add(id);
-            }
-            foreach (string id in stale)
-                _rowLabels.Remove(id);
+            UpdateRows(JobRows(), MaxVisibleJobs);
         }
 
         public string SummaryText()
@@ -214,7 +111,7 @@ namespace Beep.ECS
         public string TextForJob(string jobId)
         {
             RefreshBoard();
-            return _rowLabels.TryGetValue(jobId, out Label? label) ? label.Text : "";
+            return RowText(jobId);
         }
 
         public string TextForJob(Godot.Collections.Dictionary job)
@@ -228,8 +125,7 @@ namespace Beep.ECS
             return $"{kind} ({cell.X},{cell.Y}) {state}{suffix} [{id}]";
         }
 
-        public int VisibleJobRowCount()
-            => _jobRows?.GetChildCount() ?? 0;
+        public int VisibleJobRowCount() => RowsContainerChildCount;
 
         public bool CancelJob(string jobId, string reason = "cancelled_from_job_board")
         {
@@ -241,6 +137,15 @@ namespace Beep.ECS
         }
 
         private void OnQueueChanged(int queued, int claimed, int completed) => RefreshBoard();
+
+        private IEnumerable<GridPanelRow> JobRows()
+        {
+            foreach (Godot.Collections.Dictionary job in VisibleJobs())
+                yield return new GridPanelRow(
+                    DictString(job, "id", ""),
+                    TextForJob(job),
+                    ColorForState(DictString(job, "state", "")));
+        }
 
         private List<Godot.Collections.Dictionary> VisibleJobs()
         {
@@ -273,91 +178,7 @@ namespace Beep.ECS
         }
 
         private void ResolveReferences()
-        {
-            if (_queue != null && GodotObject.IsInstanceValid(_queue))
-                return;
-
-            if (!JobQueuePath.IsEmpty)
-                _queue = GetNodeOrNull<GridJobQueueComponent>(JobQueuePath);
-            else if (IsInsideTree())
-                _queue = EntityComponent.FindComponent<GridJobQueueComponent>(GetTree()?.CurrentScene);
-        }
-
-        public bool UsesSceneControls()
-            => !TitleLabelPath.IsEmpty || !SummaryLabelPath.IsEmpty || !RowsContainerPath.IsEmpty
-            || FindTitleLabel() != null || FindSummaryLabel() != null || FindRowsContainer() != null;
-
-        private bool BindExistingControls()
-        {
-            if (!UsesSceneControls())
-                return false;
-
-            Label? title = FindTitleLabel();
-            Label? summary = FindSummaryLabel();
-            VBoxContainer? rows = FindRowsContainer();
-
-            if (summary == null || rows == null)
-                return false;
-
-            _title = title;
-            _summary = summary;
-            _jobRows = rows;
-            _rowLabels.Clear();
-            return true;
-        }
-
-        private bool HasAuthoredControls()
-            => FindSummaryLabel() != null && FindRowsContainer() != null;
-
-        private Label? FindTitleLabel()
-        {
-            if (!TitleLabelPath.IsEmpty && GetNodeOrNull<Label>(TitleLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Title", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Title", recursive: true, owned: false) as Label;
-        }
-
-        private Label? FindSummaryLabel()
-        {
-            if (!SummaryLabelPath.IsEmpty && GetNodeOrNull<Label>(SummaryLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Summary", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Summary", recursive: true, owned: false) as Label;
-        }
-
-        private VBoxContainer? FindRowsContainer()
-        {
-            if (!RowsContainerPath.IsEmpty && GetNodeOrNull<VBoxContainer>(RowsContainerPath) is { } pathRows)
-                return pathRows;
-
-            if (FindChild("Rows", recursive: true, owned: false) is VBoxContainer childRows)
-                return childRows;
-
-            return GetParent()?.FindChild("Rows", recursive: true, owned: false) as VBoxContainer;
-        }
-
-        private void ClearChildren()
-        {
-            foreach (Node child in GetChildren())
-                child.QueueFree();
-            _title = null;
-            _summary = null;
-            _jobRows = null;
-        }
-
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
+            => EntityComponent.Resolve(this, JobQueuePath, ref _queue);
 
         private static int StateRank(string state)
         {
@@ -387,13 +208,5 @@ namespace Beep.ECS
 
         private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
             => GridVariantReader.Vector2I(dict, key, fallback);
-
-        private static string SafeName(string value)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? "Job" : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return result.Replace(' ', '_');
-        }
     }
 }

@@ -1912,6 +1912,13 @@ foreach ($folder in @("ecs/terrain", "ecs/grid")) {
                 Fail "$($file.Name) has its own copy of a TerrainGeometry helper ($copy)."
             }
         }
+        if ($folder -eq "ecs/terrain") {
+            foreach ($unrolled in @("side == 0 ? 1 : side == 1 ? -1 : 0", "side == 0 ? -1 : side == 1 ? 1 : 0")) {
+                if ($candidate -match [regex]::Escape($unrolled)) {
+                    Fail "$($file.Name) unrolls its own four-neighbour walk ($unrolled); TerrainGeometry.Neighbours4 is the one order every walk takes."
+                }
+            }
+        }
     }
 }
 # The autotile view's staleness check ran Json.Stringify over a reflection capture of

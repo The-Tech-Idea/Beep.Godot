@@ -437,19 +437,13 @@ namespace Beep.ECS
         /// </summary>
         private static string? NeighbourLand(TerrainGenerationBuffer world, int index, HashSet<string>? exclude = null)
         {
-            int wide = world.CellsWide;
-            int x = index % wide;
-            int y = index / wide;
             var counts = new Dictionary<string, int>();
+            System.Span<int> around = stackalloc int[4];
+            int sides = TerrainGeometry.Neighbours4(index, world.CellsWide, world.CellsHigh, around);
 
-            for (int side = 0; side < 4; side++)
+            for (int side = 0; side < sides; side++)
             {
-                int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                if (nx < 0 || ny < 0 || nx >= wide || ny >= world.CellsHigh)
-                    continue;
-
-                int at = world.CellIndex(nx, ny);
+                int at = around[side];
                 if (world.CellWater[at] != WaterBody.None)
                     continue;
 
@@ -475,6 +469,7 @@ namespace Beep.ECS
             var seen = new bool[wide * high];
             var found = new List<List<int>>();
             var queue = new Queue<int>();
+            System.Span<int> around = stackalloc int[4];
 
             for (int start = 0; start < seen.Length; start++)
             {
@@ -490,17 +485,11 @@ namespace Beep.ECS
                 {
                     int index = queue.Dequeue();
                     region.Add(index);
-                    int x = index % wide;
-                    int y = index / wide;
 
-                    for (int side = 0; side < 4; side++)
+                    int sides = TerrainGeometry.Neighbours4(index, wide, high, around);
+                    for (int side = 0; side < sides; side++)
                     {
-                        int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                        int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                        if (nx < 0 || ny < 0 || nx >= wide || ny >= high)
-                            continue;
-
-                        int at = world.CellIndex(nx, ny);
+                        int at = around[side];
                         if (seen[at] || !matches(at))
                             continue;
 

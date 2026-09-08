@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Threading;
 
 namespace Beep.ECS
@@ -196,24 +197,19 @@ namespace Beep.ECS
             float[] elevation = world.Elevation;
             bool[] land = world.Land;
             int width = world.Width, height = world.Height;
+            Span<int> around = stackalloc int[4];
             for (int index = 0; index < world.Count; index++)
             {
                 if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 if (!land[index]) continue;
-                int x = index % width;
-                int y = index / width;
 
                 float total = 0.0f;
                 int counted = 0;
 
-                for (int side = 0; side < 4; side++)
+                int sides = TerrainGeometry.Neighbours4(index, width, height, around);
+                for (int side = 0; side < sides; side++)
                 {
-                    int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                    int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                    if (nx < 0 || ny < 0 || nx >= width || ny >= height)
-                        continue;
-
-                    int at = ny * width + nx;
+                    int at = around[side];
                     if (!land[at])
                         continue;
 

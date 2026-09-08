@@ -29,7 +29,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | DUP-01 | [Terrain renderer lifecycle contract](DUP-01-terrain-renderer-lifecycle-contract.md) | `QueueRebuild` ×9, `DisconnectCells` ×7, `ResolveCells` ×4, `Draw()` hand-wires 9 renderers | M | |
 | DUP-02 | [Shared water material](DUP-02-shared-water-material.md) | 3 water builders, `SetTexture` ×2 (10 sites); tile view lacks foam/swell | S | **done** |
 | DUP-03 | [Feature sheet loading](DUP-03-feature-sheet-loading.md) | flat vs iso loaders; iso ignores per-sheet columns/rows (bug) | S | **done** |
-| DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S | **done** (loops → ENH-16) |
+| DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S | **done** |
 | DUP-05 | [One id normaliser](DUP-05-one-id-normaliser.md) | 18 normaliser/sanitiser copies, ≥4 rules; wallet vs catalog disagree | S | |
 | DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS | |
 | DUP-07 | [Prop residency façade](DUP-07-prop-residency-facade.md) | 3 `*.Streaming.cs` partials | S | |
@@ -59,7 +59,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | ENH-13 | [Minimap and scatter limits](ENH-13-minimap-and-scatter-limits.md) | silent 1024 caps removed; chunk bake; chunk-resident scatter | S–M | |
 | ENH-14 | [Object-at-cell index](ENH-14-object-at-cell-index.md) | inspector/tool group scans → O(1); status panel late-resolve wiring bug | S | |
 | ENH-15 | [Unit and contract drift](ENH-15-unit-and-contract-drift.md) | `TransportRate` doc says seconds; `GatherSeconds` read as turns; catalog index | XS–S | |
-| ENH-16 | [Generation stage allocations](ENH-16-generation-stage-allocations.md) | iterator BFS ×4, field clone per pass, per-region lists, shared distance fields | M | **done** (allocation pass; cross-order loops follow) |
+| ENH-16 | [Generation stage allocations](ENH-16-generation-stage-allocations.md) | iterator BFS ×4, field clone per pass, per-region lists, shared distance fields | M | **done** |
 
 ## Features (8)
 

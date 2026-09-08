@@ -705,23 +705,18 @@ namespace Beep.ECS
                 }
             }
 
+            System.Span<int> around = stackalloc int[4];
             while (queue.Count > 0)
             {
                 int index = queue.Dequeue();
-                int cx = index % size.X;
-                int cy = index / size.X;
-                for (int side = 0; side < 4; side++)
+                int sides = TerrainGeometry.Neighbours4(index, size.X, size.Y, around);
+                for (int side = 0; side < sides; side++)
                 {
-                    int nx = cx + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                    int ny = cy + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                    if (nx < 0 || ny < 0 || nx >= size.X || ny >= size.Y)
-                        continue;
-
-                    int next = (ny * size.X) + nx;
+                    int next = around[side];
                     if (_depth[next] != 0)
                         continue;
 
-                    string kind = field.TerrainAtCell(new Vector2I(nx, ny));
+                    string kind = field.TerrainAtCell(new Vector2I(next % size.X, next / size.X));
                     if (!TerrainTileSets.IsWaterKind(kind))
                         continue;
 

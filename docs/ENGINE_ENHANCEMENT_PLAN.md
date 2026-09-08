@@ -203,7 +203,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-01 | [Terrain renderer lifecycle contract](../plans/terrain-grid/DUP-01-terrain-renderer-lifecycle-contract.md) | duplication | M | Proposed |
 | DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | **Implemented 2026-09-08** |
 | DUP-03 | [Feature sheet loading](../plans/terrain-grid/DUP-03-feature-sheet-loading.md) | duplication + bug | S | **Implemented 2026-09-08** |
-| DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | **Implemented 2026-09-08** (neighbour loops deferred to ENH-16) |
+| DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | **Implemented 2026-09-08** (neighbour loops landed with ENH-16) |
 | DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | Proposed |
 | DUP-06 | [Dictionary reader wrappers](../plans/terrain-grid/DUP-06-dictionary-reader-wrappers.md) | duplication / hygiene | XS | Proposed |
 | DUP-07 | [Prop residency façade](../plans/terrain-grid/DUP-07-prop-residency-facade.md) | duplication | S | Proposed |
@@ -228,7 +228,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | ENH-13 | [Minimap and scatter limits](../plans/terrain-grid/ENH-13-minimap-and-scatter-limits.md) | enhancement + silent-cap fix | S–M | Proposed |
 | ENH-14 | [Object-at-cell index](../plans/terrain-grid/ENH-14-object-at-cell-index.md) | enhancement + bug | S | Proposed |
 | ENH-15 | [Unit and contract drift](../plans/terrain-grid/ENH-15-unit-and-contract-drift.md) | correctness / docs | XS–S | Proposed |
-| ENH-16 | [Generation stage allocations](../plans/terrain-grid/ENH-16-generation-stage-allocations.md) | enhancement | M | **Implemented 2026-09-08** (271 MiB to 64 MiB per Huge build; cross-order neighbour loops follow) |
+| ENH-16 | [Generation stage allocations](../plans/terrain-grid/ENH-16-generation-stage-allocations.md) | enhancement | M | **Implemented 2026-09-08** (271 MiB to 64 MiB per Huge build; every four-neighbour walk on Neighbours4) |
 | FEAT-01 | [Hierarchical pathfinding and flow fields](../plans/terrain-grid/FEAT-01-hierarchical-pathfinding.md) | feature | L | Proposed |
 | FEAT-02 | [Territory layer](../plans/terrain-grid/FEAT-02-territory-layer.md) | feature | M–L | Proposed |
 | FEAT-03 | [Fog of war and exploration](../plans/terrain-grid/FEAT-03-fog-of-war-and-exploration.md) | feature | L | Proposed |

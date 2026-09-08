@@ -138,6 +138,7 @@ namespace Beep.ECS
             bool[] seen = world.BoolScratch;
             Array.Clear(seen);
             int[] queue = world.IntScratchA;
+            Span<int> around = stackalloc int[4];
             var borders = new Dictionary<string, int>();
             bool changed = false;
 
@@ -156,17 +157,11 @@ namespace Beep.ECS
                 while (head < tail)
                 {
                     int index = queue[head++];
-                    int x = index % world.Width;
-                    int y = index / world.Width;
 
-                    for (int side = 0; side < 4; side++)
+                    int sides = TerrainGeometry.Neighbours4(index, world.Width, world.Height, around);
+                    for (int side = 0; side < sides; side++)
                     {
-                        int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                        int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                        if (nx < 0 || ny < 0 || nx >= world.Width || ny >= world.Height)
-                            continue;
-
-                        int at = world.Index(nx, ny);
+                        int at = around[side];
                         if (!world.Land[at])
                             continue;
 

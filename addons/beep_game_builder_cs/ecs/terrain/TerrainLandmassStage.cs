@@ -417,6 +417,7 @@ namespace Beep.ECS
             int placed = 0;
             var exhausted = new bool[seeds.Length];
             int living = seeds.Length;
+            Span<int> around = stackalloc int[4];
 
             while (placed < target && living > 0)
             {
@@ -476,21 +477,17 @@ namespace Beep.ECS
                 placed++;
                 share[mass]++;
 
-                int x = cell % world.Width;
-                int y = cell / world.Width;
                 int seedX = seeds[mass].Index % world.Width;
                 int seedY = seeds[mass].Index / world.Width;
 
-                for (int side = 0; side < 4; side++)
+                int sides = TerrainGeometry.Neighbours4(cell, world.Width, world.Height, around);
+                for (int side = 0; side < sides; side++)
                 {
-                    int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                    int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
-                    if (!world.InBounds(nx, ny))
-                        continue;
-
-                    int at = world.Index(nx, ny);
+                    int at = around[side];
                     if (claimed[at] || !eligible[at])
                         continue;
+                    int nx = at % world.Width;
+                    int ny = at / world.Width;
 
                     // Area-preserving metric fits the seed's available region:
                     // wide lattice cells grow broad masses instead of circular

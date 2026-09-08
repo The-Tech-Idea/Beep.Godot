@@ -34,11 +34,11 @@ namespace Beep.ECS
             if (requested <= 0)
                 return;
 
-            requested = Mathf.Min(requested, Mathf.FloorToInt(CountTrue(world.Land) * 0.35f));
+            requested = Mathf.Min(requested, Mathf.FloorToInt(TerrainGeometry.CountTrue(world.Land) * 0.35f));
             if (requested <= 0)
                 return;
 
-            int[] fromWater = TerrainGeometry.DistanceTo(Negate(world.Land), world.Width, world.Height);
+            int[] fromWater = TerrainGeometry.DistanceTo(TerrainGeometry.Negate(world.Land), world.Width, world.Height);
             // Two tiles clear of the shore. One tile is enough for a growing
             // lake to pinch a narrow neck and split one island into two.
             int minimumInland = Mathf.Max(3, world.SamplesPerCell * 2);
@@ -154,23 +154,5 @@ namespace Beep.ECS
             queue.Enqueue(index);
         }
 
-        private static bool[] Negate(bool[] values)
-        {
-            var result = new bool[values.Length];
-            for (int index = 0; index < values.Length; index++)
-                result[index] = !values[index];
-            return result;
-        }
-
-        private static int CountTrue(bool[] values)
-        {
-            int count = 0;
-            foreach (bool value in values)
-            {
-                if (value)
-                    count++;
-            }
-            return count;
-        }
     }
 }

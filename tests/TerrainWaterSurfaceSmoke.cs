@@ -271,7 +271,7 @@ public partial class TerrainWaterSurfaceSmoke : Node
                 }
             Array.Sort(local, 0, count);
             foreach (float percentile in new[] { 0f, 0.1f, 0.5f, 0.73f, 1f })
-                Check(TerrainFeatureStage.RankedValue(local, count, percentile) == TerrainGeometry.Percentile(values, mask, percentile),
+                Check(TerrainGeometry.RankedValue(local, count, percentile) == TerrainGeometry.Percentile(values, mask, percentile),
                     "Local feature ranking differs from full-map mask ranking");
         }
     }

@@ -1,6 +1,22 @@
 # DUP-04 — Finish the per-cell hash consolidation; share the small generation helpers
 
-**Type:** duplication fix · **Area:** `TerrainIsometricRendererComponent`, `TerrainIsometricAutotileRendererComponent`, `GridResourceScatterComponent`, generation stages, `TerrainShorelineField` · **Status:** proposed 2026-09-08 · **Effort:** S (½–1 day) · **Risk:** low
+**Type:** duplication fix · **Area:** `TerrainIsometricRendererComponent`, `TerrainIsometricAutotileRendererComponent`, `GridResourceScatterComponent`, generation stages, `TerrainShorelineField` · **Status:** **IMPLEMENTED 2026-09-08 (hashes and helpers; neighbour loops deferred to ENH-16)** · **Effort:** S (took ~half a day) · **Risk:** low
+
+## Outcome
+
+Landed on `TerrainGeometry`: `VariantSalt`, `Negate`, `CountTrue`, `RankedValue` and `MostCommon`, with `Percentile` routed through `RankedValue`. Verified: `dotnet build` clean; the five probes that pin exact generation output (`terrain_final_topology`, `terrain_exact_recipe`, `grid_terrain_topology`, `grid_terrain_feature`, `terrain_generated_coast`) unchanged; `TerrainWaterSurfaceSmoke`'s pin that `RankedValue == Percentile` still holds with the method moved; the new `tests/terrain_variant_choice_probe.gd` green in the gate; **5 of 5 mutations trip a guard** (2 on the scan pin, 3 on the probe).
+
+What the three hashes became, and what changed on screen:
+
+1. **The block view's `VariantFor` is bit-identical.** Its private copy was this file's own Wang mix with the FNV offset basis `2166136261` as a constant salt. That salt is now `TerrainGeometry.VariantSalt`, so the same cell picks the same frame as before — the consolidation moved the mix, not the picture.
+2. **The autotile view changes, on purpose.** It used a different hash (`x·73856093 ^ y·19349663`) on the *absolute* cell, so one map's two isometric views disagreed about the variant of every cell; measured with the probe's fixture, 56 of 64 cells. It now uses `HashInt` under `VariantSalt` on the **window-local** cell, matching the block view at any `BoundsOrigin`. Only which alternative a cell shows moves; no geometry does. Nothing in the tree pins autotile alternatives.
+3. **The scatter's amount roll** allocated a `RandomNumberGenerator` per deposit under a private seed formula; it is one `HashInt` now. Amounts per seed change; nothing pins them (`GridPlacementSmoke` authors `MinAmount == MaxAmount`). This is the one edit under `ecs/grid/` — four lines in one private method.
+
+The helper replacements were checked for exact equivalence before landing: every inline "most common" vote used a strict `>` over the same insertion-ordered dictionary (ties to the first key counted), both percentile copies used the same clamp-and-round, and `Percentile`'s empty-input result is unchanged. The probe measures the views' agreement through the *atlas x* of the tiles each paints — with N variants at atlas `(0..N-1, 0)` in both, a cell's atlas x is its variant index — so it needs no display and no new API.
+
+**Deliberately not done here, and why.** The 4-neighbour loops (`TerrainGeometry.Neighbours` iterator ×4, the unrolled `side == 0 ? 1 : side == 1 ? -1 : 0` form ×7) use *two different orders* — `−x,+x,−y,+y` in the iterator, `+x,−x,+y,−y` in the loops. Every BFS and `PriorityQueue` growth in the stages is order-sensitive, so unifying them changes which cells are claimed first and therefore the generated map. That consolidation belongs with ENH-16 behind a recorded three-seed determinism baseline; landing it "as duplication" would have changed generation output under the name of tidying. `TerrainShorelineField` stays for the owner's decision as the plan says.
+
+Noted, not caused here: `tests/runtime_smoke.ps1` is red at `GridPlacementSmoke.VerifyPlacementOccupancy` ("Fresh placement grid should allow an empty footprint"), which calls `CanPlace` on a bare `GridPlacementComponent`. The only uncommitted file under `ecs/grid/` is the scatter's `RandomAmount`, which placement never reaches, so the failure is in the committed placement code — the other session's area.
 
 ## Finding
 

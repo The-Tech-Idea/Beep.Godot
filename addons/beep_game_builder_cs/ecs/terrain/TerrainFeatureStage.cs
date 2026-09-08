@@ -75,13 +75,6 @@ namespace Beep.ECS
         /// </summary>
         private const float StandSpread = 0.32f;
 
-        internal static float RankedValue(float[] sorted, int count, float percentile)
-        {
-            if (count == 0) return 0f;
-            int position = Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp(percentile, 0f, 1f) * (count - 1)), 0, count - 1);
-            return sorted[position];
-        }
-
         public const string None = "";
         public const string Woods = "woods";
 
@@ -230,8 +223,8 @@ namespace Beep.ECS
                     }
 
                     System.Array.Sort(window, 0, seen);
-                    blockThreshold[block] = RankedValue(window, seen, 1.0f - wanted);
-                    blockDense[block] = RankedValue(window, seen, 1.0f - (wanted * 0.45f));
+                    blockThreshold[block] = TerrainGeometry.RankedValue(window, seen, 1.0f - wanted);
+                    blockDense[block] = TerrainGeometry.RankedValue(window, seen, 1.0f - (wanted * 0.45f));
                 }
             }
 

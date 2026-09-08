@@ -209,6 +209,18 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot terrain feature sheets probe failed."
 }
 
+Write-Host "[addon-checks] Godot terrain variant choice probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_variant_choice_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot terrain variant choice probe failed."
+}
+
+Write-Host "[addon-checks] Godot terrain autotile staleness probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_autotile_staleness_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 120
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot terrain autotile staleness probe failed."
+}
+
 Write-Host "[addon-checks] Godot grid resource catalog ports probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_resource_catalog_ports_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
 if ($LASTEXITCODE -ne 0) {

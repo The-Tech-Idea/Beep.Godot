@@ -266,17 +266,7 @@ namespace Beep.ECS
                 counts[kind] = counts.GetValueOrDefault(kind) + 1;
             }
 
-            string? best = null;
-            int most = 0;
-            foreach ((string kind, int count) in counts)
-            {
-                if (count > most)
-                {
-                    best = kind;
-                    most = count;
-                }
-            }
-            return best;
+            return TerrainGeometry.MostCommon(counts, null);
         }
 
         /// <summary>
@@ -471,17 +461,7 @@ namespace Beep.ECS
                 counts[kind] = counts.GetValueOrDefault(kind) + 1;
             }
 
-            string? best = null;
-            int most = 0;
-            foreach ((string kind, int count) in counts)
-            {
-                if (count > most)
-                {
-                    best = kind;
-                    most = count;
-                }
-            }
-            return best;
+            return TerrainGeometry.MostCommon(counts, null);
         }
 
         /// <summary>

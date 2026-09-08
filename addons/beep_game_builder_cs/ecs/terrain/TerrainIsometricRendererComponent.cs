@@ -604,9 +604,10 @@ namespace Beep.ECS
                 return fallback;
             if (choices.Length == 1) return choices[0];
 
-            uint value = (uint)(cell.X * 374761393) + (uint)(cell.Y * 668265263) + 2166136261u;
-            value = (value ^ (value >> 13)) * 1274126177u;
-            value ^= value >> 16;
+            // The shared mix under the shared salt. This was a private copy of
+            // TerrainGeometry's hash with the salt written in; the value is the same
+            // to the bit, so no existing map changes which frame a cell shows.
+            uint value = (uint)TerrainGeometry.HashInt(cell.X, cell.Y, TerrainGeometry.VariantSalt);
             return choices[value % (uint)choices.Length];
         }
 

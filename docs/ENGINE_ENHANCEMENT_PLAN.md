@@ -203,7 +203,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-01 | [Terrain renderer lifecycle contract](../plans/terrain-grid/DUP-01-terrain-renderer-lifecycle-contract.md) | duplication | M | Proposed |
 | DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | **Implemented 2026-09-08** |
 | DUP-03 | [Feature sheet loading](../plans/terrain-grid/DUP-03-feature-sheet-loading.md) | duplication + bug | S | **Implemented 2026-09-08** |
-| DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | Proposed |
+| DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | **Implemented 2026-09-08** (neighbour loops deferred to ENH-16) |
 | DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | Proposed |
 | DUP-06 | [Dictionary reader wrappers](../plans/terrain-grid/DUP-06-dictionary-reader-wrappers.md) | duplication / hygiene | XS | Proposed |
 | DUP-07 | [Prop residency façade](../plans/terrain-grid/DUP-07-prop-residency-facade.md) | duplication | S | Proposed |
@@ -223,7 +223,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | ENH-08 | [Projection hot paths](../plans/terrain-grid/ENH-08-projection-hot-paths.md) | enhancement | S | Proposed |
 | ENH-09 | [Overlay culling and bridge marshalling](../plans/terrain-grid/ENH-09-overlay-culling-and-bridge-marshalling.md) | enhancement | S | Proposed |
 | ENH-10 | [Streamed-world save](../plans/terrain-grid/ENH-10-streamed-world-save.md) | enhancement / correctness | M | Proposed |
-| ENH-11 | [Autotile configuration per frame](../plans/terrain-grid/ENH-11-autotile-configuration-per-frame.md) | enhancement | XS | Proposed |
+| ENH-11 | [Autotile configuration per frame](../plans/terrain-grid/ENH-11-autotile-configuration-per-frame.md) | enhancement | XS | **Implemented 2026-09-08** |
 | ENH-12 | [Job queue indices](../plans/terrain-grid/ENH-12-job-queue-indices.md) | enhancement | M | Proposed |
 | ENH-13 | [Minimap and scatter limits](../plans/terrain-grid/ENH-13-minimap-and-scatter-limits.md) | enhancement + silent-cap fix | S–M | Proposed |
 | ENH-14 | [Object-at-cell index](../plans/terrain-grid/ENH-14-object-at-cell-index.md) | enhancement + bug | S | Proposed |

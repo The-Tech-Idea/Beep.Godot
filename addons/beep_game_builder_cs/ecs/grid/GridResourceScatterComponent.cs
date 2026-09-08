@@ -318,8 +318,10 @@ namespace Beep.ECS
             if (min == max)
                 return min;
 
-            var rng = new RandomNumberGenerator { Seed = (ulong)(Mathf.Max(0, Seed) + cell.X * 73856093 + cell.Y * 19349663 + index * 83492791) };
-            return rng.RandiRange(min, max);
+            // The engine's one per-cell mix, instead of a RandomNumberGenerator
+            // allocated per deposit under a private seed formula.
+            uint roll = (uint)TerrainGeometry.HashInt(cell.X, cell.Y, unchecked(Mathf.Max(0, Seed) + index * 83492791));
+            return min + (int)(roll % (uint)(max - min + 1));
         }
 
         private int ClearGenerated(Node root)

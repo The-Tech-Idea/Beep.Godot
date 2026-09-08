@@ -20,7 +20,7 @@ namespace Beep.ECS
 
         public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise)
         {
-            int[] fromWater = TerrainGeometry.DistanceTo(Negate(world.Land), world.Width, world.Height);
+            int[] fromWater = TerrainGeometry.DistanceTo(TerrainGeometry.Negate(world.Land), world.Width, world.Height);
             fromWater.CopyTo(world.CoastDistance, 0);
 
             // Normalize the inland term against the widest landmass, so
@@ -98,12 +98,5 @@ namespace Beep.ECS
             }
         }
 
-        private static bool[] Negate(bool[] values)
-        {
-            var result = new bool[values.Length];
-            for (int index = 0; index < values.Length; index++)
-                result[index] = !values[index];
-            return result;
-        }
     }
 }

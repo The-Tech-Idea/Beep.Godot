@@ -124,16 +124,7 @@ namespace Beep.ECS
                     tally[world.Terrain[i]] = tally.GetValueOrDefault(world.Terrain[i]) + 1;
             }
 
-            string fallback = "grass";
-            int mostSeen = 0;
-            foreach ((string kind, int count) in tally)
-            {
-                if (count > mostSeen)
-                {
-                    fallback = kind;
-                    mostSeen = count;
-                }
-            }
+            string fallback = TerrainGeometry.MostCommon(tally, "grass");
 
             // Repeated, because absorbing one region can leave its neighbour
             // still short - and the point is that a kind which never reaches the
@@ -225,16 +216,7 @@ namespace Beep.ECS
                 // stayed - so widening the beach put arctic ground on a
                 // temperate island. The fallback is the biome the map is mostly
                 // made of, which is what the region would have joined anyway.
-                string winner = borders.Count > 0 ? kind : fallback;
-                int best = 0;
-                foreach ((string other, int count) in borders)
-                {
-                    if (count > best)
-                    {
-                        winner = other;
-                        best = count;
-                    }
-                }
+                string winner = borders.Count > 0 ? TerrainGeometry.MostCommon(borders, kind) : fallback;
 
                 if (winner == kind)
                     continue;

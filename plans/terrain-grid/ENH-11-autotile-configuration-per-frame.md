@@ -1,6 +1,17 @@
 # ENH-11 — Autotile renderer: configuration key computed on change, not per frame
 
-**Type:** enhancement (per-frame cost) · **Area:** `TerrainIsometricAutotileRendererComponent` · **Status:** proposed 2026-09-08 · **Effort:** XS (½ day) · **Risk:** none
+**Type:** enhancement (per-frame cost) · **Area:** `TerrainIsometricAutotileRendererComponent` · **Status:** **IMPLEMENTED 2026-09-08** · **Effort:** XS (took ~2 hours) · **Risk:** none
+
+## Outcome
+
+`BuildConfiguration()` and the `_buildConfiguration` string are gone. `RequestRebuild` records what the paint starts from (window, paths, terrain set, connections flag, a copy of the bindings array, the `TileSet` reference and — in generated-preview mode — the generator's `TerrainGenerationSettings` record via `CaptureGenerationSettings()`), and `_Process` asks `BuildIsStale()`, a field-by-field compare with an early-out. Verified: `dotnet build` clean; `tests/terrain_autotile_staleness_probe.gd` green in the gate; **3 of 3 mutations trip a guard** (1 on the scan pin, 2 on the probe).
+
+Two things differed from the plan:
+
+1. **The generator check compares a record, not a hash of exports.** The plan proposed a `HashCode.Combine` over the exports. Reading the generator showed it already has the right key: `FieldFor(settings)` caches the field on `TerrainGenerationSettings` equality, and `CaptureGenerationSettings()` exposes that record. Comparing it is cheaper than any hash of raw exports *and* exactly the right question — only a change that moves the record can change the field being painted — where the old JSON key restarted the paint on export edits that never reached the field (`GenerateOnReady`, for instance).
+2. **The probe's first version could not fail.** Two blind `await process_frame`s before changing `BoundsSize` were not "mid-paint": the diagnostic showed `CellsProcessedLastFrame == 0` after both, so the iterator had not yet read `BoundsSize` and simply started from the new value — a mutation that removed the size compare passed. The probe now waits for observed progress (`CellsProcessedLastFrame > 0`) before mutating, and the same mutation fails with "holds 1600 cells, not the 100 of the new window". The seed case had only tripped by timing luck and got the same fix.
+
+The pin caught something too, live: it tripped on my own doc comments, which mentioned the removed API by name. The comments were reworded rather than the pin loosened — a pin that reads the whole file is the right shape for "this call must not come back".
 
 ## Finding
 

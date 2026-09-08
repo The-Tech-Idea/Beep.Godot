@@ -70,7 +70,17 @@ namespace Beep.ECS
         public int CellsProcessedLastFrame { get; private set; }
         private IEnumerator<int>? _build;
         private ulong _buildRevision;
-        private string _buildConfiguration = "";
+        // What the in-flight paint was started from, compared field by field each
+        // frame. A string key stood here that JSON-serialised a reflection capture
+        // of the generator's whole export list on every frame of a time-sliced paint.
+        private NodePath _buildCellsPath = new("");
+        private NodePath _buildGeneratorPath = new("");
+        private Vector2I _buildOrigin;
+        private Vector2I _buildSize;
+        private int _buildTerrainSet;
+        private bool _buildConnections;
+        private string[] _buildBindings = Array.Empty<string>();
+        private TerrainGenerationSettings? _buildSettings;
         private TileSet? _buildTiles;
         private bool _buildTilesChanged;
 
@@ -228,8 +238,17 @@ namespace Beep.ECS
             CancelRebuild();
             _rebuildQueued = false;
             ResolveCells();
+            ResolveGenerator();
             _buildRevision = _cells?.TerrainRevision ?? 0;
-            _buildConfiguration = BuildConfiguration();
+            _buildCellsPath = CellDataPath;
+            _buildGeneratorPath = TerrainGeneratorPath;
+            _buildOrigin = BoundsOrigin;
+            _buildSize = BoundsSize;
+            _buildTerrainSet = TerrainSet;
+            _buildConnections = UseTerrainConnections;
+            // A copy, so an array edited in place still reads as changed.
+            _buildBindings = (string[])TerrainBindings.Clone();
+            _buildSettings = CurrentGeneratorSettings();
             _buildTiles = Tiles;
             _buildTilesChanged = false;
             if (_buildTiles is not null) _buildTiles.Changed += OnBuildTilesChanged;
@@ -254,20 +273,42 @@ namespace Beep.ECS
             _rebuildQueued = false;
         }
 
-        private string BuildConfiguration()
+        /// <summary>
+        /// Whether anything the in-flight paint was started from has changed under it.
+        ///
+        /// This ran on every frame of a time-sliced paint as a string key that
+        /// interpolated every export and JSON-serialised a reflection capture of the
+        /// generator's entire property list - sixty serialisations a second for as
+        /// long as a 128x80 map took to paint. The generator caches its
+        /// field on TerrainGenerationSettings equality, so comparing that same record
+        /// is both cheaper and exactly the right question: only a change that moves
+        /// the record can change the field this view is painting.
+        /// </summary>
+        private bool BuildIsStale()
         {
-            var generator = _cells is null && !TerrainGeneratorPath.IsEmpty
-                ? GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath) : null;
-            string recipe = generator is null ? "" : $"{generator.GetInstanceId()}:{Json.Stringify(generator.CaptureConfiguration())}";
-            return $"{CellDataPath}|{TerrainGeneratorPath}|{BoundsOrigin}|{BoundsSize}|{Tiles?.GetInstanceId()}|{TerrainSet}|{UseTerrainConnections}|{string.Join(';', TerrainBindings)}|{recipe}";
+            if (CellDataPath != _buildCellsPath || TerrainGeneratorPath != _buildGeneratorPath
+                || BoundsOrigin != _buildOrigin || BoundsSize != _buildSize
+                || TerrainSet != _buildTerrainSet || UseTerrainConnections != _buildConnections
+                || !ReferenceEquals(Tiles, _buildTiles))
+                return true;
+            if (TerrainBindings.Length != _buildBindings.Length) return true;
+            for (int i = 0; i < TerrainBindings.Length; i++)
+                if (!string.Equals(TerrainBindings[i], _buildBindings[i], StringComparison.Ordinal)) return true;
+            return !Nullable.Equals(CurrentGeneratorSettings(), _buildSettings);
         }
+
+        /// <summary>The generator's settings when it is the source; null for a live map.</summary>
+        private TerrainGenerationSettings? CurrentGeneratorSettings()
+            => _cells is null && _generator is not null && GodotObject.IsInstanceValid(_generator)
+                ? _generator.CaptureGenerationSettings()
+                : null;
 
         public override void _Process(double delta)
         {
             CellsProcessedLastFrame = 0;
             if (_build is null) return;
             var source = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
-            if (_buildTilesChanged || source != _cells || (_cells?.TerrainRevision ?? 0) != _buildRevision || BuildConfiguration() != _buildConfiguration)
+            if (_buildTilesChanged || source != _cells || (_cells?.TerrainRevision ?? 0) != _buildRevision || BuildIsStale())
             {
                 RequestRebuild();
                 return;
@@ -432,7 +473,13 @@ namespace Beep.ECS
             }
             foreach (Vector2I cell in cells)
             {
-                uint hash = unchecked((uint)cell.X * 73856093u ^ (uint)cell.Y * 19349663u);
+                // The shared per-cell mix, on the cell's WINDOW-LOCAL coordinate and
+                // under the same salt the isometric block view uses, so one map shows
+                // the same variant per cell however it is drawn. A private multiply-XOR
+                // hash on the absolute coordinate stood here, and the two views of one
+                // map disagreed about every cell.
+                Vector2I local = cell - BoundsOrigin;
+                uint hash = (uint)TerrainGeometry.HashInt(local.X, local.Y, TerrainGeometry.VariantSalt);
                 var tile = choices[(int)(hash % (uint)choices.Count)];
                 layer.SetCell(cell, tile.Source, tile.Atlas, tile.Alternative);
                 yield return 1;

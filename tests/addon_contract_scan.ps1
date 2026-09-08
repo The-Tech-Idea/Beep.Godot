@@ -1882,6 +1882,51 @@ foreach ($layoutExport in @("JungleColumns", "JungleRows", "MarshColumns", "Mars
         Fail "TerrainIsometricFeatureRendererComponent lost the $layoutExport export; without it every sheet is cut on the woods grid again."
     }
 }
+# One per-cell hash, and one copy of each small generation helper.
+#
+# TerrainGeometry.Hash01/HashInt is the Wang mix every stage uses. Three private copies
+# had outlived its consolidation: the isometric block view's variant picker (the same
+# mix under a hard-coded salt), the autotile view's alternative picker (a different
+# multiply-XOR hash, so one map's two isometric views disagreed about every cell's
+# variant) and the resource scatter's amount roll (a RandomNumberGenerator allocated
+# per deposit). The salt both views now share is TerrainGeometry.VariantSalt. Negate,
+# CountTrue, the percentile index and the most-common vote likewise had two to five
+# copies each across the stages.
+$terrainGeometry = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGeometry.cs"
+foreach ($required in @("public const int VariantSalt", "public static bool[] Negate(", "public static int CountTrue(", "public static float RankedValue(", "public static string? MostCommon(")) {
+    if ($terrainGeometry -notmatch [regex]::Escape($required)) {
+        Fail "TerrainGeometry must own the shared generation helper: $required."
+    }
+}
+foreach ($folder in @("ecs/terrain", "ecs/grid")) {
+    foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/$folder") -Filter *.cs -Recurse) {
+        if ($file.Name -eq "TerrainGeometry.cs") { continue }
+        $candidate = Get-Content -Path $file.FullName -Raw
+        foreach ($constant in @("2166136261", "73856093", "19349663", "374761393", "1274126177")) {
+            if ($candidate -match $constant) {
+                Fail "$($file.Name) carries its own per-cell hash ($constant); TerrainGeometry.Hash01/HashInt is the one mix."
+            }
+        }
+        foreach ($copy in @("private static bool[] Negate(", "private static int CountTrue(", "private static string MostCommon(", "static float RankedValue(")) {
+            if ($candidate -match [regex]::Escape($copy)) {
+                Fail "$($file.Name) has its own copy of a TerrainGeometry helper ($copy)."
+            }
+        }
+    }
+}
+# The autotile view's staleness check ran Json.Stringify over a reflection capture of
+# the generator's every export on EVERY frame of a time-sliced paint. It compares the
+# generator's own TerrainGenerationSettings record now - the value the field itself is
+# cached on, so it is both cheaper and exactly the right question.
+$autotile = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricAutotileRendererComponent.cs"
+foreach ($gone in @("Json.Stringify", "CaptureConfiguration()", "BuildConfiguration()")) {
+    if ($autotile -match [regex]::Escape($gone)) {
+        Fail "TerrainIsometricAutotileRendererComponent is back to $gone for its per-frame staleness check."
+    }
+}
+if ($autotile -notmatch [regex]::Escape("CaptureGenerationSettings()")) {
+    Fail "TerrainIsometricAutotileRendererComponent must compare the generator's TerrainGenerationSettings to notice a stale paint."
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

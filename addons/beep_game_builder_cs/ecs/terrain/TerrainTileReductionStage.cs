@@ -122,7 +122,7 @@ namespace Beep.ECS
                             ? WaterBody.Ocean
                             : lake >= river ? WaterBody.Lake : WaterBody.River;
                         world.CellRelief[cell] = TerrainRelief.Flat;
-                        world.CellTerrain[cell] = MostCommon(waterCounts, "deep_water");
+                        world.CellTerrain[cell] = TerrainGeometry.MostCommon(waterCounts, "deep_water");
                     }
                     else if (riverTile)
                     {
@@ -145,26 +145,11 @@ namespace Beep.ECS
                         int band = LargestIndex(relief);
                         world.CellRelief[cell] = (TerrainRelief)band;
                         world.CellTerrain[cell] = byRelief[band].Count > 0
-                            ? MostCommon(byRelief[band], "grass")
-                            : MostCommon(counts, "grass");
+                            ? TerrainGeometry.MostCommon(byRelief[band], "grass")
+                            : TerrainGeometry.MostCommon(counts, "grass");
                     }
                 }
             }
-        }
-
-        private static string MostCommon(Dictionary<string, int> counts, string fallback)
-        {
-            string best = fallback;
-            int bestCount = 0;
-            foreach ((string kind, int count) in counts)
-            {
-                if (count > bestCount)
-                {
-                    bestCount = count;
-                    best = kind;
-                }
-            }
-            return best;
         }
 
         private static int LargestIndex(int[] values)

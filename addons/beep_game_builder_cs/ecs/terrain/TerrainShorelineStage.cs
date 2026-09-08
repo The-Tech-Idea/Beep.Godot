@@ -45,9 +45,7 @@ namespace Beep.ECS
                     string kind = world.Terrain[sample];
                     counts[kind] = counts.GetValueOrDefault(kind) + 1;
                 }
-                int best = 0;
-                foreach (var (kind, count) in counts)
-                    if (count > best) { best = count; world.CellTerrain[cell] = kind; }
+                world.CellTerrain[cell] = TerrainGeometry.MostCommon(counts, world.CellTerrain[cell]);
             }
         }
 

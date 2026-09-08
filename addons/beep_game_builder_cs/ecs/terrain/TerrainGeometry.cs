@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Beep.ECS
 {
@@ -157,11 +158,67 @@ namespace Beep.ECS
                 return 0.0f;
 
             selected.Sort();
+            return RankedValue(selected, selected.Count, percentile);
+        }
+
+        /// <summary>
+        /// The value at a percentile of an already-sorted run. Percentile sorts and
+        /// then calls this; the feature stage ranks a block it sorted itself. The two
+        /// carried the same clamp-and-round in two files, kept equal by a smoke test
+        /// rather than by being one function.
+        /// </summary>
+        public static float RankedValue(IReadOnlyList<float> sorted, int count, float percentile)
+        {
+            if (count == 0) return 0.0f;
             int position = Mathf.Clamp(
-                Mathf.RoundToInt(Mathf.Clamp(percentile, 0.0f, 1.0f) * (selected.Count - 1)),
-                0,
-                selected.Count - 1);
-            return selected[position];
+                Mathf.RoundToInt(Mathf.Clamp(percentile, 0.0f, 1.0f) * (count - 1)), 0, count - 1);
+            return sorted[position];
+        }
+
+        /// <summary>The inverse of a mask - what is NOT land, what is NOT water.</summary>
+        public static bool[] Negate(bool[] values)
+        {
+            var result = new bool[values.Length];
+            for (int index = 0; index < values.Length; index++)
+                result[index] = !values[index];
+            return result;
+        }
+
+        /// <summary>How many cells a mask selects.</summary>
+        public static int CountTrue(bool[] values)
+        {
+            int count = 0;
+            foreach (bool value in values)
+            {
+                if (value)
+                    count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// The most-counted key, or the fallback when nothing was counted.
+        ///
+        /// Ties go to the first key counted, because every one of the five inline
+        /// votes this replaces - tile reduction, the two landmass votes in the scale
+        /// constraint, the coherence stage's two, the shoreline's re-vote - already
+        /// compared with a strict greater-than over the same insertion-ordered
+        /// dictionary. Same input, same winner.
+        /// </summary>
+        [return: NotNullIfNotNull(nameof(fallback))]
+        public static string? MostCommon(Dictionary<string, int> counts, string? fallback)
+        {
+            string? best = fallback;
+            int most = 0;
+            foreach ((string kind, int count) in counts)
+            {
+                if (count > most)
+                {
+                    best = kind;
+                    most = count;
+                }
+            }
+            return best;
         }
 
         public static float Normalized(float signedNoise) => (signedNoise + 1.0f) * 0.5f;
@@ -195,9 +252,24 @@ namespace Beep.ECS
         }
 
         /// <summary>
+        /// The salt for per-cell VARIANT choice: which of a terrain's interchangeable
+        /// frames a cell shows. One value, so the isometric block view and the
+        /// autotile view pick the same variant for the same cell of one map; they
+        /// used two different hashes before and disagreed.
+        ///
+        /// The number is the FNV offset basis the block view had hard-coded into a
+        /// private copy of this file's mix. Keeping it makes that view's output
+        /// bit-identical to before: the consolidation moved where the mix lives,
+        /// not what it draws.
+        /// </summary>
+        public const int VariantSalt = unchecked((int)2166136261u);
+
+        /// <summary>
         /// The same mix as Hash01, kept as a raw int for callers that index by
         /// modulo rather than by a unit float. One private copy of this
-        /// survived the Hash01 consolidation, in the mountain tile painter.
+        /// survived the Hash01 consolidation, in the mountain tile painter -
+        /// and three more after that, in the block variant picker, the autotile
+        /// alternative picker and the resource scatter's amount roll.
         /// </summary>
         public static int HashInt(int x, int y, int seed)
         {

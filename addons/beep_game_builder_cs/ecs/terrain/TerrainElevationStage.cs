@@ -20,8 +20,8 @@ namespace Beep.ECS
 
         public static void Apply(TerrainGenerationBuffer world, TerrainNoiseSet noise)
         {
-            int[] fromWater = TerrainGeometry.DistanceTo(TerrainGeometry.Negate(world.Land), world.Width, world.Height);
-            fromWater.CopyTo(world.CoastDistance, 0);
+            int[] fromWater = world.CoastDistance;
+            TerrainGeometry.DistanceTo(world.Land, false, world.Width, world.Height, fromWater, world.IntScratchA);
 
             // Normalize the inland term against the widest landmass, so
             // elevation reads the same on a small island and a big continent.
@@ -78,11 +78,15 @@ namespace Beep.ECS
             if (settings.HillsFraction <= 0.0f && settings.MountainsFraction <= 0.0f)
                 return;
 
+            // One sorted selection, two cutoffs: hills and mountains are both
+            // percentiles of the same land heights.
+            float[] sorted = world.FloatScratchA;
+            int land = TerrainGeometry.SortedSelection(world.Elevation, world.Land, sorted);
             float hills = settings.HillsFraction > 0.0f
-                ? TerrainGeometry.Percentile(world.Elevation, world.Land, 1.0f - settings.HillsFraction)
+                ? TerrainGeometry.RankedValue(sorted, land, 1.0f - settings.HillsFraction)
                 : float.PositiveInfinity;
             float mountains = settings.MountainsFraction > 0.0f
-                ? TerrainGeometry.Percentile(world.Elevation, world.Land, 1.0f - settings.MountainsFraction)
+                ? TerrainGeometry.RankedValue(sorted, land, 1.0f - settings.MountainsFraction)
                 : float.PositiveInfinity;
 
             for (int index = 0; index < world.Count; index++)

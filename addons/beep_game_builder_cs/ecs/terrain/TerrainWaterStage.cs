@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 namespace Beep.ECS
@@ -38,13 +39,18 @@ namespace Beep.ECS
             if (requested <= 0)
                 return;
 
-            int[] fromWater = TerrainGeometry.DistanceTo(TerrainGeometry.Negate(world.Land), world.Width, world.Height);
+            // Distance from the pre-lake coast, into the field the elevation
+            // stage will refill from the final coast once the lakes are carved.
+            int[] fromWater = world.CoastDistance;
+            TerrainGeometry.DistanceTo(world.Land, false, world.Width, world.Height, fromWater, world.IntScratchA);
             // Two tiles clear of the shore. One tile is enough for a growing
             // lake to pinch a narrow neck and split one island into two.
             int minimumInland = Mathf.Max(3, world.SamplesPerCell * 2);
 
-            var basinScore = new float[world.Count];
-            var candidates = new List<int>();
+            float[] basinScore = world.FloatScratchA;
+            Array.Clear(basinScore);
+            int[] candidates = world.IntScratchA;
+            int candidateCount = 0;
             for (int y = 0; y < world.Height; y++)
             {
                 for (int x = 0; x < world.Width; x++)
@@ -61,22 +67,25 @@ namespace Beep.ECS
                     basinScore[index] = (basin * 0.55f)
                         + (flatness * 0.30f)
                         + (Mathf.Min(fromWater[index], minimumInland * 5) / (float)(minimumInland * 5) * 0.15f);
-                    candidates.Add(index);
+                    candidates[candidateCount++] = index;
                 }
             }
-            if (candidates.Count == 0)
+            if (candidateCount == 0)
                 return;
 
-            candidates.Sort((left, right) => basinScore[right].CompareTo(basinScore[left]));
+            candidates.AsSpan(0, candidateCount).Sort((left, right) => basinScore[right].CompareTo(basinScore[left]));
 
             int carved = 0;
-            var queued = new bool[world.Count];
+            bool[] queued = world.BoolScratch;
+            Array.Clear(queued);
             var frontier = new PriorityQueue<int, float>();
+            Span<int> around = stackalloc int[4];
 
             // Flood outward from the best seeds so each lake is one connected
             // body of water rather than a scatter of pits.
-            foreach (int seed in candidates)
+            for (int candidate = 0; candidate < candidateCount; candidate++)
             {
+                int seed = candidates[candidate];
                 if (carved >= requested)
                     break;
                 if (queued[seed])
@@ -98,9 +107,10 @@ namespace Beep.ECS
                     carved++;
                     grown++;
 
-                    foreach (int neighbour in TerrainGeometry.Neighbours(
-                        index % world.Width, index / world.Width, world.Width, world.Height))
+                    int sides = TerrainGeometry.Neighbours4(index, world.Width, world.Height, around);
+                    for (int side = 0; side < sides; side++)
                     {
+                        int neighbour = around[side];
                         if (queued[neighbour] || !world.Land[neighbour] || fromWater[neighbour] < minimumInland)
                             continue;
                         queued[neighbour] = true;
@@ -116,27 +126,30 @@ namespace Beep.ECS
         /// </summary>
         private static void ClassifyWaterBodies(TerrainGenerationBuffer world)
         {
-            var queue = new Queue<int>();
+            // Each water sample is marked ocean as it is queued, so it enters
+            // the queue once and a buffer the size of the field always fits.
+            int[] queue = world.IntScratchA;
+            int head = 0;
+            int tail = 0;
+            Span<int> around = stackalloc int[4];
 
             for (int x = 0; x < world.Width; x++)
             {
-                EnqueueIfOpenWater(world, world.Index(x, 0), queue);
-                EnqueueIfOpenWater(world, world.Index(x, world.Height - 1), queue);
+                EnqueueIfOpenWater(world, world.Index(x, 0), queue, ref tail);
+                EnqueueIfOpenWater(world, world.Index(x, world.Height - 1), queue, ref tail);
             }
             for (int y = 0; y < world.Height; y++)
             {
-                EnqueueIfOpenWater(world, world.Index(0, y), queue);
-                EnqueueIfOpenWater(world, world.Index(world.Width - 1, y), queue);
+                EnqueueIfOpenWater(world, world.Index(0, y), queue, ref tail);
+                EnqueueIfOpenWater(world, world.Index(world.Width - 1, y), queue, ref tail);
             }
 
-            while (queue.Count > 0)
+            while (head < tail)
             {
-                int current = queue.Dequeue();
-                foreach (int neighbour in TerrainGeometry.Neighbours(
-                    current % world.Width, current / world.Width, world.Width, world.Height))
-                {
-                    EnqueueIfOpenWater(world, neighbour, queue);
-                }
+                int current = queue[head++];
+                int sides = TerrainGeometry.Neighbours4(current, world.Width, world.Height, around);
+                for (int side = 0; side < sides; side++)
+                    EnqueueIfOpenWater(world, around[side], queue, ref tail);
             }
 
             for (int index = 0; index < world.Count; index++)
@@ -146,12 +159,12 @@ namespace Beep.ECS
             }
         }
 
-        private static void EnqueueIfOpenWater(TerrainGenerationBuffer world, int index, Queue<int> queue)
+        private static void EnqueueIfOpenWater(TerrainGenerationBuffer world, int index, int[] queue, ref int tail)
         {
             if (world.Land[index] || world.Water[index] == WaterBody.Ocean)
                 return;
             world.Water[index] = WaterBody.Ocean;
-            queue.Enqueue(index);
+            queue[tail++] = index;
         }
 
     }

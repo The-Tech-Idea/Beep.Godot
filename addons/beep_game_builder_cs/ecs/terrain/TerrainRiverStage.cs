@@ -57,10 +57,9 @@ namespace Beep.ECS
             if (density <= 0.0f)
                 return;
 
-            int count = world.Count;
-            var flowsTo = new int[count];
-            var order = new int[count];
-            var flow = new float[count];
+            int[] flowsTo = world.IntScratchA;
+            int[] order = world.IntScratchB;
+            float[] flow = world.FloatScratchA;
 
             // The drainage network is shared with the erosion stage rather than
             // computed twice - see TerrainFlow.
@@ -69,7 +68,7 @@ namespace Beep.ECS
                 return;
 
             float share = Mathf.Clamp(RiverShareAtDensityOne * density, 0.0f, 0.5f);
-            float threshold = Threshold(flow, order, land, share);
+            float threshold = Threshold(flow, order, land, share, world.FloatScratchB);
             cancellation.ThrowIfCancellationRequested();
             if (threshold <= 1.0f)
                 return;
@@ -94,16 +93,15 @@ namespace Beep.ECS
         /// The accumulation above which a cell counts as river, chosen so the
         /// requested share of the land ends up wet.
         /// </summary>
-        private static float Threshold(float[] flow, int[] order, int land, float share)
+        private static float Threshold(float[] flow, int[] order, int land, float share, float[] values)
         {
             if (share <= 0.0f)
                 return float.MaxValue;
 
-            var values = new float[land];
             for (int i = 0; i < land; i++)
                 values[i] = flow[order[i]];
 
-            Array.Sort(values);
+            Array.Sort(values, 0, land);
             int at = Mathf.Clamp(Mathf.RoundToInt((1.0f - share) * (land - 1)), 0, land - 1);
             return values[at];
         }

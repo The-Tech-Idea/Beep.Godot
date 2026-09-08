@@ -228,7 +228,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | ENH-13 | [Minimap and scatter limits](../plans/terrain-grid/ENH-13-minimap-and-scatter-limits.md) | enhancement + silent-cap fix | S–M | Proposed |
 | ENH-14 | [Object-at-cell index](../plans/terrain-grid/ENH-14-object-at-cell-index.md) | enhancement + bug | S | Proposed |
 | ENH-15 | [Unit and contract drift](../plans/terrain-grid/ENH-15-unit-and-contract-drift.md) | correctness / docs | XS–S | Proposed |
-| ENH-16 | [Generation stage allocations](../plans/terrain-grid/ENH-16-generation-stage-allocations.md) | enhancement | M | Proposed |
+| ENH-16 | [Generation stage allocations](../plans/terrain-grid/ENH-16-generation-stage-allocations.md) | enhancement | M | **Implemented 2026-09-08** (271 MiB to 64 MiB per Huge build; cross-order neighbour loops follow) |
 | FEAT-01 | [Hierarchical pathfinding and flow fields](../plans/terrain-grid/FEAT-01-hierarchical-pathfinding.md) | feature | L | Proposed |
 | FEAT-02 | [Territory layer](../plans/terrain-grid/FEAT-02-territory-layer.md) | feature | M–L | Proposed |
 | FEAT-03 | [Fog of war and exploration](../plans/terrain-grid/FEAT-03-fog-of-war-and-exploration.md) | feature | L | Proposed |

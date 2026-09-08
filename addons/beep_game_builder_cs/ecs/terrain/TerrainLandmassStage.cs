@@ -96,7 +96,9 @@ namespace Beep.ECS
         /// </summary>
         private static bool[] Eligible(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
-            var eligible = new bool[world.Count];
+            // Held in the shared mask scratch; nothing else needs it until the
+            // water stage, by which time growth is over.
+            bool[] eligible = world.BoolScratch;
             float margin = Mathf.Max(0.0f, settings.OceanMarginTiles);
 
             // The margin WAVES rather than running straight.
@@ -325,7 +327,10 @@ namespace Beep.ECS
             LandmassSeed[] seeds,
             int target)
         {
-            var claimed = new bool[world.Count];
+            // A claimed sample IS a land sample: Apply cleared the land mask and
+            // this loop is its only writer, so the mask answers "claimed?" and a
+            // second field-sized copy of it is not kept.
+            bool[] claimed = world.Land;
             int samples = Mathf.Max(1, world.SamplesPerCell);
 
             // Which landmass has claimed each TILE, or -1. This is what keeps
@@ -466,7 +471,6 @@ namespace Beep.ECS
                 }
 
                 claimed[cell] = true;
-                world.Land[cell] = true;
                 tileOwner[(((cell / world.Width) / samples) * tilesWide)
                           + ((cell % world.Width) / samples)] = mass;
                 placed++;

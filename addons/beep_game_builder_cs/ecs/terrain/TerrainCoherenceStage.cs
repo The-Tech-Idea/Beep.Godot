@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 namespace Beep.ECS
@@ -32,10 +33,8 @@ namespace Beep.ECS
         /// come from a threshold on a noise field, so a lone tile of one is
         /// noise rather than a feature.
         /// </summary>
-        private static readonly HashSet<string> Rainfall = new()
-        {
-            "desert", "dry_grass", "grass", "swamp", "jungle",
-        };
+        private static readonly string[] RainfallKinds = { "desert", "dry_grass", "grass", "swamp", "jungle" };
+        private static readonly HashSet<string> Rainfall = new(RainfallKinds);
 
         /// <summary>
         /// Kinds whose REGIONS may be dissolved when too small for the landmass.
@@ -101,13 +100,7 @@ namespace Beep.ECS
             if (fraction <= 0.0f)
                 return;
 
-            int land = 0;
-            for (int i = 0; i < world.Land.Length; i++)
-            {
-                if (world.Land[i])
-                    land++;
-            }
-
+            int land = TerrainGeometry.CountTrue(world.Land);
             if (land == 0)
                 return;
 
@@ -139,9 +132,12 @@ namespace Beep.ECS
         /// <summary>Absorbs every undersized region once; true if anything changed.</summary>
         private static bool AbsorbOnce(TerrainGenerationBuffer world, int minSamples, string fallback)
         {
-            var seen = new bool[world.Terrain.Length];
-            var region = new List<int>();
-            var queue = new Queue<int>();
+            // The search queue doubles as the region: every sample enters it
+            // once, in the order it is reached, so when a search ends the run it
+            // filled IS the region in the order the search visited it.
+            bool[] seen = world.BoolScratch;
+            Array.Clear(seen);
+            int[] queue = world.IntScratchA;
             var borders = new Dictionary<string, int>();
             bool changed = false;
 
@@ -151,16 +147,15 @@ namespace Beep.ECS
                     continue;
 
                 string kind = world.Terrain[start];
-                region.Clear();
-                queue.Clear();
                 borders.Clear();
-                queue.Enqueue(start);
+                int head = 0;
+                int tail = 0;
+                queue[tail++] = start;
                 seen[start] = true;
 
-                while (queue.Count > 0)
+                while (head < tail)
                 {
-                    int index = queue.Dequeue();
-                    region.Add(index);
+                    int index = queue[head++];
                     int x = index % world.Width;
                     int y = index / world.Width;
 
@@ -181,7 +176,7 @@ namespace Beep.ECS
                             if (!seen[at])
                             {
                                 seen[at] = true;
-                                queue.Enqueue(at);
+                                queue[tail++] = at;
                             }
                         }
                         else if (AbsorbTargets.Contains(other))
@@ -191,7 +186,8 @@ namespace Beep.ECS
                     }
                 }
 
-                if (region.Count >= minSamples)
+                ReadOnlySpan<int> region = queue.AsSpan(0, tail);
+                if (region.Length >= minSamples)
                     continue;
 
                 // Raised snow/tundra regions may merge into exposed peak material.
@@ -204,7 +200,7 @@ namespace Beep.ECS
                         raised++;
                 }
 
-                if (Rainfall.Contains(kind) || raised * 2 < region.Count)
+                if (Rainfall.Contains(kind) || raised * 2 < region.Length)
                 {
                     foreach (string peak in PeakMaterials)
                         borders.Remove(peak);
@@ -230,6 +226,20 @@ namespace Beep.ECS
             return changed;
         }
 
+        /// <summary>
+        /// A kind's position in RainfallKinds plus one, or zero for anything the
+        /// rainfall table did not decide - water, beach, peak, tundra.
+        /// </summary>
+        private static byte RainfallIndex(string kind)
+        {
+            for (int i = 0; i < RainfallKinds.Length; i++)
+            {
+                if (RainfallKinds[i] == kind)
+                    return (byte)(i + 1);
+            }
+            return 0;
+        }
+
         private static void Smooth(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
             int passes = settings.BiomeCoherencePasses;
@@ -241,20 +251,32 @@ namespace Beep.ECS
             // neighbourhood would smooth detail within a tile and leave the
             // tile-sized speckle - the only part anyone can see - untouched.
             int reach = Mathf.Max(1, world.SamplesPerCell);
-            var counts = new Dictionary<string, int>();
+
+            // What every sample was when the pass began, as a rainfall index:
+            // the vote only asks whether a neighbour is land and, if so, which
+            // rainfall kind it is, so a byte per sample answers it. Each pass
+            // used to clone the whole string field to remember this.
+            byte[] before = world.ByteScratch;
+            // Votes per rainfall kind, and the kinds in the order they were
+            // first met - the order the winner is chosen in, so a tie between
+            // two neighbouring kinds still goes to the one met first.
+            Span<int> counts = stackalloc int[RainfallKinds.Length + 1];
+            Span<byte> met = stackalloc byte[RainfallKinds.Length];
 
             for (int pass = 0; pass < passes; pass++)
             {
-                string[] before = (string[])world.Terrain.Clone();
+                for (int index = 0; index < world.Count; index++)
+                    before[index] = RainfallIndex(world.Terrain[index]);
                 for (int y = 0; y < world.Height; y++)
                 {
                     for (int x = 0; x < world.Width; x++)
                     {
                         int index = world.Index(x, y);
-                        if (!world.Land[index] || !Rainfall.Contains(before[index]))
+                        if (!world.Land[index] || before[index] == 0)
                             continue;
 
                         counts.Clear();
+                        int metCount = 0;
                         int own = 0;
                         int total = 0;
 
@@ -274,7 +296,7 @@ namespace Beep.ECS
                                 if (!world.Land[at])
                                     continue;
 
-                                string kind = before[at];
+                                byte kind = before[at];
                                 total++;
                                 if (kind == before[index])
                                     own++;
@@ -282,8 +304,10 @@ namespace Beep.ECS
                                 // Only a rainfall neighbour may win the vote. A
                                 // beach or a peak beside a meadow is a boundary,
                                 // not a majority the meadow should join.
-                                if (Rainfall.Contains(kind))
-                                    counts[kind] = counts.GetValueOrDefault(kind) + 1;
+                                if (kind == 0)
+                                    continue;
+                                if (counts[kind]++ == 0)
+                                    met[metCount++] = kind;
                             }
                         }
 
@@ -292,18 +316,19 @@ namespace Beep.ECS
                         if (total < 3 || own >= settings.BiomeCoherenceKeep)
                             continue;
 
-                        string best = before[index];
+                        byte best = before[index];
                         int bestCount = own;
-                        foreach ((string kind, int count) in counts)
+                        for (int i = 0; i < metCount; i++)
                         {
-                            if (count > bestCount)
+                            byte kind = met[i];
+                            if (counts[kind] > bestCount)
                             {
                                 best = kind;
-                                bestCount = count;
+                                bestCount = counts[kind];
                             }
                         }
 
-                        world.Terrain[index] = best;
+                        world.Terrain[index] = RainfallKinds[best - 1];
                     }
                 }
             }

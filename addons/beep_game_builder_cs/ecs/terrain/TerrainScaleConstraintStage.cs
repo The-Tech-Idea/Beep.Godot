@@ -366,36 +366,37 @@ namespace Beep.ECS
         {
             // Reduction can put a body's thin fringe in an otherwise dry cell.
             // Clearing only the removed water cells leaves that fringe behind.
-            var seen = new bool[world.Count];
-            var region = new List<int>();
+            bool[] seen = world.BoolScratch;
+            System.Array.Clear(seen);
+            int[] region = world.IntScratchA;
+            System.Span<int> around = stackalloc int[4];
             for (int start = 0; start < world.Count; start++)
             {
                 WaterBody kind = world.Water[start];
                 if (seen[start] || kind is not (WaterBody.Lake or WaterBody.River)) continue;
-                region.Clear();
-                region.Add(start);
+                int filled = 0;
+                region[filled++] = start;
                 seen[start] = true;
                 bool retained = false;
-                for (int read = 0; read < region.Count; read++)
+                for (int read = 0; read < filled; read++)
                 {
                     int current = region[read];
                     int x = current % world.Width, y = current / world.Width;
                     int cell = world.CellIndex(x / world.SamplesPerCell, y / world.SamplesPerCell);
                     retained |= world.CellWater[cell] == kind;
-                    for (int side = 0; side < 4; side++)
+                    int sides = TerrainGeometry.Neighbours4(current, world.Width, world.Height, around);
+                    for (int side = 0; side < sides; side++)
                     {
-                        int nx = x + (side == 0 ? -1 : side == 1 ? 1 : 0);
-                        int ny = y + (side == 2 ? -1 : side == 3 ? 1 : 0);
-                        if (!world.InBounds(nx, ny)) continue;
-                        int next = world.Index(nx, ny);
+                        int next = around[side];
                         if (seen[next] || world.Water[next] != kind) continue;
                         seen[next] = true;
-                        region.Add(next);
+                        region[filled++] = next;
                     }
                 }
                 if (retained) continue;
-                foreach (int sample in region)
+                for (int read = 0; read < filled; read++)
                 {
+                    int sample = region[read];
                     int cell = world.CellIndex((sample % world.Width) / world.SamplesPerCell,
                         (sample / world.Width) / world.SamplesPerCell);
                     world.Water[sample] = world.CellWater[cell];

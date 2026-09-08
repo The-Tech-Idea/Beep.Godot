@@ -114,6 +114,10 @@ namespace Beep.ECS
         private float[]? _cellElevation, _cellShade, _cellUndergroundRichness;
         private int[]? _cellContinent;
         private byte[]? _cellUndergroundDepth;
+        private int[]? _intScratchA, _intScratchB;
+        private float[]? _floatScratchA, _floatScratchB;
+        private bool[]? _boolScratch;
+        private byte[]? _byteScratch;
         internal long CellPayloadBytes { get; private set; }
 
         // Stages own one buffer on one worker. Output arrays need not overlap early-stage scratch.
@@ -182,6 +186,23 @@ namespace Beep.ECS
             return data ??= new T[Count];
         }
 
+        // Field-sized working arrays the stages share instead of allocating
+        // their own. Two of each numeric kind because the drainage network
+        // wants two int fields and two float fields at once; one of each mask
+        // kind because nothing needs more. A stage may assume NOTHING about
+        // their contents on entry - the previous stage left whatever it left -
+        // and must not read one across a stage boundary. Before these existed
+        // a Huge build allocated 271 MiB across its stages: each walk to the
+        // sea built its own distance field, queue and negated land mask, each
+        // coherence pass cloned the whole kind field, and every BFS through an
+        // iterator allocated a state machine per visited sample.
+        public int[] IntScratchA => Scratch(ref _intScratchA);
+        public int[] IntScratchB => Scratch(ref _intScratchB);
+        public float[] FloatScratchA => Scratch(ref _floatScratchA);
+        public float[] FloatScratchB => Scratch(ref _floatScratchB);
+        public bool[] BoolScratch => Scratch(ref _boolScratch);
+        public byte[] ByteScratch => Scratch(ref _byteScratch);
+
         internal void ReleaseCoastDistances()
         {
             _coastDistance = null;
@@ -195,6 +216,10 @@ namespace Beep.ECS
             _elevation = null;
             _relief = null;
             _land = _footprint = null;
+            _intScratchA = _intScratchB = null;
+            _floatScratchA = _floatScratchB = null;
+            _boolScratch = null;
+            _byteScratch = null;
             _scratchReleased = true;
         }
 

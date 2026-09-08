@@ -1893,7 +1893,7 @@ foreach ($layoutExport in @("JungleColumns", "JungleRows", "MarshColumns", "Mars
 # CountTrue, the percentile index and the most-common vote likewise had two to five
 # copies each across the stages.
 $terrainGeometry = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGeometry.cs"
-foreach ($required in @("public const int VariantSalt", "public static bool[] Negate(", "public static int CountTrue(", "public static float RankedValue(", "public static string? MostCommon(")) {
+foreach ($required in @("public const int VariantSalt", "public static int CountTrue(", "public static float RankedValue(", "public static string? MostCommon(")) {
     if ($terrainGeometry -notmatch [regex]::Escape($required)) {
         Fail "TerrainGeometry must own the shared generation helper: $required."
     }
@@ -1926,6 +1926,38 @@ foreach ($gone in @("Json.Stringify", "CaptureConfiguration()", "BuildConfigurat
 }
 if ($autotile -notmatch [regex]::Escape("CaptureGenerationSettings()")) {
     Fail "TerrainIsometricAutotileRendererComponent must compare the generator's TerrainGenerationSettings to notice a stale paint."
+}
+# ENH-16: the generation stages work in the buffer's shared scratch instead of
+# allocating per call. Measured before the pass, one Huge (128x80) build allocated
+# 271 MiB across its stages: an iterator state machine per water sample visited by a
+# BFS (two-thirds of a million per stage), a clone of the whole kind field per
+# coherence pass, a fresh distance field, queue and negated land mask per walk to the
+# sea, and a list per percentile. tests/terrain_generation_baseline_probe.gd holds the
+# bill under a quarter of that and pins every published layer byte-for-byte; the pins
+# here keep the shapes that made the bill from being typed back in.
+foreach ($required in @("public static int Neighbours4(int index, int width, int height, Span<int> neighbours)", "public static void DistanceTo(bool[] source, bool sourceValue, int width, int height, int[] distance, int[] queue)", "public static int SortedSelection(float[] values, bool[] mask, float[] destination)")) {
+    if ($terrainGeometry -notmatch [regex]::Escape($required)) {
+        Fail "TerrainGeometry lost the non-allocating helper: $required."
+    }
+}
+foreach ($gone in @("IEnumerable<int> Neighbours(", "yield return", "new List<float>()", "public static bool[] Negate(")) {
+    if ($terrainGeometry -match [regex]::Escape($gone)) {
+        Fail "TerrainGeometry is back to $gone; ENH-16 turned that per-call allocation into shared scratch."
+    }
+}
+$generationBuffer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGenerationBuffer.cs"
+foreach ($scratch in @("public int[] IntScratchA", "public int[] IntScratchB", "public float[] FloatScratchA", "public float[] FloatScratchB", "public bool[] BoolScratch", "public byte[] ByteScratch")) {
+    if ($generationBuffer -notmatch [regex]::Escape($scratch)) {
+        Fail "TerrainGenerationBuffer lost the shared stage scratch $scratch."
+    }
+}
+foreach ($stage in @("TerrainWaterStage", "TerrainElevationStage", "TerrainErosionStage", "TerrainRiverStage", "TerrainBiomeStage", "TerrainCoherenceStage", "TerrainShorelineStage", "TerrainContinentStage", "TerrainScaleConstraintStage", "TerrainLandmassStage")) {
+    $body = Read "addons/beep_game_builder_cs/ecs/terrain/$stage.cs"
+    foreach ($gone in @("new int[world.Count]", "new int[count]", "new float[world.Count]", "new float[count]", "new float[land]", "new bool[world.Count]", "new double[world.Count]", "new bool[world.Terrain.Length]", ".Clone()", "TerrainGeometry.Neighbours(", "TerrainGeometry.Negate(")) {
+        if ($body -match [regex]::Escape($gone)) {
+            Fail "$stage allocates a field-sized array or iterator per call ($gone); the TerrainGenerationBuffer scratch is there for it."
+        }
+    }
 }
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"

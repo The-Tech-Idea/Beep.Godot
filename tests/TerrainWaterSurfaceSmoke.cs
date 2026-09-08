@@ -255,6 +255,7 @@ public partial class TerrainWaterSurfaceSmoke : Node
         var values = new float[67 * 71];
         var mask = new bool[values.Length];
         var local = new float[64];
+        var sorted = new float[values.Length];
         for (int i = 0; i < values.Length; i++) values[i] = random.Next(20) / 20f;
         for (int by = 0; by < 71; by += 8)
         for (int bx = 0; bx < 67; bx += 8)
@@ -270,8 +271,10 @@ public partial class TerrainWaterSurfaceSmoke : Node
                     local[count++] = values[index];
                 }
             Array.Sort(local, 0, count);
+            int selected = TerrainGeometry.SortedSelection(values, mask, sorted);
+            Check(selected == count, "Sorted selection kept a different number of masked values");
             foreach (float percentile in new[] { 0f, 0.1f, 0.5f, 0.73f, 1f })
-                Check(TerrainGeometry.RankedValue(local, count, percentile) == TerrainGeometry.Percentile(values, mask, percentile),
+                Check(TerrainGeometry.RankedValue(local, count, percentile) == TerrainGeometry.RankedValue(sorted, selected, percentile),
                     "Local feature ranking differs from full-map mask ranking");
         }
     }

@@ -187,8 +187,10 @@ namespace Beep.ECS
             var blockThreshold = new float[blocksWide * blocksHigh];
             var blockDense = new float[blocksWide * blocksHigh];
 
-            float globalThreshold = TerrainGeometry.Percentile(stand, eligible, 1.0f - wanted);
-            float globalDense = TerrainGeometry.Percentile(stand, eligible, 1.0f - (wanted * 0.45f));
+            float[] ranked = world.FloatScratchA;
+            int rankedCount = TerrainGeometry.SortedSelection(stand, eligible, ranked);
+            float globalThreshold = TerrainGeometry.RankedValue(ranked, rankedCount, 1.0f - wanted);
+            float globalDense = TerrainGeometry.RankedValue(ranked, rankedCount, 1.0f - (wanted * 0.45f));
 
             var window = new float[BlockTiles * BlockTiles];
             for (int blockY = 0; blockY < blocksHigh; blockY++)

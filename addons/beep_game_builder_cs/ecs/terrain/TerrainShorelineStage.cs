@@ -15,18 +15,29 @@ namespace Beep.ECS
                 return;
             world.BeachWidth = settings.BeachWidth;
             world.LakeShoreWidth = settings.LakeShoreWidth;
-            var ocean = new bool[world.Count];
-            var lake = new bool[world.Count];
-            for (int i = 0; i < ocean.Length; i++) ocean[i] = world.Water[i] == WaterBody.Ocean;
-            for (int i = 0; i < lake.Length; i++) lake[i] = world.Water[i] == WaterBody.Lake;
-            double[] distances = TerrainEuclideanDistance.Squared(ocean, new Vector2I(world.Width, world.Height), true);
-            double[] lakeDistances = TerrainEuclideanDistance.Squared(lake, new Vector2I(world.Width, world.Height), true);
-            for (int i = 0; i < world.Count; i++)
-                if (world.Land[i] && ((settings.BeachWidth > 0f
-                    && (Math.Sqrt(distances[i]) - 0.5) / world.SamplesPerCell <= settings.BeachWidth)
-                    || (settings.LakeShoreWidth > 0f && world.Relief[i] == TerrainRelief.Flat
-                    && (Math.Sqrt(lakeDistances[i]) - 0.5) / world.SamplesPerCell <= settings.LakeShoreWidth)))
-                    world.Terrain[i] = "sand";
+            // Ocean first, then lake, through one mask and one distance field:
+            // a land sample within either band becomes sand, and neither test
+            // reads the terrain the other wrote.
+            bool[] body = world.BoolScratch;
+            float[] squared = world.FloatScratchA;
+            var size = new Vector2I(world.Width, world.Height);
+            if (settings.BeachWidth > 0f)
+            {
+                for (int i = 0; i < world.Count; i++) body[i] = world.Water[i] == WaterBody.Ocean;
+                TerrainEuclideanDistance.Squared(body, size, true, squared);
+                for (int i = 0; i < world.Count; i++)
+                    if (world.Land[i] && (Math.Sqrt(squared[i]) - 0.5) / world.SamplesPerCell <= settings.BeachWidth)
+                        world.Terrain[i] = "sand";
+            }
+            if (settings.LakeShoreWidth > 0f)
+            {
+                for (int i = 0; i < world.Count; i++) body[i] = world.Water[i] == WaterBody.Lake;
+                TerrainEuclideanDistance.Squared(body, size, true, squared);
+                for (int i = 0; i < world.Count; i++)
+                    if (world.Land[i] && world.Relief[i] == TerrainRelief.Flat
+                        && (Math.Sqrt(squared[i]) - 0.5) / world.SamplesPerCell <= settings.LakeShoreWidth)
+                        world.Terrain[i] = "sand";
+            }
 
             // A cell kind remains a gameplay summary, never the rendered contour.
             var counts = new Dictionary<string, int>();

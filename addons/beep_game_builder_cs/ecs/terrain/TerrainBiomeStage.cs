@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 namespace Beep.ECS
@@ -72,7 +73,7 @@ namespace Beep.ECS
             if (body is WaterBody.Lake or WaterBody.River)
                 return "shallow_water";
 
-            return TouchesLand(world, x, y) ? "shallow_water" : "deep_water";
+            return TouchesLand(world, world.Index(x, y)) ? "shallow_water" : "deep_water";
         }
 
         private static string LandKind(
@@ -161,11 +162,13 @@ namespace Beep.ECS
             };
         }
 
-        private static bool TouchesLand(TerrainGenerationBuffer world, int x, int y)
+        private static bool TouchesLand(TerrainGenerationBuffer world, int index)
         {
-            foreach (int neighbour in TerrainGeometry.Neighbours(x, y, world.Width, world.Height))
+            Span<int> around = stackalloc int[4];
+            int sides = TerrainGeometry.Neighbours4(index, world.Width, world.Height, around);
+            for (int side = 0; side < sides; side++)
             {
-                if (world.Land[neighbour])
+                if (world.Land[around[side]])
                     return true;
             }
             return false;

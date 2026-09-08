@@ -8,13 +8,27 @@ namespace Beep.ECS
     /// <summary>Grid helpers shared by the generation stages.</summary>
     internal static class TerrainGeometry
     {
-        /// <summary>Four-way neighbours, which is also the connectivity that defines a landmass.</summary>
-        public static IEnumerable<int> Neighbours(int x, int y, int width, int height)
+        /// <summary>
+        /// Four-way neighbours - the connectivity that defines a landmass - written
+        /// into <paramref name="neighbours"/> in the order -x, +x, -y, +y; returns
+        /// how many there are. Every breadth-first walk in the stages is
+        /// order-sensitive, so this is the one order they all take.
+        ///
+        /// It replaced a yield iterator. An iterator allocates its state machine
+        /// on every call, and the water and biome stages called it once per water
+        /// sample: at Huge that was two-thirds of a million objects per stage.
+        /// Callers stackalloc a four-int span once, outside their loops.
+        /// </summary>
+        public static int Neighbours4(int index, int width, int height, Span<int> neighbours)
         {
-            if (x > 0) yield return (y * width) + x - 1;
-            if (x < width - 1) yield return (y * width) + x + 1;
-            if (y > 0) yield return ((y - 1) * width) + x;
-            if (y < height - 1) yield return ((y + 1) * width) + x;
+            int x = index % width;
+            int y = index / width;
+            int count = 0;
+            if (x > 0) neighbours[count++] = index - 1;
+            if (x < width - 1) neighbours[count++] = index + 1;
+            if (y > 0) neighbours[count++] = index - width;
+            if (y < height - 1) neighbours[count++] = index + width;
+            return count;
         }
 
         /// <summary>
@@ -81,29 +95,29 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Number of four-connected components, for callers that want the count
-        /// alone and are not on a hot path.
+        /// Number of four-connected components, over caller-supplied label and
+        /// stack buffers of the mask's length.
         /// </summary>
-        public static int CountComponents(bool[] mask, int width, int height)
-            => LabelComponents(
-                mask, width, height, new int[mask.Length], new int[mask.Length], new List<int>());
+        public static int CountComponents(bool[] mask, int width, int height, int[] labels, int[] stack)
+            => LabelComponents(mask, width, height, labels, stack, new List<int>());
 
         /// <summary>
-        /// Multi-source BFS giving each cell its step distance to the nearest
-        /// cell where <paramref name="source"/> is true. Cells that are sources
-        /// get 0. Used for coast distance, which drives both elevation and the
-        /// beach band.
+        /// Multi-source BFS writing into <paramref name="distance"/> each cell's
+        /// step distance to the nearest cell where <paramref name="source"/>
+        /// equals <paramref name="sourceValue"/>; those cells get 0. Used for
+        /// coast distance, which drives both elevation and the beach band, and
+        /// asked there as "distance to where land is false" so no negated copy
+        /// of the land mask is built. <paramref name="queue"/> must hold the
+        /// whole field: each cell is settled once, so it never overflows.
         /// </summary>
-        public static int[] DistanceTo(bool[] source, int width, int height)
+        public static void DistanceTo(bool[] source, bool sourceValue, int width, int height, int[] distance, int[] queue)
         {
-            var distance = new int[source.Length];
-            var queue = new int[source.Length];
             int head = 0;
             int tail = 0;
 
             for (int index = 0; index < source.Length; index++)
             {
-                if (source[index])
+                if (source[index] == sourceValue)
                 {
                     distance[index] = 0;
                     queue[tail++] = index;
@@ -137,33 +151,32 @@ namespace Beep.ECS
                     queue[tail++] = neighbour;
                 }
             }
-            return distance;
         }
 
         /// <summary>
-        /// The value at the given percentile of the samples where
-        /// <paramref name="mask"/> is true. Percentile thresholds are how a Civ
-        /// style generator turns "20% of land is hills" into a concrete cutoff
-        /// regardless of how the underlying noise happens to be distributed.
+        /// Copies the values where <paramref name="mask"/> is true into
+        /// <paramref name="destination"/>, sorts that run ascending and returns
+        /// its length, ready for <see cref="RankedValue"/>. Percentile thresholds
+        /// are how a Civ style generator turns "20% of land is hills" into a
+        /// concrete cutoff regardless of how the underlying noise happens to be
+        /// distributed. The relief and feature stages each take two cutoffs from
+        /// one selection; each cutoff used to build and sort a list of its own.
         /// </summary>
-        public static float Percentile(float[] values, bool[] mask, float percentile)
+        public static int SortedSelection(float[] values, bool[] mask, float[] destination)
         {
-            var selected = new List<float>();
+            int count = 0;
             for (int index = 0; index < values.Length; index++)
             {
                 if (mask[index])
-                    selected.Add(values[index]);
+                    destination[count++] = values[index];
             }
-            if (selected.Count == 0)
-                return 0.0f;
-
-            selected.Sort();
-            return RankedValue(selected, selected.Count, percentile);
+            Array.Sort(destination, 0, count);
+            return count;
         }
 
         /// <summary>
-        /// The value at a percentile of an already-sorted run. Percentile sorts and
-        /// then calls this; the feature stage ranks a block it sorted itself. The two
+        /// The value at a percentile of an already-sorted run - the front of a
+        /// SortedSelection, or a block the feature stage sorted itself. The two
         /// carried the same clamp-and-round in two files, kept equal by a smoke test
         /// rather than by being one function.
         /// </summary>
@@ -173,15 +186,6 @@ namespace Beep.ECS
             int position = Mathf.Clamp(
                 Mathf.RoundToInt(Mathf.Clamp(percentile, 0.0f, 1.0f) * (count - 1)), 0, count - 1);
             return sorted[position];
-        }
-
-        /// <summary>The inverse of a mask - what is NOT land, what is NOT water.</summary>
-        public static bool[] Negate(bool[] values)
-        {
-            var result = new bool[values.Length];
-            for (int index = 0; index < values.Length; index++)
-                result[index] = !values[index];
-            return result;
         }
 
         /// <summary>How many cells a mask selects.</summary>

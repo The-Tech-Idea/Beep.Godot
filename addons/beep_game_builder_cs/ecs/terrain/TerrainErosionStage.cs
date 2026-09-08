@@ -103,10 +103,9 @@ namespace Beep.ECS
             if (settings.ErosionStrength <= 0.0f)
                 return;
 
-            int count = world.Count;
-            var flowsTo = new int[count];
-            var order = new int[count];
-            var flow = new float[count];
+            int[] flowsTo = world.IntScratchA;
+            int[] order = world.IntScratchB;
+            float[] flow = world.FloatScratchA;
 
             int land = TerrainFlow.Accumulate(world, flowsTo, order, flow, cancellation);
             if (land == 0)
@@ -124,7 +123,7 @@ namespace Beep.ECS
             // running away.
             // Diffusion overwrites every land entry before reading it, so its
             // scratch can first hold the temporary drainage median sample.
-            var settled = new float[count];
+            float[] settled = world.FloatScratchB;
             for (int i = 0; i < land; i++)
                 settled[i] = flow[order[i]];
             System.Array.Sort(settled, 0, land);

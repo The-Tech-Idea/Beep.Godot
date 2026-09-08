@@ -233,7 +233,7 @@ namespace Beep.ECS
                 lake / total,
                 river / total,
                 settings.RequestedLandmassCount,
-                TerrainGeometry.CountComponents(world.Footprint, world.Width, world.Height),
+                TerrainGeometry.CountComponents(world.Footprint, world.Width, world.Height, world.IntScratchA, world.IntScratchB),
                 continents,
                 resources,
                 liquidResources,

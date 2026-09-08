@@ -1,5 +1,5 @@
 using Godot;
-using System.Collections.Generic;
+using System;
 
 namespace Beep.ECS
 {
@@ -18,7 +18,10 @@ namespace Beep.ECS
         {
             int wide = world.CellsWide;
             int high = world.CellsHigh;
-            var queue = new Queue<int>();
+            // A tile is numbered as it is queued, so it enters once and the
+            // sample-sized scratch always holds the whole tile grid.
+            int[] queue = world.IntScratchA;
+            Span<int> around = stackalloc int[4];
             int nextId = 0;
 
             for (int start = 0; start < wide * high; start++)
@@ -28,18 +31,21 @@ namespace Beep.ECS
 
                 nextId++;
                 world.CellContinent[start] = nextId;
-                queue.Enqueue(start);
+                int head = 0;
+                int tail = 0;
+                queue[tail++] = start;
 
-                while (queue.Count > 0)
+                while (head < tail)
                 {
-                    int current = queue.Dequeue();
-                    foreach (int neighbour in TerrainGeometry.Neighbours(
-                        current % wide, current / wide, wide, high))
+                    int current = queue[head++];
+                    int sides = TerrainGeometry.Neighbours4(current, wide, high, around);
+                    for (int side = 0; side < sides; side++)
                     {
+                        int neighbour = around[side];
                         if (world.CellWater[neighbour] != WaterBody.None || world.CellContinent[neighbour] != 0)
                             continue;
                         world.CellContinent[neighbour] = nextId;
-                        queue.Enqueue(neighbour);
+                        queue[tail++] = neighbour;
                     }
                 }
             }

@@ -2592,6 +2592,13 @@ if ($gridSmoke -notmatch 'VerifyGridInteractionModeBar') {
 if ($gridSmoke -notmatch 'VerifyGridInteractionStatusLateSource') {
     Fail "GridPlacementSmoke does not verify GridInteractionStatus wires a source resolved after _Ready (ENH-14)."
 }
+if ($gridSmoke -notmatch 'VerifyResourceCatalogFind') {
+    Fail "GridPlacementSmoke does not verify ResourceCatalog.Find is case/separator-insensitive (ENH-15)."
+}
+$resourceCatalog = Read "addons/beep_game_builder_cs/ecs/terrain/ResourceCatalog.cs"
+if ($resourceCatalog -notmatch [regex]::Escape("GridIds.Normalize(id)") -or $resourceCatalog -match [regex]::Escape("definition.Id == id")) {
+    Fail "ResourceCatalog.Find must resolve through a normalised index, not an ordinal == scan (ENH-15)."
+}
 if ($gridSmoke -notmatch 'VerifyGridInteractionStatus') {
     Fail "GridPlacementSmoke does not verify GridInteractionStatus behavior."
 }

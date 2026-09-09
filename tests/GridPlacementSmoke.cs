@@ -30,6 +30,7 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyGridInteractionModeBar()) return false;
         if (!VerifyGridInteractionStatus()) return false;
         if (!VerifyGridInteractionStatusLateSource()) return false;
+        if (!VerifyResourceCatalogFind()) return false;
         if (!VerifyGridInteractionCursor()) return false;
         if (!VerifyGridObjectComponent()) return false;
         if (!VerifyGridObjectInspector()) return false;
@@ -936,6 +937,23 @@ public partial class GridPlacementSmoke : Node
         root.QueueFree();
 
         return Expect(lateWired, "GridInteractionStatus did not wire a placement source resolved after _Ready (ENH-14).");
+    }
+
+    private bool VerifyResourceCatalogFind()
+    {
+        // Find resolves an id case- and separator-insensitively, so a cost spelled
+        // "Crude Oil" and a map id "crude_oil" reach the one definition (ENH-15).
+        var catalog = new ResourceCatalog();
+        var oil = new ResourceDefinition { Id = "Crude Oil" };
+        catalog.Resources.Add(oil);
+
+        bool exact = catalog.Find("Crude Oil") == oil;
+        bool underscored = catalog.Find("crude_oil") == oil;
+        bool dashed = catalog.Find("crude-oil") == oil;
+        bool missing = catalog.Find("iron") == null;
+
+        return Expect(exact && underscored && dashed && missing,
+            "ResourceCatalog.Find must resolve an id case- and separator-insensitively (ENH-15).");
     }
 
     private bool VerifyGridInteractionCursor()

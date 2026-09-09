@@ -25,18 +25,40 @@ namespace Beep.ECS
 
         [Export] public Godot.Collections.Array<ResourceDefinition> Resources { get; set; } = new();
 
-        /// <summary>The definition for an id, or null when the catalog has none.</summary>
+        // Ids normalised to definitions, built lazily and rebuilt when the resource
+        // count changes (an authored catalog is loaded once; a runtime add/remove
+        // moves the count). Keyed by GridIds.Normalize so a cost that says "Crude Oil"
+        // and a map that carries "crude_oil" resolve to the one definition instead of
+        // reading as two - the ordinal == scan this replaces matched neither.
+        private System.Collections.Generic.Dictionary<string, ResourceDefinition>? _byId;
+        private int _indexedCount = -1;
+
+        private System.Collections.Generic.Dictionary<string, ResourceDefinition> Index()
+        {
+            if (_byId is not null && _indexedCount == Resources.Count)
+                return _byId;
+
+            var map = new System.Collections.Generic.Dictionary<string, ResourceDefinition>();
+            foreach (ResourceDefinition? definition in Resources)
+            {
+                if (definition is null)
+                    continue;
+                string key = GridIds.Normalize(definition.Id);
+                // First wins, matching the linear scan this replaces.
+                if (!string.IsNullOrEmpty(key) && !map.ContainsKey(key))
+                    map[key] = definition;
+            }
+            _byId = map;
+            _indexedCount = Resources.Count;
+            return _byId;
+        }
+
+        /// <summary>The definition for an id, or null when the catalog has none. Case- and separator-insensitive.</summary>
         public ResourceDefinition? Find(string id)
         {
             if (string.IsNullOrEmpty(id))
                 return null;
-
-            foreach (ResourceDefinition? definition in Resources)
-            {
-                if (definition is not null && definition.Id == id)
-                    return definition;
-            }
-            return null;
+            return Index().TryGetValue(GridIds.Normalize(id), out ResourceDefinition? definition) ? definition : null;
         }
 
         public bool Contains(string id) => Find(id) is not null;

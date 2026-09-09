@@ -1,6 +1,14 @@
 # ENH-15 — Unit and contract drift: seconds vs turns, `GatherSeconds`, catalog lookups
 
-**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** proposed 2026-09-08 · **Effort:** XS–S (½–1 day) · **Risk:** low
+**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (ResourceCatalog index + case/space Find done; the unit renames pending) · **Effort:** XS–S (½–1 day) · **Risk:** low
+
+## Outcome (finding 3: the catalog index, 2026-09-09)
+
+`ResourceCatalog.Find` was a linear ordinal-`==` scan; it is now a lazily-built `Dictionary<string, ResourceDefinition>` keyed by `GridIds.Normalize(Id)` (DUP-05), rebuilt when `Resources.Count` changes (an authored catalog loads once; a runtime add/remove moves the count). Besides O(1), this closes the real bug the plan names: a cost spelled `"Crude Oil"` and a map id `"crude_oil"` now resolve to the one definition instead of reading as two, because both the keys and the query go through the same normaliser. "First wins" on a duplicated normalised id matches the scan it replaces. `Contains`/`CategoryOf`/`DisplayNameOf` ride the same index through `Find`.
+
+`GridPlacementSmoke.VerifyResourceCatalogFind` (new) asserts `Find("Crude Oil")`, `Find("crude_oil")` and `Find("crude-oil")` all return the one definition and `Find("iron")` is null; mutation-proven (keying the index by the raw ordinal Id fails it). A scan pin requires the normalised index and forbids the `definition.Id == id` scan's return. Build clean; full HUD smoke green (past the two pre-existing placement reds, reverted).
+
+**Deferred: the unit renames (findings 1, 2, 4).** `ITransporter.TransportRate` -> `TransportRatePerTurn` and `GatherSeconds` -> `GatherTurns` are honest-name fixes, but `GatherSeconds` turned out to be THREE authored `[Export]`s (on `ResourceDefinition`, `GridResourceNodeComponent` and `GridResourceScatterComponent`, all carrying turns) plus one authored value in `grid_world_2d_iso.tscn` (`GatherSeconds = 1.5`), so the rename must migrate a shipped scene's property key, not only C#. Contained and mechanical (no `.gd`/`.tres`), but a rename of Inspector-facing authored properties across a shipped scene is better landed attended; left on the list. `ForTerrain`'s nested-loop index is also still open (lower value; the catalog is 12-20 entries).
 
 ## Finding
 

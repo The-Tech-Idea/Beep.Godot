@@ -234,10 +234,14 @@ public partial class TerrainWaterSurfaceSmoke : Node
                 int index = order[i], x = index % world.Width, y = index / world.Width;
                 float total = 0;
                 int neighbors = 0;
+                // The neighbours are summed in TerrainGeometry.Neighbours4's order
+                // (-x, +x, -y, +y): floating-point addition is not associative, so a
+                // bit-exact parity test with the production Diffuse must accumulate in
+                // the same sequence the production walk visits.
                 for (int side = 0; side < 4; side++)
                 {
-                    int nx = x + (side == 0 ? 1 : side == 1 ? -1 : 0);
-                    int ny = y + (side == 2 ? 1 : side == 3 ? -1 : 0);
+                    int nx = x + (side == 0 ? -1 : side == 1 ? 1 : 0);
+                    int ny = y + (side == 2 ? -1 : side == 3 ? 1 : 0);
                     if (!world.InBounds(nx, ny) || !world.Land[world.Index(nx, ny)]) continue;
                     total += world.Elevation[world.Index(nx, ny)];
                     neighbors++;

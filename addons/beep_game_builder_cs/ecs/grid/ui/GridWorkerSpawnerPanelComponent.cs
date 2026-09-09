@@ -28,7 +28,7 @@ namespace Beep.ECS
         private Label? _title;
         private Label? _count;
         private Button? _spawnButton;
-        private Button? _connectedSpawnButton;
+        private readonly GridButtonBindings _spawnBinding = new();
 
         public override void _Ready()
         {
@@ -219,24 +219,13 @@ namespace Beep.ECS
 
         private void ConnectSpawnButton()
         {
-            if (_spawnButton == null)
+            if (_spawnButton == null || _spawnBinding.IsBound(_spawnButton))
                 return;
-
-            if (_connectedSpawnButton == _spawnButton)
-                return;
-
-            DisconnectSpawnButton();
-            _spawnButton.Pressed += OnSpawnButtonPressed;
-            _connectedSpawnButton = _spawnButton;
+            _spawnBinding.UnbindAll();
+            _spawnBinding.Bind(_spawnButton, OnSpawnButtonPressed);
         }
 
-        private void DisconnectSpawnButton()
-        {
-            if (_connectedSpawnButton != null && GodotObject.IsInstanceValid(_connectedSpawnButton))
-                _connectedSpawnButton.Pressed -= OnSpawnButtonPressed;
-
-            _connectedSpawnButton = null;
-        }
+        private void DisconnectSpawnButton() => _spawnBinding.UnbindAll();
 
         private void OnSpawnButtonPressed() => RequestSpawn();
 
@@ -248,7 +237,6 @@ namespace Beep.ECS
             _title = null;
             _count = null;
             _spawnButton = null;
-            _connectedSpawnButton = null;
         }
 
     }

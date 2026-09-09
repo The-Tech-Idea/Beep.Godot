@@ -1443,6 +1443,18 @@ foreach ($panelName in @("GridInteractionStatusComponent", "GridInteractionModeB
         Fail "$panelName must derive from GridPanelComponent, not carry its own panel bootstrap (DUP-12)."
     }
 }
+# DUP-12: button-press subscriptions are held by GridButtonBindings, so the
+# tracking list (and the DisconnectButtons sweep) live in exactly one place.
+foreach ($panelFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid/ui") -Filter *.cs) {
+    if ($panelFile.Name -eq "GridButtonBindings.cs") { continue }
+    $panelText = Get-Content -Path $panelFile.FullName -Raw
+    if ($panelText -match [regex]::Escape("List<(Button Button, Action Handler)>")) {
+        Fail "$($panelFile.Name) carries its own button-subscription list; GridButtonBindings owns it (DUP-12)."
+    }
+    if ($panelText -match [regex]::Escape("private void DisconnectButtons(")) {
+        Fail "$($panelFile.Name) carries its own DisconnectButtons; GridButtonBindings.UnbindAll owns it (DUP-12)."
+    }
+}
 $gridListPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridListPanelComponent.cs"
 foreach ($required in @("TitleLabelPath", "SummaryLabelPath", "RowsContainerPath", "UsesSceneControls", "HasAuthoredControls", "BindExistingControls", "BuildGeneratedPanel", 'FindControl<Label>(TitleLabelPath, "Title")', 'FindControl<Label>(SummaryLabelPath, "Summary")', 'FindControl<VBoxContainer>(RowsContainerPath, "Rows")', "UpdateRows", "MoveChild(row, shown)", "RemoveChild(row)")) {
     if ($gridListPanelBase -notmatch [regex]::Escape($required)) {

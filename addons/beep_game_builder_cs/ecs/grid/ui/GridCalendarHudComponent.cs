@@ -28,7 +28,7 @@ namespace Beep.ECS
         private Label? _date;
         private ProgressBar? _progress;
         private Button? _advanceButton;
-        private Button? _connectedAdvanceButton;
+        private readonly GridButtonBindings _advanceBinding = new();
 
         public override void _Ready()
         {
@@ -261,23 +261,13 @@ namespace Beep.ECS
 
         private void ConnectAdvanceButton()
         {
-            if (_advanceButton == null)
+            if (_advanceButton == null || _advanceBinding.IsBound(_advanceButton))
                 return;
-            if (_connectedAdvanceButton == _advanceButton)
-                return;
-
-            DisconnectAdvanceButton();
-            _advanceButton.Pressed += OnAdvanceButtonPressed;
-            _connectedAdvanceButton = _advanceButton;
+            _advanceBinding.UnbindAll();
+            _advanceBinding.Bind(_advanceButton, OnAdvanceButtonPressed);
         }
 
-        private void DisconnectAdvanceButton()
-        {
-            if (_connectedAdvanceButton != null && GodotObject.IsInstanceValid(_connectedAdvanceButton))
-                _connectedAdvanceButton.Pressed -= OnAdvanceButtonPressed;
-
-            _connectedAdvanceButton = null;
-        }
+        private void DisconnectAdvanceButton() => _advanceBinding.UnbindAll();
 
         private void OnAdvanceButtonPressed() => RequestAdvanceDay();
 
@@ -289,7 +279,6 @@ namespace Beep.ECS
             _date = null;
             _progress = null;
             _advanceButton = null;
-            _connectedAdvanceButton = null;
         }
 
     }

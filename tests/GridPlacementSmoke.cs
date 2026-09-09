@@ -745,6 +745,17 @@ public partial class GridPlacementSmoke : Node
         bar.RefreshSelection();
         bool synced = bar.SelectedModeName() == "Build";
 
+        // The generated button's Pressed handler must actually be connected (GridButtonBindings.Bind),
+        // not merely that SelectMode works when called directly: press Mode_Build and confirm it selects.
+        bar.SelectMode(GridInteractionModeComponent.InteractionMode.Select);
+        bool pressed = false;
+        if (bar.FindChild("Mode_Build", recursive: true, owned: false) is Button pressButton)
+        {
+            pressButton.EmitSignal(BaseButton.SignalName.Pressed);
+            pressed = bar.SelectedModeName() == "Build"
+                && interaction.CurrentMode == GridInteractionModeComponent.InteractionMode.Build;
+        }
+
         root.QueueFree();
 
         if (!Expect(initial, "GridInteractionModeBar did not render the expected mode buttons."))
@@ -754,6 +765,9 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         if (!Expect(synced, "GridInteractionModeBar did not stay in sync with external mode changes."))
+            return false;
+
+        if (!Expect(pressed, "GridInteractionModeBar button press did not select its mode (Bind did not connect the handler)."))
             return false;
 
         return true;

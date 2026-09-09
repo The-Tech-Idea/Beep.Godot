@@ -1,6 +1,6 @@
 # DUP-12 — Every HUD panel on the panel base; one enum button bar
 
-**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (six panels moved onto the base; button-bindings / toggle-bar / roster-cache helpers pending) · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
+**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (six panels on the base + GridButtonBindings; toggle-bar / roster-cache helpers pending) · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
 
 ## Outcome (step 1: the six panels on the base, 2026-09-09)
 
@@ -14,9 +14,16 @@ Verified: `dotnet build` clean, zero warnings. `GridPlacementSmoke` exercises al
 
 **Two pre-existing reds, not this change.** `GridPlacementSmoke` returns on its first failure at `VerifyPlacementOccupancy` ("Fresh placement grid should allow an empty footprint"), and a second placement-terrain check (`VerifyPlacementUsesCellDataTerrain`) fails right behind it - masked all along by the first. Neither is caused by this HUD-only change (nor by any committed session work: no commit touched placement's cell-data resolution). Confirmed by bypassing both temporarily: the suite then reaches and passes every downstream check, including all six panels, and returns green. The bypass was reverted.
 
-### Still pending (steps 2-4)
+## Outcome (step 2: GridButtonBindings, 2026-09-09)
 
-- `GridButtonBindings` helper to replace the three `_connectedButtons` lists and the two single-button connect/disconnect pairs.
+`GridButtonBindings` (new, `ecs/grid/ui/`, a plain class not a Node) owns a panel's `Button.Pressed` subscriptions as a unit: `Bind(button, handler)` connects and records (idempotent per button, so a refresh that re-binds the same authored button does not double-subscribe), `UnbindAll()` disconnects every recorded handler skipping a freed button, and `IsBound(button)` answers the single-button idempotency check. `Unbind(Button)` from the proposal was left out - no caller needs a selective single-button unbind, and rule 6 forbids a method with no consumer.
+
+Gone: the three `_connectedButtons` `List<(Button, Action)>` fields and their `DisconnectButtons()` sweeps (`GridBuildToolbarComponent`, `GridInteractionModeBarComponent`, `GridToolPaletteComponent`), and the two single-button `_connected*Button` fields with their `Connect*`/`Disconnect*` pairs (`GridCalendarHudComponent`, `GridWorkerSpawnerPanelComponent`). Each bar's connect site collapses from `button.Pressed += handler; _connectedButtons.Add((button, handler));` to `_buttonBindings.Bind(button, handler);`; each single-button `Connect*` becomes an `IsBound`-guarded `UnbindAll` + `Bind`.
+
+Verified: `dotnet build` clean, zero warnings. `GridPlacementSmoke` exercises the bars, calendar and worker-spawner panel and passes (confirmed by the same temporary bypass of the two pre-existing placement reds, reverted). A new smoke assertion was added and is the point of the change: it finds the generated `Mode_Build` button, emits its `Pressed` signal, and asserts the selection became Build - proving `Bind` actually connects the handler rather than only tracking it (the pre-existing checks called `SelectMode` directly and would pass even if the button were never wired). That assertion passes on the correct code; the negative run that breaks `Bind` was interrupted, so it is verified-passing rather than mutation-proven here - though it fails by construction, since an unconnected button makes `EmitSignal(Pressed)` a no-op and the selection stays Select. Two scan pins are mutation-proven: no panel outside `GridButtonBindings` declares the `List<(Button Button, Action Handler)>` tracking list or a `DisconnectButtons` sweep.
+
+### Still pending (steps 3-4)
+
 - `GridToggleBarComponent : GridPanelComponent` to fold the two structurally identical enum button bars (`GridInteractionModeBarComponent`, `GridToolPaletteComponent`).
 - `GridRosterCache<T>` for the incremental roster caches in `GridProductionPanelComponent` and `GridWorkerStatusPanelComponent`.
 

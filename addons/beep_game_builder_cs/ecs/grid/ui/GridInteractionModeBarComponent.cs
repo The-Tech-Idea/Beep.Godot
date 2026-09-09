@@ -28,7 +28,7 @@ namespace Beep.ECS
         private GridInteractionModeComponent? _interaction;
         private HBoxContainer? _row;
         private readonly Dictionary<GridInteractionModeComponent.InteractionMode, Button> _buttons = new();
-        private readonly List<(Button Button, Action Handler)> _connectedButtons = new();
+        private readonly GridButtonBindings _buttonBindings = new();
 
         public override void _Ready()
         {
@@ -41,7 +41,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             DisconnectInteractionSignals();
         }
 
@@ -132,8 +132,7 @@ namespace Beep.ECS
                 TooltipText = TooltipFor(mode)
             };
             Action handler = () => SelectMode(mode);
-            button.Pressed += handler;
-            _connectedButtons.Add((button, handler));
+            _buttonBindings.Bind(button, handler);
             _row.AddChild(button);
             SetEditedOwner(button);
             _buttons[mode] = button;
@@ -164,7 +163,7 @@ namespace Beep.ECS
 
         private bool BindExistingButtons()
         {
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             _buttons.Clear();
 
             if (BoundModeNames.Length > 0 || BoundButtonPaths.Length > 0)
@@ -220,8 +219,7 @@ namespace Beep.ECS
                 button.Text = LabelFor(mode);
             if (string.IsNullOrWhiteSpace(button.TooltipText))
                 button.TooltipText = TooltipFor(mode);
-            button.Pressed += handler;
-            _connectedButtons.Add((button, handler));
+            _buttonBindings.Bind(button, handler);
             _buttons[mode] = button;
         }
 
@@ -244,14 +242,6 @@ namespace Beep.ECS
             return false;
         }
 
-        private void DisconnectButtons()
-        {
-            foreach ((Button button, Action handler) in _connectedButtons)
-                if (GodotObject.IsInstanceValid(button))
-                    button.Pressed -= handler;
-            _connectedButtons.Clear();
-        }
-
         private void ConnectInteractionSignals()
         {
             if (_interaction == null || Engine.IsEditorHint())
@@ -272,7 +262,7 @@ namespace Beep.ECS
 
         private void ClearChildren()
         {
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             foreach (Node child in GetChildren())
                 child.QueueFree();
             _row = null;

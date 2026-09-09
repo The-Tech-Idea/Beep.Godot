@@ -41,7 +41,7 @@ namespace Beep.ECS
         private HBoxContainer? _categoryRow;
         private GridContainer? _buildGrid;
         private readonly Dictionary<string, Button> _buildButtons = new();
-        private readonly List<(Button Button, Action Handler)> _connectedButtons = new();
+        private readonly GridButtonBindings _buttonBindings = new();
 
         public override void _Ready()
         {
@@ -57,7 +57,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             if (_wallet != null && GodotObject.IsInstanceValid(_wallet))
                 _wallet.ResourcesChanged -= RefreshAffordability;
         }
@@ -74,7 +74,7 @@ namespace Beep.ECS
         public void RebuildToolbar()
         {
             ResolveReferences();
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             _buildButtons.Clear();
 
             if (_catalog == null)
@@ -242,8 +242,7 @@ namespace Beep.ECS
 
                 string capturedId = id;
                 Action handler = () => SelectBuild(capturedId);
-                button.Pressed += handler;
-                _connectedButtons.Add((button, handler));
+                _buttonBindings.Bind(button, handler);
                 _buildGrid.AddChild(button);
                 SetEditedOwner(button);
                 _buildButtons[id] = button;
@@ -265,8 +264,7 @@ namespace Beep.ECS
             };
             string capturedCategory = category;
             Action handler = () => SelectCategory(capturedCategory);
-            tab.Pressed += handler;
-            _connectedButtons.Add((tab, handler));
+            _buttonBindings.Bind(tab, handler);
             _categoryRow.AddChild(tab);
             SetEditedOwner(tab);
         }
@@ -355,17 +353,9 @@ namespace Beep.ECS
         private GridContainer? FindBuildGrid()
             => FindControl<GridContainer>(BuildGridPath, "Builds");
 
-        private void DisconnectButtons()
-        {
-            foreach ((Button button, Action handler) in _connectedButtons)
-                if (GodotObject.IsInstanceValid(button))
-                    button.Pressed -= handler;
-            _connectedButtons.Clear();
-        }
-
         private void ClearChildren()
         {
-            DisconnectButtons();
+            _buttonBindings.UnbindAll();
             foreach (Node child in GetChildren())
                 child.QueueFree();
             _categoryRow = null;

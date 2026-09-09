@@ -211,7 +211,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-09 | [Chunk-pin helper](../plans/terrain-grid/DUP-09-chunk-pin-helper.md) | duplication | M | **Implemented 2026-09-09** (chunk shift centralised to ChunkedCellStore.ChunkAxis; GridChunkPins helper) |
 | DUP-10 | [Arrival detection](../plans/terrain-grid/DUP-10-arrival-detection.md) | duplication + latent bug | S | **Investigated, not implemented 2026-09-09** (signal swap regresses stepped worker/hauler; one-frame bug already mitigated) |
 | DUP-11 | [Dispatch board showcase](../plans/terrain-grid/DUP-11-dispatch-board-showcase.md) | duplication (owner's call) | S | Proposed |
-| DUP-12 | [HUD panel base](../plans/terrain-grid/DUP-12-hud-panel-base.md) | duplication | M | **Partially implemented 2026-09-09** (six find-panels on GridPanelComponent; helpers pending) |
+| DUP-12 | [HUD panel base](../plans/terrain-grid/DUP-12-hud-panel-base.md) | duplication | M | **Partially implemented 2026-09-09** (six find-panels on GridPanelComponent + GridButtonBindings; toggle-bar/roster-cache pending) |
 | DUP-13 | [Terrain-kind registry](../plans/terrain-grid/DUP-13-terrain-kind-registry.md) | duplication + feature | L | Proposed |
 | ENH-01 | [Eviction-aware change notifications](../plans/terrain-grid/ENH-01-eviction-aware-change-notifications.md) | enhancement | M–L | **Implemented 2026-09-09** (typed CellsChanged; eviction storm removed; per-chunk minimisation follow-up) |
 | ENH-02 | [Edit-kind classification](../plans/terrain-grid/ENH-02-edit-kind-classification.md) | enhancement | S–M | **Implemented 2026-09-09** (per-cell kind, no-op early-outs, crop-tick index) |

@@ -52,7 +52,12 @@ namespace Beep.ECS
 
         /// <summary>Optional native geometry source. Its TileSet layout and transform replace
         /// the manual Projection, TileSize and Origin for placement and picking.</summary>
-        [Export] public NodePath TileMapLayerPath { get; set; } = new("");
+        private NodePath _tileMapLayerPath = new("");
+        [Export] public NodePath TileMapLayerPath
+        {
+            get => _tileMapLayerPath;
+            set { _tileMapLayerPath = value ?? new NodePath(""); _cachedNativeLayer = null; }
+        }
 
         /// <summary>Elevated terrain geometry, taking precedence over the flat native layer.</summary>
         private NodePath _elevatedTerrainPath = new("");
@@ -63,14 +68,38 @@ namespace Beep.ECS
             set
             {
                 _elevatedTerrainPath = value;
+                _cachedElevatedTerrain = null;
                 if (IsInsideTree()) BindElevatedTerrain();
             }
         }
-        private TerrainIsometricRendererComponent? ElevatedTerrain => ElevatedTerrainPath.IsEmpty
-            ? null : GetNodeOrNull<TerrainIsometricRendererComponent>(ElevatedTerrainPath);
 
-        private TileMapLayer? NativeLayer => TileMapLayerPath.IsEmpty
-            ? null : GetNodeOrNull<TileMapLayer>(TileMapLayerPath);
+        // The resolved surface nodes are cached so the per-cell CellCorners path and the
+        // per-frame WorldToCell/CellToWorld do not re-run GetNodeOrNull on every call. The
+        // cache re-resolves whenever the path changes (the setters clear it) or the cached
+        // node is freed (the validity check below), which covers every way the target moves.
+        private TerrainIsometricRendererComponent? _cachedElevatedTerrain;
+        private TerrainIsometricRendererComponent? ElevatedTerrain
+        {
+            get
+            {
+                if (ElevatedTerrainPath.IsEmpty) return null;
+                if (_cachedElevatedTerrain is null || !GodotObject.IsInstanceValid(_cachedElevatedTerrain))
+                    _cachedElevatedTerrain = GetNodeOrNull<TerrainIsometricRendererComponent>(ElevatedTerrainPath);
+                return _cachedElevatedTerrain;
+            }
+        }
+
+        private TileMapLayer? _cachedNativeLayer;
+        private TileMapLayer? NativeLayer
+        {
+            get
+            {
+                if (TileMapLayerPath.IsEmpty) return null;
+                if (_cachedNativeLayer is null || !GodotObject.IsInstanceValid(_cachedNativeLayer))
+                    _cachedNativeLayer = GetNodeOrNull<TileMapLayer>(TileMapLayerPath);
+                return _cachedNativeLayer;
+            }
+        }
 
         [Export]
         public GridProjection Projection
@@ -442,7 +471,8 @@ namespace Beep.ECS
                 DrawPolyline(_drawCorners, Colors.White with { A = 0.7f }, 2f, true);
         }
 
-        private bool HasSnapTargetPath() => !string.IsNullOrEmpty(SnapTargetPath?.ToString());
+        // IsEmpty rather than ToString(), which allocated a string every frame SnapTarget ran.
+        private bool HasSnapTargetPath() => !SnapTargetPath.IsEmpty;
 
         private float HalfWidth => Mathf.Max(1f, EffectiveTileSize.X * 0.5f);
         private float HalfHeight => Mathf.Max(1f, EffectiveTileSize.Y * 0.5f);

@@ -68,8 +68,23 @@ public partial class GridProjectionSmoke : Node
         if (arrayAllocated <= spanAllocated)
             return Fail($"Array overload should allocate more than the span; span {spanAllocated}, array {arrayAllocated}");
 
+        // Surface caching (ENH-08 part 3): a native layer resolves once and is cached, but a
+        // freed layer must NOT be served from cache. This exercises the validity guard in
+        // NativeLayer - without it, CellToWorld would touch a freed node instead of re-resolving.
+        var tileSet = new TileSet { TileShape = TileSet.TileShapeEnum.Square, TileSize = new Vector2I(32, 32) };
+        var layer = new TileMapLayer { Name = "NativeLayer", TileSet = tileSet };
+        grid.AddChild(layer);
+        grid.TileMapLayerPath = "NativeLayer";
+        if (!grid.CellToWorld(new Vector2I(2, 1)).IsFinite())
+            return Fail("A native layer projection should resolve to a finite world position");
+        _ = grid.CellToWorld(Vector2I.Zero); // populate the cache
+        layer.Free();
+        if (grid.CellToWorld(new Vector2I(2, 1)).IsFinite())
+            return Fail("A freed native layer must re-resolve to none, not be served from cache");
+        grid.TileMapLayerPath = new NodePath("");
+
         grid.Free();
-        GD.Print($"[grid-projection] CellCorners span/array agree (top-down + isometric); span 10000 calls allocated {spanAllocated} bytes, array {arrayAllocated} bytes");
+        GD.Print($"[grid-projection] CellCorners span/array agree (top-down + isometric); span 10000 calls allocated {spanAllocated} bytes, array {arrayAllocated} bytes; freed native layer re-resolves");
         return true;
     }
 

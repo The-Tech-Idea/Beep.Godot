@@ -24,7 +24,7 @@ const HAULER := preload("res://addons/beep_game_builder_cs/ecs/grid/GridHaulerCo
 # open to both languages.
 class GdTransporter extends Node:
 	var IsBusy := false
-	var TransportRate := 1.0
+	var TransportRatePerTurn := 1.0
 	var hauls: Array = []
 	var stored := {}
 	var capacity := 999
@@ -293,7 +293,7 @@ func _run() -> void:
 	fluid_def.set("DepositScale", 0.9)
 	fluid_def.set("Amount", 4)
 	fluid_def.set("AmountPerGather", 3)
-	fluid_def.set("GatherSeconds", 0.5)
+	fluid_def.set("GatherTurns", 0.5)
 	var kinds: Array[String] = ["grass", "dry_grass", "desert", "sand", "tundra", "gravel", "rock", "swamp"]
 	fluid_def.set("TerrainKinds", kinds)
 	var probe_catalog: Resource = CATALOG.new()
@@ -628,11 +628,11 @@ func _run() -> void:
 	root.add_child(speed_manager)
 	var mule := GdTransporter.new()
 	mule.name = "Mule"
-	mule.TransportRate = 1.0
+	mule.TransportRatePerTurn = 1.0
 	root.add_child(mule)
 	var express := GdTransporter.new()
 	express.name = "Express"
-	express.TransportRate = 10.0
+	express.TransportRatePerTurn = 10.0
 	root.add_child(express)
 	speed_manager.call("Register", mule)
 	speed_manager.call("Register", express)

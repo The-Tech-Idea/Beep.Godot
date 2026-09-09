@@ -16,12 +16,12 @@ namespace Beep.ECS
         bool IsBusy { get; }
 
         /// <summary>
-        /// Effective throughput, in units per second - a pipeline flows
+        /// Effective throughput, in units per turn - a pipeline flows
         /// differently than a truck, a truck than a mule. The transport
         /// manager offers a haul to the FASTEST accepting transporter first,
         /// so authoring this is how a fleet gets a pecking order.
         /// </summary>
-        float TransportRate { get; }
+        float TransportRatePerTurn { get; }
 
         /// <summary>
         /// Asks the transporter to move a load from a cell to wherever it

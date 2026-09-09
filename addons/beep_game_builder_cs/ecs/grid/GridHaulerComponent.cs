@@ -104,7 +104,7 @@ namespace Beep.ECS
         /// and this truck outranks a mule. Same unit as a transport chain's
         /// FlowRatePerTurn, or the ranking would compare two different things.
         /// </summary>
-        [Export(PropertyHint.Range, "0.1,999,0.1")] public float TransportRate { get; set; } = 5f;
+        [Export(PropertyHint.Range, "0.1,999,0.1")] public float TransportRatePerTurn { get; set; } = 5f;
 
         /// <summary>
         /// Optional: deliver into this storage's LOAD PORT instead of the

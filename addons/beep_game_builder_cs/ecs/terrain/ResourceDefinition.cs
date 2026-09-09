@@ -171,7 +171,9 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "1,9999,1")] public int Amount { get; set; } = 8;
         [Export(PropertyHint.Range, "1,9999,1")] public int AmountPerGather { get; set; } = 1;
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherSeconds { get; set; } = 1.5f;
+        /// <summary>Turns to work one gather cycle. Turns, not seconds: every timed grid
+        /// subsystem measures in turns (one turn is one second only on the real-time axis).</summary>
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherTurns { get; set; } = 1.5f;
         [Export] public string GatherJobKind { get; set; } = "gather";
 
         /// <summary>

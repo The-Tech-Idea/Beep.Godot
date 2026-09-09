@@ -44,7 +44,7 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,9999,1")] public int Amount { get; set; } = 5;
         [Export(PropertyHint.Range, "1,9999,1")] public int AmountPerGather { get; set; } = 1;
         [Export] public string GatherJobKind { get; set; } = "gather";
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherSeconds { get; set; } = 1.5f;
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherTurns { get; set; } = 1.5f;
         [Export] public int GatherPriority { get; set; } = 0;
         [Export] public bool HideWhenDepleted { get; set; } = true;
         [Export] public bool DisableProcessWhenDepleted { get; set; } = true;
@@ -87,7 +87,7 @@ namespace Beep.ECS
 
             Amount = definition.Amount;
             AmountPerGather = definition.AmountPerGather;
-            GatherSeconds = definition.GatherSeconds;
+            GatherTurns = definition.GatherTurns;
             GatherJobKind = definition.GatherJobKind;
             MarkCellOccupiedOnReady = definition.OccupiesCell;
         }
@@ -145,7 +145,7 @@ namespace Beep.ECS
                 return "";
             }
 
-            string jobId = _jobs.AddJob(cell, GatherJobKind, GatherSeconds, GatherPriority);
+            string jobId = _jobs.AddJob(cell, GatherJobKind, GatherTurns, GatherPriority);
             ActiveGatherJobId = jobId;
             EmitSignal(SignalName.GatherQueued, jobId, cell.X, cell.Y);
             return jobId;

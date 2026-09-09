@@ -72,7 +72,7 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,9999,1")] public int MaxAmount { get; set; } = 6;
         [Export(PropertyHint.Range, "1,9999,1")] public int AmountPerGather { get; set; } = 1;
         [Export] public string GatherJobKind { get; set; } = "gather";
-        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherSeconds { get; set; } = 1.5f;
+        [Export(PropertyHint.Range, "0.01,600,0.01")] public float GatherTurns { get; set; } = 1.5f;
         [Export] public int GatherPriority { get; set; } = 0;
         [Export] public bool SetZIndexFromY { get; set; } = true;
 
@@ -87,7 +87,7 @@ namespace Beep.ECS
         public float EffectiveDensity => Mathf.Clamp(float.IsFinite(Density) ? Density : 0f, 0f, 1f);
         public int EffectiveMaxNodes => Mathf.Clamp(MaxNodes, 0, 4096);
         public int EffectiveAmountPerGather => Mathf.Max(1, AmountPerGather);
-        public float EffectiveGatherSeconds => Mathf.Max(0.01f, float.IsFinite(GatherSeconds) ? GatherSeconds : 1.5f);
+        public float EffectiveGatherTurns => Mathf.Max(0.01f, float.IsFinite(GatherTurns) ? GatherTurns : 1.5f);
         public string EffectiveResourceId => string.IsNullOrWhiteSpace(ResourceId) ? "resource" : ResourceId.Trim();
         public string EffectiveGatherJobKind => string.IsNullOrWhiteSpace(GatherJobKind) ? "gather" : GatherJobKind.Trim();
 
@@ -279,7 +279,7 @@ namespace Beep.ECS
             resource.ResourceId = resourceId;
             // ONE owner for what a deposit is worth. When the catalog defines
             // this id, the node's own ApplyCatalogDefinition takes Amount,
-            // AmountPerGather, GatherSeconds and GatherJobKind from it on
+            // AmountPerGather, GatherTurns and GatherJobKind from it on
             // _Ready - so writing this component's Min/MaxAmount and gather
             // exports onto the node first was values being accepted, stored,
             // and silently overwritten one frame later. They are now written
@@ -291,7 +291,7 @@ namespace Beep.ECS
                 resource.Amount = RandomAmount(cell, index);
                 resource.AmountPerGather = EffectiveAmountPerGather;
                 resource.GatherJobKind = EffectiveGatherJobKind;
-                resource.GatherSeconds = EffectiveGatherSeconds;
+                resource.GatherTurns = EffectiveGatherTurns;
                 resource.MarkCellOccupiedOnReady = MarkGeneratedCellsOccupied;
             }
             resource.GatherPriority = GatherPriority;

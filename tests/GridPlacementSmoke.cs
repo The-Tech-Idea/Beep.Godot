@@ -3045,7 +3045,7 @@ public partial class GridPlacementSmoke : Node
             MaxNodes = -5,
             ResourceId = " ",
             GatherJobKind = " ",
-            GatherSeconds = float.NaN,
+            GatherTurns = float.NaN,
             AmountPerGather = -8
         };
         root.AddChild(scatter);
@@ -3072,8 +3072,8 @@ public partial class GridPlacementSmoke : Node
             nodeBounded &= resource.ResourceId == "resource"
                 && resource.GatherJobKind == "gather"
                 && resource.AmountPerGather == 1
-                && float.IsFinite(resource.GatherSeconds)
-                && resource.GatherSeconds >= 0.01f;
+                && float.IsFinite(resource.GatherTurns)
+                && resource.GatherTurns >= 0.01f;
         }
 
         root.QueueFree();

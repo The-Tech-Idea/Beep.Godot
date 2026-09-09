@@ -577,11 +577,9 @@ namespace Beep.ECS
         {
             if (CycleTurnsOverride > 0f && float.IsFinite(CycleTurnsOverride))
                 return CycleTurnsOverride;
-            // ResourceDefinition.GatherSeconds belongs to the terrain resource
-            // catalog, which is shared with the by-hand gathering path and is
-            // not this component's to rename; the number it carries is read
-            // here as TURNS, the unit every timed grid subsystem measures in.
-            float fromDefinition = Catalog?.Find(ActiveResourceId)?.GatherSeconds ?? 1.5f;
+            // ResourceDefinition.GatherTurns is the catalog's per-cycle turn count,
+            // the unit every timed grid subsystem measures in - read here directly.
+            float fromDefinition = Catalog?.Find(ActiveResourceId)?.GatherTurns ?? 1.5f;
             return Mathf.Max(0.05f, float.IsFinite(fromDefinition) ? fromDefinition : 1.5f);
         }
 

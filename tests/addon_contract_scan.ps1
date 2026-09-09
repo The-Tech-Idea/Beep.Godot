@@ -1814,7 +1814,7 @@ foreach ($required in @("GridWorkClockBinding", "AdvanceWork(float turns)", "_wo
     }
 }
 if ($gridTransportChain -match 'FlowRatePerSecond') {
-    Fail "GridTransportChainComponent still measures throughput per second; a chain's rate is per turn, the same unit GridHaulerComponent.TransportRate is ranked against."
+    Fail "GridTransportChainComponent still measures throughput per second; a chain's rate is per turn, the same unit GridHaulerComponent.TransportRatePerTurn is ranked against."
 }
 foreach ($pair in @(
     @("addons/beep_game_builder_cs/ecs/grid/IExtractor.cs", "interface IExtractor : ILoadPort, IUnloadPort"),
@@ -1822,6 +1822,18 @@ foreach ($pair in @(
     @("addons/beep_game_builder_cs/ecs/grid/ITransporter.cs", "interface ITransporter : ILoadPort, IUnloadPort"))) {
     if ((Read $pair[0]) -notmatch [regex]::Escape($pair[1])) {
         Fail "Every logistics role must implement both ports: $($pair[1])."
+    }
+}
+# ENH-15: timed logistics measure in turns at the seams. GatherSeconds was renamed
+# GatherTurns (it was always read as turns); the transporter rate says per turn.
+foreach ($unitFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs") -Include *.cs, *.tscn -Recurse) {
+    if ((Get-Content -LiteralPath $unitFile.FullName -Raw) -match [regex]::Escape("GatherSeconds")) {
+        Fail "$($unitFile.Name) still names a gather duration GatherSeconds; the unit is turns - GatherTurns (ENH-15)."
+    }
+}
+foreach ($portFile in @("ITransporter.cs", "IExtractor.cs", "IStorage.cs")) {
+    if ((Read "addons/beep_game_builder_cs/ecs/grid/$portFile") -match 'per second') {
+        Fail "$portFile measures a logistics rate per second; the unit is turns (ENH-15)."
     }
 }
 $gridTransportManager = Read "addons/beep_game_builder_cs/ecs/grid/GridTransportManagerComponent.cs"
@@ -2400,7 +2412,7 @@ $gridResourceScatter = Read "addons/beep_game_builder_cs/ecs/grid/GridResourceSc
 if ($gridResourceScatter -notmatch 'class\s+GridResourceScatterComponent' -or $gridResourceScatter -notmatch 'RebuildScatter' -or $gridResourceScatter -notmatch 'PreviewCells' -or $gridResourceScatter -notmatch 'AvoidOccupiedCells' -or $gridResourceScatter -notmatch 'CellDataPath' -or $gridResourceScatter -notmatch 'GridResourceNodeComponent') {
     Fail "GridResourceScatterComponent is missing the expected seeded resource population surface."
 }
-foreach ($required in @("EffectiveBoundsSize", "EffectiveDensity", "EffectiveMaxNodes", "EffectiveAmountPerGather", "EffectiveGatherSeconds", "EffectiveResourceId", "EffectiveGatherJobKind", "AvoidCellDataBlocked", "AvoidBlockedTerrainKinds", "MarkGeneratedCellsOccupied", "AllowedTerrainKinds", "CanSpawnResourceAt", "ReserveGeneratedCell")) {
+foreach ($required in @("EffectiveBoundsSize", "EffectiveDensity", "EffectiveMaxNodes", "EffectiveAmountPerGather", "EffectiveGatherTurns", "EffectiveResourceId", "EffectiveGatherJobKind", "AvoidCellDataBlocked", "AvoidBlockedTerrainKinds", "MarkGeneratedCellsOccupied", "AllowedTerrainKinds", "CanSpawnResourceAt", "ReserveGeneratedCell")) {
     if ($gridResourceScatter -notmatch [regex]::Escape($required)) {
         Fail "GridResourceScatterComponent must bound invalid scatter tuning before generating resource nodes: $required."
     }

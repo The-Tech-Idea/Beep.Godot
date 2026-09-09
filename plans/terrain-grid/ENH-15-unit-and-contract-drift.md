@@ -1,6 +1,6 @@
 # ENH-15 — Unit and contract drift: seconds vs turns, `GatherSeconds`, catalog lookups
 
-**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (ResourceCatalog index + case/space Find done; the unit renames pending) · **Effort:** XS–S (½–1 day) · **Risk:** low
+**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** **IMPLEMENTED 2026-09-09** (unit renames + ResourceCatalog index; only the minor ForTerrain index left) · **Effort:** XS–S (½–1 day) · **Risk:** low
 
 ## Outcome (finding 3: the catalog index, 2026-09-09)
 
@@ -8,7 +8,9 @@
 
 `GridPlacementSmoke.VerifyResourceCatalogFind` (new) asserts `Find("Crude Oil")`, `Find("crude_oil")` and `Find("crude-oil")` all return the one definition and `Find("iron")` is null; mutation-proven (keying the index by the raw ordinal Id fails it). A scan pin requires the normalised index and forbids the `definition.Id == id` scan's return. Build clean; full HUD smoke green (past the two pre-existing placement reds, reverted).
 
-**Deferred: the unit renames (findings 1, 2, 4).** `ITransporter.TransportRate` -> `TransportRatePerTurn` and `GatherSeconds` -> `GatherTurns` are honest-name fixes, but `GatherSeconds` turned out to be THREE authored `[Export]`s (on `ResourceDefinition`, `GridResourceNodeComponent` and `GridResourceScatterComponent`, all carrying turns) plus one authored value in `grid_world_2d_iso.tscn` (`GatherSeconds = 1.5`), so the rename must migrate a shipped scene's property key, not only C#. Contained and mechanical (no `.gd`/`.tres`), but a rename of Inspector-facing authored properties across a shipped scene is better landed attended; left on the list. `ForTerrain`'s nested-loop index is also still open (lower value; the catalog is 12-20 entries).
+**Outcome: the unit renames (findings 1, 2, 4), 2026-09-09.** `ResourceDefinition.GatherSeconds` -> `GatherTurns` (it was always read as turns; the "seconds" name was the lie), including the two mirror `[Export]`s on `GridResourceNodeComponent` and `GridResourceScatterComponent`, `GridResourceScatterComponent.EffectiveGatherSeconds` -> `EffectiveGatherTurns`, the `GridExtractorComponent` reader (whose comment no longer has to apologise for the name), and the one authored value in `grid_world_2d_iso.tscn` (`GatherSeconds = 1.5` -> `GatherTurns = 1.5`, same number, same meaning). `ITransporter.TransportRate` -> `TransportRatePerTurn` with its doc corrected from "units per second", plus the sole implementer `GridHaulerComponent`, the manager's `Get("TransportRatePerTurn")` string lookup, and the GDScript duck-typed transporter in `grid_terrain_subsurface_probe.gd` (`GdTransporter.TransportRatePerTurn`) - the exact "a GDScript transporter written to the interface" case the finding named, which the probe now proves aligns (the manager still ranks the fast transporter first). No `.tres` and no other `.gd` carried these names. Build clean; the subsurface, job-execution, haul-demand and economy probes green; a scan pin forbids `GatherSeconds` anywhere under `addons/` and `per second` in any logistics port interface, both mutation-proven.
+
+**Still open (minor): `ForTerrain`'s nested-loop index** - lower value (the catalog is 12-20 entries) and it returns a fresh array each call, so caching it needs list invalidation; left for a dedicated pass.
 
 ## Finding
 

@@ -64,7 +64,7 @@ namespace Beep.ECS
 
         /// <summary>
         /// Offers a haul to the registered transporters - FASTEST first, by
-        /// their TransportRate (a transporter that does not expose one counts
+        /// their TransportRatePerTurn (a transporter that does not expose one counts
         /// as 1) - and reports whether one took it. A false return means the
         /// load is still the caller's problem - the shipped extractor falls
         /// back to the wallet so yield is never lost.
@@ -99,13 +99,13 @@ namespace Beep.ECS
 
         private static float RateOf(Node transporter)
         {
-            Variant rate = transporter.Get("TransportRate");
+            Variant rate = transporter.Get("TransportRatePerTurn");
             return rate.VariantType == Variant.Type.Nil ? 1f : Mathf.Max(0f, rate.AsSingle());
         }
 
         /// <summary>
         /// HOOK: the dispatch policy. The default offers hauls fastest-first
-        /// by TransportRate; override for nearest-first, round-robin, cost
+        /// by TransportRatePerTurn; override for nearest-first, round-robin, cost
         /// models, or whatever the game means by "the right vehicle".
         /// </summary>
         protected virtual void OrderCandidates(List<(Node Transporter, float Rate)> candidates)

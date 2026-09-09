@@ -37,7 +37,7 @@ func make_definition(id: String, terrain: Array[String], amount: int, seconds: f
 	d.set("DisplayName", id.capitalize())
 	d.set("TerrainKinds", terrain)
 	d.set("Amount", amount)
-	d.set("GatherSeconds", seconds)
+	d.set("GatherTurns", seconds)
 	return d
 
 # A one-node scene, packed in memory, distinguishable by its root's name.

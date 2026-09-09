@@ -233,7 +233,7 @@ ResourceId = "wood"
 Amount = 5
 AmountPerGather = 1
 GatherJobKind = "gather"
-GatherSeconds = 1.5
+GatherTurns = 1.5
 MarkCellOccupiedOnReady = true
 
 [node name="Crown" type="Polygon2D" parent="ResourceNodes/SampleTree"]

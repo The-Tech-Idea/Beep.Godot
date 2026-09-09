@@ -1,6 +1,18 @@
 # ENH-13 — Minimap bake and resource scatter on huge maps: no silent 1024 cap
 
-**Type:** enhancement + accepted-then-ignored fix · **Area:** `ui/GridMinimapComponent`, `GridResourceScatterComponent`, `SeededTerrainPropScatterComponent` · **Status:** proposed 2026-09-08 · **Effort:** S–M (1–2 days) · **Risk:** low
+**Type:** enhancement + accepted-then-ignored fix · **Area:** `ui/GridMinimapComponent`, `GridResourceScatterComponent`, `SeededTerrainPropScatterComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (minimap downsample done; resource scatter deferred - streaming collision) · **Effort:** S–M (1–2 days) · **Risk:** low
+
+## Outcome (minimap, 2026-09-09)
+
+`GridMinimapComponent.BakeTerrain` silently returned when `size.X > 1024 || size.Y > 1024`, so `ShowTerrain` was accepted and drew nothing on a large map (rule 7). It now chooses the coarsest power-of-two scale that fits the texture under 1024 texels per axis and bakes one texel per s×s block coloured by the block's majority terrain kind (`TerrainGeometry.MostCommon`, the DUP-04 reduction, over a reused counts dict). Below 1024 the scale is 1 and the bake is byte-for-byte the old path (a 1×1 block is that cell's kind). The scale is readable through a new `TerrainScale` property and reported once through a print, so the downsample is observable rather than silent.
+
+Guard: `grid_minimap_probe` bakes a 1500×1000 map and asserts 1/2 scale, a 750-wide non-blank texture (grass painted at the origin), and that a 64×64 map still bakes 1:1. Mutation-proven: restoring the silent `>1024` return leaves scale 1 and a blank texture, and the probe fails. Build clean.
+
+**Deliberately not done in this pass** (mirrors the design's split): the byte-buffer/`SetData` blit and the **chunk-scoped rebake** (guard #2, re-bake only the changed chunks) - the downsampled `SetPixel` bake on change is correct and the chunk-scoped rebake is a perf follow-on that wants ENH-01's chunk payload wired through the minimap. The kind→colour table stays local until `TerrainKindCatalog` (DUP-13) lands.
+
+### Still pending: resource scatter (streaming collision)
+
+`GridResourceScatterComponent`'s silent 1024 clamp and its scatter-the-whole-map-at-once behaviour need chunk-resident placement and eviction - the streaming session's residency area. Left for that coordination, per the collision note below.
 
 ## Finding
 

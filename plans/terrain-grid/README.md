@@ -56,7 +56,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | ENH-10 | [Streamed-world save](ENH-10-streamed-world-save.md) | `CaptureState` throws today on any streamed world; manifest + slot-isolated archive | M | |
 | ENH-11 | [Autotile configuration per frame](ENH-11-autotile-configuration-per-frame.md) | `Json.Stringify` per frame while painting | XS | **done** |
 | ENH-12 | [Job queue indices](ENH-12-job-queue-indices.md) | bucketed states, priority-heap claim, one notification, typed enumeration | M | |
-| ENH-13 | [Minimap and scatter limits](ENH-13-minimap-and-scatter-limits.md) | silent 1024 caps removed; chunk bake; chunk-resident scatter | S–M | |
+| ENH-13 | [Minimap and scatter limits](ENH-13-minimap-and-scatter-limits.md) | silent 1024 caps removed; chunk bake; chunk-resident scatter | S–M | **partial** (minimap downsample done; resource scatter deferred — streaming collision) |
 | ENH-14 | [Object-at-cell index](ENH-14-object-at-cell-index.md) | inspector/tool group scans → O(1); status panel late-resolve wiring bug | S | **partial** (status late-source fix done; index declined as specified - wrong premises) |
 | ENH-15 | [Unit and contract drift](ENH-15-unit-and-contract-drift.md) | `TransportRate` doc says seconds; `GatherSeconds` read as turns; catalog index | XS–S | **done** (unit renames + Find index; ForTerrain index has no caller) |
 | ENH-16 | [Generation stage allocations](ENH-16-generation-stage-allocations.md) | iterator BFS ×4, field clone per pass, per-region lists, shared distance fields | M | **done** |

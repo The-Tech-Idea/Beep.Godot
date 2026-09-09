@@ -199,20 +199,20 @@ namespace Beep.ECS
             if (wasReserved)
                 ReleaseFootprint();
 
-            ObjectId = DictString(state, "object_id", ObjectId);
-            DisplayName = DictString(state, "display_name", DisplayName);
-            ObjectKind = DictString(state, "object_kind", ObjectKind);
-            Category = DictString(state, "category", Category);
-            Description = DictString(state, "description", Description);
-            _cell = DictVector2I(state, "cell", Cell);
-            _footprint = DictVector2I(state, "footprint", Footprint);
+            ObjectId = GridVariantReader.String(state, "object_id", ObjectId);
+            DisplayName = GridVariantReader.String(state, "display_name", DisplayName);
+            ObjectKind = GridVariantReader.String(state, "object_kind", ObjectKind);
+            Category = GridVariantReader.String(state, "category", Category);
+            Description = GridVariantReader.String(state, "description", Description);
+            _cell = GridVariantReader.Vector2I(state, "cell", Cell);
+            _footprint = GridVariantReader.Vector2I(state, "footprint", Footprint);
             RefreshChunkPins();
-            BlocksNavigation = DictBool(state, "blocks_navigation", BlocksNavigation);
-            ReserveFootprintOnReady = DictBool(state, "reserve_footprint_on_ready", ReserveFootprintOnReady);
-            ReservePlacementFootprint = DictBool(state, "reserve_placement_footprint", ReservePlacementFootprint);
-            ReserveNavigationFootprint = DictBool(state, "reserve_navigation_footprint", ReserveNavigationFootprint);
-            Selectable = DictBool(state, "selectable", Selectable);
-            Complete = DictBool(state, "complete", Complete);
+            BlocksNavigation = GridVariantReader.Bool(state, "blocks_navigation", BlocksNavigation);
+            ReserveFootprintOnReady = GridVariantReader.Bool(state, "reserve_footprint_on_ready", ReserveFootprintOnReady);
+            ReservePlacementFootprint = GridVariantReader.Bool(state, "reserve_placement_footprint", ReservePlacementFootprint);
+            ReserveNavigationFootprint = GridVariantReader.Bool(state, "reserve_navigation_footprint", ReserveNavigationFootprint);
+            Selectable = GridVariantReader.Bool(state, "selectable", Selectable);
+            Complete = GridVariantReader.Bool(state, "complete", Complete);
             if (state.ContainsKey("metadata") && state["metadata"].VariantType == Variant.Type.Dictionary)
                 Metadata = state["metadata"].AsGodotDictionary().Duplicate(deep: true);
             ApplyParentMetadata();
@@ -291,13 +291,7 @@ namespace Beep.ECS
         }
 
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
 
-        private static bool DictBool(Godot.Collections.Dictionary dict, string key, bool fallback)
-            => GridVariantReader.Bool(dict, key, fallback);
 
-        private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
-            => GridVariantReader.Vector2I(dict, key, fallback);
     }
 }

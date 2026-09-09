@@ -469,7 +469,7 @@ namespace Beep.ECS
             foreach (Variant value in cells)
             {
                 if (!GridVariantReader.TryDictionary(value, out var dict)) continue;
-                Vector2I cell = DictVector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
+                Vector2I cell = GridVariantReader.Vector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
                 if (cell.X == int.MinValue || cell.Y == int.MinValue) continue;
                 parsed[cell] = CellRecord.FromDictionary(dict, DefaultTerrainKind);
             }
@@ -583,14 +583,8 @@ namespace Beep.ECS
                 ["metadata"] = new Godot.Collections.Dictionary()
             };
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
 
-        private static int DictInt(Godot.Collections.Dictionary dict, string key, int fallback)
-            => GridVariantReader.Int(dict, key, fallback);
 
-        private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
-            => GridVariantReader.Vector2I(dict, key, fallback);
 
         private sealed record GeneratedMetadata(string Feature, int Relief, float Shade, float Elevation,
             string WaterSource, string Inland, float BeachWidth, float LakeWidth);

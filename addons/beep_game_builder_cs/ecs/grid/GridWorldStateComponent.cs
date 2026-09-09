@@ -214,7 +214,7 @@ namespace Beep.ECS
                 if (!GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary entry))
                     continue;
 
-                string path = DictString(entry, "path", "");
+                string path = GridVariantReader.String(entry, "path", "");
                 if (string.IsNullOrWhiteSpace(path))
                     continue;
 
@@ -283,7 +283,5 @@ namespace Beep.ECS
             return cells;
         }
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
     }
 }

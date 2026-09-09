@@ -100,12 +100,12 @@ namespace Beep.ECS
 
         public void RestoreState(Godot.Collections.Dictionary state)
         {
-            int daysPerSeason = DictInt(state, "days_per_season", DaysPerSeason);
+            int daysPerSeason = GridVariantReader.Int(state, "days_per_season", DaysPerSeason);
             DaysPerSeason = Mathf.Max(1, daysPerSeason);
-            Year = Mathf.Max(1, DictInt(state, "year", 1));
-            Season = (GridSeason)Mathf.Clamp(DictInt(state, "season", 0), 0, 3);
-            DayOfSeason = Mathf.Clamp(DictInt(state, "day_of_season", 1), 1, EffectiveDaysPerSeason);
-            AbsoluteDay = Mathf.Max(1, DictInt(state, "absolute_day", AbsoluteDayFromDate()));
+            Year = Mathf.Max(1, GridVariantReader.Int(state, "year", 1));
+            Season = (GridSeason)Mathf.Clamp(GridVariantReader.Int(state, "season", 0), 0, 3);
+            DayOfSeason = Mathf.Clamp(GridVariantReader.Int(state, "day_of_season", 1), 1, EffectiveDaysPerSeason);
+            AbsoluteDay = Mathf.Max(1, GridVariantReader.Int(state, "absolute_day", AbsoluteDayFromDate()));
             // See SetDate: the restored date has to reach the HUD's labels.
             EmitSignal(SignalName.DayAdvanced, DayOfSeason, (int)Season, Year);
         }
@@ -171,11 +171,7 @@ namespace Beep.ECS
         private void ResolveReferences()
             => EntityComponent.Resolve(this, CellDataPath, ref _cells);
 
-        private static int DictInt(Godot.Collections.Dictionary dict, string key, int fallback)
-            => GridVariantReader.Int(dict, key, fallback);
 
-        private static float DictFloat(Godot.Collections.Dictionary dict, string key, float fallback)
-            => GridVariantReader.Float(dict, key, fallback);
 
         private static float DeltaSeconds(double delta)
             => double.IsFinite(delta) && delta > 0.0 ? (float)Mathf.Min(delta, 86400.0) : 0f;

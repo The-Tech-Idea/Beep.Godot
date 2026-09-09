@@ -116,11 +116,11 @@ namespace Beep.ECS
 
         public string TextForJob(Godot.Collections.Dictionary job)
         {
-            string id = DictString(job, "id", "job");
-            string kind = DictString(job, "kind", "work");
-            string state = DictString(job, "state", "Queued");
-            Vector2I cell = DictVector2I(job, "cell", Vector2I.Zero);
-            string worker = DictString(job, "claimed_by", "");
+            string id = GridVariantReader.String(job, "id", "job");
+            string kind = GridVariantReader.String(job, "kind", "work");
+            string state = GridVariantReader.String(job, "state", "Queued");
+            Vector2I cell = GridVariantReader.Vector2I(job, "cell", Vector2I.Zero);
+            string worker = GridVariantReader.String(job, "claimed_by", "");
             string suffix = string.IsNullOrWhiteSpace(worker) ? "" : $" by {worker}";
             return $"{kind} ({cell.X},{cell.Y}) {state}{suffix} [{id}]";
         }
@@ -142,9 +142,9 @@ namespace Beep.ECS
         {
             foreach (Godot.Collections.Dictionary job in VisibleJobs())
                 yield return new GridPanelRow(
-                    DictString(job, "id", ""),
+                    GridVariantReader.String(job, "id", ""),
                     TextForJob(job),
-                    ColorForState(DictString(job, "state", "")));
+                    ColorForState(GridVariantReader.String(job, "state", "")));
         }
 
         private List<Godot.Collections.Dictionary> VisibleJobs()
@@ -155,7 +155,7 @@ namespace Beep.ECS
 
             foreach (Godot.Collections.Dictionary job in _queue.GetJobs())
             {
-                string state = DictString(job, "state", "");
+                string state = GridVariantReader.String(job, "state", "");
                 if (!ShowCompletedJobs && string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Completed), StringComparison.OrdinalIgnoreCase))
                     continue;
                 jobs.Add(job);
@@ -163,15 +163,15 @@ namespace Beep.ECS
 
             jobs.Sort((a, b) =>
             {
-                int stateCompare = StateRank(DictString(a, "state", "")).CompareTo(StateRank(DictString(b, "state", "")));
+                int stateCompare = StateRank(GridVariantReader.String(a, "state", "")).CompareTo(StateRank(GridVariantReader.String(b, "state", "")));
                 if (stateCompare != 0)
                     return stateCompare;
 
-                int priorityCompare = DictInt(b, "priority", 0).CompareTo(DictInt(a, "priority", 0));
+                int priorityCompare = GridVariantReader.Int(b, "priority", 0).CompareTo(GridVariantReader.Int(a, "priority", 0));
                 if (priorityCompare != 0)
                     return priorityCompare;
 
-                return string.CompareOrdinal(DictString(a, "id", ""), DictString(b, "id", ""));
+                return string.CompareOrdinal(GridVariantReader.String(a, "id", ""), GridVariantReader.String(b, "id", ""));
             });
 
             return jobs;
@@ -200,13 +200,7 @@ namespace Beep.ECS
             return new Color(0.95f, 0.86f, 0.48f);
         }
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
 
-        private static int DictInt(Godot.Collections.Dictionary dict, string key, int fallback)
-            => GridVariantReader.Int(dict, key, fallback);
 
-        private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
-            => GridVariantReader.Vector2I(dict, key, fallback);
     }
 }

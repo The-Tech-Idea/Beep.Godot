@@ -334,12 +334,12 @@ namespace Beep.ECS
                 if (!GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary dict))
                     continue;
 
-                string id = DictString(dict, "id", "");
+                string id = GridVariantReader.String(dict, "id", "");
                 if (string.IsNullOrEmpty(id))
                     continue;
 
-                string kind = GridIds.NormalizeOr(DictString(dict, "kind", "work"), "work");
-                var cell = DictVector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
+                string kind = GridIds.NormalizeOr(GridVariantReader.String(dict, "kind", "work"), "work");
+                var cell = GridVariantReader.Vector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
                 if (cell.X == int.MinValue || cell.Y == int.MinValue)
                     continue;
 
@@ -347,13 +347,13 @@ namespace Beep.ECS
                     id,
                     kind,
                     cell,
-                    DictInt(dict, "priority", 0),
-                    ClampWorkTurns(DictFloat(dict, "work_turns", EffectiveDefaultWorkTurns)))
+                    GridVariantReader.Int(dict, "priority", 0),
+                    ClampWorkTurns(GridVariantReader.Float(dict, "work_turns", EffectiveDefaultWorkTurns)))
                 {
-                    State = ParseState(DictString(dict, "state", nameof(GridJobState.Queued))),
-                    ClaimedBy = DictString(dict, "claimed_by", ""),
-                    ApproachCell = DictVector2I(dict, "approach_cell", cell),
-                    ReservedCell = DictVector2I(dict, "reserved_cell", DictVector2I(dict, "approach_cell", cell))
+                    State = ParseState(GridVariantReader.String(dict, "state", nameof(GridJobState.Queued))),
+                    ClaimedBy = GridVariantReader.String(dict, "claimed_by", ""),
+                    ApproachCell = GridVariantReader.Vector2I(dict, "approach_cell", cell),
+                    ReservedCell = GridVariantReader.Vector2I(dict, "reserved_cell", GridVariantReader.Vector2I(dict, "approach_cell", cell))
                 };
 
                 if (RequeueClaimedJobsOnLoad && job.State == GridJobState.Claimed)
@@ -363,7 +363,7 @@ namespace Beep.ECS
                 }
 
                 _jobs[id] = job;
-                job.RemainingTurns = Mathf.Clamp(DictFloat(dict, "remaining_turns", job.WorkTurns), 0f, job.WorkTurns);
+                job.RemainingTurns = Mathf.Clamp(GridVariantReader.Float(dict, "remaining_turns", job.WorkTurns), 0f, job.WorkTurns);
                 TrackNextJobNumber(id);
             }
 
@@ -422,17 +422,9 @@ namespace Beep.ECS
         private static GridJobState ParseState(string value)
             => Enum.TryParse(value, ignoreCase: true, out GridJobState state) ? state : GridJobState.Queued;
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
 
-        private static int DictInt(Godot.Collections.Dictionary dict, string key, int fallback)
-            => GridVariantReader.Int(dict, key, fallback);
 
-        private static float DictFloat(Godot.Collections.Dictionary dict, string key, float fallback)
-            => GridVariantReader.Float(dict, key, fallback);
 
-        private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
-            => GridVariantReader.Vector2I(dict, key, fallback);
 
         private static float ClampWorkTurns(float value)
             => Mathf.Max(0.01f, float.IsFinite(value) ? value : 1.5f);

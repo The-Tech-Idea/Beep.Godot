@@ -1,6 +1,14 @@
 # DUP-06 — Retire the per-file `Dict*` wrappers; remove the calendar's dead helpers
 
-**Type:** duplication fix / hygiene · **Area:** `GridCellDataComponent`, `GridJobQueueComponent`, `GridObjectComponent`, `GridRoadComponent`, `GridWorldStateComponent`, `GridCalendarComponent`, `ui/GridJobBoardComponent` · **Status:** proposed 2026-09-08 · **Effort:** XS (½ day) · **Risk:** none
+**Type:** duplication fix / hygiene · **Area:** `GridCellDataComponent`, `GridJobQueueComponent`, `GridObjectComponent`, `GridRoadComponent`, `GridWorldStateComponent`, `GridCalendarComponent`, `ui/GridJobBoardComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (Dict* wrappers retired; the GridMath numeric guards and the calendar's dead helpers deferred to the owner) · **Effort:** XS (½ day) · **Risk:** none
+
+## Outcome (Dict* wrappers)
+
+The thirteen per-file `Dict*` wrappers are gone; every caller reads through `GridVariantReader` directly. The consolidation was pure hygiene: every wrapper was a forwarder, and the `DictString` copies the plan flagged as having a different null rule turned out to be byte-identical to `GridVariantReader.String` (`ContainsKey(key) ? value.AsString() : fallback`) - so there was no behaviour to change. Three of the thirteen were already dead (the cell store's `DictString` and `DictInt`, the calendar's `DictFloat`); they were dead duplicates of `GridVariantReader` and went with the rest.
+
+Verified: `dotnet build` clean, zero warnings; seven probes across the job, economy, chunk save/load, topology and building systems green - a zero-behaviour-change refactor stays invisible to them. A scan pin forbids a private `DictString`/`DictInt`/`DictFloat`/`DictBool`/`DictVector2I` anywhere under `ecs/grid`, and the mutation (re-adding one) trips it.
+
+**Deferred to the owner: the numeric guards.** The plan's second half moves `NonNegativeFinite`/`FinitePositive`/`DeltaSeconds` to a new `GridMath` owner and removes the calendar's dead copies of them. The calendar's `DeltaSeconds`/`PositiveFinite`/`NonNegativeFinite` are confirmed dead (no callers since the turn-axis rewrite), and `GridCameraControllerComponent` is the surviving owner (it uses its own identical copies heavily). That is a clean rule-3 situation, but the standing rule reserves the actual removal of the calendar's orphaned helpers for the owner, so it is left here rather than swept in with a pure-duplication change - and moving the camera's guards to `GridMath` belongs with that decision, not ahead of it. The `Dict*` retirement stands on its own; this is a separate, smaller call.
 
 ## Finding
 

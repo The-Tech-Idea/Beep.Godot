@@ -31,7 +31,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | DUP-03 | [Feature sheet loading](DUP-03-feature-sheet-loading.md) | flat vs iso loaders; iso ignores per-sheet columns/rows (bug) | S | **done** |
 | DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S | **done** |
 | DUP-05 | [One id normaliser](DUP-05-one-id-normaliser.md) | 18 normaliser/sanitiser copies, ≥4 rules; wallet vs catalog disagree | S | **partial** (id normaliser done; node-name sanitiser deferred to DUP-12) |
-| DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS | |
+| DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS | **partial** (Dict* wrappers retired; numeric guards deferred to owner) |
 | DUP-07 | [Prop residency façade](DUP-07-prop-residency-facade.md) | 3 `*.Streaming.cs` partials | S | |
 | DUP-08 | [Grid geometry helpers](DUP-08-grid-geometry-helpers.md) | footprint ×4, `ClampZ` ×2, `ResolveCurrent<T>` ×2 | XS | |
 | DUP-09 | [Chunk-pin helper](DUP-09-chunk-pin-helper.md) | `>> 5` ×52 in 12 files, pin-refresh pattern ×7, a Node per path request | M | |

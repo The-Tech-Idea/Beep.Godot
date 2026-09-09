@@ -2079,6 +2079,17 @@ $terrainRules = Read "addons/beep_game_builder_cs/ecs/grid/GridTerrainRules.cs"
 if ($terrainRules -notmatch [regex]::Escape("public static string Normalize(string value) => GridIds.Normalize(value);")) {
     Fail "GridTerrainRules.Normalize must forward to GridIds.Normalize."
 }
+# DUP-06: GridVariantReader is the one Variant->typed reader. The per-file Dict*
+# wrappers - all forwarders, and the DictString copies byte-identical to
+# GridVariantReader.String - are gone; callers read through GridVariantReader now.
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter *.cs -Recurse) {
+    $candidate = Get-Content -Path $file.FullName -Raw
+    foreach ($copy in @("private static string DictString(", "private static int DictInt(", "private static float DictFloat(", "private static bool DictBool(", "private static Vector2I DictVector2I(")) {
+        if ($candidate -match [regex]::Escape($copy)) {
+            Fail "$($file.Name) carries its own dictionary reader ($copy); GridVariantReader is the one owner (DUP-06)."
+        }
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

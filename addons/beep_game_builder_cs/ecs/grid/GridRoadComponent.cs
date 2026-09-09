@@ -257,14 +257,14 @@ namespace Beep.ECS
                 if (!GridVariantReader.TryDictionary(value, out Godot.Collections.Dictionary dict))
                     continue;
 
-                Vector2I cell = DictVector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
+                Vector2I cell = GridVariantReader.Vector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
                 if (cell.X == int.MinValue || cell.Y == int.MinValue)
                     continue;
                 if (!CanBuildRoad(cell))
                     continue;
 
-                string roadKind = DictString(dict, "kind", DefaultRoadKind);
-                float multiplier = DictFloat(dict, "cost_multiplier", EffectiveDefaultRoadCostMultiplier);
+                string roadKind = GridVariantReader.String(dict, "kind", DefaultRoadKind);
+                float multiplier = GridVariantReader.Float(dict, "cost_multiplier", EffectiveDefaultRoadCostMultiplier);
                 _roads[cell] = new RoadRecord(
                     string.IsNullOrWhiteSpace(roadKind) ? DefaultRoadKind : roadKind.Trim(),
                     Mathf.Clamp(multiplier > 0f && float.IsFinite(multiplier) ? multiplier : EffectiveDefaultRoadCostMultiplier, 0.05f, 1f));
@@ -305,14 +305,8 @@ namespace Beep.ECS
         private static Godot.Collections.Array ReadArray(Godot.Collections.Dictionary state, string key)
             => GridVariantReader.Array(state, key);
 
-        private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
-            => dict.ContainsKey(key) ? dict[key].AsString() : fallback;
 
-        private static float DictFloat(Godot.Collections.Dictionary dict, string key, float fallback)
-            => GridVariantReader.Float(dict, key, fallback);
 
-        private static Vector2I DictVector2I(Godot.Collections.Dictionary dict, string key, Vector2I fallback)
-            => GridVariantReader.Vector2I(dict, key, fallback);
 
         private void RejectRoad(Vector2I cell, string kind, string reason)
         {

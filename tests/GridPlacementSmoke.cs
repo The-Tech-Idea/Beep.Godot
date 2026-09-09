@@ -30,6 +30,7 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyGridInteractionModeBar()) return false;
         if (!VerifyGridInteractionStatus()) return false;
         if (!VerifyGridInteractionStatusLateSource()) return false;
+        if (!VerifyGridInteractionModeBarHiddenBinding()) return false;
         if (!VerifyResourceCatalogFind()) return false;
         if (!VerifyGridInteractionCursor()) return false;
         if (!VerifyGridObjectComponent()) return false;
@@ -937,6 +938,51 @@ public partial class GridPlacementSmoke : Node
         root.QueueFree();
 
         return Expect(lateWired, "GridInteractionStatus did not wire a placement source resolved after _Ready (ENH-14).");
+    }
+
+    private bool VerifyGridInteractionModeBarHiddenBinding()
+    {
+        // An authored button for a mode HIDDEN from generation (ShowInspect=false) must still
+        // bind when named in BoundModeNames - the toggle bar resolves a bound name against ALL
+        // modes, not just the visible ones. The toggle-bar consolidation must keep this (DUP-12).
+        var root = new Control { Name = "GridModeBarHiddenSmokeRoot" };
+        AddChild(root);
+
+        var interaction = new GridInteractionModeComponent
+        {
+            Name = "InteractionMode",
+            UseMouseInput = false,
+            ManageChildMouseInput = false
+        };
+        root.AddChild(interaction);
+
+        var bar = new GridInteractionModeBarComponent
+        {
+            Name = "ModeBar",
+            InteractionModePath = new NodePath("../InteractionMode"),
+            BuildInEditor = false,
+            GenerateControlsWhenPathsEmpty = false,
+            ShowInspect = false,
+            BoundModeNames = new[] { "Inspect" },
+            BoundButtonPaths = new[] { new NodePath("Row/Mode_Inspect") }
+        };
+        root.AddChild(bar);
+
+        var row = new VBoxContainer { Name = "Row" };
+        bar.AddChild(row);
+        var inspect = new Button { Name = "Mode_Inspect", Text = "Inspect" };
+        row.AddChild(inspect);
+
+        bar.RebuildBar();
+        bool bound = bar.VisibleModeButtonCount() == 1 && inspect.ToggleMode;
+
+        inspect.EmitSignal(Button.SignalName.Pressed);
+        bool selected = interaction.CurrentMode == GridInteractionModeComponent.InteractionMode.Inspect
+            && bar.SelectedModeName() == "Inspect";
+
+        root.QueueFree();
+
+        return Expect(bound && selected, "GridInteractionModeBar did not bind an authored button for a hidden mode (BoundModeNames + ShowInspect=false).");
     }
 
     private bool VerifyResourceCatalogFind()

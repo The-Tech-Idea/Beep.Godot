@@ -2618,6 +2618,9 @@ if ($gridSmoke -notmatch 'VerifyGridInteractionModeBar') {
 if ($gridSmoke -notmatch 'VerifyGridInteractionStatusLateSource') {
     Fail "GridPlacementSmoke does not verify GridInteractionStatus wires a source resolved after _Ready (ENH-14)."
 }
+if ($gridSmoke -notmatch 'VerifyGridInteractionModeBarHiddenBinding') {
+    Fail "GridPlacementSmoke does not verify the mode bar binds an authored button for a hidden mode (DUP-12)."
+}
 if ($gridSmoke -notmatch 'VerifyResourceCatalogFind') {
     Fail "GridPlacementSmoke does not verify ResourceCatalog.Find is case/separator-insensitive (ENH-15)."
 }

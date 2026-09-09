@@ -27,7 +27,7 @@ func run() -> void:
 	host.add_child(archive)
 	check(not archive.SaveChunk(Vector2i.ZERO), "Archive silently chose a shared default directory")
 	archive.ArchiveDirectory = "user://tests/chunk_archive_%s_%s" % [OS.get_process_id(), Time.get_ticks_usec()]
-	cells.CellsChanged.connect(func(): publications += 1)
+	cells.CellsChanged.connect(func(_kind, _chunks): publications += 1)
 	var cell := Vector2i(-1, -33)
 	var chunk := Vector2i(-1, -2)
 	var neighbor := Vector2i(0, -33)

@@ -19,7 +19,7 @@ public partial class GridCellDataComponent
         if (!changed) return true;
         TerrainRevision++;
         MarkNavigationChanged();
-        EmitSignal(SignalName.CellsChanged);
+        EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I> { coordinate });
         return true;
     }
 }

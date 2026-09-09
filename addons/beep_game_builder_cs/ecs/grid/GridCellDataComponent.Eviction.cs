@@ -28,11 +28,12 @@ public partial class GridCellDataComponent
         _cells.RemoveChunk(coordinate);
         _evictedChunks.Add(coordinate);
         _unavailableChunks.Add(coordinate);
-        TerrainRevision++;
-        NavigationRevision++;
-        // Scheduled demand searches pin every observed chunk. An eviction can
-        // only remove unobserved data, so their working sets remain valid.
-        EmitSignal(SignalName.CellsChanged);
+        // Residency, not content: the chunk's cells are unchanged, only no longer
+        // resident. Bumping TerrainRevision/NavigationRevision here restarted every
+        // renderer and every search on a change that moved nothing - the eviction
+        // storm this signal exists to end. Scheduled demand searches pin every
+        // observed chunk, so an eviction only removes data nothing was watching.
+        EmitCellsChanged(TerrainChangeKind.Residency, new Godot.Collections.Array<Vector2I> { coordinate });
         return true;
     }
 

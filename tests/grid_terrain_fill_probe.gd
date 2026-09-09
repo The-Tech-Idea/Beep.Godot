@@ -12,7 +12,7 @@ func run() -> void:
 	cells.call("SetFlags", Vector2i(-1, 2), 4)
 	cells.call("SetMetadata", Vector2i(-1, 2), "terrain_elevation", 2.5)
 	assert(cells.call("PlantCrop", Vector2i(-1, 2), "wheat", 3, -1))
-	cells.connect("CellsChanged", func(): batches += 1)
+	cells.connect("CellsChanged", func(_kind, _chunks): batches += 1)
 	cells.connect("CellChanged", func(_x, _y): singles += 1)
 	cells.call("FillTerrain", Rect2i(-2, 1, 3, 2), "  gravel  ")
 	assert(cells.get("CellCount") == 6)

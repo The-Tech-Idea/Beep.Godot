@@ -186,7 +186,7 @@ namespace Beep.ECS
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
             {
                 _cells.CellChanged -= OnCellChanged;
-                _cells.CellsChanged -= QueueCoast;
+                _cells.CellsChanged -= OnCellsChangedSignal;
             }
             _cells = null;
         }
@@ -199,10 +199,17 @@ namespace Beep.ECS
             _cells = cells;
             if (_cells is null || Engine.IsEditorHint()) return;
             _cells.CellChanged += OnCellChanged;
-            _cells.CellsChanged += QueueCoast;
+            _cells.CellsChanged += OnCellsChangedSignal;
         }
 
         private void OnCellChanged(int x, int y) => QueueCoast();
+
+        // A content change requeues only the coast (not the whole tile map); a
+        // residency move is ignored.
+        protected override void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) QueueCoast();
+        }
 
         private void QueueCoast()
         {

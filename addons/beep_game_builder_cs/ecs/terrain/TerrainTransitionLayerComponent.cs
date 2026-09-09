@@ -281,9 +281,15 @@ namespace Beep.ECS
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
             {
                 _cells.CellChanged -= OnCellChanged;
-                _cells.CellsChanged -= RequestRefresh;
+                _cells.CellsChanged -= OnCellsChangedSignal;
             }
             _cells = null;
+        }
+
+        // A content change refreshes the dual grid; a residency move is ignored.
+        private void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) RequestRefresh();
         }
 
         private void OnCellChanged(int x, int y)
@@ -374,7 +380,7 @@ namespace Beep.ECS
                 if (_cells is not null && (!Engine.IsEditorHint() || RefreshInEditor))
                 {
                     _cells.CellChanged += OnCellChanged;
-                    _cells.CellsChanged += RequestRefresh;
+                    _cells.CellsChanged += OnCellsChangedSignal;
                 }
             }
             if (_generator == null || !GodotObject.IsInstanceValid(_generator))

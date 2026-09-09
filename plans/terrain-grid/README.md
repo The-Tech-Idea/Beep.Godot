@@ -44,7 +44,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 
 | Id | Plan | Headline | Effort | Status |
 |---|---|---|---|---|
-| ENH-01 | [Eviction-aware change notifications](ENH-01-eviction-aware-change-notifications.md) | `CellsChanged` carries kind + chunks; eviction stops bumping global revisions; 10 eviction-blind listeners | M–L | |
+| ENH-01 | [Eviction-aware change notifications](ENH-01-eviction-aware-change-notifications.md) | `CellsChanged` carries kind + chunks; eviction stops bumping global revisions; 10 eviction-blind listeners | M–L | **done** (eviction storm removed; per-chunk minimisation follow-up) |
 | ENH-02 | [Edit-kind classification](ENH-02-edit-kind-classification.md) | farming edits stop rebuilding terrain; no-op writes; `AdvanceDay` off the full scan | S–M | |
 | ENH-03 | [Chunk-scoped navigation invalidation](ENH-03-chunk-scoped-navigation-invalidation.md) | searches restart only for touched chunks; pin tokens replace lease Nodes; cached costs | M | |
 | ENH-04 | [Archive scheduler](ENH-04-archive-scheduler.md) | O(1) evictability, unthrottled demand loads, chunk-scoped reload abort, load ∥ save | M | |

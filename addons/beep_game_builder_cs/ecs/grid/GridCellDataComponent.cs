@@ -26,7 +26,13 @@ namespace Beep.ECS
         }
 
         [Signal] public delegate void CellChangedEventHandler(int x, int y);
-        [Signal] public delegate void CellsChangedEventHandler();
+        /// <summary>
+        /// A batch of cells changed. <paramref name="kind"/> is a <see cref="TerrainChangeKind"/>
+        /// bit set saying what was touched; <paramref name="chunks"/> lists the affected chunk
+        /// coordinates, or is EMPTY to mean the whole map changed. A listener ignores a
+        /// Residency-only change and, when it can, rebuilds only the listed chunks.
+        /// </summary>
+        [Signal] public delegate void CellsChangedEventHandler(int kind, Godot.Collections.Array<Vector2I> chunks);
         [Signal] public delegate void CropMaturedEventHandler(int x, int y, string cropId);
         [Signal] public delegate void DayAdvancedEventHandler(int days);
 
@@ -58,6 +64,10 @@ namespace Beep.ECS
             PinnedNavigationRevision++;
         }
 
+        /// <summary>Raises CellsChanged with its kind and the affected chunks (empty = whole map).</summary>
+        private void EmitCellsChanged(TerrainChangeKind kind, Godot.Collections.Array<Vector2I> chunks)
+            => EmitSignal(SignalName.CellsChanged, (int)kind, chunks);
+
         public void ClearCells()
         {
             if (_cells.Count == 0 && _unavailableChunks.Count == 0)
@@ -69,7 +79,7 @@ namespace Beep.ECS
             ResetChunkRevisions();
             TerrainRevision++;
             MarkNavigationChanged();
-            EmitSignal(SignalName.CellsChanged);
+            EmitCellsChanged(TerrainChangeKind.Content, new Godot.Collections.Array<Vector2I>());
         }
 
         public bool HasCell(Vector2I cell) => _cells.ContainsKey(cell);
@@ -133,6 +143,7 @@ namespace Beep.ECS
             string kind = string.IsNullOrWhiteSpace(terrainKind) ? DefaultTerrainKind : terrainKind.Trim();
             bool changed = false;
             bool navigationChanged = false;
+            var touchedChunks = new HashSet<Vector2I>();
             for (int y = area.Position.Y; y < area.End.Y; y++)
             for (int x = area.Position.X; x < area.End.X; x++)
             {
@@ -148,13 +159,16 @@ namespace Beep.ECS
                 else record.ClearFineShoreline();
                 record.ClearGeneratedShore();
                 MarkCellChanged(cell);
+                touchedChunks.Add(ChunkedCellStore<CellRecord>.ChunkFor(cell));
                 changed = true;
             }
             if (changed)
             {
                 TerrainRevision++;
                 if (navigationChanged) MarkNavigationChanged();
-                EmitSignal(SignalName.CellsChanged);
+                var chunks = new Godot.Collections.Array<Vector2I>();
+                foreach (Vector2I chunk in touchedChunks) chunks.Add(chunk);
+                EmitCellsChanged(navigationChanged ? TerrainChangeKind.Terrain | TerrainChangeKind.Navigation : TerrainChangeKind.Terrain, chunks);
             }
         }
 
@@ -400,7 +414,7 @@ namespace Beep.ECS
             {
                 TerrainRevision++;
                 MarkNavigationChanged();
-                EmitSignal(SignalName.CellsChanged);
+                EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I>());
             }
         }
 
@@ -453,7 +467,7 @@ namespace Beep.ECS
             {
                 TerrainRevision++;
                 MarkNavigationChanged();
-                EmitSignal(SignalName.CellsChanged);
+                EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I>());
             }
             return loaded;
         }

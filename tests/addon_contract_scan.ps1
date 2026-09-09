@@ -1991,6 +1991,39 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
         Fail "$($file.Name) has a QueueCoast copy; only the tile view's water requeue is expected."
     }
 }
+# ENH-01: CellsChanged says what changed and where, and eviction is a residency move
+# that touches neither global revision. Bumping TerrainRevision/NavigationRevision in
+# TryEvictChunk restarted every renderer and every search when an actor walked out of a
+# chunk's pin radius - the eviction storm. A residency-only signal, and revisions the
+# renderers gate on that agree nothing changed, are what let a listener skip it.
+$cellData = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs"
+if ($cellData -notmatch [regex]::Escape("CellsChangedEventHandler(int kind, Godot.Collections.Array<Vector2I> chunks)")) {
+    Fail "GridCellDataComponent.CellsChanged must carry (int kind, Array<Vector2I> chunks); ENH-01 needs the payload."
+}
+$changeKind = Read "addons/beep_game_builder_cs/ecs/grid/TerrainChangeKind.cs"
+foreach ($member in @("Residency = 1", "Terrain = 2", "Navigation = 4", "Gameplay = 8", "Content = Terrain | Navigation | Gameplay")) {
+    if ($changeKind -notmatch [regex]::Escape($member)) {
+        Fail "TerrainChangeKind lost the $member member."
+    }
+}
+$eviction = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.Eviction.cs"
+if ($eviction -notmatch [regex]::Escape("EmitCellsChanged(TerrainChangeKind.Residency")) {
+    Fail "TryEvictChunk must emit TerrainChangeKind.Residency; an eviction is not a content change."
+}
+foreach ($bump in @("TerrainRevision++", "NavigationRevision++")) {
+    if ($eviction -match [regex]::Escape($bump)) {
+        Fail "GridCellDataComponent.Eviction bumps $bump; eviction is a residency move and must not (ENH-01, the storm)."
+    }
+}
+# No terrain file may still raise the payload-less signal.
+foreach ($folder in @("ecs/terrain", "ecs/grid")) {
+    foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/$folder") -Filter *.cs -Recurse) {
+        $body = Get-Content -Path $file.FullName -Raw
+        if ($body -match [regex]::Escape("EmitSignal(SignalName.CellsChanged)")) {
+            Fail "$($file.Name) raises the payload-less CellsChanged; every emit carries a TerrainChangeKind and its chunks now."
+        }
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

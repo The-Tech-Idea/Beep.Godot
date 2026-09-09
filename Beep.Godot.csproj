@@ -42,5 +42,6 @@
     <Compile Include="tests/TerrainCoastFilterSmoke.cs" />
     <Compile Include="tests/TerrainShorelineContourSmoke.cs" />
     <Compile Include="tests/TerrainGenerationBaselineSmoke.cs" />
+    <Compile Include="tests/TerrainChangeKindSmoke.cs" />
   </ItemGroup>
 </Project>

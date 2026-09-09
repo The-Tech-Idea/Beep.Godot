@@ -498,6 +498,11 @@ namespace Beep.ECS
         private void OnQueueChanged(int queued, int claimed, int completed) { _jobsDirty = true; QueueRedraw(); }
         private void OnSelectionChanged(int count) { _selectionDirty = true; QueueRedraw(); }
         private void OnCellChanged(int x, int y) { _terrainDirty = true; QueueRedraw(); }
-        private void OnCellsChanged() { _terrainDirty = true; QueueRedraw(); }
+        private void OnCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) == 0) return;
+            _terrainDirty = true;
+            QueueRedraw();
+        }
     }
 }

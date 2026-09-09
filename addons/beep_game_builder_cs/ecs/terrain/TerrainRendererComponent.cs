@@ -81,6 +81,18 @@ namespace Beep.ECS
         /// </summary>
         protected virtual void PerformQueuedRebuild() => Rebuild();
 
+        /// <summary>
+        /// Reacts to <c>GridCellDataComponent.CellsChanged</c>. A Residency-only change -
+        /// a chunk evicted or reloaded with the same content - moves nothing this renderer
+        /// draws, so it is ignored; any content change queues a rebuild. A renderer whose
+        /// requeue is not a full rebuild (the tile view's coast) overrides this.
+        /// </summary>
+        protected virtual void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0)
+                QueueRebuild();
+        }
+
         public override void _Notification(int what)
         {
             if (what == NotificationVisibilityChanged && HasRebuildAttempt

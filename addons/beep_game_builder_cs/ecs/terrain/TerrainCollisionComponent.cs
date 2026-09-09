@@ -86,7 +86,7 @@ namespace Beep.ECS
             if (GodotObject.IsInstanceValid(_cells))
             {
                 _cells!.CellChanged -= OnCellChanged;
-                _cells.CellsChanged -= QueueData;
+                _cells.CellsChanged -= OnCellsChangedSignal;
             }
             _grid = null;
             _cells = null;
@@ -104,7 +104,7 @@ namespace Beep.ECS
             if (_cells is not null)
             {
                 _cells.CellChanged += OnCellChanged;
-                _cells.CellsChanged += QueueData;
+                _cells.CellsChanged += OnCellsChangedSignal;
             }
             return true;
         }
@@ -119,6 +119,16 @@ namespace Beep.ECS
 
         private void QueueFull() { _full = true; Queue(); }
         private void QueueData() { _scanVersions = true; Queue(); }
+
+        // A residency move touches no collision; a content change rebuilds only the
+        // listed chunks, or rescans versions when the whole map is flagged (empty list).
+        private void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) == 0) return;
+            if (chunks.Count == 0) { QueueData(); return; }
+            foreach (Vector2I chunk in chunks) EnqueueChunk(chunk);
+            Queue();
+        }
 
         private void Queue()
         {

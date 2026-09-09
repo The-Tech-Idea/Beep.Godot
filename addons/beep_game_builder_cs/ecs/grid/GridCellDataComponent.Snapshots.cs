@@ -41,7 +41,7 @@ public partial class GridCellDataComponent
         ResetChunkRevisions();
         TerrainRevision++;
         MarkNavigationChanged();
-        EmitSignal(SignalName.CellsChanged);
+        EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I>());
     }
 
     /// <summary>Replace exactly one chunk, leaving all neighboring records intact.</summary>
@@ -90,7 +90,8 @@ public partial class GridCellDataComponent
         MarkChunkChanged(coordinate);
         TerrainRevision++;
         MarkNavigationChanged();
-        EmitSignal(SignalName.CellsChanged);
+        // A chunk reloaded from the archive: its content reappears, so listeners redraw it.
+        EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I> { coordinate });
     }
 
     private ChunkedCellStore<CellRecord> ParseChunkState(Godot.Collections.Dictionary state)

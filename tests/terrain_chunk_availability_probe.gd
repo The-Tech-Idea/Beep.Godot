@@ -29,7 +29,7 @@ func run() -> void:
 	var nav := make("GridNavigationComponent", host, "Navigation", {"CellDataPath": NodePath("../Cells"), "GridPath": NodePath("../Grid"), "BoundsSize": Vector2i(96, 64), "PathExpansionsPerFrame": 1, "TreatCellDataBlockedAsBlocked": false, "AllowBlockedGoal": true, "AllowBlockedStart": true})
 	var placement := make("GridPlacementComponent", host, "Placement", {"CellDataPath": NodePath("../Cells"), "GridPath": NodePath("../Grid"), "NavigationPath": NodePath("../Navigation"), "TreatCellDataBlockedAsUnplaceable": false, "TreatBlockedTerrainKindsAsUnplaceable": false, "UseMouseInput": false})
 	var archive := make("GridCellArchiveComponent", host, "Archive", {"CellDataPath": NodePath("../Cells")})
-	cells.CellsChanged.connect(func(): publications += 1)
+	cells.CellsChanged.connect(func(_kind, _chunks): publications += 1)
 	nav.PathRequestCompleted.connect(func(id, path, reason): results[id] = [path, reason])
 	cells.SetTerrainKind(Vector2i(33, 1), "water")
 	cells.Till(Vector2i(34, 1))

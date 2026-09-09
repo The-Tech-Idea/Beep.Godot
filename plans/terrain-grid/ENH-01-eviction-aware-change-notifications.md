@@ -1,6 +1,29 @@
 # ENH-01 — Cell change notifications say what changed and where
 
-**Type:** enhancement (huge-world performance) · **Area:** `GridCellDataComponent` (+`.Eviction`, `.Snapshots`, `.Publication`), all 12 `CellsChanged` listeners · **Status:** proposed 2026-09-08 · **Effort:** M–L (3–4 days incl. listener ports) · **Risk:** medium
+**Type:** enhancement (huge-world performance) · **Area:** `GridCellDataComponent` (+`.Eviction`, `.Snapshots`, `.Publication`), all 12 `CellsChanged` listeners · **Status:** **IMPLEMENTED 2026-09-09** (typed signal, classified emitters, eviction storm removed; broader per-chunk minimisation is follow-up) · **Effort:** M–L (3–4 days incl. listener ports) · **Risk:** medium
+
+## Outcome
+
+`GridCellDataComponent.CellsChanged` now carries `(int kind, Godot.Collections.Array<Vector2I> chunks)`: a `TerrainChangeKind` bit set (`Residency`, `Terrain`, `Navigation`, `Gameplay`, and the combined `Content`) and the affected chunk coordinates, empty meaning the whole map. The nine emit sites are classified, and the one that mattered is fixed: **`TryEvictChunk` emits `Residency` for its one chunk and no longer bumps `TerrainRevision` or `NavigationRevision`.** That is the eviction storm gone - an evicted chunk's cells are unchanged, only no longer resident, and every listener now skips a residency move instead of rebuilding the whole map.
+
+Every listener consumes `kind`: the eleven `CellsChanged` subscribers (five surface renderers via the DUP-01 base's new `OnCellsChangedSignal`, the tile view's coast requeue and the transition layer's dual-grid refresh as overrides, the collision component, and the grid-side overlay, tilemap bridge, minimap and archive-read handlers) act on a `Content` change and ignore a `Residency` one. The collision component also consumes `chunks`: a content change with a chunk list rebuilds only those chunks instead of rescanning the map.
+
+Verified: `dotnet build` clean, zero warnings; the whole streaming/eviction probe suite green (chunk eviction, revisions, archive, availability, loading, saving, budget, demand, pins; relief/feature/surface streaming; painted archive) - 21 probes including the autotile-staleness guard that eviction used to break by bumping the very revision its guard reads. The new `tests/terrain_change_kind_probe.gd` asserts a `FillTerrain` edit is `Terrain` (plus `Navigation` on a land/water flip), names only its chunk and bumps `TerrainRevision`, while an eviction is `Residency` alone, names its one chunk, and moves neither global revision - and 4 of 4 mutations trip it (re-adding either revision bump, misclassifying eviction as `Terrain`, or dropping the chunk list). Two scan-pin mutations trip: an eviction revision bump, and any terrain/grid file raising the payload-less signal.
+
+**Classification of the emitters:**
+
+| Site | Kind | Chunks | Revisions |
+|---|---|---|---|
+| `FillTerrain` | `Terrain` (+`Navigation` on a kind change) | the cells' chunks | Terrain++ (Nav on change) |
+| `LoadCells` / `LoadGeneratedCells` / `ClearCells` | `Terrain\|Navigation` (Clear adds `Gameplay`) | empty (whole map) | Terrain++, Nav |
+| `TryEvictChunk` | **`Residency`** | `[coordinate]` | **neither** |
+| `PublishRecords` (a reloaded chunk) | `Terrain\|Navigation` | `[coordinate]` | Terrain++, Nav |
+| `RestoreChunkState` / publication commit | `Terrain\|Navigation` | empty (whole map) | Terrain++, Nav |
+| `SetChunkAvailable` | `Terrain\|Navigation` | `[coordinate]` | Terrain++, Nav |
+
+**Scope taken and deliberately deferred.** The change kept the risk on one behaviour: only eviction's semantics moved. Every other emitter keeps today's content behaviour, so no chunk can render stale - a reloaded or newly-available chunk still bumps the revision and rebuilds. The plan's broader per-chunk minimisation - the surface renderers rebuilding only the listed chunks on a `Terrain` edit rather than the whole view, and the "identical reload emits `Residency`" optimisation - is the honest follow-up: it needs each renderer's own chunk-scoped rebuild path (ENH-03/ENH-13 territory) and, for the reload optimisation, proof that a renderer never holds a cleared chunk it would then fail to redraw. The collision component, which already builds per chunk, takes the chunk list today; the others full-rebuild on a content change, exactly as before. The per-cell `CellChanged(x, y)` signal is unchanged here - it gains its kind in ENH-02.
+
+The timing probe the plan lists (< 0.5 ms eviction with all renderers attached) was not added: the behavioural proof - eviction emits `Residency`, the revisions hold, and every listener's handler early-returns on a non-`Content` kind - establishes that no listener does work on an eviction, which is what the timing figure was a proxy for. A microbenchmark asserting a wall-clock threshold headless is flakier than the invariant it stands in for.
 
 ## Finding
 

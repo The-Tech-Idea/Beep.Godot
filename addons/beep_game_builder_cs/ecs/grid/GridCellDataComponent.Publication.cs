@@ -62,7 +62,7 @@ public partial class GridCellDataComponent
             _target.ResetChunkRevisions();
             _target.TerrainRevision++;
             _target.MarkNavigationChanged();
-            _target.EmitSignal(SignalName.CellsChanged);
+            _target.EmitCellsChanged(TerrainChangeKind.Terrain | TerrainChangeKind.Navigation, new Godot.Collections.Array<Vector2I>());
         }
 
         public void Dispose()

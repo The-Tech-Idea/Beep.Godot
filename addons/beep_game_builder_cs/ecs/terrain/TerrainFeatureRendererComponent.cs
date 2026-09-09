@@ -129,7 +129,7 @@ namespace Beep.ECS
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
             {
                 _cells.CellChanged -= OnCellChanged;
-                _cells.CellsChanged -= QueueRebuild;
+                _cells.CellsChanged -= OnCellsChangedSignal;
             }
             _cells = null;
         }
@@ -142,7 +142,7 @@ namespace Beep.ECS
             _cells = cells;
             if (_cells is null || Engine.IsEditorHint()) return;
             _cells.CellChanged += OnCellChanged;
-            _cells.CellsChanged += QueueRebuild;
+            _cells.CellsChanged += OnCellsChangedSignal;
         }
 
         private void OnCellChanged(int x, int y)

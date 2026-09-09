@@ -221,6 +221,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot terrain autotile staleness probe failed."
 }
 
+Write-Host "[addon-checks] Godot terrain change kind probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot	errain_change_kind_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot terrain change kind probe failed."
+}
+
 Write-Host "[addon-checks] Godot terrain generation baseline probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\terrain_generation_baseline_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 300
 if ($LASTEXITCODE -ne 0) {

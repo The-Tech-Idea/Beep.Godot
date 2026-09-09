@@ -251,9 +251,9 @@ namespace Beep.ECS
                 RefreshCell(new Vector2I(x, y));
         }
 
-        private void OnCellsChanged()
+        private void OnCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks)
         {
-            if (PaintCells)
+            if (PaintCells && ((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0)
                 Rebuild();
         }
 

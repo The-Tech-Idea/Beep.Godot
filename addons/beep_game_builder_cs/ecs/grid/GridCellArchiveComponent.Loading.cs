@@ -143,7 +143,7 @@ public partial class GridCellArchiveComponent
     {
         if (new Vector2I(x >> 5, y >> 5) == _readCoordinate) _readChanged = true;
     }
-    private void OnReadCellsChanged() => _readChanged = true;
+    private void OnReadCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks) => _readChanged = true;
     private void OnReadDayAdvanced(int days) => _readChanged = true;
     private void DisconnectReadSources()
     {

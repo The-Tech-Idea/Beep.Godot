@@ -5185,7 +5185,7 @@ public partial class GridPlacementSmoke : Node
         var cells = new GridCellDataComponent { Name = "Cells" };
         root.AddChild(cells);
         int cellsChanged = 0;
-        cells.CellsChanged += () => cellsChanged++;
+        cells.CellsChanged += (kind, chunks) => cellsChanged++;
 
         var roads = new GridRoadComponent { Name = "Roads" };
         root.AddChild(roads);

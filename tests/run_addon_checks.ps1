@@ -245,6 +245,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot grid cell overlay probe failed."
 }
 
+Write-Host "[addon-checks] Godot grid minimap probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_minimap_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot grid minimap probe failed."
+}
+
 Write-Host "[addon-checks] Godot terrain change kind probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot	errain_change_kind_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 90
 if ($LASTEXITCODE -ne 0) {

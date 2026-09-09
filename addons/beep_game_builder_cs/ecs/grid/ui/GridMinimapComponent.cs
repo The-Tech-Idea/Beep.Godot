@@ -90,7 +90,21 @@ namespace Beep.ECS
         private bool _selectionDirty = true;
         private bool _terrainDirty = true;
         private ImageTexture? _terrainTexture;
+        private int _terrainScale = 1;
+        private bool _reportedDownsample;
         private float _refreshAccumulator;
+
+        /// <summary>The terrain bake's downsample factor: 1 = one texel per cell, 2 = one per 2x2
+        /// block, and so on. A map wider or taller than 1024 cells bakes at a coarser scale so
+        /// ShowTerrain keeps producing an overview instead of silently blanking; readable so a HUD
+        /// (or a guard) can see the scale the minimap chose.</summary>
+        public int TerrainScale => _terrainScale;
+
+        /// <summary>The baked terrain texture's width in texels, or 0 when nothing is baked. Test hook.</summary>
+        internal int TerrainTextureWidth => _terrainTexture?.GetWidth() ?? 0;
+
+        /// <summary>One baked texel's colour (transparent when nothing is baked). Test hook.</summary>
+        internal Color BakedTexel(int x, int y) => _terrainTexture?.GetImage()?.GetPixel(x, y) ?? Colors.Transparent;
 
         /// <summary>
         /// Muted map colours per terrain kind - an overview reads by hue, not
@@ -297,7 +311,9 @@ namespace Beep.ECS
             }
         }
 
-        /// <summary>One pixel per cell, scaled up by the draw. Baked on change only.</summary>
+        /// <summary>One texel per cell (scaled up by the draw) up to 1024 texels per axis; above
+        /// that, one texel per s×s block coloured by the block's majority terrain kind, so a large
+        /// map bakes a downsampled overview rather than silently blanking. Baked on change only.</summary>
         private void BakeTerrain()
         {
             _terrainTexture = null;
@@ -306,22 +322,49 @@ namespace Beep.ECS
 
             Vector2I origin = EffectiveBoundsOrigin();
             Vector2I size = EffectiveBoundsSize();
-            if (size.X > 1024 || size.Y > 1024)
-                return;
 
-            var image = Image.CreateEmpty(size.X, size.Y, false, Image.Format.Rgba8);
-            for (int y = 0; y < size.Y; y++)
+            // No silent cap: choose the coarsest power-of-two scale that fits the texture under
+            // 1024 texels per axis. Below 1024 this is scale 1 and the bake is unchanged.
+            int scale = 1;
+            while (size.X / scale > 1024 || size.Y / scale > 1024)
+                scale *= 2;
+            _terrainScale = scale;
+            if (scale > 1 && !_reportedDownsample)
             {
-                for (int x = 0; x < size.X; x++)
-                {
-                    string kind = GridIds.Normalize(_cells.GetTerrainKind(new Vector2I(origin.X + x, origin.Y + y)));
-                    image.SetPixel(x, y, TerrainColors.TryGetValue(kind, out Color colour)
-                        ? colour
-                        : Colors.Transparent);
-                }
+                GD.Print($"[GridMinimap] {size.X}x{size.Y} exceeds 1024 minimap texels; baking terrain at 1/{scale} scale.");
+                _reportedDownsample = true;
+            }
+
+            int texW = Mathf.Max(1, (size.X + scale - 1) / scale);
+            int texH = Mathf.Max(1, (size.Y + scale - 1) / scale);
+            var image = Image.CreateEmpty(texW, texH, false, Image.Format.Rgba8);
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int ty = 0; ty < texH; ty++)
+            {
+                for (int tx = 0; tx < texW; tx++)
+                    image.SetPixel(tx, ty, BlockColour(origin, size, tx * scale, ty * scale, scale, counts));
             }
 
             _terrainTexture = ImageTexture.CreateFromImage(image);
+        }
+
+        /// <summary>The overview colour of one s×s cell block: the colour of its majority terrain
+        /// kind (a single cell when scale is 1), or transparent when that kind has no minimap colour.</summary>
+        private Color BlockColour(Vector2I origin, Vector2I size, int cellX, int cellY, int scale, Dictionary<string, int> counts)
+        {
+            counts.Clear();
+            int maxX = Mathf.Min(cellX + scale, size.X);
+            int maxY = Mathf.Min(cellY + scale, size.Y);
+            for (int y = cellY; y < maxY; y++)
+            {
+                for (int x = cellX; x < maxX; x++)
+                {
+                    string kind = GridIds.Normalize(_cells!.GetTerrainKind(new Vector2I(origin.X + x, origin.Y + y)));
+                    counts[kind] = counts.TryGetValue(kind, out int c) ? c + 1 : 1;
+                }
+            }
+            string majority = TerrainGeometry.MostCommon(counts, "") ?? "";
+            return TerrainColors.TryGetValue(majority, out Color colour) ? colour : Colors.Transparent;
         }
 
         private void DrawUnits(Rect2 mapRect, Vector2I origin, Vector2I size)

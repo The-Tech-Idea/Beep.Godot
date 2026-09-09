@@ -1493,7 +1493,7 @@ foreach ($required in @("!GodotObject.IsInstanceValid(_unitsRoot)", "EntityCompo
         Fail "GridWorkerSpawnerComponent must refresh stale root/grid/navigation/job/cell-data/placement references: $required."
     }
 }
-foreach ($required in @("EffectiveMaxWorkers", "EffectiveInitialWorkers", "EffectiveDefaultUnitSpeed", "SafeName(WorkerIdPrefix)", "float.IsFinite(DefaultUnitSpeed)")) {
+foreach ($required in @("EffectiveMaxWorkers", "EffectiveInitialWorkers", "EffectiveDefaultUnitSpeed", "GridIds.NodeName(WorkerIdPrefix", "float.IsFinite(DefaultUnitSpeed)")) {
     if ($gridWorkerSpawner -notmatch [regex]::Escape($required)) {
         Fail "GridWorkerSpawnerComponent must bound invalid spawn limits/speed and sanitize generated worker ids: $required."
     }
@@ -2074,7 +2074,7 @@ foreach ($rel in $terrainOnly) {
 # resource bar kept the author's case, so "Iron Ore" read as three ids and a cost never
 # matched the coins for it. No file may carry its own id normaliser again.
 $gridIds = Read "addons/beep_game_builder_cs/ecs/grid/GridIds.cs"
-foreach ($required in @("public static string Normalize(string? value)", "public static string NormalizeOr(string? value, string fallback)")) {
+foreach ($required in @("public static string Normalize(string? value)", "public static string NormalizeOr(string? value, string fallback)", "public static string NodeName(string? value, string fallback)")) {
     if ($gridIds -notmatch [regex]::Escape($required)) {
         Fail "GridIds must own the id normaliser: $required."
     }
@@ -2087,6 +2087,9 @@ foreach ($folder in @("ecs/grid", "ecs/terrain")) {
             if ($candidate -match [regex]::Escape($copy)) {
                 Fail "$($file.Name) carries its own id normaliser ($copy); GridIds.Normalize/NormalizeOr is the one rule (DUP-05)."
             }
+        }
+        if ($candidate -match [regex]::Escape("static string SafeName(")) {
+            Fail "$($file.Name) carries its own node-name sanitiser (SafeName); GridIds.NodeName is the one owner (DUP-05)."
         }
     }
 }

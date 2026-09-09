@@ -245,7 +245,7 @@ namespace Beep.ECS
 
         private string NextWorkerId()
         {
-            string prefix = SafeName(WorkerIdPrefix);
+            string prefix = GridIds.NodeName(WorkerIdPrefix, "worker");
             return $"{prefix}_{_nextWorkerNumber++}";
         }
 
@@ -260,14 +260,6 @@ namespace Beep.ECS
                 suffix++;
 
             return $"{baseName}_{suffix}";
-        }
-
-        private static string SafeName(string value)
-        {
-            string safe = string.IsNullOrWhiteSpace(value) ? "worker" : value.Trim().ToLowerInvariant().Replace(' ', '_');
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                safe = safe.Replace(c, '_');
-            return safe.Replace('/', '_').Replace('\\', '_');
         }
 
         private Node2D? Reject(string reason)

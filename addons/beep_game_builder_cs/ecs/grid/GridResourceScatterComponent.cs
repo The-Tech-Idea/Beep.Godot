@@ -258,12 +258,12 @@ namespace Beep.ECS
             {
                 node = new GridResourceNodeComponent
                 {
-                    Name = $"Resource_{SafeName(EffectiveResourceId)}_{index + 1}"
+                    Name = $"Resource_{GridIds.NodeName(EffectiveResourceId, "resource")}_{index + 1}"
                 };
             }
             else
             {
-                node.Name = string.IsNullOrWhiteSpace(node.Name) ? $"Resource_{SafeName(EffectiveResourceId)}_{index + 1}" : $"{node.Name}_{index + 1}";
+                node.Name = string.IsNullOrWhiteSpace(node.Name) ? $"Resource_{GridIds.NodeName(EffectiveResourceId, "resource")}_{index + 1}" : $"{node.Name}_{index + 1}";
             }
 
             GridResourceNodeComponent? resource = node as GridResourceNodeComponent
@@ -419,14 +419,6 @@ namespace Beep.ECS
             if (target == null || !GodotObject.IsInstanceValid(target) || !from.IsInsideTree() || !target.IsInsideTree())
                 return new NodePath("");
             return from.GetPathTo(target);
-        }
-
-        private static string SafeName(string value)
-        {
-            string safe = string.IsNullOrWhiteSpace(value) ? "resource" : value.Trim().ToLowerInvariant().Replace(' ', '_');
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                safe = safe.Replace(c, '_');
-            return safe.Replace('/', '_').Replace('\\', '_');
         }
 
 

@@ -26,5 +26,20 @@ namespace Beep.ECS
         /// <summary>The canonical id, or the caller's fallback when the input is empty.</summary>
         public static string NormalizeOr(string? value, string fallback)
             => string.IsNullOrWhiteSpace(value) ? fallback : Normalize(value);
+
+        /// <summary>
+        /// A Godot-node-name-safe id: <see cref="NormalizeOr"/> (so a node named after an id
+        /// matches the normalised id it is built from), then every filesystem-invalid character
+        /// plus '/', '\\' and ':' replaced by '_'. A Godot node name may carry none of those, and
+        /// a row key can be a whole node path. One owner for the four SafeName copies that had
+        /// drifted on case.
+        /// </summary>
+        public static string NodeName(string? value, string fallback)
+        {
+            string result = NormalizeOr(value, fallback);
+            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+                result = result.Replace(c, '_');
+            return result.Replace('/', '_').Replace('\\', '_').Replace(':', '_');
+        }
     }
 }

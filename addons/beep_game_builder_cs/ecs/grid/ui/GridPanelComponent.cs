@@ -76,21 +76,5 @@ namespace Beep.ECS
 
             return null;
         }
-
-        /// <summary>
-        /// A node name cannot carry the characters a resource, job, build or
-        /// worker id legitimately can.
-        /// </summary>
-        protected static string SafeName(string value, string fallback)
-        {
-            string result = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            // Separators and the colon explicitly: GetInvalidFileNameChars is
-            // platform-dependent and does not include the backslash on Unix,
-            // but a Godot node name may not carry any of them anywhere - and a
-            // row key can be a whole node path.
-            return result.Replace(' ', '_').Replace('/', '_').Replace('\\', '_').Replace(':', '_');
-        }
     }
 }

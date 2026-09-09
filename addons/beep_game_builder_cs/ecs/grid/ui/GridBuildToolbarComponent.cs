@@ -230,7 +230,7 @@ namespace Beep.ECS
                 string id = build.BuildId;
                 var button = new Button
                 {
-                    Name = $"Build_{SafeName(id)}",
+                    Name = $"Build_{GridIds.NodeName(id, "Item")}",
                     Text = ButtonText(build),
                     TooltipText = Tooltip(build),
                     CustomMinimumSize = EffectiveButtonMinimumSize,
@@ -257,7 +257,7 @@ namespace Beep.ECS
 
             var tab = new Button
             {
-                Name = $"Category_{SafeName(category)}",
+                Name = $"Category_{GridIds.NodeName(category, "Item")}",
                 Text = category,
                 ToggleMode = true,
                 ButtonPressed = category == CurrentCategory,
@@ -372,6 +372,5 @@ namespace Beep.ECS
             _buildGrid = null;
         }
 
-        private static string SafeName(string value) => SafeName(value, "Item");
     }
 }

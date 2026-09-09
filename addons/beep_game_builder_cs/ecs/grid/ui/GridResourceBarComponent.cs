@@ -112,7 +112,7 @@ namespace Beep.ECS
                 if (HideZeroAmounts && entry.Amount <= 0)
                     continue;
 
-                string nodeName = $"Resource_{SafeName(entry.ResourceId)}";
+                string nodeName = $"Resource_{GridIds.NodeName(entry.ResourceId, "Resource")}";
                 seen.Add(nodeName);
 
                 Label? label = _row?.GetNodeOrNull<Label>(nodeName);
@@ -181,7 +181,7 @@ namespace Beep.ECS
             if (_row == null)
                 return "";
 
-            string nodeName = $"Resource_{SafeName(resourceId)}";
+            string nodeName = $"Resource_{GridIds.NodeName(resourceId, "Resource")}";
             Label? label = _row.GetNodeOrNull<Label>(nodeName);
             return label != null && label.Visible ? label.Text : "";
         }
@@ -262,7 +262,7 @@ namespace Beep.ECS
         private Label? FindResourceLabel(string resourceId, int index)
         {
             NodePath path = BoundLabelPaths.Length > index ? BoundLabelPaths[index] : new NodePath("");
-            return FindControl<Label>(path, $"Resource_{SafeName(resourceId)}");
+            return FindControl<Label>(path, $"Resource_{GridIds.NodeName(resourceId, "Resource")}");
         }
 
         private void RefreshBoundLabels()
@@ -285,7 +285,6 @@ namespace Beep.ECS
             _boundLabels.Clear();
         }
 
-        private static string SafeName(string value) => SafeName(value, "Resource");
 
     }
 }

@@ -191,7 +191,7 @@ namespace Beep.ECS
                 {
                     row = new Label
                     {
-                        Name = $"{RowNamePrefix}_{SafeName(entry.Id, RowNamePrefix)}",
+                        Name = $"{RowNamePrefix}_{GridIds.NodeName(entry.Id, RowNamePrefix)}",
                         TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                         CustomMinimumSize = new Vector2(0, 22)
                     };

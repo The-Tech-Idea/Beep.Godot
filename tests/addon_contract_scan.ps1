@@ -1271,7 +1271,7 @@ foreach ($required in @("EffectiveCategory", "Description")) {
         Fail "GridObjectInspectorComponent must render authored grid object kind/description fields: $required."
     }
 }
-if ($gridObjectInspector -notmatch 'PanelPath' -or $gridObjectInspector -notmatch 'TitleLabelPath' -or $gridObjectInspector -notmatch 'DetailsLabelPath' -or $gridObjectInspector -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridObjectInspector -notmatch 'BindExistingControls' -or $gridObjectInspector -notmatch 'UsesSceneControls' -or $gridObjectInspector -notmatch 'BuildGeneratedControls') {
+if ($gridObjectInspector -notmatch 'PanelPath' -or $gridObjectInspector -notmatch 'TitleLabelPath' -or $gridObjectInspector -notmatch 'DetailsLabelPath' -or $gridObjectInspector -notmatch 'BindExistingControls' -or $gridObjectInspector -notmatch 'UsesSceneControls' -or $gridObjectInspector -notmatch 'BuildGeneratedControls') {
     Fail "GridObjectInspectorComponent must bind authored inspector labels by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("FindPanel", "FindTitleLabel", "FindDetailsLabel", 'FindChild\("Panel"', 'FindChild\("Title"', 'FindChild\("Details"', 'GetParent\(\)\?\.FindChild')) {
@@ -1534,11 +1534,8 @@ foreach ($required in @("CellDataPath", "PlacementPath", "CanSpawnAt", "SpawnBlo
     }
 }
 $gridWorkerSpawnerPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridWorkerSpawnerPanelComponent.cs"
-if ($gridWorkerSpawnerPanel -notmatch 'class\s+GridWorkerSpawnerPanelComponent' -or $gridWorkerSpawnerPanel -notmatch 'RequestSpawn' -or $gridWorkerSpawnerPanel -notmatch 'RefreshPanel' -or $gridWorkerSpawnerPanel -notmatch 'GridWorkerSpawnerComponent' -or $gridWorkerSpawnerPanel -notmatch 'TitleLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'CountLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'SpawnButtonPath' -or $gridWorkerSpawnerPanel -notmatch 'GenerateControlsWhenPathsEmpty') {
+if ($gridWorkerSpawnerPanel -notmatch 'class\s+GridWorkerSpawnerPanelComponent' -or $gridWorkerSpawnerPanel -notmatch 'RequestSpawn' -or $gridWorkerSpawnerPanel -notmatch 'RefreshPanel' -or $gridWorkerSpawnerPanel -notmatch 'GridWorkerSpawnerComponent' -or $gridWorkerSpawnerPanel -notmatch 'TitleLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'CountLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'SpawnButtonPath') {
     Fail "GridWorkerSpawnerPanelComponent is missing the expected base spawn HUD surface."
-}
-if ($gridWorkerSpawnerPanel -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false') {
-    Fail "GridWorkerSpawnerPanelComponent must bind authored controls by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindCountLabel", "FindSpawnButton", 'FindChild\("Title"', 'FindChild\("Count"', 'FindChild\("SpawnButton"')) {
     if ($gridWorkerSpawnerPanel -notmatch $required) {
@@ -1676,11 +1673,8 @@ foreach ($required in @("ConsumeSeedsFromWallet", "missing_seeds", "TrySpendAmou
     }
 }
 $gridToolPalette = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridToolPaletteComponent.cs"
-if ($gridToolPalette -notmatch 'class\s+GridToolPaletteComponent' -or $gridToolPalette -notmatch 'SelectTool' -or $gridToolPalette -notmatch 'ApplySelectedTool' -or $gridToolPalette -notmatch 'VisibleToolButtonCount' -or $gridToolPalette -notmatch 'SelectedActionName' -or $gridToolPalette -notmatch 'ShowRoad' -or $gridToolPalette -notmatch 'ShowRemoveRoad' -or $gridToolPalette -notmatch 'InteractionModePath' -or $gridToolPalette -notmatch 'AutoSwitchInteractionMode' -or $gridToolPalette -notmatch 'BoundActionNames' -or $gridToolPalette -notmatch 'BoundButtonPaths' -or $gridToolPalette -notmatch 'GenerateControlsWhenPathsEmpty') {
+if ($gridToolPalette -notmatch 'class\s+GridToolPaletteComponent' -or $gridToolPalette -notmatch 'SelectTool' -or $gridToolPalette -notmatch 'ApplySelectedTool' -or $gridToolPalette -notmatch 'VisibleToolButtonCount' -or $gridToolPalette -notmatch 'SelectedActionName' -or $gridToolPalette -notmatch 'ShowRoad' -or $gridToolPalette -notmatch 'ShowRemoveRoad' -or $gridToolPalette -notmatch 'InteractionModePath' -or $gridToolPalette -notmatch 'AutoSwitchInteractionMode' -or $gridToolPalette -notmatch 'BoundActionNames' -or $gridToolPalette -notmatch 'BoundButtonPaths') {
     Fail "GridToolPaletteComponent is missing the expected reusable tool palette surface."
-}
-if ($gridToolPalette -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false') {
-    Fail "GridToolPaletteComponent must bind authored buttons by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("HasConventionalToolButtons", "FindToolButton", "BindToolButton", 'Name = \$"Tool_\{action\}"', 'FindChild\(name', 'GetParent\(\)\?\.FindChild')) {
     if ($gridToolPalette -notmatch $required) {
@@ -2265,7 +2259,7 @@ $gridCalendarHud = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridCalendarHud
 if ($gridCalendarHud -notmatch 'class\s+GridCalendarHudComponent' -or $gridCalendarHud -notmatch 'RebuildHud' -or $gridCalendarHud -notmatch 'RefreshHud' -or $gridCalendarHud -notmatch 'RequestAdvanceDay' -or $gridCalendarHud -notmatch 'GridCalendarComponent') {
     Fail "GridCalendarHudComponent is missing the expected reusable calendar HUD surface."
 }
-if ($gridCalendarHud -notmatch 'DateLabelPath' -or $gridCalendarHud -notmatch 'DayProgressPath' -or $gridCalendarHud -notmatch 'AdvanceButtonPath' -or $gridCalendarHud -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridCalendarHud -notmatch 'BindExistingControls' -or $gridCalendarHud -notmatch 'UsesSceneControls') {
+if ($gridCalendarHud -notmatch 'DateLabelPath' -or $gridCalendarHud -notmatch 'DayProgressPath' -or $gridCalendarHud -notmatch 'AdvanceButtonPath' -or $gridCalendarHud -notmatch 'BindExistingControls' -or $gridCalendarHud -notmatch 'UsesSceneControls') {
     Fail "GridCalendarHudComponent must bind authored scene controls by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("HasAuthoredControls", "FindDateLabel", "FindDayProgress", "FindAdvanceButton", 'FindChild\("Date"', 'FindChild\("DayProgress"', 'FindChild\("AdvanceDay"')) {
@@ -2308,7 +2302,7 @@ $gridInteractionModeBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInte
 if ($gridInteractionModeBar -notmatch 'class\s+GridInteractionModeBarComponent' -or $gridInteractionModeBar -notmatch 'RebuildBar' -or $gridInteractionModeBar -notmatch 'SelectMode' -or $gridInteractionModeBar -notmatch 'VisibleModeButtonCount' -or $gridInteractionModeBar -notmatch 'GridInteractionModeComponent') {
     Fail "GridInteractionModeBarComponent is missing the expected mode-switching HUD surface."
 }
-if ($gridInteractionModeBar -notmatch 'BoundModeNames' -or $gridInteractionModeBar -notmatch 'BoundButtonPaths' -or $gridInteractionModeBar -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridInteractionModeBar -notmatch 'BindExistingButtons' -or $gridInteractionModeBar -notmatch 'UsesSceneButtons' -or $gridInteractionModeBar -notmatch 'DisconnectButtons') {
+if ($gridInteractionModeBar -notmatch 'BoundModeNames' -or $gridInteractionModeBar -notmatch 'BoundButtonPaths' -or $gridInteractionModeBar -notmatch 'BindExistingButtons' -or $gridInteractionModeBar -notmatch 'UsesSceneButtons' -or $gridInteractionModeBar -notmatch '_buttonBindings\.UnbindAll') {
     Fail "GridInteractionModeBarComponent must bind authored mode buttons by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("HasConventionalModeButtons", "FindModeButton", "BindModeButton", 'Name = \$"Mode_\{mode\}"', 'FindChild\(name', 'GetParent\(\)\?\.FindChild')) {
@@ -2320,7 +2314,7 @@ $gridInteractionStatus = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInter
 if ($gridInteractionStatus -notmatch 'class\s+GridInteractionStatusComponent' -or $gridInteractionStatus -notmatch 'RebuildStatus' -or $gridInteractionStatus -notmatch 'StatusText' -or $gridInteractionStatus -notmatch 'LastFeedback' -or $gridInteractionStatus -notmatch 'GridInteractionModeComponent') {
     Fail "GridInteractionStatusComponent is missing the expected interaction status HUD surface."
 }
-if ($gridInteractionStatus -notmatch 'StatusLabelPath' -or $gridInteractionStatus -notmatch 'GenerateControlsWhenPathsEmpty\s*\{\s*get;\s*set;\s*\}\s*=\s*false' -or $gridInteractionStatus -notmatch 'BindExistingControls' -or $gridInteractionStatus -notmatch 'UsesSceneControls') {
+if ($gridInteractionStatus -notmatch 'StatusLabelPath' -or $gridInteractionStatus -notmatch 'BindExistingControls' -or $gridInteractionStatus -notmatch 'UsesSceneControls') {
     Fail "GridInteractionStatusComponent must bind an authored status label by default and only generate fallback UI when explicitly enabled."
 }
 foreach ($required in @("FindStatusLabel", 'FindChild\("Status"')) {

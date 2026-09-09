@@ -1,6 +1,17 @@
 # ENH-09 — Cell overlay culls to the view; TileMapLayer bridge stops marshalling the map
 
-**Type:** enhancement (per-frame cost on large maps) · **Area:** `GridCellOverlayComponent`, `GridTileMapLayerBridgeComponent` · **Status:** proposed 2026-09-08 · **Effort:** S (1 day) · **Risk:** low
+**Type:** enhancement (per-frame cost on large maps) · **Area:** `GridCellOverlayComponent`, `GridTileMapLayerBridgeComponent` · **Status:** **IMPLEMENTED 2026-09-09** · **Effort:** S (1 day) · **Risk:** low
+
+## Outcome (2026-09-09)
+
+- **Overlay culls to the camera.** `GridProjectionComponent.TryGetVisibleCellRect(out rect, margin)` maps the viewport's visible rect to a cell rectangle (world corners -> `WorldToCell`, one-cell margin) and returns false - draw everything - when there is no viewport or a corner does not resolve (an off-surface elevated corner), so culling never hides a cell it cannot place. `GridCellOverlayComponent._Draw` and the culling guard share one `VisibleCells()` iterator (the "what draws" owner), which skips cells outside the window unless the new `DrawAll` export (default off) is set. Because the shared iterator does the culling, the probe counts exactly what would paint without a render pass, so the guard is **headless** (unlike the pixel probes). The chunk-window iteration and residency-skipping from the design sketch were **not** built - they need the streaming session's chunk-residency API; culling the draw is the guarded win and iterating `EnumerateFlags` (already typed, sparse - only flagged cells) is cheap.
+- **Bridge stops marshalling.** `GridTileMapLayerBridgeComponent.Rebuild` iterated `_cells.GetCells()` (a Godot `Array<Dictionary>` of every record) and read the coordinate back with `GridVariantReader`; it now iterates the typed `EnumerateFlags()` (the same stored cells) and paints each coordinate. The per-cell `ResolveReferences` inside `PaintCell`/`AtlasForCell` was left as-is: `EntityComponent.Resolve` is cached-while-valid, so it is a validity check, not a re-resolution, and avoiding it would mean duplicating the atlas logic.
+
+Guards, both proven to fail first: `grid_cell_overlay_probe` seeds one flagged cell inside the window and two far outside and asserts the overlay paints only the inside one (all three under `DrawAll`); the mutation dropping the window filter paints three. The bridge's `GridVariantReader` pin was rewritten to require `EnumerateFlags` and forbid `GetCells`, mutation-proven by block extraction (it sits past the scan's line-180 abort). Build clean; `showcase_interaction` and the full headless smoke (`overlays`, `tilemap-layer-bridge`) stay green.
+
+### Not built (needs the streaming session's API)
+
+Per-chunk overlay iteration and residency-skipping, and redraw scoping to `chunks ∩ visible` on `CellsChanged` - all need the chunk-residency surface owned by the streaming session. The draw cull already keeps repaint work proportional to the view; these are follow-ons.
 
 ## Finding
 

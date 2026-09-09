@@ -52,7 +52,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | ENH-06 | [Prop residency update](ENH-06-prop-residency-update.md) | allocation-free merge, chunk invalidation, stamp retention, overview LOD | M | |
 | ENH-07 | [Tile and isometric streaming](ENH-07-tile-and-isometric-streaming.md) | chunk-group TileMapLayer pool with patterns; overview hand-off | L | |
 | ENH-08 | [Projection hot paths](ENH-08-projection-hot-paths.md) | span `CellCorners`, cached surface, one mouse→cell per frame | S | **done** (span CellCorners + caller migration + surface cache + one-conversion hover owner) |
-| ENH-09 | [Overlay culling and bridge marshalling](ENH-09-overlay-culling-and-bridge-marshalling.md) | overlay draws the view; bridge stops marshalling the map | S | |
+| ENH-09 | [Overlay culling and bridge marshalling](ENH-09-overlay-culling-and-bridge-marshalling.md) | overlay draws the view; bridge stops marshalling the map | S | **done** (overlay culls to camera window; bridge paints from EnumerateFlags) |
 | ENH-10 | [Streamed-world save](ENH-10-streamed-world-save.md) | `CaptureState` throws today on any streamed world; manifest + slot-isolated archive | M | |
 | ENH-11 | [Autotile configuration per frame](ENH-11-autotile-configuration-per-frame.md) | `Json.Stringify` per frame while painting | XS | **done** |
 | ENH-12 | [Job queue indices](ENH-12-job-queue-indices.md) | bucketed states, priority-heap claim, one notification, typed enumeration | M | |

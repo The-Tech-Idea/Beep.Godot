@@ -420,6 +420,7 @@ namespace Beep.ECS
                 _surfaceExtent = extentStarted ? _surfaceExtent.Expand(point) : new Rect2(point, Vector2.Zero);
                 extentStarted = true;
             }
+            Span<Vector2> surf = stackalloc Vector2[4]; // hoisted: the per-cell surface corners feed the extent
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
@@ -429,7 +430,8 @@ namespace Beep.ECS
                     Vector2 half = (Vector2)_layers[0].TileSet.TileSize * 0.5f;
                     Include(baseCenter - half);
                     Include(baseCenter + half);
-                    foreach (Vector2 corner in SurfaceCorners(field, cell)) Include(corner);
+                    int cn = SurfaceCorners(field, cell, surf);
+                    for (int i = 0; i < cn; i++) Include(surf[i]);
                     string terrain = field.TerrainAtCell(cell);
                     bool land = !TerrainTileSets.IsWaterKind(terrain);
                     if (!land)

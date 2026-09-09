@@ -283,9 +283,12 @@ namespace Beep.ECS
                 return;
 
             Vector2 center = ToLocal(_grid.ToGlobal(_grid.CellToWorld(cell)));
-            Vector2[] corners = _grid.CellCorners(cell);
-            var points = new Vector2[corners.Length];
-            for (int i = 0; i < corners.Length; i++)
+            System.Span<Vector2> corners = stackalloc Vector2[4];
+            int n = _grid.CellCorners(cell, corners);
+            if (n < 3)
+                return;
+            var points = new Vector2[n];
+            for (int i = 0; i < n; i++)
             {
                 Vector2 corner = ToLocal(_grid.ToGlobal(corners[i]));
                 points[i] = center + (corner - center) * EffectiveRoadWidthRatio;

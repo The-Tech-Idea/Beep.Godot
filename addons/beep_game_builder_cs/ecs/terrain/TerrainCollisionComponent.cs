@@ -240,6 +240,9 @@ namespace Beep.ECS
                     if (Mask(ground) != 0) classes[y * ChunkSize + x] = (int)ground + 1;
                 }
             bool merge = _grid.TileMapLayerPath.IsEmpty && _grid.ElevatedTerrainPath.IsEmpty;
+            // Hoisted above the loops: the merged-rect corners come from neighbour cells,
+            // and a stackalloc in the body would grow the stack per cell.
+            Span<Vector2> neighbor = stackalloc Vector2[4];
             for (int y = 0; y < bounds.Size.Y; y++)
                 for (int x = 0; x < bounds.Size.X; x++)
                 {
@@ -260,13 +263,13 @@ namespace Beep.ECS
                     }
                     for (int dy = 0; dy < height; dy++) classes.Slice((y + dy) * ChunkSize + x, width).Clear();
                     Vector2I cell = bounds.Position + new Vector2I(x, y);
-                    Vector2[] corners = _grid.CellCorners(cell);
+                    Vector2[] corners = _grid.CellCorners(cell); // AddShape needs a Vector2[] for ConvexPolygonShape2D
                     if (corners.Length < 3) { _failedChunks.Add(chunk); continue; }
                     if (width > 1 || height > 1)
                     {
-                        corners[1] = _grid.CellCorners(cell + new Vector2I(width - 1, 0))[1];
-                        corners[2] = _grid.CellCorners(cell + new Vector2I(width - 1, height - 1))[2];
-                        corners[3] = _grid.CellCorners(cell + new Vector2I(0, height - 1))[3];
+                        if (_grid.CellCorners(cell + new Vector2I(width - 1, 0), neighbor) == 4) corners[1] = neighbor[1];
+                        if (_grid.CellCorners(cell + new Vector2I(width - 1, height - 1), neighbor) == 4) corners[2] = neighbor[2];
+                        if (_grid.CellCorners(cell + new Vector2I(0, height - 1), neighbor) == 4) corners[3] = neighbor[3];
                     }
                     if (!AddShape(chunk, (TerrainTileSets.Ground)(value - 1), corners)) _failedChunks.Add(chunk);
                 }

@@ -223,6 +223,8 @@ namespace Beep.ECS
             var frame = new Vector2I(
                 Mathf.FloorToInt(sheetSize.X / columns),
                 Mathf.FloorToInt(sheetSize.Y / rows));
+            // Hoisted above the loop: a stackalloc in the body would grow the stack per cell.
+            System.Span<Vector2> corners = stackalloc Vector2[4];
 
             foreach (var (cell, resource) in ResourceEntries(size))
             {
@@ -232,9 +234,8 @@ namespace Beep.ECS
                 if (_grid is not null)
                 {
                     centre = ToLocal(_grid.CellToWorld(cell));
-                    Vector2[] corners = _grid.CellCorners(cell);
-                    if (!centre.IsFinite() || corners.Length < 3) continue;
-                    for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
+                    if (!centre.IsFinite() || _grid.CellCorners(cell, corners) < 3) continue;
+                    for (int i = 0; i < 4; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
                     cellScale = Mathf.Min(corners[0].DistanceTo(corners[1]), corners[1].DistanceTo(corners[2]));
                 }
                 centre.Y += VerticalOffset * cellScale;

@@ -78,9 +78,12 @@ namespace Beep.ECS
             if (_grid == null || cell == InvalidCell || !ShouldDrawForMode())
                 return;
 
-            Vector2[] gridCorners = _grid.CellCorners(cell);
-            var points = new Vector2[gridCorners.Length];
-            for (int i = 0; i < gridCorners.Length; i++)
+            System.Span<Vector2> gridCorners = stackalloc Vector2[4];
+            int n = _grid.CellCorners(cell, gridCorners);
+            if (n < 3)
+                return;
+            var points = new Vector2[n];
+            for (int i = 0; i < n; i++)
                 points[i] = ToLocal(_grid.ToGlobal(gridCorners[i]));
 
             if (FillColor.A > 0f)

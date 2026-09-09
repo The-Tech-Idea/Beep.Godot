@@ -251,9 +251,12 @@ namespace Beep.ECS
             if (_grid == null)
                 return;
 
-            Vector2[] localToGrid = _grid.CellCorners(cell);
-            var points = new Vector2[localToGrid.Length];
-            for (int i = 0; i < localToGrid.Length; i++)
+            System.Span<Vector2> localToGrid = stackalloc Vector2[4];
+            int n = _grid.CellCorners(cell, localToGrid);
+            if (n < 3)
+                return;
+            var points = new Vector2[n];
+            for (int i = 0; i < n; i++)
                 points[i] = ToLocal(_grid.ToGlobal(localToGrid[i]));
 
             if (fill.A > 0f)

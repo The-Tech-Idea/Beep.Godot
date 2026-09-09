@@ -223,9 +223,9 @@ namespace Beep.ECS
                     int[]? frames = _sheets.FramesFor(described, field.TerrainAtCell(cell));
 
                     Vector2 top = ToLocal(_iso.ToGlobal(_iso.SurfacePosition(field, cell)));
-                    var corners = _iso.SurfaceCorners(field, cell);
-                    if (corners.Length != 4) return;
-                    for (int i = 0; i < corners.Length; i++)
+                    System.Span<Vector2> corners = stackalloc Vector2[4];
+                    if (_iso.SurfaceCorners(field, cell, corners) != 4) return;
+                    for (int i = 0; i < 4; i++)
                         corners[i] = ToLocal(_iso.ToGlobal(corners[i]));
                     Vector2 across = corners[1] - corners[0];
                     Vector2 down = corners[2] - corners[1];

@@ -226,9 +226,9 @@ namespace Beep.ECS
             if (_grid is not null)
             {
                 // Use this cell's top face, not neighbours that may be absent or at another height.
-                Vector2[] corners = _grid.CellCorners(cell);
-                if (corners.Length != 4) return;
-                for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
+                System.Span<Vector2> corners = stackalloc Vector2[4];
+                if (_grid.CellCorners(cell, corners) != 4) return;
+                for (int i = 0; i < 4; i++) corners[i] = ToLocal(_grid.ToGlobal(corners[i]));
                 across = corners[1] - corners[0];
                 down = corners[3] - corners[0];
             }

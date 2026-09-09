@@ -1,6 +1,6 @@
 # ENH-01 — Cell change notifications say what changed and where
 
-**Type:** enhancement (huge-world performance) · **Area:** `GridCellDataComponent` (+`.Eviction`, `.Snapshots`, `.Publication`), all 12 `CellsChanged` listeners · **Status:** **IMPLEMENTED 2026-09-09** (typed signal, classified emitters, eviction storm removed; broader per-chunk minimisation is follow-up) · **Effort:** M–L (3–4 days incl. listener ports) · **Risk:** medium
+**Type:** enhancement (huge-world performance) · **Area:** `GridCellDataComponent` (+`.Eviction`, `.Snapshots`, `.Publication`), all 12 `CellsChanged` listeners · **Status:** **IMPLEMENTED 2026-09-09** (typed signal, classified emitters, eviction storm removed; per-chunk minimisation investigated 2026-09-09 and confirmed blocked on ENH-03/ENH-13 - see the follow-up note) · **Effort:** M–L (3–4 days incl. listener ports) · **Risk:** medium
 
 ## Outcome
 
@@ -22,6 +22,16 @@ Verified: `dotnet build` clean, zero warnings; the whole streaming/eviction prob
 | `SetChunkAvailable` | `Terrain\|Navigation` | `[coordinate]` | Terrain++, Nav |
 
 **Scope taken and deliberately deferred.** The change kept the risk on one behaviour: only eviction's semantics moved. Every other emitter keeps today's content behaviour, so no chunk can render stale - a reloaded or newly-available chunk still bumps the revision and rebuilds. The plan's broader per-chunk minimisation - the surface renderers rebuilding only the listed chunks on a `Terrain` edit rather than the whole view, and the "identical reload emits `Residency`" optimisation - is the honest follow-up: it needs each renderer's own chunk-scoped rebuild path (ENH-03/ENH-13 territory) and, for the reload optimisation, proof that a renderer never holds a cleared chunk it would then fail to redraw. The collision component, which already builds per chunk, takes the chunk list today; the others full-rebuild on a content change, exactly as before. The per-cell `CellChanged(x, y)` signal is unchanged here - it gains its kind in ENH-02.
+
+### Follow-up investigated 2026-09-09: per-chunk minimisation is blocked, and the reload optimisation is unsafe as things stand
+
+The two remaining pieces were traced against the renderers, and both turn on the same missing capability - a per-renderer chunk-scoped rebuild - so neither can land here:
+
+- **Renderers rebuilding only the listed chunks on a `Terrain` edit** is the ENH-03/ENH-13 feature across eight-plus renderers, not a tweak to this signal. Each non-chunk-aware renderer clears its whole surface and redraws from the store on `Rebuild()`; giving each a `RebuildChunks(chunks)` path is that work, not this one.
+
+- **"Identical reload emits `Residency`" is not merely unproven - it is unsafe today.** The proof the plan asked for ("a renderer never holds a cleared chunk it would then fail to redraw") fails against the code: `TerrainIsometricRendererComponent.Rebuild()` calls `ClearSurface()` -> `layer.Clear()`, wiping the entire surface and repainting only the cells still resident in the store. So the sequence *evict chunk C -> any `Terrain` edit anywhere triggers a full rebuild (C is no longer resident, so C is cleared and not repainted) -> reload C* leaves C visually blank. Reload today emits `Terrain | Navigation`, whose full rebuild repaints C, which is why it is correct. Switching reload to `Residency` would skip that rebuild and leave a blanked C blank permanently. The optimisation is only safe once reload can repaint just C's chunk - i.e. after the per-renderer chunk rebuild above exists.
+
+So the eviction storm - the high-value, verifiable part - is done and stays; the per-chunk minimisation is genuinely gated on ENH-03/ENH-13 and is left until that infrastructure lands. Forcing the reload optimisation now would trade the storm fix for an intermittent blank-chunk bug.
 
 The timing probe the plan lists (< 0.5 ms eviction with all renderers attached) was not added: the behavioural proof - eviction emits `Residency`, the revisions hold, and every listener's handler early-returns on a non-`Content` kind - establishes that no listener does work on an eviction, which is what the timing figure was a proxy for. A microbenchmark asserting a wall-clock threshold headless is flakier than the invariant it stands in for.
 

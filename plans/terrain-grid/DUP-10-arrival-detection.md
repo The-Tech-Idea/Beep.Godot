@@ -1,6 +1,18 @@
 # DUP-10 — Arrival is a path-follower fact, not a worker/hauler inference
 
-**Type:** duplication fix · **Area:** `GridWorkerComponent`, `GridHaulerComponent` (+`.ChunkPins`), `GridPathFollowerComponent`, `GridActorTravelComponent` · **Status:** proposed 2026-09-08 · **Effort:** S (½–1 day) · **Risk:** low
+**Type:** duplication fix · **Area:** `GridWorkerComponent`, `GridHaulerComponent` (+`.ChunkPins`), `GridPathFollowerComponent`, `GridActorTravelComponent` · **Status:** **INVESTIGATED, NOT IMPLEMENTED 2026-09-09** (premise does not hold against the code; see the finding below) · **Effort:** S (½–1 day) · **Risk:** low
+
+## Outcome (not implemented, and why)
+
+Implemented, verified against the probe suite, and reverted. Two things the plan assumed turned out not to hold, and together they make the signal swap a regression rather than a fix.
+
+**1. The signal already exists, and is fine.** `GridPathFollowerComponent` already emits `DestinationReached(int x, int y)` from `FinishMove` at the exact moment the last cell is reached, and `MoveFailed(int x, int y, string reason)` from `FailActiveRoute`. The plan's proposed `Arrived`/`PathFailed` are those two, already there. So the follower needs no change.
+
+**2. The movers are stepped, and they react in their OWN step.** The worker polls arrival in `Tick` and the hauler in `AdvanceWork` (driven by the work clock), each a callback separate from the follower's `_PhysicsProcess`. Subscribing them to `DestinationReached`/`MoveFailed` makes them react SYNCHRONOUSLY inside the follower's step - and the reaction dispatches the next move (`StartWorkOrFail` retries the job-cell fallback; the hauler's `Arrived` begins the depot leg). That new move then advances within the SAME follower pass, so one `settle` cascades several legs where the stepped model advanced one. `terrain_follower_requests_probe` (a failed approach must schedule the job-cell fallback in the worker's next `Tick`) and `terrain_worker_arrival_probe` both fail on this timing shift; they pass the moment the change is reverted.
+
+**3. The one-frame bug the plan cites is already mitigated.** Both movers seed their moving flag at DISPATCH, not from polling `IsMoving`: the worker sets `_wasMoving = true` when it starts a move, the hauler sets it from `MoveToCell(...) == true`. So a one-cell path that starts and finishes inside a frame is still caught next poll - `_wasMoving` is true (seeded) and `IsMoving` is false (finished), so the edge fires. The latent hole the plan describes (`_wasMoving never goes true`) is not reachable from the dispatch paths as they stand.
+
+**What a real fix would take.** A signal-based consolidation has to preserve the stepped reaction - the mover must DEFER `Arrived`/`StartWorkOrFail` to its own next tick rather than run it inside the follower's frame - which is a larger change than "subscribe and delete `_wasMoving`", and it buys nothing over the seeded poll for a bug that is already handled. Left un-done deliberately: the duplication here is two copies of a five-line seeded edge, and resolving it the plan's way trades a real regression for tidiness. If the stepped-reaction constraint is written down, the deferred-signal version can be revisited.
 
 ## Finding
 

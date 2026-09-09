@@ -54,7 +54,7 @@ namespace Beep.ECS
         private Node? _productionRoot;
         private GridPlacementComponent? _placement;
         private bool _placementConnected;
-        private List<GridProductionComponent>? _cachedMachines;
+        private readonly GridRosterCache<GridProductionComponent> _roster = new();
         private readonly Dictionary<GridProductionComponent, string> _machineKeys = new();
         private float _refreshAccumulator;
 
@@ -76,7 +76,7 @@ namespace Beep.ECS
         /// <summary>Forces the next Machines() call to re-walk ProductionRootPath
         /// from scratch, for a roster change this panel's incremental cache
         /// cannot see on its own (see the PlacementPath doc comment).</summary>
-        public void InvalidateMachineCache() => _cachedMachines = null;
+        public void InvalidateMachineCache() => _roster.Invalidate();
 
         public override void _Process(double delta)
         {
@@ -240,40 +240,22 @@ namespace Beep.ECS
         private List<GridProductionComponent> Machines()
         {
             ResolveReferences();
-            if (_cachedMachines == null)
-                RebuildMachineCache();
-            else
-                PruneInvalidMachines();
-            return _cachedMachines!;
+            return _roster.Members(BuildMachines, CompareMachines, machine => _machineKeys.Remove(machine));
         }
 
-        private void RebuildMachineCache()
+        private List<GridProductionComponent> BuildMachines()
         {
             var machines = new List<GridProductionComponent>();
             if (_productionRoot != null)
                 CollectMachines(_productionRoot, machines);
-            SortMachines(machines);
-            _cachedMachines = machines;
-
             _machineKeys.Clear();
             foreach (GridProductionComponent machine in machines)
                 _machineKeys[machine] = MachineKey(machine);
+            return machines;
         }
 
-        private void PruneInvalidMachines()
-        {
-            for (int i = _cachedMachines!.Count - 1; i >= 0; i--)
-            {
-                if (GodotObject.IsInstanceValid(_cachedMachines[i]))
-                    continue;
-
-                _machineKeys.Remove(_cachedMachines[i]);
-                _cachedMachines.RemoveAt(i);
-            }
-        }
-
-        private void SortMachines(List<GridProductionComponent> machines)
-            => machines.Sort((a, b) => string.Compare(MachineKey(a), MachineKey(b), StringComparison.OrdinalIgnoreCase));
+        private int CompareMachines(GridProductionComponent a, GridProductionComponent b)
+            => string.Compare(MachineKey(a), MachineKey(b), StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Each machine's sort/row key, computed once and cached -
         /// MachineKey walks the node to the scene root and allocates a fresh
@@ -291,16 +273,12 @@ namespace Beep.ECS
 
         private void OnPlacementPlaced(string buildId, Node2D placed, int x, int y)
         {
-            if (_cachedMachines == null)
+            if (!_roster.HasCache)
                 return;
 
             GridProductionComponent? machine = EntityComponent.FindComponent<GridProductionComponent>(placed, recursive: true);
-            if (machine == null || _cachedMachines.Contains(machine))
-                return;
-
-            _cachedMachines.Add(machine);
-            _machineKeys[machine] = MachineKey(machine);
-            SortMachines(_cachedMachines);
+            if (machine != null && _roster.Append(machine, CompareMachines))
+                _machineKeys[machine] = MachineKey(machine);
         }
 
         private void ConnectPlacement()

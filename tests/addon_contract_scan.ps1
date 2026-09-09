@@ -1462,6 +1462,20 @@ $gridEnumNames = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridEnumNames.cs"
 if ($gridEnumNames -notmatch [regex]::Escape("public static bool TryParse<TEnum>(")) {
     Fail "GridEnumNames must own the shared enum-name parser (DUP-12)."
 }
+# DUP-12: the incrementally-maintained HUD roster lifecycle lives in GridRosterCache,
+# not copied into each list panel.
+foreach ($rosterPanel in @("GridProductionPanelComponent", "GridWorkerStatusPanelComponent")) {
+    $rosterBody = Read "addons/beep_game_builder_cs/ecs/grid/ui/$rosterPanel.cs"
+    if ($rosterBody -notmatch [regex]::Escape("GridRosterCache<")) {
+        Fail "$rosterPanel must use GridRosterCache for its roster, not a hand-rolled nullable cache (DUP-12)."
+    }
+}
+foreach ($rosterFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid/ui") -Filter *.cs) {
+    if ($rosterFile.Name -eq "GridRosterCache.cs") { continue }
+    if ((Get-Content -LiteralPath $rosterFile.FullName -Raw) -match 'private void PruneInvalid\w+\(') {
+        Fail "$($rosterFile.Name) carries its own roster prune; GridRosterCache owns the cache lifecycle (DUP-12)."
+    }
+}
 $gridListPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridListPanelComponent.cs"
 foreach ($required in @("TitleLabelPath", "SummaryLabelPath", "RowsContainerPath", "UsesSceneControls", "HasAuthoredControls", "BindExistingControls", "BuildGeneratedPanel", 'FindControl<Label>(TitleLabelPath, "Title")', 'FindControl<Label>(SummaryLabelPath, "Summary")', 'FindControl<VBoxContainer>(RowsContainerPath, "Rows")', "UpdateRows", "MoveChild(row, shown)", "RemoveChild(row)")) {
     if ($gridListPanelBase -notmatch [regex]::Escape($required)) {

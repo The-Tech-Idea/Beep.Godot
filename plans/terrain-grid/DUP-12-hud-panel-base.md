@@ -36,9 +36,17 @@ The rest of the two bars is structurally similar (~150 lines each: `BindExisting
 
 None of this makes the merge wrong - it is a legitimate rule-3 consolidation (the two bars are one mechanism, not [[genre-variants-are-not-duplicates|genre variants]]) - but its blast radius (shipped HUD scenes) and the behavioural/ pin subtleties put it past what should land unattended. See [[scan-deadzone-base-move-pins]].
 
-### Still pending (step 4)
+## Outcome (step 4: GridRosterCache, 2026-09-09)
 
-- `GridRosterCache<T>` for the incremental roster caches in `GridProductionPanelComponent` and `GridWorkerStatusPanelComponent`. Also intricate: the production panel's prune has a secondary `_machineKeys` side-effect the worker panel's does not, and each has its own sort and collect, so a clean generic needs callbacks rather than a bare cache.
+`GridRosterCache<T>` (new plain generic class, `ecs/grid/ui/`) owns the nullable-cache lifecycle both list panels copied: `Invalidate` drops it, `Members(collect, sort, onRemoved)` rebuilds+sorts when stale and otherwise prunes freed members (handing each to `onRemoved`), and `Append(member, sort)` inserts a newly-appeared member in order and returns whether it was added. Each panel keeps its own collection and sort; only the mechanics moved.
+
+`GridWorkerStatusPanelComponent` wires to it cleanly (no side map). `GridProductionPanelComponent` keeps its `_machineKeys` sort-key map and threads it through the callbacks - `BuildMachines` fills it, `onRemoved` removes a pruned machine from it, and the `Append` return gates the incremental fill - the callback shape the pending note called for; the sort still recomputes `MachineKey` exactly as before, so `CachedKey` is unchanged. `_cachedMachines`/`_cachedWorkers` and the `RebuildXCache`/`PruneInvalidX`/`SortX` copies are gone.
+
+Verified: build clean, both panel smoke checks (`VerifyGridProductionPanel`, `VerifyGridWorkerStatusPanel`) green past the two pre-existing placement reds (reverted). Two scan pins mutation-proven: both panels reference `GridRosterCache<`, and no ui panel outside `GridRosterCache` declares a `PruneInvalid*` roster method.
+
+### Still deferred
+
+- The full `GridToggleBarComponent` class-merge (step 3), for the reasons above.
 
 ## Finding
 

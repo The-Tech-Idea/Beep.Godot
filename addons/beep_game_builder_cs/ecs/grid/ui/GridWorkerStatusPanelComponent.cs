@@ -55,7 +55,7 @@ namespace Beep.ECS
         private GridJobQueueComponent? _jobs;
         private GridWorkerSpawnerComponent? _spawner;
         private bool _spawnerConnected;
-        private List<GridWorkerComponent>? _cachedWorkers;
+        private readonly GridRosterCache<GridWorkerComponent> _roster = new();
         private float _refreshAccumulator;
 
         public override void _Ready()
@@ -76,7 +76,7 @@ namespace Beep.ECS
         /// <summary>Forces the next Workers() call to re-walk UnitsRootPath from
         /// scratch, for a roster change this panel's incremental cache cannot
         /// see on its own (see the SpawnerPath doc comment).</summary>
-        public void InvalidateWorkerCache() => _cachedWorkers = null;
+        public void InvalidateWorkerCache() => _roster.Invalidate();
 
         public override void _Process(double delta)
         {
@@ -234,43 +234,28 @@ namespace Beep.ECS
         private List<GridWorkerComponent> Workers()
         {
             ResolveReferences();
-            if (_cachedWorkers == null)
-                RebuildWorkerCache();
-            else
-                PruneInvalidWorkers();
-            return _cachedWorkers!;
+            return _roster.Members(BuildWorkers, CompareWorkers);
         }
 
-        private void RebuildWorkerCache()
+        private List<GridWorkerComponent> BuildWorkers()
         {
             var workers = new List<GridWorkerComponent>();
             if (_unitsRoot != null)
                 CollectWorkers(_unitsRoot, workers);
-            SortWorkers(workers);
-            _cachedWorkers = workers;
+            return workers;
         }
 
-        private void PruneInvalidWorkers()
-        {
-            for (int i = _cachedWorkers!.Count - 1; i >= 0; i--)
-                if (!GodotObject.IsInstanceValid(_cachedWorkers[i]))
-                    _cachedWorkers.RemoveAt(i);
-        }
-
-        private static void SortWorkers(List<GridWorkerComponent> workers)
-            => workers.Sort((a, b) => string.Compare(DisplayId(a), DisplayId(b), StringComparison.OrdinalIgnoreCase));
+        private static int CompareWorkers(GridWorkerComponent a, GridWorkerComponent b)
+            => string.Compare(DisplayId(a), DisplayId(b), StringComparison.OrdinalIgnoreCase);
 
         private void OnUnitSpawned(Node unit, string workerId, int x, int y)
         {
-            if (_cachedWorkers == null)
+            if (!_roster.HasCache)
                 return;
 
             GridWorkerComponent? worker = EntityComponent.FindComponent<GridWorkerComponent>(unit, recursive: true);
-            if (worker == null || _cachedWorkers.Contains(worker))
-                return;
-
-            _cachedWorkers.Add(worker);
-            SortWorkers(_cachedWorkers);
+            if (worker != null)
+                _roster.Append(worker, CompareWorkers);
         }
 
         private void ConnectSpawner()

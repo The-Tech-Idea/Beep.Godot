@@ -292,8 +292,9 @@ namespace Beep.ECS
             if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) RequestRefresh();
         }
 
-        private void OnCellChanged(int x, int y)
+        private void OnCellChanged(int x, int y, int kind)
         {
+            if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) == 0) return;
             if (_displayLayer?.IsVisibleInTree() != true) return;
             if (UseTileSetTerrains) { RequestRefresh(); return; }
             for (int dy = 0; dy <= 1; dy++)

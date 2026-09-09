@@ -214,7 +214,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-12 | [HUD panel base](../plans/terrain-grid/DUP-12-hud-panel-base.md) | duplication | M | Proposed |
 | DUP-13 | [Terrain-kind registry](../plans/terrain-grid/DUP-13-terrain-kind-registry.md) | duplication + feature | L | Proposed |
 | ENH-01 | [Eviction-aware change notifications](../plans/terrain-grid/ENH-01-eviction-aware-change-notifications.md) | enhancement | M–L | **Implemented 2026-09-09** (typed CellsChanged; eviction storm removed; per-chunk minimisation follow-up) |
-| ENH-02 | [Edit-kind classification](../plans/terrain-grid/ENH-02-edit-kind-classification.md) | enhancement | S–M | Proposed |
+| ENH-02 | [Edit-kind classification](../plans/terrain-grid/ENH-02-edit-kind-classification.md) | enhancement | S–M | **Implemented 2026-09-09** (per-cell kind + no-op early-outs; crop-tick index follow-up) |
 | ENH-03 | [Chunk-scoped navigation invalidation](../plans/terrain-grid/ENH-03-chunk-scoped-navigation-invalidation.md) | enhancement | M | Proposed |
 | ENH-04 | [Archive scheduler](../plans/terrain-grid/ENH-04-archive-scheduler.md) | enhancement | M | Proposed |
 | ENH-05 | [Painted memory and uploads](../plans/terrain-grid/ENH-05-painted-memory-and-uploads.md) | enhancement | M | Proposed |

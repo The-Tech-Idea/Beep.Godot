@@ -1,6 +1,20 @@
 # ENH-02 — Farming edits stop rebuilding terrain; no-op writes stop notifying
 
-**Type:** enhancement (correctness of invalidation) · **Area:** `GridCellDataComponent` mutators, `GridCalendarComponent.AdvanceDay`, `GridToolActionComponent`, `CropGrowth` path, per-cell listeners · **Status:** proposed 2026-09-08 · **Effort:** S–M (1–2 days) · **Risk:** low
+**Type:** enhancement (correctness of invalidation) · **Area:** `GridCellDataComponent` mutators, `GridCalendarComponent.AdvanceDay`, `GridToolActionComponent`, `CropGrowth` path, per-cell listeners · **Status:** **IMPLEMENTED 2026-09-09** (per-cell kind + no-op early-outs; crop-tick index is follow-up) · **Effort:** S–M (1–2 days) · **Risk:** low
+
+## Outcome
+
+Two of the three parts landed; the third is a scoped follow-up.
+
+**Per-cell kind.** `CellChanged` now carries `(int x, int y, int kind)`. Every mutator classifies what it touched - terrain kind and the terrain_* metadata are `Terrain`, flags and relief/ramp are `Navigation`, tilled/watered/crop and any non-terrain metadata are `Gameplay` - and the eleven per-cell listeners filter on it. The seven surface renderers, the collision component and the minimap ignore a `Gameplay` change, so **watering a field cell no longer re-scatters that chunk's trees**: a `Water`, `Till`, `PlantCrop` or `HarvestCrop` reaches the feature, relief and isometric renderers as `Gameplay` and they early-return. The overlay, the tilemap bridge and the archive-read guard still react to every per-cell change, because they mirror or watch the whole cell state rather than only its terrain.
+
+**No-op early-outs.** `SetTerrainKind`, `SetFlags`, `Till`, `Water` and `SetMetadata` now return `bool` (outcome in the signature) and emit nothing when the write changes nothing - `FillTerrain` over already-grass ground, `SetTerrainKind` to the kind a cell already is, `Water` on an already-watered cell, `SetMetadata` with the value already stored. Each compares against the record before touching it and returns `false` without bumping a revision or notifying.
+
+Verified: `dotnet build` clean, zero warnings; the streaming/grid/rendering probe suite green (21 probes). `tests/terrain_change_kind_probe.gd` asserts the per-cell kinds (`Till`/`Water` are `Gameplay`) and the no-op early-outs (an unchanged write returns `false` and emits nothing) - and 2 of 2 behavioural mutations trip it (removing the `Water` early-out; misclassifying `Water` as `Terrain`). A scan pin requires the typed per-cell signature, the five bool-returning mutators, the terrain_* metadata classification, and the `Gameplay`-drop filter on all nine terrain-only listeners; 3 of 3 mutations trip it.
+
+Two probes had encoded the old behaviour and were corrected: `terrain_chunk_revisions_probe` used `SetFlags(cell, 0)` on a zero-flags cell as an "invalidating" mutation, which is now correctly a no-op, so it was changed to a real flag change; and the same `terrain_feature` metadata that the feature renderer draws was, in a first cut, misclassified as `Gameplay` and skipped - `terrain_feature_streaming_probe` caught it, and the classification became "every terrain_* key is a terrain change."
+
+**Deferred: the crop-tick index (part 3).** `GridCellDataComponent.AdvanceDay` still walks every stored cell to age crops. The plan's fix - a per-chunk `_cropCells` index maintained by plant/harvest/evict/reload so `AdvanceDay` iterates crops and emits one `CellsChanged(Gameplay, chunks)` for the batch - is a self-contained change that needs its own index-maintenance guard across the save/eviction paths and a timing probe, and it is honest to land it separately rather than fold an index with its own lifecycle into this per-cell-classification change. It is now unblocked: the `Gameplay` kind and the terrain-renderer filter it needs are in place, so the batch emit will not rebuild terrain visuals.
 
 ## Finding
 

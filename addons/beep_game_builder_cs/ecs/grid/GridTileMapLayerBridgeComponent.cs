@@ -239,7 +239,7 @@ namespace Beep.ECS
             _connectedRoads = null;
         }
 
-        private void OnCellChanged(int x, int y)
+        private void OnCellChanged(int x, int y, int kind)
         {
             if (PaintCells)
                 RefreshCell(new Vector2I(x, y));

@@ -168,7 +168,7 @@ namespace Beep.ECS
             _connectedCells = null;
         }
 
-        private void OnCellChanged(int x, int y) => QueueRedraw();
+        private void OnCellChanged(int x, int y, int kind) => QueueRedraw();
         private void OnCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks)
         {
             if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) QueueRedraw();

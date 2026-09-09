@@ -202,7 +202,10 @@ namespace Beep.ECS
             _cells.CellsChanged += OnCellsChangedSignal;
         }
 
-        private void OnCellChanged(int x, int y) => QueueCoast();
+        private void OnCellChanged(int x, int y, int kind)
+        {
+            if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) != 0) QueueCoast();
+        }
 
         // A content change requeues only the coast (not the whole tile map); a
         // residency move is ignored.

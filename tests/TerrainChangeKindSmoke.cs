@@ -25,6 +25,29 @@ public partial class TerrainChangeKindSmoke : Node
             lastKind = kind;
             lastChunks = new List<Vector2I>(chunks);
         };
+        int cellKind = -1;
+        int cellEmits = 0;
+        cells.CellChanged += (x, y, kind) => { cellEmits++; cellKind = kind; };
+
+        // Per-cell classification, and the no-op early-outs: an edit that changes
+        // nothing returns false and emits nothing.
+        var here = new Vector2I(6, 6);
+        cells.SetTerrainKind(here, "grass");
+        cellEmits = 0;
+        if (cells.SetTerrainKind(here, "grass")) return Fail("SetTerrainKind to the same kind reported a change");
+        if (cellEmits != 0) return Fail("SetTerrainKind no-op still emitted CellChanged");
+        if (!cells.Till(here)) return Fail("Till of an untilled cell reported no change");
+        if ((TerrainChangeKind)cellKind != TerrainChangeKind.Gameplay) return Fail($"Till kind was {cellKind}, expected Gameplay");
+        cellEmits = 0;
+        if (cells.Till(here)) return Fail("Till of an already-tilled cell reported a change");
+        if (cellEmits != 0) return Fail("Till no-op still emitted CellChanged");
+        if (!cells.Water(here)) return Fail("Water of a dry cell reported no change");
+        if ((TerrainChangeKind)cellKind != TerrainChangeKind.Gameplay) return Fail($"Water kind was {cellKind}, expected Gameplay");
+        cellEmits = 0;
+        if (cells.Water(here)) return Fail("Water of an already-watered cell reported a change");
+        if (cellEmits != 0) return Fail("Water no-op still emitted CellChanged");
+        cells.SetFlags(here, 0);
+        cells.RemoveCrop(here, clearTilled: true);
 
         // An edit inside one chunk: Terrain, that chunk named, content revision up.
         ulong terrainBefore = cells.TerrainRevision;
@@ -62,7 +85,7 @@ public partial class TerrainChangeKindSmoke : Node
             return Fail("Eviction bumped NavigationRevision; an evicted unpinned chunk changes no search input");
 
         cells.Free();
-        GD.Print("[terrain-change-kind] edit=Terrain(+Navigation), eviction=Residency with revisions held OK");
+        GD.Print("[terrain-change-kind] per-cell kinds and no-op early-outs, bulk edit=Terrain(+Navigation), eviction=Residency with revisions held OK");
         return true;
     }
 

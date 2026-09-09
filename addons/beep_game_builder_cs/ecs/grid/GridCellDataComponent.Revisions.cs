@@ -21,10 +21,10 @@ public partial class GridCellDataComponent
         _replacementRevision = ++_revisionClock;
     }
 
-    private void NotifyCellChanged(Vector2I cell)
+    private void NotifyCellChanged(Vector2I cell, TerrainChangeKind kind)
     {
         MarkCellChanged(cell);
-        EmitSignal(SignalName.CellChanged, cell.X, cell.Y);
+        EmitSignal(SignalName.CellChanged, cell.X, cell.Y, (int)kind);
     }
 
     private static Variant CopyMetadataValue(Variant value) => value.VariantType switch

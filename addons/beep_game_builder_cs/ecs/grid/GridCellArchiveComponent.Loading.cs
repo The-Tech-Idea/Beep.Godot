@@ -139,7 +139,7 @@ public partial class GridCellArchiveComponent
         if (notify && IsInsideTree() && !IsQueuedForDeletion()) EmitSignal(SignalName.ChunkLoadFinished, id, success, error);
     }
 
-    private void OnReadCellChanged(int x, int y)
+    private void OnReadCellChanged(int x, int y, int kind)
     {
         if (new Vector2I(x >> 5, y >> 5) == _readCoordinate) _readChanged = true;
     }

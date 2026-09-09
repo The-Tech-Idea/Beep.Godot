@@ -2024,6 +2024,35 @@ foreach ($folder in @("ecs/terrain", "ecs/grid")) {
         }
     }
 }
+# ENH-02: the per-cell CellChanged carries a kind, the mutators no-op-early-out, and a
+# terrain-only listener ignores a Gameplay change - watering a field cell must not
+# re-scatter that chunk's trees. The five mutators return bool (outcome in the signature).
+$cellData2 = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs"
+if ($cellData2 -notmatch [regex]::Escape("CellChangedEventHandler(int x, int y, int kind)")) {
+    Fail "GridCellDataComponent.CellChanged must carry (int x, int y, int kind); ENH-02 needs the per-cell kind."
+}
+foreach ($mutator in @("public bool SetTerrainKind(", "public bool SetFlags(", "public bool Till(", "public bool Water(", "public bool SetMetadata(")) {
+    if ($cellData2 -notmatch [regex]::Escape($mutator)) {
+        Fail "GridCellDataComponent lost the no-op early-out signature: $mutator returns bool."
+    }
+}
+if ($cellData2 -notmatch [regex]::Escape('normalizedKey.StartsWith("terrain_"')) {
+    Fail "SetMetadata must classify every terrain_* key as a terrain change (the feature renderer reads terrain_feature)."
+}
+# Each terrain-only per-cell listener drops a Gameplay change.
+$surfaceFilter = "(TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)"
+$terrainOnly = @(
+    "ecs/terrain/TerrainFeatureRendererComponent.cs", "ecs/terrain/TerrainReliefRendererComponent.cs",
+    "ecs/terrain/TerrainPaintedRendererComponent.cs", "ecs/terrain/TerrainIsometricRendererComponent.cs",
+    "ecs/terrain/TerrainIsometricAutotileRendererComponent.cs", "ecs/terrain/TerrainTileRendererComponent.cs",
+    "ecs/terrain/TerrainTransitionLayerComponent.cs", "ecs/terrain/TerrainCollisionComponent.cs",
+    "ecs/grid/ui/GridMinimapComponent.cs")
+foreach ($rel in $terrainOnly) {
+    $body = Read "addons/beep_game_builder_cs/$rel"
+    if ($body -notmatch [regex]::Escape($surfaceFilter)) {
+        Fail "$rel does not drop a Gameplay per-cell change; a farming edit will still rebuild terrain visuals (ENH-02)."
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

@@ -145,8 +145,9 @@ namespace Beep.ECS
             _cells.CellsChanged += OnCellsChangedSignal;
         }
 
-        private void OnCellChanged(int x, int y)
+        private void OnCellChanged(int x, int y, int kind)
         {
+            if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) == 0) return;
             var cell = new Vector2I(x, y);
             if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(cell) && !InvalidateFeatureCell(cell)) QueueRebuild();
         }

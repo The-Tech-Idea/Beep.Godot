@@ -25,7 +25,8 @@ namespace Beep.ECS
             HarvestReady = 32
         }
 
-        [Signal] public delegate void CellChangedEventHandler(int x, int y);
+        /// <summary>One cell changed. <paramref name="kind"/> is a <see cref="TerrainChangeKind"/> bit set: a terrain-only listener ignores a Gameplay change.</summary>
+        [Signal] public delegate void CellChangedEventHandler(int x, int y, int kind);
         /// <summary>
         /// A batch of cells changed. <paramref name="kind"/> is a <see cref="TerrainChangeKind"/>
         /// bit set saying what was touched; <paramref name="chunks"/> lists the affected chunk
@@ -114,10 +115,17 @@ namespace Beep.ECS
                 Mathf.Clamp(GridVariantReader.Float(record.GetMetadata("terrain_lake_shore_width")), 0f, 3f));
         }
 
-        public void SetTerrainKind(Vector2I cell, string terrainKind)
+        /// <summary>Sets a cell's terrain kind; returns false and emits nothing when it was already this kind with no shoreline to clear.</summary>
+        public bool SetTerrainKind(Vector2I cell, string terrainKind)
         {
-            CellRecord record = GetOrCreate(cell);
             string kind = string.IsNullOrWhiteSpace(terrainKind) ? DefaultTerrainKind : terrainKind.Trim();
+            // The same no-op test FillTerrain uses: an unchanged kind with no generated
+            // shoreline through the cell changes nothing, so it must not bump the revision
+            // or notify - a FillTerrain over already-grass ground was doing exactly that.
+            if (_cells.TryGetValue(cell, out CellRecord? existing) && existing.TerrainKind == kind
+                && !existing.HasFineShoreline && !existing.HasMetadata("terrain_shore_inland"))
+                return false;
+            CellRecord record = GetOrCreate(cell);
             if (GridTerrainRules.Normalize(record.TerrainKind) != GridTerrainRules.Normalize(kind)) MarkNavigationChanged();
             bool wetnessFlips = TerrainTileSets.IsWaterKind(record.TerrainKind) != TerrainTileSets.IsWaterKind(kind);
             record.TerrainKind = kind;
@@ -130,7 +138,8 @@ namespace Beep.ECS
             else record.ClearFineShoreline();
             record.ClearGeneratedShore();
             TerrainRevision++;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Terrain);
+            return true;
         }
 
         public int GetFlags(Vector2I cell)
@@ -172,12 +181,17 @@ namespace Beep.ECS
             }
         }
 
-        public void SetFlags(Vector2I cell, int flags)
+        /// <summary>Replaces a cell's flags; returns false and emits nothing when they were already this set.</summary>
+        public bool SetFlags(Vector2I cell, int flags)
         {
+            var target = (CellFlags)flags;
+            if (_cells.TryGetValue(cell, out CellRecord? existing) && existing.Flags == target)
+                return false;
             CellRecord record = GetOrCreate(cell);
-            if (((record.Flags ^ (CellFlags)flags) & CellFlags.Blocked) != 0) MarkNavigationChanged();
-            record.Flags = (CellFlags)flags;
-            NotifyCellChanged(cell);
+            if (((record.Flags ^ target) & CellFlags.Blocked) != 0) MarkNavigationChanged();
+            record.Flags = target;
+            NotifyCellChanged(cell, TerrainChangeKind.Navigation);
+            return true;
         }
 
         public void AddFlag(Vector2I cell, CellFlags flag)
@@ -185,7 +199,7 @@ namespace Beep.ECS
             CellRecord record = GetOrCreate(cell);
             if ((flag & CellFlags.Blocked) != 0 && (record.Flags & CellFlags.Blocked) == 0) MarkNavigationChanged();
             record.Flags |= flag;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Navigation);
         }
 
         public void RemoveFlag(Vector2I cell, CellFlags flag)
@@ -195,7 +209,7 @@ namespace Beep.ECS
 
             if ((flag & record.Flags & CellFlags.Blocked) != 0) MarkNavigationChanged();
             record.Flags &= ~flag;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Navigation);
         }
 
         public bool HasFlag(Vector2I cell, CellFlags flag)
@@ -207,21 +221,30 @@ namespace Beep.ECS
             if ((record.Flags & CellFlags.Blocked) != 0) MarkNavigationChanged();
             record.Flags |= CellFlags.Cleared;
             record.Flags &= ~CellFlags.Blocked;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Navigation);
         }
 
-        public void Till(Vector2I cell)
+        /// <summary>Tills a cell; returns false and emits nothing when it was already cleared and tilled.</summary>
+        public bool Till(Vector2I cell)
         {
+            const CellFlags tilled = CellFlags.Cleared | CellFlags.Tilled;
+            if (_cells.TryGetValue(cell, out CellRecord? existing) && (existing.Flags & tilled) == tilled)
+                return false;
             CellRecord record = GetOrCreate(cell);
-            record.Flags |= CellFlags.Cleared | CellFlags.Tilled;
-            NotifyCellChanged(cell);
+            record.Flags |= tilled;
+            NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
+            return true;
         }
 
-        public void Water(Vector2I cell)
+        /// <summary>Waters a cell; returns false and emits nothing when it was already watered.</summary>
+        public bool Water(Vector2I cell)
         {
+            if (_cells.TryGetValue(cell, out CellRecord? existing) && (existing.Flags & CellFlags.Watered) != 0)
+                return false;
             CellRecord record = GetOrCreate(cell);
             record.Flags |= CellFlags.Watered;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
+            return true;
         }
 
         public bool PlantCrop(Vector2I cell, string cropId, int daysToMature, int regrowDays = -1)
@@ -239,7 +262,7 @@ namespace Beep.ECS
             record.CropRegrowDays = Mathf.Max(-1, regrowDays);
             record.Flags |= CellFlags.Planted;
             record.Flags &= ~CellFlags.HarvestReady;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
             return true;
         }
 
@@ -258,7 +281,7 @@ namespace Beep.ECS
                 record.CropAgeDays = 0;
                 record.CropDaysToMature = record.CropRegrowDays;
                 record.Flags &= ~(CellFlags.HarvestReady | CellFlags.Watered);
-                NotifyCellChanged(cell);
+                NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
                 return true;
             }
 
@@ -269,7 +292,7 @@ namespace Beep.ECS
             record.Flags &= ~(CellFlags.Planted | CellFlags.HarvestReady | CellFlags.Watered);
             if (clearTilled)
                 record.Flags &= ~CellFlags.Tilled;
-            NotifyCellChanged(cell);
+            NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
             return true;
         }
 
@@ -295,18 +318,29 @@ namespace Beep.ECS
         public int GetCropRegrowDays(Vector2I cell)
             => _cells.TryGetValue(cell, out CellRecord? record) ? record.CropRegrowDays : -1;
 
-        public void SetMetadata(Vector2I cell, string key, Variant value)
+        /// <summary>Sets a metadata value; returns false and emits nothing when the value was already stored.</summary>
+        public bool SetMetadata(Vector2I cell, string key, Variant value)
         {
             if (string.IsNullOrWhiteSpace(key))
-                return;
+                return false;
 
-            CellRecord record = GetOrCreate(cell);
             string normalizedKey = key.Trim();
-            if (normalizedKey is "terrain_relief" or "terrain_ramp_direction"
-                && !record.GetMetadata(normalizedKey).Equals(value)) MarkNavigationChanged();
+            if (_cells.TryGetValue(cell, out CellRecord? existing) && existing.GetMetadata(normalizedKey).Equals(value))
+                return false;
+            CellRecord record = GetOrCreate(cell);
+            bool navigationKey = normalizedKey is "terrain_relief" or "terrain_ramp_direction";
+            if (navigationKey && !record.GetMetadata(normalizedKey).Equals(value)) MarkNavigationChanged();
             record.SetMetadata(normalizedKey, CopyMetadataValue(value));
-            if (normalizedKey is "terrain_elevation" or "terrain_shore_inland" or "terrain_beach_width" or "terrain_lake_shore_width") TerrainRevision++;
-            NotifyCellChanged(cell);
+            // Only these four move the cached fields the surface renderers read off
+            // TerrainRevision; but EVERY terrain_* key is a terrain-visual change - the
+            // feature renderer reads terrain_feature, for one - so it carries the Terrain
+            // kind (except relief/ramp, which a navigation listener wants). Anything else
+            // is gameplay metadata a terrain renderer must ignore.
+            bool terrainRevisionKey = normalizedKey is "terrain_elevation" or "terrain_shore_inland" or "terrain_beach_width" or "terrain_lake_shore_width";
+            if (terrainRevisionKey) TerrainRevision++;
+            bool terrainKey = !navigationKey && normalizedKey.StartsWith("terrain_", System.StringComparison.Ordinal);
+            NotifyCellChanged(cell, navigationKey ? TerrainChangeKind.Navigation : terrainKey ? TerrainChangeKind.Terrain : TerrainChangeKind.Gameplay);
+            return true;
         }
 
         public Variant GetMetadata(Vector2I cell, string key)
@@ -328,7 +362,7 @@ namespace Beep.ECS
 
                     if (string.IsNullOrEmpty(record.CropId))
                     {
-                        if (waterChanged) NotifyCellChanged(cell);
+                        if (waterChanged) NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
                         continue;
                     }
 
@@ -340,7 +374,7 @@ namespace Beep.ECS
                         EmitSignal(SignalName.CropMatured, cell.X, cell.Y, record.CropId);
                     }
 
-                    NotifyCellChanged(cell);
+                    NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
                 }
             }
             finally { _simulationDepth--; }

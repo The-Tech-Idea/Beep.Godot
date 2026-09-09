@@ -31,7 +31,7 @@ func run() -> void:
 	check(archive.IsChunkSaveCurrent(chunk), "Successful save did not record current revision")
 	var mutations: Array[Callable] = [
 		func(): cells.SetTerrainKind(here, "forest"),
-		func(): cells.SetFlags(here, 0),
+		func(): cells.SetFlags(here, 1),
 		func(): cells.AddFlag(here, 1),
 		func(): cells.RemoveFlag(here, 1),
 		func(): cells.ClearLand(here),
@@ -58,7 +58,7 @@ func run() -> void:
 	cells.Water(here)
 	check(archive.SaveChunk(chunk), "Could not save uncropped watered cell")
 	var events := [0]
-	var changed := func(x, y):
+	var changed := func(x, y, _kind):
 		if Vector2i(x, y) == here: events[0] += 1
 	cells.CellChanged.connect(changed)
 	cells.AdvanceDay(1)

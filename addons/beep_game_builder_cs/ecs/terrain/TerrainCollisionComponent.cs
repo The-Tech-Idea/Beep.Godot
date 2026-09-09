@@ -109,8 +109,9 @@ namespace Beep.ECS
             return true;
         }
 
-        private void OnCellChanged(int x, int y)
+        private void OnCellChanged(int x, int y, int kind)
         {
+            if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) == 0) return;
             var cell = new Vector2I(x, y);
             if (!new Rect2I(BoundsOrigin, BoundsSize).HasPoint(cell)) return;
             EnqueueChunk(ChunkedCellStore<object>.ChunkFor(cell));

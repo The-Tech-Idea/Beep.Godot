@@ -2090,6 +2090,21 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
         }
     }
 }
+# DUP-08: one owner each for the footprint double-loop and the z-clamp. A placed object
+# answers for its own cells (GridObjectComponent.FootprintCells/Covers); a caller with a
+# size but no object yet asks GridFootprint; z-order lives on GridProjectionComponent.
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter *.cs -Recurse) {
+    $candidate = Get-Content -Path $file.FullName -Raw
+    if ($file.Name -ne "GridObjectComponent.cs" -and $file.Name -ne "GridFootprint.cs" -and $candidate -match [regex]::Escape("IEnumerable<Vector2I> FootprintCells(")) {
+        Fail "$($file.Name) declares its own FootprintCells; GridObjectComponent/GridFootprint own it (DUP-08)."
+    }
+    if ($file.Name -ne "GridProjectionComponent.cs" -and $candidate -match [regex]::Escape("int ClampZ(")) {
+        Fail "$($file.Name) declares its own ClampZ; GridProjectionComponent owns z-order (DUP-08)."
+    }
+    if ($candidate -match [regex]::Escape("bool CoversCell(")) {
+        Fail "$($file.Name) has a CoversCell copy; ask GridObjectComponent.Covers (DUP-08)."
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

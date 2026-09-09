@@ -261,13 +261,15 @@ namespace Beep.ECS
 
         private bool HasReservedFootprint => _reservedPlacementCells.Count > 0 || _reservedNavigationCells.Count > 0;
 
-        private IEnumerable<Vector2I> FootprintCells()
+        /// <summary>The cells this object stands on.</summary>
+        public IEnumerable<Vector2I> FootprintCells()
+            => GridFootprint.Cells(Cell, new Vector2I(Mathf.Max(1, Footprint.X), Mathf.Max(1, Footprint.Y)));
+
+        /// <summary>True when this object's footprint covers the cell.</summary>
+        public bool Covers(Vector2I cell)
         {
-            int width = Mathf.Max(1, Footprint.X);
-            int height = Mathf.Max(1, Footprint.Y);
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    yield return new Vector2I(Cell.X + x, Cell.Y + y);
+            Vector2I max = Cell + new Vector2I(Mathf.Max(1, Footprint.X), Mathf.Max(1, Footprint.Y));
+            return cell.X >= Cell.X && cell.Y >= Cell.Y && cell.X < max.X && cell.Y < max.Y;
         }
 
         private void ResolveReferences()

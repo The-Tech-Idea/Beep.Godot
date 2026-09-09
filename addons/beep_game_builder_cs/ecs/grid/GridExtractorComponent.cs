@@ -351,7 +351,7 @@ namespace Beep.ECS
                 return Stop("missing_subsurface_store");
 
             string id = "";
-            foreach (Vector2I cell in FootprintCells())
+            foreach (Vector2I cell in ResolveGridObject()?.FootprintCells() ?? GridFootprint.SingleUnder(GetParent(), _grid))
             {
                 string at = _store.ResourceIdAt(cell);
                 if (at.Length == 0)
@@ -597,21 +597,6 @@ namespace Beep.ECS
         /// footprint when one is beside it, else the single cell under the
         /// parent's position.
         /// </summary>
-        private IEnumerable<Vector2I> FootprintCells()
-        {
-            if (ResolveGridObject() is { } gridObject)
-            {
-                int width = Mathf.Max(1, gridObject.Footprint.X);
-                int height = Mathf.Max(1, gridObject.Footprint.Y);
-                for (int y = 0; y < height; y++)
-                    for (int x = 0; x < width; x++)
-                        yield return new Vector2I(gridObject.Cell.X + x, gridObject.Cell.Y + y);
-                yield break;
-            }
-
-            if (_grid != null && GetParent() is Node2D body)
-                yield return _grid.WorldToCell(body.GlobalPosition);
-        }
 
         private GridObjectComponent? ResolveGridObject()
         {

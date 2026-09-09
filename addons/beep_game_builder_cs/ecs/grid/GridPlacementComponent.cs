@@ -284,7 +284,7 @@ namespace Beep.ECS
             (_placementRoot ?? GetParent() ?? this).AddChild(placed);
             placed.GlobalPosition = _grid.CellToWorld(CurrentCell);
             if (_activeSetZIndexFromY)
-                placed.ZIndex = ClampZ(ZIndexOffset + Mathf.RoundToInt(placed.GlobalPosition.Y));
+                placed.ZIndex = GridProjectionComponent.ClampZ(ZIndexOffset + Mathf.RoundToInt(placed.GlobalPosition.Y));
 
             // Whether the wallet was actually charged travels with the node,
             // so a later teardown (a cancelled build job) knows whether a
@@ -335,7 +335,7 @@ namespace Beep.ECS
                 || (!PlacementRootPath.IsEmpty && _placementRoot is null))
                 return false;
             int anchorLevel = ReliefAt(anchorCell);
-            foreach (Vector2I cell in FootprintCells(anchorCell))
+            foreach (Vector2I cell in GridFootprint.Cells(anchorCell, EffectiveFootprint))
                 if ((_navigation is not null && !_navigation.IsInBounds(cell))
                     || !_grid.CellToWorld(cell).IsFinite()
                     || (RequireLevelFootprint && ReliefAt(cell) != anchorLevel)
@@ -368,7 +368,7 @@ namespace Beep.ECS
 
         public void SetFootprintOccupied(Vector2I anchorCell, bool occupied)
         {
-            foreach (Vector2I cell in FootprintCells(anchorCell))
+            foreach (Vector2I cell in GridFootprint.Cells(anchorCell, EffectiveFootprint))
                 SetOccupied(cell, occupied);
         }
 
@@ -501,7 +501,7 @@ namespace Beep.ECS
                 _preview.GlobalPosition = _grid.CellToWorld(cell);
                 _preview.Modulate = valid ? ValidPreviewColor : InvalidPreviewColor;
                 if (_activeSetZIndexFromY)
-                    _preview.ZIndex = ClampZ(4000 + ZIndexOffset + Mathf.RoundToInt(_preview.GlobalPosition.Y));
+                    _preview.ZIndex = GridProjectionComponent.ClampZ(4000 + ZIndexOffset + Mathf.RoundToInt(_preview.GlobalPosition.Y));
             }
 
             if (changed)
@@ -540,18 +540,10 @@ namespace Beep.ECS
             if (_navigation == null)
                 return;
 
-            foreach (Vector2I cell in FootprintCells(anchorCell))
+            foreach (Vector2I cell in GridFootprint.Cells(anchorCell, EffectiveFootprint))
                 _navigation.SetBlocked(cell, blocked);
         }
 
-        private IEnumerable<Vector2I> FootprintCells(Vector2I anchorCell)
-        {
-            int width = EffectiveFootprint.X;
-            int height = EffectiveFootprint.Y;
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    yield return new Vector2I(anchorCell.X + x, anchorCell.Y + y);
-        }
 
         private static void DisablePreviewCollision(Node node)
         {
@@ -565,11 +557,5 @@ namespace Beep.ECS
                 DisablePreviewCollision(child);
         }
 
-        private static int ClampZ(int zIndex)
-            => zIndex < (int)RenderingServer.CanvasItemZMin
-                ? (int)RenderingServer.CanvasItemZMin
-                : zIndex > (int)RenderingServer.CanvasItemZMax
-                    ? (int)RenderingServer.CanvasItemZMax
-                    : zIndex;
     }
 }

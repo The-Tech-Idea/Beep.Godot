@@ -134,7 +134,7 @@ namespace Beep.ECS
                 ConfigureResourcePaths(node);
                 node.GlobalPosition = _grid.CellToWorld(cell);
                 if (SetZIndexFromY && float.IsFinite(node.GlobalPosition.Y))
-                    node.ZIndex = ClampZ(Mathf.RoundToInt(node.GlobalPosition.Y));
+                    node.ZIndex = GridProjectionComponent.ClampZ(Mathf.RoundToInt(node.GlobalPosition.Y));
                 node.SetMeta(GeneratedMeta, true);
                 ReserveGeneratedCell(node, cell);
                 count++;
@@ -429,12 +429,6 @@ namespace Beep.ECS
             return safe.Replace('/', '_').Replace('\\', '_');
         }
 
-        private static int ClampZ(int zIndex)
-            => zIndex < (int)RenderingServer.CanvasItemZMin
-                ? (int)RenderingServer.CanvasItemZMin
-                : zIndex > (int)RenderingServer.CanvasItemZMax
-                    ? (int)RenderingServer.CanvasItemZMax
-                    : zIndex;
 
         private static GridResourceNodeComponent? ResourceFrom(Node node)
             => node as GridResourceNodeComponent

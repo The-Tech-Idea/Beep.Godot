@@ -177,7 +177,7 @@ namespace Beep.ECS
                     continue;
 
                 foreach (Vector2I cell in cells)
-                    if (CoversCell(gridObject, cell))
+                    if (gridObject.Covers(cell))
                         return gridObject;
             }
 
@@ -375,11 +375,6 @@ namespace Beep.ECS
             return "Grid Object";
         }
 
-        private static bool CoversCell(GridObjectComponent gridObject, Vector2I cell)
-        {
-            Vector2I max = gridObject.Cell + new Vector2I(Mathf.Max(1, gridObject.Footprint.X), Mathf.Max(1, gridObject.Footprint.Y));
-            return cell.X >= gridObject.Cell.X && cell.Y >= gridObject.Cell.Y && cell.X < max.X && cell.Y < max.Y;
-        }
 
         private static bool IsNodeWithin(Node node, Node root)
         {

@@ -14,6 +14,11 @@ namespace Beep.ECS
     [GlobalClass]
     public partial class GridProjectionComponent : Node2D
     {
+        /// <summary>Clamps a z-index into Godot's canvas-item range. The projection owns z-order.</summary>
+        public static int ClampZ(int zIndex)
+            => zIndex < (int)RenderingServer.CanvasItemZMin ? (int)RenderingServer.CanvasItemZMin
+                : zIndex > (int)RenderingServer.CanvasItemZMax ? (int)RenderingServer.CanvasItemZMax : zIndex;
+
         public enum GridProjection
         {
             TopDown,

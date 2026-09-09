@@ -207,7 +207,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | **Partially implemented 2026-09-09** (id normaliser on GridIds; node-name sanitiser deferred to DUP-12) |
 | DUP-06 | [Dictionary reader wrappers](../plans/terrain-grid/DUP-06-dictionary-reader-wrappers.md) | duplication / hygiene | XS | **Partially implemented 2026-09-09** (Dict* wrappers retired; numeric guards + calendar dead helpers deferred to owner) |
 | DUP-07 | [Prop residency façade](../plans/terrain-grid/DUP-07-prop-residency-facade.md) | duplication | S | Proposed |
-| DUP-08 | [Grid geometry helpers](../plans/terrain-grid/DUP-08-grid-geometry-helpers.md) | duplication | XS | Proposed |
+| DUP-08 | [Grid geometry helpers](../plans/terrain-grid/DUP-08-grid-geometry-helpers.md) | duplication | XS | **Partially implemented 2026-09-09** (footprint + ClampZ; ResolveCurrent deferred) |
 | DUP-09 | [Chunk-pin helper](../plans/terrain-grid/DUP-09-chunk-pin-helper.md) | duplication | M | Proposed |
 | DUP-10 | [Arrival detection](../plans/terrain-grid/DUP-10-arrival-detection.md) | duplication + latent bug | S | Proposed |
 | DUP-11 | [Dispatch board showcase](../plans/terrain-grid/DUP-11-dispatch-board-showcase.md) | duplication (owner's call) | S | Proposed |

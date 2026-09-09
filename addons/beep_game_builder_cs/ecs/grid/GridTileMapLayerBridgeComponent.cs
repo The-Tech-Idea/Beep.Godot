@@ -94,14 +94,11 @@ namespace Beep.ECS
             // the square of the map rather than with it.
             if (PaintCells && _cells != null)
             {
-                foreach (Godot.Collections.Dictionary cellData in _cells.GetCells())
-                {
-                    Vector2I cell = GridVariantReader.Vector2I(cellData, "cell", new Vector2I(int.MinValue, int.MinValue));
-                    if (cell.X == int.MinValue || cell.Y == int.MinValue)
-                        continue;
-
+                // EnumerateFlags is the typed view of the same stored cells GetCells marshalled one
+                // Godot Dictionary at a time; the bridge only needs the coordinate (AtlasForCell
+                // re-reads the state), so a Rebuild no longer marshals the whole map per repaint.
+                foreach ((Vector2I cell, GridCellDataComponent.CellFlags _) in _cells.EnumerateFlags())
                     PaintCell(cell);
-                }
             }
 
             if (PaintRoads && _roads != null)

@@ -1745,8 +1745,11 @@ $gridTileMapBridge = Read "addons/beep_game_builder_cs/ecs/grid/GridTileMapLayer
 if ($gridTileMapBridge -notmatch 'class\s+GridTileMapLayerBridgeComponent' -or $gridTileMapBridge -notmatch 'TileMapLayerPath' -or $gridTileMapBridge -notmatch 'GridCellDataComponent' -or $gridTileMapBridge -notmatch 'GridRoadComponent' -or $gridTileMapBridge -notmatch 'AtlasForCell' -or $gridTileMapBridge -notmatch 'SetCell') {
     Fail "GridTileMapLayerBridgeComponent is missing the expected Godot TileMapLayer sync surface."
 }
-if ($gridTileMapBridge -notmatch 'GridVariantReader.Vector2I\(cellData, "cell"') {
-    Fail "GridTileMapLayerBridgeComponent must read cell snapshots through GridVariantReader instead of direct Variant casts."
+# The bridge reads the same typed EnumerateFlags view the overlay does; the Dictionary
+# marshal (GetCells) and the per-cell GridVariantReader snapshot are both gone, which
+# supersedes the old "go through GridVariantReader" requirement (ENH-09).
+if ($gridTileMapBridge -notmatch 'EnumerateFlags\(\)' -or $gridTileMapBridge -match 'GetCells\(\)') {
+    Fail "GridTileMapLayerBridgeComponent must paint from GridCellDataComponent.EnumerateFlags, not marshal every cell through GetCells."
 }
 # The painted view's bridge is gone with the painter it fed: the surface is now
 # drawn by a shader that reads the generated grid directly, so there is no second

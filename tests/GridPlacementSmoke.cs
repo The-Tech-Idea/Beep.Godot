@@ -29,6 +29,7 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyGridInteractionMode()) return false;
         if (!VerifyGridInteractionModeBar()) return false;
         if (!VerifyGridInteractionStatus()) return false;
+        if (!VerifyGridInteractionStatusLateSource()) return false;
         if (!VerifyGridInteractionCursor()) return false;
         if (!VerifyGridObjectComponent()) return false;
         if (!VerifyGridObjectInspector()) return false;
@@ -886,6 +887,55 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         return true;
+    }
+
+    private bool VerifyGridInteractionStatusLateSource()
+    {
+        // A source resolved AFTER the panel's _Ready - an empty/late path filled once
+        // the collaborator appears - must still get its signals wired, or the readout
+        // goes dead for that source (ENH-14). The old once-only connect flag left it unwired.
+        var root = new Control { Name = "GridInteractionStatusLateRoot" };
+        AddChild(root);
+
+        var interaction = new GridInteractionModeComponent
+        {
+            Name = "InteractionMode",
+            UseMouseInput = false,
+            ManageChildMouseInput = false
+        };
+        root.AddChild(interaction);
+
+        var status = new GridInteractionStatusComponent
+        {
+            Name = "InteractionStatus",
+            InteractionModePath = new NodePath("../InteractionMode"),
+            PlacementPath = new NodePath("../LatePlacement"),
+            BuildInEditor = false,
+            GenerateControlsWhenPathsEmpty = true,
+            AutoRefresh = false
+        };
+        root.AddChild(status);
+        status.RebuildStatus();
+
+        // The placement collaborator appears only now, after status._Ready ran.
+        var buildings = new Node2D { Name = "Buildings" };
+        root.AddChild(buildings);
+        var placement = new GridPlacementComponent
+        {
+            Name = "LatePlacement",
+            PlacementRootPath = new NodePath("../Buildings"),
+            UseMouseInput = false
+        };
+        root.AddChild(placement);
+
+        // Any interaction re-resolves; with the per-source sync it wires the late source.
+        status.RefreshStatus();
+        placement.EmitSignal(GridPlacementComponent.SignalName.PlacementRejected, "wall", 2, 3, "blocked");
+        bool lateWired = status.StatusText().Contains("wall") && status.StatusText().Contains("blocked");
+
+        root.QueueFree();
+
+        return Expect(lateWired, "GridInteractionStatus did not wire a placement source resolved after _Ready (ENH-14).");
     }
 
     private bool VerifyGridInteractionCursor()

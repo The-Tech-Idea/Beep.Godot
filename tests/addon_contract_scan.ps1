@@ -2589,6 +2589,9 @@ if ($gridSmoke -notmatch 'VerifyGridInteractionMode') {
 if ($gridSmoke -notmatch 'VerifyGridInteractionModeBar') {
     Fail "GridPlacementSmoke does not verify GridInteractionModeBar behavior."
 }
+if ($gridSmoke -notmatch 'VerifyGridInteractionStatusLateSource') {
+    Fail "GridPlacementSmoke does not verify GridInteractionStatus wires a source resolved after _Ready (ENH-14)."
+}
 if ($gridSmoke -notmatch 'VerifyGridInteractionStatus') {
     Fail "GridPlacementSmoke does not verify GridInteractionStatus behavior."
 }

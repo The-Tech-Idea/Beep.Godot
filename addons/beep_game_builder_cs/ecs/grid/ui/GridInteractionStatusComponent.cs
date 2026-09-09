@@ -29,12 +29,14 @@ namespace Beep.ECS
         private GridPlacementComponent? _placement;
         private Label? _label;
         private string _lastFeedback = "";
-        private bool _connected;
+        private GridInteractionModeComponent? _connectedInteraction;
+        private GridSelectionComponent? _connectedSelection;
+        private GridToolActionComponent? _connectedTools;
+        private GridPlacementComponent? _connectedPlacement;
 
         public override void _Ready()
         {
             ResolveReferences();
-            ConnectSignals();
             if (!Engine.IsEditorHint() || BuildInEditor)
                 CallDeferred(nameof(RebuildStatus));
 
@@ -170,6 +172,7 @@ namespace Beep.ECS
             EntityComponent.Resolve(this, SelectionPath, ref _selection);
             EntityComponent.Resolve(this, ToolActionPath, ref _tools);
             EntityComponent.Resolve(this, PlacementPath, ref _placement);
+            SyncSignals();
         }
 
         public bool UsesSceneControls()
@@ -190,65 +193,109 @@ namespace Beep.ECS
 
         private Label? FindStatusLabel() => FindControl<Label>(StatusLabelPath, "Status");
 
-        private void ConnectSignals()
+        // Connect each source when it resolves to a NEW instance - including one found
+        // after _Ready, when an empty path is filled by a scene-wide search once a level
+        // loads - and disconnect the previous instance. Idempotent per source, so calling
+        // it from every ResolveReferences never double-subscribes. The old once-only
+        // _connected flag left a late-resolved source permanently unwired.
+        private void SyncSignals()
         {
-            if (_connected || Engine.IsEditorHint())
+            if (Engine.IsEditorHint())
                 return;
 
-            ResolveReferences();
-            if (_interaction != null)
+            if (!ReferenceEquals(_connectedInteraction, _interaction))
             {
-                _interaction.ModeChanged += OnModeChanged;
-                _interaction.InteractionApplied += OnInteractionApplied;
-                _interaction.InteractionRejected += OnInteractionRejected;
-            }
-            if (_selection != null)
-                _selection.HoverCellChanged += OnHoverCellChanged;
-            if (_tools != null)
-            {
-                _tools.ToolApplied += OnToolApplied;
-                _tools.ToolRejected += OnToolRejected;
-            }
-            if (_placement != null)
-            {
-                _placement.PlacementStarted += OnPlacementStarted;
-                _placement.PlacementMoved += OnPlacementMoved;
-                _placement.PlacementPlaced += OnPlacementPlaced;
-                _placement.PlacementCancelled += OnPlacementCancelled;
-                _placement.PlacementRejected += OnPlacementRejected;
+                if (GodotObject.IsInstanceValid(_connectedInteraction))
+                {
+                    _connectedInteraction!.ModeChanged -= OnModeChanged;
+                    _connectedInteraction.InteractionApplied -= OnInteractionApplied;
+                    _connectedInteraction.InteractionRejected -= OnInteractionRejected;
+                }
+                _connectedInteraction = _interaction;
+                if (_interaction != null)
+                {
+                    _interaction.ModeChanged += OnModeChanged;
+                    _interaction.InteractionApplied += OnInteractionApplied;
+                    _interaction.InteractionRejected += OnInteractionRejected;
+                }
             }
 
-            _connected = true;
+            if (!ReferenceEquals(_connectedSelection, _selection))
+            {
+                if (GodotObject.IsInstanceValid(_connectedSelection))
+                    _connectedSelection!.HoverCellChanged -= OnHoverCellChanged;
+                _connectedSelection = _selection;
+                if (_selection != null)
+                    _selection.HoverCellChanged += OnHoverCellChanged;
+            }
+
+            if (!ReferenceEquals(_connectedTools, _tools))
+            {
+                if (GodotObject.IsInstanceValid(_connectedTools))
+                {
+                    _connectedTools!.ToolApplied -= OnToolApplied;
+                    _connectedTools.ToolRejected -= OnToolRejected;
+                }
+                _connectedTools = _tools;
+                if (_tools != null)
+                {
+                    _tools.ToolApplied += OnToolApplied;
+                    _tools.ToolRejected += OnToolRejected;
+                }
+            }
+
+            if (!ReferenceEquals(_connectedPlacement, _placement))
+            {
+                if (GodotObject.IsInstanceValid(_connectedPlacement))
+                {
+                    _connectedPlacement!.PlacementStarted -= OnPlacementStarted;
+                    _connectedPlacement.PlacementMoved -= OnPlacementMoved;
+                    _connectedPlacement.PlacementPlaced -= OnPlacementPlaced;
+                    _connectedPlacement.PlacementCancelled -= OnPlacementCancelled;
+                    _connectedPlacement.PlacementRejected -= OnPlacementRejected;
+                }
+                _connectedPlacement = _placement;
+                if (_placement != null)
+                {
+                    _placement.PlacementStarted += OnPlacementStarted;
+                    _placement.PlacementMoved += OnPlacementMoved;
+                    _placement.PlacementPlaced += OnPlacementPlaced;
+                    _placement.PlacementCancelled += OnPlacementCancelled;
+                    _placement.PlacementRejected += OnPlacementRejected;
+                }
+            }
         }
 
         private void DisconnectSignals()
         {
-            if (!_connected)
-                return;
+            if (GodotObject.IsInstanceValid(_connectedInteraction))
+            {
+                _connectedInteraction!.ModeChanged -= OnModeChanged;
+                _connectedInteraction.InteractionApplied -= OnInteractionApplied;
+                _connectedInteraction.InteractionRejected -= OnInteractionRejected;
+            }
+            _connectedInteraction = null;
 
-            if (_interaction != null && GodotObject.IsInstanceValid(_interaction))
-            {
-                _interaction.ModeChanged -= OnModeChanged;
-                _interaction.InteractionApplied -= OnInteractionApplied;
-                _interaction.InteractionRejected -= OnInteractionRejected;
-            }
-            if (_selection != null && GodotObject.IsInstanceValid(_selection))
-                _selection.HoverCellChanged -= OnHoverCellChanged;
-            if (_tools != null && GodotObject.IsInstanceValid(_tools))
-            {
-                _tools.ToolApplied -= OnToolApplied;
-                _tools.ToolRejected -= OnToolRejected;
-            }
-            if (_placement != null && GodotObject.IsInstanceValid(_placement))
-            {
-                _placement.PlacementStarted -= OnPlacementStarted;
-                _placement.PlacementMoved -= OnPlacementMoved;
-                _placement.PlacementPlaced -= OnPlacementPlaced;
-                _placement.PlacementCancelled -= OnPlacementCancelled;
-                _placement.PlacementRejected -= OnPlacementRejected;
-            }
+            if (GodotObject.IsInstanceValid(_connectedSelection))
+                _connectedSelection!.HoverCellChanged -= OnHoverCellChanged;
+            _connectedSelection = null;
 
-            _connected = false;
+            if (GodotObject.IsInstanceValid(_connectedTools))
+            {
+                _connectedTools!.ToolApplied -= OnToolApplied;
+                _connectedTools.ToolRejected -= OnToolRejected;
+            }
+            _connectedTools = null;
+
+            if (GodotObject.IsInstanceValid(_connectedPlacement))
+            {
+                _connectedPlacement!.PlacementStarted -= OnPlacementStarted;
+                _connectedPlacement.PlacementMoved -= OnPlacementMoved;
+                _connectedPlacement.PlacementPlaced -= OnPlacementPlaced;
+                _connectedPlacement.PlacementCancelled -= OnPlacementCancelled;
+                _connectedPlacement.PlacementRejected -= OnPlacementRejected;
+            }
+            _connectedPlacement = null;
         }
 
         private void OnModeChanged(int mode)

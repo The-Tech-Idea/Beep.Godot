@@ -1,6 +1,14 @@
 # ENH-14 — One object-at-cell index; HUD status wires late-resolved sources
 
-**Type:** enhancement (lookup cost + a small correctness fix) · **Area:** `GridPlacementComponent`, `GridObjectComponent`, `ui/GridObjectInspectorComponent`, `GridToolActionComponent`, `GridSelectionJobCommandComponent`, `ui/GridInteractionStatusComponent` · **Status:** proposed 2026-09-08 · **Effort:** S (1 day) · **Risk:** low
+**Type:** enhancement (lookup cost + a small correctness fix) · **Area:** `GridPlacementComponent`, `GridObjectComponent`, `ui/GridObjectInspectorComponent`, `GridToolActionComponent`, `GridSelectionJobCommandComponent`, `ui/GridInteractionStatusComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (status late-source fix done; the object-at-cell index deferred) · **Effort:** S (1 day) · **Risk:** low
+
+## Outcome (finding 2: status wires late-resolved sources, 2026-09-09)
+
+`GridInteractionStatusComponent` connected its four sources once, behind a single `_connected` flag set in `_Ready`; a source that resolved later (an empty or not-yet-present path filled once the collaborator appears) never got its signals connected, so the readout went dead for it. Replaced the flag with the per-source connect-on-new-instance pattern the mode bar uses: `SyncSignals`, called from every `ResolveReferences`, tracks the connected instance per source and, when a source resolves to a new instance, disconnects the old and connects the new (idempotent, so it never double-subscribes; guarded against spurious `-=` by only disconnecting a still-valid tracked instance). `_ExitTree`'s `DisconnectSignals` now works off the same trackers.
+
+`GridPlacementSmoke.VerifyGridInteractionStatusLateSource` (new) adds a placement collaborator AFTER the panel's `_Ready`, then emits `PlacementRejected` and asserts the readout shows it - proving the late source got wired. Mutation-proven: disabling the placement re-sync makes the readout stay dead and the check fails with "did not wire a placement source resolved after _Ready". Build clean; the full HUD smoke green (verified past the two pre-existing placement reds, reverted).
+
+**Deferred: the object-at-cell index (finding 1).** `GridPlacementComponent` gaining a `Dictionary<Vector2I, GridObjectComponent>` occupant map with `ObjectAt`/`ObjectsIn`, and rewiring the inspector, tool-action and selection-command group scans onto it, is a change to a CORE file plus a second non-blocking map for resource nodes that do not occupy - more surface than the self-contained status fix, and better done attended. It is a real O(objects x cells) -> O(1) win and stays on the list; it builds on DUP-08's `Covers`, already landed.
 
 ## Finding
 

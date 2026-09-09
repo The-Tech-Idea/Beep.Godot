@@ -1,6 +1,6 @@
 # ENH-15 — Unit and contract drift: seconds vs turns, `GatherSeconds`, catalog lookups
 
-**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** **IMPLEMENTED 2026-09-09** (unit renames + ResourceCatalog index; only the minor ForTerrain index left) · **Effort:** XS–S (½–1 day) · **Risk:** low
+**Type:** correctness / doc drift · **Area:** `ITransporter`, `GridHaulerComponent`, `GridTransportChainComponent`, `ResourceDefinition`, `GridExtractorComponent`, `GridResourceNodeComponent`, `ResourceCatalog` · **Status:** **IMPLEMENTED 2026-09-09** (unit renames + ResourceCatalog Find index; ForTerrain index not worth building - no caller) · **Effort:** XS–S (½–1 day) · **Risk:** low
 
 ## Outcome (finding 3: the catalog index, 2026-09-09)
 
@@ -10,7 +10,7 @@
 
 **Outcome: the unit renames (findings 1, 2, 4), 2026-09-09.** `ResourceDefinition.GatherSeconds` -> `GatherTurns` (it was always read as turns; the "seconds" name was the lie), including the two mirror `[Export]`s on `GridResourceNodeComponent` and `GridResourceScatterComponent`, `GridResourceScatterComponent.EffectiveGatherSeconds` -> `EffectiveGatherTurns`, the `GridExtractorComponent` reader (whose comment no longer has to apologise for the name), and the one authored value in `grid_world_2d_iso.tscn` (`GatherSeconds = 1.5` -> `GatherTurns = 1.5`, same number, same meaning). `ITransporter.TransportRate` -> `TransportRatePerTurn` with its doc corrected from "units per second", plus the sole implementer `GridHaulerComponent`, the manager's `Get("TransportRatePerTurn")` string lookup, and the GDScript duck-typed transporter in `grid_terrain_subsurface_probe.gd` (`GdTransporter.TransportRatePerTurn`) - the exact "a GDScript transporter written to the interface" case the finding named, which the probe now proves aligns (the manager still ranks the fast transporter first). No `.tres` and no other `.gd` carried these names. Build clean; the subsurface, job-execution, haul-demand and economy probes green; a scan pin forbids `GatherSeconds` anywhere under `addons/` and `per second` in any logistics port interface, both mutation-proven.
 
-**Still open (minor): `ForTerrain`'s nested-loop index** - lower value (the catalog is 12-20 entries) and it returns a fresh array each call, so caching it needs list invalidation; left for a dedicated pass.
+**`ForTerrain`'s index: investigated 2026-09-09, not worth building.** `ResourceCatalog.ForTerrain` has NO caller anywhere in the addon or tests (the plan's "called by the generator's rules capture and by HUD filters" does not hold against the code). Indexing it would add a second lazily-built map and its invalidation to speed up a method nothing calls - no consumer to benefit. It is public API on a public `[GlobalClass]` a downstream game could call, so per rule 6 it stays as-is rather than being deleted; it is simply not a target for the index until something reads it. ENH-15 is therefore complete.
 
 ## Finding
 

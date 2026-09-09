@@ -332,22 +332,17 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            ResolveCurrent(GridPath, ref _grid);
-            ResolveCurrent(CellDataPath, ref _cells);
-            ResolveCurrent(SelectionPath, ref _selection);
-            ResolveCurrent(JobQueuePath, ref _jobs);
-            ResolveCurrent(RoadPath, ref _roads);
-            ResolveCurrent(NavigationPath, ref _navigation);
-            ResolveCurrent(CropCatalogPath, ref _cropCatalog);
-            ResolveCurrent(CalendarPath, ref _calendar);
-            ResolveCurrent(ResourceWalletPath, ref _resourceWallet);
+            EntityComponent.ResolveLive(this, GridPath, ref _grid);
+            EntityComponent.ResolveLive(this, CellDataPath, ref _cells);
+            EntityComponent.ResolveLive(this, SelectionPath, ref _selection);
+            EntityComponent.ResolveLive(this, JobQueuePath, ref _jobs);
+            EntityComponent.ResolveLive(this, RoadPath, ref _roads);
+            EntityComponent.ResolveLive(this, NavigationPath, ref _navigation);
+            EntityComponent.ResolveLive(this, CropCatalogPath, ref _cropCatalog);
+            EntityComponent.ResolveLive(this, CalendarPath, ref _calendar);
+            EntityComponent.ResolveLive(this, ResourceWalletPath, ref _resourceWallet);
         }
 
-        private void ResolveCurrent<T>(NodePath path, ref T? cached) where T : class
-        {
-            if (!path.IsEmpty) cached = GetNodeOrNull<Node>(path) as T;
-            else EntityComponent.Resolve(this, path, ref cached);
-        }
 
         /// <summary>
         /// This component's own exports, as the shared cell rule. Built per

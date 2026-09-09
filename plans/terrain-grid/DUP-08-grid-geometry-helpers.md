@@ -1,8 +1,8 @@
 # DUP-08 — Footprint, Z-clamp and current-instance helpers have one owner each
 
-**Type:** duplication fix · **Area:** `GridPlacementComponent`, `GridObjectComponent`, `GridExtractorComponent`, `GridResourceScatterComponent`, `GridToolActionComponent`, `GridObjectInspectorComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (footprint + ClampZ done; ResolveCurrent deferred) · **Effort:** XS (½ day) · **Risk:** low
+**Type:** duplication fix · **Area:** `GridPlacementComponent`, `GridObjectComponent`, `GridExtractorComponent`, `GridResourceScatterComponent`, `GridToolActionComponent`, `GridObjectInspectorComponent` · **Status:** **IMPLEMENTED 2026-09-09** (footprint + ClampZ + ResolveCurrent) · **Effort:** XS (½ day) · **Risk:** low
 
-## Outcome (footprint + ClampZ)
+## Outcome (footprint + ClampZ + ResolveCurrent)
 
 The footprint double-loop has one owner now. `GridObjectComponent` answers for its own cells - `FootprintCells()` (public, delegating to the new enumerator) and `Covers(cell)` - and `GridFootprint.Cells(origin, size)` serves the caller that has a size but no object yet, the placement preview. The four copies are gone: the placement component enumerates through `GridFootprint.Cells(anchor, EffectiveFootprint)`, the extractor through `ResolveGridObject()?.FootprintCells() ?? GridFootprint.SingleUnder(GetParent(), _grid)`, and the inspector's inverse `CoversCell` is `gridObject.Covers(cell)`. Each caller keeps its own size rule - the object and extractor clamp to at least 1x1, the placement preview takes the effective footprint as given - because the enumerator takes the size as passed. `Covers` is what ENH-14's object-at-cell index will read.
 
@@ -10,7 +10,9 @@ The footprint double-loop has one owner now. `GridObjectComponent` answers for i
 
 Verified: `dotnet build` clean, zero warnings; six probes across placement, building, worker effects, scatter, live resource view and economy green - a behaviour-preserving move stays invisible to them; a scan pin keeps `FootprintCells` to `GridObjectComponent`/`GridFootprint`, `ClampZ` to `GridProjectionComponent`, and `CoversCell` nowhere, and the mutation (re-adding a `FootprintCells` copy) trips it.
 
-**Deferred: ResolveCurrent.** The plan folds the two `ResolveCurrent<T>` copies into `EntityComponent.Resolve`, but they are not the same: `ResolveCurrent` re-resolves the path every call, while `EntityComponent.Resolve` returns a still-valid cached reference and only re-resolves on a cache miss. That difference is deliberate - `ResolveCurrent` was written so an inspector path edit to a different live node is picked up (the same reason `TerrainWorldComponent.ResolvePath` re-resolves), and swapping in the caching form would keep the stale node. It is a real behaviour question, not a mechanical rename, so it is left for its own change with a probe that exercises a live path re-point.
+**Outcome: ResolveCurrent (2026-09-09).** The two identical `ResolveCurrent<T>` copies are gone. Because the difference from `EntityComponent.Resolve` is real - `ResolveCurrent` re-resolves a non-empty path every call so a live re-point is picked up, while `Resolve` returns the still-valid cache and would keep the stale node - the consolidation is a NEW sibling, `EntityComponent.ResolveLive`, not a fold into `Resolve`. Both `GridPlacementComponent` (4 calls) and `GridToolActionComponent` (9 calls) call it. The two components are a `Node2D` and a `Node`, not `EntityComponent` subclasses, so `ResolveLive` is the static, owner-taking overload, mirroring `Resolve`; no protected instance overload was added because nothing consumes it (rule 6).
+
+`ComponentLookupSmoke` gains the live-re-point guard the plan asked for: `ResolveLive` from path A then path B returns B, while `Resolve` from A then B keeps A - proving both that the re-point is followed and that `ResolveLive`, not `Resolve`, is the variant that does it. Mutation-proven: making `ResolveLive` delegate to the caching `Resolve` fails the probe ("ResolveLive did not follow the re-pointed path"). A scan pin forbids any `ResolveCurrent<` copy under `ecs/grid`. Build clean; the placement, build-approach and building probes stay green.
 
 ## Finding
 

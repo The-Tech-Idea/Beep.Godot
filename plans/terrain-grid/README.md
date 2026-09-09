@@ -33,7 +33,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | DUP-05 | [One id normaliser](DUP-05-one-id-normaliser.md) | 18 normaliser/sanitiser copies, ≥4 rules; wallet vs catalog disagree | S | **partial** (id normaliser done; node-name sanitiser deferred to DUP-12) |
 | DUP-06 | [Dictionary reader wrappers](DUP-06-dictionary-reader-wrappers.md) | 13 `Dict*` wrappers; calendar dead numeric guards | XS | **partial** (Dict* wrappers retired; numeric guards deferred to owner) |
 | DUP-07 | [Prop residency façade](DUP-07-prop-residency-facade.md) | 3 `*.Streaming.cs` partials | S | |
-| DUP-08 | [Grid geometry helpers](DUP-08-grid-geometry-helpers.md) | footprint ×4, `ClampZ` ×2, `ResolveCurrent<T>` ×2 | XS | **partial** (footprint + ClampZ; ResolveCurrent deferred) |
+| DUP-08 | [Grid geometry helpers](DUP-08-grid-geometry-helpers.md) | footprint ×4, `ClampZ` ×2, `ResolveCurrent<T>` ×2 | XS | **done** (footprint + ClampZ + ResolveCurrent via EntityComponent.ResolveLive) |
 | DUP-09 | [Chunk-pin helper](DUP-09-chunk-pin-helper.md) | `>> 5` ×52 in 12 files, pin-refresh pattern ×7, a Node per path request | M | **done** (one chunk rule + `GridChunkPins`; 4 of 7 owners ported, see Outcome) |
 | DUP-10 | [Arrival detection](DUP-10-arrival-detection.md) | `_wasMoving` edge detection ×2 with a one-frame hole | S | **investigated, not done** (premise does not hold; would regress stepped movers) |
 | DUP-11 | [Dispatch board showcase](DUP-11-dispatch-board-showcase.md) | a second dispatch loop in seconds (owner's call: relocate) | S | |

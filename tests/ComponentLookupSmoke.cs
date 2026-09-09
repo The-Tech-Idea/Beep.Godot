@@ -100,7 +100,25 @@ public partial class ComponentLookupSmoke : Node
         if (allocated > 4096) return Fail($"Repeated lookup allocated {allocated} bytes");
         body.Free();
         second.Free();
-        GD.Print($"[component-lookup] mutations, detach, reparent, self exclusion, live motion abilities OK; 10000 reads allocated {allocated} bytes; motion {motionAllocated} bytes");
+        // ResolveLive re-resolves a non-empty path every call so a live re-point is picked up,
+        // where Resolve returns the still-valid cache and keeps the stale node (DUP-08).
+        var rlOwner = new Node();
+        AddChild(rlOwner);
+        var nodeA = new Node2D { Name = "ResolveA" };
+        var nodeB = new Node2D { Name = "ResolveB" };
+        rlOwner.AddChild(nodeA);
+        rlOwner.AddChild(nodeB);
+        Node2D? live = null;
+        EntityComponent.ResolveLive(rlOwner, rlOwner.GetPathTo(nodeA), ref live);
+        if (live != nodeA) return Fail("ResolveLive missed the first node");
+        EntityComponent.ResolveLive(rlOwner, rlOwner.GetPathTo(nodeB), ref live);
+        if (live != nodeB) return Fail("ResolveLive did not follow the re-pointed path");
+        Node2D? cachedRef = null;
+        EntityComponent.Resolve(rlOwner, rlOwner.GetPathTo(nodeA), ref cachedRef);
+        EntityComponent.Resolve(rlOwner, rlOwner.GetPathTo(nodeB), ref cachedRef);
+        if (cachedRef != nodeA) return Fail("Resolve should keep its valid cache; ResolveLive is the live-repoint variant");
+        rlOwner.Free();
+        GD.Print($"[component-lookup] mutations, detach, reparent, self exclusion, live motion abilities, live re-point OK; 10000 reads allocated {allocated} bytes; motion {motionAllocated} bytes");
         return true;
     }
     private static bool Fail(string message) { GD.PushError(message); return false; }

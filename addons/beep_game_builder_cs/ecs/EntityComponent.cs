@@ -179,5 +179,21 @@ namespace Beep.ECS
         /// <summary>The same rule, for a component that already is an EntityComponent.</summary>
         protected T? Resolve<T>(NodePath path, ref T? cached) where T : class
             => Resolve(this, path, ref cached);
+
+        /// <summary>
+        /// Resolve a non-empty path AFRESH every call, so a live re-point of the path to a
+        /// different node is picked up, and fall back to the cached/tree-searched
+        /// <see cref="Resolve{T}(Node, NodePath, ref T)"/> when the path is empty. Use this instead
+        /// of <see cref="Resolve{T}(Node, NodePath, ref T)"/> where an inspector edit that re-points a
+        /// path at another live node must take effect without a cache invalidation - Resolve returns
+        /// the still-valid cached reference and would keep the stale node.
+        /// </summary>
+        /// <param name="owner">The component doing the resolving; static and owner-taking because the
+        /// callers derive straight from <see cref="Node"/> rather than from EntityComponent.</param>
+        public static T? ResolveLive<T>(Node owner, NodePath path, ref T? cached) where T : class
+        {
+            if (!path.IsEmpty) return cached = owner.GetNodeOrNull<Node>(path) as T;
+            return Resolve(owner, path, ref cached);
+        }
     }
 }

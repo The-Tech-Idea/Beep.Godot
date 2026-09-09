@@ -2119,6 +2119,9 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
     if ($candidate -match [regex]::Escape("bool CoversCell(")) {
         Fail "$($file.Name) has a CoversCell copy; ask GridObjectComponent.Covers (DUP-08)."
     }
+    if ($candidate -match [regex]::Escape("ResolveCurrent<")) {
+        Fail "$($file.Name) has a ResolveCurrent copy; call EntityComponent.ResolveLive, which re-resolves a live re-point (DUP-08)."
+    }
 }
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"

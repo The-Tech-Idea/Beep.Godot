@@ -382,7 +382,7 @@ namespace Beep.ECS
 
         private void ResolveReferences()
         {
-            ResolveCurrent(GridPath, ref _grid);
+            EntityComponent.ResolveLive(this, GridPath, ref _grid);
 
             // Not the shared rule: placed nodes land under the parent when no
             // root is wired, never under a component found scene-wide.
@@ -390,16 +390,11 @@ namespace Beep.ECS
                     ? GetNodeOrNull<Node>(PlacementRootPath)
                     : GetParent();
 
-            ResolveCurrent(ResourceWalletPath, ref _resourceWallet);
-            ResolveCurrent(CellDataPath, ref _cellData);
-            ResolveCurrent(NavigationPath, ref _navigation);
+            EntityComponent.ResolveLive(this, ResourceWalletPath, ref _resourceWallet);
+            EntityComponent.ResolveLive(this, CellDataPath, ref _cellData);
+            EntityComponent.ResolveLive(this, NavigationPath, ref _navigation);
         }
 
-        private void ResolveCurrent<T>(NodePath path, ref T? cached) where T : class
-        {
-            if (!path.IsEmpty) cached = GetNodeOrNull<Node>(path) as T;
-            else EntityComponent.Resolve(this, path, ref cached);
-        }
 
         private string TerrainKindAt(Vector2I cell)
             => GridCellRules.TerrainKindAt(_cellData, cell);

@@ -173,9 +173,9 @@ public sealed class GridProductionProcess
     public GridProductionRecipe? FindRecipe(string id)
     {
         if (string.IsNullOrWhiteSpace(id)) return null;
-        string normalized = Normalize(id);
+        string normalized = GridIds.Normalize(id);
         foreach (var recipe in GridProductionRecipe.Enumerate(Recipes))
-            if (Normalize(recipe.RecipeId) == normalized) return recipe;
+            if (GridIds.Normalize(recipe.RecipeId) == normalized) return recipe;
         return null;
     }
 
@@ -185,11 +185,11 @@ public sealed class GridProductionProcess
     private GridProductionRecipeData? FindRecipeData(string id)
     {
         if (string.IsNullOrWhiteSpace(id)) return null;
-        string normalized = Normalize(id);
+        string normalized = GridIds.Normalize(id);
         foreach (Variant entry in Recipes)
         {
             var recipe = GridProductionRecipeData.Read(entry);
-            if (recipe is not null && Normalize(recipe.RecipeId) == normalized) return recipe;
+            if (recipe is not null && GridIds.Normalize(recipe.RecipeId) == normalized) return recipe;
         }
         return null;
     }
@@ -213,6 +213,4 @@ public sealed class GridProductionProcess
         State = state;
         StateChanged?.Invoke(state);
     }
-    private static string Normalize(string value) => string.IsNullOrWhiteSpace(value)
-        ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_');
 }

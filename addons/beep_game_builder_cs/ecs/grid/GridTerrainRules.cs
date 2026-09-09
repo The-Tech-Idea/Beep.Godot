@@ -35,8 +35,7 @@ namespace Beep.ECS
             "lava"
         };
 
-        public static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
+        public static string Normalize(string value) => GridIds.Normalize(value);
 
         /// <summary>True when the normalized kind matches any entry of the exported list.</summary>
         public static bool MatchesAny(string normalizedKind, Godot.Collections.Array<string> kinds)

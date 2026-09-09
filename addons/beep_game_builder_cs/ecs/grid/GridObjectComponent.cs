@@ -90,7 +90,7 @@ namespace Beep.ECS
             if (wasReserved)
                 ReleaseFootprint();
 
-            ObjectId = NormalizeId(objectId);
+            ObjectId = GridIds.Normalize(objectId);
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? ObjectId : displayName.Trim();
             Category = string.IsNullOrWhiteSpace(category) ? "" : category.Trim();
             if (string.IsNullOrWhiteSpace(ObjectKind))
@@ -290,8 +290,6 @@ namespace Beep.ECS
             BindGrid();
         }
 
-        private static string NormalizeId(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_');
 
         private static string DictString(Godot.Collections.Dictionary dict, string key, string fallback)
             => dict.ContainsKey(key) ? dict[key].AsString() : fallback;

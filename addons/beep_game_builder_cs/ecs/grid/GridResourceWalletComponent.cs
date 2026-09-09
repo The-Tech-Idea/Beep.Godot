@@ -53,11 +53,11 @@ namespace Beep.ECS
         }
 
         public int GetAmount(string resourceId)
-            => _amounts.TryGetValue(Normalize(resourceId), out int amount) ? amount : 0;
+            => _amounts.TryGetValue(GridIds.Normalize(resourceId), out int amount) ? amount : 0;
 
         public void SetAmount(string resourceId, int amount)
         {
-            string id = Normalize(resourceId);
+            string id = GridIds.Normalize(resourceId);
             if (string.IsNullOrEmpty(id))
                 return;
 
@@ -76,7 +76,7 @@ namespace Beep.ECS
             if (amount == 0)
                 return;
 
-            string id = Normalize(resourceId);
+            string id = GridIds.Normalize(resourceId);
             if (string.IsNullOrEmpty(id))
                 return;
 
@@ -124,7 +124,7 @@ namespace Beep.ECS
         /// </summary>
         public bool TrySpendAmount(string resourceId, int amount)
         {
-            string id = Normalize(resourceId);
+            string id = GridIds.Normalize(resourceId);
             int required = Mathf.Max(0, amount);
             if (string.IsNullOrEmpty(id) || required == 0)
                 return true;
@@ -161,7 +161,7 @@ namespace Beep.ECS
             _amounts.Clear();
             foreach (Variant key in state.Keys)
             {
-                string id = Normalize(key.AsString());
+                string id = GridIds.Normalize(key.AsString());
                 if (string.IsNullOrEmpty(id))
                     continue;
 
@@ -181,7 +181,7 @@ namespace Beep.ECS
             _amounts.Clear();
             foreach (Variant key in amounts.Keys)
             {
-                string id = Normalize(key.AsString());
+                string id = GridIds.Normalize(key.AsString());
                 if (string.IsNullOrEmpty(id))
                     continue;
 
@@ -221,7 +221,5 @@ namespace Beep.ECS
             }
         }
 
-        private static string Normalize(string resourceId)
-            => resourceId.Trim().ToLowerInvariant();
     }
 }

@@ -175,7 +175,7 @@ namespace Beep.ECS
 
         public string TextForResource(string resourceId)
         {
-            if (_boundLabels.TryGetValue(Normalize(resourceId), out Label? boundLabel))
+            if (_boundLabels.TryGetValue(GridIds.Normalize(resourceId), out Label? boundLabel))
                 return boundLabel.Text;
 
             if (_row == null)
@@ -228,7 +228,7 @@ namespace Beep.ECS
 
             for (int i = 0; i < BoundResourceIds.Length; i++)
             {
-                string id = Normalize(BoundResourceIds[i]);
+                string id = GridIds.Normalize(BoundResourceIds[i]);
                 if (string.IsNullOrEmpty(id))
                     return false;
 
@@ -287,7 +287,5 @@ namespace Beep.ECS
 
         private static string SafeName(string value) => SafeName(value, "Resource");
 
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
     }
 }

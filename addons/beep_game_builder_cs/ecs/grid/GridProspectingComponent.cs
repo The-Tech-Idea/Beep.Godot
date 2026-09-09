@@ -139,7 +139,7 @@ namespace Beep.ECS
                 return;
 
             string kind = _connectedQueue.GetJobKind(jobId);
-            if (!string.Equals(kind, NormalizeKind(SurveyJobKind), System.StringComparison.Ordinal))
+            if (!string.Equals(kind, GridIds.NormalizeOr(SurveyJobKind, "survey"), System.StringComparison.Ordinal))
                 return;
 
             Vector2I cell = _connectedQueue.GetJobCell(jobId);
@@ -188,8 +188,6 @@ namespace Beep.ECS
                 RestoreState(saved);
         }
 
-        private static string NormalizeKind(string kind)
-            => string.IsNullOrWhiteSpace(kind) ? "survey" : kind.Trim().ToLowerInvariant().Replace(' ', '_');
 
         private void ResolveReferences()
         {

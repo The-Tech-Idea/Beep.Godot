@@ -81,7 +81,7 @@ namespace Beep.ECS
         /// </summary>
         private void ApplyCatalogDefinition()
         {
-            ResourceDefinition? definition = Catalog?.Find(Normalize(ResourceId));
+            ResourceDefinition? definition = Catalog?.Find(GridIds.Normalize(ResourceId));
             if (definition is null)
                 return;
 
@@ -181,7 +181,7 @@ namespace Beep.ECS
             if (!ResourceWalletPath.IsEmpty && _wallet == null)
                 return Reject("missing_resource_wallet");
 
-            string id = Normalize(ResourceId);
+            string id = GridIds.Normalize(ResourceId);
             if (string.IsNullOrEmpty(id))
                 return Reject("missing_resource_id");
 
@@ -203,7 +203,7 @@ namespace Beep.ECS
             => new()
             {
                 ["cell"] = CurrentCell(),
-                ["resource_id"] = Normalize(ResourceId),
+                ["resource_id"] = GridIds.Normalize(ResourceId),
                 ["amount"] = Amount,
                 ["amount_per_gather"] = AmountPerGather,
                 ["depleted"] = IsDepleted
@@ -302,8 +302,6 @@ namespace Beep.ECS
             ClearStaleActiveGatherJob();
         }
 
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_');
 
         private void ReserveCurrentCell()
         {

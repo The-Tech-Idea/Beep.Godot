@@ -61,7 +61,7 @@ namespace Beep.ECS
 
         public string AddJob(Vector2I cell, string kind = "work", float workTurns = -1f, int priority = 0)
         {
-            kind = NormalizeKind(kind);
+            kind = GridIds.NormalizeOr(kind, "work");
             if (UniqueCellKind && FindOpenJobAt(cell, kind) is { } existing)
                 return existing.Id;
 
@@ -338,7 +338,7 @@ namespace Beep.ECS
                 if (string.IsNullOrEmpty(id))
                     continue;
 
-                string kind = NormalizeKind(DictString(dict, "kind", "work"));
+                string kind = GridIds.NormalizeOr(DictString(dict, "kind", "work"), "work");
                 var cell = DictVector2I(dict, "cell", new Vector2I(int.MinValue, int.MinValue));
                 if (cell.X == int.MinValue || cell.Y == int.MinValue)
                     continue;
@@ -394,14 +394,12 @@ namespace Beep.ECS
             EmitSignal(SignalName.QueueChanged, QueuedCount, ClaimedCount, CompletedCount);
         }
 
-        private static string NormalizeKind(string kind)
-            => string.IsNullOrWhiteSpace(kind) ? "work" : kind.Trim().ToLowerInvariant().Replace(' ', '_');
 
         private static bool KindAllowed(string kind, Godot.Collections.Array<string> allowedKinds)
         {
             foreach (string allowed in allowedKinds)
             {
-                if (NormalizeKind(allowed) == kind)
+                if (GridIds.NormalizeOr(allowed, "work") == kind)
                     return true;
             }
             return false;

@@ -104,7 +104,7 @@ namespace Beep.ECS
             if (cell.X == int.MinValue || cell.Y == int.MinValue)
                 return Reject(jobId, kind, cell, "invalid_cell");
 
-            string normalized = NormalizeKind(kind);
+            string normalized = GridIds.Normalize(kind);
             if (normalized is "gather" or "collect" or "forage" or "chop" or "mine" or "fish")
                 return ApplyGather(jobId, kind, cell);
 
@@ -289,7 +289,5 @@ namespace Beep.ECS
             return false;
         }
 
-        private static string NormalizeKind(string kind)
-            => string.IsNullOrWhiteSpace(kind) ? "" : kind.Trim().ToLowerInvariant().Replace(' ', '_');
     }
 }

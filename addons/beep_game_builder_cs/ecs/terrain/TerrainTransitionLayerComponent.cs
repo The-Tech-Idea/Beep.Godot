@@ -334,7 +334,7 @@ namespace Beep.ECS
             _matchesBuiltFor = TransitionTerrainKind;
             _matchesAliases = MatchTerrainAliases;
             _transitionMatches.Clear();
-            string transition = Normalize(TransitionTerrainKind);
+            string transition = GridIds.NormalizeOr(TransitionTerrainKind, "grass");
             _transitionMatches.Add(transition);
             if (!MatchTerrainAliases) return;
             switch (transition)
@@ -433,7 +433,7 @@ namespace Beep.ECS
 
             int z = RenderFilledBase
                 ? TerrainLayers.ZForFloor()
-                : TerrainLayers.ZForKind(Normalize(TransitionTerrainKind));
+                : TerrainLayers.ZForKind(GridIds.NormalizeOr(TransitionTerrainKind, "grass"));
 
             _displayLayer.ZIndex = z;
             _displayLayer.ZAsRelative = false;
@@ -500,7 +500,5 @@ namespace Beep.ECS
             layer.TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
         }
 
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "grass" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
     }
 }

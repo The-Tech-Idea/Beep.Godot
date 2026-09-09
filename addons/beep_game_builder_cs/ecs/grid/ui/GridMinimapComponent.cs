@@ -314,7 +314,7 @@ namespace Beep.ECS
             {
                 for (int x = 0; x < size.X; x++)
                 {
-                    string kind = NormalizeKind(_cells.GetTerrainKind(new Vector2I(origin.X + x, origin.Y + y)));
+                    string kind = GridIds.Normalize(_cells.GetTerrainKind(new Vector2I(origin.X + x, origin.Y + y)));
                     image.SetPixel(x, y, TerrainColors.TryGetValue(kind, out Color colour)
                         ? colour
                         : Colors.Transparent);
@@ -389,8 +389,6 @@ namespace Beep.ECS
                 Mathf.Max(0.001f, float.IsFinite(zoom.X) ? Mathf.Abs(zoom.X) : 1f),
                 Mathf.Max(0.001f, float.IsFinite(zoom.Y) ? Mathf.Abs(zoom.Y) : 1f));
 
-        private static string NormalizeKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
 
         private void ResolveReferences()
         {

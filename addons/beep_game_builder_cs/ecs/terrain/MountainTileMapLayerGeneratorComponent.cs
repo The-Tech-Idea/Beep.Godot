@@ -502,8 +502,8 @@ namespace Beep.ECS
         private static MountainAsset? ReadAsset(JsonElement element, string atlasPath, Vector2I maxSourceSpriteSize)
         {
             string id = ReadString(element, "id", "");
-            string role = Normalize(ReadString(element, "role", ReadString(element, "category", "misc")));
-            string category = Normalize(ReadString(element, "category", "misc"));
+            string role = GridIds.NormalizeOr(ReadString(element, "role", ReadString(element, "category", "misc")), "misc");
+            string category = GridIds.NormalizeOr(ReadString(element, "category", "misc"), "misc");
             Rect2I sourceRect = ReadSourceRect(element);
             int width = sourceRect.Size.X;
             int height = sourceRect.Size.Y;
@@ -575,8 +575,6 @@ namespace Beep.ECS
         private static bool ReadBool(JsonElement element, string name, bool fallback)
             => element.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : fallback;
 
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "misc" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
 
         private static int HashInt(int x, int y, int seed)
             => TerrainGeometry.HashInt(x, y, seed);

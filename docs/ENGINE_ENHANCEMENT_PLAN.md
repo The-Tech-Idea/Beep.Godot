@@ -204,7 +204,7 @@ Headline evidence: `terrain_ramp_direction` is read by navigation and written by
 | DUP-02 | [Shared water material](../plans/terrain-grid/DUP-02-shared-water-material.md) | duplication | S | **Implemented 2026-09-08** |
 | DUP-03 | [Feature sheet loading](../plans/terrain-grid/DUP-03-feature-sheet-loading.md) | duplication + bug | S | **Implemented 2026-09-08** |
 | DUP-04 | [Per-cell hash and generation helpers](../plans/terrain-grid/DUP-04-per-cell-hash-and-generation-helpers.md) | duplication | S | **Implemented 2026-09-08** (neighbour loops landed with ENH-16) |
-| DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | Proposed |
+| DUP-05 | [One id normaliser](../plans/terrain-grid/DUP-05-one-id-normaliser.md) | duplication | S | **Partially implemented 2026-09-09** (id normaliser on GridIds; node-name sanitiser deferred to DUP-12) |
 | DUP-06 | [Dictionary reader wrappers](../plans/terrain-grid/DUP-06-dictionary-reader-wrappers.md) | duplication / hygiene | XS | Proposed |
 | DUP-07 | [Prop residency façade](../plans/terrain-grid/DUP-07-prop-residency-facade.md) | duplication | S | Proposed |
 | DUP-08 | [Grid geometry helpers](../plans/terrain-grid/DUP-08-grid-geometry-helpers.md) | duplication | XS | Proposed |

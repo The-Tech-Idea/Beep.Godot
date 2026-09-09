@@ -39,10 +39,10 @@ namespace Beep.ECS
             if (string.IsNullOrWhiteSpace(buildId))
                 return null;
 
-            string id = Normalize(buildId);
+            string id = GridIds.Normalize(buildId);
             foreach (GridBuildDefinition build in GridBuildDefinition.Enumerate(Builds))
             {
-                if (build != null && Normalize(build.BuildId) == id)
+                if (build != null && GridIds.Normalize(build.BuildId) == id)
                     return build;
             }
 
@@ -51,14 +51,14 @@ namespace Beep.ECS
 
         public Godot.Collections.Array<string> BuildIdsForCategory(string category)
         {
-            string normalized = Normalize(category);
+            string normalized = GridIds.Normalize(category);
             var ids = new Godot.Collections.Array<string>();
             foreach (GridBuildDefinition build in GridBuildDefinition.Enumerate(Builds))
             {
                 if (build == null)
                     continue;
 
-                if (string.IsNullOrEmpty(normalized) || Normalize(build.Category) == normalized)
+                if (string.IsNullOrEmpty(normalized) || GridIds.Normalize(build.Category) == normalized)
                     ids.Add(build.BuildId);
             }
 
@@ -105,7 +105,7 @@ namespace Beep.ECS
 
             foreach ((string resourceId, int amount) in GridResourceAmount.Enumerate(build.Costs))
             {
-                string id = Normalize(resourceId);
+                string id = GridIds.Normalize(resourceId);
                 if (string.IsNullOrEmpty(id))
                     continue;
 
@@ -129,7 +129,5 @@ namespace Beep.ECS
             EntityComponent.Resolve(this, ResourceWalletPath, ref _wallet);
         }
 
-        private static string Normalize(string value)
-            => value.Trim().ToLowerInvariant();
     }
 }

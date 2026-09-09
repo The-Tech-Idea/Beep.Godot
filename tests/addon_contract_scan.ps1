@@ -2053,6 +2053,32 @@ foreach ($rel in $terrainOnly) {
         Fail "$rel does not drop a Gameplay per-cell change; a farming edit will still rebuild terrain visuals (ENH-02)."
     }
 }
+# DUP-05: one id normaliser. GridIds.Normalize is the rule - trim, lower, ' ' and '-'
+# to '_', empty stays empty - and GridIds.NormalizeOr adds a caller's default. Eighteen
+# private copies had drifted: the wallet kept spaces, the catalogue lower-cased them, the
+# resource bar kept the author's case, so "Iron Ore" read as three ids and a cost never
+# matched the coins for it. No file may carry its own id normaliser again.
+$gridIds = Read "addons/beep_game_builder_cs/ecs/grid/GridIds.cs"
+foreach ($required in @("public static string Normalize(string? value)", "public static string NormalizeOr(string? value, string fallback)")) {
+    if ($gridIds -notmatch [regex]::Escape($required)) {
+        Fail "GridIds must own the id normaliser: $required."
+    }
+}
+foreach ($folder in @("ecs/grid", "ecs/terrain")) {
+    foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/$folder") -Filter *.cs -Recurse) {
+        if ($file.Name -eq "GridIds.cs") { continue }
+        $candidate = Get-Content -Path $file.FullName -Raw
+        foreach ($copy in @("private static string Normalize(", "private static string NormalizeKind(", "private static string NormalizeId(")) {
+            if ($candidate -match [regex]::Escape($copy)) {
+                Fail "$($file.Name) carries its own id normaliser ($copy); GridIds.Normalize/NormalizeOr is the one rule (DUP-05)."
+            }
+        }
+    }
+}
+$terrainRules = Read "addons/beep_game_builder_cs/ecs/grid/GridTerrainRules.cs"
+if ($terrainRules -notmatch [regex]::Escape("public static string Normalize(string value) => GridIds.Normalize(value);")) {
+    Fail "GridTerrainRules.Normalize must forward to GridIds.Normalize."
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

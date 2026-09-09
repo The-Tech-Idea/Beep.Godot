@@ -248,7 +248,7 @@ namespace Beep.ECS
                 return 0;
             }
 
-            int generated = _cells.LoadGeneratedCells(GeneratedCells(settings, field), ClearExistingCells, NormalizeKind(DefaultTerrainKind));
+            int generated = _cells.LoadGeneratedCells(GeneratedCells(settings, field), ClearExistingCells, GridIds.NormalizeOr(DefaultTerrainKind, "grass"));
             EmitSignal(SignalName.TerrainGenerated, generated);
             return generated;
         }
@@ -558,7 +558,7 @@ namespace Beep.ECS
         {
             ResolveReferences();
             return _cells is null ? null : new GridCellDataComponent.GeneratedPublication(_cells,
-                GeneratedCells(settings, field), NormalizeKind(DefaultTerrainKind));
+                GeneratedCells(settings, field), GridIds.NormalizeOr(DefaultTerrainKind, "grass"));
         }
 
         internal bool PublicationMatches(GridCellDataComponent.GeneratedPublication publication)
@@ -636,7 +636,5 @@ namespace Beep.ECS
         private void ResolveReferences()
             => _cells = CellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(CellDataPath);
 
-        private static string NormalizeKind(string value)
-            => string.IsNullOrWhiteSpace(value) ? "grass" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
     }
 }

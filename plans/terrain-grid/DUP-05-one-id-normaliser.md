@@ -1,6 +1,18 @@
 # DUP-05 — One id normaliser and one node-name sanitiser
 
-**Type:** duplication fix (rules already diverge) · **Area:** `ecs/grid/**`, `ecs/terrain/TerrainGeneratorComponent`, `TerrainTransitionLayerComponent`, `SeededTerrainPropScatterComponent`, `MountainTileMapLayerGeneratorComponent` · **Status:** proposed 2026-09-08 · **Effort:** S (1 day) · **Risk:** low–medium (a normaliser change can alter which ids match)
+**Type:** duplication fix (rules already diverge) · **Area:** `ecs/grid/**`, `ecs/terrain/TerrainGeneratorComponent`, `TerrainTransitionLayerComponent`, `SeededTerrainPropScatterComponent`, `MountainTileMapLayerGeneratorComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (id normaliser done; the node-name sanitiser deferred) · **Effort:** S (1 day) · **Risk:** low–medium (a normaliser change can alter which ids match)
+
+## Outcome (id normaliser)
+
+`GridIds.Normalize` is the one rule now - trim, lower-invariant, `' '` and `'-'` to `'_'`, empty stays empty - with `GridIds.NormalizeOr(value, fallback)` for the callers that want an empty id to mean a default. Fourteen private copies are gone: the nine that treated empty as empty forward to `GridIds.Normalize`, and the five that invented a fallback (`"work"`, `"survey"`, `"misc"`, and the two terrain `"grass"` defaults) now say that fallback at the call site through `NormalizeOr`. `GridTerrainRules.Normalize` forwards to `GridIds.Normalize` in one line so its existing callers and pins stand.
+
+The bug the drift caused is fixed and guarded: the wallet keyed amounts with a normaliser that kept spaces, the build catalogue lower-cased but kept them, and the resource bar kept the author's case, so `"Iron Ore"` in a cost and `"iron_ore"` in the wallet were the same resource to the catalogue and two resources to the wallet. `tests/grid_ids_probe.gd` credits a wallet `iron_ore` and reads it back as `Iron Ore` and `iron-ore`, spends against a third spelling, and checks the debit landed on the one key - and the two mutations trip it (a private `Normalize` re-added anywhere trips the scan pin; dropping the space replacement in `GridIds.Normalize` fails the wallet match).
+
+The plan's second fix landed too: `SeededTerrainPropScatterComponent` used a copy that turned an empty terrain kind into `"grass"`, so an unassigned cell grew grass props. It uses `GridIds.Normalize` now, so an empty kind stays empty and scatters nothing.
+
+Verified: `dotnet build` clean, zero warnings; 16 probes across the resource, economy, job, production, scatter and building systems green - the normalisation change moved which spellings match, and nothing that relied on the old matching broke; the scan pin (no private `Normalize`/`NormalizeKind`/`NormalizeId` outside `GridIds`, and `GridTerrainRules` forwards) passes and both its mutations trip.
+
+**Deferred: the node-name sanitiser.** The four `SafeName` copies stay for now. They diverge on case - `GridPanelComponent.SafeName` (the HUD base, and the two forwarders on it) preserves the author's case, while the scatter and worker-spawner copies lower-case - and consolidating them means choosing one case rule, deleting the `protected` base every HUD panel calls, and updating its subclass callers, none of which is the id-matching bug this change was about. No test or scene references a `SafeName`-generated node name by literal string (checked), so the case change is safe to make; it is simply a separate, self-contained step, and `GridIds` gains its `NodeName` member when it lands. DUP-12 (HUD panels) is where that consolidation naturally belongs, since it already reworks every panel.
 
 ## Finding
 

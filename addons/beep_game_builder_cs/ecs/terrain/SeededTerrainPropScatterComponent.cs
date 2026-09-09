@@ -236,8 +236,6 @@ namespace Beep.ECS
             }
         }
 
-        private static string Normalize(string value)
-            => string.IsNullOrWhiteSpace(value) ? "grass" : value.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
 
         private float CoverageFor(string paletteKey) => paletteKey switch
         {
@@ -270,8 +268,8 @@ namespace Beep.ECS
             if (field is not null && field.IsWaterAtPosition(tilePosition) && !AllowShallowWaterProps)
                 return string.Empty;
 
-            string cellKey = _cells is null ? string.Empty : PaletteKeyFor(Normalize(CellTerrainKindAt(tilePosition)));
-            string generatorKey = _generator is null ? string.Empty : PaletteKeyFor(Normalize(GeneratorTerrainKindAt(field, tilePosition)));
+            string cellKey = _cells is null ? string.Empty : PaletteKeyFor(GridIds.Normalize(CellTerrainKindAt(tilePosition)));
+            string generatorKey = _generator is null ? string.Empty : PaletteKeyFor(GridIds.Normalize(GeneratorTerrainKindAt(field, tilePosition)));
 
             if (_cells is not null && string.IsNullOrEmpty(cellKey))
                 return string.Empty;

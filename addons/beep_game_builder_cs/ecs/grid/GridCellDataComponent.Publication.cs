@@ -55,6 +55,7 @@ public partial class GridCellDataComponent
             if (!Complete || _records is null || !GodotObject.IsInstanceValid(_target) || !_target.IsInsideTree())
                 throw new InvalidOperationException("Cell publication is incomplete or its target is unavailable.");
             _target._cells = _records;
+            _target.RebuildDailyIndex();
             _target._unavailableChunks.Clear();
             _target._evictedChunks.Clear();
             _records = null;

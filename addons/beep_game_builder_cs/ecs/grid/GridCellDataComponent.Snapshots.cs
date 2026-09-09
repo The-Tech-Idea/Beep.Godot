@@ -36,6 +36,7 @@ public partial class GridCellDataComponent
     public void RestoreChunkState(Godot.Collections.Dictionary state)
     {
         _cells = ParseChunkState(state);
+        RebuildDailyIndex();
         _unavailableChunks.Clear();
         _evictedChunks.Clear();
         ResetChunkRevisions();
@@ -85,6 +86,7 @@ public partial class GridCellDataComponent
     private void PublishRecords(Vector2I coordinate, ChunkedCellStore<CellRecord> records)
     {
         _cells.ReplaceChunk(coordinate, records);
+        RefreshDailyChunk(coordinate);
         _unavailableChunks.Remove(coordinate);
         _evictedChunks.Remove(coordinate);
         MarkChunkChanged(coordinate);

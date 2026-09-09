@@ -52,6 +52,39 @@ namespace Beep.ECS
         [Export] public bool ClearWaterOnNewDay { get; set; } = true;
 
         private ChunkedCellStore<CellRecord> _cells = new();
+
+        // Cells that need daily processing: a crop to age, or standing water to
+        // evaporate. AdvanceDay walks THIS set rather than every stored cell, which on
+        // a large farm is a few hundred entries instead of a million. Maintained
+        // wherever a crop or the Watered flag changes, and rebuilt when the whole
+        // store is replaced. The per-cell notifications AdvanceDay raises are unchanged;
+        // only the scan that found the cells is gone.
+        private readonly HashSet<Vector2I> _dailyCells = new();
+        private readonly List<Vector2I> _dailyScratch = new();
+
+        private void RefreshDaily(Vector2I cell, CellRecord record)
+        {
+            if (!string.IsNullOrEmpty(record.CropId) || (record.Flags & CellFlags.Watered) != 0)
+                _dailyCells.Add(cell);
+            else
+                _dailyCells.Remove(cell);
+        }
+
+        private void RebuildDailyIndex()
+        {
+            _dailyCells.Clear();
+            foreach ((Vector2I cell, CellRecord record) in _cells)
+                if (!string.IsNullOrEmpty(record.CropId) || (record.Flags & CellFlags.Watered) != 0)
+                    _dailyCells.Add(cell);
+        }
+
+        private void RefreshDailyChunk(Vector2I coordinate)
+        {
+            _dailyCells.RemoveWhere(c => ChunkedCellStore<CellRecord>.ChunkFor(c) == coordinate);
+            foreach ((Vector2I cell, CellRecord record) in _cells.InChunk(coordinate))
+                if (!string.IsNullOrEmpty(record.CropId) || (record.Flags & CellFlags.Watered) != 0)
+                    _dailyCells.Add(cell);
+        }
         /// <summary>Terrain, elevation and fine-water data only; existing-cell workflow flags do not repaint ground.</summary>
         internal ulong TerrainRevision { get; private set; }
         /// <summary>Traversal inputs only; farming and visual changes do not invalidate searches.</summary>
@@ -75,6 +108,7 @@ namespace Beep.ECS
                 return;
 
             _cells.Clear();
+            _dailyCells.Clear();
             _unavailableChunks.Clear();
             _evictedChunks.Clear();
             ResetChunkRevisions();
@@ -190,6 +224,7 @@ namespace Beep.ECS
             CellRecord record = GetOrCreate(cell);
             if (((record.Flags ^ target) & CellFlags.Blocked) != 0) MarkNavigationChanged();
             record.Flags = target;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Navigation);
             return true;
         }
@@ -199,6 +234,7 @@ namespace Beep.ECS
             CellRecord record = GetOrCreate(cell);
             if ((flag & CellFlags.Blocked) != 0 && (record.Flags & CellFlags.Blocked) == 0) MarkNavigationChanged();
             record.Flags |= flag;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Navigation);
         }
 
@@ -209,6 +245,7 @@ namespace Beep.ECS
 
             if ((flag & record.Flags & CellFlags.Blocked) != 0) MarkNavigationChanged();
             record.Flags &= ~flag;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Navigation);
         }
 
@@ -243,6 +280,7 @@ namespace Beep.ECS
                 return false;
             CellRecord record = GetOrCreate(cell);
             record.Flags |= CellFlags.Watered;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
             return true;
         }
@@ -262,6 +300,7 @@ namespace Beep.ECS
             record.CropRegrowDays = Mathf.Max(-1, regrowDays);
             record.Flags |= CellFlags.Planted;
             record.Flags &= ~CellFlags.HarvestReady;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
             return true;
         }
@@ -281,6 +320,7 @@ namespace Beep.ECS
                 record.CropAgeDays = 0;
                 record.CropDaysToMature = record.CropRegrowDays;
                 record.Flags &= ~(CellFlags.HarvestReady | CellFlags.Watered);
+                RefreshDaily(cell, record);
                 NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
                 return true;
             }
@@ -292,6 +332,7 @@ namespace Beep.ECS
             record.Flags &= ~(CellFlags.Planted | CellFlags.HarvestReady | CellFlags.Watered);
             if (clearTilled)
                 record.Flags &= ~CellFlags.Tilled;
+            RefreshDaily(cell, record);
             NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
             return true;
         }
@@ -354,8 +395,13 @@ namespace Beep.ECS
             _simulationDepth++;
             try
             {
-                foreach ((Vector2I cell, CellRecord record) in _cells)
+                // A snapshot: processing a cell can drop it from the index (its water
+                // dried and it has no crop), and the set must not change while it is walked.
+                _dailyScratch.Clear();
+                _dailyScratch.AddRange(_dailyCells);
+                foreach (Vector2I cell in _dailyScratch)
                 {
+                    if (!_cells.TryGetValue(cell, out CellRecord? record)) { _dailyCells.Remove(cell); continue; }
                     bool waterChanged = ClearWaterOnNewDay && (record.Flags & CellFlags.Watered) != 0;
                     if (ClearWaterOnNewDay)
                         record.Flags &= ~CellFlags.Watered;
@@ -363,6 +409,7 @@ namespace Beep.ECS
                     if (string.IsNullOrEmpty(record.CropId))
                     {
                         if (waterChanged) NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
+                        RefreshDaily(cell, record);
                         continue;
                     }
 
@@ -375,6 +422,7 @@ namespace Beep.ECS
                     }
 
                     NotifyCellChanged(cell, TerrainChangeKind.Gameplay);
+                    RefreshDaily(cell, record);
                 }
             }
             finally { _simulationDepth--; }
@@ -432,6 +480,7 @@ namespace Beep.ECS
             {
                 changed = _cells.Count > 0 || _unavailableChunks.Count > 0;
                 _cells.Clear();
+                _dailyCells.Clear();
                 _unavailableChunks.Clear();
                 _evictedChunks.Clear();
                 ResetChunkRevisions();
@@ -440,6 +489,7 @@ namespace Beep.ECS
             foreach (var (cell, record) in parsed)
             {
                 _cells[cell] = record;
+                RefreshDaily(cell, record);
                 if (!clearExisting) MarkCellChanged(cell);
                 changed = true;
             }
@@ -483,6 +533,7 @@ namespace Beep.ECS
             {
                 changed = _cells.Count > 0 || _unavailableChunks.Count > 0;
                 _cells.Clear();
+                _dailyCells.Clear();
                 _unavailableChunks.Clear();
                 _evictedChunks.Clear();
                 ResetChunkRevisions();

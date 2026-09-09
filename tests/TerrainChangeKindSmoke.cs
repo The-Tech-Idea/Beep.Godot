@@ -49,6 +49,21 @@ public partial class TerrainChangeKindSmoke : Node
         cells.SetFlags(here, 0);
         cells.RemoveCrop(here, clearTilled: true);
 
+        // The daily index: AdvanceDay ages crops and evaporates standing water without
+        // scanning every cell. A planted crop and a watered cell must be found; a cell
+        // that is neither must be left alone. A missed index-maintenance site shows up
+        // here as a crop that never grows or water that never dries.
+        var crop = new Vector2I(20, 20);
+        var puddle = new Vector2I(21, 21);
+        cells.Till(crop);
+        if (!cells.PlantCrop(crop, "wheat", 3)) return Fail("PlantCrop on tilled ground failed");
+        cells.Water(puddle);
+        cells.AdvanceDay(1);
+        if (cells.GetCropAgeDays(crop) != 1) return Fail("AdvanceDay did not age a planted crop; the daily index missed it");
+        if (cells.HasFlag(puddle, GridCellDataComponent.CellFlags.Watered)) return Fail("AdvanceDay did not evaporate standing water; the daily index missed it");
+        cells.RemoveCrop(crop, clearTilled: true);
+        cells.SetFlags(puddle, 0);
+
         // An edit inside one chunk: Terrain, that chunk named, content revision up.
         ulong terrainBefore = cells.TerrainRevision;
         cells.FillTerrain(new Rect2I(2, 2, 3, 3), "desert");
@@ -85,7 +100,7 @@ public partial class TerrainChangeKindSmoke : Node
             return Fail("Eviction bumped NavigationRevision; an evicted unpinned chunk changes no search input");
 
         cells.Free();
-        GD.Print("[terrain-change-kind] per-cell kinds and no-op early-outs, bulk edit=Terrain(+Navigation), eviction=Residency with revisions held OK");
+        GD.Print("[terrain-change-kind] per-cell kinds, no-op early-outs, daily-index crop/water, bulk edit=Terrain(+Navigation), eviction=Residency OK");
         return true;
     }
 

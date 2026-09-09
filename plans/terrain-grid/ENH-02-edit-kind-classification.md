@@ -1,6 +1,6 @@
 # ENH-02 — Farming edits stop rebuilding terrain; no-op writes stop notifying
 
-**Type:** enhancement (correctness of invalidation) · **Area:** `GridCellDataComponent` mutators, `GridCalendarComponent.AdvanceDay`, `GridToolActionComponent`, `CropGrowth` path, per-cell listeners · **Status:** **IMPLEMENTED 2026-09-09** (per-cell kind + no-op early-outs; crop-tick index is follow-up) · **Effort:** S–M (1–2 days) · **Risk:** low
+**Type:** enhancement (correctness of invalidation) · **Area:** `GridCellDataComponent` mutators, `GridCalendarComponent.AdvanceDay`, `GridToolActionComponent`, `CropGrowth` path, per-cell listeners · **Status:** **IMPLEMENTED 2026-09-09** (per-cell kind, no-op early-outs, crop-tick index) · **Effort:** S–M (1–2 days) · **Risk:** low
 
 ## Outcome
 
@@ -14,7 +14,11 @@ Verified: `dotnet build` clean, zero warnings; the streaming/grid/rendering prob
 
 Two probes had encoded the old behaviour and were corrected: `terrain_chunk_revisions_probe` used `SetFlags(cell, 0)` on a zero-flags cell as an "invalidating" mutation, which is now correctly a no-op, so it was changed to a real flag change; and the same `terrain_feature` metadata that the feature renderer draws was, in a first cut, misclassified as `Gameplay` and skipped - `terrain_feature_streaming_probe` caught it, and the classification became "every terrain_* key is a terrain change."
 
-**Deferred: the crop-tick index (part 3).** `GridCellDataComponent.AdvanceDay` still walks every stored cell to age crops. The plan's fix - a per-chunk `_cropCells` index maintained by plant/harvest/evict/reload so `AdvanceDay` iterates crops and emits one `CellsChanged(Gameplay, chunks)` for the batch - is a self-contained change that needs its own index-maintenance guard across the save/eviction paths and a timing probe, and it is honest to land it separately rather than fold an index with its own lifecycle into this per-cell-classification change. It is now unblocked: the `Gameplay` kind and the terrain-renderer filter it needs are in place, so the batch emit will not rebuild terrain visuals.
+**Crop-tick index (part 3).** `GridCellDataComponent` now keeps a `_dailyCells` set - every cell with a crop to age or standing water to evaporate - maintained wherever a crop or the Watered flag changes (the mutators) and rebuilt when the store is replaced (load, restore, publication) or a chunk is reloaded. `AdvanceDay` walks that set instead of every stored cell, so on a 1024x1024 farm it processes a few hundred entries rather than a million. The per-cell notifications it raises are byte-for-byte what they were - only the scan that found the cells is gone - so no listener contract changed and no probe that watched `AdvanceDay`'s emits needed touching.
+
+Deliberately NOT taken: the plan's further step of collapsing those per-cell `CellChanged` emits into one `CellsChanged(Gameplay, chunks)` batch. That changes the notification contract - listeners that watch per-cell crop growth would have to move to the bulk signal, and the terrain renderers' bulk `CellsChanged` filter would have to narrow from `Content` to `Terrain|Navigation` so the batch does not re-trigger the storm - and it is not where the cost is: the million-cell scan was, and that is gone. Collapsing 200 emits into 1 is a separate, contract-changing optimisation left for when a listener actually needs it.
+
+`tests/terrain_change_kind_probe.gd` now also asserts a planted crop ages and a watered cell dries across `AdvanceDay` (the index found them); 2 of 2 mutations trip it (dropping the index update in `PlantCrop` or `Water`). The farming-and-streaming probe suite - chunk revisions, eviction, availability, loading, saving, budget, navigation invalidation, painted origin - stays green, exercising crops through plant, water, advance, evict and reload.
 
 ## Finding
 

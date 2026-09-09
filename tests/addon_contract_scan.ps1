@@ -2104,6 +2104,11 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
             Fail "$($file.Name) carries its own dictionary reader ($copy); GridVariantReader is the one owner (DUP-06)."
         }
     }
+    foreach ($guard in @("static float NonNegativeFinite(", "static bool FinitePositive(", "static float DeltaSeconds(", "static Vector2 FiniteVector(", "static Vector2 PositiveVector(")) {
+        if ($file.Name -ne "GridMath.cs" -and $candidate -match [regex]::Escape($guard)) {
+            Fail "$($file.Name) carries its own numeric guard ($guard); GridMath is the one owner (DUP-06)."
+        }
+    }
 }
 # DUP-08: one owner each for the footprint double-loop and the z-clamp. A placed object
 # answers for its own cells (GridObjectComponent.FootprintCells/Covers); a caller with a

@@ -1,4 +1,5 @@
 using Godot;
+using static Beep.ECS.GridMath;
 
 namespace Beep.ECS
 {
@@ -301,32 +302,6 @@ namespace Beep.ECS
             if (min.Y > max.Y) (min.Y, max.Y) = (max.Y, min.Y);
             return (min, max);
         }
-
-        private static Vector2 PositiveVector(Vector2 value, Vector2 fallback)
-        {
-            float x = FinitePositive(value.X) ? value.X : fallback.X;
-            float y = FinitePositive(value.Y) ? value.Y : fallback.Y;
-            return new Vector2(x, y);
-        }
-
-        private static Vector2 FiniteVector(Vector2 value, Vector2 fallback)
-        {
-            float x = float.IsFinite(value.X) ? value.X : fallback.X;
-            float y = float.IsFinite(value.Y) ? value.Y : fallback.Y;
-            return new Vector2(x, y);
-        }
-
-        private static float NonNegativeFinite(float value)
-            => float.IsFinite(value) && value > 0f ? value : 0f;
-
-        private static bool FinitePositive(float value)
-            => float.IsFinite(value) && value > 0f;
-
-        private static bool IsFinite(Vector2 value)
-            => float.IsFinite(value.X) && float.IsFinite(value.Y);
-
-        private static float DeltaSeconds(double delta)
-            => double.IsFinite(delta) && delta > 0.0 ? (float)Mathf.Min(delta, 86400.0) : 0f;
 
         private void EmitChanges()
         {

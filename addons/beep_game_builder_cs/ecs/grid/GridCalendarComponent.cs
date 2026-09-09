@@ -173,13 +173,5 @@ namespace Beep.ECS
 
 
 
-        private static float DeltaSeconds(double delta)
-            => double.IsFinite(delta) && delta > 0.0 ? (float)Mathf.Min(delta, 86400.0) : 0f;
-
-        private static float PositiveFinite(float value, float fallback)
-            => float.IsFinite(value) && value > 0f ? value : fallback;
-
-        private static float NonNegativeFinite(float value)
-            => float.IsFinite(value) && value > 0f ? value : 0f;
     }
 }

@@ -27,11 +27,11 @@ public partial class GridPathFollowerComponent
         {
             var cell = _cellPath[i];
             var previous = _cellPath[Mathf.Max(0, i - 1)];
-            lastSegment[new(cell.X >> 5, cell.Y >> 5)] = i;
-            lastSegment[new(previous.X >> 5, previous.Y >> 5)] = i;
+            lastSegment[GridCellDataComponent.ChunkOf(cell)] = i;
+            lastSegment[GridCellDataComponent.ChunkOf(previous)] = i;
             // Diagonal traversal also reads the two orthogonal side cells.
-            lastSegment[new(previous.X >> 5, cell.Y >> 5)] = i;
-            lastSegment[new(cell.X >> 5, previous.Y >> 5)] = i;
+            lastSegment[GridCellDataComponent.ChunkOf(new Vector2I(previous.X, cell.Y))] = i;
+            lastSegment[GridCellDataComponent.ChunkOf(new Vector2I(cell.X, previous.Y))] = i;
         }
         foreach (var (chunk, segment) in lastSegment)
         {

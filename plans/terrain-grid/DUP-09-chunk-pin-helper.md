@@ -1,6 +1,27 @@
 # DUP-09 — One chunk-pin helper; chunk arithmetic in one place
 
-**Type:** duplication fix · **Area:** `GridCellDataComponent.Pins`, `*.ChunkPins.cs` partials (7), `GridCameraDemandComponent`, `TerrainMotionGateComponent`, `TerrainVisualSnapshot`, `GridCellArchiveComponent.Loading`, `GridNavigationComponent.TerrainDemand` · **Status:** proposed 2026-09-08 · **Effort:** M (1–2 days) · **Risk:** medium (streaming correctness)
+**Type:** duplication fix · **Area:** `GridCellDataComponent.Pins`, `*.ChunkPins.cs` partials (7), `GridCameraDemandComponent`, `TerrainMotionGateComponent`, `TerrainVisualSnapshot`, `GridCellArchiveComponent.Loading`, `GridNavigationComponent.TerrainDemand` · **Status:** **implemented 2026-09-09** (arithmetic centralised + helper; 4 of 7 owners ported — see Outcome) · **Effort:** M (1–2 days) · **Risk:** medium (streaming correctness)
+
+## Outcome (implemented 2026-09-09)
+
+Build clean (0 warnings). The full chunk/streaming/demand/eviction/route/worker/follower probe set is green and byte-for-byte unchanged from the pre-refactor baseline, including the DUP-10-sensitive `terrain_worker_arrival_probe` and `terrain_follower_requests_probe`, plus `actor_residency/spatial/travel/integration/visual_culling`. One probe, `terrain_search_eviction_probe`, is red BEFORE and AFTER this change (pre-existing "Unpinned search lost eviction invalidation"); it is not touched by the pin mechanism and is out of scope here.
+
+**What shipped.**
+
+- **One chunk rule.** `ChunkedCellStore.ChunkAxis(long) => (int)(coordinate >> 5)` is now the single place the shift lives; `ChunkFor` is `new(ChunkAxis(cell.X), ChunkAxis(cell.Y))`. `GridCellDataComponent.ChunkOf(Vector2I)` and `ChunkAxis(long)` are the public faces. All 52 inline `>> 5` sites across 12 files are gone; the scan pins that the literal appears only in `ChunkedCellStore.cs`. Mutation-proven: reintroducing one inline shift fires the pin naming the file.
+- **`GridChunkPins`** (new, `ecs/grid/`): a per-owner accumulator — `Bind` / `Want` / `WantCell` / `WantCells` / `WantRect` / `Commit` / `Release` — that reuses one wanted-set across commits (no per-refresh `HashSet` allocation) and hands the set to the store. Ported: `GridObjectComponent`, `GridJobQueueComponent`, `GridHaulerComponent`, `GridActorTravelComponent` — the rebuild-from-scratch, owner-is-self owners.
+
+**Two deliberate departures from the proposal, both load-bearing.**
+
+1. **The diff was never duplicated; only the arithmetic and the resolve/allocate were.** The plan described a "compute set, diff against last, pin/unpin the delta" pattern written seven times. In the code the diff and the refcount and the `TreeExiting` release already live in ONE place — `GridCellDataComponent.ReplaceChunkPins` — and every owner already just built a set and handed it over. So `GridChunkPins.Commit()` delegates to `ReplaceChunkPins` rather than re-implementing the diff; the helper removes the duplicated *resolve-store / rebind-on-change / allocate-a-HashSet / shift-each-cell* block, which is the duplication that was actually there. The unpin path is still guarded: skipping it trips `terrain_chunk_pins_probe` and `terrain_camera_demand_probe` (verified).
+
+2. **Three owners keep their own pin policy; they borrow only the arithmetic.** `GridPathFollowerComponent` maintains a route set incrementally with an expiry priority queue and retires passed chunks; `ActorRegistryComponent` pins a radius box per actor with one pin owner *per actor* and a per-actor change cache; `GridCameraDemandComponent` rebuilds a viewport rectangle every `_Process` frame behind a `_lastChunkBounds` cache that must stay to avoid rebuilding a large set each frame. None of these is a rebuild-from-scratch/owner-is-self shape, so forcing them onto `Want`/`Commit` would either drop their optimisation or change behaviour. They route their shifts through `ChunkOf`/`ChunkAxis` and keep their logic. `GridChunkPins` has four real consumers, well past the two-consumer bar.
+
+**Not done, by design.**
+
+- **`RefreshChunkPins` kept its name.** The proposal's guard wanted the name to disappear, on the theory that the name carried the duplicated diff. It did not — the diff is in `ReplaceChunkPins`. `RefreshChunkPins` is each owner's public "recompute my demand now" entry point with ~30 call sites; renaming all of them is name churn with no invariant behind it, and churning fragile streaming code is exactly what regressed DUP-10. The real invariant — one chunk rule — is pinned and mutation-proven instead. No `RefreshChunkPins`-name pin was added.
+- **The `EmitQueueChanged` double-refresh** (a redundant second diff per job-queue mutation) is left in place; it is a harmless no-op through `ReplaceChunkPins`'s `SetEquals` early-out, and removing it belongs to ENH-12, not to an arithmetic dedup.
+- **The lightweight `GridPinToken` owner** (second `GridChunkPins` constructor in the proposal) is ENH-03's work and has no consumer yet, so it was not added.
 
 ## Finding
 

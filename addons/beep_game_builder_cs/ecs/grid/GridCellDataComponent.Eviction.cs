@@ -49,8 +49,8 @@ public partial class GridCellDataComponent
         long endX = (long)area.Position.X + area.Size.X - 1;
         long endY = (long)area.Position.Y + area.Size.Y - 1;
         foreach (var chunk in _evictedChunks)
-            if (chunk.X >= (area.Position.X >> 5) && chunk.X <= (endX >> 5)
-                && chunk.Y >= (area.Position.Y >> 5) && chunk.Y <= (endY >> 5))
+            if (chunk.X >= ChunkAxis(area.Position.X) && chunk.X <= ChunkAxis(endX)
+                && chunk.Y >= ChunkAxis(area.Position.Y) && chunk.Y <= ChunkAxis(endY))
                 throw new InvalidOperationException("Load archived chunks before painting this area.");
     }
 }

@@ -53,8 +53,8 @@ public partial class GridCameraDemandComponent : Node
         long endX = (long)BoundsCells.Position.X + BoundsCells.Size.X - 1;
         long endY = (long)BoundsCells.Position.Y + BoundsCells.Size.Y - 1;
         if (endX > int.MaxValue || endY > int.MaxValue) return false;
-        long minX = BoundsCells.Position.X >> 5, minY = BoundsCells.Position.Y >> 5;
-        long maxX = endX >> 5, maxY = endY >> 5;
+        long minX = GridCellDataComponent.ChunkAxis(BoundsCells.Position.X), minY = GridCellDataComponent.ChunkAxis(BoundsCells.Position.Y);
+        long maxX = GridCellDataComponent.ChunkAxis(endX), maxY = GridCellDataComponent.ChunkAxis(endY);
         IsUsingOverview = !OverviewSurfacePath.IsEmpty
             && GetNodeOrNull<TerrainSurfaceStreamingComponent>(OverviewSurfacePath) is { } surface
             && surface.CanSupplyOverview(grid.GetViewport(), BoundsCells);
@@ -86,10 +86,10 @@ public partial class GridCameraDemandComponent : Node
                 x1 = Math.Max(x1, cell.X); y1 = Math.Max(y1, cell.Y);
             }
             int padding = Math.Clamp(PaddingChunks, 0, 4);
-            minX = Math.Max(minX, ((x0 - 1) >> 5) - padding);
-            minY = Math.Max(minY, ((y0 - 1) >> 5) - padding);
-            maxX = Math.Min(maxX, ((x1 + 1) >> 5) + padding);
-            maxY = Math.Min(maxY, ((y1 + 1) >> 5) + padding);
+            minX = Math.Max(minX, GridCellDataComponent.ChunkAxis(x0 - 1) - padding);
+            minY = Math.Max(minY, GridCellDataComponent.ChunkAxis(y0 - 1) - padding);
+            maxX = Math.Min(maxX, GridCellDataComponent.ChunkAxis(x1 + 1) + padding);
+            maxY = Math.Min(maxY, GridCellDataComponent.ChunkAxis(y1 + 1) + padding);
         }
         if (minX > maxX || minY > maxY)
         {

@@ -15,6 +15,12 @@ public partial class GridCellDataComponent
     public int GetChunkPinCount(Vector2I chunk) => _chunkPinCounts.GetValueOrDefault(chunk);
     public bool HasChunkPins(Node owner) => GodotObject.IsInstanceValid(owner) && _pinOwners.ContainsKey(owner.GetInstanceId());
 
+    /// <summary>The chunk a cell falls in. The chunk rule lives in <see cref="ChunkedCellStore{T}"/>; this is its public face for pin owners.</summary>
+    public static Vector2I ChunkOf(Vector2I cell) => ChunkedCellStore<CellRecord>.ChunkFor(cell);
+
+    /// <summary>The chunk index one axis coordinate falls in, widened so a near-limit rectangle cannot wrap.</summary>
+    public static int ChunkAxis(long coordinate) => ChunkedCellStore<CellRecord>.ChunkAxis(coordinate);
+
     public bool SetChunkPins(Node owner, Godot.Collections.Array<Vector2I> chunks)
         => ReplaceChunkPins(owner, new HashSet<Vector2I>(chunks));
 

@@ -37,7 +37,7 @@ public partial class GridNavigationComponent
 
         public bool Observe(Vector2I cell)
         {
-            var chunk = new Vector2I(cell.X >> 5, cell.Y >> 5);
+            var chunk = GridCellDataComponent.ChunkOf(cell);
             if (!_chunks.Contains(chunk))
             {
                 if (_chunks.Count >= _limit) { LimitExceeded = true; return false; }

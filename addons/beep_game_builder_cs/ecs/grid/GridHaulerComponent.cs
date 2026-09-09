@@ -166,8 +166,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
-            if (GodotObject.IsInstanceValid(_pinCells)) _pinCells!.ReleaseChunkPins(this);
-            _pinCells = null;
+            _pins?.Release();
             _workClock.Unbind();
             if (_registered && _manager != null && GodotObject.IsInstanceValid(_manager))
                 _manager.Unregister(this);

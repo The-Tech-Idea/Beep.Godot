@@ -15,8 +15,11 @@ internal sealed class ChunkedCellStore<T> : IEnumerable<KeyValuePair<Vector2I, T
     public IEnumerable<Vector2I> ChunkCoordinates => _chunks.Keys;
     public int CountInChunk(Vector2I coordinate) => _chunks.TryGetValue(coordinate, out var records) ? records.Count : 0;
 
-    // Arithmetic shift is floor division, including negative coordinates.
-    public static Vector2I ChunkFor(Vector2I cell) => new(cell.X >> 5, cell.Y >> 5);
+    // Arithmetic shift is floor division, including negative coordinates. This is the
+    // one place the chunk rule lives: every cell-to-chunk conversion in the addon goes
+    // through ChunkAxis / ChunkFor / GridCellDataComponent.ChunkOf, never an inline shift.
+    public static int ChunkAxis(long coordinate) => (int)(coordinate >> 5);
+    public static Vector2I ChunkFor(Vector2I cell) => new(ChunkAxis(cell.X), ChunkAxis(cell.Y));
 
     public T this[Vector2I cell]
     {

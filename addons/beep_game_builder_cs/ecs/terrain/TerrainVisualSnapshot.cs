@@ -95,8 +95,8 @@ internal sealed class TerrainVisualSnapshot
         }
         var surface = new LiveTerrainSurfaceData(cells);
         Vector2I end = origin + size;
-        for (int cy = origin.Y >> 5; cy <= (end.Y - 1) >> 5; cy++)
-        for (int cx = origin.X >> 5; cx <= (end.X - 1) >> 5; cx++)
+        for (int cy = GridCellDataComponent.ChunkAxis(origin.Y); cy <= GridCellDataComponent.ChunkAxis(end.Y - 1); cy++)
+        for (int cx = GridCellDataComponent.ChunkAxis(origin.X); cx <= GridCellDataComponent.ChunkAxis(end.X - 1); cx++)
         {
             var chunk = new Vector2I(cx, cy);
             if (!cells.IsChunkAvailable(chunk)) continue;

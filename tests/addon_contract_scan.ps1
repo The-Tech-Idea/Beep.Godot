@@ -11,6 +11,21 @@ function Read($relativePath) {
     Get-Content -Path (Join-Path $root $relativePath) -Raw
 }
 
+# One chunk rule (DUP-09). The cell-to-chunk shift (">> 5") lives only in
+# ChunkedCellStore.ChunkAxis; every pin owner and consumer goes through
+# GridCellDataComponent.ChunkOf / ChunkAxis or the GridChunkPins helper. A
+# re-derived inline shift silently drifts from the store's definition.
+$chunkShiftAddonRoot = (Resolve-Path (Join-Path $root "addons/beep_game_builder_cs")).Path
+$chunkShiftStragglers = @(Get-ChildItem -Path $chunkShiftAddonRoot -Recurse -Filter *.cs | ForEach-Object {
+    $chunkShiftRel = $_.FullName.Substring($chunkShiftAddonRoot.Length + 1).Replace('\', '/')
+    if ($chunkShiftRel -ne "ecs/grid/ChunkedCellStore.cs" -and (Get-Content -LiteralPath $_.FullName -Raw).Contains(">> 5")) {
+        $chunkShiftRel
+    }
+})
+if ($chunkShiftStragglers.Count -gt 0) {
+    Fail "The chunk shift '>> 5' must live only in ChunkedCellStore.ChunkAxis; re-derived in: $($chunkShiftStragglers -join ', '). Use GridCellDataComponent.ChunkOf / ChunkAxis or GridChunkPins."
+}
+
 $tween = Read "addons/beep_game_builder_cs/ecs/TweenComponent.cs"
 $enumMatch = [regex]::Match($tween, 'public enum Preset\s*\{(?<items>.*?)\}', [System.Text.RegularExpressions.RegexOptions]::Singleline)
 if (-not $enumMatch.Success) { Fail "TweenComponent.Preset enum not found." }

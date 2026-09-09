@@ -75,7 +75,7 @@ public partial class ActorRegistryComponent
         }
         var cell = grid.WorldToCell(current);
         if (cell == new Vector2I(int.MinValue, int.MinValue)) return;
-        var center = new Vector2I(cell.X >> 5, cell.Y >> 5);
+        var center = GridCellDataComponent.ChunkOf(cell);
         int radius = ActorChunkRadius;
         if (_actorPins.TryGetValue(actor.ActorId, out var previous) && previous == (center, radius) && cells.HasChunkPins(actor)) return;
         var chunks = new HashSet<Vector2I>();

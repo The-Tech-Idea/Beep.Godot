@@ -35,7 +35,8 @@ public partial class GridActorTravelComponent : Node, ISaveable
     private GridNavigationComponent? _navigation;
     private GridProjectionComponent? _grid;
     private GridWorkClockComponent? _clock;
-    private GridCellDataComponent? _pinCells;
+    private GridChunkPins? _pins;
+    private GridChunkPins Pins => _pins ??= new GridChunkPins(this);
 
     public override void _Ready()
     {
@@ -156,21 +157,18 @@ public partial class GridActorTravelComponent : Node, ISaveable
 
     private void RefreshPins()
     {
-        var cells = GodotObject.IsInstanceValid(_navigation) ? _navigation!.RouteCellData : null;
-        if (_pinCells != cells && GodotObject.IsInstanceValid(_pinCells)) _pinCells!.ReleaseChunkPins(this);
-        _pinCells = cells;
-        if (!GodotObject.IsInstanceValid(cells)) return;
-        var chunks = new HashSet<Vector2I>();
+        Pins.Bind(GodotObject.IsInstanceValid(_navigation) ? _navigation!.RouteCellData : null);
+        if (Pins.Cells is null) return;
         foreach (var route in _routes.Values)
             for (int i = Math.Max(0, route.Index - 1); i < route.Cells.Length; i++)
             {
                 var cell = route.Cells[i];
                 var previous = route.Cells[Math.Max(0, i - 1)];
-                chunks.Add(new(cell.X >> 5, cell.Y >> 5));
-                chunks.Add(new(previous.X >> 5, cell.Y >> 5));
-                chunks.Add(new(cell.X >> 5, previous.Y >> 5));
+                Pins.WantCell(cell);
+                Pins.WantCell(new Vector2I(previous.X, cell.Y));
+                Pins.WantCell(new Vector2I(cell.X, previous.Y));
             }
-        cells!.ReplaceChunkPins(this, chunks);
+        Pins.Commit();
     }
 
     public Godot.Collections.Dictionary CaptureState()

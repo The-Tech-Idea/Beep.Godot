@@ -1,15 +1,14 @@
 using Godot;
-using System.Collections.Generic;
 
 namespace Beep.ECS;
 
 public partial class GridHaulerComponent
 {
     private NodePath _chunkCellDataPath = new("");
-    private GridCellDataComponent? _pinCells;
+    private GridChunkPins? _pins;
+    private GridChunkPins Pins => _pins ??= new GridChunkPins(this);
     private Vector2I _pickupCell;
     private bool _awaitingTerrain;
-    private (Vector2I Depot, Vector2I Pickup, bool Cargo, bool Approaching)? _pinState;
 
     [Export] public NodePath ChunkCellDataPath
     {
@@ -22,28 +21,19 @@ public partial class GridHaulerComponent
     public void RefreshChunkPins()
     {
         if (!IsInsideTree() || Engine.IsEditorHint()) return;
-        var cells = ChunkCellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(ChunkCellDataPath);
-        if (_pinCells != cells)
-        {
-            if (GodotObject.IsInstanceValid(_pinCells)) _pinCells!.ReleaseChunkPins(this);
-            _pinCells = cells;
-            _pinState = null;
-        }
-        if (cells is null) return;
-        var state = (DepotCell, _pickupCell, _cargoAmount > 0, State == HaulerState.MovingToPickup);
-        if (_pinState == state && (!state.Item3 || cells.HasChunkPins(this))) return;
-        var chunks = new HashSet<Vector2I>();
+        Pins.Bind(ChunkCellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(ChunkCellDataPath));
+        if (Pins.Cells is null) return;
         if (_cargoAmount > 0)
         {
-            chunks.Add(new(DepotCell.X >> 5, DepotCell.Y >> 5));
-            if (State == HaulerState.MovingToPickup)
-                chunks.Add(new(_pickupCell.X >> 5, _pickupCell.Y >> 5));
+            Pins.WantCell(DepotCell);
+            if (State == HaulerState.MovingToPickup) Pins.WantCell(_pickupCell);
         }
-        if (cells.ReplaceChunkPins(this, chunks)) _pinState = state;
+        Pins.Commit();
     }
 
     private bool EndpointReady(Vector2I cell)
-        => ChunkCellDataPath.IsEmpty || GodotObject.IsInstanceValid(_pinCells) && _pinCells!.IsCellAvailable(cell);
+        => ChunkCellDataPath.IsEmpty
+            || (Pins.Cells is { } cells && GodotObject.IsInstanceValid(cells) && cells.IsCellAvailable(cell));
 
     private bool BeginHaulLeg(Vector2I cell)
     {

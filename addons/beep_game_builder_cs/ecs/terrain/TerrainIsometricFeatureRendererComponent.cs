@@ -23,7 +23,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainIsometricFeatureRendererComponent : Node2D
+    public partial class TerrainIsometricFeatureRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         [Export] public TerrainPropSizing? PropSizing { get; set; }
@@ -82,7 +82,6 @@ namespace Beep.ECS
         /// Whether this renderer builds itself once the scene is ready. Turn it
         /// off where a controller generates the world first and drives Rebuild.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, Vector2 Anchor, int Level);
 
@@ -116,8 +115,6 @@ namespace Beep.ECS
         private TerrainGeneratorComponent? _generator;
         private TerrainIsometricRendererComponent? _iso;
         private TerrainIsometricRendererComponent? _connectedIso;
-        private bool _hasRebuildAttempt;
-        private bool _rebuildQueued;
 
         /// <summary>The sheets, their grids and the woods frame bindings; see TerrainFeatureSheets.</summary>
         private readonly TerrainFeatureSheets _sheets = new();
@@ -137,12 +134,12 @@ namespace Beep.ECS
             if (_connectedIso is not null && GodotObject.IsInstanceValid(_connectedIso))
                 _connectedIso.SurfaceRebuilt -= OnSurfaceRebuilt;
             _connectedIso = null;
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         public override void _EnterTree()
         {
-            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+            if (HasRebuildAttempt && !Engine.IsEditorHint())
                 Callable.From(() =>
                 {
                     if (!IsInsideTree()) return;
@@ -150,44 +147,24 @@ namespace Beep.ECS
                     QueueRebuild();
                 }).CallDeferred();
         }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         private void OnSurfaceRebuilt()
         {
-            _hasRebuildAttempt = true;
+            HasRebuildAttempt = true;
             if (IsInsideTree() && IsVisibleInTree()) Rebuild();
         }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
-        }
-
         public override string[] _GetConfigurationWarnings()
             => IsometricRendererPath.IsEmpty
                 ? new[] { "IsometricRendererPath should point to a TerrainIsometricRendererComponent." }
                 : Array.Empty<string>();
 
         /// <summary>Rebuilds every feature stamp from the generator.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
             _residency = null;
             _residentStamps.Clear();
             SetProcess(false);
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
 
             Resolve();

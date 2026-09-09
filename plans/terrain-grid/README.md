@@ -26,7 +26,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 
 | Id | Plan | Copies found | Effort | Status |
 |---|---|---|---|---|
-| DUP-01 | [Terrain renderer lifecycle contract](DUP-01-terrain-renderer-lifecycle-contract.md) | `QueueRebuild` ×9, `DisconnectCells` ×7, `ResolveCells` ×4, `Draw()` hand-wires 9 renderers | M | |
+| DUP-01 | [Terrain renderer lifecycle contract](DUP-01-terrain-renderer-lifecycle-contract.md) | `QueueRebuild` ×9, `DisconnectCells` ×7, `ResolveCells` ×4, `Draw()` hand-wires 9 renderers | M | **partial** (rebuild coalescer; resolution + Draw deferred) |
 | DUP-02 | [Shared water material](DUP-02-shared-water-material.md) | 3 water builders, `SetTexture` ×2 (10 sites); tile view lacks foam/swell | S | **done** |
 | DUP-03 | [Feature sheet loading](DUP-03-feature-sheet-loading.md) | flat vs iso loaders; iso ignores per-sheet columns/rows (bug) | S | **done** |
 | DUP-04 | [Per-cell hash and generation helpers](DUP-04-per-cell-hash-and-generation-helpers.md) | 3 surviving hashes, `Negate` ×2, percentile ×2, "most common" ×5, 4-neighbour loop ×8, lab coast field | S | **done** |

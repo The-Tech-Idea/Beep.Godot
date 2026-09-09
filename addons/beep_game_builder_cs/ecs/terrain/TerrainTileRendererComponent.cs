@@ -20,7 +20,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainTileRendererComponent : Node2D
+    public partial class TerrainTileRendererComponent : TerrainRendererComponent
     {
         /// <summary>
         /// A biome and the atlas that draws it. WHICH LEVEL it belongs to is not
@@ -73,7 +73,6 @@ namespace Beep.ECS
         [Export(PropertyHint.File, "*.png,*.webp")] public string WaterDetailAtlasPath { get; set; } = "";
 
         [ExportGroup("Rendering")]
-        [Export] public bool RefreshOnReady { get; set; } = true;
         /// <summary>Optional repeating surface textures keyed by exact biome name.
         /// The transition atlas continues to own coverage and borders.</summary>
         [Export] public Godot.Collections.Dictionary<string, string> GroundTexturePaths { get; set; } = new();
@@ -164,8 +163,6 @@ namespace Beep.ECS
         private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
         private bool _coastQueued;
-        private bool _hasRebuildAttempt;
-        private bool _rebuildQueued;
         private TileMapLayer? _water;
         private ImageTexture? _coastMap;
         private readonly TerrainCoastField.RenderCache _renderCoast = new();
@@ -184,25 +181,6 @@ namespace Beep.ECS
         }
 
         public override void _ExitTree() => DisconnectCells();
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && IsInsideTree() && IsVisibleInTree() && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
-        }
-
         private void DisconnectCells()
         {
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
@@ -248,10 +226,10 @@ namespace Beep.ECS
         }
 
         /// <summary>Rebuilds every biome layer from the current cell data.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             _coastQueued = false;
             // Checked FIRST, before anything else runs - the same shape every
             // sibling renderer uses. Without this, a scene with atlases

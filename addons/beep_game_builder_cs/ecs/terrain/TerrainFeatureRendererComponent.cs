@@ -22,7 +22,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainFeatureRendererComponent : Node2D
+    public partial class TerrainFeatureRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         [Export] public NodePath CellDataPath { get; set; } = new("");
@@ -84,8 +84,6 @@ namespace Beep.ECS
         private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
         private GridProjectionComponent? _grid;
-        private bool _rebuildQueued;
-        private bool _hasRebuildAttempt;
         public int StampCount => _stamps.Count;
         private readonly TerrainFeatureSheets _sheets = new();
         private readonly List<Stamp> _stamps = new();
@@ -97,7 +95,6 @@ namespace Beep.ECS
         /// off where a controller generates the world first and drives Rebuild,
         /// so the map is not built twice.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         public override void _Ready()
         {
@@ -113,12 +110,12 @@ namespace Beep.ECS
             DisconnectCells();
             if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
             _grid = null;
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         public override void _EnterTree()
         {
-            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+            if (HasRebuildAttempt && !Engine.IsEditorHint())
                 Callable.From(() =>
                 {
                     if (!IsInsideTree()) return;
@@ -127,13 +124,6 @@ namespace Beep.ECS
                     QueueRebuild();
                 }).CallDeferred();
         }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         private void DisconnectCells()
         {
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
@@ -160,30 +150,17 @@ namespace Beep.ECS
             var cell = new Vector2I(x, y);
             if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(cell) && !InvalidateFeatureCell(cell)) QueueRebuild();
         }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
-        }
-
         public override string[] _GetConfigurationWarnings()
             => TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : System.Array.Empty<string>();
 
         /// <summary>Rebuilds every feature sprite from the generator.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
             ResetStreaming();
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             ResolveCells();
             ResolveGrid();
             // The mipmaps built above are only used if the node asks for them.

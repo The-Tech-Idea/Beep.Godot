@@ -56,7 +56,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainResourceRendererComponent : Node2D
+    public partial class TerrainResourceRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         /// <summary>Optional subtree of live resource nodes; empty shows generated resources.</summary>
@@ -103,7 +103,6 @@ namespace Beep.ECS
         /// Whether this renderer builds itself once the scene is ready. Turn it
         /// off where a controller generates the world first and drives Rebuild.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         /// <summary>A bundled sheet and the frame order it needs.</summary>
         private readonly record struct IconPreset(string Path, int Columns, int Rows, string[] Order);
@@ -154,8 +153,6 @@ namespace Beep.ECS
         private string[] _order = Array.Empty<string>();
         private string _loadedSheetPath = "";
         private TerrainResourceViewBinding? _liveResources;
-        private bool _rebuildQueued;
-        private bool _hasRebuildAttempt;
         private GridProjectionComponent? _grid;
         private readonly Dictionary<string, int> _frames = new();
         private readonly List<Icon> _icons = new();
@@ -173,12 +170,12 @@ namespace Beep.ECS
             _liveResources?.Dispose();
             if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
             _grid = null;
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         public override void _EnterTree()
         {
-            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+            if (HasRebuildAttempt && !Engine.IsEditorHint())
                 Callable.From(() =>
                 {
                     if (!IsInsideTree()) return;
@@ -186,23 +183,16 @@ namespace Beep.ECS
                     QueueRebuild();
                 }).CallDeferred();
         }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         public override string[] _GetConfigurationWarnings()
             => TerrainGeneratorPath.IsEmpty && ResourceRootPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : Array.Empty<string>();
 
         /// <summary>Rebuilds every resource icon from the generator.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             ZIndex = TerrainLayers.ZForMarkers();
             ZAsRelative = false;
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
@@ -362,18 +352,6 @@ namespace Beep.ECS
             var centers = new Vector2[_icons.Count];
             for (int i = 0; i < centers.Length; i++) centers[i] = _icons[i].Centre;
             return centers;
-        }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
         }
     }
 }

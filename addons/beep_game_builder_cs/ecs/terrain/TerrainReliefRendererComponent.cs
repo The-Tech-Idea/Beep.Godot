@@ -20,7 +20,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainReliefRendererComponent : Node2D
+    public partial class TerrainReliefRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         /// <summary>Authoritative live terrain. Empty uses the generated field.</summary>
@@ -71,7 +71,6 @@ namespace Beep.ECS
         /// off where a controller generates the world first and drives Rebuild,
         /// so the map is not built twice.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         /// <summary>One drawn sprite: sheet region, where, and how big.</summary>
         private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY);
@@ -79,8 +78,6 @@ namespace Beep.ECS
         private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
         private GridProjectionComponent? _grid;
-        private bool _rebuildQueued;
-        private bool _hasRebuildAttempt;
         private Texture2D? _hills;
         private Texture2D? _mountains;
         private string _loadedHillsPath = "";
@@ -100,12 +97,12 @@ namespace Beep.ECS
             ResetStreaming();
             _stamps.Clear();
             DisconnectSources();
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         public override void _EnterTree()
         {
-            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+            if (HasRebuildAttempt && !Engine.IsEditorHint())
                 Callable.From(() =>
                 {
                     if (!IsInsideTree()) return;
@@ -113,24 +110,17 @@ namespace Beep.ECS
                     QueueRebuild();
                 }).CallDeferred();
         }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         public override string[] _GetConfigurationWarnings()
             => TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty
                 ? new[] { "Set CellDataPath for live terrain or TerrainGeneratorPath for generated terrain." }
                 : Array.Empty<string>();
 
         /// <summary>Rebuilds relief from live cells, or the field when no live source is configured.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
             ResetStreaming();
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             ZIndex = TerrainLayers.ZForProps(TerrainLayers.Mountains);
             ZAsRelative = false;
             // The sheets are mipmapped; without asking for them a peak drawn a
@@ -329,18 +319,5 @@ namespace Beep.ECS
             if (_residency is not null) _residency.InvalidateCell(cell);
             else QueueRebuild();
         }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
-        }
-
     }
 }

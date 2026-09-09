@@ -27,7 +27,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainIsometricAutotileRendererComponent : Node2D
+    public partial class TerrainIsometricAutotileRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         /// <summary>Authoritative live map, when assigned. Uses the same terrain rules as navigation.</summary>
@@ -63,7 +63,6 @@ namespace Beep.ECS
         /// Whether this renderer builds itself once the scene is ready. Turn it
         /// off where a controller generates the world first and drives Rebuild.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
         [Export(PropertyHint.Range, "64,4096,64")] public int CellsPerFrame { get; set; } = 512;
         public bool IsRebuilding => _build is not null;
         public ulong PublicationRevision { get; private set; }
@@ -87,7 +86,6 @@ namespace Beep.ECS
         private TerrainGeneratorComponent? _generator;
         private TileMapLayer? _layer;
         private GridCellDataComponent? _cells;
-        private bool _rebuildQueued;
         private Godot.Collections.Dictionary _paintDiagnostics = new();
 
         public Godot.Collections.Dictionary GetPaintDiagnostics() => _paintDiagnostics.Duplicate(true);
@@ -151,6 +149,14 @@ namespace Beep.ECS
             return layer.Transform * extent;
         }
 
+        // A large map is time-sliced across frames rather than rebuilt inline;
+        // a paint already in flight is also handed to the incremental path.
+        protected override void PerformQueuedRebuild()
+        {
+            if (IsRebuilding || (long)BoundsSize.X * BoundsSize.Y > 65536) RequestRebuild();
+            else Rebuild();
+        }
+
         public override void _Ready()
         {
             ResolveCells();
@@ -162,14 +168,6 @@ namespace Beep.ECS
         {
             CancelRebuild();
             DisconnectCells();
-        }
-
-        private bool _hasRebuildAttempt;
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && IsInsideTree() && IsVisibleInTree() && !Engine.IsEditorHint())
-                QueueRebuild();
         }
 
         private void DisconnectCells()
@@ -197,23 +195,6 @@ namespace Beep.ECS
         {
             if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
         }
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree())
-                {
-                    if (IsRebuilding || (long)BoundsSize.X * BoundsSize.Y > 65536) RequestRebuild();
-                    else Rebuild();
-                }
-            }).CallDeferred();
-        }
-
         public override string[] _GetConfigurationWarnings()
         {
             if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
@@ -225,7 +206,7 @@ namespace Beep.ECS
         }
 
         /// <summary>Repaints the whole map, letting Godot match the transitions.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
             CancelRebuild();
             using var build = RebuildSteps().GetEnumerator();
@@ -236,7 +217,7 @@ namespace Beep.ECS
         public void RequestRebuild()
         {
             CancelRebuild();
-            _rebuildQueued = false;
+            ClearRebuildQueued();
             ResolveCells();
             ResolveGenerator();
             _buildRevision = _cells?.TerrainRevision ?? 0;
@@ -270,7 +251,7 @@ namespace Beep.ECS
         internal void ShowPrepared()
         {
             Visible = true;
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         /// <summary>
@@ -332,8 +313,8 @@ namespace Beep.ECS
 
         private IEnumerable<int> RebuildSteps()
         {
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             ResolveCells();
             ResolveGenerator();
             _paintDiagnostics = new() { ["valid"] = false, ["requested"] = 0, ["missing"] = 0, ["unmapped"] = 0 };

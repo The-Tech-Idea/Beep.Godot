@@ -31,7 +31,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainIsometricRendererComponent : Node2D
+    public partial class TerrainIsometricRendererComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
 
@@ -114,7 +114,6 @@ namespace Beep.ECS
         /// Whether this renderer builds itself once the scene is ready. Turn it
         /// off where a controller generates the world first and drives Rebuild.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         [ExportGroup("Water")]
         /// <summary>
@@ -261,9 +260,7 @@ namespace Beep.ECS
         private GridCellDataComponent? _cells;
         private ITerrainSurfaceData? _liveSurface;
         private Vector2I _sourceOrigin;
-        private bool _rebuildQueued;
         private bool _hasSurface;
-        private bool _hasRebuildAttempt;
         private Rect2 _surfaceExtent;
         /// <summary>Built logical terrain bounds, excluding decorative art and ocean overscan.</summary>
         public Rect2 SurfaceExtent => _surfaceExtent;
@@ -301,13 +298,6 @@ namespace Beep.ECS
         }
 
         public override void _ExitTree() => DisconnectCells();
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && IsInsideTree() && IsVisibleInTree() && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         private void DisconnectCells()
         {
             if (_cells is not null && GodotObject.IsInstanceValid(_cells))
@@ -322,17 +312,6 @@ namespace Beep.ECS
         private void OnCellChanged(int x, int y)
         {
             if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
-        }
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
         }
         private readonly List<TileMapLayer> _layers = new();
 
@@ -388,10 +367,10 @@ namespace Beep.ECS
         }
 
         /// <summary>Rebuilds the whole isometric map from the generator.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             ITerrainSurfaceData? field = ResolveSurface();
             if (field is null)
             {

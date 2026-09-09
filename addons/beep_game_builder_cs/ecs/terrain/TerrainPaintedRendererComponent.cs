@@ -25,7 +25,7 @@ namespace Beep.ECS
 	/// </summary>
 	[Tool]
 	[GlobalClass]
-	public partial class TerrainPaintedRendererComponent : Node2D
+	public partial class TerrainPaintedRendererComponent : TerrainRendererComponent
 	{
 		/// <summary>
 		/// Terrain kind to shader id. The shader indexes materials by this, so
@@ -165,8 +165,6 @@ namespace Beep.ECS
 
 		private TerrainGeneratorComponent? _generator;
 		private GridCellDataComponent? _cells;
-		private bool _rebuildQueued;
-		private bool _hasRebuildAttempt;
 		private TileMapLayer? _surface;
 		private ShaderMaterial? _material;
 		private readonly TerrainCoastField.LiveCache _liveCoast = new();
@@ -186,7 +184,7 @@ namespace Beep.ECS
 			CancelSnapshotPreparation();
 			ResolveCells();
 			if (_cells is null) return false;
-			_rebuildQueued = false;
+			ClearRebuildQueued();
 			_snapshotPreparation = new(_cells, BoundsOrigin, BoundsSize);
 			return true;
 		}
@@ -254,7 +252,10 @@ namespace Beep.ECS
 		/// off where a controller generates the world first and drives Rebuild,
 		/// so the map is not built twice.
 		/// </summary>
-		[Export] public bool RefreshOnReady { get; set; } = true;
+
+		// The painted view declines a rebuild while it is preparing a visual
+		// snapshot off-thread; the queued build would race that preparation.
+		protected override bool CanQueueRebuild() => _snapshotPreparation is null;
 
 		public override void _Ready()
 		{
@@ -265,7 +266,7 @@ namespace Beep.ECS
 
 		public override void _EnterTree()
 		{
-			if (_hasRebuildAttempt && !Engine.IsEditorHint())
+			if (HasRebuildAttempt && !Engine.IsEditorHint())
 				Callable.From(() =>
 				{
 					if (!IsInsideTree()) return;
@@ -278,15 +279,8 @@ namespace Beep.ECS
 		{
 			CancelSnapshotPreparation();
 			DisconnectCells();
-			_rebuildQueued = false;
+			ClearRebuildQueued();
 		}
-
-		public override void _Notification(int what)
-		{
-			if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-				QueueRebuild();
-		}
-
 		private void DisconnectCells()
 		{
 			if (_cells is not null && GodotObject.IsInstanceValid(_cells))
@@ -313,30 +307,17 @@ namespace Beep.ECS
 		{
 			if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
 		}
-
-		private void QueueRebuild()
-		{
-			if (_snapshotPreparation is not null || _rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-			_rebuildQueued = true;
-			Callable.From(() =>
-			{
-				if (!_rebuildQueued) return;
-				_rebuildQueued = false;
-				if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-			}).CallDeferred();
-		}
-
 		public override string[] _GetConfigurationWarnings()
 			=> TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty
 				? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
 				: System.Array.Empty<string>();
 
 		/// <summary>Re-uploads the terrain grid and repaints the surface.</summary>
-		public void Rebuild()
+		public override void Rebuild()
 		{
 			CancelSnapshotPreparation();
-			_hasRebuildAttempt = true;
-			_rebuildQueued = false;
+			HasRebuildAttempt = true;
+			ClearRebuildQueued();
 			ResolveCells();
 			ResolveGenerator();
 			if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))

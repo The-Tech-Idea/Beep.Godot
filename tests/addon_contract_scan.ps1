@@ -1966,6 +1966,31 @@ foreach ($stage in @("TerrainWaterStage", "TerrainElevationStage", "TerrainErosi
         }
     }
 }
+# DUP-01: the deferred-rebuild coalescer lives once, on TerrainRendererComponent.
+# Nine renderers each carried a byte-identical QueueRebuild plus its _rebuildQueued
+# flag, its _hasRebuildAttempt flag and a visibility _Notification that re-queued a
+# rebuild. That coalescer is where ENH-01's eviction-aware invalidation has to land,
+# and landing it nine times is how one renderer became chunk-aware while eight stayed
+# blind. The base owns it; no other terrain file may re-declare it.
+$rendererBase = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainRendererComponent.cs"
+foreach ($required in @("public abstract partial class TerrainRendererComponent : Node2D", "protected void QueueRebuild()", "public abstract void Rebuild()", "protected bool HasRebuildAttempt", "protected void ClearRebuildQueued()", "protected virtual bool CanQueueRebuild()", "protected virtual void PerformQueuedRebuild()")) {
+    if ($rendererBase -notmatch [regex]::Escape($required)) {
+        Fail "TerrainRendererComponent must own the renderer lifecycle member: $required."
+    }
+}
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/terrain") -Filter *.cs) {
+    if ($file.Name -eq "TerrainRendererComponent.cs") { continue }
+    $body = Get-Content -Path $file.FullName -Raw
+    foreach ($copy in @("private void QueueRebuild(", "private bool _rebuildQueued", "private bool _hasRebuildAttempt")) {
+        if ($body -match [regex]::Escape($copy)) {
+            Fail "$($file.Name) re-declares the renderer rebuild coalescer ($copy); TerrainRendererComponent owns it (DUP-01)."
+        }
+    }
+    # A ported renderer derives from the base rather than Node2D directly.
+    if ($body -match [regex]::Escape("private void QueueCoast(") -and $file.Name -ne "TerrainTileRendererComponent.cs") {
+        Fail "$($file.Name) has a QueueCoast copy; only the tile view's water requeue is expected."
+    }
+}
 # The tile view must keep every dial, not just the ones it happened to have.
 $tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
 foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",

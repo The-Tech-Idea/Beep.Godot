@@ -14,7 +14,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainMapOverlayComponent : Node2D
+    public partial class TerrainMapOverlayComponent : TerrainRendererComponent
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
@@ -54,7 +54,6 @@ namespace Beep.ECS
         /// stale scene-authored BoundsSize before TerrainWorldComponent ever
         /// got to configure it.
         /// </summary>
-        [Export] public bool RefreshOnReady { get; set; } = true;
 
         /// <summary>One baked resource marker: where, how big, what colour.</summary>
         private readonly record struct ResourceMarker(Vector2 Centre, float Radius, float RimRadius, Color Colour);
@@ -66,8 +65,6 @@ namespace Beep.ECS
         private GridProspectingComponent? _prospecting;
         private GridSubsurfaceStoreComponent? _store;
         private GridProjectionComponent? _grid;
-        private bool _rebuildQueued;
-        private bool _hasRebuildAttempt;
         private bool RequiresGenerator => ShowStartPositions || ShowUndergroundResources
             || (ShowResources && ResourceRootPath.IsEmpty);
         private TerrainResourceViewBinding? _liveResources;
@@ -98,12 +95,12 @@ namespace Beep.ECS
         {
             DisconnectSources();
             _liveResources?.Dispose();
-            _rebuildQueued = false;
+            ClearRebuildQueued();
         }
 
         public override void _EnterTree()
         {
-            if (_hasRebuildAttempt && !Engine.IsEditorHint())
+            if (HasRebuildAttempt && !Engine.IsEditorHint())
                 Callable.From(() =>
                 {
                     if (!IsInsideTree()) return;
@@ -111,23 +108,16 @@ namespace Beep.ECS
                     QueueRebuild();
                 }).CallDeferred();
         }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationVisibilityChanged && _hasRebuildAttempt && !Engine.IsEditorHint())
-                QueueRebuild();
-        }
-
         public override string[] _GetConfigurationWarnings()
             => RequiresGenerator && TerrainGeneratorPath.IsEmpty
                 ? new[] { "TerrainGeneratorPath should point to a TerrainGeneratorComponent." }
                 : System.Array.Empty<string>();
 
         /// <summary>Re-reads the generator and repaints the markers.</summary>
-        public void Rebuild()
+        public override void Rebuild()
         {
-            _hasRebuildAttempt = true;
-            _rebuildQueued = false;
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
             // Markers, so the stack's marker slot - above the props, because a
             // forest must never hide the thing the player is meant to click.
             //
@@ -317,19 +307,6 @@ namespace Beep.ECS
         }
 
         private void OnDepositChanged(int x, int y, string resourceId, int remaining) => QueueRebuild();
-
-        private void QueueRebuild()
-        {
-            if (_rebuildQueued || !IsInsideTree() || !IsVisibleInTree()) return;
-            _rebuildQueued = true;
-            Callable.From(() =>
-            {
-                if (!_rebuildQueued) return;
-                _rebuildQueued = false;
-                if (IsInsideTree() && IsVisibleInTree()) Rebuild();
-            }).CallDeferred();
-        }
-
         /// <summary>
         /// One stable hue per underground id (from its characters, so it never
         /// changes between runs), translucent, denser where the field is

@@ -1,6 +1,6 @@
 # ENH-08 — `GridProjectionComponent` hot paths: no per-call allocation, one mouse→cell per frame
 
-**Type:** enhancement (per-frame cost) · **Area:** `GridProjectionComponent`, `GridSelectionComponent`, `GridPlacementComponent`, `GridInteractionCursorComponent`, `GridToolActionComponent`, `GridCellOverlayComponent`, `GridRoadComponent`, `TerrainCollisionComponent`, `TerrainMapOverlayComponent`, `Terrain*RendererComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (parts 1-3: span CellCorners + caller migration + surface cache; hover-owner part 4 pending) · **Effort:** S (1 day) · **Risk:** low
+**Type:** enhancement (per-frame cost) · **Area:** `GridProjectionComponent`, `GridSelectionComponent`, `GridPlacementComponent`, `GridInteractionCursorComponent`, `GridToolActionComponent`, `GridCellOverlayComponent`, `GridRoadComponent`, `TerrainCollisionComponent`, `TerrainMapOverlayComponent`, `Terrain*RendererComponent` · **Status:** **IMPLEMENTED 2026-09-09** (all four parts: span CellCorners, caller migration, surface cache, one-conversion-per-frame hover owner) · **Effort:** S (1 day) · **Risk:** low
 
 ## Outcome (parts 1-3, 2026-09-09)
 
@@ -10,9 +10,11 @@
 
 Verified after each part: `dotnet build` clean (0 warnings); `grid_projection`, `showcase_interaction`, `renderer_reporting`, `grid_terrain_feature`, `grid_terrain_topology`, `grid_terrain_building` green.
 
-### Still pending: part 4 - the hover owner
+### Part 4 - the hover owner (2026-09-09)
 
-The one-conversion-per-frame consolidation (finding 3) is the remaining piece.
+The code was already more consolidated than the finding assumed: the interaction router (`GridInteractionModeComponent`) converts the mouse once per frame (`MouseCell`) and feeds selection and placement, while the cursor, tools and the HUD status panel only READ `GridSelectionComponent.HoverCell` / its `HoverCellChanged` signal. The one real redundancy was that the router, having computed the cell, then called `_selection.UpdateHoverFromWorld(MouseWorldPosition())` - a second `WorldToCell` on the same position. Selection now takes the router's already-computed cell through a new `SetHoverCell(Vector2I)` (sets `HoverCell`, emits `HoverCellChanged`, no conversion); `UpdateHoverFromWorld` stays as the standalone-input path and delegates to it. Nothing else changed - placement is still fed the router's cell, and the HUD contract is intact because `SetHoverCell` still emits the signal the status panel consumes. A router-owned `HoverCellChanged` signal from the design sketch was **not** added - it would have had no consumer (selection already re-emits), and rule 6 forbids an orphan.
+
+Guard: `tests/grid_interaction_hover_probe.gd` + `GridInteractionHoverSmoke` wire a projection + router + selection, tick the router, and assert exactly one `WorldToCell` per frame (a new internal `GridProjectionComponent.WorldToCellCalls` counter) while confirming selection was fed and that `SetHoverCell` runs no conversion. Mutation-proven: restoring the router's recompute makes it two per frame and the probe fails. `showcase_interaction` and the full headless smoke (interaction-modes / interaction-cursor / selection) stay green.
 
 ## Finding
 

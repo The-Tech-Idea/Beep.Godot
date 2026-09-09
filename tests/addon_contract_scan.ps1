@@ -1454,6 +1454,13 @@ foreach ($panelFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_bu
     if ($panelText -match [regex]::Escape("private void DisconnectButtons(")) {
         Fail "$($panelFile.Name) carries its own DisconnectButtons; GridButtonBindings.UnbindAll owns it (DUP-12)."
     }
+    if ($panelFile.Name -ne "GridEnumNames.cs" -and ($panelText -match [regex]::Escape("bool TryParseMode(") -or $panelText -match [regex]::Escape("bool TryParseAction("))) {
+        Fail "$($panelFile.Name) carries its own enum-name parser; GridEnumNames.TryParse owns it (DUP-12)."
+    }
+}
+$gridEnumNames = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridEnumNames.cs"
+if ($gridEnumNames -notmatch [regex]::Escape("public static bool TryParse<TEnum>(")) {
+    Fail "GridEnumNames must own the shared enum-name parser (DUP-12)."
 }
 $gridListPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridListPanelComponent.cs"
 foreach ($required in @("TitleLabelPath", "SummaryLabelPath", "RowsContainerPath", "UsesSceneControls", "HasAuthoredControls", "BindExistingControls", "BuildGeneratedPanel", 'FindControl<Label>(TitleLabelPath, "Title")', 'FindControl<Label>(SummaryLabelPath, "Summary")', 'FindControl<VBoxContainer>(RowsContainerPath, "Rows")', "UpdateRows", "MoveChild(row, shown)", "RemoveChild(row)")) {

@@ -211,7 +211,7 @@ namespace Beep.ECS
 
                 for (int i = 0; i < BoundActionNames.Length; i++)
                 {
-                    if (!TryParseAction(BoundActionNames[i], out GridToolActionComponent.ToolAction action))
+                    if (!GridEnumNames.TryParse(BoundActionNames[i], out GridToolActionComponent.ToolAction action))
                         return false;
 
                     Button? button = FindToolButton(action, i);
@@ -259,25 +259,6 @@ namespace Beep.ECS
                 button.TooltipText = action.ToString();
             _buttonBindings.Bind(button, handler);
             _buttons[action] = button;
-        }
-
-        private static bool TryParseAction(string value, out GridToolActionComponent.ToolAction action)
-        {
-            if (Enum.TryParse(value?.Trim(), ignoreCase: true, out action))
-                return true;
-
-            string normalized = (value ?? "").Trim().Replace(" ", "").Replace("-", "").Replace("_", "");
-            foreach (GridToolActionComponent.ToolAction candidate in Enum.GetValues(typeof(GridToolActionComponent.ToolAction)))
-            {
-                if (string.Equals(candidate.ToString(), normalized, StringComparison.OrdinalIgnoreCase))
-                {
-                    action = candidate;
-                    return true;
-                }
-            }
-
-            action = default;
-            return false;
         }
 
         private void ClearChildren()

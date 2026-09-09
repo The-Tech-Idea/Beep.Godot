@@ -173,7 +173,7 @@ namespace Beep.ECS
 
                 for (int i = 0; i < BoundModeNames.Length; i++)
                 {
-                    if (!TryParseMode(BoundModeNames[i], out GridInteractionModeComponent.InteractionMode mode))
+                    if (!GridEnumNames.TryParse(BoundModeNames[i], out GridInteractionModeComponent.InteractionMode mode))
                         return false;
 
                     Button? button = FindModeButton(mode, i);
@@ -221,25 +221,6 @@ namespace Beep.ECS
                 button.TooltipText = TooltipFor(mode);
             _buttonBindings.Bind(button, handler);
             _buttons[mode] = button;
-        }
-
-        private static bool TryParseMode(string value, out GridInteractionModeComponent.InteractionMode mode)
-        {
-            if (Enum.TryParse(value?.Trim(), ignoreCase: true, out mode))
-                return true;
-
-            string normalized = (value ?? "").Trim().Replace(" ", "").Replace("-", "").Replace("_", "");
-            foreach (GridInteractionModeComponent.InteractionMode candidate in Enum.GetValues(typeof(GridInteractionModeComponent.InteractionMode)))
-            {
-                if (string.Equals(candidate.ToString(), normalized, StringComparison.OrdinalIgnoreCase))
-                {
-                    mode = candidate;
-                    return true;
-                }
-            }
-
-            mode = default;
-            return false;
         }
 
         private void ConnectInteractionSignals()

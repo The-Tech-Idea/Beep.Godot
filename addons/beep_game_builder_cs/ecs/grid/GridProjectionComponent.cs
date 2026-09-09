@@ -285,6 +285,32 @@ namespace Beep.ECS
         /// <summary>Returns the current mouse cell using the active viewport mouse position.</summary>
         public Vector2I MouseCell() => WorldToCell(GetGlobalMousePosition());
 
+        /// <summary>The inclusive cell rectangle currently visible in the viewport, expanded by
+        /// <paramref name="margin"/> cells, so a per-cell drawer can cull to the camera. Returns
+        /// false (draw everything) when there is no viewport or a corner does not resolve to a cell
+        /// (an off-surface elevated corner), so culling never hides a cell it cannot place.</summary>
+        public bool TryGetVisibleCellRect(out Rect2I rect, int margin = 1)
+        {
+            rect = default;
+            if (GetViewport() is not { } viewport) return false;
+
+            Transform2D screenToWorld = viewport.GetCanvasTransform().AffineInverse();
+            Rect2 screen = viewport.GetVisibleRect();
+            Vector2I c0 = WorldToCell(screenToWorld * screen.Position);
+            Vector2I c1 = WorldToCell(screenToWorld * new Vector2(screen.End.X, screen.Position.Y));
+            Vector2I c2 = WorldToCell(screenToWorld * screen.End);
+            Vector2I c3 = WorldToCell(screenToWorld * new Vector2(screen.Position.X, screen.End.Y));
+            if (c0 == InvalidCell || c1 == InvalidCell || c2 == InvalidCell || c3 == InvalidCell)
+                return false;
+
+            int minX = Mathf.Min(Mathf.Min(c0.X, c1.X), Mathf.Min(c2.X, c3.X)) - margin;
+            int minY = Mathf.Min(Mathf.Min(c0.Y, c1.Y), Mathf.Min(c2.Y, c3.Y)) - margin;
+            int maxX = Mathf.Max(Mathf.Max(c0.X, c1.X), Mathf.Max(c2.X, c3.X)) + margin;
+            int maxY = Mathf.Max(Mathf.Max(c0.Y, c1.Y), Mathf.Max(c2.Y, c3.Y)) + margin;
+            rect = new Rect2I(minX, minY, maxX - minX + 1, maxY - minY + 1);
+            return true;
+        }
+
         /// <summary>Returns local-space corners for drawing or hit previews. Convenience path over
         /// <see cref="CellCorners(Vector2I, System.Span{Vector2})"/> for GDScript and callers that hand a
         /// Vector2[] straight to a Godot draw/shape API; the span overload allocates nothing.</summary>

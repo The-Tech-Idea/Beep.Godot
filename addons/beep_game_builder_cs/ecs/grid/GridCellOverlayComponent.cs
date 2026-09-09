@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -15,6 +16,10 @@ namespace Beep.ECS
         [Export] public NodePath CellDataPath { get; set; } = new("");
         [Export] public bool DrawCells { get; set; } = true;
         [Export] public bool DrawOutlines { get; set; } = true;
+        /// <summary>Draw every stored cell instead of only those inside the camera window. Off by
+        /// default so a large map draws the viewport, not the million records behind it; enable it
+        /// for a tiny debug map, or when this overlay has no camera to cull against.</summary>
+        [Export] public bool DrawAll { get; set; } = false;
         [Export] public Color ClearedColor { get; set; } = new(0.46f, 0.34f, 0.2f, 0.18f);
         [Export] public Color TilledColor { get; set; } = new(0.42f, 0.25f, 0.12f, 0.36f);
         [Export] public Color WateredColor { get; set; } = new(0.24f, 0.48f, 0.95f, 0.28f);
@@ -56,25 +61,43 @@ namespace Beep.ECS
             return System.Array.Empty<string>();
         }
 
+        /// <summary>How many cells the last _Draw actually painted. Test hook for the culling probe.</summary>
+        internal int LastDrawnCellCount { get; private set; }
+
         public override void _Draw()
         {
             if (!DrawCells)
                 return;
 
+            int drawn = 0;
+            foreach ((Vector2I cell, GridCellDataComponent.CellFlags flags) in VisibleCells())
+            {
+                DrawCell(cell, ColorForFlags((int)flags));
+                drawn++;
+            }
+            LastDrawnCellCount = drawn;
+        }
+
+        /// <summary>The cells this overlay would paint this frame: those with a visible fill or an
+        /// outline, culled to the camera window unless <see cref="DrawAll"/> is set (or there is no
+        /// camera to cull against). One owner of "what draws", shared by _Draw and the culling guard.</summary>
+        internal IEnumerable<(Vector2I Cell, GridCellDataComponent.CellFlags Flags)> VisibleCells()
+        {
             ResolveReferences();
             if (_grid == null || _cells == null)
-                return;
+                yield break;
 
-            // The typed view: GetCells marshals one Godot Dictionary per cell,
-            // which this draw used to pay every frame in the editor and on
-            // every runtime repaint.
+            Rect2I visible = default;
+            bool cull = !DrawAll && _grid.TryGetVisibleCellRect(out visible);
+            // The typed view: GetCells marshals one Godot Dictionary per cell; EnumerateFlags is the
+            // per-draw shape, and the window filter keeps the paint work proportional to the view.
             foreach ((Vector2I cell, GridCellDataComponent.CellFlags flags) in _cells.EnumerateFlags())
             {
-                Color fill = ColorForFlags((int)flags);
-                if (fill.A <= 0f && !DrawOutlines)
+                if (cull && !visible.HasPoint(cell))
                     continue;
-
-                DrawCell(cell, fill);
+                if (ColorForFlags((int)flags).A <= 0f && !DrawOutlines)
+                    continue;
+                yield return (cell, flags);
             }
         }
 

@@ -12,7 +12,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridObjectInspectorComponent : Control
+    public partial class GridObjectInspectorComponent : GridPanelComponent
     {
         [Signal] public delegate void ObjectInspectedEventHandler(string objectId, int x, int y);
         [Signal] public delegate void InspectorClearedEventHandler();
@@ -22,8 +22,6 @@ namespace Beep.ECS
         [Export] public NodePath PanelPath { get; set; } = new("");
         [Export] public NodePath TitleLabelPath { get; set; } = new("");
         [Export] public NodePath DetailsLabelPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool HideWhenEmpty { get; set; } = false;
         [Export] public bool ShowCategory { get; set; } = true;
         [Export] public bool ShowCell { get; set; } = true;
@@ -297,43 +295,26 @@ namespace Beep.ECS
         private bool HasAuthoredControls()
             => FindTitleLabel() != null && FindDetailsLabel() != null;
 
-        private PanelContainer? FindPanel()
-        {
-            if (!PanelPath.IsEmpty && GetNodeOrNull<PanelContainer>(PanelPath) is { } pathPanel)
-                return pathPanel;
-
-            if (FindChild("Panel", recursive: true, owned: false) is PanelContainer childPanel)
-                return childPanel;
-
-            return GetParent()?.FindChild("Panel", recursive: true, owned: false) as PanelContainer;
-        }
+        private PanelContainer? FindPanel() => FindControl<PanelContainer>(PanelPath, "Panel");
 
         private Label? FindTitleLabel()
         {
             if (!TitleLabelPath.IsEmpty && GetNodeOrNull<Label>(TitleLabelPath) is { } pathLabel)
                 return pathLabel;
-
+            // The inspector's authored layout nests the labels under Panel/Content; keep
+            // that fixed relative tier ahead of the base name search.
             if (GetNodeOrNull<Label>("Panel/Content/Title") is { } localLabel)
                 return localLabel;
-
-            if (FindChild("Title", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Title", recursive: true, owned: false) as Label;
+            return FindControl<Label>(new NodePath(""), "Title");
         }
 
         private Label? FindDetailsLabel()
         {
             if (!DetailsLabelPath.IsEmpty && GetNodeOrNull<Label>(DetailsLabelPath) is { } pathLabel)
                 return pathLabel;
-
             if (GetNodeOrNull<Label>("Panel/Content/Details") is { } localLabel)
                 return localLabel;
-
-            if (FindChild("Details", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Details", recursive: true, owned: false) as Label;
+            return FindControl<Label>(new NodePath(""), "Details");
         }
 
         private void StyleControls()
@@ -358,13 +339,6 @@ namespace Beep.ECS
             }
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
 
         private static string TitleForObject(GridObjectComponent gridObject)
         {

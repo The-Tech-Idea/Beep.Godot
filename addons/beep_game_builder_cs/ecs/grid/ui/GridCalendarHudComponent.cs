@@ -11,7 +11,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridCalendarHudComponent : Control
+    public partial class GridCalendarHudComponent : GridPanelComponent
     {
         [Signal] public delegate void AdvanceDayRequestedEventHandler();
 
@@ -19,8 +19,6 @@ namespace Beep.ECS
         [Export] public NodePath DateLabelPath { get; set; } = new("");
         [Export] public NodePath DayProgressPath { get; set; } = new("");
         [Export] public NodePath AdvanceButtonPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool ShowProgress { get; set; } = true;
         [Export] public bool ShowAdvanceButton { get; set; } = true;
         [Export] public string AdvanceButtonText { get; set; } = "Next Day";
@@ -255,38 +253,11 @@ namespace Beep.ECS
             return true;
         }
 
-        private Label? FindDateLabel()
-        {
-            if (!DateLabelPath.IsEmpty && GetNodeOrNull<Label>(DateLabelPath) is { } pathLabel)
-                return pathLabel;
+        private Label? FindDateLabel() => FindControl<Label>(DateLabelPath, "Date");
 
-            if (FindChild("Date", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
+        private ProgressBar? FindDayProgress() => FindControl<ProgressBar>(DayProgressPath, "DayProgress");
 
-            return GetParent()?.FindChild("Date", recursive: true, owned: false) as Label;
-        }
-
-        private ProgressBar? FindDayProgress()
-        {
-            if (!DayProgressPath.IsEmpty && GetNodeOrNull<ProgressBar>(DayProgressPath) is { } pathProgress)
-                return pathProgress;
-
-            if (FindChild("DayProgress", recursive: true, owned: false) is ProgressBar childProgress)
-                return childProgress;
-
-            return GetParent()?.FindChild("DayProgress", recursive: true, owned: false) as ProgressBar;
-        }
-
-        private Button? FindAdvanceButton()
-        {
-            if (!AdvanceButtonPath.IsEmpty && GetNodeOrNull<Button>(AdvanceButtonPath) is { } pathButton)
-                return pathButton;
-
-            if (FindChild("AdvanceDay", recursive: true, owned: false) is Button childButton)
-                return childButton;
-
-            return GetParent()?.FindChild("AdvanceDay", recursive: true, owned: false) as Button;
-        }
+        private Button? FindAdvanceButton() => FindControl<Button>(AdvanceButtonPath, "AdvanceDay");
 
         private void ConnectAdvanceButton()
         {
@@ -321,12 +292,5 @@ namespace Beep.ECS
             _connectedAdvanceButton = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
     }
 }

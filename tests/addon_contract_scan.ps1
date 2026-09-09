@@ -1420,9 +1420,27 @@ if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent\s*:\s*GridListPanelCo
 # sanitiser and the three-tier authored-control lookup; the two list panels
 # also each copied the generated layout and the seen-set row diff.
 $gridPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridPanelComponent.cs"
-foreach ($required in @("GenerateControlsWhenPathsEmpty { get; set; } = false", "SetEditedOwner", "EditedSceneRoot", "FindControl<T>", "FindChild(name, recursive: true, owned: false)", "parent.FindChild(name, recursive: true, owned: false)", "SafeName")) {
+# The node-name sanitiser moved to GridIds.NodeName (DUP-05); the base owns the
+# editor-owner stamp and the three-tier authored-control lookup only.
+foreach ($required in @("GenerateControlsWhenPathsEmpty { get; set; } = false", "SetEditedOwner", "EditedSceneRoot", "FindControl<T>", "FindChild(name, recursive: true, owned: false)", "parent.FindChild(name, recursive: true, owned: false)")) {
     if ($gridPanelBase -notmatch [regex]::Escape($required)) {
-        Fail "GridPanelComponent must own the shared HUD panel bootstrap - authored-control lookup, editor owner, safe node names: $required."
+        Fail "GridPanelComponent must own the shared HUD panel bootstrap - authored-control lookup, editor owner: $required."
+    }
+}
+# DUP-12: every HUD find-panel is on GridPanelComponent, so the editor-owner stamp
+# lives once. GridMinimapComponent is not a find-panel (it bakes the whole map) and
+# stays a plain Control by design.
+foreach ($panelFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid/ui") -Filter *.cs) {
+    if ($panelFile.Name -eq "GridPanelComponent.cs") { continue }
+    $panelText = Get-Content -Path $panelFile.FullName -Raw
+    if ($panelText -match [regex]::Escape("private void SetEditedOwner(")) {
+        Fail "$($panelFile.Name) carries its own SetEditedOwner; GridPanelComponent owns the editor-owner stamp (DUP-12)."
+    }
+}
+foreach ($panelName in @("GridInteractionStatusComponent", "GridInteractionModeBarComponent", "GridToolPaletteComponent", "GridWorkerSpawnerPanelComponent", "GridCalendarHudComponent", "GridObjectInspectorComponent")) {
+    $panelBody = Read "addons/beep_game_builder_cs/ecs/grid/ui/$panelName.cs"
+    if ($panelBody -notmatch [regex]::Escape("class $panelName : GridPanelComponent")) {
+        Fail "$panelName must derive from GridPanelComponent, not carry its own panel bootstrap (DUP-12)."
     }
 }
 $gridListPanelBase = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridListPanelComponent.cs"

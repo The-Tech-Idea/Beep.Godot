@@ -11,15 +11,13 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridInteractionModeBarComponent : Control
+    public partial class GridInteractionModeBarComponent : GridPanelComponent
     {
         [Signal] public delegate void ModeButtonPressedEventHandler(int mode);
 
         [Export] public NodePath InteractionModePath { get; set; } = new("");
         [Export] public string[] BoundModeNames { get; set; } = Array.Empty<string>();
         [Export] public NodePath[] BoundButtonPaths { get; set; } = Array.Empty<NodePath>();
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool ShowSelect { get; set; } = true;
         [Export] public bool ShowInspect { get; set; } = true;
         [Export] public bool ShowTool { get; set; } = true;
@@ -211,17 +209,7 @@ namespace Beep.ECS
         }
 
         private Button? FindModeButton(GridInteractionModeComponent.InteractionMode mode, int index)
-        {
-            if (index >= 0 && BoundButtonPaths.Length > index && !BoundButtonPaths[index].IsEmpty
-                && GetNodeOrNull<Button>(BoundButtonPaths[index]) is { } pathButton)
-                return pathButton;
-
-            string name = $"Mode_{mode}";
-            if (FindChild(name, recursive: true, owned: false) is Button childButton)
-                return childButton;
-
-            return GetParent()?.FindChild(name, recursive: true, owned: false) as Button;
-        }
+            => FindControl<Button>(index >= 0 && BoundButtonPaths.Length > index ? BoundButtonPaths[index] : new NodePath(""), $"Mode_{mode}");
 
         private void BindModeButton(GridInteractionModeComponent.InteractionMode mode, Button button)
         {
@@ -290,13 +278,6 @@ namespace Beep.ECS
             _row = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
 
         private static string LabelFor(GridInteractionModeComponent.InteractionMode mode)
             => mode switch

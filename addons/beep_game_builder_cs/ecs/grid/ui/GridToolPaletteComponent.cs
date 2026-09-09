@@ -11,7 +11,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridToolPaletteComponent : Control
+    public partial class GridToolPaletteComponent : GridPanelComponent
     {
         [Signal] public delegate void ToolSelectedEventHandler(string action);
         [Signal] public delegate void ToolApplyRequestedEventHandler(string action, int appliedCount);
@@ -20,8 +20,6 @@ namespace Beep.ECS
         [Export] public NodePath InteractionModePath { get; set; } = new("");
         [Export] public string[] BoundActionNames { get; set; } = Array.Empty<string>();
         [Export] public NodePath[] BoundButtonPaths { get; set; } = Array.Empty<NodePath>();
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoSwitchInteractionMode { get; set; } = true;
         [Export] public bool IncludeApplyButton { get; set; } = false;
         [Export] public bool ShowClear { get; set; } = true;
@@ -250,17 +248,7 @@ namespace Beep.ECS
         }
 
         private Button? FindToolButton(GridToolActionComponent.ToolAction action, int index)
-        {
-            if (index >= 0 && BoundButtonPaths.Length > index && !BoundButtonPaths[index].IsEmpty
-                && GetNodeOrNull<Button>(BoundButtonPaths[index]) is { } pathButton)
-                return pathButton;
-
-            string name = $"Tool_{action}";
-            if (FindChild(name, recursive: true, owned: false) is Button childButton)
-                return childButton;
-
-            return GetParent()?.FindChild(name, recursive: true, owned: false) as Button;
-        }
+            => FindControl<Button>(index >= 0 && BoundButtonPaths.Length > index ? BoundButtonPaths[index] : new NodePath(""), $"Tool_{action}");
 
         private void BindToolButton(GridToolActionComponent.ToolAction action, Button button)
         {
@@ -311,12 +299,5 @@ namespace Beep.ECS
             _row = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
     }
 }

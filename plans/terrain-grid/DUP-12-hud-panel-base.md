@@ -1,6 +1,24 @@
 # DUP-12 — Every HUD panel on the panel base; one enum button bar
 
-**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** proposed 2026-09-08 · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
+**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (six panels moved onto the base; button-bindings / toggle-bar / roster-cache helpers pending) · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
+
+## Outcome (step 1: the six panels on the base, 2026-09-09)
+
+The six `Control`-derived find-panels - `GridInteractionStatusComponent`, `GridInteractionModeBarComponent`, `GridToolPaletteComponent`, `GridWorkerSpawnerPanelComponent`, `GridCalendarHudComponent`, `GridObjectInspectorComponent` - now derive from `GridPanelComponent`. Each dropped its private `SetEditedOwner` copy and the two inherited `[Export]`s (`BuildInEditor`, `GenerateControlsWhenPathsEmpty`), and every `Find*` method became a one-liner over the base `FindControl<T>(path, "Name")`. The inspector's two label finders keep their extra fixed-relative tier (`Panel/Content/Title`, `Panel/Content/Details`) ahead of the base name search - a real difference the base does not model - so those two stay small explicit methods that delegate only the child/parent tiers.
+
+`GridMinimapComponent` stays a plain `Control` by design: it bakes the whole map and never uses the three-tier authored-control lookup, so it is not a find-panel and the DUP-12 pin exempts it.
+
+Verified: `dotnet build` clean, zero warnings. `GridPlacementSmoke` exercises all six panels (`VerifyGridInteractionModeBar`, `VerifyGridInteractionStatus`, `VerifyGridObjectInspector`, `VerifyGridToolPalette`, `VerifyGridWorkerSpawnerPanel`, `VerifyGridCalendarHud`) and every one passes, together with the whole downstream suite (`terrain_grid_playground`, `showcase_interaction` green). Two scan pins are mutation-proven: no panel outside `GridPanelComponent` declares `private void SetEditedOwner(`, and each of the six derives from `GridPanelComponent`.
+
+**A stale pin was fixed here too.** The base-bootstrap pin still required `GridPanelComponent` to contain `SafeName`, which DUP-05 had moved out to `GridIds.NodeName`. Because that pin sits after the contract scan's pre-existing `TerrainWorldComponent` restore-yield abort it never ran in the gate, so the drift was invisible; the required-member list now drops `SafeName` (the sanitiser's one owner is `GridIds.NodeName`, guarded by DUP-05's own pin).
+
+**Two pre-existing reds, not this change.** `GridPlacementSmoke` returns on its first failure at `VerifyPlacementOccupancy` ("Fresh placement grid should allow an empty footprint"), and a second placement-terrain check (`VerifyPlacementUsesCellDataTerrain`) fails right behind it - masked all along by the first. Neither is caused by this HUD-only change (nor by any committed session work: no commit touched placement's cell-data resolution). Confirmed by bypassing both temporarily: the suite then reaches and passes every downstream check, including all six panels, and returns green. The bypass was reverted.
+
+### Still pending (steps 2-4)
+
+- `GridButtonBindings` helper to replace the three `_connectedButtons` lists and the two single-button connect/disconnect pairs.
+- `GridToggleBarComponent : GridPanelComponent` to fold the two structurally identical enum button bars (`GridInteractionModeBarComponent`, `GridToolPaletteComponent`).
+- `GridRosterCache<T>` for the incremental roster caches in `GridProductionPanelComponent` and `GridWorkerStatusPanelComponent`.
 
 ## Finding
 

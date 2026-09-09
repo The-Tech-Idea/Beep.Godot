@@ -10,7 +10,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridWorkerSpawnerPanelComponent : Control
+    public partial class GridWorkerSpawnerPanelComponent : GridPanelComponent
     {
         [Signal] public delegate void SpawnButtonPressedEventHandler();
 
@@ -18,8 +18,6 @@ namespace Beep.ECS
         [Export] public NodePath TitleLabelPath { get; set; } = new("");
         [Export] public NodePath CountLabelPath { get; set; } = new("");
         [Export] public NodePath SpawnButtonPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool HideWhenMissingSpawner { get; set; } = false;
         [Export] public string TitleText { get; set; } = "Base";
         [Export] public string SpawnButtonText { get; set; } = "Spawn Worker";
@@ -213,38 +211,11 @@ namespace Beep.ECS
         private bool HasAuthoredControls()
             => FindTitleLabel() != null && FindCountLabel() != null && FindSpawnButton() != null;
 
-        private Label? FindTitleLabel()
-        {
-            if (!TitleLabelPath.IsEmpty && GetNodeOrNull<Label>(TitleLabelPath) is { } pathLabel)
-                return pathLabel;
+        private Label? FindTitleLabel() => FindControl<Label>(TitleLabelPath, "Title");
 
-            if (FindChild("Title", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
+        private Label? FindCountLabel() => FindControl<Label>(CountLabelPath, "Count");
 
-            return GetParent()?.FindChild("Title", recursive: true, owned: false) as Label;
-        }
-
-        private Label? FindCountLabel()
-        {
-            if (!CountLabelPath.IsEmpty && GetNodeOrNull<Label>(CountLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Count", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Count", recursive: true, owned: false) as Label;
-        }
-
-        private Button? FindSpawnButton()
-        {
-            if (!SpawnButtonPath.IsEmpty && GetNodeOrNull<Button>(SpawnButtonPath) is { } pathButton)
-                return pathButton;
-
-            if (FindChild("SpawnButton", recursive: true, owned: false) is Button childButton)
-                return childButton;
-
-            return GetParent()?.FindChild("SpawnButton", recursive: true, owned: false) as Button;
-        }
+        private Button? FindSpawnButton() => FindControl<Button>(SpawnButtonPath, "SpawnButton");
 
         private void ConnectSpawnButton()
         {
@@ -280,12 +251,5 @@ namespace Beep.ECS
             _connectedSpawnButton = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
     }
 }

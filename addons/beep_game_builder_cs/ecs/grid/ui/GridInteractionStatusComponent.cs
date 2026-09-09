@@ -11,15 +11,13 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridInteractionStatusComponent : Control
+    public partial class GridInteractionStatusComponent : GridPanelComponent
     {
         [Export] public NodePath InteractionModePath { get; set; } = new("");
         [Export] public NodePath SelectionPath { get; set; } = new("");
         [Export] public NodePath ToolActionPath { get; set; } = new("");
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public NodePath StatusLabelPath { get; set; } = new("");
-        [Export] public bool BuildInEditor { get; set; } = true;
-        [Export] public bool GenerateControlsWhenPathsEmpty { get; set; } = false;
         [Export] public bool AutoRefresh { get; set; } = true;
         [Export] public bool ShowHoverCell { get; set; } = true;
         [Export] public bool ShowFeedback { get; set; } = true;
@@ -190,16 +188,7 @@ namespace Beep.ECS
             return true;
         }
 
-        private Label? FindStatusLabel()
-        {
-            if (!StatusLabelPath.IsEmpty && GetNodeOrNull<Label>(StatusLabelPath) is { } pathLabel)
-                return pathLabel;
-
-            if (FindChild("Status", recursive: true, owned: false) is Label childLabel)
-                return childLabel;
-
-            return GetParent()?.FindChild("Status", recursive: true, owned: false) as Label;
-        }
+        private Label? FindStatusLabel() => FindControl<Label>(StatusLabelPath, "Status");
 
         private void ConnectSignals()
         {
@@ -308,12 +297,5 @@ namespace Beep.ECS
             _label = null;
         }
 
-        private void SetEditedOwner(Node node)
-        {
-            if (!Engine.IsEditorHint())
-                return;
-
-            node.Owner = GetTree()?.EditedSceneRoot;
-        }
     }
 }

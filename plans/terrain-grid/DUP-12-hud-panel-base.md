@@ -1,6 +1,6 @@
 # DUP-12 — Every HUD panel on the panel base; one enum button bar
 
-**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (six panels on the base + GridButtonBindings; toggle-bar / roster-cache helpers pending) · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
+**Type:** duplication fix · **Area:** `ecs/grid/ui/*` (16 files) · **Status:** **IMPLEMENTED 2026-09-09** (all four steps: six panels on the base, GridButtonBindings, the GridToggleBarComponent class-merge, GridRosterCache) · **Effort:** M (1–2 days) · **Risk:** low (HUD only; scenes bind by node name and keep working)
 
 ## Outcome (step 1: the six panels on the base, 2026-09-09)
 
@@ -26,15 +26,19 @@ Verified: `dotnet build` clean, zero warnings. `GridPlacementSmoke` exercises th
 
 `GridEnumNames.TryParse<TEnum>(string?, out TEnum)` (new static generic helper) owns the one piece of the two bars that was byte-for-byte identical apart from the enum type: the authored-name parse (Enum.TryParse, then a space/dash/underscore-stripped compare over the enum's values). `GridInteractionModeBarComponent.TryParseMode` and `GridToolPaletteComponent.TryParseAction` are gone; both call `GridEnumNames.TryParse`. Generics are fine here because it is a plain static class, not a `[GlobalClass]` Node. Verified: build clean, the tool-palette scene-button smoke (which drives the `BoundActionNames` -> parse path) green; two scan pins mutation-proven (no bar declares its own `TryParse{Mode,Action}`; `GridEnumNames` owns `TryParse<TEnum>`).
 
-### Deferred: the full GridToggleBarComponent class-merge
+## Outcome (step 3, complete: the GridToggleBarComponent class-merge, 2026-09-09)
 
-The rest of the two bars is structurally similar (~150 lines each: `BindExistingButtons`, `Find*Button`, `Bind*Button`, `Add*Button`, `HasConventional*Buttons`, `RefreshSelection`, the generated row) but merging it into a `GridToggleBarComponent : GridPanelComponent` base is deliberately **not** done autonomously, and is left for a focused, reviewed change. Three reasons, all verified against the code:
+`GridToggleBarComponent : GridPanelComponent` (new abstract `[Tool][GlobalClass]`) now owns the shared mechanics of a HUD toggle bar - a row of mutually-exclusive toggle buttons over an enum-like option set. It holds the `_row`, the `_buttons` dictionary, and a `GridButtonBindings`, and owns binding authored buttons (by `Bound*Names`/paths or the `Prefix_Name` convention), generating the fallback row when `GenerateControlsWhenPathsEmpty`, `RefreshSelection`, `VisibleButtonCount`, `UsesSceneButtons`, and the `_ExitTree` teardown. The `ToggleOption` readonly struct (Name/Label/Tooltip) carries one option. `GridInteractionModeBarComponent` (300 -> ~155 lines) and `GridToolPaletteComponent` (320 -> ~165 lines) now derive from it and supply only their options, selection, wiring and public API.
 
-- **A naive `Options`/`SelectedIndex`/`Select(index)` contract silently breaks hidden-option binding.** `BindExistingButtons` parses `Bound*Names` against ALL enum values and binds the authored button even for an option whose `Show*` flag is false; an index-into-visible-`Options` contract (the plan's shape) cannot resolve a hidden option. Preserving it needs the base to key buttons by canonical name with a subclass `TryResolveName` over the full enum - a larger, more careful contract than the plan sketches.
-- **Six scan pins encode the per-subclass implementation shape** - `Name = $"Mode_{mode}"`, `FindModeButton`, `BindModeButton`, `HasConventionalModeButtons` (and the `Tool_` equivalents), the `FindChild(name` / `GetParent()?.FindChild` fallback tiers - and all would have to be rewritten to the base's generic form. After the step-1/step-2 pin fallout (stale pins hidden past the scan's abort), rewriting six more behavior-encoding pins is exactly the kind of change that wants the gate actually running, which it cannot while the pre-existing `TerrainWorldComponent` abort stands.
-- **The bars diverge in behaviour the base must special-case**: the mode bar subscribes to `GridInteractionModeComponent.ModeChanged` to refresh; the tool palette has none, plus `IncludeApplyButton`/`ApplySelectedTool`, `AutoSwitchInteractionMode` and a second resolved `_interactionMode`. The public APIs differ too (`RebuildBar`/`RebuildPalette`, `SelectMode`/`SelectTool`, `SelectedModeName`/`SelectedActionName`) and are pinned and called by scenes.
+The three concerns that held this back in the partial-step note above were each resolved, not sidestepped:
 
-None of this makes the merge wrong - it is a legitimate rule-3 consolidation (the two bars are one mechanism, not [[genre-variants-are-not-duplicates|genre variants]]) - but its blast radius (shipped HUD scenes) and the behavioural/ pin subtleties put it past what should land unattended. See [[scan-deadzone-base-move-pins]].
+- **Hidden-option binding is preserved because the contract is keyed by canonical name, not by visible index.** The base keys `_buttons` by option NAME, `FindOptionButton(name, boundIndex)` looks up `$"{ButtonNamePrefix}_{name}"`, and the subclass fills `TryResolveName(authored, out ToggleOption)` over the FULL enum (via `GridEnumNames.TryParse`). So an authored button for an option whose `Show*` flag is false still binds - the exact case an index-into-visible-`Options` contract could not express. A smoke guard, `VerifyGridInteractionModeBarHiddenBinding`, binds authored `Mode_Inspect` while `ShowInspect = false`, emits `Pressed`, and asserts Inspect became selected; it is mutation-proven.
+- **The six per-subclass pins were rewritten to the merged shape** and each mutation-tested by block extraction against the real tree (the contract scan still aborts at the pre-existing `TerrainWorldComponent` restore-yield pin, so these pins sit in its dead zone and cannot run in the gate; see [[scan-deadzone-base-move-pins]]). The mode-bar's three pins and the tool-palette's two collapsed to one pin each requiring `: GridToggleBarComponent` plus that bar's own surface (`SelectMode`/`SelectedModeName`/`ButtonNamePrefix => "Mode"`/`ModeChanged`; `SelectTool`/`ApplySelectedTool`/`RebuildPalette`/`ButtonNamePrefix => "Tool"`), and a new base pin requires `GridToggleBarComponent : GridPanelComponent` to own `BindExistingButtons`/`FindOptionButton`/`BindOptionButton`/`RefreshSelection`/`UsesSceneButtons`/`_buttonBindings.UnbindAll`/the `$"{ButtonNamePrefix}_{name}"` name. The step-1 derive pin dropped the two bars from its `GridPanelComponent`-direct list (they now reach it through the base).
+- **The divergence lives in subclass hooks, not base special-casing.** The base exposes `virtual OnExitTree()` (the mode bar disconnects `GridInteractionModeComponent.ModeChanged`; the tool palette has nothing) and `virtual OnRowGenerated(HBoxContainer)` (the tool palette adds its Apply button through `BindExtraButton`; the mode bar leaves it). Each bar keeps its own `[Export]`s, its resolved collaborator(s), and its historical public API (`SelectMode`/`SelectTool`, `SelectedModeName`/`SelectedActionName`, `RebuildBar`-vs-`RebuildPalette`, `VisibleModeButtonCount`/`VisibleToolButtonCount`) - all preserved so the pinned, scene-called surface did not move.
+
+This is the rule-3 consolidation the two bars always wanted (one mechanism, not [[genre-variants-are-not-duplicates|genre variants]]). `GridResourceBarComponent` was checked and deliberately left separate: it binds read-only resource labels, not a mutually-exclusive toggle set, so its coincidental `RebuildBar` name is not a reason to merge it.
+
+Verified: `dotnet build` clean, zero warnings; `GridToggleBarComponent.cs.uid` generated and committed. `GridPlacementSmoke` reaches and passes `interaction-modes`, `tool-palette` and `resource-bar` (confirmed by the same temporary bypass of the two pre-existing placement reds, reverted); `terrain_grid_playground` and `showcase_interaction` green. All four rewritten scan pins (base, mode bar, tool palette, step-1 derive) are mutation-proven by block extraction: each is green on the clean tree and fires on its distinguishing mutation (revert a bar to `GridPanelComponent`/`Control`, or remove a base mechanic).
 
 ## Outcome (step 4: GridRosterCache, 2026-09-09)
 
@@ -44,9 +48,9 @@ None of this makes the merge wrong - it is a legitimate rule-3 consolidation (th
 
 Verified: build clean, both panel smoke checks (`VerifyGridProductionPanel`, `VerifyGridWorkerStatusPanel`) green past the two pre-existing placement reds (reverted). Two scan pins mutation-proven: both panels reference `GridRosterCache<`, and no ui panel outside `GridRosterCache` declares a `PruneInvalid*` roster method.
 
-### Still deferred
+### Nothing deferred
 
-- The full `GridToggleBarComponent` class-merge (step 3), for the reasons above.
+All four steps are landed: the six panels on `GridPanelComponent`, `GridButtonBindings`, the `GridToggleBarComponent` class-merge (step 3, above), and `GridRosterCache`. DUP-12 is complete.
 
 ## Finding
 

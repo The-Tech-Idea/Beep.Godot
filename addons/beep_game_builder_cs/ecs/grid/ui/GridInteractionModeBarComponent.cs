@@ -1,17 +1,18 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
     /// <summary>
     /// HUD button bar for GridInteractionModeComponent. It lets players switch
     /// between select, inspect, tool, build, and disabled map interaction modes.
+    /// The toggle-bar mechanics live in <see cref="GridToggleBarComponent"/>; this
+    /// class supplies the modes, the selection, and the InteractionMode wiring.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridInteractionModeBarComponent : GridPanelComponent
+    public partial class GridInteractionModeBarComponent : GridToggleBarComponent
     {
         [Signal] public delegate void ModeButtonPressedEventHandler(int mode);
 
@@ -26,24 +27,61 @@ namespace Beep.ECS
         [Export] public Vector2 ButtonMinimumSize { get; set; } = new(88, 34);
 
         private GridInteractionModeComponent? _interaction;
-        private HBoxContainer? _row;
-        private readonly Dictionary<GridInteractionModeComponent.InteractionMode, Button> _buttons = new();
-        private readonly GridButtonBindings _buttonBindings = new();
 
-        public override void _Ready()
+        protected override string ButtonNamePrefix => "Mode";
+        protected override string GeneratedRowName => "GeneratedInteractionModeBar";
+        protected override string[] BoundOptionNames => BoundModeNames;
+        protected override NodePath[] BoundOptionButtonPaths => BoundButtonPaths;
+        protected override Vector2 OptionButtonMinimumSize => ButtonMinimumSize;
+
+        protected override IReadOnlyList<ToggleOption> VisibleOptions
+        {
+            get
+            {
+                var options = new List<ToggleOption>();
+                foreach (GridInteractionModeComponent.InteractionMode mode in VisibleModes())
+                    options.Add(OptionFor(mode));
+                return options;
+            }
+        }
+
+        protected override bool TryResolveName(string authored, out ToggleOption option)
+        {
+            if (GridEnumNames.TryParse(authored, out GridInteractionModeComponent.InteractionMode mode))
+            {
+                option = OptionFor(mode);
+                return true;
+            }
+            option = default;
+            return false;
+        }
+
+        protected override string CurrentName => _interaction?.CurrentMode.ToString() ?? "";
+
+        protected override bool SelectByName(string name)
         {
             ResolveReferences();
-            ConnectInteractionSignals();
-            if (!Engine.IsEditorHint() || BuildInEditor)
-                CallDeferred(nameof(RebuildBar));
-            UpdateConfigurationWarnings();
+            if (_interaction == null || !GridEnumNames.TryParse(name, out GridInteractionModeComponent.InteractionMode mode))
+                return false;
+
+            _interaction.SetMode(mode);
+            RefreshSelection();
+            EmitSignal(SignalName.ModeButtonPressed, (int)mode);
+            return true;
         }
 
-        public override void _ExitTree()
+        protected override void ResolveReferences()
         {
-            _buttonBindings.UnbindAll();
-            DisconnectInteractionSignals();
+            // The guard stays so signals are (re)connected only when Resolve
+            // actually picks a new instance up, not on every call.
+            if (_interaction == null || !GodotObject.IsInstanceValid(_interaction))
+            {
+                EntityComponent.Resolve(this, InteractionModePath, ref _interaction);
+                ConnectInteractionSignals();
+            }
         }
+
+        protected override void OnExitTree() => DisconnectInteractionSignals();
 
         public override string[] _GetConfigurationWarnings()
         {
@@ -56,87 +94,17 @@ namespace Beep.ECS
             return Array.Empty<string>();
         }
 
-        public void RebuildBar()
-        {
-            ResolveReferences();
-            if (BindExistingButtons())
-            {
-                RefreshSelection();
-                return;
-            }
+        /// <summary>Set the interaction mode as if its button was pressed.</summary>
+        public bool SelectMode(GridInteractionModeComponent.InteractionMode mode) => SelectByName(mode.ToString());
 
-            if (!GenerateControlsWhenPathsEmpty)
-                return;
+        /// <summary>The current mode's name, or "" when no interaction component is wired.</summary>
+        public string SelectedModeName() => CurrentName;
 
-            ClearChildren();
-            _buttons.Clear();
+        /// <summary>How many mode buttons the bar drives.</summary>
+        public int VisibleModeButtonCount() => VisibleButtonCount();
 
-            _row = new HBoxContainer
-            {
-                Name = "GeneratedInteractionModeBar",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(_row, "separation", 6);
-            AddChild(_row);
-            SetEditedOwner(_row);
-
-            foreach (GridInteractionModeComponent.InteractionMode mode in VisibleModes())
-                AddModeButton(mode);
-
-            RefreshSelection();
-        }
-
-        public bool SelectMode(GridInteractionModeComponent.InteractionMode mode)
-        {
-            ResolveReferences();
-            if (_interaction == null)
-                return false;
-
-            _interaction.SetMode(mode);
-            RefreshSelection();
-            EmitSignal(SignalName.ModeButtonPressed, (int)mode);
-            return true;
-        }
-
-        public string SelectedModeName()
-        {
-            ResolveReferences();
-            return _interaction?.CurrentMode.ToString() ?? "";
-        }
-
-        public int VisibleModeButtonCount()
-            => _buttons.Count;
-
-        public void RefreshSelection()
-        {
-            ResolveReferences();
-            if (_interaction == null)
-                return;
-
-            foreach (var pair in _buttons)
-                if (GodotObject.IsInstanceValid(pair.Value))
-                    pair.Value.SetPressedNoSignal(pair.Key == _interaction.CurrentMode);
-        }
-
-        private void AddModeButton(GridInteractionModeComponent.InteractionMode mode)
-        {
-            if (_row == null)
-                return;
-
-            var button = new Button
-            {
-                Name = $"Mode_{mode}",
-                Text = LabelFor(mode),
-                ToggleMode = true,
-                CustomMinimumSize = ButtonMinimumSize,
-                TooltipText = TooltipFor(mode)
-            };
-            Action handler = () => SelectMode(mode);
-            _buttonBindings.Bind(button, handler);
-            _row.AddChild(button);
-            SetEditedOwner(button);
-            _buttons[mode] = button;
-        }
+        private ToggleOption OptionFor(GridInteractionModeComponent.InteractionMode mode)
+            => new(mode.ToString(), LabelFor(mode), TooltipFor(mode));
 
         private IEnumerable<GridInteractionModeComponent.InteractionMode> VisibleModes()
         {
@@ -145,82 +113,6 @@ namespace Beep.ECS
             if (ShowTool) yield return GridInteractionModeComponent.InteractionMode.Tool;
             if (ShowBuild) yield return GridInteractionModeComponent.InteractionMode.Build;
             if (ShowDisabled) yield return GridInteractionModeComponent.InteractionMode.Disabled;
-        }
-
-        private void ResolveReferences()
-        {
-            // The guard stays so signals are (re)connected only when Resolve
-            // actually picks a new instance up, not on every call.
-            if (_interaction == null || !GodotObject.IsInstanceValid(_interaction))
-            {
-                EntityComponent.Resolve(this, InteractionModePath, ref _interaction);
-                ConnectInteractionSignals();
-            }
-        }
-
-        public bool UsesSceneButtons()
-            => BoundModeNames.Length > 0 || BoundButtonPaths.Length > 0 || HasConventionalModeButtons();
-
-        private bool BindExistingButtons()
-        {
-            _buttonBindings.UnbindAll();
-            _buttons.Clear();
-
-            if (BoundModeNames.Length > 0 || BoundButtonPaths.Length > 0)
-            {
-                if (BoundModeNames.Length != BoundButtonPaths.Length)
-                    return false;
-
-                for (int i = 0; i < BoundModeNames.Length; i++)
-                {
-                    if (!GridEnumNames.TryParse(BoundModeNames[i], out GridInteractionModeComponent.InteractionMode mode))
-                        return false;
-
-                    Button? button = FindModeButton(mode, i);
-                    if (button == null)
-                        return false;
-
-                    BindModeButton(mode, button);
-                }
-            }
-            else
-            {
-                foreach (GridInteractionModeComponent.InteractionMode mode in VisibleModes())
-                {
-                    Button? button = FindModeButton(mode, -1);
-                    if (button == null)
-                        continue;
-
-                    BindModeButton(mode, button);
-                }
-            }
-
-            return _buttons.Count > 0;
-        }
-
-        private bool HasConventionalModeButtons()
-        {
-            foreach (GridInteractionModeComponent.InteractionMode mode in VisibleModes())
-                if (FindModeButton(mode, -1) != null)
-                    return true;
-
-            return false;
-        }
-
-        private Button? FindModeButton(GridInteractionModeComponent.InteractionMode mode, int index)
-            => FindControl<Button>(index >= 0 && BoundButtonPaths.Length > index ? BoundButtonPaths[index] : new NodePath(""), $"Mode_{mode}");
-
-        private void BindModeButton(GridInteractionModeComponent.InteractionMode mode, Button button)
-        {
-            GridInteractionModeComponent.InteractionMode capturedMode = mode;
-            Action handler = () => SelectMode(capturedMode);
-            button.ToggleMode = true;
-            if (string.IsNullOrWhiteSpace(button.Text))
-                button.Text = LabelFor(mode);
-            if (string.IsNullOrWhiteSpace(button.TooltipText))
-                button.TooltipText = TooltipFor(mode);
-            _buttonBindings.Bind(button, handler);
-            _buttons[mode] = button;
         }
 
         private void ConnectInteractionSignals()
@@ -238,17 +130,7 @@ namespace Beep.ECS
                 _interaction.ModeChanged -= OnModeChanged;
         }
 
-        private void OnModeChanged(int mode)
-            => RefreshSelection();
-
-        private void ClearChildren()
-        {
-            _buttonBindings.UnbindAll();
-            foreach (Node child in GetChildren())
-                child.QueueFree();
-            _row = null;
-        }
-
+        private void OnModeChanged(int mode) => RefreshSelection();
 
         private static string LabelFor(GridInteractionModeComponent.InteractionMode mode)
             => mode switch

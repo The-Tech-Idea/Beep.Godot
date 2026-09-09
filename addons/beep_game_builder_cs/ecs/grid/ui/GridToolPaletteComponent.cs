@@ -1,17 +1,19 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using Beep.ECS.UI.Kit;
 
 namespace Beep.ECS
 {
     /// <summary>
     /// HUD palette for GridToolActionComponent. It creates tool buttons for common
     /// farming/settler actions and keeps the selected button in sync with the tool.
+    /// The toggle-bar mechanics live in <see cref="GridToggleBarComponent"/>; this
+    /// class supplies the actions, the selection, the optional Apply button, and the
+    /// ToolAction/InteractionMode wiring.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridToolPaletteComponent : GridPanelComponent
+    public partial class GridToolPaletteComponent : GridToggleBarComponent
     {
         [Signal] public delegate void ToolSelectedEventHandler(string action);
         [Signal] public delegate void ToolApplyRequestedEventHandler(string action, int appliedCount);
@@ -34,21 +36,71 @@ namespace Beep.ECS
 
         private GridToolActionComponent? _tools;
         private GridInteractionModeComponent? _interactionMode;
-        private HBoxContainer? _row;
-        private readonly Dictionary<GridToolActionComponent.ToolAction, Button> _buttons = new();
-        private readonly GridButtonBindings _buttonBindings = new();
 
-        public override void _Ready()
+        protected override string ButtonNamePrefix => "Tool";
+        protected override string GeneratedRowName => "GeneratedToolPalette";
+        protected override string[] BoundOptionNames => BoundActionNames;
+        protected override NodePath[] BoundOptionButtonPaths => BoundButtonPaths;
+        protected override Vector2 OptionButtonMinimumSize => ButtonMinimumSize;
+
+        protected override IReadOnlyList<ToggleOption> VisibleOptions
         {
-            ResolveReferences();
-            if (!Engine.IsEditorHint() || BuildInEditor)
-                CallDeferred(nameof(RebuildPalette));
-            UpdateConfigurationWarnings();
+            get
+            {
+                var options = new List<ToggleOption>();
+                foreach (GridToolActionComponent.ToolAction action in VisibleActions())
+                    options.Add(OptionFor(action));
+                return options;
+            }
         }
 
-        public override void _ExitTree()
+        protected override bool TryResolveName(string authored, out ToggleOption option)
         {
-            _buttonBindings.UnbindAll();
+            if (GridEnumNames.TryParse(authored, out GridToolActionComponent.ToolAction action))
+            {
+                option = OptionFor(action);
+                return true;
+            }
+            option = default;
+            return false;
+        }
+
+        protected override string CurrentName => _tools?.CurrentAction.ToString() ?? "";
+
+        protected override bool SelectByName(string name)
+        {
+            ResolveReferences();
+            if (_tools == null || !GridEnumNames.TryParse(name, out GridToolActionComponent.ToolAction action))
+                return false;
+
+            _tools.CurrentAction = action;
+            if (AutoSwitchInteractionMode && _interactionMode != null)
+                _interactionMode.ToolMode();
+            RefreshSelection();
+            EmitSignal(SignalName.ToolSelected, action.ToString());
+            return true;
+        }
+
+        protected override void ResolveReferences()
+        {
+            EntityComponent.Resolve(this, ToolActionPath, ref _tools);
+            EntityComponent.Resolve(this, InteractionModePath, ref _interactionMode);
+        }
+
+        protected override void OnRowGenerated(HBoxContainer row)
+        {
+            if (!IncludeApplyButton)
+                return;
+
+            var apply = new Button
+            {
+                Name = "ApplyTool",
+                Text = "Apply",
+                CustomMinimumSize = ButtonMinimumSize
+            };
+            BindExtraButton(apply, () => ApplySelectedTool());
+            row.AddChild(apply);
+            SetEditedOwner(apply);
         }
 
         public override string[] _GetConfigurationWarnings()
@@ -62,64 +114,13 @@ namespace Beep.ECS
             return Array.Empty<string>();
         }
 
-        public void RebuildPalette()
-        {
-            ResolveReferences();
-            if (BindExistingButtons())
-            {
-                RefreshSelection();
-                return;
-            }
+        /// <summary>The same rebuild as the base, under the palette's historical name (scenes call it).</summary>
+        public void RebuildPalette() => RebuildBar();
 
-            if (!GenerateControlsWhenPathsEmpty)
-                return;
+        /// <summary>Select the tool as if its button was pressed.</summary>
+        public bool SelectTool(GridToolActionComponent.ToolAction action) => SelectByName(action.ToString());
 
-            ClearChildren();
-            _buttons.Clear();
-
-            _row = new HBoxContainer
-            {
-                Name = "GeneratedToolPalette",
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
-            };
-            KitChrome.SetConstantOverrideIfChanged(_row, "separation", 6);
-            AddChild(_row);
-            SetEditedOwner(_row);
-
-            foreach (GridToolActionComponent.ToolAction action in VisibleActions())
-                AddToolButton(action);
-
-            if (IncludeApplyButton)
-            {
-                var apply = new Button
-                {
-                    Name = "ApplyTool",
-                    Text = "Apply",
-                    CustomMinimumSize = ButtonMinimumSize
-                };
-                Action handler = () => ApplySelectedTool();
-                _buttonBindings.Bind(apply, handler);
-                _row.AddChild(apply);
-                SetEditedOwner(apply);
-            }
-
-            RefreshSelection();
-        }
-
-        public bool SelectTool(GridToolActionComponent.ToolAction action)
-        {
-            ResolveReferences();
-            if (_tools == null)
-                return false;
-
-            _tools.CurrentAction = action;
-            if (AutoSwitchInteractionMode && _interactionMode != null)
-                _interactionMode.ToolMode();
-            RefreshSelection();
-            EmitSignal(SignalName.ToolSelected, action.ToString());
-            return true;
-        }
-
+        /// <summary>Apply the current tool and report how many cells it affected.</summary>
         public int ApplySelectedTool()
         {
             ResolveReferences();
@@ -131,47 +132,14 @@ namespace Beep.ECS
             return applied;
         }
 
-        public string SelectedActionName()
-        {
-            ResolveReferences();
-            return _tools?.CurrentAction.ToString() ?? "";
-        }
+        /// <summary>The current action's name, or "" when no tool component is wired.</summary>
+        public string SelectedActionName() => CurrentName;
 
-        public int VisibleToolButtonCount() => _buttons.Count;
+        /// <summary>How many tool buttons the palette drives.</summary>
+        public int VisibleToolButtonCount() => VisibleButtonCount();
 
-        public bool UsesSceneButtons()
-            => BoundActionNames.Length > 0 || BoundButtonPaths.Length > 0 || HasConventionalToolButtons();
-
-        public void RefreshSelection()
-        {
-            ResolveReferences();
-            if (_tools == null)
-                return;
-
-            foreach (var pair in _buttons)
-                if (GodotObject.IsInstanceValid(pair.Value))
-                    pair.Value.SetPressedNoSignal(pair.Key == _tools.CurrentAction);
-        }
-
-        private void AddToolButton(GridToolActionComponent.ToolAction action)
-        {
-            if (_row == null)
-                return;
-
-            var button = new Button
-            {
-                Name = $"Tool_{action}",
-                Text = LabelFor(action),
-                ToggleMode = true,
-                CustomMinimumSize = ButtonMinimumSize,
-                TooltipText = action.ToString()
-            };
-            Action handler = () => SelectTool(action);
-            _buttonBindings.Bind(button, handler);
-            _row.AddChild(button);
-            SetEditedOwner(button);
-            _buttons[action] = button;
-        }
+        private ToggleOption OptionFor(GridToolActionComponent.ToolAction action)
+            => new(action.ToString(), LabelFor(action), action.ToString());
 
         private IEnumerable<GridToolActionComponent.ToolAction> VisibleActions()
         {
@@ -192,82 +160,5 @@ namespace Beep.ECS
                 GridToolActionComponent.ToolAction.RemoveRoad => "No Road",
                 _ => action.ToString()
             };
-
-        private void ResolveReferences()
-        {
-            EntityComponent.Resolve(this, ToolActionPath, ref _tools);
-            EntityComponent.Resolve(this, InteractionModePath, ref _interactionMode);
-        }
-
-        private bool BindExistingButtons()
-        {
-            _buttonBindings.UnbindAll();
-            _buttons.Clear();
-
-            if (BoundActionNames.Length > 0 || BoundButtonPaths.Length > 0)
-            {
-                if (BoundActionNames.Length != BoundButtonPaths.Length)
-                    return false;
-
-                for (int i = 0; i < BoundActionNames.Length; i++)
-                {
-                    if (!GridEnumNames.TryParse(BoundActionNames[i], out GridToolActionComponent.ToolAction action))
-                        return false;
-
-                    Button? button = FindToolButton(action, i);
-                    if (button == null)
-                        return false;
-
-                    BindToolButton(action, button);
-                }
-            }
-            else
-            {
-                foreach (GridToolActionComponent.ToolAction action in VisibleActions())
-                {
-                    Button? button = FindToolButton(action, -1);
-                    if (button == null)
-                        continue;
-
-                    BindToolButton(action, button);
-                }
-            }
-
-            return _buttons.Count > 0;
-        }
-
-        private bool HasConventionalToolButtons()
-        {
-            foreach (GridToolActionComponent.ToolAction action in VisibleActions())
-                if (FindToolButton(action, -1) != null)
-                    return true;
-
-            return false;
-        }
-
-        private Button? FindToolButton(GridToolActionComponent.ToolAction action, int index)
-            => FindControl<Button>(index >= 0 && BoundButtonPaths.Length > index ? BoundButtonPaths[index] : new NodePath(""), $"Tool_{action}");
-
-        private void BindToolButton(GridToolActionComponent.ToolAction action, Button button)
-        {
-            GridToolActionComponent.ToolAction capturedAction = action;
-            Action handler = () => SelectTool(capturedAction);
-            button.ToggleMode = true;
-            if (string.IsNullOrWhiteSpace(button.Text))
-                button.Text = LabelFor(action);
-            if (string.IsNullOrWhiteSpace(button.TooltipText))
-                button.TooltipText = action.ToString();
-            _buttonBindings.Bind(button, handler);
-            _buttons[action] = button;
-        }
-
-        private void ClearChildren()
-        {
-            _buttonBindings.UnbindAll();
-            foreach (Node child in GetChildren())
-                child.QueueFree();
-            _row = null;
-        }
-
     }
 }

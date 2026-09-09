@@ -1437,10 +1437,18 @@ foreach ($panelFile in Get-ChildItem -Path (Join-Path $root "addons/beep_game_bu
         Fail "$($panelFile.Name) carries its own SetEditedOwner; GridPanelComponent owns the editor-owner stamp (DUP-12)."
     }
 }
-foreach ($panelName in @("GridInteractionStatusComponent", "GridInteractionModeBarComponent", "GridToolPaletteComponent", "GridWorkerSpawnerPanelComponent", "GridCalendarHudComponent", "GridObjectInspectorComponent")) {
+foreach ($panelName in @("GridInteractionStatusComponent", "GridWorkerSpawnerPanelComponent", "GridCalendarHudComponent", "GridObjectInspectorComponent")) {
     $panelBody = Read "addons/beep_game_builder_cs/ecs/grid/ui/$panelName.cs"
     if ($panelBody -notmatch [regex]::Escape("class $panelName : GridPanelComponent")) {
         Fail "$panelName must derive from GridPanelComponent, not carry its own panel bootstrap (DUP-12)."
+    }
+}
+# DUP-12: the two enum toggle bars share GridToggleBarComponent (itself a GridPanelComponent),
+# which owns the bind/generate/refresh mechanics; the bars keep only their options and wiring.
+$gridToggleBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridToggleBarComponent.cs"
+foreach ($required in @('class\s+GridToggleBarComponent\s*:\s*GridPanelComponent', 'BindExistingButtons', 'HasConventionalButtons', 'FindOptionButton', 'BindOptionButton', 'RefreshSelection', 'UsesSceneButtons', 'Name = \$"\{ButtonNamePrefix\}_\{name\}"', '_buttonBindings\.UnbindAll')) {
+    if ($gridToggleBar -notmatch $required) {
+        Fail "GridToggleBarComponent must own the shared toggle-bar mechanics: $required."
     }
 }
 # DUP-12: button-press subscriptions are held by GridButtonBindings, so the
@@ -1694,13 +1702,8 @@ foreach ($required in @("ConsumeSeedsFromWallet", "missing_seeds", "TrySpendAmou
     }
 }
 $gridToolPalette = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridToolPaletteComponent.cs"
-if ($gridToolPalette -notmatch 'class\s+GridToolPaletteComponent' -or $gridToolPalette -notmatch 'SelectTool' -or $gridToolPalette -notmatch 'ApplySelectedTool' -or $gridToolPalette -notmatch 'VisibleToolButtonCount' -or $gridToolPalette -notmatch 'SelectedActionName' -or $gridToolPalette -notmatch 'ShowRoad' -or $gridToolPalette -notmatch 'ShowRemoveRoad' -or $gridToolPalette -notmatch 'InteractionModePath' -or $gridToolPalette -notmatch 'AutoSwitchInteractionMode' -or $gridToolPalette -notmatch 'BoundActionNames' -or $gridToolPalette -notmatch 'BoundButtonPaths') {
-    Fail "GridToolPaletteComponent is missing the expected reusable tool palette surface."
-}
-foreach ($required in @("HasConventionalToolButtons", "FindToolButton", "BindToolButton", 'Name = \$"Tool_\{action\}"', 'FindChild\(name', 'GetParent\(\)\?\.FindChild')) {
-    if ($gridToolPalette -notmatch $required) {
-        Fail "GridToolPaletteComponent must auto-bind conventional Tool_* buttons before generated fallback: $required."
-    }
+if ($gridToolPalette -notmatch 'class\s+GridToolPaletteComponent\s*:\s*GridToggleBarComponent' -or $gridToolPalette -notmatch 'SelectTool' -or $gridToolPalette -notmatch 'ApplySelectedTool' -or $gridToolPalette -notmatch 'VisibleToolButtonCount' -or $gridToolPalette -notmatch 'SelectedActionName' -or $gridToolPalette -notmatch 'RebuildPalette' -or $gridToolPalette -notmatch 'ShowRoad' -or $gridToolPalette -notmatch 'ShowRemoveRoad' -or $gridToolPalette -notmatch 'InteractionModePath' -or $gridToolPalette -notmatch 'AutoSwitchInteractionMode' -or $gridToolPalette -notmatch 'IncludeApplyButton' -or $gridToolPalette -notmatch 'BoundActionNames' -or $gridToolPalette -notmatch 'BoundButtonPaths' -or $gridToolPalette -notmatch 'ButtonNamePrefix => "Tool"') {
+    Fail "GridToolPaletteComponent must be a GridToggleBarComponent exposing the tool API (Apply included) and its Bound* exports, keyed on the Tool_ prefix."
 }
 $gridCropDefinition = Read "addons/beep_game_builder_cs/ecs/grid/GridCropDefinition.cs"
 if ($gridCropDefinition -notmatch 'class\s+GridCropDefinition' -or $gridCropDefinition -notmatch 'DaysToMature' -or $gridCropDefinition -notmatch 'RegrowDays' -or $gridCropDefinition -notmatch 'CanPlantIn') {
@@ -2332,16 +2335,8 @@ if ($gridInteractionMode -notmatch 'class\s+GridInteractionModeComponent' -or $g
     Fail "GridInteractionModeComponent is missing the expected map input coordination surface."
 }
 $gridInteractionModeBar = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionModeBarComponent.cs"
-if ($gridInteractionModeBar -notmatch 'class\s+GridInteractionModeBarComponent' -or $gridInteractionModeBar -notmatch 'RebuildBar' -or $gridInteractionModeBar -notmatch 'SelectMode' -or $gridInteractionModeBar -notmatch 'VisibleModeButtonCount' -or $gridInteractionModeBar -notmatch 'GridInteractionModeComponent') {
-    Fail "GridInteractionModeBarComponent is missing the expected mode-switching HUD surface."
-}
-if ($gridInteractionModeBar -notmatch 'BoundModeNames' -or $gridInteractionModeBar -notmatch 'BoundButtonPaths' -or $gridInteractionModeBar -notmatch 'BindExistingButtons' -or $gridInteractionModeBar -notmatch 'UsesSceneButtons' -or $gridInteractionModeBar -notmatch '_buttonBindings\.UnbindAll') {
-    Fail "GridInteractionModeBarComponent must bind authored mode buttons by default and only generate fallback UI when explicitly enabled."
-}
-foreach ($required in @("HasConventionalModeButtons", "FindModeButton", "BindModeButton", 'Name = \$"Mode_\{mode\}"', 'FindChild\(name', 'GetParent\(\)\?\.FindChild')) {
-    if ($gridInteractionModeBar -notmatch $required) {
-        Fail "GridInteractionModeBarComponent must auto-bind conventional Mode_* buttons before generated fallback: $required."
-    }
+if ($gridInteractionModeBar -notmatch 'class\s+GridInteractionModeBarComponent\s*:\s*GridToggleBarComponent' -or $gridInteractionModeBar -notmatch 'SelectMode' -or $gridInteractionModeBar -notmatch 'SelectedModeName' -or $gridInteractionModeBar -notmatch 'VisibleModeButtonCount' -or $gridInteractionModeBar -notmatch 'GridInteractionModeComponent' -or $gridInteractionModeBar -notmatch 'BoundModeNames' -or $gridInteractionModeBar -notmatch 'BoundButtonPaths' -or $gridInteractionModeBar -notmatch 'ButtonNamePrefix => "Mode"' -or $gridInteractionModeBar -notmatch 'ModeChanged') {
+    Fail "GridInteractionModeBarComponent must be a GridToggleBarComponent exposing the mode API and its Bound* exports, keyed on the Mode_ prefix, and staying synced to ModeChanged."
 }
 $gridInteractionStatus = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridInteractionStatusComponent.cs"
 if ($gridInteractionStatus -notmatch 'class\s+GridInteractionStatusComponent' -or $gridInteractionStatus -notmatch 'RebuildStatus' -or $gridInteractionStatus -notmatch 'StatusText' -or $gridInteractionStatus -notmatch 'LastFeedback' -or $gridInteractionStatus -notmatch 'GridInteractionModeComponent') {

@@ -37,7 +37,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | DUP-09 | [Chunk-pin helper](DUP-09-chunk-pin-helper.md) | `>> 5` ×52 in 12 files, pin-refresh pattern ×7, a Node per path request | M | **done** (one chunk rule + `GridChunkPins`; 4 of 7 owners ported, see Outcome) |
 | DUP-10 | [Arrival detection](DUP-10-arrival-detection.md) | `_wasMoving` edge detection ×2 with a one-frame hole | S | **investigated, not done** (premise does not hold; would regress stepped movers) |
 | DUP-11 | [Dispatch board showcase](DUP-11-dispatch-board-showcase.md) | a second dispatch loop in seconds (owner's call: relocate) | S | |
-| DUP-12 | [HUD panel base](DUP-12-hud-panel-base.md) | 6/16 panels bypass the base; two ~300-line twin button bars; 3 button-binding copies; 2 roster caches | M | **mostly done** (panels+bindings+enum-parser+roster-cache; toggle-bar merge deferred) |
+| DUP-12 | [HUD panel base](DUP-12-hud-panel-base.md) | 6/16 panels bypass the base; two ~300-line twin button bars; 3 button-binding copies; 2 roster caches | M | **done** (panels+bindings+enum-parser+GridToggleBarComponent merge+roster-cache) |
 | DUP-13 | [Terrain-kind registry](DUP-13-terrain-kind-registry.md) | what a kind means is spelled out in 11+ tables (the `lava` incident) | L | |
 
 ## Enhancements (16)

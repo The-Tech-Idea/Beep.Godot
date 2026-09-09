@@ -813,26 +813,46 @@ namespace Beep.ECS
         public Vector2 OriginPosition => _seabed is null ? Vector2.Zero
             : _seabed.MapToLocal(BoundsOrigin) - _seabed.MapToLocal(Vector2I.Zero);
 
-        /// <summary>Renderer-local surface outline using the same native layer as the terrain.</summary>
+        /// <summary>Renderer-local surface outline using the same native layer as the terrain.
+        /// The <see cref="Span{T}"/> overloads fill without allocating; these array overloads are
+        /// the convenience path over them (GDScript, and callers that hand a Vector2[] to a Godot API).</summary>
         public Vector2[] SurfaceCorners(Vector2I cell)
         {
-            var field = ResolveSurface();
-            return !_hasSurface || field is null ? System.Array.Empty<Vector2>() : SurfaceCorners(field, cell - BoundsOrigin);
+            Span<Vector2> tmp = stackalloc Vector2[4];
+            int n = SurfaceCorners(cell, tmp);
+            return n == 0 ? System.Array.Empty<Vector2>() : new[] { tmp[0], tmp[1], tmp[2], tmp[3] };
         }
 
         internal Vector2[] SurfaceCorners(ITerrainSurfaceData field, Vector2I cell)
         {
-            if (_layers.Count == 0 || !ContainsSurfaceCell(BoundsOrigin + cell))
-                return System.Array.Empty<Vector2>();
+            Span<Vector2> tmp = stackalloc Vector2[4];
+            int n = SurfaceCorners(field, cell, tmp);
+            return n == 0 ? System.Array.Empty<Vector2>() : new[] { tmp[0], tmp[1], tmp[2], tmp[3] };
+        }
+
+        /// <summary>Fills up to four renderer-local surface corners into <paramref name="corners"/> and
+        /// returns the count written (0 when the cell has no surface face). Allocation-free.</summary>
+        public int SurfaceCorners(Vector2I cell, Span<Vector2> corners)
+        {
+            var field = ResolveSurface();
+            return !_hasSurface || field is null ? 0 : SurfaceCorners(field, cell - BoundsOrigin, corners);
+        }
+
+        internal int SurfaceCorners(ITerrainSurfaceData field, Vector2I cell, Span<Vector2> corners)
+        {
+            if (corners.Length < 4 || _layers.Count == 0 || !ContainsSurfaceCell(BoundsOrigin + cell))
+                return 0;
             int level = SurfaceLevel(field, cell);
             var layer = _layers[level >= GroundLevel ? LayerFor(level) : 0];
             Vector2 half = (Vector2)layer.TileSet.TileSize * 0.5f;
             Vector2 center = layer.MapToLocal(BoundsOrigin + cell);
-            Vector2[] corners = { center + new Vector2(0, -half.Y), center + new Vector2(half.X, 0),
-                center + new Vector2(0, half.Y), center + new Vector2(-half.X, 0) };
+            corners[0] = center + new Vector2(0, -half.Y);
+            corners[1] = center + new Vector2(half.X, 0);
+            corners[2] = center + new Vector2(0, half.Y);
+            corners[3] = center + new Vector2(-half.X, 0);
             if (level >= GroundLevel)
-                for (int i = 0; i < corners.Length; i++) corners[i] = layer.Transform * corners[i];
-            return corners;
+                for (int i = 0; i < 4; i++) corners[i] = layer.Transform * corners[i];
+            return 4;
         }
 
         internal int SurfaceLevel(ITerrainSurfaceData field, Vector2I cell)

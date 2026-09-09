@@ -47,6 +47,8 @@ namespace Beep.ECS
         private NodePath _snapTargetPath = new("");
         private Vector2I _hoverCell = new(int.MinValue, int.MinValue);
         private static readonly Vector2I InvalidCell = new(int.MinValue, int.MinValue);
+        // Reused by the editor grid draw so each cell outline allocates no corner array.
+        private readonly Vector2[] _drawCorners = new Vector2[4];
 
         /// <summary>Optional native geometry source. Its TileSet layout and transform replace
         /// the manual Projection, TileSize and Origin for placement and picking.</summary>
@@ -249,34 +251,59 @@ namespace Beep.ECS
         /// <summary>Returns the current mouse cell using the active viewport mouse position.</summary>
         public Vector2I MouseCell() => WorldToCell(GetGlobalMousePosition());
 
-        /// <summary>Returns local-space corners for drawing or hit previews.</summary>
+        /// <summary>Returns local-space corners for drawing or hit previews. Convenience path over
+        /// <see cref="CellCorners(Vector2I, System.Span{Vector2})"/> for GDScript and callers that hand a
+        /// Vector2[] straight to a Godot draw/shape API; the span overload allocates nothing.</summary>
         public Vector2[] CellCorners(Vector2I cell)
         {
+            System.Span<Vector2> corners = stackalloc Vector2[4];
+            int n = CellCorners(cell, corners);
+            if (n == 0) return System.Array.Empty<Vector2>();
+            var result = new Vector2[n];
+            for (int i = 0; i < n; i++) result[i] = corners[i];
+            return result;
+        }
+
+        /// <summary>Fills up to four local-space cell corners into <paramref name="corners"/> (which must
+        /// hold at least four) and returns the count written - 0 when the cell has no drawable face,
+        /// otherwise 4. Allocation-free, so a hot per-cell caller avoids a per-call array.</summary>
+        public int CellCorners(Vector2I cell, System.Span<Vector2> corners)
+        {
+            if (corners.Length < 4) return 0;
+
             if (!ElevatedTerrainPath.IsEmpty)
             {
-                if (ElevatedTerrain is not { } terrain) return System.Array.Empty<Vector2>();
-                Vector2[] corners = terrain.SurfaceCorners(cell);
-                for (int i = 0; i < corners.Length; i++) corners[i] = ToLocal(terrain.ToGlobal(corners[i]));
-                return corners;
+                if (ElevatedTerrain is not { } terrain) return 0;
+                int n = terrain.SurfaceCorners(cell, corners);
+                for (int i = 0; i < n; i++) corners[i] = ToLocal(terrain.ToGlobal(corners[i]));
+                return n;
             }
             if (!TileMapLayerPath.IsEmpty)
             {
-                if (NativeLayer is not { TileSet: { } tiles } layer) return System.Array.Empty<Vector2>();
+                if (NativeLayer is not { TileSet: { } tiles } layer) return 0;
                 Vector2 half = (Vector2)tiles.TileSize * 0.5f;
-                Vector2[] offsets = tiles.TileShape switch
+                switch (tiles.TileShape)
                 {
-                    TileSet.TileShapeEnum.Square => new[] { -half, new Vector2(half.X, -half.Y), half, new Vector2(-half.X, half.Y) },
-                    TileSet.TileShapeEnum.Isometric => new[] { new Vector2(0, -half.Y), new Vector2(half.X, 0), new Vector2(0, half.Y), new Vector2(-half.X, 0) },
-                    _ => System.Array.Empty<Vector2>()
-                };
+                    case TileSet.TileShapeEnum.Square:
+                        corners[0] = -half; corners[1] = new Vector2(half.X, -half.Y);
+                        corners[2] = half; corners[3] = new Vector2(-half.X, half.Y);
+                        break;
+                    case TileSet.TileShapeEnum.Isometric:
+                        corners[0] = new Vector2(0, -half.Y); corners[1] = new Vector2(half.X, 0);
+                        corners[2] = new Vector2(0, half.Y); corners[3] = new Vector2(-half.X, 0);
+                        break;
+                    default:
+                        return 0;
+                }
                 Vector2 center = layer.MapToLocal(cell);
-                for (int i = 0; i < offsets.Length; i++)
-                    offsets[i] = ToLocal(layer.ToGlobal(center + offsets[i]));
-                return offsets;
+                for (int i = 0; i < 4; i++) corners[i] = ToLocal(layer.ToGlobal(center + corners[i]));
+                return 4;
             }
-            return Projection == GridProjection.Isometric
-                ? IsometricCellCorners(CellToLocal(cell))
-                : TopDownCellCorners(cell);
+            if (Projection == GridProjection.Isometric)
+                IsometricCellCorners(CellToLocal(cell), corners);
+            else
+                TopDownCellCorners(cell, corners);
+            return 4;
         }
 
         public override void _Draw()
@@ -289,10 +316,10 @@ namespace Beep.ECS
                 for (int x = -radius; x <= radius; x++)
                     for (int y = -radius; y <= radius; y++)
                     {
-                        Vector2[] corners = CellCorners(new Vector2I(x, y));
-                        if (corners.Length < 3) continue;
-                        for (int i = 0; i < corners.Length; i++)
-                            DrawLine(corners[i], corners[(i + 1) % corners.Length], GridColor);
+                        int n = CellCorners(new Vector2I(x, y), _drawCorners);
+                        if (n < 3) continue;
+                        for (int i = 0; i < n; i++)
+                            DrawLine(_drawCorners[i], _drawCorners[(i + 1) % n], GridColor);
                     }
                 return;
             }
@@ -356,28 +383,22 @@ namespace Beep.ECS
             return bestCell;
         }
 
-        private Vector2[] TopDownCellCorners(Vector2I cell)
+        private void TopDownCellCorners(Vector2I cell, System.Span<Vector2> corners)
         {
             Vector2 tileSize = EffectiveTileSize;
             Vector2 topLeft = EffectiveOrigin + new Vector2(cell.X * tileSize.X, cell.Y * tileSize.Y);
-            return new[]
-            {
-                topLeft,
-                topLeft + new Vector2(tileSize.X, 0f),
-                topLeft + tileSize,
-                topLeft + new Vector2(0f, tileSize.Y)
-            };
+            corners[0] = topLeft;
+            corners[1] = topLeft + new Vector2(tileSize.X, 0f);
+            corners[2] = topLeft + tileSize;
+            corners[3] = topLeft + new Vector2(0f, tileSize.Y);
         }
 
-        private Vector2[] IsometricCellCorners(Vector2 center)
+        private void IsometricCellCorners(Vector2 center, System.Span<Vector2> corners)
         {
-            return new[]
-            {
-                center + new Vector2(0f, -HalfHeight),
-                center + new Vector2(HalfWidth, 0f),
-                center + new Vector2(0f, HalfHeight),
-                center + new Vector2(-HalfWidth, 0f)
-            };
+            corners[0] = center + new Vector2(0f, -HalfHeight);
+            corners[1] = center + new Vector2(HalfWidth, 0f);
+            corners[2] = center + new Vector2(0f, HalfHeight);
+            corners[3] = center + new Vector2(-HalfWidth, 0f);
         }
 
         private void DrawTopDownGrid(int radius)
@@ -400,8 +421,8 @@ namespace Beep.ECS
                     y == 0 ? AxisColor : GridColor);
             }
 
-            if (_hoverCell.X != int.MinValue)
-                DrawPolyline(CellCorners(_hoverCell), Colors.White with { A = 0.7f }, 2f, true);
+            if (_hoverCell.X != int.MinValue && CellCorners(_hoverCell, _drawCorners) >= 3)
+                DrawPolyline(_drawCorners, Colors.White with { A = 0.7f }, 2f, true);
         }
 
         private void DrawIsometricGrid(int radius)
@@ -412,12 +433,13 @@ namespace Beep.ECS
                 {
                     var cell = new Vector2I(x, y);
                     var color = x == 0 || y == 0 ? AxisColor : GridColor;
-                    DrawPolyline(CellCorners(cell), color, 1f, true);
+                    if (CellCorners(cell, _drawCorners) >= 3)
+                        DrawPolyline(_drawCorners, color, 1f, true);
                 }
             }
 
-            if (_hoverCell.X != int.MinValue)
-                DrawPolyline(CellCorners(_hoverCell), Colors.White with { A = 0.7f }, 2f, true);
+            if (_hoverCell.X != int.MinValue && CellCorners(_hoverCell, _drawCorners) >= 3)
+                DrawPolyline(_drawCorners, Colors.White with { A = 0.7f }, 2f, true);
         }
 
         private bool HasSnapTargetPath() => !string.IsNullOrEmpty(SnapTargetPath?.ToString());

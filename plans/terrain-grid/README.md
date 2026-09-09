@@ -51,7 +51,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | ENH-05 | [Painted memory and uploads](ENH-05-painted-memory-and-uploads.md) | chunked live snapshot (48 MB → <12 MB at 1M cells), windowed texture upload, no hot-path verification | M | |
 | ENH-06 | [Prop residency update](ENH-06-prop-residency-update.md) | allocation-free merge, chunk invalidation, stamp retention, overview LOD | M | |
 | ENH-07 | [Tile and isometric streaming](ENH-07-tile-and-isometric-streaming.md) | chunk-group TileMapLayer pool with patterns; overview hand-off | L | |
-| ENH-08 | [Projection hot paths](ENH-08-projection-hot-paths.md) | span `CellCorners`, cached surface, one mouse→cell per frame | S | |
+| ENH-08 | [Projection hot paths](ENH-08-projection-hot-paths.md) | span `CellCorners`, cached surface, one mouse→cell per frame | S | **partial** (parts 1-3: span CellCorners + caller migration + surface cache; hover owner pending) |
 | ENH-09 | [Overlay culling and bridge marshalling](ENH-09-overlay-culling-and-bridge-marshalling.md) | overlay draws the view; bridge stops marshalling the map | S | |
 | ENH-10 | [Streamed-world save](ENH-10-streamed-world-save.md) | `CaptureState` throws today on any streamed world; manifest + slot-isolated archive | M | |
 | ENH-11 | [Autotile configuration per frame](ENH-11-autotile-configuration-per-frame.md) | `Json.Stringify` per frame while painting | XS | **done** |

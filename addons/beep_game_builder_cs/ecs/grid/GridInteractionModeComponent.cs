@@ -57,8 +57,10 @@ namespace Beep.ECS
 
             ResolveReferences();
             Vector2I cell = MouseCell();
+            // Feed the cell the router already converted, rather than making selection run a
+            // second WorldToCell on the same mouse position this frame (ENH-08 one-owner hover).
             if (CurrentMode is InteractionMode.Select or InteractionMode.Tool or InteractionMode.Inspect)
-                _selection?.UpdateHoverFromWorld(MouseWorldPosition());
+                _selection?.SetHoverCell(cell);
             if (CurrentMode == InteractionMode.Build && _placement != null && _placement.State == GridPlacementComponent.PlacementState.Placing)
                 _placement.MovePreviewToCell(cell);
         }

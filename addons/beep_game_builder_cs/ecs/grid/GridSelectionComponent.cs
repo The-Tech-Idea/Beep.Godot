@@ -101,9 +101,11 @@ namespace Beep.ECS
             return System.Array.Empty<string>();
         }
 
-        public void UpdateHoverFromWorld(Vector2 worldPosition)
+        /// <summary>Set the hovered cell directly - used by the interaction router, which has
+        /// already converted the mouse once, so this does NOT run a second WorldToCell. Emits
+        /// HoverCellChanged on a real change so the HUD status panel and cursor stay in sync.</summary>
+        public void SetHoverCell(Vector2I cell)
         {
-            Vector2I cell = WorldToCell(worldPosition);
             if (cell == HoverCell)
                 return;
 
@@ -111,6 +113,10 @@ namespace Beep.ECS
             EmitSignal(SignalName.HoverCellChanged, cell.X, cell.Y);
             QueueRedraw();
         }
+
+        /// <summary>Convert a world position to a cell (one WorldToCell) and set it. The standalone
+        /// input path (no router) uses this; the router feeds the cell through SetHoverCell instead.</summary>
+        public void UpdateHoverFromWorld(Vector2 worldPosition) => SetHoverCell(WorldToCell(worldPosition));
 
         public void SelectCell(Vector2I cell, bool additive = false)
         {

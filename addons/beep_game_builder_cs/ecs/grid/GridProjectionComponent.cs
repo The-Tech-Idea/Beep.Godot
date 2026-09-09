@@ -257,9 +257,14 @@ namespace Beep.ECS
                 ? layer.ToGlobal(layer.MapToLocal(cell)) : new Vector2(float.NaN, float.NaN);
         }
 
+        /// <summary>How many times WorldToCell has run. Test-only instrumentation so a probe can
+        /// prove the interaction components share one mouse-&gt;cell conversion per frame (ENH-08).</summary>
+        internal long WorldToCellCalls { get; private set; }
+
         /// <summary>Returns the grid cell under a global/world-space point.</summary>
         public Vector2I WorldToCell(Vector2 worldPosition)
         {
+            WorldToCellCalls++;
             if (!float.IsFinite(worldPosition.X) || !float.IsFinite(worldPosition.Y)) return InvalidCell;
             if (!ElevatedTerrainPath.IsEmpty)
                 return ElevatedTerrain is { } terrain ? terrain.SurfaceCellAt(terrain.ToLocal(worldPosition)) : InvalidCell;

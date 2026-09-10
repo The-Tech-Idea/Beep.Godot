@@ -38,7 +38,7 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 | DUP-10 | [Arrival detection](DUP-10-arrival-detection.md) | `_wasMoving` edge detection ×2 with a one-frame hole | S | **investigated, not done** (premise does not hold; would regress stepped movers) |
 | DUP-11 | [Dispatch board showcase](DUP-11-dispatch-board-showcase.md) | a second dispatch loop in seconds (owner's call: relocate) | S | |
 | DUP-12 | [HUD panel base](DUP-12-hud-panel-base.md) | 6/16 panels bypass the base; two ~300-line twin button bars; 3 button-binding copies; 2 roster caches | M | **done** (panels+bindings+enum-parser+GridToggleBarComponent merge+roster-cache) |
-| DUP-13 | [Terrain-kind registry](DUP-13-terrain-kind-registry.md) | what a kind means is spelled out in 11+ tables (the `lava` incident) | L | |
+| DUP-13 | [Terrain-kind registry](DUP-13-terrain-kind-registry.md) | what a kind means is spelled out in 11+ tables (the `lava` incident) | L | **in progress** (registry + step 1: start-position eligibility; ~12 tables' data extracted, fold in one verified step at a time) |
 
 ## Enhancements (16)
 

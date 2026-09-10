@@ -1,6 +1,26 @@
 # DUP-13 — A terrain-kind registry: one owner for what "grass", "rock", "lava" mean
 
-**Type:** duplication fix + feature (data-driven kinds) · **Area:** `TerrainTileSets`, `TerrainLayers`, `TerrainBiomeStage`, `TerrainCoherenceStage`, `TerrainScaleConstraintStage`, `TerrainStartPositionStage`, `TerrainFeatureStage`, `TerrainPaintedRendererComponent` (id map), `TerrainIsometricRendererComponent` (frame table), `TerrainTileRendererComponent`, `SeededTerrainPropScatterComponent.PaletteKeyFor`, `GridTerrainRules`, `ResourceCatalogs` · **Status:** proposed 2026-09-08 · **Effort:** L (3–5 days) · **Risk:** medium–high (touches generation and every view; needs the determinism probes)
+**Type:** duplication fix + feature (data-driven kinds) · **Area:** `TerrainTileSets`, `TerrainLayers`, `TerrainBiomeStage`, `TerrainCoherenceStage`, `TerrainScaleConstraintStage`, `TerrainStartPositionStage`, `TerrainFeatureStage`, `TerrainPaintedRendererComponent` (id map), `TerrainIsometricRendererComponent` (frame table), `TerrainTileRendererComponent`, `SeededTerrainPropScatterComponent.PaletteKeyFor`, `GridTerrainRules`, `ResourceCatalogs` · **Status:** **IN PROGRESS 2026-09-10** (registry + step 1: start-position eligibility) · **Effort:** L (3–5 days) · **Risk:** medium–high (touches generation and every view; needs the determinism probes)
+
+## Progress (2026-09-10)
+
+`TerrainKind` + `TerrainKindCatalog` (with a code-built `Standard`) are landed, and the determinism baseline (`terrain_generation_baseline_probe`, every layer hashed for seeds {31415,4242,777} at Small+Huge) was confirmed green first, then kept green after **step 1** — `TerrainStartPositionStage.Eligible` now reads `Standard.Startable`. Mutation-proven (flip a kind's `Startable` → start positions move → baseline fails). Consumers read `Standard` statically for now (matching the static tables); the game-assignable catalog carried through generation settings is a **later step**, and the "no kind literals outside the catalog" pin only lands once every table is folded in.
+
+The remaining tables fold in one step at a time, each verified against the baseline (generation) or the grid/render probes (views). The byte-exact data for all of them was extracted up front — this is the reference to populate `Standard` from:
+
+- **Canonical order (= tile index, TerrainTileSets.Kinds):** deep_water, shallow_water, grass, dry_grass, desert, sand, tundra, snow, ice, jungle, swamp, mud, gravel, rock, lava (15). "water"/"sea"/"ocean"/"grassland"/"plains"/"beach"/"dirt"/"soil"/"stone" are non-canonical **aliases** several tables also handle — each migration must preserve its alias branch (generation never emits them, so the baseline will not catch an alias slip; the round-trip/grid tests must).
+- **Class** (GroundOf): Water = deep_water, shallow_water (+alias water); Steep = rock, lava; Land = all others.
+- **Level** (TerrainLayers.LevelForKind; Sea0/Ground1/Hills2/Mountains3): Sea = deep_water, shallow_water (+water); Hills = gravel; Mountains = rock; Ground(default) = everything else incl. **lava**.
+- **Coherence flags** (TerrainCoherenceStage): Rainfall = {desert,dry_grass,grass,swamp,jungle}; Absorbable = Rainfall + {snow,tundra}; PeakMaterial = {rock,gravel,snow}; AbsorbTarget = Absorbable + {rock,gravel}.
+- **Scale flags** (TerrainScaleConstraintStage): PeakKinds = {rock,snow,gravel} (= PeakMaterial); NotLakeBed = {sand,gravel,rock,snow}.
+- **Startable** (done): all except snow, ice, rock, lava.
+- **FeatureEligibility** (TerrainFeatureStage `Choose`): jungle→jungle; swamp→marsh; desert→oasis; grass/dry_grass/tundra→woods (tundra keeps its -0.05 stand bias in the stage); all else→none. Forest-vs-Woods thresholds stay in the stage.
+- **PropPalette** (PaletteKeyFor): grass/dry_grass/jungle(+grassland,plains)→grass; sand/desert(+beach)→desert; mud/swamp(+dirt,soil)→mud; rock/gravel/snow/ice/tundra(+stone)→rock; shallow_water→water (only if AllowShallowWaterProps); else "".
+- **MaterialSlot** (painted TerrainIds): grass0,dry_grass1,desert2,sand3,tundra4,snow5,ice6,jungle7,swamp8,mud8,gravel9,rock10,shallow_water11,deep_water12(+water,sea,ocean),lava13. Unlisted = absent (no slot).
+- **IsoFrame** (TerrainIsometricRenderer, editor-overridable exports — default): grass0,dry_grass1,desert2,sand3,tundra4,snow5,ice6,jungle7,swamp8,mud8,gravel9,rock10,lava10. deep/shallow_water have no block frame (surface shader). NOTE: these are per-renderer `[Export]`s, so migrating them means the catalog is the DEFAULT, not a replacement for the overrides.
+- **BlockedByDefault** (GridTerrainRules): water, sea, ocean, deep_water, shallow_water, lava.
+
+Suggested remaining order (least entangled first): coherence+scale material flags → Level → Class → Startable(done) → BlockedByDefault → PropPalette → MaterialSlot/IsoFrame (view defaults) → FeatureEligibility → the biome-preset stage (a biome→kind map, not a per-kind property — needs a catalog method or stays) → delete the literals + add the no-literals pin → game-assignable catalog through settings/recipe.
 
 ## Finding
 

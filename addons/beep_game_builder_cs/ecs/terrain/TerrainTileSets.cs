@@ -210,8 +210,11 @@ namespace Beep.ECS
             data.SetCustomData(Cell.UndergroundDepth, depth);
         }
 
+        // The canonical water kinds (deep_water, shallow_water) now carry Class == Water on the
+        // terrain-kind catalog (DUP-13); the bare "water" alias stays here because canonical water is
+        // deep_water/shallow_water and a game or legacy save may still store the un-catalogued "water".
         public static bool IsWaterKind(string terrainKind)
-            => terrainKind is "deep_water" or "shallow_water" or "water";
+            => terrainKind == "water" || TerrainKindCatalog.Standard.IsWater(terrainKind);
 
         /// <summary>
         /// Dry ground: a real terrain kind that is not water. The empty string is
@@ -235,11 +238,11 @@ namespace Beep.ECS
             Steep = 2,
         }
 
-        /// <summary>Classifies generated ground for descriptive tile metadata.</summary>
+        /// <summary>Classifies generated ground for descriptive tile metadata. The per-kind class now
+        /// lives on the terrain-kind catalog (DUP-13); the "water" alias is resolved here because the
+        /// catalog names only the canonical deep_water/shallow_water.</summary>
         public static Ground GroundOf(string terrainKind)
-            => IsWaterKind(terrainKind) ? Ground.Water
-                : terrainKind is "rock" or "lava" ? Ground.Steep
-                : Ground.Land;
+            => terrainKind == "water" ? Ground.Water : TerrainKindCatalog.Standard.GroundOf(terrainKind);
 
         /// <summary>
         /// Every terrain kind the generator can produce, so a data layer can hold

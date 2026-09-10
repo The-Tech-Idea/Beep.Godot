@@ -38,6 +38,15 @@ namespace Beep.ECS
         /// An unknown kind is flat Ground - the same default the hardcoded switch gave.</summary>
         public int Level(string id) => For(id)?.Level ?? TerrainLayers.Ground;
 
+        /// <summary>The kind's generated ground class (Land/Water/Steep). An unknown kind is Land -
+        /// the same permissive default the hardcoded classifier gave. Note this answers for CANONICAL
+        /// ids only; the bare "water" alias is resolved by <see cref="TerrainTileSets.GroundOf"/>.</summary>
+        public TerrainTileSets.Ground GroundOf(string id) => For(id)?.Class ?? TerrainTileSets.Ground.Land;
+
+        /// <summary>Whether this kind is water. Canonical ids only (deep_water, shallow_water); the
+        /// bare "water" alias is handled by <see cref="TerrainTileSets.IsWaterKind"/>. Unknown = dry.</summary>
+        public bool IsWater(string id) => For(id)?.Class == TerrainTileSets.Ground.Water;
+
         /// <summary>Whether a start position may be placed on this kind. An unknown kind is startable -
         /// the same permissive default the hardcoded check gave a kind it did not name.</summary>
         public bool Startable(string id) => For(id)?.Startable ?? true;
@@ -77,19 +86,20 @@ namespace Beep.ECS
         public static TerrainKindCatalog Standard => _standard ??= BuildStandard();
 
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
-            bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false, int level = TerrainLayers.Ground)
+            bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false,
+            int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land)
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
-                PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level,
+                PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level, Class = @class,
             };
 
         private static TerrainKindCatalog BuildStandard()
         {
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
-            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea));
-            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea));
+            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water));
+            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water));
             catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
@@ -101,8 +111,8 @@ namespace Beep.ECS
             catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("mud"));
             catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills));
-            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains));
-            catalog.Kinds.Add(Kind("lava", startable: false));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep));
+            catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep));
             return catalog;
         }
     }

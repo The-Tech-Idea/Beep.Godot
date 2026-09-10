@@ -27,7 +27,7 @@ if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
 $stdout = $stdoutTask.GetAwaiter().GetResult()
 $stderr = $stderrTask.GetAwaiter().GetResult()
 $combined = $stdout + $stderr
-if ($process.ExitCode -ne 0 -or -not $combined.Contains("[terrain-kind-catalog] LevelForKind maps every kind")) {
+if ($process.ExitCode -ne 0 -or -not $combined.Contains("[terrain-kind-catalog] LevelForKind, GroundOf and IsWater/IsLandKind map every kind")) {
     $combined
     throw "Godot terrain kind catalog probe failed."
 }

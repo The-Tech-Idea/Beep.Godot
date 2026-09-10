@@ -16,6 +16,12 @@ namespace Beep.ECS
         /// <summary>The kind's string id, e.g. "grass". This is what cells and saves store.</summary>
         [Export] public string Id { get; set; } = "";
 
+        /// <summary>The generated ground class - Land, Water (deep/shallow water) or Steep (rock,
+        /// lava): land that is not level enough to cross. Independent of an agent's movement policy;
+        /// it is what the cell IS. An unknown kind is Land, the same permissive default the hardcoded
+        /// <see cref="TerrainTileSets.GroundOf"/> gave a kind it did not name.</summary>
+        [Export] public TerrainTileSets.Ground Class { get; set; } = TerrainTileSets.Ground.Land;
+
         /// <summary>The terrain-layer level this kind sits at when its relief is unknown, as a
         /// <see cref="TerrainLayers"/> level (Sea/Ground/Hills/Mountains). Water is Sea, gravel is
         /// Hills, rock is Mountains; every other kind (lava included) is flat Ground.</summary>

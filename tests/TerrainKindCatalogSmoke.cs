@@ -39,7 +39,57 @@ public partial class TerrainKindCatalogSmoke : Node
                 return Fail($"LevelForKind('{kind}') = {got}, expected {level}");
         }
 
-        GD.Print("[terrain-kind-catalog] LevelForKind maps every kind (+ water alias, unknown default) through the catalog");
+        // TerrainTileSets.GroundOf / IsWaterKind / IsLandKind now read catalog.Class (DUP-13 Class step).
+        // Only deep_water/shallow_water are Water and only rock/lava are Steep; gravel and snow are Land,
+        // not Steep. The bare "water" alias and the empty string (no terrain) are resolved outside the
+        // catalog. GroundOf feeds descriptive tile metadata, so the determinism baseline does not hash
+        // it - this is its guard.
+        (string Kind, TerrainTileSets.Ground Class)[] classes =
+        {
+            ("deep_water", TerrainTileSets.Ground.Water),
+            ("shallow_water", TerrainTileSets.Ground.Water),
+            ("water", TerrainTileSets.Ground.Water),   // legacy alias
+            ("rock", TerrainTileSets.Ground.Steep),
+            ("lava", TerrainTileSets.Ground.Steep),
+            ("grass", TerrainTileSets.Ground.Land),
+            ("sand", TerrainTileSets.Ground.Land),
+            ("gravel", TerrainTileSets.Ground.Land),   // a peak material, but Land - not Steep
+            ("snow", TerrainTileSets.Ground.Land),
+            ("nonsense_kind", TerrainTileSets.Ground.Land), // unknown -> Land default
+            ("", TerrainTileSets.Ground.Land),          // no terrain -> Land default
+        };
+        foreach ((string kind, TerrainTileSets.Ground cls) in classes)
+        {
+            TerrainTileSets.Ground got = TerrainTileSets.GroundOf(kind);
+            if (got != cls)
+                return Fail($"GroundOf('{kind}') = {got}, expected {cls}");
+        }
+
+        // IsWaterKind: canonical water + the "water" alias; nothing else, and the empty string is not
+        // water. IsLandKind is its complement over non-empty ids (Steep kinds are still land).
+        (string Kind, bool Water, bool Land)[] membership =
+        {
+            ("deep_water", true, false),
+            ("shallow_water", true, false),
+            ("water", true, false),                     // alias: water, and not land
+            ("grass", false, true),
+            ("sand", false, true),
+            ("rock", false, true),                      // Steep is land, not water
+            ("lava", false, true),
+            ("nonsense_kind", false, true),             // unknown, non-empty -> land
+            ("", false, false),                         // no terrain -> neither
+        };
+        foreach ((string kind, bool water, bool land) in membership)
+        {
+            bool gotWater = TerrainTileSets.IsWaterKind(kind);
+            if (gotWater != water)
+                return Fail($"IsWaterKind('{kind}') = {gotWater}, expected {water}");
+            bool gotLand = TerrainTileSets.IsLandKind(kind);
+            if (gotLand != land)
+                return Fail($"IsLandKind('{kind}') = {gotLand}, expected {land}");
+        }
+
+        GD.Print("[terrain-kind-catalog] LevelForKind, GroundOf and IsWater/IsLandKind map every kind (+ water alias, empty and unknown defaults) through the catalog");
         return true;
     }
 

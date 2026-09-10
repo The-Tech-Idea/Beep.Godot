@@ -43,6 +43,24 @@ public partial class GridJobQueueSmoke : Node
         queue.QueueChanged -= OnQueueChanged;
         queue.Free();
 
+        // --- Count-cache correctness (ENH-12) ---
+        // QueuedCount/ClaimedCount/CompletedCount are cached and recomputed on mutation; a missed
+        // invalidation would return a stale count. Walk the transitions and check the values.
+        var counts = new GridJobQueueComponent { Name = "Counts", RemoveCompletedJobs = false };
+        AddChild(counts);
+        if (counts.QueuedCount != 0 || counts.ClaimedCount != 0 || counts.CompletedCount != 0)
+            return Fail("A fresh queue should report zero counts");
+        string cj = counts.AddJob(new Vector2I(2, 2), "clear");
+        if (counts.QueuedCount != 1 || counts.ClaimedCount != 0 || counts.CompletedCount != 0)
+            return Fail($"After AddJob: expected 1/0/0, got {counts.QueuedCount}/{counts.ClaimedCount}/{counts.CompletedCount}");
+        counts.ClaimNextJob("w", new Vector2I(0, 0));
+        if (counts.QueuedCount != 0 || counts.ClaimedCount != 1)
+            return Fail($"After claim: expected queued 0/claimed 1, got {counts.QueuedCount}/{counts.ClaimedCount}");
+        counts.CompleteJob(cj, "w");
+        if (counts.ClaimedCount != 0 || counts.CompletedCount != 1)
+            return Fail($"After complete: expected claimed 0/completed 1, got {counts.ClaimedCount}/{counts.CompletedCount}");
+        counts.Free();
+
         // --- Dispatch-fairness baseline (ENH-12, record first) ---
         // The claim rule is: highest priority, then NEAREST to the claiming worker, then lowest id.
         // It is NOT age-based. This pins it so a future claim index cannot silently change it - in
@@ -67,7 +85,7 @@ public partial class GridJobQueueSmoke : Node
             return Fail($"Claim must prefer higher priority even when farther ({highFar}); got '{pick2}'");
         priorityFar.Free();
 
-        GD.Print("[grid-jobqueue] one refresh per mutation; claim fairness is priority > nearest > id (not age)");
+        GD.Print("[grid-jobqueue] one refresh per mutation; cached counts stay correct; claim fairness is priority > nearest > id (not age)");
         return true;
     }
 

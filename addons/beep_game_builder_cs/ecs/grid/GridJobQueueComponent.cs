@@ -56,6 +56,8 @@ namespace Beep.ECS
 
         private readonly Dictionary<string, GridJob> _jobs = new();
         private int _nextJobNumber = 1;
+        private int _queuedCache, _claimedCache, _completedCache;
+        private bool _countsDirty = true;
 
         public float EffectiveDefaultWorkTurns => Mathf.Max(0.01f, float.IsFinite(DefaultWorkTurns) ? DefaultWorkTurns : 1.5f);
 
@@ -302,9 +304,9 @@ namespace Beep.ECS
             return new Dictionary<string, string>(_workerClaims, StringComparer.Ordinal);
         }
 
-        public int QueuedCount => Count(GridJobState.Queued);
-        public int ClaimedCount => Count(GridJobState.Claimed);
-        public int CompletedCount => Count(GridJobState.Completed);
+        public int QueuedCount { get { RecomputeCountsIfDirty(); return _queuedCache; } }
+        public int ClaimedCount { get { RecomputeCountsIfDirty(); return _claimedCache; } }
+        public int CompletedCount { get { RecomputeCountsIfDirty(); return _completedCache; } }
 
         public void ClearJobs()
         {
@@ -394,13 +396,29 @@ namespace Beep.ECS
             return null;
         }
 
-        private int Count(GridJobState state)
+        // The three QueueChanged counts are cached and recomputed once after a mutation, not scanned
+        // per read: EmitQueueChanged plus every QueuedCount/ClaimedCount/CompletedCount reader (the
+        // job board summary, the minimap) shared three O(jobs) scans per mutation. A mutation marks
+        // the cache dirty (EmitQueueChanged, and RebuildReservations for its conflict requeue); the
+        // next read does one pass. Over-invalidation is safe - it forces a recompute, never a wrong
+        // count - so only a missed invalidation could go stale, and the probe guards that (ENH-12).
+        private void RecomputeCountsIfDirty()
         {
-            int count = 0;
+            if (!_countsDirty) return;
+            int queued = 0, claimed = 0, completed = 0;
             foreach (GridJob job in _jobs.Values)
-                if (job.State == state)
-                    count++;
-            return count;
+            {
+                switch (job.State)
+                {
+                    case GridJobState.Queued: queued++; break;
+                    case GridJobState.Claimed: claimed++; break;
+                    case GridJobState.Completed: completed++; break;
+                }
+            }
+            _queuedCache = queued;
+            _claimedCache = claimed;
+            _completedCache = completed;
+            _countsDirty = false;
         }
 
         // QueueChanged no longer refreshes the chunk pins: every mutator that reaches here has
@@ -408,6 +426,7 @@ namespace Beep.ECS
         // so this used to run the O(jobs) pin pass twice per mutation (ENH-12, DUP-09).
         private void EmitQueueChanged()
         {
+            _countsDirty = true; // a mutation just happened; the counts recompute once on next read
             EmitSignal(SignalName.QueueChanged, QueuedCount, ClaimedCount, CompletedCount);
         }
 

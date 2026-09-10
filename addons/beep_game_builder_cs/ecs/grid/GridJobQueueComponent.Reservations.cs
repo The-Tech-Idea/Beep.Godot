@@ -67,6 +67,7 @@ public partial class GridJobQueueComponent
         ReleaseSharedReservations();
         _workerClaims.Clear();
         _workCells.Clear();
+        _countsDirty = true; // a conflicting claim may requeue below, changing the state counts
         // Saved claims are facts, not trusted indexes. Conflicting claims return to the queue.
         foreach (var job in _jobs.Values.OrderBy(job => job.Id, StringComparer.Ordinal))
         {

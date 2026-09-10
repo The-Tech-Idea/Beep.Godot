@@ -1,6 +1,18 @@
 # ENH-12 — Job queue: indexed claim, counted states, one pin refresh per mutation
 
-**Type:** enhancement (scaling the settlement loop) · **Area:** `GridJobQueueComponent` (+`.Dispatch`, `.Reservations`, `.SharedReservations`, `.ChunkPins`), `GridWorkerComponent`, `GridWorkerDispatchComponent`, `ui/GridJobBoardComponent`, `ui/GridWorkerStatusPanelComponent` · **Status:** proposed 2026-09-08 · **Effort:** M (2 days) · **Risk:** medium (dispatch fairness/ordering must be preserved — record first)
+**Type:** enhancement (scaling the settlement loop) · **Area:** `GridJobQueueComponent` (+`.Dispatch`, `.Reservations`, `.SharedReservations`, `.ChunkPins`), `GridWorkerComponent`, `GridWorkerDispatchComponent`, `ui/GridJobBoardComponent`, `ui/GridWorkerStatusPanelComponent` · **Status:** **PARTIALLY IMPLEMENTED 2026-09-09** (one-notification path done; buckets/claim-index/typed-enum pending) · **Effort:** M (2 days) · **Risk:** medium (dispatch fairness/ordering must be preserved — record first)
+
+## Outcome (one-notification path, 2026-09-09)
+
+Every mutation ran the O(jobs) `RefreshChunkPins` pass twice — once in the mutator and again in `EmitQueueChanged`. `EmitQueueChanged` no longer refreshes; the three mutators that were relying on it now refresh explicitly, before they emit: `ClaimJob` (its `ReserveClaim` flips state Queued→Claimed and reserves a work cell), `ClearJobs` (nothing left to want a cell), and `LoadJobs` (the loaded jobs want theirs). `AddJob`/`CancelJob`/`ReleaseJob`/`CompleteJob` already refreshed. Order is preserved (each mutator refreshes before it emits `QueueChanged`), and pin state is unchanged — only the redundant second pass per edit is gone.
+
+Guard: `grid_job_queue_probe` asserts `AddJob`, `ClaimJob` and `CompleteJob` each refresh the pins exactly once (a new internal `ChunkPinRefreshCount`) and emit `QueueChanged` once, and that claim + complete still behave. Mutation-proven: restoring the refresh in `EmitQueueChanged` makes `AddJob` refresh twice. The full job/worker loop (`jobs`, `job-effects`, `worker-spawner`) stays green in the headless smoke.
+
+### Still pending (the larger, fairness-critical half)
+
+- **Bucketed O(1) counts.** `Count(state)` is still three linear scans in `EmitQueueChanged`; needs a `Dictionary<GridJobState, HashSet<string>>` maintained by a centralised `SetState` (state writes are spread across mutators today). Medium risk — a missed transition site silently drifts the buckets.
+- **Priority-heap claim index.** `ClaimNextJobExcluding` is still a linear scan per claim (N idle workers × M jobs per tick). Needs a per-kind priority queue of queued ids, and the dispatch order must be **recorded first** and reproduced exactly (priority, then nearest, then lowest id).
+- **Typed HUD enumeration.** `GridJobBoardComponent` still marshals `GetJobs()` per `QueueChanged`; wants a typed `EnumerateJobs()` view (the `EnumerateFlags` shape).
 
 ## Finding
 

@@ -36,43 +36,14 @@ namespace Beep.ECS
         private static readonly string[] RainfallKinds = { "desert", "dry_grass", "grass", "swamp", "jungle" };
         private static readonly HashSet<string> Rainfall = new(RainfallKinds);
 
-        /// <summary>
-        /// Kinds whose REGIONS may be dissolved when too small for the landmass.
-        ///
-        /// Wider than the rainfall set, because snow and tundra are the clearest
-        /// case of the thing this exists to prevent: a small island cannot have
-        /// an ice cap. They arrive here from altitude cooling on a peak or two,
-        /// which is a couple of tiles of arctic on a temperate island - not a
-        /// climate the map has, just a threshold clipped. Dissolve them and the
-        /// peaks are bare rock, which is what a small island's peaks are.
-        ///
-        /// This stays self-regulating: on a genuinely cold map snow covers most
-        /// of the land, clears the minimum easily, and is left alone.
-        /// </summary>
-        private static readonly HashSet<string> Absorbable = new()
-        {
-            "desert", "dry_grass", "grass", "swamp", "jungle", "snow", "tundra",
-        };
+        // Absorbable (may be dissolved when too small) and AbsorbTarget (what an absorbed region may
+        // become) moved to the terrain-kind catalog (DUP-13); TerrainKind documents each.
 
         /// <summary>
         /// What a peak is made of. Valid for a region that sits on high ground,
         /// never for one that does not - stone at sea level is not a biome.
         /// </summary>
         private static readonly HashSet<string> PeakMaterials = new() { "rock", "gravel", "snow" };
-
-        /// <summary>
-        /// What an absorbed region may become. Rock and gravel are included so a
-        /// dissolved snow cap has somewhere to go - a peak surrounded only by
-        /// rock would otherwise have no candidate and survive by default.
-        ///
-        /// Sand is deliberately absent: it is the beach, one tile wide and
-        /// placed by where the coast is, so letting an inland region become sand
-        /// would put a beach in the middle of the map.
-        /// </summary>
-        private static readonly HashSet<string> AbsorbTargets = new()
-        {
-            "desert", "dry_grass", "grass", "swamp", "jungle", "snow", "tundra", "rock", "gravel",
-        };
 
         public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
@@ -144,7 +115,7 @@ namespace Beep.ECS
 
             for (int start = 0; start < world.Terrain.Length; start++)
             {
-                if (seen[start] || !world.Land[start] || !Absorbable.Contains(world.Terrain[start]))
+                if (seen[start] || !world.Land[start] || !TerrainKindCatalog.Standard.Absorbable(world.Terrain[start]))
                     continue;
 
                 string kind = world.Terrain[start];
@@ -174,7 +145,7 @@ namespace Beep.ECS
                                 queue[tail++] = at;
                             }
                         }
-                        else if (AbsorbTargets.Contains(other))
+                        else if (TerrainKindCatalog.Standard.AbsorbTarget(other))
                         {
                             borders[other] = borders.GetValueOrDefault(other) + 1;
                         }

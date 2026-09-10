@@ -20,5 +20,15 @@ namespace Beep.ECS
         /// not startable; every other land kind is (water and mountain-relief cells are excluded by
         /// separate checks, not by kind).</summary>
         [Export] public bool Startable { get; set; } = true;
+
+        /// <summary>Whether a small region of this kind may be DISSOLVED into its neighbours when it is
+        /// too small for the landmass (the biome-coherence absorb pass). The rainfall grounds plus snow
+        /// and tundra; not sand, water, or a peak/steep material.</summary>
+        [Export] public bool Absorbable { get; set; }
+
+        /// <summary>Whether an absorbed region may BECOME this kind. The absorbable kinds plus rock and
+        /// gravel (so a dissolved snow cap surrounded by rock has somewhere to go); never sand, which is
+        /// the coast-placed beach.</summary>
+        [Export] public bool AbsorbTarget { get; set; }
     }
 }

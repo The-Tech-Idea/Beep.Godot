@@ -38,32 +38,40 @@ namespace Beep.ECS
         /// the same permissive default the hardcoded check gave a kind it did not name.</summary>
         public bool Startable(string id) => For(id)?.Startable ?? true;
 
+        /// <summary>Whether a small region of this kind may be dissolved into its neighbours when too
+        /// small for the landmass (biome coherence). Unknown kinds are not absorbable.</summary>
+        public bool Absorbable(string id) => For(id)?.Absorbable ?? false;
+
+        /// <summary>Whether an absorbed region may become this kind. Unknown kinds are not targets.</summary>
+        public bool AbsorbTarget(string id) => For(id)?.AbsorbTarget ?? false;
+
         private static TerrainKindCatalog? _standard;
 
         /// <summary>The addon's built-in terrain kinds and their meanings - the single source the
         /// hardcoded tables are being retired into.</summary>
         public static TerrainKindCatalog Standard => _standard ??= BuildStandard();
 
-        private static TerrainKind Kind(string id, bool startable) => new() { Id = id, Startable = startable };
+        private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false, bool absorbTarget = false)
+            => new() { Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget };
 
         private static TerrainKindCatalog BuildStandard()
         {
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
-            catalog.Kinds.Add(Kind("deep_water", startable: true));
-            catalog.Kinds.Add(Kind("shallow_water", startable: true));
-            catalog.Kinds.Add(Kind("grass", startable: true));
-            catalog.Kinds.Add(Kind("dry_grass", startable: true));
-            catalog.Kinds.Add(Kind("desert", startable: true));
-            catalog.Kinds.Add(Kind("sand", startable: true));
-            catalog.Kinds.Add(Kind("tundra", startable: true));
-            catalog.Kinds.Add(Kind("snow", startable: false));
+            catalog.Kinds.Add(Kind("deep_water"));
+            catalog.Kinds.Add(Kind("shallow_water"));
+            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("sand"));
+            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("ice", startable: false));
-            catalog.Kinds.Add(Kind("jungle", startable: true));
-            catalog.Kinds.Add(Kind("swamp", startable: true));
-            catalog.Kinds.Add(Kind("mud", startable: true));
-            catalog.Kinds.Add(Kind("gravel", startable: true));
-            catalog.Kinds.Add(Kind("rock", startable: false));
+            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("mud"));
+            catalog.Kinds.Add(Kind("gravel", absorbTarget: true));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true));
             catalog.Kinds.Add(Kind("lava", startable: false));
             return catalog;
         }

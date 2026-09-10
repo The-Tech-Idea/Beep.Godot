@@ -164,6 +164,28 @@ public partial class TerrainKindCatalogSmoke : Node
         }
         scatter.Free();
 
+        // TerrainPaintedRendererComponent.TryMaterialSlot now reads catalog.MaterialSlot for the
+        // canonical kinds and maps the water/sea/ocean aliases to deep water's slot. This is the shader
+        // material index (a render output, not part of the determinism snapshot), so this probe guards
+        // it. Unknown kinds report false so the renderer keeps its own fallback.
+        (string Kind, bool Found, int Slot)[] slots =
+        {
+            ("grass", true, 0), ("dry_grass", true, 1), ("desert", true, 2), ("sand", true, 3),
+            ("tundra", true, 4), ("snow", true, 5), ("ice", true, 6), ("jungle", true, 7),
+            ("swamp", true, 8), ("mud", true, 8), ("gravel", true, 9), ("rock", true, 10),
+            ("shallow_water", true, 11), ("deep_water", true, 12), ("lava", true, 13),
+            ("water", true, 12), ("sea", true, 12), ("ocean", true, 12),   // aliases -> deep water's slot
+            ("nonsense_kind", false, 0), ("", false, 0),                   // unknown -> renderer fallback
+        };
+        foreach ((string kind, bool found, int slot) in slots)
+        {
+            bool gotFound = TerrainPaintedRendererComponent.TryMaterialSlot(kind, out int gotSlot);
+            if (gotFound != found)
+                return Fail($"TryMaterialSlot('{kind}') found = {gotFound}, expected {found}");
+            if (found && gotSlot != slot)
+                return Fail($"TryMaterialSlot('{kind}') slot = {gotSlot}, expected {slot}");
+        }
+
         GD.Print("[terrain-kind-catalog] OK");
         return true;
     }

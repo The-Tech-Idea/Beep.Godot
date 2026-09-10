@@ -28,30 +28,24 @@ namespace Beep.ECS
 	public partial class TerrainPaintedRendererComponent : TerrainRendererComponent
 	{
 		/// <summary>
-		/// Terrain kind to shader id. The shader indexes materials by this, so
-		/// the order is part of the contract with terrain_splat.gdshader.
+		/// Terrain kind to shader material slot. The shader indexes materials by
+		/// this, so the order is part of the contract with terrain_splat.gdshader.
+		/// The per-kind slot now lives on the terrain-kind catalog (DUP-13); the
+		/// water/sea/ocean aliases (deep water's slot) are non-canonical ids the
+		/// catalog does not name. False when the kind is unknown, so each call site
+		/// keeps its own fallback. Internal, not private, so the terrain-kind-catalog
+		/// probe can guard the whole mapping - the splat id texture is a render output,
+		/// not part of the determinism snapshot.
 		/// </summary>
-		private static readonly Dictionary<string, int> TerrainIds = new()
+		internal static bool TryMaterialSlot(string kind, out int slot)
 		{
-			["grass"] = 0,
-			["dry_grass"] = 1,
-			["desert"] = 2,
-			["sand"] = 3,
-			["tundra"] = 4,
-			["snow"] = 5,
-			["ice"] = 6,
-			["jungle"] = 7,
-			["swamp"] = 8,
-			["mud"] = 8,
-			["gravel"] = 9,
-			["rock"] = 10,
-			["lava"] = 13,
-			["shallow_water"] = 11,
-			["deep_water"] = 12,
-			["water"] = 12,
-			["sea"] = 12,
-			["ocean"] = 12,
-		};
+			string canonical = kind switch
+			{
+				"water" or "sea" or "ocean" => "deep_water",
+				_ => kind,
+			};
+			return TerrainKindCatalog.Standard.TryMaterialSlot(canonical, out slot);
+		}
 
 		[Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
 		[Export] public NodePath CellDataPath { get; set; } = new("");
@@ -495,7 +489,7 @@ namespace Beep.ECS
 			int index = y * size.X + x;
 			int pixel = index * 4;
 			string kind = _cells is not null ? _visualSnapshot[index].Kind : field!.TerrainAtCell(cell);
-			int id = TerrainIds.TryGetValue(kind, out int mapped) ? mapped : 0;
+			int id = TryMaterialSlot(kind, out int mapped) ? mapped : 0;
 			_idPixels![pixel] = (byte)id;
 			var shore = _cells is not null ? _visualSnapshot[index].Shore
 				: (Inland: field!.InlandTerrainAtCell(cell), Width: field.BeachWidth,
@@ -507,7 +501,7 @@ namespace Beep.ECS
 				_lakeBank[index] = bank;
 				_lakeBankCells += bank ? 1 : -1;
 			}
-			_idPixels[pixel + 2] = (byte)(TerrainIds.TryGetValue(shore.Inland, out int inlandId) ? inlandId : id);
+			_idPixels[pixel + 2] = (byte)(TryMaterialSlot(shore.Inland, out int inlandId) ? inlandId : id);
 			_idPixels[pixel + 3] = (byte)Mathf.RoundToInt(Mathf.Clamp(shore.Width / 4f, 0f, 1f) * 255f);
 			bool water = TerrainTileSets.IsWaterKind(kind);
 			_waterMask![index] = water;

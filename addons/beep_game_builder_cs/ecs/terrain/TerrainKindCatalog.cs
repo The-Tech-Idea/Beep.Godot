@@ -71,6 +71,16 @@ namespace Beep.ECS
         /// water opt-in. Unknown = no props.</summary>
         public string PropPalette(string id) => For(id)?.PropPalette ?? string.Empty;
 
+        /// <summary>The painted view's shader material slot for this kind, when the catalog names it.
+        /// Returns false for an unknown kind so a caller can apply its own fallback (the painted renderer
+        /// falls back to grass's slot for a cell, or to the cell's own slot for its shore inland).</summary>
+        public bool TryMaterialSlot(string id, out int slot)
+        {
+            if (For(id) is { } kind) { slot = kind.MaterialSlot; return true; }
+            slot = 0;
+            return false;
+        }
+
         private HashSet<string>? _peakMaterialKinds;
         /// <summary>The peak-material kinds as a set - passed to the scale stage's exclude filters and
         /// iterated by the coherence absorb pass. Built from the PeakMaterial flag; do not mutate.</summary>
@@ -98,33 +108,33 @@ namespace Beep.ECS
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
             bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false,
             int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land,
-            bool blockedByDefault = false, string propPalette = "")
+            bool blockedByDefault = false, string propPalette = "", int materialSlot = 0)
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
                 PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level, Class = @class,
-                BlockedByDefault = blockedByDefault, PropPalette = propPalette,
+                BlockedByDefault = blockedByDefault, PropPalette = propPalette, MaterialSlot = materialSlot,
             };
 
         private static TerrainKindCatalog BuildStandard()
         {
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
-            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true));
-            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, propPalette: "water"));
-            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true, propPalette: "grass"));
-            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true, propPalette: "grass"));
-            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true, propPalette: "desert"));
-            catalog.Kinds.Add(Kind("sand", notLakeBed: true, propPalette: "desert"));
-            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true, propPalette: "rock"));
-            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true, propPalette: "rock"));
-            catalog.Kinds.Add(Kind("ice", startable: false, propPalette: "rock"));
-            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true, propPalette: "grass"));
-            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true, propPalette: "mud"));
-            catalog.Kinds.Add(Kind("mud", propPalette: "mud"));
-            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills, propPalette: "rock"));
-            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep, propPalette: "rock"));
-            catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep, blockedByDefault: true));
+            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, materialSlot: 12));
+            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, propPalette: "water", materialSlot: 11));
+            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 0));
+            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 1));
+            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true, propPalette: "desert", materialSlot: 2));
+            catalog.Kinds.Add(Kind("sand", notLakeBed: true, propPalette: "desert", materialSlot: 3));
+            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true, propPalette: "rock", materialSlot: 4));
+            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true, propPalette: "rock", materialSlot: 5));
+            catalog.Kinds.Add(Kind("ice", startable: false, propPalette: "rock", materialSlot: 6));
+            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 7));
+            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true, propPalette: "mud", materialSlot: 8));
+            catalog.Kinds.Add(Kind("mud", propPalette: "mud", materialSlot: 8));
+            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills, propPalette: "rock", materialSlot: 9));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep, propPalette: "rock", materialSlot: 10));
+            catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep, blockedByDefault: true, materialSlot: 13));
             return catalog;
         }
     }

@@ -64,5 +64,12 @@ namespace Beep.ECS
         /// "water" is placed only where a scatter opts in (its AllowShallowWaterProps), so the sea and
         /// lakes stay clear by default.</summary>
         [Export] public string PropPalette { get; set; } = "";
+
+        /// <summary>The painted view's material slot for this kind - the index the splat shader
+        /// (terrain_splat.gdshader) uses to pick this kind's texture. Two kinds may share a slot (mud
+        /// draws with swamp's material). This is the shader's OWN material ordering, distinct from the
+        /// catalog's tile-index order; a game that adds a kind either reuses an existing slot or extends
+        /// the shader's material array to match.</summary>
+        [Export] public int MaterialSlot { get; set; }
     }
 }

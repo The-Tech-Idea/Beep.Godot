@@ -49,5 +49,6 @@
     <Compile Include="tests/GridCellOverlaySmoke.cs" />
     <Compile Include="tests/GridMinimapSmoke.cs" />
     <Compile Include="tests/GridJobQueueSmoke.cs" />
+    <Compile Include="tests/TerrainKindCatalogSmoke.cs" />
   </ItemGroup>
 </Project>

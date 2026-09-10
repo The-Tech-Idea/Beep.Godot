@@ -34,6 +34,10 @@ namespace Beep.ECS
         /// <summary>The kind with this id, or null when the catalog does not define it.</summary>
         public TerrainKind? For(string id) => ById().GetValueOrDefault(id);
 
+        /// <summary>The kind's terrain-layer level (Sea/Ground/Hills/Mountains) when relief is unknown.
+        /// An unknown kind is flat Ground - the same default the hardcoded switch gave.</summary>
+        public int Level(string id) => For(id)?.Level ?? TerrainLayers.Ground;
+
         /// <summary>Whether a start position may be placed on this kind. An unknown kind is startable -
         /// the same permissive default the hardcoded check gave a kind it did not name.</summary>
         public bool Startable(string id) => For(id)?.Startable ?? true;
@@ -73,19 +77,19 @@ namespace Beep.ECS
         public static TerrainKindCatalog Standard => _standard ??= BuildStandard();
 
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
-            bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false)
+            bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false, int level = TerrainLayers.Ground)
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
-                PeakMaterial = peakMaterial, NotLakeBed = notLakeBed,
+                PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level,
             };
 
         private static TerrainKindCatalog BuildStandard()
         {
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
-            catalog.Kinds.Add(Kind("deep_water"));
-            catalog.Kinds.Add(Kind("shallow_water"));
+            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea));
+            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea));
             catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
@@ -96,8 +100,8 @@ namespace Beep.ECS
             catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("mud"));
-            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true));
-            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true));
+            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains));
             catalog.Kinds.Add(Kind("lava", startable: false));
             return catalog;
         }

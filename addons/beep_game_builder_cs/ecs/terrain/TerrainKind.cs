@@ -16,6 +16,11 @@ namespace Beep.ECS
         /// <summary>The kind's string id, e.g. "grass". This is what cells and saves store.</summary>
         [Export] public string Id { get; set; } = "";
 
+        /// <summary>The terrain-layer level this kind sits at when its relief is unknown, as a
+        /// <see cref="TerrainLayers"/> level (Sea/Ground/Hills/Mountains). Water is Sea, gravel is
+        /// Hills, rock is Mountains; every other kind (lava included) is flat Ground.</summary>
+        [Export] public int Level { get; set; } = TerrainLayers.Ground;
+
         /// <summary>Whether a start position may be placed on this kind. Snow, ice, rock and lava are
         /// not startable; every other land kind is (water and mountain-relief cells are excluded by
         /// separate checks, not by kind).</summary>

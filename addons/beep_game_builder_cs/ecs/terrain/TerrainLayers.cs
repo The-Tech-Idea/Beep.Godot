@@ -127,12 +127,13 @@ namespace Beep.ECS
         /// it and fell back to a hand-written z. This is the single answer both
         /// now ask.
         /// </summary>
+        // The per-kind level now lives on the terrain-kind catalog (DUP-13); the "water" alias stays
+        // here because canonical water is deep_water/shallow_water (both Sea in the catalog) and a game
+        // or legacy save may still store the bare "water" id, which the catalog does not name.
         public static int LevelForKind(string terrain) => terrain switch
         {
-            "deep_water" or "shallow_water" or "water" => Sea,
-            "gravel" => Hills,
-            "rock" => Mountains,
-            _ => Ground,
+            "water" => Sea,
+            _ => TerrainKindCatalog.Standard.Level(terrain),
         };
 
         /// <summary>

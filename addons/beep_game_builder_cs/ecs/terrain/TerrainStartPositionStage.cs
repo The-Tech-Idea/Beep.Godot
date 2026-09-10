@@ -88,7 +88,7 @@ namespace Beep.ECS
 
         private static bool Eligible(TerrainGenerationBuffer world, int index)
             => world.CellWater[index] == WaterBody.None && world.CellRelief[index] != TerrainRelief.Mountains
-                && world.CellTerrain[index] is not ("snow" or "ice" or "rock" or "lava");
+                && TerrainKindCatalog.Standard.Startable(world.CellTerrain[index]);
 
         private static void Take(
             TerrainGenerationBuffer world,

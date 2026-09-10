@@ -71,5 +71,12 @@ namespace Beep.ECS
         /// catalog's tile-index order; a game that adds a kind either reuses an existing slot or extends
         /// the shader's material array to match.</summary>
         [Export] public int MaterialSlot { get; set; }
+
+        /// <summary>Which terrain FEATURE this kind carries, as a layer over the base terrain - "jungle",
+        /// "marsh", "oasis", "woods" (grass/dry_grass/tundra are woods-capable), or "" for none. Jungle,
+        /// marsh and (a rare) oasis are placed unconditionally by kind; "woods" only marks the kind as
+        /// woods-CAPABLE - whether a woods-capable cell actually grows trees is decided by the feature
+        /// stage's temperature floor, moisture ranking and Forest-vs-Woods density, which stay there.</summary>
+        [Export] public string FeatureEligibility { get; set; } = "";
     }
 }

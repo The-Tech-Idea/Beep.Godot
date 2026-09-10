@@ -81,6 +81,11 @@ namespace Beep.ECS
             return false;
         }
 
+        /// <summary>Which feature this kind carries ("jungle"/"marsh"/"oasis"/"woods"), or "" for none.
+        /// "woods" means woods-CAPABLE; the feature stage still gates it on temperature and ranking.
+        /// Unknown = no feature.</summary>
+        public string FeatureEligibility(string id) => For(id)?.FeatureEligibility ?? string.Empty;
+
         private HashSet<string>? _peakMaterialKinds;
         /// <summary>The peak-material kinds as a set - passed to the scale stage's exclude filters and
         /// iterated by the coherence absorb pass. Built from the PeakMaterial flag; do not mutate.</summary>
@@ -108,12 +113,14 @@ namespace Beep.ECS
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
             bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false,
             int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land,
-            bool blockedByDefault = false, string propPalette = "", int materialSlot = 0)
+            bool blockedByDefault = false, string propPalette = "", int materialSlot = 0,
+            string featureEligibility = "")
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
                 PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level, Class = @class,
                 BlockedByDefault = blockedByDefault, PropPalette = propPalette, MaterialSlot = materialSlot,
+                FeatureEligibility = featureEligibility,
             };
 
         private static TerrainKindCatalog BuildStandard()
@@ -122,15 +129,15 @@ namespace Beep.ECS
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
             catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, materialSlot: 12));
             catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, propPalette: "water", materialSlot: 11));
-            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 0));
-            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 1));
-            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true, propPalette: "desert", materialSlot: 2));
+            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 0, featureEligibility: "woods"));
+            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 1, featureEligibility: "woods"));
+            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true, propPalette: "desert", materialSlot: 2, featureEligibility: "oasis"));
             catalog.Kinds.Add(Kind("sand", notLakeBed: true, propPalette: "desert", materialSlot: 3));
-            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true, propPalette: "rock", materialSlot: 4));
+            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true, propPalette: "rock", materialSlot: 4, featureEligibility: "woods"));
             catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true, propPalette: "rock", materialSlot: 5));
             catalog.Kinds.Add(Kind("ice", startable: false, propPalette: "rock", materialSlot: 6));
-            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 7));
-            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true, propPalette: "mud", materialSlot: 8));
+            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true, propPalette: "grass", materialSlot: 7, featureEligibility: "jungle"));
+            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true, propPalette: "mud", materialSlot: 8, featureEligibility: "marsh"));
             catalog.Kinds.Add(Kind("mud", propPalette: "mud", materialSlot: 8));
             catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills, propPalette: "rock", materialSlot: 9));
             catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep, propPalette: "rock", materialSlot: 10));

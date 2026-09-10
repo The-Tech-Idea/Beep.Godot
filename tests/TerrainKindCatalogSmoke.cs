@@ -186,6 +186,33 @@ public partial class TerrainKindCatalogSmoke : Node
                 return Fail($"TryMaterialSlot('{kind}') slot = {gotSlot}, expected {slot}");
         }
 
+        // TerrainFeatureStage reads catalog.FeatureEligibility for both its ranking pass and Choose, so
+        // the two "woods-capable" tests cannot drift. This feeds the generated Feature layer, which the
+        // determinism baseline hashes - so the baseline is the primary guard - but a direct per-kind
+        // assertion keeps the mapping legible and catches an alias/typo the baseline would only show as a
+        // hash diff.
+        (string Kind, string Feature)[] features =
+        {
+            ("jungle", "jungle"),
+            ("swamp", "marsh"),
+            ("desert", "oasis"),
+            ("grass", "woods"),
+            ("dry_grass", "woods"),
+            ("tundra", "woods"),
+            ("sand", ""),
+            ("snow", ""),
+            ("ice", ""),
+            ("rock", ""),
+            ("deep_water", ""),
+            ("nonsense_kind", ""),   // unknown -> no feature
+        };
+        foreach ((string kind, string feature) in features)
+        {
+            string got = TerrainKindCatalog.Standard.FeatureEligibility(kind);
+            if (got != feature)
+                return Fail($"FeatureEligibility('{kind}') = '{got}', expected '{feature}'");
+        }
+
         GD.Print("[terrain-kind-catalog] OK");
         return true;
     }

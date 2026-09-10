@@ -119,8 +119,10 @@ namespace Beep.ECS
                     // ground too dry or too cold for trees must not sit in the
                     // ranking - it would be excluded by the moisture gate anyway
                     // AND drag the budget down, penalising the same tile twice.
+                    // The woods-capable kinds now live on the terrain-kind catalog
+                    // (DUP-13), the same fact Choose reads - so the two cannot drift.
                     string kind = world.CellTerrain[cell];
-                    if (kind is not ("grass" or "dry_grass" or "tundra"))
+                    if (TerrainKindCatalog.Standard.FeatureEligibility(kind) != "woods")
                         continue;
 
                     // Dryness is not re-tested here - and the generator export
@@ -308,19 +310,26 @@ namespace Beep.ECS
             float roll = TerrainGeometry.Hash01(cellX, cellY, settings.Seed + 55001);
             float density = Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
 
-            // Terrain that already means dense vegetation always carries the
-            // matching feature, so the ground under it can be ordinary soil.
-            if (terrain == "jungle")
-                return Jungle;
-            if (terrain == "swamp")
-                return Marsh;
-
-            // An oasis is the rare exception that makes a desert readable.
-            if (terrain == "desert")
-                return roll < 0.012f * density ? Oasis : None;
-
-            if (terrain is not ("grass" or "dry_grass" or "tundra"))
-                return None;
+            // Which feature a kind carries now lives on the terrain-kind catalog
+            // (DUP-13); the oasis roll, the temperature floor and the
+            // Forest-vs-Woods split stay here.
+            switch (TerrainKindCatalog.Standard.FeatureEligibility(terrain))
+            {
+                // Terrain that already means dense vegetation always carries the
+                // matching feature, so the ground under it can be ordinary soil.
+                case "jungle":
+                    return Jungle;
+                case "marsh":
+                    return Marsh;
+                // An oasis is the rare exception that makes a desert readable.
+                case "oasis":
+                    return roll < 0.012f * density ? Oasis : None;
+                // Woods-capable: fall through to the ranking comparison below.
+                case "woods":
+                    break;
+                default:
+                    return None;
+            }
 
             // Cold is the floor here, not dryness - and this has to agree with
             // the eligibility test, because a cell ranked there and rejected

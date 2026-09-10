@@ -84,11 +84,11 @@ namespace Beep.ECS
                     continue;
                 if (world.CellRelief[index] != TerrainRelief.Flat)
                     continue;
-                if (!PeakKinds.Contains(world.CellTerrain[index]))
+                if (!TerrainKindCatalog.Standard.PeakMaterial(world.CellTerrain[index]))
                     continue;
 
                 ReplacePeakMaterial(
-                    world, index, NeighbourLand(world, index, PeakKinds) ?? "grass",
+                    world, index, NeighbourLand(world, index, TerrainKindCatalog.Standard.PeakMaterialKinds) ?? "grass",
                     clearRelief: false);
             }
         }
@@ -166,7 +166,7 @@ namespace Beep.ECS
                 // the shore ring dilated across the whole lake. Shore kinds are
                 // excluded for the same reason: on a small island the sand rim
                 // can outnumber the interior and win the vote.
-                string fill = DominantLand(world, bodies[id], NotLakeBedKinds) ?? "grass";
+                string fill = DominantLand(world, bodies[id], TerrainKindCatalog.Standard.NotLakeBedKinds) ?? "grass";
 
                 lakes.Sort((left, right) => right.Count.CompareTo(left.Count));
                 foreach (List<int> lake in lakes)
@@ -237,15 +237,9 @@ namespace Beep.ECS
             return TerrainTileSets.IsLandKind(world.CellTerrain[at]);
         }
 
-        /// <summary>
-        /// What a drained lake bed must NOT be made of: the shore that ringed
-        /// the lake, and the peak materials, because a lake bed is the lowest
-        /// flat ground on its landmass rather than the highest. Without the peak
-        /// kinds, a rocky islet whose commonest ground is rock came back as a
-        /// solid grey island.
-        /// </summary>
-        private static readonly HashSet<string> NotLakeBedKinds =
-            new() { "sand", "gravel", "rock", "snow" };
+        // NotLakeBed (what a drained lake bed must not become - the coast shore and the peak
+        // materials) moved to the terrain-kind catalog (DUP-13); TerrainKindCatalog.Standard
+        // .NotLakeBedKinds is the set.
 
         /// <summary>The commonest dry-land terrain in a landmass.</summary>
         private static string? DominantLand(
@@ -312,8 +306,8 @@ namespace Beep.ECS
                     // the commonest neighbour outright hands a snowfield back
                     // its own snow - the relief goes flat, the terrain does not,
                     // and the map grows arctic ground at sea level.
-                    string terrain = !themedGround && PeakKinds.Contains(world.CellTerrain[index])
-                        ? NeighbourLand(world, index, PeakKinds) ?? "grass"
+                    string terrain = !themedGround && TerrainKindCatalog.Standard.PeakMaterial(world.CellTerrain[index])
+                        ? NeighbourLand(world, index, TerrainKindCatalog.Standard.PeakMaterialKinds) ?? "grass"
                         : world.CellTerrain[index];
                     ReplacePeakMaterial(world, index, terrain, clearRelief: true, replaceMaterial: !themedGround);
                 }
@@ -337,7 +331,7 @@ namespace Beep.ECS
                     continue;
                 if (clearRelief)
                     world.Relief[sample] = TerrainRelief.Flat;
-                if (replaceMaterial && PeakKinds.Contains(world.Terrain[sample]))
+                if (replaceMaterial && TerrainKindCatalog.Standard.PeakMaterial(world.Terrain[sample]))
                     world.Terrain[sample] = terrain;
             }
         }
@@ -425,11 +419,8 @@ namespace Beep.ECS
             }
         }
 
-        /// <summary>
-        /// Terrain that belongs to a PEAK. Never a replacement for one that has
-        /// just been levelled.
-        /// </summary>
-        private static readonly HashSet<string> PeakKinds = new() { "rock", "snow", "gravel" };
+        // The peak materials (what belongs to a peak) moved to the terrain-kind catalog (DUP-13);
+        // TerrainKindCatalog.Standard.PeakMaterialKinds is the set.
 
         /// <summary>
         /// The land terrain bordering a cell, whichever borders it most. What a

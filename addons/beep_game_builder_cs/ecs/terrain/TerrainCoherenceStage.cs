@@ -36,14 +36,8 @@ namespace Beep.ECS
         private static readonly string[] RainfallKinds = { "desert", "dry_grass", "grass", "swamp", "jungle" };
         private static readonly HashSet<string> Rainfall = new(RainfallKinds);
 
-        // Absorbable (may be dissolved when too small) and AbsorbTarget (what an absorbed region may
-        // become) moved to the terrain-kind catalog (DUP-13); TerrainKind documents each.
-
-        /// <summary>
-        /// What a peak is made of. Valid for a region that sits on high ground,
-        /// never for one that does not - stone at sea level is not a biome.
-        /// </summary>
-        private static readonly HashSet<string> PeakMaterials = new() { "rock", "gravel", "snow" };
+        // Absorbable, AbsorbTarget and the peak materials moved to the terrain-kind catalog (DUP-13);
+        // TerrainKind documents each, and TerrainKindCatalog.Standard.PeakMaterialKinds is the set.
 
         public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
@@ -168,7 +162,7 @@ namespace Beep.ECS
 
                 if (Rainfall.Contains(kind) || raised * 2 < region.Length)
                 {
-                    foreach (string peak in PeakMaterials)
+                    foreach (string peak in TerrainKindCatalog.Standard.PeakMaterialKinds)
                         borders.Remove(peak);
                 }
 

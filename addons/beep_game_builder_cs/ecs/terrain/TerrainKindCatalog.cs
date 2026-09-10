@@ -45,14 +45,40 @@ namespace Beep.ECS
         /// <summary>Whether an absorbed region may become this kind. Unknown kinds are not targets.</summary>
         public bool AbsorbTarget(string id) => For(id)?.AbsorbTarget ?? false;
 
+        /// <summary>Whether this kind is a peak material (what high ground is made of).</summary>
+        public bool PeakMaterial(string id) => For(id)?.PeakMaterial ?? false;
+
+        private HashSet<string>? _peakMaterialKinds;
+        /// <summary>The peak-material kinds as a set - passed to the scale stage's exclude filters and
+        /// iterated by the coherence absorb pass. Built from the PeakMaterial flag; do not mutate.</summary>
+        public HashSet<string> PeakMaterialKinds => _peakMaterialKinds ??= BuildSet(k => k.PeakMaterial);
+
+        private HashSet<string>? _notLakeBedKinds;
+        /// <summary>The kinds a drained lake bed must not become, as a set. From NotLakeBed; do not mutate.</summary>
+        public HashSet<string> NotLakeBedKinds => _notLakeBedKinds ??= BuildSet(k => k.NotLakeBed);
+
+        private HashSet<string> BuildSet(System.Func<TerrainKind, bool> predicate)
+        {
+            var set = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (TerrainKind kind in Kinds)
+                if (kind is not null && !string.IsNullOrEmpty(kind.Id) && predicate(kind))
+                    set.Add(kind.Id);
+            return set;
+        }
+
         private static TerrainKindCatalog? _standard;
 
         /// <summary>The addon's built-in terrain kinds and their meanings - the single source the
         /// hardcoded tables are being retired into.</summary>
         public static TerrainKindCatalog Standard => _standard ??= BuildStandard();
 
-        private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false, bool absorbTarget = false)
-            => new() { Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget };
+        private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
+            bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false)
+            => new()
+            {
+                Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
+                PeakMaterial = peakMaterial, NotLakeBed = notLakeBed,
+            };
 
         private static TerrainKindCatalog BuildStandard()
         {
@@ -63,15 +89,15 @@ namespace Beep.ECS
             catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("sand"));
+            catalog.Kinds.Add(Kind("sand", notLakeBed: true));
             catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true));
+            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true));
             catalog.Kinds.Add(Kind("ice", startable: false));
             catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("mud"));
-            catalog.Kinds.Add(Kind("gravel", absorbTarget: true));
-            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true));
+            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true));
             catalog.Kinds.Add(Kind("lava", startable: false));
             return catalog;
         }

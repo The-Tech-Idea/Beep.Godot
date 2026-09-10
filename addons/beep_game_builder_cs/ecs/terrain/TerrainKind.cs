@@ -30,5 +30,14 @@ namespace Beep.ECS
         /// gravel (so a dissolved snow cap surrounded by rock has somewhere to go); never sand, which is
         /// the coast-placed beach.</summary>
         [Export] public bool AbsorbTarget { get; set; }
+
+        /// <summary>Whether this kind is a PEAK material - what high ground is made of (rock, gravel,
+        /// snow). Never valid at sea level: stone at the shore is not a biome.</summary>
+        [Export] public bool PeakMaterial { get; set; }
+
+        /// <summary>Whether this kind must NOT be chosen as a drained lake bed - sand (the coast beach)
+        /// and the peak materials - so a drained lake becomes the surrounding ground, not a beach or a
+        /// mountain in the middle of the map.</summary>
+        [Export] public bool NotLakeBed { get; set; }
     }
 }

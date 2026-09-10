@@ -24,16 +24,20 @@ namespace Beep.ECS
         /// The build-side default: the kinds nothing should be built, roaded,
         /// spawned, or scattered on. A fresh array per call, because exported
         /// Godot arrays must not share one instance across components.
+        ///
+        /// The canonical blocked kinds (deep_water, shallow_water, lava) now carry
+        /// BlockedByDefault on the terrain-kind catalog (DUP-13); the water/sea/ocean
+        /// aliases are non-canonical ids the catalog does not name, so they are added
+        /// here. Catalog order keeps the list stable and append-only.
         /// </summary>
-        public static Godot.Collections.Array<string> DefaultBlockedTerrainKinds() => new()
+        public static Godot.Collections.Array<string> DefaultBlockedTerrainKinds()
         {
-            "water",
-            "sea",
-            "ocean",
-            "deep_water",
-            "shallow_water",
-            "lava"
-        };
+            var blocked = new Godot.Collections.Array<string> { "water", "sea", "ocean" };
+            foreach (TerrainKind kind in TerrainKindCatalog.Standard.Kinds)
+                if (kind is not null && !string.IsNullOrEmpty(kind.Id) && kind.BlockedByDefault)
+                    blocked.Add(kind.Id);
+            return blocked;
+        }
 
         public static string Normalize(string value) => GridIds.Normalize(value);
 

@@ -89,7 +89,40 @@ public partial class TerrainKindCatalogSmoke : Node
                 return Fail($"IsLandKind('{kind}') = {gotLand}, expected {land}");
         }
 
-        GD.Print("[terrain-kind-catalog] LevelForKind, GroundOf and IsWater/IsLandKind map every kind (+ water alias, empty and unknown defaults) through the catalog");
+        // GridTerrainRules.DefaultBlockedTerrainKinds now reads catalog.BlockedByDefault for the
+        // canonical kinds (deep_water, shallow_water, lava) and adds the water/sea/ocean aliases the
+        // catalog does not name. This is a grid/build-side default, not a generation input, so the
+        // determinism baseline does not cover it. Per-kind flag first:
+        (string Kind, bool Blocked)[] blocked =
+        {
+            ("deep_water", true),
+            ("shallow_water", true),
+            ("lava", true),
+            ("grass", false),
+            ("sand", false),
+            ("rock", false),   // a cliff, but building is blocked by relief, not by kind here
+            ("ice", false),
+            ("gravel", false),
+            ("nonsense_kind", false),
+        };
+        foreach ((string kind, bool want) in blocked)
+        {
+            bool got = TerrainKindCatalog.Standard.BlockedByDefault(kind);
+            if (got != want)
+                return Fail($"catalog.BlockedByDefault('{kind}') = {got}, expected {want}");
+        }
+
+        // The assembled default list must be exactly the aliases followed by the catalog's blocked
+        // kinds in catalog order - the same six entries the hardcoded list held, unchanged.
+        string[] expectedBlocked = { "water", "sea", "ocean", "deep_water", "shallow_water", "lava" };
+        Godot.Collections.Array<string> gotBlocked = GridTerrainRules.DefaultBlockedTerrainKinds();
+        if (gotBlocked.Count != expectedBlocked.Length)
+            return Fail($"DefaultBlockedTerrainKinds count = {gotBlocked.Count}, expected {expectedBlocked.Length} ([{string.Join(",", gotBlocked)}])");
+        for (int i = 0; i < expectedBlocked.Length; i++)
+            if (gotBlocked[i] != expectedBlocked[i])
+                return Fail($"DefaultBlockedTerrainKinds[{i}] = '{gotBlocked[i]}', expected '{expectedBlocked[i]}'");
+
+        GD.Print("[terrain-kind-catalog] OK");
         return true;
     }
 

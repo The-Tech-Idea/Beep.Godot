@@ -61,6 +61,11 @@ namespace Beep.ECS
         /// <summary>Whether this kind is a peak material (what high ground is made of).</summary>
         public bool PeakMaterial(string id) => For(id)?.PeakMaterial ?? false;
 
+        /// <summary>Whether the grid blocks building/roading/spawning/scattering on this kind by default.
+        /// Canonical ids only (the water/sea/ocean aliases are added by <see cref="GridTerrainRules"/>).
+        /// Unknown = not blocked.</summary>
+        public bool BlockedByDefault(string id) => For(id)?.BlockedByDefault ?? false;
+
         private HashSet<string>? _peakMaterialKinds;
         /// <summary>The peak-material kinds as a set - passed to the scale stage's exclude filters and
         /// iterated by the coherence absorb pass. Built from the PeakMaterial flag; do not mutate.</summary>
@@ -87,19 +92,21 @@ namespace Beep.ECS
 
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
             bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false,
-            int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land)
+            int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land,
+            bool blockedByDefault = false)
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
                 PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level, Class = @class,
+                BlockedByDefault = blockedByDefault,
             };
 
         private static TerrainKindCatalog BuildStandard()
         {
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
-            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water));
-            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water));
+            catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true));
+            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true));
             catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
             catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
@@ -112,7 +119,7 @@ namespace Beep.ECS
             catalog.Kinds.Add(Kind("mud"));
             catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills));
             catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep));
-            catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep));
+            catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep, blockedByDefault: true));
             return catalog;
         }
     }

@@ -50,5 +50,12 @@ namespace Beep.ECS
         /// and the peak materials - so a drained lake becomes the surrounding ground, not a beach or a
         /// mountain in the middle of the map.</summary>
         [Export] public bool NotLakeBed { get; set; }
+
+        /// <summary>Whether the grid blocks building, roading, spawning and scattering on this kind by
+        /// default (the build-side default the placement/spawn/scatter components inherit). The water
+        /// kinds and lava; overridable per component. This is the BUILD default, distinct from an
+        /// agent's movement policy - navigation keeps its own blocked list so units can wade shallows
+        /// at a cost while nothing may be built there.</summary>
+        [Export] public bool BlockedByDefault { get; set; }
     }
 }

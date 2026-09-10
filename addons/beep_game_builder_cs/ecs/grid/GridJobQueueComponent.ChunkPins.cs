@@ -23,8 +23,13 @@ public partial class GridJobQueueComponent
         RequestReady();
     }
 
+    /// <summary>How many times RefreshChunkPins has been invoked. Test hook: a mutation must
+    /// refresh the pins exactly once, not once in the mutator and again in EmitQueueChanged.</summary>
+    internal int ChunkPinRefreshCount { get; private set; }
+
     public void RefreshChunkPins()
     {
+        ChunkPinRefreshCount++;
         if (!IsInsideTree() || Engine.IsEditorHint()) return;
         var cells = ChunkCellDataPath.IsEmpty ? null : GetNodeOrNull<GridCellDataComponent>(ChunkCellDataPath);
         BindReservationScope(cells);

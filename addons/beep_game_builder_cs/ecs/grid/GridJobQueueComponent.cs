@@ -143,6 +143,7 @@ namespace Beep.ECS
             if (!CanClaimJob(id, workerId)) return false;
             GridJob job = _jobs[id];
             ReserveClaim(job, workerId);
+            RefreshChunkPins(); // the claim reserves a work cell and flips state, so pins change
             EmitSignal(SignalName.JobClaimed, job.Id, workerId);
             EmitQueueChanged();
             return _jobs.GetValueOrDefault(id) == job && job.State == GridJobState.Claimed && job.ClaimedBy == workerId;
@@ -313,6 +314,7 @@ namespace Beep.ECS
             _jobs.Clear();
             _workerClaims.Clear();
             _workCells.Clear();
+            RefreshChunkPins(); // no jobs left to want any cell
             EmitQueueChanged();
         }
 
@@ -368,6 +370,7 @@ namespace Beep.ECS
             }
 
             RebuildReservations();
+            RefreshChunkPins(); // the loaded jobs want their cells
             EmitQueueChanged();
         }
 
@@ -388,9 +391,11 @@ namespace Beep.ECS
             return count;
         }
 
+        // QueueChanged no longer refreshes the chunk pins: every mutator that reaches here has
+        // already refreshed them (AddJob/Cancel/Release/Complete directly; Claim/Clear/Load below),
+        // so this used to run the O(jobs) pin pass twice per mutation (ENH-12, DUP-09).
         private void EmitQueueChanged()
         {
-            RefreshChunkPins();
             EmitSignal(SignalName.QueueChanged, QueuedCount, ClaimedCount, CompletedCount);
         }
 

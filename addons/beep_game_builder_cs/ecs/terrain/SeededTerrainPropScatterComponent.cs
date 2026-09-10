@@ -305,16 +305,25 @@ namespace Beep.ECS
                 WaterEdgePrimaryPath, WaterEdgeSecondaryPath,
             }.Any(path => !string.IsNullOrWhiteSpace(path));
 
-        // Water kinds deliberately fall through to the empty key, which is what
-        // keeps plants, rocks and bushes out of the sea and out of lakes.
-        private string PaletteKeyFor(string terrainKind) => terrainKind switch
+        // The per-kind palette now lives on the terrain-kind catalog (DUP-13). This method adds only
+        // what is local to the scatter: the non-canonical aliases the catalog does not name (generation
+        // never emits them, but a hand-authored or legacy cell can), and the water opt-in. Water kinds
+        // otherwise fall through to the empty key, which keeps plants, rocks and bushes out of the sea
+        // and out of lakes. Internal, not private, so the terrain-kind-catalog probe can guard the whole
+        // mapping - aliases and opt-in included - since props are not part of the determinism snapshot.
+        internal string PaletteKeyFor(string terrainKind)
         {
-            "grass" or "grassland" or "dry_grass" or "plains" or "jungle" => "grass",
-            "sand" or "desert" or "beach" => "desert",
-            "mud" or "swamp" or "dirt" or "soil" => "mud",
-            "rock" or "stone" or "gravel" or "snow" or "ice" or "tundra" => "rock",
-            "shallow_water" when AllowShallowWaterProps => "water",
-            _ => string.Empty,
-        };
+            string canonical = terrainKind switch
+            {
+                "grassland" or "plains" => "grass",
+                "beach" => "sand",
+                "dirt" or "soil" => "mud",
+                "stone" => "rock",
+                _ => terrainKind,
+            };
+            string key = TerrainKindCatalog.Standard.PropPalette(canonical);
+            // The water palette is placed only where a scatter opts in; the sea and lakes stay clear.
+            return key == "water" && !AllowShallowWaterProps ? string.Empty : key;
+        }
     }
 }

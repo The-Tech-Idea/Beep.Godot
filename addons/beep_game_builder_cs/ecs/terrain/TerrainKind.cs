@@ -57,5 +57,12 @@ namespace Beep.ECS
         /// agent's movement policy - navigation keeps its own blocked list so units can wade shallows
         /// at a cost while nothing may be built there.</summary>
         [Export] public bool BlockedByDefault { get; set; }
+
+        /// <summary>Which prop palette the scatter places on this kind - "grass", "desert", "mud",
+        /// "rock", "water", or "" for no props (deep water, lava). Groups kinds that share a look:
+        /// grass/dry_grass/jungle all take the grass palette, rock/gravel/snow/ice/tundra the rock one.
+        /// "water" is placed only where a scatter opts in (its AllowShallowWaterProps), so the sea and
+        /// lakes stay clear by default.</summary>
+        [Export] public string PropPalette { get; set; } = "";
     }
 }

@@ -122,6 +122,48 @@ public partial class TerrainKindCatalogSmoke : Node
             if (gotBlocked[i] != expectedBlocked[i])
                 return Fail($"DefaultBlockedTerrainKinds[{i}] = '{gotBlocked[i]}', expected '{expectedBlocked[i]}'");
 
+        // SeededTerrainPropScatterComponent.PaletteKeyFor now reads catalog.PropPalette, normalizing its
+        // own aliases and applying the water opt-in. Props are not part of the determinism snapshot, so
+        // this probe is the guard. Default AllowShallowWaterProps is false: water yields no props.
+        var scatter = new SeededTerrainPropScatterComponent();
+        (string Kind, string Palette)[] palettes =
+        {
+            ("grass", "grass"), ("grassland", "grass"), ("dry_grass", "grass"), ("plains", "grass"), ("jungle", "grass"),
+            ("sand", "desert"), ("desert", "desert"), ("beach", "desert"),
+            ("mud", "mud"), ("swamp", "mud"), ("dirt", "mud"), ("soil", "mud"),
+            ("rock", "rock"), ("stone", "rock"), ("gravel", "rock"), ("snow", "rock"), ("ice", "rock"), ("tundra", "rock"),
+            ("deep_water", ""), ("lava", ""),
+            ("shallow_water", ""),        // water opt-in is off by default
+            ("nonsense_kind", ""),        // unknown -> no props
+        };
+        foreach ((string kind, string want) in palettes)
+        {
+            string got = scatter.PaletteKeyFor(kind);
+            if (got != want)
+            {
+                scatter.Free();
+                return Fail($"PaletteKeyFor('{kind}') = '{got}', expected '{want}' (AllowShallowWaterProps=false)");
+            }
+        }
+        // With the opt-in on, shallow water takes the water palette; deep water still never gets props.
+        scatter.AllowShallowWaterProps = true;
+        (string Kind, string Palette)[] opted =
+        {
+            ("shallow_water", "water"),
+            ("deep_water", ""),
+            ("grass", "grass"),
+        };
+        foreach ((string kind, string want) in opted)
+        {
+            string got = scatter.PaletteKeyFor(kind);
+            if (got != want)
+            {
+                scatter.Free();
+                return Fail($"PaletteKeyFor('{kind}') = '{got}', expected '{want}' (AllowShallowWaterProps=true)");
+            }
+        }
+        scatter.Free();
+
         GD.Print("[terrain-kind-catalog] OK");
         return true;
     }

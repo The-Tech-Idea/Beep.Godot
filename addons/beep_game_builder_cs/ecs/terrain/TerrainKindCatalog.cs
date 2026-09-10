@@ -66,6 +66,11 @@ namespace Beep.ECS
         /// Unknown = not blocked.</summary>
         public bool BlockedByDefault(string id) => For(id)?.BlockedByDefault ?? false;
 
+        /// <summary>The prop palette a scatter places on this kind ("grass"/"desert"/"mud"/"rock"/"water"),
+        /// or "" for no props. Canonical ids only; the scatter normalizes its own aliases and applies the
+        /// water opt-in. Unknown = no props.</summary>
+        public string PropPalette(string id) => For(id)?.PropPalette ?? string.Empty;
+
         private HashSet<string>? _peakMaterialKinds;
         /// <summary>The peak-material kinds as a set - passed to the scale stage's exclude filters and
         /// iterated by the coherence absorb pass. Built from the PeakMaterial flag; do not mutate.</summary>
@@ -93,12 +98,12 @@ namespace Beep.ECS
         private static TerrainKind Kind(string id, bool startable = true, bool absorbable = false,
             bool absorbTarget = false, bool peakMaterial = false, bool notLakeBed = false,
             int level = TerrainLayers.Ground, TerrainTileSets.Ground @class = TerrainTileSets.Ground.Land,
-            bool blockedByDefault = false)
+            bool blockedByDefault = false, string propPalette = "")
             => new()
             {
                 Id = id, Startable = startable, Absorbable = absorbable, AbsorbTarget = absorbTarget,
                 PeakMaterial = peakMaterial, NotLakeBed = notLakeBed, Level = level, Class = @class,
-                BlockedByDefault = blockedByDefault,
+                BlockedByDefault = blockedByDefault, PropPalette = propPalette,
             };
 
         private static TerrainKindCatalog BuildStandard()
@@ -106,19 +111,19 @@ namespace Beep.ECS
             var catalog = new TerrainKindCatalog();
             // Order = the saved TileSet tile index (TerrainTileSets.Kinds), append-only.
             catalog.Kinds.Add(Kind("deep_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true));
-            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true));
-            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("sand", notLakeBed: true));
-            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true));
-            catalog.Kinds.Add(Kind("ice", startable: false));
-            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true));
-            catalog.Kinds.Add(Kind("mud"));
-            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills));
-            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep));
+            catalog.Kinds.Add(Kind("shallow_water", level: TerrainLayers.Sea, @class: TerrainTileSets.Ground.Water, blockedByDefault: true, propPalette: "water"));
+            catalog.Kinds.Add(Kind("grass", absorbable: true, absorbTarget: true, propPalette: "grass"));
+            catalog.Kinds.Add(Kind("dry_grass", absorbable: true, absorbTarget: true, propPalette: "grass"));
+            catalog.Kinds.Add(Kind("desert", absorbable: true, absorbTarget: true, propPalette: "desert"));
+            catalog.Kinds.Add(Kind("sand", notLakeBed: true, propPalette: "desert"));
+            catalog.Kinds.Add(Kind("tundra", absorbable: true, absorbTarget: true, propPalette: "rock"));
+            catalog.Kinds.Add(Kind("snow", startable: false, absorbable: true, absorbTarget: true, peakMaterial: true, notLakeBed: true, propPalette: "rock"));
+            catalog.Kinds.Add(Kind("ice", startable: false, propPalette: "rock"));
+            catalog.Kinds.Add(Kind("jungle", absorbable: true, absorbTarget: true, propPalette: "grass"));
+            catalog.Kinds.Add(Kind("swamp", absorbable: true, absorbTarget: true, propPalette: "mud"));
+            catalog.Kinds.Add(Kind("mud", propPalette: "mud"));
+            catalog.Kinds.Add(Kind("gravel", absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Hills, propPalette: "rock"));
+            catalog.Kinds.Add(Kind("rock", startable: false, absorbTarget: true, peakMaterial: true, notLakeBed: true, level: TerrainLayers.Mountains, @class: TerrainTileSets.Ground.Steep, propPalette: "rock"));
             catalog.Kinds.Add(Kind("lava", startable: false, @class: TerrainTileSets.Ground.Steep, blockedByDefault: true));
             return catalog;
         }

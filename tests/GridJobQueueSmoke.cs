@@ -42,7 +42,32 @@ public partial class GridJobQueueSmoke : Node
 
         queue.QueueChanged -= OnQueueChanged;
         queue.Free();
-        GD.Print("[grid-jobqueue] AddJob/Claim/Complete each refresh chunk pins exactly once; claim + complete behave unchanged");
+
+        // --- Dispatch-fairness baseline (ENH-12, record first) ---
+        // The claim rule is: highest priority, then NEAREST to the claiming worker, then lowest id.
+        // It is NOT age-based. This pins it so a future claim index cannot silently change it - in
+        // particular a priority-queue keyed by (-priority, seq), which the plan sketched, would
+        // return the older, farther job here and quietly regress "workers take the nearest job".
+        var nearFar = new GridJobQueueComponent { Name = "NearFar" };
+        AddChild(nearFar);
+        string older = nearFar.AddJob(new Vector2I(20, 20), "work"); // added first: older, lower seq
+        string nearer = nearFar.AddJob(new Vector2I(0, 0), "work");  // added second: newer, but nearest
+        string picked = nearFar.ClaimNextJob("A", new Vector2I(0, 0));
+        if (picked != nearer)
+            return Fail($"Claim must pick the nearest job ({nearer}), not the oldest ({older}); got '{picked}'");
+        nearFar.Free();
+
+        // Priority still wins over distance.
+        var priorityFar = new GridJobQueueComponent { Name = "PriorityFar" };
+        AddChild(priorityFar);
+        priorityFar.AddJob(new Vector2I(0, 0), "work", -1f, 0);              // near, low priority
+        string highFar = priorityFar.AddJob(new Vector2I(30, 0), "work", -1f, 5); // far, high priority
+        string pick2 = priorityFar.ClaimNextJob("A", new Vector2I(0, 0));
+        if (pick2 != highFar)
+            return Fail($"Claim must prefer higher priority even when farther ({highFar}); got '{pick2}'");
+        priorityFar.Free();
+
+        GD.Print("[grid-jobqueue] one refresh per mutation; claim fairness is priority > nearest > id (not age)");
         return true;
     }
 

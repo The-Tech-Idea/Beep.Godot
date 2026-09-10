@@ -27,7 +27,7 @@ if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
 $stdout = $stdoutTask.GetAwaiter().GetResult()
 $stderr = $stderrTask.GetAwaiter().GetResult()
 $combined = $stdout + $stderr
-if ($process.ExitCode -ne 0 -or -not ($combined | Select-String -SimpleMatch "[grid-jobqueue] AddJob/Claim/Complete each refresh chunk pins exactly once")) {
+if ($process.ExitCode -ne 0 -or -not ($combined | Select-String -SimpleMatch "[grid-jobqueue] one refresh per mutation")) {
     $combined
     throw "Godot grid job queue probe failed."
 }

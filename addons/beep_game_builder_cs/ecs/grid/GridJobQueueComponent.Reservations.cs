@@ -42,6 +42,7 @@ public partial class GridJobQueueComponent
 
     private void ReserveClaim(GridJob job, string workerId)
     {
+        IndexRemoveQueued(job); // it leaves the queued spatial index as it becomes Claimed
         job.State = GridJobState.Claimed;
         job.ClaimedBy = workerId;
         job.ReservedCell = job.ApproachCell;
@@ -84,5 +85,7 @@ public partial class GridJobQueueComponent
             _workCells.Add(job.ReservedCell, job.Id);
             AddSharedReservation(job);
         }
+        // States may have flipped above (conflicts requeued); rebuild the queued spatial index to match.
+        RebuildQueuedIndex();
     }
 }

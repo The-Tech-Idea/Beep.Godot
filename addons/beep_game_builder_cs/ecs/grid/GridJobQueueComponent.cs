@@ -59,6 +59,25 @@ namespace Beep.ECS
         private int _queuedCache, _claimedCache, _completedCache;
         private bool _countsDirty = true;
 
+        // Queued jobs indexed for the claim: priority tier (key = -priority, so highest priority
+        // iterates first) -> ApproachCell chunk -> job ids. A claim visits tiers high-to-low and,
+        // within a tier, chunks outward from the worker, so it inspects the nearby jobs instead of
+        // every job. Chunking via GridCellDataComponent.ChunkOf (the one chunk rule, DUP-09).
+        private readonly SortedDictionary<int, Dictionary<Vector2I, List<string>>> _queuedIndex = new();
+
+        // Cells per chunk along one axis, derived from the one chunk rule (GridCellDataComponent.ChunkOf)
+        // rather than restating the shift, so the ring-search distance bound tracks it automatically.
+        private static readonly int ChunkSpan = DeriveChunkSpan();
+
+        private static int DeriveChunkSpan()
+        {
+            Vector2I origin = GridCellDataComponent.ChunkOf(Vector2I.Zero);
+            for (int x = 1; x < (1 << 20); x++)
+                if (GridCellDataComponent.ChunkOf(new Vector2I(x, 0)) != origin)
+                    return x;
+            return 1; // degenerate; a span of 1 only makes the ring search visit more, never miss
+        }
+
         public float EffectiveDefaultWorkTurns => Mathf.Max(0.01f, float.IsFinite(DefaultWorkTurns) ? DefaultWorkTurns : 1.5f);
 
         public string AddJob(Vector2I cell, string kind = "work", float workTurns = -1f, int priority = 0)
@@ -75,6 +94,7 @@ namespace Beep.ECS
                 ? workTurns
                 : EffectiveDefaultWorkTurns;
             _jobs[id] = new GridJob(id, kind, cell, priority, effectiveWorkTurns);
+            IndexAddQueued(_jobs[id]);
             RefreshChunkPins();
             EmitSignal(SignalName.JobAdded, id, kind, cell.X, cell.Y);
             EmitQueueChanged();
@@ -87,6 +107,7 @@ namespace Beep.ECS
                 return false;
 
             ReleaseReservation(job);
+            if (job.State == GridJobState.Queued) IndexRemoveQueued(job);
             job.State = GridJobState.Cancelled;
             job.ClaimedBy = "";
             RefreshChunkPins();
@@ -110,34 +131,178 @@ namespace Beep.ECS
             Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
         {
             if (!EnsureReservationScope() || !CanWorkerClaim(workerId) || _workerClaims.ContainsKey(workerId)) return "";
-            GridJob? best = null;
-            long bestDistance = long.MaxValue;
 
-            foreach (GridJob job in _jobs.Values)
-            {
-                if (excludedJobs?.Contains(job.Id) == true) continue;
-                if (job.State != GridJobState.Queued || _workCells.ContainsKey(job.ApproachCell) || !SharedClaimAvailable(workerId, job.ApproachCell)
-                    || job.ApproachCell.X == int.MinValue || job.ApproachCell.Y == int.MinValue)
-                    continue;
-
-                if (allowedKinds is { Count: > 0 } && !KindAllowed(job.Kind, allowedKinds))
-                    continue;
-
-                long distance = Math.Abs((long)job.ApproachCell.X - workerCell.X) + Math.Abs((long)job.ApproachCell.Y - workerCell.Y);
-                if (best == null
-                    || job.Priority > best.Priority
-                    || (job.Priority == best.Priority && distance < bestDistance)
-                    || (job.Priority == best.Priority && distance == bestDistance && string.CompareOrdinal(job.Id, best.Id) < 0))
-                {
-                    best = job;
-                    bestDistance = distance;
-                }
-            }
+            // The queued-job spatial index finds the best claimable job by visiting chunks outward
+            // from the worker within each priority tier (highest first), instead of every job. It
+            // falls back to the full scan only when the index yields nothing while queued jobs exist,
+            // so an index gap can never leave a queued job undispatched. Both paths share
+            // IsJobClaimable and BetterClaim, so they pick the identical job - the index only changes
+            // the visiting ORDER, never the winner (ENH-12).
+            GridJob? best = FindBestClaimableSpatial(workerCell, workerId, allowedKinds, excludedJobs);
+            if (best == null && QueuedCount > 0)
+                best = FindBestClaimableLinear(workerCell, workerId, allowedKinds, excludedJobs);
 
             if (best == null)
                 return "";
 
             return ClaimJob(best.Id, workerId) ? best.Id : "";
+        }
+
+        /// <summary>Whether this worker may claim the job right now: queued, not excluded, its stand
+        /// cell free and not reserved elsewhere, a real cell, and an allowed kind. Shared by the
+        /// spatial and linear claim paths so both apply the identical filter.</summary>
+        private bool IsJobClaimable(GridJob job, string workerId,
+            Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
+        {
+            if (excludedJobs?.Contains(job.Id) == true) return false;
+            if (job.State != GridJobState.Queued || _workCells.ContainsKey(job.ApproachCell)
+                || !SharedClaimAvailable(workerId, job.ApproachCell)
+                || job.ApproachCell.X == int.MinValue || job.ApproachCell.Y == int.MinValue)
+                return false;
+            return allowedKinds is not { Count: > 0 } || KindAllowed(job.Kind, allowedKinds);
+        }
+
+        /// <summary>The claim fairness rule, shared by both paths: higher priority wins; then nearer
+        /// to the worker (Manhattan to the stand cell); then the lower id.</summary>
+        private static bool BetterClaim(GridJob job, long distance, GridJob best, long bestDistance)
+            => job.Priority > best.Priority
+                || (job.Priority == best.Priority && distance < bestDistance)
+                || (job.Priority == best.Priority && distance == bestDistance && string.CompareOrdinal(job.Id, best.Id) < 0);
+
+        private static long ManhattanTo(Vector2I cell, Vector2I worker)
+            => Math.Abs((long)cell.X - worker.X) + Math.Abs((long)cell.Y - worker.Y);
+
+        private GridJob? FindBestClaimableLinear(Vector2I workerCell, string workerId,
+            Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
+        {
+            GridJob? best = null;
+            long bestDistance = long.MaxValue;
+            foreach (GridJob job in _jobs.Values)
+            {
+                if (!IsJobClaimable(job, workerId, allowedKinds, excludedJobs)) continue;
+                long distance = ManhattanTo(job.ApproachCell, workerCell);
+                if (best == null || BetterClaim(job, distance, best, bestDistance))
+                {
+                    best = job;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private GridJob? FindBestClaimableSpatial(Vector2I workerCell, string workerId,
+            Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
+        {
+            // Tiers iterate highest priority first. A lower-priority job is only considered when the
+            // higher tiers yield nothing CLAIMABLE - exactly what the linear scan does.
+            foreach (Dictionary<Vector2I, List<string>> tier in _queuedIndex.Values)
+            {
+                GridJob? best = SearchTierNearest(tier, workerCell, workerId, allowedKinds, excludedJobs);
+                if (best != null)
+                    return best;
+            }
+            return null;
+        }
+
+        private GridJob? SearchTierNearest(Dictionary<Vector2I, List<string>> byChunk, Vector2I workerCell, string workerId,
+            Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs)
+        {
+            if (byChunk.Count == 0) return null;
+            Vector2I center = GridCellDataComponent.ChunkOf(workerCell);
+            GridJob? best = null;
+            long bestDistance = long.MaxValue;
+            int chunksTotal = byChunk.Count;
+            int chunksSeen = 0;
+            for (int r = 0; chunksSeen < chunksTotal; r++)
+            {
+                chunksSeen += ScanChunkRing(byChunk, center, r, workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+                // Any cell in a chunk at ring r+1 is at least r*ChunkSize away; once the best found is
+                // strictly nearer than that, no farther ring can match or beat it (the '<' keeps one
+                // extra ring in flight so an equal-distance, lower-id job is never skipped).
+                if (best != null && bestDistance < (long)r * ChunkSpan)
+                    break;
+            }
+            return best;
+        }
+
+        /// <summary>Scans the chunks on the Chebyshev ring at radius <paramref name="r"/> around
+        /// <paramref name="center"/>, returning how many of them existed in the tier (so the caller
+        /// can stop once every chunk has been visited).</summary>
+        private int ScanChunkRing(Dictionary<Vector2I, List<string>> byChunk, Vector2I center, int r, Vector2I workerCell,
+            string workerId, Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs,
+            ref GridJob? best, ref long bestDistance)
+        {
+            if (r == 0)
+                return ScanChunk(byChunk, center, workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+
+            int hits = 0;
+            for (int dx = -r; dx <= r; dx++)
+            {
+                hits += ScanChunk(byChunk, new Vector2I(center.X + dx, center.Y - r), workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+                hits += ScanChunk(byChunk, new Vector2I(center.X + dx, center.Y + r), workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+            }
+            for (int dy = -r + 1; dy <= r - 1; dy++)
+            {
+                hits += ScanChunk(byChunk, new Vector2I(center.X - r, center.Y + dy), workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+                hits += ScanChunk(byChunk, new Vector2I(center.X + r, center.Y + dy), workerCell, workerId, allowedKinds, excludedJobs, ref best, ref bestDistance);
+            }
+            return hits;
+        }
+
+        private int ScanChunk(Dictionary<Vector2I, List<string>> byChunk, Vector2I chunk, Vector2I workerCell,
+            string workerId, Godot.Collections.Array<string>? allowedKinds, IReadOnlySet<string>? excludedJobs,
+            ref GridJob? best, ref long bestDistance)
+        {
+            if (!byChunk.TryGetValue(chunk, out List<string>? ids)) return 0;
+            foreach (string id in ids)
+            {
+                if (!_jobs.TryGetValue(id, out GridJob? job)) continue; // a stale id (pruned on its next index touch)
+                if (!IsJobClaimable(job, workerId, allowedKinds, excludedJobs)) continue;
+                long distance = ManhattanTo(job.ApproachCell, workerCell);
+                if (best == null || BetterClaim(job, distance, best, bestDistance))
+                {
+                    best = job;
+                    bestDistance = distance;
+                }
+            }
+            return 1;
+        }
+
+        // --- queued-job spatial index maintenance ---
+
+        private void IndexAddQueued(GridJob job)
+        {
+            if (job.ApproachCell.X == int.MinValue || job.ApproachCell.Y == int.MinValue) return;
+            int key = -job.Priority;
+            if (!_queuedIndex.TryGetValue(key, out Dictionary<Vector2I, List<string>>? byChunk))
+                _queuedIndex[key] = byChunk = new Dictionary<Vector2I, List<string>>();
+            Vector2I chunk = GridCellDataComponent.ChunkOf(job.ApproachCell);
+            if (!byChunk.TryGetValue(chunk, out List<string>? ids))
+                byChunk[chunk] = ids = new List<string>();
+            if (!ids.Contains(job.Id))
+                ids.Add(job.Id);
+        }
+
+        private void IndexRemoveQueued(GridJob job)
+        {
+            if (job.ApproachCell.X == int.MinValue || job.ApproachCell.Y == int.MinValue) return;
+            int key = -job.Priority;
+            if (!_queuedIndex.TryGetValue(key, out Dictionary<Vector2I, List<string>>? byChunk)) return;
+            Vector2I chunk = GridCellDataComponent.ChunkOf(job.ApproachCell);
+            if (byChunk.TryGetValue(chunk, out List<string>? ids))
+            {
+                ids.Remove(job.Id);
+                if (ids.Count == 0) byChunk.Remove(chunk);
+            }
+            if (byChunk.Count == 0) _queuedIndex.Remove(key);
+        }
+
+        private void RebuildQueuedIndex()
+        {
+            _queuedIndex.Clear();
+            foreach (GridJob job in _jobs.Values)
+                if (job.State == GridJobState.Queued)
+                    IndexAddQueued(job);
         }
 
         public bool ClaimJob(string id, string workerId)
@@ -163,6 +328,7 @@ namespace Beep.ECS
             ReleaseReservation(job);
             job.State = GridJobState.Queued;
             job.ClaimedBy = "";
+            IndexAddQueued(job);
             RefreshChunkPins();
             EmitSignal(SignalName.JobReleased, id, releasedBy);
             EmitQueueChanged();
@@ -267,7 +433,10 @@ namespace Beep.ECS
             if (!_jobs.TryGetValue(id, out GridJob? job))
                 return false;
             if (job.State == GridJobState.Claimed && job.ApproachCell != approachCell) return false;
+            bool wasQueued = job.State == GridJobState.Queued;
+            if (wasQueued) IndexRemoveQueued(job); // remove from the old chunk first
             job.ApproachCell = approachCell;
+            if (wasQueued) IndexAddQueued(job);    // re-add at the new chunk
             RefreshChunkPins();
             return true;
         }
@@ -316,6 +485,7 @@ namespace Beep.ECS
             _jobs.Clear();
             _workerClaims.Clear();
             _workCells.Clear();
+            _queuedIndex.Clear();
             RefreshChunkPins(); // no jobs left to want any cell
             EmitQueueChanged();
         }

@@ -326,6 +326,18 @@ namespace Beep.ECS
             return result;
         }
 
+        /// <summary>A typed snapshot of one job for same-assembly HUDs: the fields a job board needs
+        /// to sort and render, without a Godot Dictionary per job. GetJobs stays for GDScript/saves.</summary>
+        internal readonly record struct JobSnapshot(string Id, string Kind, Vector2I Cell, GridJobState State, int Priority, string ClaimedBy);
+
+        /// <summary>The stored jobs as typed snapshots - the <see cref="GetJobs"/> view without the
+        /// per-cell Dictionary marshal the job board used to pay on every QueueChanged (ENH-12).</summary>
+        internal IEnumerable<JobSnapshot> EnumerateJobs()
+        {
+            foreach (GridJob job in _jobs.Values)
+                yield return new JobSnapshot(job.Id, job.Kind, job.Cell, job.State, job.Priority, job.ClaimedBy);
+        }
+
         public void LoadJobs(Godot.Collections.Array jobs, bool clearExisting = true)
         {
             if (clearExisting)

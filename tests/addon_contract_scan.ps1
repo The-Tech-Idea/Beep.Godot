@@ -1414,6 +1414,10 @@ if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent' -or $gridJobBoard -n
 if ($gridJobBoard -notmatch 'class\s+GridJobBoardComponent\s*:\s*GridListPanelComponent' -or $gridJobBoard -notmatch 'GeneratedRootName' -or $gridJobBoard -notmatch 'RowNamePrefix' -or $gridJobBoard -notmatch 'BindExistingControls' -or $gridJobBoard -notmatch 'HasAuthoredControls' -or $gridJobBoard -notmatch 'UpdateRows') {
     Fail "GridJobBoardComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
+# The board reads the typed EnumerateJobs view, not a Godot Dictionary per job per QueueChanged (ENH-12).
+if ($gridJobBoard -notmatch 'EnumerateJobs\(\)' -or $gridJobBoard -match '\.GetJobs\(\)') {
+    Fail "GridJobBoardComponent must sort/render from GridJobQueueComponent.EnumerateJobs, not marshal every job through GetJobs."
+}
 
 # The panel surface itself, pinned at its ONE home. Four HUD panels used to
 # carry a byte-for-byte copy of the editor-owner stamp, the node-name

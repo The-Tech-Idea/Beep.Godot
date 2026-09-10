@@ -115,12 +115,15 @@ namespace Beep.ECS
         }
 
         public string TextForJob(Godot.Collections.Dictionary job)
+            => FormatJobText(
+                GridVariantReader.String(job, "id", "job"),
+                GridVariantReader.String(job, "kind", "work"),
+                GridVariantReader.Vector2I(job, "cell", Vector2I.Zero),
+                GridVariantReader.String(job, "state", "Queued"),
+                GridVariantReader.String(job, "claimed_by", ""));
+
+        private static string FormatJobText(string id, string kind, Vector2I cell, string state, string worker)
         {
-            string id = GridVariantReader.String(job, "id", "job");
-            string kind = GridVariantReader.String(job, "kind", "work");
-            string state = GridVariantReader.String(job, "state", "Queued");
-            Vector2I cell = GridVariantReader.Vector2I(job, "cell", Vector2I.Zero);
-            string worker = GridVariantReader.String(job, "claimed_by", "");
             string suffix = string.IsNullOrWhiteSpace(worker) ? "" : $" by {worker}";
             return $"{kind} ({cell.X},{cell.Y}) {state}{suffix} [{id}]";
         }
@@ -140,38 +143,39 @@ namespace Beep.ECS
 
         private IEnumerable<GridPanelRow> JobRows()
         {
-            foreach (Godot.Collections.Dictionary job in VisibleJobs())
+            foreach (GridJobQueueComponent.JobSnapshot job in VisibleJobs())
                 yield return new GridPanelRow(
-                    GridVariantReader.String(job, "id", ""),
-                    TextForJob(job),
-                    ColorForState(GridVariantReader.String(job, "state", "")));
+                    job.Id,
+                    FormatJobText(job.Id, job.Kind, job.Cell, job.State.ToString(), job.ClaimedBy),
+                    ColorForState(job.State));
         }
 
-        private List<Godot.Collections.Dictionary> VisibleJobs()
+        private List<GridJobQueueComponent.JobSnapshot> VisibleJobs()
         {
-            var jobs = new List<Godot.Collections.Dictionary>();
+            var jobs = new List<GridJobQueueComponent.JobSnapshot>();
             if (_queue == null)
                 return jobs;
 
-            foreach (Godot.Collections.Dictionary job in _queue.GetJobs())
+            // The typed EnumerateJobs view, not GetJobs: no Godot Dictionary is marshalled per job
+            // on every QueueChanged. The filter and sort are unchanged (ENH-12).
+            foreach (GridJobQueueComponent.JobSnapshot job in _queue.EnumerateJobs())
             {
-                string state = GridVariantReader.String(job, "state", "");
-                if (!ShowCompletedJobs && string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Completed), StringComparison.OrdinalIgnoreCase))
+                if (!ShowCompletedJobs && job.State == GridJobQueueComponent.GridJobState.Completed)
                     continue;
                 jobs.Add(job);
             }
 
             jobs.Sort((a, b) =>
             {
-                int stateCompare = StateRank(GridVariantReader.String(a, "state", "")).CompareTo(StateRank(GridVariantReader.String(b, "state", "")));
+                int stateCompare = StateRank(a.State).CompareTo(StateRank(b.State));
                 if (stateCompare != 0)
                     return stateCompare;
 
-                int priorityCompare = GridVariantReader.Int(b, "priority", 0).CompareTo(GridVariantReader.Int(a, "priority", 0));
+                int priorityCompare = b.Priority.CompareTo(a.Priority);
                 if (priorityCompare != 0)
                     return priorityCompare;
 
-                return string.CompareOrdinal(GridVariantReader.String(a, "id", ""), GridVariantReader.String(b, "id", ""));
+                return string.CompareOrdinal(a.Id, b.Id);
             });
 
             return jobs;
@@ -180,25 +184,22 @@ namespace Beep.ECS
         private void ResolveReferences()
             => EntityComponent.Resolve(this, JobQueuePath, ref _queue);
 
-        private static int StateRank(string state)
-        {
-            if (string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Claimed), StringComparison.OrdinalIgnoreCase))
-                return 0;
-            if (string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Queued), StringComparison.OrdinalIgnoreCase))
-                return 1;
-            if (string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Completed), StringComparison.OrdinalIgnoreCase))
-                return 2;
-            return 3;
-        }
+        private static int StateRank(GridJobQueueComponent.GridJobState state)
+            => state switch
+            {
+                GridJobQueueComponent.GridJobState.Claimed => 0,
+                GridJobQueueComponent.GridJobState.Queued => 1,
+                GridJobQueueComponent.GridJobState.Completed => 2,
+                _ => 3
+            };
 
-        private static Color ColorForState(string state)
-        {
-            if (string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Claimed), StringComparison.OrdinalIgnoreCase))
-                return new Color(0.42f, 0.78f, 1f);
-            if (string.Equals(state, nameof(GridJobQueueComponent.GridJobState.Completed), StringComparison.OrdinalIgnoreCase))
-                return new Color(0.45f, 0.9f, 0.55f);
-            return new Color(0.95f, 0.86f, 0.48f);
-        }
+        private static Color ColorForState(GridJobQueueComponent.GridJobState state)
+            => state switch
+            {
+                GridJobQueueComponent.GridJobState.Claimed => new Color(0.42f, 0.78f, 1f),
+                GridJobQueueComponent.GridJobState.Completed => new Color(0.45f, 0.9f, 0.55f),
+                _ => new Color(0.95f, 0.86f, 0.48f)
+            };
 
 
 

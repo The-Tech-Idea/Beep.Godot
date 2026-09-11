@@ -213,6 +213,31 @@ public partial class TerrainKindCatalogSmoke : Node
                 return Fail($"FeatureEligibility('{kind}') = '{got}', expected '{feature}'");
         }
 
+        // TerrainCoherenceStage reads catalog.Rainfall to decide which kinds the biome-coherence filter
+        // smooths, and catalog.RainfallKinds for the smoother's dense vote index. This feeds the hashed
+        // terrain layer, so the baseline is the primary guard; these per-kind assertions keep the set
+        // legible. (RainfallKinds' ORDER is not asserted - it does not affect the smoothed result.)
+        (string Kind, bool IsRainfall)[] rainfall =
+        {
+            ("desert", true), ("dry_grass", true), ("grass", true), ("swamp", true), ("jungle", true),
+            ("sand", false), ("snow", false), ("tundra", false), ("gravel", false), ("rock", false),
+            ("deep_water", false), ("shallow_water", false), ("lava", false), ("nonsense_kind", false),
+        };
+        int rainfallCount = 0;
+        foreach ((string kind, bool isRainfall) in rainfall)
+        {
+            if (TerrainKindCatalog.Standard.Rainfall(kind) != isRainfall)
+                return Fail($"Rainfall('{kind}') = {!isRainfall}, expected {isRainfall}");
+            if (isRainfall) rainfallCount++;
+        }
+        // The ordered list holds exactly the rainfall kinds, and every entry is one.
+        System.Collections.Generic.IReadOnlyList<string> rainfallList = TerrainKindCatalog.Standard.RainfallKinds;
+        if (rainfallList.Count != rainfallCount)
+            return Fail($"RainfallKinds count = {rainfallList.Count}, expected {rainfallCount}");
+        foreach (string kind in rainfallList)
+            if (!TerrainKindCatalog.Standard.Rainfall(kind))
+                return Fail($"RainfallKinds contains '{kind}', which is not a rainfall kind");
+
         GD.Print("[terrain-kind-catalog] OK");
         return true;
     }

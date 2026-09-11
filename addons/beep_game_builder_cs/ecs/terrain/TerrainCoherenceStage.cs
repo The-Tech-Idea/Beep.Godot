@@ -28,16 +28,11 @@ namespace Beep.ECS
     /// </summary>
     internal static class TerrainCoherenceStage
     {
-        /// <summary>
-        /// The kinds the rainfall table decides. Only these are SMOOTHED: they
-        /// come from a threshold on a noise field, so a lone tile of one is
-        /// noise rather than a feature.
-        /// </summary>
-        private static readonly string[] RainfallKinds = { "desert", "dry_grass", "grass", "swamp", "jungle" };
-        private static readonly HashSet<string> Rainfall = new(RainfallKinds);
-
-        // Absorbable, AbsorbTarget and the peak materials moved to the terrain-kind catalog (DUP-13);
-        // TerrainKind documents each, and TerrainKindCatalog.Standard.PeakMaterialKinds is the set.
+        // The rainfall biomes - the kinds this stage SMOOTHS - moved to the terrain-kind catalog
+        // (DUP-13). TerrainKindCatalog.Standard.Rainfall(kind) is the membership test and
+        // TerrainKindCatalog.Standard.RainfallKinds is the ordered list the vote's dense index uses.
+        // Absorbable, AbsorbTarget and the peak materials moved there too; TerrainKind documents each,
+        // and TerrainKindCatalog.Standard.PeakMaterialKinds is the peak set.
 
         public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
@@ -78,7 +73,7 @@ namespace Beep.ECS
             var tally = new Dictionary<string, int>();
             for (int i = 0; i < world.Terrain.Length; i++)
             {
-                if (world.Land[i] && Rainfall.Contains(world.Terrain[i]))
+                if (world.Land[i] && TerrainKindCatalog.Standard.Rainfall(world.Terrain[i]))
                     tally[world.Terrain[i]] = tally.GetValueOrDefault(world.Terrain[i]) + 1;
             }
 
@@ -160,7 +155,7 @@ namespace Beep.ECS
                         raised++;
                 }
 
-                if (Rainfall.Contains(kind) || raised * 2 < region.Length)
+                if (TerrainKindCatalog.Standard.Rainfall(kind) || raised * 2 < region.Length)
                 {
                     foreach (string peak in TerrainKindCatalog.Standard.PeakMaterialKinds)
                         borders.Remove(peak);
@@ -187,14 +182,16 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// A kind's position in RainfallKinds plus one, or zero for anything the
-        /// rainfall table did not decide - water, beach, peak, tundra.
+        /// A kind's position in the catalog's rainfall list plus one, or zero for
+        /// anything the rainfall table did not decide - water, beach, peak, tundra.
+        /// The list order is arbitrary as far as the result goes (see RainfallKinds);
+        /// this is just the compact code a pass votes with.
         /// </summary>
-        private static byte RainfallIndex(string kind)
+        private static byte RainfallIndex(IReadOnlyList<string> rainfallKinds, string kind)
         {
-            for (int i = 0; i < RainfallKinds.Length; i++)
+            for (int i = 0; i < rainfallKinds.Count; i++)
             {
-                if (RainfallKinds[i] == kind)
+                if (rainfallKinds[i] == kind)
                     return (byte)(i + 1);
             }
             return 0;
@@ -217,16 +214,18 @@ namespace Beep.ECS
             // rainfall kind it is, so a byte per sample answers it. Each pass
             // used to clone the whole string field to remember this.
             byte[] before = world.ByteScratch;
+            // The rainfall kinds and the byte code each maps to, from the catalog.
+            IReadOnlyList<string> rainfallKinds = TerrainKindCatalog.Standard.RainfallKinds;
             // Votes per rainfall kind, and the kinds in the order they were
             // first met - the order the winner is chosen in, so a tie between
             // two neighbouring kinds still goes to the one met first.
-            Span<int> counts = stackalloc int[RainfallKinds.Length + 1];
-            Span<byte> met = stackalloc byte[RainfallKinds.Length];
+            Span<int> counts = stackalloc int[rainfallKinds.Count + 1];
+            Span<byte> met = stackalloc byte[rainfallKinds.Count];
 
             for (int pass = 0; pass < passes; pass++)
             {
                 for (int index = 0; index < world.Count; index++)
-                    before[index] = RainfallIndex(world.Terrain[index]);
+                    before[index] = RainfallIndex(rainfallKinds, world.Terrain[index]);
                 for (int y = 0; y < world.Height; y++)
                 {
                     for (int x = 0; x < world.Width; x++)
@@ -288,7 +287,7 @@ namespace Beep.ECS
                             }
                         }
 
-                        world.Terrain[index] = RainfallKinds[best - 1];
+                        world.Terrain[index] = rainfallKinds[best - 1];
                     }
                 }
             }

@@ -32,6 +32,13 @@ namespace Beep.ECS
         /// separate checks, not by kind).</summary>
         [Export] public bool Startable { get; set; } = true;
 
+        /// <summary>Whether this kind is a RAINFALL biome - one the rainfall table places from a
+        /// threshold on a noise field (desert, dry_grass, grass, swamp, jungle), so a lone tile of it is
+        /// noise to be smoothed. Structural kinds (beach, peak, snow, tundra, gravel) are placed by coast
+        /// and relief, not rainfall, and are never smoothed. The biome-coherence majority filter smooths
+        /// only these.</summary>
+        [Export] public bool Rainfall { get; set; }
+
         /// <summary>Whether a small region of this kind may be DISSOLVED into its neighbours when it is
         /// too small for the landmass (the biome-coherence absorb pass). The rainfall grounds plus snow
         /// and tundra; not sand, water, or a peak/steep material.</summary>

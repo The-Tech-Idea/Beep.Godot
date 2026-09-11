@@ -1,6 +1,17 @@
 # FIX-07 — Requeue-on-load drops world execution: an in-progress world-owned job is silently lost across save/load
 
-**Type:** fix · **Area:** `GridJobExecutionComponent`, `GridWorkerDispatchComponent`, `GridJobQueueComponent`, `GridWorkerComponent` · **Status:** **PROPOSED 2026-09-11** · **Effort:** M (1–2 days) · **Risk:** medium
+**Type:** fix · **Area:** `GridJobExecutionComponent.RestoreState`, `GridWorkerDispatchComponent.RestoreState` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** M (1–2 days) · **Risk:** medium
+
+## Outcome (2026-09-11)
+
+Both restore paths now re-assert a requeued claim through the queue's public API, exactly as the actor path does in `GridWorkerComponent.Load`, rather than teaching the queue about executors:
+
+- **`GridJobExecutionComponent.RestoreState`** — a new `Reclaim(entry)` runs before the `CanExecute`/`CanBindExecutor` gate: if the queue reports the job `Queued` (requeued on load) it `ClaimJob`s under the saved worker, then `TryReserveWorkCell`s to the saved work cell (since `ClaimJob` reserves the *approach* cell). It also corrects the reserved cell when the **dispatcher** claimed the same job first with its approach cell, so the executor and dispatcher are robust to either restore order.
+- **`GridWorkerDispatchComponent.RestoreState`** — re-claims a **traveling** worker's requeued job (`!worker.Working`); a working one is re-claimed by the executor, which also owns the work cell, so it is left to the executor (avoiding an ordering tangle). `ClaimJob` reserves the approach cell, which is the route target `AssignmentMatches` checks.
+- **Abort-cleanup (beyond the plan).** Re-claiming in the all-or-nothing loop mutates the queue, so a *later* entry failing the gate would leave the earlier re-claims as `Claimed`-but-unbound dangling jobs — a regression the pre-fix code did not have (it left everything `Queued`). Each path now tracks what it re-claimed and releases it on any restore failure (`AbortRestore`/`DispatchAbort`), so a rejected restore leaves those jobs `Queued` and workable.
+- The `RequeueClaimedJobsOnLoad` flag is **kept** (its ghost-worker justification stands; removal is the owner's call), now harmless-when-true for world execution.
+
+Guarded by `tests/job_execution_requeue_probe.gd` (+ `.ps1`, gate-registered), which extends the existing `job_execution_probe` harness (grid + dormant worker + clock + queue + executor) but flips `RequeueClaimedJobsOnLoad` to the **default `true`**: it starts world-owned work, advances it, `GetJobs`/`CaptureState`, requeues via `LoadJobs`, and asserts a fresh executor's `RestoreState` re-claims the job (`Claimed` by the saved worker, reserved cell intact, executor rebound, progress preserved, completes exactly once). Mutation-proven: neutering `Reclaim` makes `RestoreState` drop the execution ("world-owned execution was dropped by requeue-on-load"). Build clean (0 warnings); `job_execution`, `job_execution_service`, `worker_dispatch`, `worker_execution_binding`, `rts_lifecycle` and `terrain_worker_arrival` probes green (no regression). The `ghost_worker_123` requeue pin in `GridPlacementSmoke` is untouched (the fix does not change `LoadJobs`).
 
 ## Finding
 

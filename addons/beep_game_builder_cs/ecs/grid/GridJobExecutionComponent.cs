@@ -170,14 +170,19 @@ public partial class GridJobExecutionComponent : Node, ISaveable
     public bool RestoreState(Godot.Collections.Dictionary state)
     {
         var restored = new List<Execution>();
+        var reclaimed = new List<Execution>();   // FIX-07: claims we re-asserted, to undo if the restore aborts
         foreach (var pair in state)
         {
-            if (pair.Key.VariantType != Variant.Type.String || !GridVariantReader.TryDictionary(pair.Value, out var saved)) return false;
+            if (pair.Key.VariantType != Variant.Type.String || !GridVariantReader.TryDictionary(pair.Value, out var saved))
+                return AbortRestore(reclaimed);
             var entry = new Execution(pair.Key.AsString(), GridVariantReader.String(saved, "job", ""),
                 GridVariantReader.Vector2I(saved, "cell", new(int.MinValue, int.MinValue)), GridVariantReader.Float(saved, "speed", 0));
             entry.Pending = GridVariantReader.Float(saved, "pending", 0);
-            if (!float.IsFinite(entry.Speed) || entry.Speed <= 0 || !double.IsFinite(entry.Pending) || entry.Pending < 0
-                || !CanExecute(entry, restoring: true) || !_queue!.CanBindExecutor(entry.Job, entry.Worker, this)) return false;
+            if (!float.IsFinite(entry.Speed) || entry.Speed <= 0 || !double.IsFinite(entry.Pending) || entry.Pending < 0)
+                return AbortRestore(reclaimed);
+            if (Reclaim(entry)) reclaimed.Add(entry);
+            if (!CanExecute(entry, restoring: true) || !_queue!.CanBindExecutor(entry.Job, entry.Worker, this))
+                return AbortRestore(reclaimed);
             restored.Add(entry);
         }
         foreach (var worker in _executions.Keys.ToArray()) StopWork(worker, false);
@@ -189,6 +194,32 @@ public partial class GridJobExecutionComponent : Node, ISaveable
         }
         EmitSignal(SignalName.ExecutionStateRestored);
         return true;
+    }
+
+    // FIX-07: a job Claimed at save time is requeued on load when RequeueClaimedJobsOnLoad is set - the
+    // default, sized for the actor ghost-worker case whose id no reload reproduces. World execution,
+    // unlike an actor, has no id problem: re-assert the saved claim through the queue's public API,
+    // exactly as the actor path does in GridWorkerComponent.Load, so a world-executed job survives
+    // save/load instead of being dropped and its worker parked Idle. ClaimJob reserves the approach
+    // cell, so move the reservation to the saved work cell; this also corrects the cell when the
+    // dispatcher re-claimed the same job first with its approach cell. Returns true when this call
+    // took the claim (state was Queued), so AbortRestore can release exactly those and leave a rejected
+    // restore's jobs Queued (workable) rather than Claimed-but-unbound.
+    private bool Reclaim(Execution entry)
+    {
+        if (!GodotObject.IsInstanceValid(_queue)) return false;
+        bool took = _queue!.GetJobState(entry.Job) == GridJobQueueComponent.GridJobState.Queued
+            && _queue.ClaimJob(entry.Job, entry.Worker);
+        if (_queue.GetJobClaimedBy(entry.Job) == entry.Worker && _queue.GetReservedWorkCell(entry.Job) != entry.Cell)
+            _queue.TryReserveWorkCell(entry.Job, entry.Worker, entry.Cell);
+        return took;
+    }
+
+    private bool AbortRestore(List<Execution> reclaimed)
+    {
+        foreach (var entry in reclaimed)
+            if (GodotObject.IsInstanceValid(_queue)) _queue!.ReleaseJob(entry.Job, entry.Worker);
+        return false;
     }
 
     public void Save(GameBuilder.GameStateData state) { if (SaveKey.Length > 0) state.GameData[SaveKey] = CaptureState(); }

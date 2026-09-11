@@ -281,6 +281,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Godot resource wallet key probe failed."
 }
 
+Write-Host "[addon-checks] Godot job execution requeue probe"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\job_execution_requeue_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot job execution requeue probe failed."
+}
+
 Write-Host "[addon-checks] Godot grid resource catalog ports probe"
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\grid_resource_catalog_ports_probe.ps1" -GodotCommand $GodotCommand -TimeoutSeconds 60
 if ($LASTEXITCODE -ne 0) {

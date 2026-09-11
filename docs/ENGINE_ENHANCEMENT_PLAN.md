@@ -258,7 +258,7 @@ This pass is **bug-heavy**, so it introduces a **FIX-NN** category alongside DUP
 | FIX-04 | [Mountain prefab sprites set Owner before AddChild, so editor-authored parts vanish on reload](../plans/terrain-grid/FIX-04-mountain-prefab-owner-order.md) | fix | XS | Proposed |
 | FIX-05 | [GetOrCreate bumps the global TerrainRevision on lazy cell creation, forcing a full-map terrain rebuild on gameplay first-touch](../plans/terrain-grid/FIX-05-getorcreate-spurious-terrain-revision.md) | fix | XS | Proposed |
 | FIX-06 | [Archive auto-load aborts on any CellsChanged, including a Residency-only move of an unrelated chunk (violates the ENH-01 contract)](../plans/terrain-grid/FIX-06-archive-load-abort-residency.md) | fix | S | Proposed |
-| FIX-07 | [RequeueClaimedJobsOnLoad default silently drops in-progress world-execution/dispatch work on load](../plans/terrain-grid/FIX-07-requeue-drops-world-execution.md) | fix | M | Proposed |
+| FIX-07 | [RequeueClaimedJobsOnLoad default silently drops in-progress world-execution/dispatch work on load](../plans/terrain-grid/FIX-07-requeue-drops-world-execution.md) | fix | M | **Implemented 2026-09-11** |
 | FIX-08 | [CompleteJob on a Queued job orphans its id in the queued spatial index](../plans/terrain-grid/FIX-08-completejob-queued-index-leak.md) | fix | XS | Proposed |
 | FIX-09 | [GridObjectiveTrackerComponent.RestoreState mutates state silently, leaving signal-driven HUDs stale after load](../plans/terrain-grid/FIX-09-objective-restore-signals.md) | fix | S | Proposed |
 | FIX-10 | [Objective panel Goals-N summary reports the capped visible-row count, not the true active-goal count](../plans/terrain-grid/FIX-10-objective-panel-goal-count.md) | fix | S | Proposed |

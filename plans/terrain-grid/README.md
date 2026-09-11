@@ -88,6 +88,8 @@ Two other sessions were active while this review was written: one in `ecs/grid/`
 
 ## Terrain, grid and resource review (2026-09-11) — follow-up
 
+**Progress:** the two high-severity items — **DUP-14** and **FIX-07** — are **implemented** (each with a mutation-proven guard); 15 remain, tracked in the tables below.
+
 A second pass grounded in the **current** code (after the 2026-09-08 items that have landed — DUP-13's terrain-kind catalog fold, ENH-08/09/12, DUP-12, …), adding the **resource system** (generation-side placement plus the wallet/storage/production/hauler economy) as a first-class subject. Run as a multi-agent review — nine reviewer lanes across terrain/grid/resource surfaced 23 candidates; an adversarial verify pass confirmed 17 as real-and-novel (six refuted as misread or already covered). Each item has verified file:line evidence and mutation-tested guards, and excludes the 2026-09-08 findings unless a landed fix had regressed.
 
 Bug-heavy, so it adds a **Fixes (FIX-NN)** category. Two themes: **load/restore correctness** (FIX-05/06/07/09/13, DUP-14 — state lost or hidden across save/load) and **resource-id normalisation drift** (DUP-14, extending DUP-05). Highest severity: DUP-14 (wallet debits lost under an un-normalised key → infinite resources + save corruption) and FIX-07 (in-progress world jobs parked Idle on load).
@@ -124,7 +126,7 @@ Bug-heavy, so it adds a **Fixes (FIX-NN)** category. Two themes: **load/restore 
 | FIX-12 | [GridPorts.Transfer silently discards the un-accepted remainder for an unload-only giver (breaks its never-lost contract)](FIX-12-ports-transfer-remainder.md) | Cap GridPorts.Transfer to the receiver's free space and report any unrecoverable remainder so an unload-only giver never silently loses cargo | XS | Proposed |
 | FIX-13 | [A rejected actor-travel restore loads nothing and reports nothing](FIX-13-actor-travel-restore-report.md) | Have Load read RestoreState's result and report a rejected restore instead of silently dropping saved travellers | XS | Proposed |
 
-Suggested order: the two high-severity data-integrity items first (DUP-14, FIX-07), then the rest of the load/restore family (FIX-05/06/09/11/13), then the standalone terrain fixes (FIX-01/03/04) and the XS grid fixes (FIX-08/10/12), with FIX-02 (owner's-call removal), ENH-17 and the two refactors (DUP-15, DUP-16) as they fit. Same standing rules and collision notes as the 2026-09-08 set apply; nothing here touches the streaming/`TerrainWorldComponent` files the concurrent session owns.
+Suggested order: the two high-severity data-integrity items **DUP-14 and FIX-07 are DONE** (each with a mutation-proven guard). Next: the rest of the load/restore family (FIX-05/06/09/11/13), then the standalone terrain fixes (FIX-01/03/04) and the XS grid fixes (FIX-08/10/12), with FIX-02 (owner's-call removal), ENH-17 and the two refactors (DUP-15, DUP-16) as they fit. Same standing rules and collision notes as the 2026-09-08 set apply; nothing here touches the streaming/`TerrainWorldComponent` files the concurrent session owns.
 
 ## Tracker
 

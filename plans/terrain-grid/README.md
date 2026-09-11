@@ -86,6 +86,46 @@ decisions); per-genre classes are not merged; guards must be able to fail.
 
 Two other sessions were active while this review was written: one in `ecs/grid/` (streaming, archive, pins) and one in `TerrainWorldComponent`/`TerrainRecipe`/level loading. Every plan names its collision surface; nothing in this set should be landed in those files without coordinating first.
 
+## Terrain, grid and resource review (2026-09-11) — follow-up
+
+A second pass grounded in the **current** code (after the 2026-09-08 items that have landed — DUP-13's terrain-kind catalog fold, ENH-08/09/12, DUP-12, …), adding the **resource system** (generation-side placement plus the wallet/storage/production/hauler economy) as a first-class subject. Run as a multi-agent review — nine reviewer lanes across terrain/grid/resource surfaced 23 candidates; an adversarial verify pass confirmed 17 as real-and-novel (six refuted as misread or already covered). Each item has verified file:line evidence and mutation-tested guards, and excludes the 2026-09-08 findings unless a landed fix had regressed.
+
+Bug-heavy, so it adds a **Fixes (FIX-NN)** category. Two themes: **load/restore correctness** (FIX-05/06/07/09/13, DUP-14 — state lost or hidden across save/load) and **resource-id normalisation drift** (DUP-14, extending DUP-05). Highest severity: DUP-14 (wallet debits lost under an un-normalised key → infinite resources + save corruption) and FIX-07 (in-progress world jobs parked Idle on load).
+
+### Duplication (3)
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| DUP-14 | [Resource-id normalization drift: one canonical key across wallet, storage and cost totals (fixes the wallet phantom-key debit loss)](DUP-14-resource-id-normalisation.md) | Route TryTotals, the wallet and storage through one GridIds.Normalize key so spaced/dashed resource ids stop losing wallet debits and desyncing stores | M | Proposed |
+| DUP-15 | [Live-water sub-cell reconstruction is implemented twice, once per streaming mode](DUP-15-live-water-reconstruction.md) | Extract the twice-copied half-cell water reconstruction into one ReconstructWater helper taking wet/patch delegates, called by both the snapshot sampler and the live streaming query | S | Proposed |
+| DUP-16 | [Transport and extraction managers duplicate the pruning duck-typed Node registry](DUP-16-duck-node-registry.md) | Extract a shared DuckTypedNodeRegistry base so transport and extraction managers stop hand-rolling the same list/register/unregister/count/prune, keeping only the per-manager contract check as an override hook | M | Proposed |
+
+### Enhancement (1)
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| ENH-17 | [Coherence smoothing re-derives every sample rainfall index by linear string scan each pass](ENH-17-coherence-rainfall-index.md) | Replace the per-sample O(kinds) rainfall-index string scan with a once-built ordinal Dictionary<string,byte> so coherence passes stop re-scanning up to 1.25M samples ×6 | S | Proposed |
+
+### Fixes (13)
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| FIX-01 | [Hillslope diffusion coefficient exceeds its documented stability limit at high ErosionStrength](FIX-01-erosion-diffusion-stability.md) | Clamp the hillslope diffusion coefficient (0.35×dial) to ≤1 so ErosionStrength above ~2.86 stops amplifying checkerboard speckle before relief classification | XS | Proposed |
+| FIX-02 | [Shape/ShapeWarpX/ShapeWarpY/Detail noise channels are built every generation but read by nothing](FIX-02-dead-noise-channels.md) | Correct the false "Shape decides where land is" doc and, on Fahad's call, drop the four never-read noise channels built every generation run | XS | Proposed |
+| FIX-03 | [TerrainTextures.Load throws NRE on a failed external-file load instead of returning null](FIX-03-terraintextures-load-nre.md) | Add an `image is null` guard to the external-file branch so a failed absolute-path load warns and returns null instead of throwing | XS | Proposed |
+| FIX-04 | [Mountain prefab sprites set Owner before AddChild, so editor-authored parts vanish on reload](FIX-04-mountain-prefab-owner-order.md) | Route mountain-prefab sprite parenting through TerrainAuthoring.Adopt (AddChild then adopt) so editor-saved art survives reload | XS | Proposed |
+| FIX-05 | [GetOrCreate bumps the global TerrainRevision on lazy cell creation, forcing a full-map terrain rebuild on gameplay first-touch](FIX-05-getorcreate-spurious-terrain-revision.md) | Drop the TerrainRevision++ from GetOrCreate so a gameplay first-touch of virgin ground stops forcing a full painted+isometric map rebuild | XS | Proposed |
+| FIX-06 | [Archive auto-load aborts on any CellsChanged, including a Residency-only move of an unrelated chunk (violates the ENH-01 contract)](FIX-06-archive-load-abort-residency.md) | Make the archive bulk load-abort listener read the CellsChanged kind+chunks payload so a Residency-only or unrelated-chunk edit no longer kills an in-flight demand load | S | Proposed |
+| FIX-07 | [RequeueClaimedJobsOnLoad default silently drops in-progress world-execution/dispatch work on load](FIX-07-requeue-drops-world-execution.md) | Make world-execution and dispatch restore re-claim a requeued job under the saved worker id (mirroring the actor path) so an in-progress world-owned job survives save/load instead of parking the worker Idle | M | Proposed |
+| FIX-08 | [CompleteJob on a Queued job orphans its id in the queued spatial index](FIX-08-completejob-queued-index-leak.md) | Add the IndexRemoveQueued guard to CompleteJob so a public force-complete of a Queued job stops orphaning its id/chunk in _queuedIndex | XS | Proposed |
+| FIX-09 | [GridObjectiveTrackerComponent.RestoreState mutates state silently, leaving signal-driven HUDs stale after load](FIX-09-objective-restore-signals.md) | Re-emit ObjectiveProgressChanged/Activated/Completed per objective at the end of RestoreState so signal-driven HUDs repaint on load | S | Proposed |
+| FIX-10 | [Objective panel Goals-N summary reports the capped visible-row count, not the true active-goal count](FIX-10-objective-panel-goal-count.md) | Uncap the panel's goal-total count by dropping VisibleObjectives()'s MaxVisibleObjectives break; rows stay capped by UpdateRows so the summary reports true totals | S | Proposed |
+| FIX-11 | [GridCalendarHudComponent wires calendar signals only in _Ready and never reconnects on re-resolve](FIX-11-calendar-hud-signal-reconnect.md) | Move calendar signal wiring into ResolveReferences so the HUD reconnects DayAdvanced/SeasonChanged/YearChanged when the calendar node is swapped instead of going stale after a world reload | S | Proposed |
+| FIX-12 | [GridPorts.Transfer silently discards the un-accepted remainder for an unload-only giver (breaks its never-lost contract)](FIX-12-ports-transfer-remainder.md) | Cap GridPorts.Transfer to the receiver's free space and report any unrecoverable remainder so an unload-only giver never silently loses cargo | XS | Proposed |
+| FIX-13 | [A rejected actor-travel restore loads nothing and reports nothing](FIX-13-actor-travel-restore-report.md) | Have Load read RestoreState's result and report a rejected restore instead of silently dropping saved travellers | XS | Proposed |
+
+Suggested order: the two high-severity data-integrity items first (DUP-14, FIX-07), then the rest of the load/restore family (FIX-05/06/09/11/13), then the standalone terrain fixes (FIX-01/03/04) and the XS grid fixes (FIX-08/10/12), with FIX-02 (owner's-call removal), ENH-17 and the two refactors (DUP-15, DUP-16) as they fit. Same standing rules and collision notes as the 2026-09-08 set apply; nothing here touches the streaming/`TerrainWorldComponent` files the concurrent session owns.
+
 ## Tracker
 
 The master tracker is `docs/ENGINE_ENHANCEMENT_PLAN.md` ("Terrain and grid review (2026-09-08)"). Per-subsystem history: `docs/terrain-engine/ENHANCEMENT_AND_FIX_PLAN.md` (closed), `docs/grid-system/ENHANCEMENT_AND_FIX_PLAN.md` (closed). When a plan lands, update its status here and in the tracker, and move its evidence into the component pages under `docs/terrain-engine/` and `docs/grid-system/`.

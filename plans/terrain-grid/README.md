@@ -96,7 +96,7 @@ Bug-heavy, so it adds a **Fixes (FIX-NN)** category. Two themes: **load/restore 
 
 | Id | Plan | Headline | Effort | Status |
 |---|---|---|---|---|
-| DUP-14 | [Resource-id normalization drift: one canonical key across wallet, storage and cost totals (fixes the wallet phantom-key debit loss)](DUP-14-resource-id-normalisation.md) | Route TryTotals, the wallet and storage through one GridIds.Normalize key so spaced/dashed resource ids stop losing wallet debits and desyncing stores | M | Proposed |
+| DUP-14 | [Resource-id normalization drift: one canonical key across wallet, storage and cost totals (fixes the wallet phantom-key debit loss)](DUP-14-resource-id-normalisation.md) | Route TryTotals, the wallet, storage and the hauler/extractor cargo ports through one GridIds.Normalize key so spaced/dashed resource ids stop losing wallet debits and desyncing stores | M | **Implemented 2026-09-11** |
 | DUP-15 | [Live-water sub-cell reconstruction is implemented twice, once per streaming mode](DUP-15-live-water-reconstruction.md) | Extract the twice-copied half-cell water reconstruction into one ReconstructWater helper taking wet/patch delegates, called by both the snapshot sampler and the live streaming query | S | Proposed |
 | DUP-16 | [Transport and extraction managers duplicate the pruning duck-typed Node registry](DUP-16-duck-node-registry.md) | Extract a shared DuckTypedNodeRegistry base so transport and extraction managers stop hand-rolling the same list/register/unregister/count/prune, keeping only the per-manager contract check as an override hook | M | Proposed |
 

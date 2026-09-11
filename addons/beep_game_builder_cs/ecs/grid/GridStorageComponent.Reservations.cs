@@ -8,10 +8,11 @@ public partial class GridStorageComponent
 {
     private sealed record MaterialClaim(Node Owner, Dictionary<string, int> Amounts, Action Exit);
     private readonly Dictionary<ulong, MaterialClaim> _materialClaims = new();
-    private readonly Dictionary<string, int> _reservedMaterials = new(StringComparer.OrdinalIgnoreCase);
+    // Canonical GridIds.Normalize keys, matching _stored and the TryTotals cost keys (DUP-14).
+    private readonly Dictionary<string, int> _reservedMaterials = new();
 
     public int Reserved(string resourceId)
-        => string.IsNullOrWhiteSpace(resourceId) ? 0 : _reservedMaterials.GetValueOrDefault(resourceId.Trim());
+        => _reservedMaterials.GetValueOrDefault(GridIds.Normalize(resourceId));
 
     public int Available(string resourceId) => Math.Max(0, Stored(resourceId) - Reserved(resourceId));
 

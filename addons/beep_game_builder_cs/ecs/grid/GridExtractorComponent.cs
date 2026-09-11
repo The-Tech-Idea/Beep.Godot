@@ -153,26 +153,29 @@ namespace Beep.ECS
 
         public bool CanAccept(string resourceId)
             => !string.IsNullOrWhiteSpace(resourceId)
-                && (_bufferId.Length == 0 || _bufferId == resourceId);
+                && (_bufferId.Length == 0 || _bufferId == GridIds.Normalize(resourceId));
 
         public int Load(string resourceId, int amount)
         {
             if (amount <= 0 || !CanAccept(resourceId))
                 return 0;
 
+            // Canonical buffer id (DUP-14): the single-slot hold keys its resource the way the wallet,
+            // storage and hauler do, so a spaced/dashed extract id and a canonical query are one cargo.
+            string id = GridIds.Normalize(resourceId);
             int space = Mathf.Max(0, Mathf.Max(1, BufferCapacity) - _bufferAmount);
             int taken = Mathf.Min(space, amount);
             if (taken <= 0)
                 return 0;
 
-            _bufferId = resourceId;
+            _bufferId = id;
             _bufferAmount += taken;
             return taken;
         }
 
         public int Unload(string resourceId, int amount)
         {
-            if (amount <= 0 || _bufferId.Length == 0 || _bufferId != resourceId)
+            if (amount <= 0 || _bufferId.Length == 0 || _bufferId != GridIds.Normalize(resourceId))
                 return 0;
 
             int released = Mathf.Min(amount, _bufferAmount);
@@ -183,7 +186,7 @@ namespace Beep.ECS
         }
 
         public int Stored(string resourceId)
-            => _bufferId.Length > 0 && _bufferId == resourceId ? _bufferAmount : 0;
+            => _bufferId.Length > 0 && _bufferId == GridIds.Normalize(resourceId) ? _bufferAmount : 0;
 
         public Godot.Collections.Array<string> StoredIds()
         {
@@ -204,7 +207,8 @@ namespace Beep.ECS
         {
             string id = GridVariantReader.String(state, "buffer_id", "");
             int amount = Mathf.Max(0, GridVariantReader.Int(state, "buffer_amount", 0));
-            _bufferId = amount > 0 ? id : "";
+            // Normalise on load so an older save's space-kept buffer id migrates to canonical (DUP-14).
+            _bufferId = amount > 0 ? GridIds.Normalize(id) : "";
             _bufferAmount = _bufferId.Length > 0 ? amount : 0;
         }
 

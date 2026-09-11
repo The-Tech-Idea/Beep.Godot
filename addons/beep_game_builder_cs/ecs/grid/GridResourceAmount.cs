@@ -24,11 +24,18 @@ namespace Beep.ECS
 
         internal static bool TryTotals(Godot.Collections.Array amounts, out Dictionary<string, int> totals)
         {
-            totals = new(System.StringComparer.OrdinalIgnoreCase);
+            // Canonical resource id (GridIds.Normalize: trim, lower, ' '/'-' -> '_'), the one form the
+            // wallet, storage and reservation stores all key on (DUP-14). Keying by a space-kept
+            // Trim().ToLowerInvariant() here is what let Wallet.Spend commit a debit to a phantom
+            // "iron ore" entry while the balance lived under "iron_ore". A default ordinal dict now
+            // suffices - the lower-invariant canonicalisation already folds case, so a second
+            // OrdinalIgnoreCase rule would be a duplicate case policy.
+            totals = new();
             foreach ((string resourceId, int amount) in Enumerate(amounts))
             {
                 if (amount <= 0) continue;
-                string id = resourceId.Trim().ToLowerInvariant();
+                string id = GridIds.Normalize(resourceId);
+                if (id.Length == 0) continue;
                 totals.TryGetValue(id, out int existing);
                 long sum = (long)existing + amount;
                 if (sum > int.MaxValue) return false;

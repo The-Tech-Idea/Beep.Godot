@@ -248,7 +248,7 @@ This pass is **bug-heavy**, so it introduces a **FIX-NN** category alongside DUP
 
 | Id | Plan | Type | Effort | Status |
 |---|---|---|---|---|
-| DUP-14 | [Resource-id normalization drift: one canonical key across wallet, storage and cost totals (fixes the wallet phantom-key debit loss)](../plans/terrain-grid/DUP-14-resource-id-normalisation.md) | duplication + fix | M | Proposed |
+| DUP-14 | [Resource-id normalization drift: one canonical key across wallet, storage and cost totals (fixes the wallet phantom-key debit loss)](../plans/terrain-grid/DUP-14-resource-id-normalisation.md) | duplication + fix | M | **Implemented 2026-09-11** |
 | DUP-15 | [Live-water sub-cell reconstruction is implemented twice, once per streaming mode](../plans/terrain-grid/DUP-15-live-water-reconstruction.md) | duplication | S | Proposed |
 | DUP-16 | [Transport and extraction managers duplicate the pruning duck-typed Node registry](../plans/terrain-grid/DUP-16-duck-node-registry.md) | duplication | M | Proposed |
 | ENH-17 | [Coherence smoothing re-derives every sample rainfall index by linear string scan each pass](../plans/terrain-grid/ENH-17-coherence-rainfall-index.md) | enhancement | S | Proposed |

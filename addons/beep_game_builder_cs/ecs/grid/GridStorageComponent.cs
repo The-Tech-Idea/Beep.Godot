@@ -58,7 +58,12 @@ namespace Beep.ECS
         /// </summary>
         [Export] public Godot.Collections.Array<string> AllowedResourceTags { get; set; } = new();
 
-        private readonly Dictionary<string, int> _stored = new(StringComparer.OrdinalIgnoreCase);
+        // Keyed by the canonical GridIds.Normalize id (DUP-14), the one form the wallet, cost totals
+        // and reservations share - so a cost of "Iron Ore" and a stored "iron_ore" are the same
+        // resource. A default ordinal dict is right: the normaliser already lower-cases, so an
+        // OrdinalIgnoreCase comparer would be a second, redundant case rule (and would still miss the
+        // space-vs-dash difference the normaliser folds).
+        private readonly Dictionary<string, int> _stored = new();
 
         public override void _Ready()
         {
@@ -101,7 +106,7 @@ namespace Beep.ECS
             if (AllowedResourceIds.Count == 0 && AllowedResourceTags.Count == 0)
                 return true;
 
-            return AcceptsResourceType(resourceId.Trim());
+            return AcceptsResourceType(GridIds.Normalize(resourceId));
         }
 
         /// <summary>
@@ -112,12 +117,15 @@ namespace Beep.ECS
         /// is wired - whether the catalog's definition for the id carries any
         /// of AllowedResourceTags. Override to replace the rule entirely
         /// (category-based, a per-project scheme) without touching Load/Unload.
+        /// The <paramref name="resourceId"/> arrives already canonicalised through
+        /// GridIds.Normalize (DUP-14); an override that compares against author strings
+        /// must normalise its own side too.
         /// </summary>
         protected virtual bool AcceptsResourceType(string resourceId)
         {
             foreach (string allowed in AllowedResourceIds)
             {
-                if (string.Equals(allowed?.Trim(), resourceId, StringComparison.OrdinalIgnoreCase))
+                if (GridIds.Normalize(allowed) == resourceId)
                     return true;
             }
 
@@ -139,7 +147,7 @@ namespace Beep.ECS
             if (amount <= 0 || !CanAccept(resourceId))
                 return 0;
 
-            string id = resourceId.Trim();
+            string id = GridIds.Normalize(resourceId);
             int space = Mathf.Max(0, Mathf.Max(1, Capacity) - CurrentLoad);
             int taken = Mathf.Min(space, amount);
             if (taken <= 0)
@@ -155,7 +163,7 @@ namespace Beep.ECS
             if (amount <= 0 || string.IsNullOrWhiteSpace(resourceId))
                 return 0;
 
-            string id = resourceId.Trim();
+            string id = GridIds.Normalize(resourceId);
             int held = Stored(id);
             int released = Mathf.Min(amount, Available(id));
             if (released <= 0)
@@ -171,9 +179,7 @@ namespace Beep.ECS
         }
 
         public int Stored(string resourceId)
-            => !string.IsNullOrWhiteSpace(resourceId) && _stored.TryGetValue(resourceId.Trim(), out int amount)
-                ? amount
-                : 0;
+            => _stored.TryGetValue(GridIds.Normalize(resourceId), out int amount) ? amount : 0;
 
         public bool CanProvide(Godot.Collections.Array amounts)
         {
@@ -225,10 +231,12 @@ namespace Beep.ECS
 
             foreach (Variant key in contents.Keys)
             {
-                string id = key.AsString();
+                // Normalise on load so an older save written with space-kept keys ("Iron Ore")
+                // migrates to the canonical form without a separate migration pass (DUP-14).
+                string id = GridIds.Normalize(key.AsString());
                 int amount = GridVariantReader.Int(contents[key], 0);
-                if (!string.IsNullOrWhiteSpace(id) && amount > 0)
-                    _stored[id.Trim()] = amount;
+                if (id.Length > 0 && amount > 0)
+                    _stored[id] = amount;
             }
         }
 

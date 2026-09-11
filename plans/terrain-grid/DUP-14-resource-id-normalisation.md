@@ -1,6 +1,14 @@
 # DUP-14 — Resource-id normalisation drift: one canonical key across wallet, storage and cost totals
 
-**Type:** duplication + fix · **Area:** `GridResourceAmount`, `GridResourceWalletComponent`, `GridStorageComponent` (+ `.Reservations`), `GridIds` · **Status:** **PROPOSED 2026-09-11** · **Effort:** M (1–1½ days) · **Risk:** medium
+**Type:** duplication + fix · **Area:** `GridResourceAmount`, `GridStorageComponent` (+ `.Reservations`), `GridHaulerComponent`, `GridExtractorComponent`, `GridIds` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** M (1–1½ days) · **Risk:** medium
+
+## Outcome (2026-09-11)
+
+`GridResourceAmount.TryTotals` now keys by `GridIds.Normalize` into a default-ordinal dict; `GridStorageComponent` (`_stored`, `Load`/`Unload`/`Stored`/`CanAccept`/`AcceptsResourceType`/`RestoreState`) and `GridStorageComponent.Reservations` (`_reservedMaterials`/`Reserved`) key on it too, with the redundant `OrdinalIgnoreCase` comparers dropped. **The wallet needed no edit** — once `TryTotals` is canonical, `Spend`'s commit loop keys `_amounts` the same way `GetAmount`/`SetAmount` always did, which is precisely the phantom-key bug closed.
+
+**Scope grew during implementation.** A consumer-map sweep of every `TryTotals` caller and resource-id-keyed store found the fix incomplete as first scoped: the two parallel **cargo ports** — `GridHaulerComponent` (`CanAccept`/`AcceptsResourceType`/`Stored`/`Load`/`Unload`/`RestoreState`) and `GridExtractorComponent`'s buffer (`CanAccept`/`Load`/`Unload`/`Stored`/`RestoreState`) — still compared ids with `Trim()`/`OrdinalIgnoreCase`/raw `==`, so a hauler with a canonically-authored `AllowedResourceIds` would mismatch a spaced haul id that storage accepted. Leaving them would be rule 3's "managed duplication," so both were moved onto `GridIds.Normalize` in the same change (their cargo-id fields normalise on set, so old saves migrate on load). The HUD bar, production, resource node, subsurface store and city economy were verified already-canonical or not resource-id-keyed, so no further sites.
+
+Guarded by `tests/ResourceWalletKeySmoke.cs` (+ `resource_wallet_key_probe.gd`/`.ps1`, gate-registered), a standalone smoke — it drives the real components with `"Iron Ore"`/`"iron_ore"`/`"iron-ore"` and asserts one shared bucket, a real debit (`GetAmount == 90`, one `"iron_ore"` key), a clean save round-trip, and non-canonical accept lists on storage and the hauler. Mutation-proven on four branches: revert `TryTotals` → wallet `GetAmount == 100` (phantom key); storage `Load` raw → `CanProvide` false; hauler `AcceptsResourceType` `OrdinalIgnoreCase` → dash accept-list rejects a canonical query; extractor `Load` raw → `Stored` reads 0. Build clean (0 warnings); `grid_terrain_subsurface`, `grid_worker_build_effects` and `grid_resource_catalog_ports` probes green (no regression).
 
 ## Finding
 

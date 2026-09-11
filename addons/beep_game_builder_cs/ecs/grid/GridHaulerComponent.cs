@@ -268,7 +268,7 @@ namespace Beep.ECS
             if (AllowedResourceIds.Count == 0 && AllowedResourceTags.Count == 0)
                 return true;
 
-            return AcceptsResourceType(resourceId.Trim());
+            return AcceptsResourceType(GridIds.Normalize(resourceId));
         }
 
         /// <summary>
@@ -279,12 +279,15 @@ namespace Beep.ECS
         /// is wired - whether the catalog's definition for the id carries any
         /// of AllowedResourceTags. Override to replace the rule entirely
         /// (category-based, a per-project scheme) without touching Load/Unload.
+        /// The <paramref name="resourceId"/> arrives already canonicalised through
+        /// GridIds.Normalize (DUP-14), matching the storage twin; an override that
+        /// compares against author strings must normalise its own side too.
         /// </summary>
         protected virtual bool AcceptsResourceType(string resourceId)
         {
             foreach (string allowed in AllowedResourceIds)
             {
-                if (string.Equals(allowed?.Trim(), resourceId, StringComparison.OrdinalIgnoreCase))
+                if (GridIds.Normalize(allowed) == resourceId)
                     return true;
             }
 
@@ -303,7 +306,7 @@ namespace Beep.ECS
 
         /// <summary>Units of the given resource in the hold.</summary>
         public int Stored(string resourceId)
-            => _cargoId.Length > 0 && _cargoId == resourceId ? _cargoAmount : 0;
+            => _cargoId.Length > 0 && _cargoId == GridIds.Normalize(resourceId) ? _cargoAmount : 0;
 
         public Godot.Collections.Array<string> StoredIds()
         {
@@ -332,7 +335,8 @@ namespace Beep.ECS
             ResolveReferences();
             string id = GridVariantReader.String(state, "cargo_id", "");
             int amount = Mathf.Max(0, GridVariantReader.Int(state, "cargo_amount", 0));
-            _cargoId = amount > 0 ? id : "";
+            // Normalise on load so an older save's space-kept cargo id migrates to canonical (DUP-14).
+            _cargoId = amount > 0 ? GridIds.Normalize(id) : "";
             _cargoAmount = _cargoId.Length > 0 ? amount : 0;
 
             // Restoration is state-only. Delivery resumes on a later simulation
@@ -382,7 +386,10 @@ namespace Beep.ECS
         {
             if (amount <= 0 || string.IsNullOrWhiteSpace(resourceId) || !CanAccept(resourceId))
                 return 0;
-            if (_cargoId.Length > 0 && _cargoId != resourceId)
+            // Canonical cargo id (DUP-14): the hold keys its one resource the same way the wallet and
+            // storage do, so a "Iron Ore" haul and an "iron_ore" query are the same cargo.
+            string id = GridIds.Normalize(resourceId);
+            if (_cargoId.Length > 0 && _cargoId != id)
                 return 0;
 
             int space = Mathf.Max(0, Capacity - _cargoAmount);
@@ -390,7 +397,7 @@ namespace Beep.ECS
             if (taken <= 0)
                 return 0;
 
-            _cargoId = resourceId;
+            _cargoId = id;
             _cargoAmount += taken;
             RefreshChunkPins();
             return taken;
@@ -399,7 +406,7 @@ namespace Beep.ECS
         /// <summary>Releases cargo from the hold - the giving half of a hand-off.</summary>
         public int Unload(string resourceId, int amount)
         {
-            if (amount <= 0 || _cargoId.Length == 0 || _cargoId != resourceId)
+            if (amount <= 0 || _cargoId.Length == 0 || _cargoId != GridIds.Normalize(resourceId))
                 return 0;
 
             int released = Mathf.Min(amount, _cargoAmount);

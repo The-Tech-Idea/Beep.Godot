@@ -33,7 +33,15 @@ The remaining tables fold in one step at a time, each verified against the basel
 
 Folding any of this would invert the producer→registry relationship and pull generation thresholds into the kind registry. It is rule 3's genuine-different-purpose exception, with evidence. There IS a separate latent duplication — the preset→kind map spread across `PlainGround`/`ThemedKind`/`EarlyKind`, where adding a new `TerrainPreset` means editing several branches — but resolving THAT is a **preset** registry, a different feature outside DUP-13's terrain-KIND scope; flagged for Fahad as a possible separate effort, not folded here. **Implication for the no-literals pin:** it must ban re-CLASSIFICATION literals (re-deriving a kind's properties), NOT the assignment stage's outputs — `TerrainBiomeStage` is where kinds are legitimately named, and every generator must name kinds somewhere.
 
-Suggested remaining order; **done: Startable, coherence+scale material flags, Rainfall, Level, Class, BlockedByDefault, PropPalette, MaterialSlot, FeatureEligibility**. **Decided (not folded): IsoFrame** (per-scene `[Export]` frames — Fahad's call, see its row); **the biome-preset stage** (assignment source, not a per-kind table — see above). Remaining: delete the literals + add the no-literals pin (exempting the assignment stage) → game-assignable catalog through settings/recipe. View-only migrations (Level, MaterialSlot, PropPalette) extend `terrain_kind_catalog_probe`; generation migrations extend the baseline.
+**The per-kind classification fold is COMPLETE (2026-09-11).** Every table that CLASSIFIES a kind (answers a question about it) now reads the catalog: **done — Startable, coherence flags (Absorbable/AbsorbTarget/PeakMaterial), scale flags (PeakKinds/NotLakeBed), Rainfall, Level, Class, BlockedByDefault, PropPalette, MaterialSlot, FeatureEligibility.** Every table that is NOT a per-kind classification is decided to stay, each with triage recorded here:
+- **IsoFrame** — per-scene `[Export]` frames (authoring surface); Fahad's call, kept.
+- **The biome-preset stage** (`TerrainBiomeStage`) — the assignment SOURCE, keyed on preset/climate, not a per-kind table.
+- **`ResourceCatalogs` terrain lists** — per-RESOURCE data owned by `ResourceCatalog` (a peer registry); kind strings are references.
+- **`TerrainMapArt` / `TerrainMaterialTiling`** — authored presentation Resources (`[Export]` overrides), like IsoFrame.
+
+So the kind literals that remain outside the catalog are all legitimate: assignment (`TerrainBiomeStage`), references/values (`ResourceCatalog` terrain lists, authoring Resources), the aliases each migration deliberately kept (water/sea/ocean, grassland/plains/beach/dirt/soil/stone), and `Standard` itself.
+
+Remaining (both close-out work, neither a classification fold): (1) **the no-literals pin** — a scan guard against a NEW re-classification table; it must ban re-DERIVING a kind's properties from a literal, while EXEMPTING assignment, references, aliases and the catalog (careful design; mind the scan dead-zone). (2) **game-assignable catalog** — thread a catalog reference through `TerrainGenerationSettings`/`TerrainRecipe` so a game overrides `Standard`; this is the L-effort part and needs coordination with the terrain session (per Dependencies below). View-only migrations (Level, MaterialSlot, PropPalette) extend `terrain_kind_catalog_probe`; generation migrations extend the baseline.
 
 ## Finding
 
@@ -53,8 +61,8 @@ A terrain kind is a string literal, and what it *means* is spelled out in at lea
 | isometric frame table | `TerrainIsometricRendererComponent` | kind → block frame |
 | `SeededTerrainPropScatterComponent.PaletteKeyFor` | 312-320 | kind → prop palette |
 | `GridTerrainRules.DefaultBlockedTerrainKinds` | grid | kind → blocked by default |
-| `ResourceCatalogs` terrain lists | 119-220 | which kinds host which resources |
-| `TerrainMapArt` slots / `TerrainMaterialTiling` | 465, 496-504 | kind → texture slot |
+| `ResourceCatalogs` terrain lists | 119-220 | which kinds host which resources — **stays: per-RESOURCE data owned by `ResourceCatalog` (a peer registry); kind strings are references, not classifications** |
+| `TerrainMapArt` slots / `TerrainMaterialTiling` | now separate files | kind → texture slot — **stays: authored presentation Resources (`[Export]` overrides), like IsoFrame; the slot list is a painted-shader uniform contract, not a classification** |
 
 Phase 1.10 of the master tracker is the proof of cost: adding `"lava"` required touching `Kinds`, the painted id map, the isometric frame table, `GroundOf` and `Describe` — and it was found because a lava field painted as grass. Any new kind (`"tundra_wet"`, `"volcanic_ash"`, a game's `"asphalt"`) repeats that hunt, and a game cannot add a kind without editing the addon.
 

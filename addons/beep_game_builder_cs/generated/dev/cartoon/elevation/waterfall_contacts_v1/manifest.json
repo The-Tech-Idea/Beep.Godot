@@ -1,0 +1,214 @@
+{
+  "status": "calibration_candidate",
+  "source": "sources/contacts_source_v1.png",
+  "sourceSha256": "33e524e19f89dbb2abd54abd95539c374367e03e2af5d4122e2bee920e4a439c",
+  "pieces": [
+    {
+      "id": "left_wall_contact",
+      "runtimeBounds": [
+        32,
+        96
+      ],
+      "pivot": [
+        24,
+        16
+      ],
+      "waterSide": "right",
+      "protectedWaterHalfPlane": "x>24",
+      "risePixels": 64,
+      "sourceCrop": [
+        128,
+        45,
+        256,
+        807
+      ],
+      "sourceAnchor": [
+        384,
+        95
+      ],
+      "uniformScale": 0.0845442536327609,
+      "unroundedOrigin": [
+        2.35667107001321,
+        11.772787318361955
+      ],
+      "runtime": "runtime/left_wall_contact.png",
+      "edgeFilterPixelsClipped": 137,
+      "visiblePixels": 1412,
+      "approvalEvidence": null
+    },
+    {
+      "id": "right_wall_contact",
+      "runtimeBounds": [
+        32,
+        96
+      ],
+      "pivot": [
+        8,
+        16
+      ],
+      "waterSide": "left",
+      "protectedWaterHalfPlane": "x<8",
+      "risePixels": 64,
+      "sourceCrop": [
+        641,
+        43,
+        256,
+        811
+      ],
+      "sourceAnchor": [
+        641,
+        100
+      ],
+      "uniformScale": 0.08488063660477453,
+      "unroundedOrigin": [
+        8,
+        11.161803713527853
+      ],
+      "runtime": "runtime/right_wall_contact.png",
+      "edgeFilterPixelsClipped": 138,
+      "visiblePixels": 1393,
+      "approvalEvidence": null
+    },
+    {
+      "id": "left_lip_contact",
+      "runtimeBounds": [
+        32,
+        24
+      ],
+      "pivot": [
+        24,
+        16
+      ],
+      "waterSide": "right",
+      "protectedWaterHalfPlane": "x>24",
+      "risePixels": 0,
+      "sourceCrop": [
+        50,
+        935,
+        395,
+        176
+      ],
+      "sourceAnchor": [
+        445,
+        1000
+      ],
+      "uniformScale": 0.060759493670886074,
+      "unroundedOrigin": [
+        0,
+        12.050632911392405
+      ],
+      "runtime": "runtime/left_lip_contact.png",
+      "edgeFilterPixelsClipped": 21,
+      "visiblePixels": 272,
+      "approvalEvidence": null
+    },
+    {
+      "id": "right_lip_contact",
+      "runtimeBounds": [
+        32,
+        24
+      ],
+      "pivot": [
+        8,
+        16
+      ],
+      "waterSide": "left",
+      "protectedWaterHalfPlane": "x<8",
+      "risePixels": 0,
+      "sourceCrop": [
+        580,
+        935,
+        396,
+        176
+      ],
+      "sourceAnchor": [
+        580,
+        1000
+      ],
+      "uniformScale": 0.06060606060606061,
+      "unroundedOrigin": [
+        8,
+        12.06060606060606
+      ],
+      "runtime": "runtime/right_lip_contact.png",
+      "edgeFilterPixelsClipped": 21,
+      "visiblePixels": 269,
+      "approvalEvidence": null
+    },
+    {
+      "id": "left_bottom_contact",
+      "runtimeBounds": [
+        32,
+        24
+      ],
+      "pivot": [
+        24,
+        8
+      ],
+      "waterSide": "right",
+      "protectedWaterHalfPlane": "x>24",
+      "risePixels": 0,
+      "sourceCrop": [
+        19,
+        1199,
+        459,
+        259
+      ],
+      "sourceAnchor": [
+        478,
+        1330
+      ],
+      "uniformScale": 0.05228758169934641,
+      "unroundedOrigin": [
+        0,
+        1.1503267973856204
+      ],
+      "runtime": "runtime/left_bottom_contact.png",
+      "edgeFilterPixelsClipped": 15,
+      "visiblePixels": 316,
+      "approvalEvidence": null
+    },
+    {
+      "id": "right_bottom_contact",
+      "runtimeBounds": [
+        32,
+        24
+      ],
+      "pivot": [
+        8,
+        8
+      ],
+      "waterSide": "left",
+      "protectedWaterHalfPlane": "x<8",
+      "risePixels": 0,
+      "sourceCrop": [
+        547,
+        1232,
+        459,
+        225
+      ],
+      "sourceAnchor": [
+        547,
+        1320
+      ],
+      "uniformScale": 0.05228758169934641,
+      "unroundedOrigin": [
+        8,
+        3.398692810457516
+      ],
+      "runtime": "runtime/right_bottom_contact.png",
+      "edgeFilterPixelsClipped": 12,
+      "visiblePixels": 298,
+      "approvalEvidence": null
+    }
+  ],
+  "productionReady": false,
+  "approvalEvidence": null,
+  "pending": [
+    "source_anchor_review",
+    "alpha_edge_visual_review",
+    "Godot_contact_integration",
+    "isometric_artwork",
+    "visual_approval"
+  ]
+}

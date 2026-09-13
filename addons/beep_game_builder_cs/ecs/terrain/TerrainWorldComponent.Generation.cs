@@ -35,6 +35,7 @@ public partial class TerrainWorldComponent
     /// <summary>Starts a replacement build without modifying the current field or live cells.</summary>
     public bool BeginNewWorld()
     {
+        if (HasPendingTerrainEdits()) return false;
         if (Engine.IsEditorHint() || !IsInsideTree() || IsGenerating) return false;
         Resolve();
         if (_generator is null) return false;

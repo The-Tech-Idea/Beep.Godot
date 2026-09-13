@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TerrainLibraryPack" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLibraryPack.cs" id="1"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/godot/grass_to_dirt.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+PackId = "cartoon.front.grass_dirt.candidate"
+Version = "0.1.0"
+Tiles = ExtResource("2")
+TerrainBindings = Dictionary[String, int]({"grass": 0, "dirt": -1})
+BackgroundSource = 0
+BackgroundAtlas = Vector2i(7, 5)

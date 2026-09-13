@@ -1,0 +1,144 @@
+{
+  "approvalEvidence": null,
+  "depthBlendPixels": [
+    0.5,
+    8.0
+  ],
+  "frames": 16,
+  "openingWidthCells": 1,
+  "patternsPerProjection": 8,
+  "pending": [
+    "visual_approval",
+    "wide_contacts",
+    "sand_rock_banks",
+    "sea_depth_contacts",
+    "large_map_cost",
+    "production_integration"
+  ],
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "atlas": [
+        0.0,
+        0.0
+      ],
+      "id": "north_inlet",
+      "incoming": "north_south",
+      "mask": 111.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        0.0
+      ],
+      "id": "north_outlet",
+      "incoming": "north_south",
+      "mask": 111.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        0.0
+      ],
+      "id": "east_inlet",
+      "incoming": "east_west",
+      "mask": 207.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        3.0,
+        0.0
+      ],
+      "id": "east_outlet",
+      "incoming": "east_west",
+      "mask": 207.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        4.0,
+        0.0
+      ],
+      "id": "south_inlet",
+      "incoming": "south_north",
+      "mask": 159.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        5.0,
+        0.0
+      ],
+      "id": "south_outlet",
+      "incoming": "south_north",
+      "mask": 159.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        6.0,
+        0.0
+      ],
+      "id": "west_inlet",
+      "incoming": "west_east",
+      "mask": 63.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        7.0,
+        0.0
+      ],
+      "id": "west_outlet",
+      "incoming": "west_east",
+      "mask": 63.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "role": "outlet"
+    }
+  ],
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "scenes": [
+    "square/north_inlet.tscn",
+    "square/north_outlet.tscn",
+    "square/east_inlet.tscn",
+    "square/east_outlet.tscn",
+    "square/south_inlet.tscn",
+    "square/south_outlet.tscn",
+    "square/west_inlet.tscn",
+    "square/west_outlet.tscn",
+    "isometric/north_inlet.tscn",
+    "isometric/north_outlet.tscn",
+    "isometric/east_inlet.tscn",
+    "isometric/east_outlet.tscn",
+    "isometric/south_inlet.tscn",
+    "isometric/south_outlet.tscn",
+    "isometric/west_inlet.tscn",
+    "isometric/west_outlet.tscn"
+  ],
+  "schemaVersion": 1,
+  "sourceManifest": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_lake_connectors_v1/manifest.json",
+  "sourceManifestSha256": "ed280b9110434c52c8861465cd8c36dae8e438934340260d4f1537fcb629ae9b",
+  "status": "technical_candidate",
+  "style": "cartoon"
+}

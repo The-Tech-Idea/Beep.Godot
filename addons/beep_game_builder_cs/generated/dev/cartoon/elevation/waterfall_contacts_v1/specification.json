@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "status": "source_candidate",
+  "source": "sources/contacts_source_v1.png",
+  "sourceSha256": "33e524e19f89dbb2abd54abd95539c374367e03e2af5d4122e2bee920e4a439c",
+  "style": "cartoon",
+  "projection": "square",
+  "material": "grass_granite",
+  "sourceBackground": "#00ff00",
+  "sourceReference": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/sources/front_wall_source.png",
+  "runtimeGrid": [64,64],
+  "masterScale": 2,
+  "risePixels": 64,
+  "pieceContracts": [
+    {"id":"left_wall_contact","runtimeBounds":[32,96],"pivot":[24,16],"waterSide":"right","protectedWaterHalfPlane":"x>24","risePixels":64},
+    {"id":"right_wall_contact","runtimeBounds":[32,96],"pivot":[8,16],"waterSide":"left","protectedWaterHalfPlane":"x<8","risePixels":64},
+    {"id":"left_lip_contact","runtimeBounds":[32,24],"pivot":[24,16],"waterSide":"right","protectedWaterHalfPlane":"x>24","risePixels":0},
+    {"id":"right_lip_contact","runtimeBounds":[32,24],"pivot":[8,16],"waterSide":"left","protectedWaterHalfPlane":"x<8","risePixels":0},
+    {"id":"left_bottom_contact","runtimeBounds":[32,24],"pivot":[24,8],"waterSide":"right","protectedWaterHalfPlane":"x>24","risePixels":0},
+    {"id":"right_bottom_contact","runtimeBounds":[32,24],"pivot":[8,8],"waterSide":"left","protectedWaterHalfPlane":"x<8","risePixels":0}
+  ],
+  "placement": "manual_overlay_on_land_side_of_existing_water_boundary",
+  "animation": "static_terrain_only",
+  "navigationChanges": false,
+  "approvalEvidence": null,
+  "pending": ["source_review","crop_and_scale_calibration","alpha_extraction","protected_water_boundary_validation","Godot_overlay_integration","isometric_separate_artwork","visual_approval"]
+}

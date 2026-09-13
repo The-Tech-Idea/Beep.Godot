@@ -170,8 +170,9 @@ namespace Beep.ECS
                     continue;
 
                 objectives.Add(objective);
-                if (objectives.Count >= MaxVisibleObjectives)
-                    break;
+                // No early break here: this list is the full filtered goal set the summary counts.
+                // The rows actually drawn are capped by UpdateRows' maxVisible argument, so
+                // truncating here only corrupted the "Goals N" total.
             }
 
             return objectives;

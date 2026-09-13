@@ -1,0 +1,47 @@
+{
+  "approvalEvidence": null,
+  "pending": [
+    "visual_contact_review",
+    "route_integration",
+    "isometric_artwork"
+  ],
+  "resources": [
+    {
+      "id": "left_wall_contact",
+      "saveReopen": true,
+      "scene": "godot/left_wall_contact.tscn",
+      "texture": "godot/left_wall_contact.res"
+    },
+    {
+      "id": "right_wall_contact",
+      "saveReopen": true,
+      "scene": "godot/right_wall_contact.tscn",
+      "texture": "godot/right_wall_contact.res"
+    },
+    {
+      "id": "left_lip_contact",
+      "saveReopen": true,
+      "scene": "godot/left_lip_contact.tscn",
+      "texture": "godot/left_lip_contact.res"
+    },
+    {
+      "id": "right_lip_contact",
+      "saveReopen": true,
+      "scene": "godot/right_lip_contact.tscn",
+      "texture": "godot/right_lip_contact.res"
+    },
+    {
+      "id": "left_bottom_contact",
+      "saveReopen": true,
+      "scene": "godot/left_bottom_contact.tscn",
+      "texture": "godot/left_bottom_contact.res"
+    },
+    {
+      "id": "right_bottom_contact",
+      "saveReopen": true,
+      "scene": "godot/right_bottom_contact.tscn",
+      "texture": "godot/right_bottom_contact.res"
+    }
+  ],
+  "status": "calibration_candidate"
+}

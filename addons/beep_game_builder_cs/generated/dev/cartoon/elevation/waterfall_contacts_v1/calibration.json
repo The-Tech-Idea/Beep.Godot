@@ -1,0 +1,16 @@
+{
+  "schemaVersion":1,
+  "sourceSize":[1024,1536],
+  "status":"calibration_candidate",
+  "coordinateRule":"source anchor maps to runtime pivot; uniform scale only",
+  "pieces":[
+    {"id":"left_wall_contact","crop":[128,45,256,807],"sourceAnchor":[384,95],"sourceBaseY":852},
+    {"id":"right_wall_contact","crop":[641,43,256,811],"sourceAnchor":[641,100],"sourceBaseY":854},
+    {"id":"left_lip_contact","crop":[50,935,395,176],"sourceAnchor":[445,1000],"landWidthPixels":24},
+    {"id":"right_lip_contact","crop":[580,935,396,176],"sourceAnchor":[580,1000],"landWidthPixels":24},
+    {"id":"left_bottom_contact","crop":[19,1199,459,259],"sourceAnchor":[478,1330],"landWidthPixels":24},
+    {"id":"right_bottom_contact","crop":[547,1232,459,225],"sourceAnchor":[547,1320],"landWidthPixels":24}
+  ],
+  "approvalEvidence":null,
+  "pending":["source_anchor_visual_review","in_scene_contact_review"]
+}

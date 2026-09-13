@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.water.v1",
+  "style": "cartoon",
+  "pack": "water",
+  "status": "partial_candidate_awaiting_visual_review",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": ["staging/manifest.json"],
+  "approval": null
+}

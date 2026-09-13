@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.ground.v1",
+  "style": "pixel",
+  "pack": "ground",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

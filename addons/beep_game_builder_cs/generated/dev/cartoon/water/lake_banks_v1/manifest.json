@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "role": "lake",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "motion": "Stationary base with staggered local ripples; no bulk current or surf.",
+  "surface": "lake_surface_frames.png",
+  "bankMaterial": "grass",
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "requirements": [
+    "47 binary bank configurations per projection",
+    "Native animated TileSets",
+    "Static grass and bank pixels"
+  ],
+  "godotScenes": [
+    "square/lake_review.tscn",
+    "isometric/lake_review.tscn"
+  ],
+  "godotTileSets": [
+    "square/grass_lake.tres",
+    "isometric/grass_lake.tres"
+  ],
+  "approvalEvidence": null,
+  "pending": [
+    "Visual animation approval",
+    "River inlets/outlets",
+    "Sand and rock banks",
+    "Depth transitions",
+    "Nested islands and mixed-width showcase"
+  ]
+}

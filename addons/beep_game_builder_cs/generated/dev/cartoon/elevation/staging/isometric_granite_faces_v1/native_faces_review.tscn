@@ -1,0 +1,73 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader" id="1_6emns"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/plateau_mask.res" id="2_fq365"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="3_iu5jj"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/corner.tres" id="4_1xikr"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="5_nxb2j"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_mask_surface_cartoon.gdshader" id="6_byc1v"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/dirt_256.res" id="7_odubj"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/isometric/surface_candidate_v1/grass_dirt_masks.tres" id="8_2xvha"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/face_tiles.tres" id="9_o457n"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_66eqy"]
+shader = ExtResource("1_6emns")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_iu5jj")
+shader_parameter/surface_mask = ExtResource("2_fq365")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nrqx1"]
+shader = ExtResource("6_byc1v")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_iu5jj")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("7_odubj")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[node name="NativeGraniteFaceReview" type="Node2D" unique_id=250244186]
+metadata/production_ready = false
+metadata/rise_pixels = 64
+metadata/dimensions_cells = Vector2i(4, 4)
+metadata/missing_artwork = "Corner and bottom contact refinement; outer end repeat not validated"
+
+[node name="CliffWalls" type="TileMapLayer" parent="." unique_id=2070149576]
+y_sort_enabled = true
+texture_filter = 1
+material = SubResource("ShaderMaterial_66eqy")
+tile_map_data = PackedByteArray("AAAAAAAA//////////8=")
+tile_set = ExtResource("4_1xikr")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=832999033]
+position = Vector2(0, -64)
+script = ExtResource("5_nxb2j")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../CliffWalls"), NodePath("../PlateauSurface")])
+
+[node name="PlateauSurface" type="TileMapLayer" parent="." unique_id=592631229]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_nrqx1")
+position = Vector2(0, -64)
+tile_map_data = PackedByteArray("AAAAAAAAAAAGAAUAAAABAAAAAAAGAAUAAAACAAAAAAAGAAUAAAADAAAAAAAGAAUAAAAAAAEAAAAGAAUAAAABAAEAAAAGAAUAAAACAAEAAAAGAAUAAAADAAEAAAAGAAUAAAAAAAIAAAAGAAUAAAABAAIAAAAGAAUAAAACAAIAAAAGAAUAAAADAAIAAAAGAAUAAAAAAAMAAAAGAAUAAAABAAMAAAAGAAUAAAACAAMAAAAGAAUAAAADAAMAAAAGAAUAAAA=")
+tile_set = ExtResource("8_2xvha")
+
+[node name="LightFace" type="TileMapLayer" parent="." unique_id=88498224]
+y_sort_enabled = true
+texture_filter = 1
+tile_map_data = PackedByteArray("AAAAAAMAAAAAAAAAAAABAAMAAQAAAAAAAAACAAMAAgAAAAAAAAADAAMAAwAAAAAAAAA=")
+tile_set = ExtResource("9_o457n")
+
+[node name="ShadeFace" type="TileMapLayer" parent="." unique_id=22972448]
+y_sort_enabled = true
+texture_filter = 1
+tile_map_data = PackedByteArray("AAADAAAABwAAAAAAAAADAAEABgAAAAAAAAADAAIABQAAAAAAAAADAAMABAAAAAAAAAA=")
+tile_set = ExtResource("9_o457n")

@@ -1,0 +1,618 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "id": "east_south+east_west",
+      "inflows": [
+        "east"
+      ],
+      "outflows": [
+        "south",
+        "west"
+      ],
+      "routes": [
+        "east_south",
+        "east_west"
+      ],
+      "atlas": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "south_east+west_east",
+      "inflows": [
+        "south",
+        "west"
+      ],
+      "outflows": [
+        "east"
+      ],
+      "routes": [
+        "south_east",
+        "west_east"
+      ],
+      "atlas": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "south_east+south_west",
+      "inflows": [
+        "south"
+      ],
+      "outflows": [
+        "east",
+        "west"
+      ],
+      "routes": [
+        "south_east",
+        "south_west"
+      ],
+      "atlas": [
+        2,
+        0
+      ]
+    },
+    {
+      "id": "east_south+west_south",
+      "inflows": [
+        "east",
+        "west"
+      ],
+      "outflows": [
+        "south"
+      ],
+      "routes": [
+        "east_south",
+        "west_south"
+      ],
+      "atlas": [
+        3,
+        0
+      ]
+    },
+    {
+      "id": "west_east+west_south",
+      "inflows": [
+        "west"
+      ],
+      "outflows": [
+        "east",
+        "south"
+      ],
+      "routes": [
+        "west_east",
+        "west_south"
+      ],
+      "atlas": [
+        4,
+        0
+      ]
+    },
+    {
+      "id": "east_west+south_west",
+      "inflows": [
+        "east",
+        "south"
+      ],
+      "outflows": [
+        "west"
+      ],
+      "routes": [
+        "east_west",
+        "south_west"
+      ],
+      "atlas": [
+        5,
+        0
+      ]
+    },
+    {
+      "id": "north_south+north_west",
+      "inflows": [
+        "north"
+      ],
+      "outflows": [
+        "south",
+        "west"
+      ],
+      "routes": [
+        "north_south",
+        "north_west"
+      ],
+      "atlas": [
+        6,
+        0
+      ]
+    },
+    {
+      "id": "south_north+west_north",
+      "inflows": [
+        "south",
+        "west"
+      ],
+      "outflows": [
+        "north"
+      ],
+      "routes": [
+        "south_north",
+        "west_north"
+      ],
+      "atlas": [
+        7,
+        0
+      ]
+    },
+    {
+      "id": "south_north+south_west",
+      "inflows": [
+        "south"
+      ],
+      "outflows": [
+        "north",
+        "west"
+      ],
+      "routes": [
+        "south_north",
+        "south_west"
+      ],
+      "atlas": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "north_south+west_south",
+      "inflows": [
+        "north",
+        "west"
+      ],
+      "outflows": [
+        "south"
+      ],
+      "routes": [
+        "north_south",
+        "west_south"
+      ],
+      "atlas": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "west_north+west_south",
+      "inflows": [
+        "west"
+      ],
+      "outflows": [
+        "north",
+        "south"
+      ],
+      "routes": [
+        "west_north",
+        "west_south"
+      ],
+      "atlas": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "north_west+south_west",
+      "inflows": [
+        "north",
+        "south"
+      ],
+      "outflows": [
+        "west"
+      ],
+      "routes": [
+        "north_west",
+        "south_west"
+      ],
+      "atlas": [
+        3,
+        1
+      ]
+    },
+    {
+      "id": "north_east+north_west",
+      "inflows": [
+        "north"
+      ],
+      "outflows": [
+        "east",
+        "west"
+      ],
+      "routes": [
+        "north_east",
+        "north_west"
+      ],
+      "atlas": [
+        4,
+        1
+      ]
+    },
+    {
+      "id": "east_north+west_north",
+      "inflows": [
+        "east",
+        "west"
+      ],
+      "outflows": [
+        "north"
+      ],
+      "routes": [
+        "east_north",
+        "west_north"
+      ],
+      "atlas": [
+        5,
+        1
+      ]
+    },
+    {
+      "id": "east_north+east_west",
+      "inflows": [
+        "east"
+      ],
+      "outflows": [
+        "north",
+        "west"
+      ],
+      "routes": [
+        "east_north",
+        "east_west"
+      ],
+      "atlas": [
+        6,
+        1
+      ]
+    },
+    {
+      "id": "north_east+west_east",
+      "inflows": [
+        "north",
+        "west"
+      ],
+      "outflows": [
+        "east"
+      ],
+      "routes": [
+        "north_east",
+        "west_east"
+      ],
+      "atlas": [
+        7,
+        1
+      ]
+    },
+    {
+      "id": "west_north+west_east",
+      "inflows": [
+        "west"
+      ],
+      "outflows": [
+        "north",
+        "east"
+      ],
+      "routes": [
+        "west_north",
+        "west_east"
+      ],
+      "atlas": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "north_west+east_west",
+      "inflows": [
+        "north",
+        "east"
+      ],
+      "outflows": [
+        "west"
+      ],
+      "routes": [
+        "north_west",
+        "east_west"
+      ],
+      "atlas": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "north_east+north_south",
+      "inflows": [
+        "north"
+      ],
+      "outflows": [
+        "east",
+        "south"
+      ],
+      "routes": [
+        "north_east",
+        "north_south"
+      ],
+      "atlas": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "east_north+south_north",
+      "inflows": [
+        "east",
+        "south"
+      ],
+      "outflows": [
+        "north"
+      ],
+      "routes": [
+        "east_north",
+        "south_north"
+      ],
+      "atlas": [
+        3,
+        2
+      ]
+    },
+    {
+      "id": "east_north+east_south",
+      "inflows": [
+        "east"
+      ],
+      "outflows": [
+        "north",
+        "south"
+      ],
+      "routes": [
+        "east_north",
+        "east_south"
+      ],
+      "atlas": [
+        4,
+        2
+      ]
+    },
+    {
+      "id": "north_east+south_east",
+      "inflows": [
+        "north",
+        "south"
+      ],
+      "outflows": [
+        "east"
+      ],
+      "routes": [
+        "north_east",
+        "south_east"
+      ],
+      "atlas": [
+        5,
+        2
+      ]
+    },
+    {
+      "id": "south_north+south_east",
+      "inflows": [
+        "south"
+      ],
+      "outflows": [
+        "north",
+        "east"
+      ],
+      "routes": [
+        "south_north",
+        "south_east"
+      ],
+      "atlas": [
+        6,
+        2
+      ]
+    },
+    {
+      "id": "north_south+east_south",
+      "inflows": [
+        "north",
+        "east"
+      ],
+      "outflows": [
+        "south"
+      ],
+      "routes": [
+        "north_south",
+        "east_south"
+      ],
+      "atlas": [
+        7,
+        2
+      ]
+    },
+    {
+      "id": "north_east+north_south+north_west",
+      "inflows": [
+        "north"
+      ],
+      "outflows": [
+        "east",
+        "south",
+        "west"
+      ],
+      "routes": [
+        "north_east",
+        "north_south",
+        "north_west"
+      ],
+      "atlas": [
+        0,
+        3
+      ]
+    },
+    {
+      "id": "east_north+south_north+west_north",
+      "inflows": [
+        "east",
+        "south",
+        "west"
+      ],
+      "outflows": [
+        "north"
+      ],
+      "routes": [
+        "east_north",
+        "south_north",
+        "west_north"
+      ],
+      "atlas": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "east_north+east_south+east_west",
+      "inflows": [
+        "east"
+      ],
+      "outflows": [
+        "north",
+        "south",
+        "west"
+      ],
+      "routes": [
+        "east_north",
+        "east_south",
+        "east_west"
+      ],
+      "atlas": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": "north_east+south_east+west_east",
+      "inflows": [
+        "north",
+        "south",
+        "west"
+      ],
+      "outflows": [
+        "east"
+      ],
+      "routes": [
+        "north_east",
+        "south_east",
+        "west_east"
+      ],
+      "atlas": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "south_north+south_east+south_west",
+      "inflows": [
+        "south"
+      ],
+      "outflows": [
+        "north",
+        "east",
+        "west"
+      ],
+      "routes": [
+        "south_north",
+        "south_east",
+        "south_west"
+      ],
+      "atlas": [
+        4,
+        3
+      ]
+    },
+    {
+      "id": "north_south+east_south+west_south",
+      "inflows": [
+        "north",
+        "east",
+        "west"
+      ],
+      "outflows": [
+        "south"
+      ],
+      "routes": [
+        "north_south",
+        "east_south",
+        "west_south"
+      ],
+      "atlas": [
+        5,
+        3
+      ]
+    },
+    {
+      "id": "west_north+west_east+west_south",
+      "inflows": [
+        "west"
+      ],
+      "outflows": [
+        "north",
+        "east",
+        "south"
+      ],
+      "routes": [
+        "west_north",
+        "west_east",
+        "west_south"
+      ],
+      "atlas": [
+        6,
+        3
+      ]
+    },
+    {
+      "id": "north_west+east_west+south_west",
+      "inflows": [
+        "north",
+        "east",
+        "south"
+      ],
+      "outflows": [
+        "west"
+      ],
+      "routes": [
+        "north_west",
+        "east_west",
+        "south_west"
+      ],
+      "atlas": [
+        7,
+        3
+      ]
+    }
+  ],
+  "coverageScope": "Single-cell directed T branches/confluences and one-to-three/three-to-one crossings. No inferred flow or wide junction coverage.",
+  "godotScenes": [
+    "square/river_junctions_review.tscn",
+    "isometric/river_junctions_review.tscn"
+  ],
+  "godotTileSets": [
+    "square/river_junctions.tres",
+    "isometric/river_junctions.tres"
+  ],
+  "approvalEvidence": null,
+  "pending": [
+    "Rendered animation approval",
+    "Wide junctions",
+    "Explicit two-to-two route artwork",
+    "Waterfall/lake/sea connectors"
+  ]
+}

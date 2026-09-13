@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.ground.v1",
+  "style": "cartoon",
+  "pack": "ground",
+  "status": "partial_foundation_in_water_staging",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": ["../water/staging/manifest.json"],
+  "approval": null
+}

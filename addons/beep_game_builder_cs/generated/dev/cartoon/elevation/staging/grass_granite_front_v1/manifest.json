@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "style": "cartoon",
+  "projection": "square",
+  "material": "grass_granite",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/sources/front_wall_source.png",
+  "sourceSha256": "c08feed896a7745aa343ef5eea241e2b54913b2ced1882acd14291db9e2d738a",
+  "crop": {
+    "left": 55,
+    "top": 234,
+    "width": 1664,
+    "height": 416
+  },
+  "masterSize": [
+    640,
+    160
+  ],
+  "runtimeSize": [
+    320,
+    80
+  ],
+  "risePixels": 64,
+  "nominalRimY": 16,
+  "bottomY": 80,
+  "calibration": "Nominal rise is measured from the authored irregular rim around y=16 to the contact baseline y=80; plateau footprint is separate.",
+  "regions": [
+    {
+      "id": "front_0",
+      "region": [
+        0,
+        0,
+        64,
+        80
+      ]
+    },
+    {
+      "id": "front_1",
+      "region": [
+        64,
+        0,
+        64,
+        80
+      ]
+    },
+    {
+      "id": "front_2",
+      "region": [
+        128,
+        0,
+        64,
+        80
+      ]
+    },
+    {
+      "id": "front_3",
+      "region": [
+        192,
+        0,
+        64,
+        80
+      ]
+    },
+    {
+      "id": "front_4",
+      "region": [
+        256,
+        0,
+        64,
+        80
+      ]
+    }
+  ],
+  "validAdjacency": "Only original consecutive regions 0->1->2->3->4 are source-continuous. End-to-start and arbitrary alternatives are unvalidated.",
+  "runtime": "runtime/front_wall_320.png",
+  "godotResource": "runtime/front_wall.tres",
+  "approvalEvidence": null,
+  "surfaceMask": "runtime/grass_surface_mask.png",
+  "surfaceShader": "addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader",
+  "surfaceMaskRule": "Top artificial cut plus green plateau pixels above row 24; painted rock and soil remain unmasked.",
+  "reviewScene": "river_waterfall_review.tscn",
+  "bottomContact": "../grass_granite_contact_v1/manifest.json",
+  "pending": [
+    "Visual approval including bottom contact",
+    "Outer repeat seam",
+    "Corners and outward side faces",
+    "Height extensions",
+    "Isometric counterpart"
+  ],
+  "productionReady": false
+}

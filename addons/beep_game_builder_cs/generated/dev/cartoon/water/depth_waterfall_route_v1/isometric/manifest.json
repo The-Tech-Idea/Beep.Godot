@@ -1,0 +1,30 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "depthPainting": true,
+      "nativeLakeCells": 26,
+      "scene": "north_south.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/north_south.tscn",
+      "sourceSha256": "7b5c9b12c3eb4701dfc0b85443fdc3187658d6ac692092e5403d5eeb576e9864"
+    },
+    {
+      "depthPainting": true,
+      "nativeLakeCells": 26,
+      "scene": "west_east.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/west_east.tscn",
+      "sourceSha256": "169ff7546b468d77c150fef20b306a84360831daedbf03d6be30d901ca3c542b"
+    }
+  ],
+  "pending": [
+    "visual_review",
+    "wide_routes",
+    "natural_cliff_contacts",
+    "other_banks",
+    "production_integration"
+  ],
+  "projection": "isometric",
+  "status": "candidate",
+  "validationProbe": "tests/terrain_isometric_depth_route_probe.gd",
+  "visualRisePixels": 64
+}

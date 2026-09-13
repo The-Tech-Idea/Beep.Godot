@@ -1,0 +1,23 @@
+{
+  "stats": {
+    "frameCount": 16,
+    "width": 384,
+    "height": 320,
+    "changedWater": 10459,
+    "changedStatic": 0,
+    "originalStaticChanges": 0,
+    "loopDifference": 0,
+    "regionChanges": {
+      "top": 651,
+      "curtain": 5816,
+      "splash": 3466,
+      "pool": 1344
+    },
+    "maskPixels": 31734
+  },
+  "initial": "Frame 3 / 16",
+  "after": "Frame 5 / 16",
+  "overflow": false,
+  "errors": [],
+  "verified": "Browser playback, water pixel changes, unchanged non-mask pixels, mobile layout, PNG export"
+}

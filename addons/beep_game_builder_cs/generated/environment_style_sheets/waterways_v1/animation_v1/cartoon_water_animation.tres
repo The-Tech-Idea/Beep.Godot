@@ -1,0 +1,70 @@
+[gd_resource type="SpriteFrames" load_steps=14 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/environment_style_sheets/waterways_v1/animation_v1/cartoon_water_animation.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="river_flow_0"]
+atlas = ExtResource("1")
+region = Rect2(64, 52, 278, 278)
+
+[sub_resource type="AtlasTexture" id="river_flow_1"]
+atlas = ExtResource("1")
+region = Rect2(440, 52, 278, 278)
+
+[sub_resource type="AtlasTexture" id="river_flow_2"]
+atlas = ExtResource("1")
+region = Rect2(816, 52, 278, 278)
+
+[sub_resource type="AtlasTexture" id="river_flow_3"]
+atlas = ExtResource("1")
+region = Rect2(1192, 52, 278, 278)
+
+[sub_resource type="AtlasTexture" id="waterfall_flow_0"]
+atlas = ExtResource("1")
+region = Rect2(24, 380, 360, 320)
+
+[sub_resource type="AtlasTexture" id="waterfall_flow_1"]
+atlas = ExtResource("1")
+region = Rect2(400, 380, 360, 320)
+
+[sub_resource type="AtlasTexture" id="waterfall_flow_2"]
+atlas = ExtResource("1")
+region = Rect2(776, 380, 360, 320)
+
+[sub_resource type="AtlasTexture" id="waterfall_flow_3"]
+atlas = ExtResource("1")
+region = Rect2(1152, 380, 360, 320)
+
+[sub_resource type="AtlasTexture" id="splash_0"]
+atlas = ExtResource("1")
+region = Rect2(24, 740, 360, 220)
+
+[sub_resource type="AtlasTexture" id="splash_1"]
+atlas = ExtResource("1")
+region = Rect2(400, 740, 360, 220)
+
+[sub_resource type="AtlasTexture" id="splash_2"]
+atlas = ExtResource("1")
+region = Rect2(776, 740, 360, 220)
+
+[sub_resource type="AtlasTexture" id="splash_3"]
+atlas = ExtResource("1")
+region = Rect2(1152, 740, 360, 220)
+
+[resource]
+animations = [{
+"frames": [{"duration": 1.0, "texture": SubResource("river_flow_0")}, {"duration": 1.0, "texture": SubResource("river_flow_1")}, {"duration": 1.0, "texture": SubResource("river_flow_2")}, {"duration": 1.0, "texture": SubResource("river_flow_3")}],
+"loop": true,
+"name": &"river_flow",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("waterfall_flow_0")}, {"duration": 1.0, "texture": SubResource("waterfall_flow_1")}, {"duration": 1.0, "texture": SubResource("waterfall_flow_2")}, {"duration": 1.0, "texture": SubResource("waterfall_flow_3")}],
+"loop": true,
+"name": &"waterfall_flow",
+"speed": 8.0
+}, {
+"frames": [{"duration": 1.0, "texture": SubResource("splash_0")}, {"duration": 1.0, "texture": SubResource("splash_1")}, {"duration": 1.0, "texture": SubResource("splash_2")}, {"duration": 1.0, "texture": SubResource("splash_3")}],
+"loop": true,
+"name": &"splash",
+"speed": 8.0
+}]
+

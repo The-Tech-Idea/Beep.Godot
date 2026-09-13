@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-09",
+  "status": "woodland_redesign_source_artwork",
+  "method": "built-in image_gen",
+  "originals": "Preserved. No consuming scenes changed.",
+  "scope": "Six woodland sheets. Other library themes not redesigned in this batch.",
+  "standards": {
+    "background": "Opaque green source background; no drawn grid.",
+    "perspective": "Front-facing elevated orthographic for objects; top-down flat ground.",
+    "organization": "Separate cartoon and pixel ground, elevation and nature.",
+    "production_target": "Ground cells 32x32 for pixel art and 128x128 for cartoon; these are target export sizes, not verified dimensions in these generated source sheets."
+  },
+  "validation": {
+    "visual_review": true,
+    "seamless_connections": false,
+    "exact_grid": false,
+    "complete_autotile_coverage": false,
+    "pixel_grid_consistency": false,
+    "godot_import": false,
+    "known_issues": [
+      "Cartoon ground has duplicated crossroads in place of the intended T-junction.",
+      "Some corner variants are missing or ambiguous in both ground source sheets.",
+      "Generated cell spacing, scale, palette and wall-height ratios require calibration before atlas export.",
+      "Green must be keyed carefully to avoid affecting foliage; no alpha conversion performed."
+    ]
+  },
+  "sheets": [
+    {
+      "name": "cartoon_ground",
+      "prompt": "Original professional CARTOON woodland GROUND TILE source sheet for a front-facing top-down 2D RPG. Ground only, no props, no cliffs, no perspective on ground tiles. Clear hand-drawn shapes, restrained thin outlines ONLY at actual material boundaries, quiet flat colors, very sparse texture, sage meadow grass, warm ochre dirt, cool grey stone, turquoise water. 24 separate square tiles arranged in exactly 6 columns and 4 rows. Consistent square dimensions and generous uniform OPAQUE pure GREEN #00FF00 gutters. No drawn grid lines, no labels, no text. Every tile fills its exact square completely right to all four edges: NO decorative frames, NO dark square outline, NO rounded tile corners, NO raised rim, NO shadow underneath. Row1: two subtly different plain grass fill tiles, two subtly different dirt fill tiles, plain grey stone fill, plain blue water fill. Row2: four grass-to-dirt straight boundary tiles north south east west, then two outer dirt corner tiles northwest northeast. Row3: outer dirt corners southwest southeast, then four concave grass-to-dirt inner corner variants. Row4: two dirt path straight tiles vertical horizontal, dirt T junction, dirt four-way junction, straight grass-water bank, rounded grass-water bank. Terrain paths end flush at tile edges and use a consistent half-tile path width. Grass texture very subtle not busy. These are modular terrain texture swatches not little raised platforms or finished scenes. Fill squares without border strokes. Crisp clean smooth cartoon cel shading NOT pixel art NOT 3D render. All empty sheet area solid vivid green, not transparent.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-fa395baf-aab1-4b0d-90d1-943b7c55de6e.png",
+      "file": "cartoon_ground.png"
+    },
+    {
+      "name": "pixel_ground",
+      "prompt": "Original professionally drawn PIXEL ART woodland ground tile source sheet. Strict hard square pixel clusters, low resolution 32x32-per-tile visual language enlarged with nearest neighbor, small palette, absolutely no antialiasing no blur no smooth painted textures. 24 separate square texture tiles in 6 columns x4 rows on fully OPAQUE uniform neon green #00FF00 background. No grid lines no labels. Tile squares fill all four edges; no outlines around whole squares, no rounded tile corners, no raised rims. Muted jade grass, warm ochre dirt, lavender-grey stone, turquoise water. Row1: two very quiet grass fills, two plain dirt fill variants, grey stone fill, water fill. Row2: north east south west grass/dirt straight transitions, outer northwest and northeast dirt corners. Row3: southwest southeast outer dirt corners and four concave inner corners. Row4: vertical dirt path, horizontal dirt path, T junction with grass across its TOP and paths exiting LEFT RIGHT BOTTOM ONLY, four-way dirt crossing, straight grassy water bank, curved grassy water bank. Consistent half-tile path width. Sparse texture with flat backgrounds for easy reading and matching. Ground only viewed straight from above. NOT a map, NOT rendered platforms, NO trees props or UI. Asset catalog artwork only. Clean green gaps separate individual squares.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-ce99ad48-9d00-49f5-94d6-e1298546af9b.png",
+      "file": "pixel_ground.png"
+    },
+    {
+      "name": "cartoon_elevation",
+      "prompt": "Original CARTOON woodland ELEVATION asset sheet for a front-facing elevated orthographic 2D RPG, no isometric diamond. Clean smooth hand-drawn cel shading, restrained dark contours, jade/sage grassy tops, irregular cool grey rocks with varied large fractures and small patches of moss. Twelve isolated modular terrain pieces in 4 columns by 3 rows on fully opaque flat pure neon GREEN #00FF00. No labels text or grid lines. Row1 FOUR front cliff wall straight segments, same width and exactly same rock face height, each genuinely different natural rock pattern, tops quiet plain grass. Row2: one LEFT end cap with front wall and its outward-facing LEFT side wall visible, one RIGHT end cap with front wall and outward RIGHT side wall visible, one convex outside corner where rock projects TOWARDS viewer, one concave inner corner where rock recedes. Row3: wide full-height grass platform, same-width HALF HEIGHT grass platform, same-width QUARTER HEIGHT grass platform, low soft grassy hill with sloping edges. Height ratios clearly 4:2:1 for the first three bottom objects, keep equal ground footprint for comparison. All top surfaces plain fill with sparse tufts, no dark decorative ring at grass/stone boundary, natural thin turf transition. No ramps, no stairs, no plants growing outside silhouettes, no shadows on background, no round repeating stone pillars. Leave generous green space between assets, all fully visible, same illumination upper left, no gradients on background.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-d726171a-d8fc-4402-be43-80d869c2126d.png",
+      "file": "cartoon_elevation.png"
+    },
+    {
+      "name": "pixel_elevation",
+      "prompt": "Use the supplied elevation sheet as a STRUCTURE reference and redraw its twelve pieces in true crisp PIXEL ART for a top-down 2D RPG. Preserve the 4 columns by 3 rows arrangement and category of every piece. Use hard square pixel clusters and limited colors like classic 32px tile RPG terrain enlarged with nearest neighbor. NO smooth illustration no antialiasing no blurred gradients. Muted jade green turf, cool lavender-grey rocks, small moss accents, upper-left lighting. Row1 four front cliff wall variants with same rockface height and different fractured rock patterns. Row2 LEFT outward-facing side endcap, RIGHT outward-facing side endcap, convex projecting rock corner, concave inner corner. Row3 full-height platform, HALF height platform, QUARTER height platform, low grassy sloping hill. Keep same width across three platforms and visibly 4:2:1 cliff-face height ratios. Fully OPAQUE perfectly flat NEON GREEN RGB(0,255,0) background and gaps. No transparent areas, no black background. No text labels, no drawn gridlines. All pieces complete without clipping, no ramps and no shadows on green.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-bb901c05-cb11-4f5e-9816-6a4b47fc623b.png",
+      "file": "pixel_elevation.png"
+    },
+    {
+      "name": "cartoon_nature",
+      "prompt": "Original polished CARTOON woodland NATURE sprite sheet for top-down front-facing 2D RPG, consistent elevated orthographic camera. 16 separate fully intact assets in four columns by four rows. Row1 rounded mature oak, slender branching tree, asymmetric broad tree, tall pine. Row2 young sapling, bare branching dead tree, hollow stump, fallen log. Row3 rounded bush, fern, small white and coral flower cluster, grass tuft. Row4 broad irregular grey boulder, tall grey rock, three small grey stones, small mushroom group. Sophisticated clean hand-drawn cartoon: elegant thin dark contours, 3-tone cel shading, large readable foliage masses, sparse leaf accents rather than hundreds of repeated leaves. Sage and jade foliage, natural reddish wood, cool neutral-grey rocks with moss matching grassy cliff tiles, tiny coral/white flower accents. Soft upper-left light consistently. Every trunk visible. Tree roots stop cleanly, NO ground islands no dirt patches no grass mats underneath objects, no cast shadows on background. Same illustration style throughout, no photorealism no low-poly3D no pixelart no blur. Generous uniform spacing with no object touching another. Full background perfectly flat OPAQUE neon green RGB0,255,0. No text labels grid lines watermarks or boxes.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-1b892e70-3a72-41de-8f34-d051bbce7465.png",
+      "file": "cartoon_nature.png"
+    },
+    {
+      "name": "pixel_nature",
+      "prompt": "Redesign the sixteen nature sprites of the provided sheet into ORIGINAL crisp PIXEL ART woodland RPG sprites, using the reference only for subject lineup and silhouettes. 4 columns 4 rows, same lineup. Row1 oak, slender tree, asymmetric tree, pine. Row2 sapling, dead tree, stump, log. Row3 bush, fern, flowers, grass tuft. Row4 boulder, standing rock, three stones, mushrooms. Authentic limited palette pixel art: strong square clusters, stair-stepped contours, restrained highlight shades, classic 48 to 64 pixel tall tree sprites enlarged with nearest neighbor, no smooth painted detail, NO antialiasing, NO blurry gradients. Jade and sage foliage with cool deep green shadows, warm reddish wood, cool lavender-grey stone, white and coral flowers. Consistent front-facing elevated orthographic RPG view not diamond isometric. Keep sprites intact, all trunks visible, no dirt platforms or ground shadows beneath objects, generous separation and margins. Background must be solid fully OPAQUE neon green RGB(0,255,0) everywhere outside sprites. Not black, not transparent. No labels, no grid lines, no text.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-74aceef6-e9e9-4f2e-ac9a-60c760b34d0b.png",
+      "file": "pixel_nature.png"
+    }
+  ]
+}

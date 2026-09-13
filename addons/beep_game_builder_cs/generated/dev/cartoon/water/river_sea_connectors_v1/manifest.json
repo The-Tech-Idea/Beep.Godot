@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "id": "north_inlet",
+      "port": "north",
+      "mask": 111,
+      "incoming": "north_south",
+      "atlas": [
+        0,
+        0
+      ],
+      "logicalDirection": "N",
+      "materialRole": "grass_bank_river_to_sea",
+      "openingWidthCells": 1,
+      "elevationPixels": 0
+    },
+    {
+      "id": "east_inlet",
+      "port": "east",
+      "mask": 207,
+      "incoming": "east_west",
+      "atlas": [
+        1,
+        0
+      ],
+      "logicalDirection": "E",
+      "materialRole": "grass_bank_river_to_sea",
+      "openingWidthCells": 1,
+      "elevationPixels": 0
+    },
+    {
+      "id": "south_inlet",
+      "port": "south",
+      "mask": 159,
+      "incoming": "south_north",
+      "atlas": [
+        2,
+        0
+      ],
+      "logicalDirection": "S",
+      "materialRole": "grass_bank_river_to_sea",
+      "openingWidthCells": 1,
+      "elevationPixels": 0
+    },
+    {
+      "id": "west_inlet",
+      "port": "west",
+      "mask": 63,
+      "incoming": "west_east",
+      "atlas": [
+        3,
+        0
+      ],
+      "logicalDirection": "W",
+      "materialRole": "grass_bank_river_to_sea",
+      "openingWidthCells": 1,
+      "elevationPixels": 0
+    }
+  ],
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "verification": [
+    {
+      "projection": "square",
+      "seaPixelsCompared": 229376,
+      "mismatches": 0
+    },
+    {
+      "projection": "isometric",
+      "seaPixelsCompared": 57344,
+      "mismatches": 0
+    }
+  ],
+  "approvalEvidence": null,
+  "scope": "Explicit one-cell grass-bank river inlets into sea; no guessed outflow, tides or wide estuaries.",
+  "pending": [
+    "Visual current/surf blending approval",
+    "Repeated ocean crests",
+    "GPU review of east/south/west routes",
+    "Wide mouths",
+    "Sand/rock banks",
+    "Depth transitions",
+    "Production promotion"
+  ],
+  "godotScenes": [
+    "square/river_sea_review.tscn",
+    "isometric/river_sea_review.tscn"
+  ]
+}

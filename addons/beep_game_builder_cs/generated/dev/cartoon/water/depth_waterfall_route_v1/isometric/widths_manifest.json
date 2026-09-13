@@ -1,0 +1,72 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "direction": "north_south",
+      "risePixels": 64,
+      "scene": "isometric/north_south_width_1.tscn",
+      "width": 1
+    },
+    {
+      "direction": "north_south",
+      "risePixels": 64,
+      "scene": "isometric/north_south_width_2.tscn",
+      "width": 2
+    },
+    {
+      "direction": "north_south",
+      "risePixels": 64,
+      "scene": "isometric/north_south_width_3.tscn",
+      "width": 3
+    },
+    {
+      "direction": "north_south",
+      "risePixels": 64,
+      "scene": "isometric/north_south_width_5.tscn",
+      "width": 5
+    },
+    {
+      "direction": "north_south",
+      "risePixels": 64,
+      "scene": "isometric/north_south_width_9.tscn",
+      "width": 9
+    },
+    {
+      "direction": "west_east",
+      "risePixels": 64,
+      "scene": "isometric/west_east_width_1.tscn",
+      "width": 1
+    },
+    {
+      "direction": "west_east",
+      "risePixels": 64,
+      "scene": "isometric/west_east_width_2.tscn",
+      "width": 2
+    },
+    {
+      "direction": "west_east",
+      "risePixels": 64,
+      "scene": "isometric/west_east_width_3.tscn",
+      "width": 3
+    },
+    {
+      "direction": "west_east",
+      "risePixels": 64,
+      "scene": "isometric/west_east_width_5.tscn",
+      "width": 5
+    },
+    {
+      "direction": "west_east",
+      "risePixels": 64,
+      "scene": "isometric/west_east_width_9.tscn",
+      "width": 9
+    }
+  ],
+  "pending": [
+    "GPU_full_route_review",
+    "cliff_repetition_contacts",
+    "performance",
+    "production_integration"
+  ],
+  "status": "candidate"
+}

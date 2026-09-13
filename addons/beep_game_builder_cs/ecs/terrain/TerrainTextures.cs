@@ -60,8 +60,11 @@ namespace Beep.ECS
                 return imported;
             }
 
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
+            // Image.LoadFromFile returns NULL - not an empty Image - when the file is missing,
+            // unreadable, or not decodable. Testing IsEmpty() first dereferenced that null and
+            // threw, so the warn-and-return-null contract below was unreachable on a real failure.
+            Image? image = Image.LoadFromFile(path);
+            if (image is null || image.IsEmpty())
             {
                 GD.PushWarning($"[{owner}] could not load {what} '{path}'.");
                 return null;

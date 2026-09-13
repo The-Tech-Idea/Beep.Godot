@@ -187,13 +187,24 @@ namespace Beep.ECS
         /// of <see cref="Resolve{T}(Node, NodePath, ref T)"/> where an inspector edit that re-points a
         /// path at another live node must take effect without a cache invalidation - Resolve returns
         /// the still-valid cached reference and would keep the stale node.
+        ///
+        /// This is the ONE owner of the fresh-resolve rule. Pass
+        /// <paramref name="fallbackWhenEmpty"/> false for a collaborator that must stay
+        /// explicit-only - the grid's <c>_grid</c> is the case that matters: an unwired path means
+        /// "this component has no projection", never "adopt whichever one the scene happens to
+        /// hold", so it resolves to null rather than scene-searching. Naming the policy here
+        /// keeps both behaviours in one place; the alternative was every caller writing its own
+        /// <c>path.IsEmpty ? null : GetNodeOrNull&lt;T&gt;(path)</c> copy of the rule.
         /// </summary>
         /// <param name="owner">The component doing the resolving; static and owner-taking because the
         /// callers derive straight from <see cref="Node"/> rather than from EntityComponent.</param>
-        public static T? ResolveLive<T>(Node owner, NodePath path, ref T? cached) where T : class
+        /// <param name="fallbackWhenEmpty">Whether an empty path falls back to the cached
+        /// tree-searched <see cref="Resolve{T}(Node, NodePath, ref T)"/>. False clears the cache
+        /// instead, for a caller that must not adopt a collaborator it was not wired to.</param>
+        public static T? ResolveLive<T>(Node owner, NodePath path, ref T? cached, bool fallbackWhenEmpty = true) where T : class
         {
             if (!path.IsEmpty) return cached = owner.GetNodeOrNull<Node>(path) as T;
-            return Resolve(owner, path, ref cached);
+            return fallbackWhenEmpty ? Resolve(owner, path, ref cached) : cached = null;
         }
     }
 }

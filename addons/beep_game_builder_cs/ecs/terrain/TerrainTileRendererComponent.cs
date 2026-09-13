@@ -36,6 +36,13 @@ namespace Beep.ECS
         [ExportGroup("Map")]
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 30);
+        [Export] public TerrainLibraryPack? LibraryPack { get; set; }
+        public string LibraryProblem { get; private set; } = "";
+        public int LibraryCellsUpdated { get; private set; }
+        private readonly HashSet<Vector2I> _libraryDirty = new();
+        private TerrainLibraryPack? _publishedPack;
+        private string _publishedPackKey = "";
+        private Rect2I _publishedPackBounds;
 
         /// <summary>Logical cells, not the half-cell-offset corner display grid.</summary>
         public TileMapLayer GetTerrainLayer()
@@ -204,6 +211,15 @@ namespace Beep.ECS
 
         private void OnCellChanged(int x, int y, int kind)
         {
+            if (LibraryPack is not null)
+            {
+                if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0)
+                {
+                    _libraryDirty.Add(new Vector2I(x, y));
+                    QueueRebuild();
+                }
+                return;
+            }
             if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) != 0) QueueCoast();
         }
 
@@ -211,6 +227,12 @@ namespace Beep.ECS
         // residency move is ignored.
         protected override void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
         {
+            if (LibraryPack is not null)
+            {
+                if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) _publishedPack = null;
+                base.OnCellsChangedSignal(kind, chunks);
+                return;
+            }
             if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) QueueCoast();
         }
 
@@ -228,9 +250,14 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
         {
+            if (LibraryPack is not null)
+            {
+                string problem = LibraryPack.Validate(TerrainProjection.Tiles);
+                if (problem.Length > 0) return new[] { problem };
+            }
             if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
                 return new[] { "TerrainGeneratorPath should point to the TerrainGeneratorComponent this view draws." };
-            if (ConfiguredLayers().Count == 0)
+            if (LibraryPack is null && ConfiguredLayers().Count == 0)
                 return new[] { "Assign at least one biome atlas, or nothing will be drawn." };
             return Array.Empty<string>();
         }
@@ -238,6 +265,10 @@ namespace Beep.ECS
         /// <summary>Rebuilds every biome layer from the current cell data.</summary>
         public override void Rebuild()
         {
+            if (TerrainLibraryEditSession.Blocks(this)) return;
+            if (LibraryPack is not null) { RebuildLibrary(); return; }
+            var oldLibrary = GetNodeOrNull<TileMapLayer>("LibraryTerrain");
+            if (oldLibrary is not null) oldLibrary.Visible = false;
             HasRebuildAttempt = true;
             ClearRebuildQueued();
             _coastQueued = false;
@@ -277,6 +308,70 @@ namespace Beep.ECS
             }
 
             EnsureWaterSurface();
+        }
+
+        private void RebuildLibrary()
+        {
+            HasRebuildAttempt = true;
+            ClearRebuildQueued();
+            _libraryDirty.Clear();
+            LibraryProblem = LibraryPack!.Validate(TerrainProjection.Tiles);
+            if (LibraryProblem.Length > 0) { GD.PushWarning(LibraryProblem); return; }
+            ResolveCells();
+            ResolveGenerator();
+            if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
+            {
+                LibraryProblem = "Library rendering requires a valid terrain source.";
+                GD.PushWarning(LibraryProblem);
+                return;
+            }
+            var display = TerrainAuthoring.EnsureLayer(this, "LibraryTerrain");
+            var field = _cells is null ? _generator!.ResolveField() : null;
+            string KindAt(Vector2I cell) => _cells is not null ? GridCellRules.TerrainKindAt(_cells, cell)
+                : field!.TerrainAtCell(cell - BoundsOrigin);
+            try
+            {
+                foreach (int _ in TerrainLibraryPainter.Build(display, LibraryPack,
+                    new Rect2I(BoundsOrigin, BoundsSize), KindAt, cell => LibraryPack.ElevationAt(_cells, cell))) { }
+                ClearBiomeLayers();
+                _water?.Clear();
+                display.Position = Vector2.Zero;
+                display.ZIndex = TerrainLayers.ZFor(TerrainLayers.Ground);
+                display.ZAsRelative = false;
+                display.Visible = true;
+                _publishedPack = LibraryPack;
+                _publishedPackKey = LibraryPack.RenderKey();
+                _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);
+                LibraryCellsUpdated = BoundsSize.X * BoundsSize.Y;
+                TerrainLibraryEditSession.RestoreVisuals(this, display);
+            }
+            catch (Exception error) { LibraryProblem = error.Message; GD.PushWarning(LibraryProblem); }
+        }
+
+        protected override void PerformQueuedRebuild()
+        {
+            if (TerrainLibraryEditSession.Blocks(this)) return;
+            var display = GetNodeOrNull<TileMapLayer>("LibraryTerrain");
+            if (LibraryPack is null || _publishedPack != LibraryPack || _libraryDirty.Count == 0
+                || _publishedPackKey != LibraryPack.RenderKey() || _publishedPackBounds != new Rect2I(BoundsOrigin, BoundsSize)
+                || _cells is null || display is null || display.TileSet != LibraryPack.Tiles)
+            {
+                Rebuild();
+                return;
+            }
+            LibraryProblem = LibraryPack.Validate(TerrainProjection.Tiles);
+            if (LibraryProblem.Length == 0)
+            {
+                try
+                {
+                    LibraryCellsUpdated = TerrainLibraryPainter.Update(display, LibraryPack, new Rect2I(BoundsOrigin, BoundsSize),
+                        _libraryDirty, cell => GridCellRules.TerrainKindAt(_cells, cell), cell => LibraryPack.ElevationAt(_cells, cell));
+                    TerrainLibraryEditSession.RestoreVisuals(this, display);
+                }
+                catch (Exception error) { LibraryProblem = error.Message; }
+            }
+            _libraryDirty.Clear();
+            if (LibraryProblem.Length > 0) { _publishedPack = null; GD.PushWarning(LibraryProblem); }
         }
 
         private void ApplyGroundDetail(TerrainTransitionLayerComponent layer)

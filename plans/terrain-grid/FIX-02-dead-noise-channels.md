@@ -1,6 +1,24 @@
 # FIX-02 — Dead noise channels: Shape/ShapeWarpX/ShapeWarpY/Detail are built every generation but read by nothing
 
-**Type:** fix (owner-call removal) · **Area:** `TerrainNoiseSet` (with a doc correction against `TerrainLandmassStage`) · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (~½ day) · **Risk:** low
+**Type:** fix (owner-call removal) · **Area:** `TerrainNoiseSet` (with a doc correction against `TerrainLandmassStage`) · **Status:** **IMPLEMENTED 2026-09-11 (option A — removed)** · **Effort:** XS (~½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+Owner's call was **(A) remove**, and it was taken.
+
+`TerrainNoiseSet` no longer declares or builds `Shape`, `ShapeWarpX`, `ShapeWarpY` or `Detail`: the four properties, their four constructor parameters and assignments, their four `Create(...)` calls (seed offsets 91127/91159/91193/71069) and their four `Dispose()` calls are gone. The constructor's arity shrank from ten to six and the compiler swept it — no shim, no `[Obsolete]`. `shapeFrequency`, `TerrainLandmassStage.FeatureTiles`, the six live channels and all their frequency multipliers and seed offsets are untouched.
+
+Doc drift was corrected with it, since two comments described a mechanism that no longer runs:
+
+- the false `Shape` doc — *"Continental fractal that decides where land is"* — went with the property;
+- the `Vegetation` doc's *"the same way the shape fractal makes land a landmass"* now says the landmass stage grows connected land;
+- the `Create` comment no longer calls `shapeFrequency` "the continental fractal".
+
+**Verified**
+
+- **Guard 2 (determinism — the safety proof).** `terrain_generation_baseline_probe` is green after the removal: every reduced-field hash is unchanged, proving the four channels fed no decision and their seed offsets perturbed no surviving channel. The probe's ability to bite on this file was demonstrated separately — nudging the surviving Ridge multiplier from `× 3.0f` to `× 3.05f` fails it with `layer terrain changed`.
+- **Guard 1 (doc / reintroduction pin).** The existing `addon_contract_scan.ps1` pin actually **required** `FastNoiseLite Shape`, so it was updated to name live channels (`Ridge`/`Moisture`/`Temperature`/`Vegetation`) and to forbid the four dead declarations plus the `decides where land is` claim. Its logic was validated both ways by running the equivalent check directly: the current file passes, and the committed pre-removal file fails on all five patterns. Caveat: the scan still aborts earlier (the stale `TerrainWorldComponent` pin — see FIX-03's Outcome), so this pin is correct but not yet *reached* by a full scan run.
+- Generation probes green: `terrain_generation_baseline`, `terrain_final_topology`, `terrain_sample_values`, `terrain_kind_catalog`, `terrain_scratch_lifetime` (its climate/vegetation parity oracle), `terrain_water_surface`. Build clean (0 warnings).
 
 ## Finding
 

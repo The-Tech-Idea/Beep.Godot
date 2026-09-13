@@ -1,6 +1,10 @@
 # FIX-11 — Calendar HUD signal reconnect: date/season labels go dead after the calendar node is replaced
 
-**Type:** fix · **Area:** `GridCalendarHudComponent` (mirrors `GridObjectivePanelComponent`, `EntityComponent.Resolve`) · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+**Type:** fix · **Area:** `GridCalendarHudComponent` (mirrors `GridObjectivePanelComponent`, `EntityComponent.Resolve`) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+The calendar signal wiring moved out of `_Ready` into new `ConnectCalendarSignals`/`DisconnectCalendarSignals` helpers, with `ResolveReferences` reconnecting whenever it adopts a new instance (guarded on `_calendar == null || !IsInstanceValid(_calendar)`, exactly as `GridObjectivePanelComponent` does for its tracker); `_ExitTree` now calls the shared disconnect. `_Ready` keeps its `ResolveReferences()` call, which now performs the initial connect, so there is one connect owner rather than two. Guard `VerifyGridCalendarHudReconnect` was added to `GridPlacementSmoke` and wired into `Run()`: it builds a calendar plus a generated HUD, frees the calendar, adds a replacement at the same path, forces a re-resolve, then advances the replacement externally and asserts the HUD's date label followed. Mutation-proven: dropping the `ConnectCalendarSignals()` call leaves the label on the pre-advance date ("Year 2, Summer 10 vs Year 2, Summer 11"). Build clean (0 warnings). As with FIX-09, the full `headless_runtime_smoke` cannot reach the new guard here because of the pre-existing `GridPlacementSmoke.cs:171` failure; behaviour and mutation were validated with a focused probe in this session.
 
 ## Finding
 

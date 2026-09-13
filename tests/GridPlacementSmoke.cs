@@ -62,7 +62,11 @@ public partial class GridPlacementSmoke : Node
         if (!VerifyGridProductionPanel()) return false;
         if (!VerifyGridObjectiveTracker()) return false;
         if (!VerifyGridObjectivePanel()) return false;
+        if (!VerifyGridObjectiveRestoreSignals()) return false;
+        if (!VerifyGridObjectiveRestorePanelRepaint()) return false;
+        if (!VerifyGridObjectivePanelGoalCount()) return false;
         if (!VerifyGridObjectiveEventBinder()) return false;
+        if (!VerifyGridCalendarHudReconnect()) return false;
         if (!VerifyGridWorkerSpawner()) return false;
         if (!VerifyGridWorkerSpawnerUsesCellDataTerrain()) return false;
         if (!VerifyGridWorkerSpawnerBoundsInvalidTuning()) return false;
@@ -3520,6 +3524,148 @@ public partial class GridPlacementSmoke : Node
         return true;
     }
 
+    private bool VerifyGridObjectiveRestoreSignals()
+    {
+        var tracker = new GridObjectiveTrackerComponent
+        {
+            Name = "Objectives",
+            ParticipatesInSave = false
+        };
+        tracker.Objectives.Add(new GridObjectiveDefinition
+        {
+            ObjectiveId = "a",
+            TargetCount = 3,
+            AutoComplete = true,
+            ActiveOnStart = true
+        });
+        AddChild(tracker);
+
+        string progressId = "";
+        int progress = -1, progressTarget = -1;
+        string activatedId = "";
+        string completedId = "";
+        tracker.ObjectiveProgressChanged += (id, p, t) => { progressId = id; progress = p; progressTarget = t; };
+        tracker.ObjectiveActivated += (id, active) => activatedId = id;
+        tracker.ObjectiveCompleted += id => completedId = id;
+
+        tracker.AddProgress("a", 3);
+        Godot.Collections.Dictionary snapshot = tracker.CaptureState();
+        tracker.ResetObjective("a");
+        progressId = ""; progress = -1; progressTarget = -1; activatedId = ""; completedId = "";
+        tracker.RestoreState(snapshot);
+
+        bool emitted = progressId == "a" && progress == 3 && progressTarget == 3
+            && activatedId == "a" && completedId == "a";
+
+        tracker.QueueFree();
+
+        return Expect(emitted, "GridObjectiveTracker.RestoreState did not re-emit objective signals; signal-driven HUDs stay stale after load.");
+    }
+
+    private bool VerifyGridObjectiveRestorePanelRepaint()
+    {
+        var root = new Control { Name = "GridObjectiveRestorePanelSmokeRoot" };
+        AddChild(root);
+
+        var tracker = new GridObjectiveTrackerComponent
+        {
+            Name = "Objectives",
+            ParticipatesInSave = false
+        };
+        tracker.Objectives.Add(new GridObjectiveDefinition { ObjectiveId = "a", DisplayName = "A", TargetCount = 3, AutoComplete = true, ActiveOnStart = true });
+        tracker.Objectives.Add(new GridObjectiveDefinition { ObjectiveId = "b", DisplayName = "B", TargetCount = 1, AutoComplete = true, ActiveOnStart = true });
+        root.AddChild(tracker);
+
+        var panel = new GridObjectivePanelComponent
+        {
+            Name = "ObjectivesPanel",
+            ObjectiveTrackerPath = new NodePath("../Objectives"),
+            BuildInEditor = false,
+            GenerateControlsWhenPathsEmpty = true,
+            AutoRefresh = false,
+            HideCompleted = true
+        };
+        root.AddChild(panel);
+        panel.RebuildPanel();
+
+        bool initial = panel.VisibleObjectiveRowCount() == 2;
+
+        // A second tracker holds the "saved" state in which A is completed.
+        var savedTracker = new GridObjectiveTrackerComponent
+        {
+            Name = "SavedObjectives",
+            ParticipatesInSave = false
+        };
+        savedTracker.Objectives.Add(new GridObjectiveDefinition { ObjectiveId = "a", DisplayName = "A", TargetCount = 3, AutoComplete = true, ActiveOnStart = true });
+        root.AddChild(savedTracker);
+        savedTracker.AddProgress("a", 3);
+        Godot.Collections.Dictionary snapshot = savedTracker.CaptureState();
+
+        // No RefreshPanel() after restore: the repaint must come from the emitted signals.
+        tracker.RestoreState(snapshot);
+        bool repainted = panel.VisibleObjectiveRowCount() == 1;
+
+        root.QueueFree();
+
+        return Expect(initial && repainted,
+            "GridObjectiveTracker.RestoreState did not repaint the objective panel; loaded saves leave the HUD stale.");
+    }
+
+    private bool VerifyGridObjectivePanelGoalCount()
+    {
+        var root = new Control { Name = "GridObjectivePanelGoalCountSmokeRoot" };
+        AddChild(root);
+
+        var tracker = new GridObjectiveTrackerComponent
+        {
+            Name = "Objectives",
+            ParticipatesInSave = false
+        };
+        // More active goals than the panel's row cap (MaxVisibleObjectives defaults to 6).
+        const int goalCount = 8;
+        for (int i = 0; i < goalCount; i++)
+            tracker.Objectives.Add(new GridObjectiveDefinition
+            {
+                ObjectiveId = $"goal_{i}",
+                DisplayName = $"Goal {i}",
+                TargetCount = 1,
+                AutoComplete = true,
+                ActiveOnStart = true
+            });
+        root.AddChild(tracker);
+
+        var panel = new GridObjectivePanelComponent
+        {
+            Name = "ObjectivesPanel",
+            ObjectiveTrackerPath = new NodePath("../Objectives"),
+            BuildInEditor = false,
+            GenerateControlsWhenPathsEmpty = true,
+            AutoRefresh = false
+        };
+        root.AddChild(panel);
+        panel.RebuildPanel();
+
+        bool totals = panel.SummaryText() == $"Goals {goalCount} | Done 0";
+        bool rowsCapped = panel.VisibleObjectiveRowCount() == panel.MaxVisibleObjectives;
+
+        // Complete a goal sitting beyond the drawn rows: the summary must still count it.
+        tracker.AddProgress("goal_6", 1);
+        bool countedPastRows = panel.SummaryText() == $"Goals {goalCount} | Done 1";
+        bool rowsStillCapped = panel.VisibleObjectiveRowCount() == panel.MaxVisibleObjectives;
+
+        root.QueueFree();
+
+        if (!Expect(totals, "GridObjectivePanel summary reported the row cap, not the true goal total."))
+            return false;
+        if (!Expect(rowsCapped, "GridObjectivePanel drew more rows than MaxVisibleObjectives."))
+            return false;
+        if (!Expect(countedPastRows, "GridObjectivePanel summary missed a completed goal beyond the drawn rows."))
+            return false;
+        if (!Expect(rowsStillCapped, "GridObjectivePanel row cap changed when a goal was completed."))
+            return false;
+        return true;
+    }
+
     private bool VerifyGridObjectiveEventBinder()
     {
         var root = new Node { Name = "GridObjectiveEventBinderSmokeRoot" };
@@ -3627,6 +3773,47 @@ public partial class GridPlacementSmoke : Node
             return false;
 
         return true;
+    }
+
+    private bool VerifyGridCalendarHudReconnect()
+    {
+        var root = new Control { Name = "GridCalendarHudReconnectSmokeRoot" };
+        AddChild(root);
+
+        var c1 = new GridCalendarComponent { Name = "Calendar", ParticipatesInSave = false };
+        c1.SetDate(1, GridCalendarComponent.GridSeason.Spring, 5);
+        root.AddChild(c1);
+
+        var hud = new GridCalendarHudComponent
+        {
+            Name = "CalendarHud",
+            CalendarPath = new NodePath("../Calendar"),
+            BuildInEditor = false,
+            GenerateControlsWhenPathsEmpty = true
+        };
+        root.AddChild(hud);
+        hud.RebuildHud();
+
+        Label? label = hud.FindChild("Date", recursive: true, owned: false) as Label;
+        bool initial = label != null && label.Text == c1.DisplayDate();
+
+        // Replace the calendar node: the HUD must adopt and reconnect to the replacement.
+        c1.Free();
+        var c2 = new GridCalendarComponent { Name = "Calendar", ParticipatesInSave = false };
+        c2.SetDate(2, GridCalendarComponent.GridSeason.Summer, 10);
+        root.AddChild(c2);
+
+        hud.RefreshHud();
+        label = hud.FindChild("Date", recursive: true, owned: false) as Label;
+        bool adopted = label != null && label.Text == c2.DisplayDate();
+
+        c2.AdvanceDay();
+        bool followed = label != null && label.Text == c2.DisplayDate();
+
+        root.QueueFree();
+
+        return Expect(initial && adopted && followed,
+            "GridCalendarHudComponent did not reconnect calendar signals after the calendar node was replaced; the date label froze.");
     }
 
     private bool VerifyGridWorkerSpawner()

@@ -1,0 +1,139 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_banks_v1/isometric/grass_lake_16.res" id="1_25y8q"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0utot"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 160, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e5o83"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 352, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k44xp"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 544, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fp6t2"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 736, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nlmch"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 928, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_584pg"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 1120, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_21v6b"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 1312, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lbq02"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 1504, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ijnnr"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 1696, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xjpdo"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 1888, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h0fy2"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 2080, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_enwkk"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 2272, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7tsso"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 2464, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5eq4j"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 2656, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p05tq"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 2848, 64, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_31tqe"]
+atlas = ExtResource("1_25y8q")
+region = Rect2(128, 3040, 64, 32)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0utot")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e5o83")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k44xp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fp6t2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nlmch")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_584pg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_21v6b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lbq02")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ijnnr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xjpdo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h0fy2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_enwkk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7tsso")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5eq4j")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p05tq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_31tqe")
+}],
+"loop": 1,
+"name": &"lake",
+"speed": 13.333333333333334
+}]

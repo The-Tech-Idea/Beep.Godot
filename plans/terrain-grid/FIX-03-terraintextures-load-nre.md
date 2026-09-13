@@ -1,6 +1,18 @@
 # FIX-03 — TerrainTextures.Load NRE: the external-file branch crashes instead of returning null
 
-**Type:** fix · **Area:** `TerrainTextures.Load` (`ecs/terrain/TerrainTextures.cs`) · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (¼ day) · **Risk:** low
+**Type:** fix · **Area:** `TerrainTextures.Load` (`ecs/terrain/TerrainTextures.cs`) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (¼ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`TerrainTextures.Load` now guards the null before the emptiness test in the external-file branch (`image is null || image.IsEmpty()`), so a missing, unreadable or undecodable file takes the existing warn-and-return-null path instead of throwing. New `tests/TerrainTexturesLoadSmoke.cs` (compiled through an explicit `Beep.Godot.csproj` entry) plus `tests/terrain_textures_load_probe.gd` assert both directions: a missing absolute path returns null without throwing, and a real on-disk PNG (the bundled `surf_foam_streaks.png`, globalized) still loads with a usable size. The smoke wraps the calls in a try/catch so the unguarded version reports a clean failure rather than aborting the probe script before `quit()`. Mutation-proven: restoring the bare `image.IsEmpty()` yields `Load threw for a missing external path: NullReferenceException` and exit 1.
+
+Two things landed differently from the plan:
+
+- The probe is registered in `run_actor_checks.ps1`, not `run_terrain_integration.ps1`: `Image.LoadFromFile` on a missing path makes Godot itself log `ERROR: Error opening file …`, and the terrain-integration runner fails any probe whose output matches `^ERROR:`. `run_actor_checks.ps1` judges by exit code, which is the signal this probe produces.
+- The optional contract-scan pin was not added: the behavioural probe is mutation-proven, and the scan currently throws earlier in the file (see below).
+- **A second copy of this defect was found and removed.** `MountainPrefabGeneratorComponent.LoadTexture` repeated the same external-file branch with the same unguarded `Image.LoadFromFile` / `Image.IsEmpty()`. It now delegates to `TerrainTextures.Load` (the one terrain-art loader), so the rule this fix established has one implementation rather than two — see FIX-04's Outcome.
+
+**Pre-existing gate failure (not this change).** `tests/addon_contract_scan.ps1` throws at its `TerrainWorldComponent` pin — it requires `NewWorldOnReady` to contain `if (_restoredFromSave)\n return;`, but that method now guards with a compound condition (`BuiltSize.X > 0 || _restoredFromSave || saves?.HasPendingSaveRecord(SaveKey) == true`). `TerrainWorldComponent.cs` is unmodified in this session's working tree, so the pin is stale at HEAD; it blocks the scan before any pin covering this fix's files is reached. Correcting it belongs to the `TerrainWorldComponent`/streaming owner.
 
 ## Finding
 

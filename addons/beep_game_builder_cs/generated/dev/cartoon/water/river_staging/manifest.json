@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.river.current.v1",
+  "status": "candidate",
+  "approval": null,
+  "waterBody": "river",
+  "gameCell": 64,
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "columns": 4,
+  "rowsPerFrame": 3,
+  "source": {
+    "file": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+    "sha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975"
+  },
+  "file": "runtime/river_current_16frames.png",
+  "profiles": [
+    {
+      "id": "north_south",
+      "mask": 5,
+      "atlas": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "south_north",
+      "mask": 5,
+      "atlas": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "west_east",
+      "mask": 10,
+      "atlas": [
+        2,
+        0
+      ]
+    },
+    {
+      "id": "east_west",
+      "mask": 10,
+      "atlas": [
+        3,
+        0
+      ]
+    },
+    {
+      "id": "north_east",
+      "mask": 3,
+      "atlas": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "east_north",
+      "mask": 3,
+      "atlas": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "north_west",
+      "mask": 9,
+      "atlas": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "west_north",
+      "mask": 9,
+      "atlas": [
+        3,
+        1
+      ]
+    },
+    {
+      "id": "west_south",
+      "mask": 12,
+      "atlas": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "south_west",
+      "mask": 12,
+      "atlas": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "south_east",
+      "mask": 6,
+      "atlas": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "east_south",
+      "mask": 6,
+      "atlas": [
+        3,
+        2
+      ]
+    }
+  ],
+  "map": [
+    {
+      "x": 2,
+      "y": 0,
+      "profile": "north_south"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "profile": "north_south"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "profile": "north_south"
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "profile": "north_east"
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "profile": "west_east"
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "profile": "west_east"
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "profile": "west_east"
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "profile": "west_east"
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "profile": "west_south"
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "profile": "north_south"
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "profile": "north_south"
+    },
+    {
+      "x": 7,
+      "y": 6,
+      "profile": "north_south"
+    },
+    {
+      "x": 7,
+      "y": 7,
+      "profile": "north_south"
+    },
+    {
+      "x": 7,
+      "y": 8,
+      "profile": "north_south"
+    }
+  ],
+  "motion": "Stationary water substrate. Local crests advect along analytic straight/quarter-turn stream coordinates; tile endpoints share phase. Banks are fixed.",
+  "limitations": [
+    "Single-cell channel proof only. Wide rivers, junctions, wakes and waterfall connectors are not included.",
+    "This is not lake, sea or waterfall animation.",
+    "Visual approval pending."
+  ]
+}

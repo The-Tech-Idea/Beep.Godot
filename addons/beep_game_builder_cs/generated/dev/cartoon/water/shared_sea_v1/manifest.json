@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "waterBase": [
+    29.25830078125,
+    193.151611328125,
+    235.839599609375
+  ],
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "coastConfigurations": 47,
+  "shader": "addons/beep_game_builder_cs/shaders/terrain_shared_sea.gdshader",
+  "surfaceCoordinates": "shared_logical_map_plane",
+  "clock": "native_tile_atlas_frame_no_independent_TIME",
+  "controlEncoding": {
+    "grass": [
+      0,
+      0,
+      255
+    ],
+    "bank": [
+      189,
+      167,
+      121
+    ],
+    "seaBlue": 254,
+    "inletBlue": [
+      250,
+      251,
+      252,
+      253
+    ],
+    "depthBlue": 249,
+    "red": "sea_mix_or_shallow_depth_0_255",
+    "green": "distance_0_64_pixels"
+  },
+  "depth": {
+    "configurations": 47,
+    "background": "deep_sea",
+    "layer": "Depth",
+    "placement": "full_open_sea_cells_only",
+    "guard": "addons/beep_game_builder_cs/ecs/terrain/TerrainWaterDepthGuard.gd",
+    "scenes": [
+      "square/depth_review.tscn",
+      "isometric/depth_review.tscn"
+    ],
+    "approvalEvidence": null
+  },
+  "coastalDepth": {
+    "placement": "sea_cells_including_grass_coasts",
+    "encoding": "one_rgba_texel_per_shallow_cell_reuses_depth_masks",
+    "binding": "addons/beep_game_builder_cs/ecs/terrain/TerrainSeaDepthBinding.gd",
+    "scenes": [
+      "square/coastal_depth_review.tscn",
+      "isometric/coastal_depth_review.tscn"
+    ],
+    "validNeighborhoodPairsPerProjection": 650,
+    "maxFieldSideDefault": 1024,
+    "approvalEvidence": null
+  },
+  "profiles": [
+    {
+      "id": "north_inlet",
+      "port": "north",
+      "mask": 111,
+      "incoming": "north_south"
+    },
+    {
+      "id": "east_inlet",
+      "port": "east",
+      "mask": 207,
+      "incoming": "east_west"
+    },
+    {
+      "id": "south_inlet",
+      "port": "south",
+      "mask": 159,
+      "incoming": "south_north"
+    },
+    {
+      "id": "west_inlet",
+      "port": "west",
+      "mask": 63,
+      "incoming": "west_east"
+    }
+  ],
+  "widthExamples": [
+    {
+      "width": 1,
+      "sections": [
+        "narrow"
+      ]
+    },
+    {
+      "width": 2,
+      "sections": [
+        "low_bank",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 3,
+      "sections": [
+        "low_bank",
+        "middle",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 5,
+      "sections": [
+        "low_bank",
+        "middle",
+        "middle",
+        "middle",
+        "high_bank"
+      ]
+    }
+  ],
+  "widthModules": [
+    {
+      "id": "north_inlet.low_bank",
+      "port": "north",
+      "flow": "north_south",
+      "kind": "low_bank",
+      "mask": 127,
+      "sourceId": 3,
+      "atlas": [
+        0,
+        0
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "north_inlet.middle",
+      "port": "north",
+      "flow": "north_south",
+      "kind": "middle",
+      "mask": 255,
+      "sourceId": 3,
+      "atlas": [
+        1,
+        0
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "north_inlet.high_bank",
+      "port": "north",
+      "flow": "north_south",
+      "kind": "high_bank",
+      "mask": 239,
+      "sourceId": 3,
+      "atlas": [
+        2,
+        0
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "east_inlet.low_bank",
+      "port": "east",
+      "flow": "east_west",
+      "kind": "low_bank",
+      "mask": 239,
+      "sourceId": 3,
+      "atlas": [
+        0,
+        1
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "east_inlet.middle",
+      "port": "east",
+      "flow": "east_west",
+      "kind": "middle",
+      "mask": 255,
+      "sourceId": 3,
+      "atlas": [
+        1,
+        1
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "east_inlet.high_bank",
+      "port": "east",
+      "flow": "east_west",
+      "kind": "high_bank",
+      "mask": 223,
+      "sourceId": 3,
+      "atlas": [
+        2,
+        1
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "south_inlet.low_bank",
+      "port": "south",
+      "flow": "south_north",
+      "kind": "low_bank",
+      "mask": 191,
+      "sourceId": 3,
+      "atlas": [
+        0,
+        2
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "south_inlet.middle",
+      "port": "south",
+      "flow": "south_north",
+      "kind": "middle",
+      "mask": 255,
+      "sourceId": 3,
+      "atlas": [
+        1,
+        2
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "south_inlet.high_bank",
+      "port": "south",
+      "flow": "south_north",
+      "kind": "high_bank",
+      "mask": 223,
+      "sourceId": 3,
+      "atlas": [
+        2,
+        2
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "west_inlet.low_bank",
+      "port": "west",
+      "flow": "west_east",
+      "kind": "low_bank",
+      "mask": 127,
+      "sourceId": 3,
+      "atlas": [
+        0,
+        3
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "west_inlet.middle",
+      "port": "west",
+      "flow": "west_east",
+      "kind": "middle",
+      "mask": 255,
+      "sourceId": 3,
+      "atlas": [
+        1,
+        3
+      ],
+      "elevationPixels": 0
+    },
+    {
+      "id": "west_inlet.high_bank",
+      "port": "west",
+      "flow": "west_east",
+      "kind": "high_bank",
+      "mask": 191,
+      "sourceId": 3,
+      "atlas": [
+        2,
+        3
+      ],
+      "elevationPixels": 0
+    }
+  ],
+  "widthScenes": [
+    "square/mouth_widths_north.tscn",
+    "isometric/mouth_widths_north.tscn",
+    "square/mouth_widths_east.tscn",
+    "isometric/mouth_widths_east.tscn",
+    "square/mouth_widths_south.tscn",
+    "isometric/mouth_widths_south.tscn",
+    "square/mouth_widths_west.tscn",
+    "isometric/mouth_widths_west.tscn"
+  ],
+  "approvalEvidence": null,
+  "pending": [
+    "Visual swell/surf, depth and wide-mouth approval",
+    "Sand/rock banks",
+    "River depth contacts and lake depth",
+    "Large-map field cost and chunking",
+    "Production promotion"
+  ],
+  "godotScenes": [
+    "square/sea_review.tscn",
+    "isometric/sea_review.tscn",
+    "square/river_sea_review.tscn",
+    "isometric/river_sea_review.tscn"
+  ]
+}

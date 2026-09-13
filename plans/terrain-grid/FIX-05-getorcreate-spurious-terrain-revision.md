@@ -1,6 +1,10 @@
 # FIX-05 — GetOrCreate spurious TerrainRevision: a gameplay first-touch forces a full-map terrain rebuild
 
-**Type:** fix · **Area:** `GridCellDataComponent.GetOrCreate` (`ecs/grid/GridCellDataComponent.cs`), `tests/TerrainChangeKindSmoke.cs` · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (~¼ day) · **Risk:** low
+**Type:** fix · **Area:** `GridCellDataComponent.GetOrCreate` (`ecs/grid/GridCellDataComponent.cs`), `tests/TerrainChangeKindSmoke.cs` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (~¼ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+Removed `TerrainRevision++` from `GridCellDataComponent.GetOrCreate`; `MarkCellChanged(cell)` stays, so the per-chunk content token (read by the archive's save-current check) still advances while the global terrain token now moves only on real terrain edits — closing the ENH-02 contract one layer down. The virgin-cell assertion was added to `tests/TerrainChangeKindSmoke.cs` (run via `tests/terrain_change_kind_probe.gd`): `Till` of a never-touched cell in chunk (1,1) must leave `TerrainRevision` unchanged and advance the chunk token. Mutation-proven: restoring the bump makes the guard fail ("Till of a virgin cell bumped TerrainRevision…"), and deleting `MarkCellChanged` makes the second assertion fail. Build clean (0 warnings); `terrain_change_kind` probe green.
 
 ## Finding
 

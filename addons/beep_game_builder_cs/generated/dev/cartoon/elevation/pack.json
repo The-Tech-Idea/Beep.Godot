@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.elevation.v1",
+  "style": "cartoon",
+  "pack": "elevation",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": [],
+  "approval": null
+}

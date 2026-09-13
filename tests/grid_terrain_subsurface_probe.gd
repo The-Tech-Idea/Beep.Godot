@@ -440,6 +440,24 @@ func _run() -> void:
 	check(int(transport.get("TransporterCount")) == 1,
 		"a pure GDScript transporter registers - the contract is duck-typed, not C#-only")
 
+	var second_register: bool = bool(transport.call("Register", gd_truck))
+	check(second_register and int(transport.get("TransporterCount")) == 1,
+		"registering the same transporter twice is a no-op that still reports success")
+
+	# A registrant that goes away WITHOUT unregistering is the whole reason the
+	# registry prunes: nothing else removes it, and the manager cannot assume
+	# every registrant cleans up after itself. A freed rig does NOT cover this -
+	# its _ExitTree unregisters it first, so the entry never goes stale.
+	var doomed_truck := GdTransporter.new()
+	doomed_truck.name = "DoomedTruck"
+	root.add_child(doomed_truck)
+	transport.call("Register", doomed_truck)
+	check(int(transport.get("TransporterCount")) == 2,
+		"a second transporter joins the registry")
+	doomed_truck.free()
+	check(int(transport.get("TransporterCount")) == 1,
+		"a transporter that vanished without unregistering leaves on the next read")
+
 	# The extractor delivers THROUGH the manager: yield reaches the GDScript
 	# truck, not the wallet - and falls back to the wallet when no
 	# transporter is free, so nothing is ever lost.

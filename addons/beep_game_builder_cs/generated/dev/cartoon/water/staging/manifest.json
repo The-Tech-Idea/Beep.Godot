@@ -1,0 +1,3556 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.foundation.v1",
+  "status": "candidate",
+  "approval": null,
+  "gameCell": 64,
+  "source": {
+    "file": "sources/material_master_v1.png",
+    "sha256": "58a453f19a3756bbd0cbf5b5882a43b8c04d8354f224b1350192c286d8cc0392",
+    "regions": {
+      "grass": [
+        220,
+        42,
+        440,
+        440
+      ],
+      "dirt": [
+        800,
+        42,
+        440,
+        440
+      ],
+      "shallow_water": [
+        220,
+        540,
+        440,
+        440
+      ],
+      "deep_water": [
+        800,
+        540,
+        440,
+        440
+      ]
+    }
+  },
+  "assets": [
+    {
+      "id": "grass_to_dirt",
+      "background": "grass",
+      "foreground": "dirt",
+      "waterBody": null,
+      "file": "runtime/grass_to_dirt.png",
+      "resource": "godot/grass_to_dirt.tres",
+      "tileSize": 64,
+      "columns": 8,
+      "rowsPerFrame": 6,
+      "frames": 1,
+      "periodSeconds": null,
+      "masks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        19,
+        23,
+        27,
+        31,
+        38,
+        39,
+        46,
+        47,
+        55,
+        63,
+        76,
+        77,
+        78,
+        79,
+        95,
+        110,
+        111,
+        127,
+        137,
+        139,
+        141,
+        143,
+        155,
+        159,
+        175,
+        191,
+        205,
+        207,
+        223,
+        239,
+        255
+      ],
+      "backgroundIndex": 47,
+      "regions": [
+        {
+          "id": "cartoon.grass_to_dirt.mask_0",
+          "mask": 0,
+          "atlas": [
+            0,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_1",
+          "mask": 1,
+          "atlas": [
+            1,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_2",
+          "mask": 2,
+          "atlas": [
+            2,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_3",
+          "mask": 3,
+          "atlas": [
+            3,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_4",
+          "mask": 4,
+          "atlas": [
+            4,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_5",
+          "mask": 5,
+          "atlas": [
+            5,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_6",
+          "mask": 6,
+          "atlas": [
+            6,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_7",
+          "mask": 7,
+          "atlas": [
+            7,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_8",
+          "mask": 8,
+          "atlas": [
+            0,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_9",
+          "mask": 9,
+          "atlas": [
+            1,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_10",
+          "mask": 10,
+          "atlas": [
+            2,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_11",
+          "mask": 11,
+          "atlas": [
+            3,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_12",
+          "mask": 12,
+          "atlas": [
+            4,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_13",
+          "mask": 13,
+          "atlas": [
+            5,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_14",
+          "mask": 14,
+          "atlas": [
+            6,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_15",
+          "mask": 15,
+          "atlas": [
+            7,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_19",
+          "mask": 19,
+          "atlas": [
+            0,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_23",
+          "mask": 23,
+          "atlas": [
+            1,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_27",
+          "mask": 27,
+          "atlas": [
+            2,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_31",
+          "mask": 31,
+          "atlas": [
+            3,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_38",
+          "mask": 38,
+          "atlas": [
+            4,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_39",
+          "mask": 39,
+          "atlas": [
+            5,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_46",
+          "mask": 46,
+          "atlas": [
+            6,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_47",
+          "mask": 47,
+          "atlas": [
+            7,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_55",
+          "mask": 55,
+          "atlas": [
+            0,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_63",
+          "mask": 63,
+          "atlas": [
+            1,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_76",
+          "mask": 76,
+          "atlas": [
+            2,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_77",
+          "mask": 77,
+          "atlas": [
+            3,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_78",
+          "mask": 78,
+          "atlas": [
+            4,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_79",
+          "mask": 79,
+          "atlas": [
+            5,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_95",
+          "mask": 95,
+          "atlas": [
+            6,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_110",
+          "mask": 110,
+          "atlas": [
+            7,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_111",
+          "mask": 111,
+          "atlas": [
+            0,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_127",
+          "mask": 127,
+          "atlas": [
+            1,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_137",
+          "mask": 137,
+          "atlas": [
+            2,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_139",
+          "mask": 139,
+          "atlas": [
+            3,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_141",
+          "mask": 141,
+          "atlas": [
+            4,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_143",
+          "mask": 143,
+          "atlas": [
+            5,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_155",
+          "mask": 155,
+          "atlas": [
+            6,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_159",
+          "mask": 159,
+          "atlas": [
+            7,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_175",
+          "mask": 175,
+          "atlas": [
+            0,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_191",
+          "mask": 191,
+          "atlas": [
+            1,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_205",
+          "mask": 205,
+          "atlas": [
+            2,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_207",
+          "mask": 207,
+          "atlas": [
+            3,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_223",
+          "mask": 223,
+          "atlas": [
+            4,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_239",
+          "mask": 239,
+          "atlas": [
+            5,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_dirt.mask_255",
+          "mask": 255,
+          "atlas": [
+            6,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grass_to_shallow_water",
+      "background": "grass",
+      "foreground": "shallow_water",
+      "waterBody": "lake",
+      "file": "runtime/grass_to_shallow_water.png",
+      "resource": "godot/grass_to_shallow_water.tres",
+      "tileSize": 64,
+      "columns": 8,
+      "rowsPerFrame": 6,
+      "frames": 16,
+      "periodSeconds": 1.2,
+      "masks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        19,
+        23,
+        27,
+        31,
+        38,
+        39,
+        46,
+        47,
+        55,
+        63,
+        76,
+        77,
+        78,
+        79,
+        95,
+        110,
+        111,
+        127,
+        137,
+        139,
+        141,
+        143,
+        155,
+        159,
+        175,
+        191,
+        205,
+        207,
+        223,
+        239,
+        255
+      ],
+      "backgroundIndex": 47,
+      "regions": [
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_0",
+          "mask": 0,
+          "atlas": [
+            0,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_1",
+          "mask": 1,
+          "atlas": [
+            1,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_2",
+          "mask": 2,
+          "atlas": [
+            2,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_3",
+          "mask": 3,
+          "atlas": [
+            3,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_4",
+          "mask": 4,
+          "atlas": [
+            4,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_5",
+          "mask": 5,
+          "atlas": [
+            5,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_6",
+          "mask": 6,
+          "atlas": [
+            6,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_7",
+          "mask": 7,
+          "atlas": [
+            7,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_8",
+          "mask": 8,
+          "atlas": [
+            0,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_9",
+          "mask": 9,
+          "atlas": [
+            1,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_10",
+          "mask": 10,
+          "atlas": [
+            2,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_11",
+          "mask": 11,
+          "atlas": [
+            3,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_12",
+          "mask": 12,
+          "atlas": [
+            4,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_13",
+          "mask": 13,
+          "atlas": [
+            5,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_14",
+          "mask": 14,
+          "atlas": [
+            6,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_15",
+          "mask": 15,
+          "atlas": [
+            7,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_19",
+          "mask": 19,
+          "atlas": [
+            0,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_23",
+          "mask": 23,
+          "atlas": [
+            1,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_27",
+          "mask": 27,
+          "atlas": [
+            2,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_31",
+          "mask": 31,
+          "atlas": [
+            3,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_38",
+          "mask": 38,
+          "atlas": [
+            4,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_39",
+          "mask": 39,
+          "atlas": [
+            5,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_46",
+          "mask": 46,
+          "atlas": [
+            6,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_47",
+          "mask": 47,
+          "atlas": [
+            7,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_55",
+          "mask": 55,
+          "atlas": [
+            0,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_63",
+          "mask": 63,
+          "atlas": [
+            1,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_76",
+          "mask": 76,
+          "atlas": [
+            2,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_77",
+          "mask": 77,
+          "atlas": [
+            3,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_78",
+          "mask": 78,
+          "atlas": [
+            4,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_79",
+          "mask": 79,
+          "atlas": [
+            5,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_95",
+          "mask": 95,
+          "atlas": [
+            6,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_110",
+          "mask": 110,
+          "atlas": [
+            7,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_111",
+          "mask": 111,
+          "atlas": [
+            0,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_127",
+          "mask": 127,
+          "atlas": [
+            1,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_137",
+          "mask": 137,
+          "atlas": [
+            2,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_139",
+          "mask": 139,
+          "atlas": [
+            3,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_141",
+          "mask": 141,
+          "atlas": [
+            4,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_143",
+          "mask": 143,
+          "atlas": [
+            5,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_155",
+          "mask": 155,
+          "atlas": [
+            6,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_159",
+          "mask": 159,
+          "atlas": [
+            7,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_175",
+          "mask": 175,
+          "atlas": [
+            0,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_191",
+          "mask": 191,
+          "atlas": [
+            1,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_205",
+          "mask": 205,
+          "atlas": [
+            2,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_207",
+          "mask": 207,
+          "atlas": [
+            3,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_223",
+          "mask": 223,
+          "atlas": [
+            4,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_239",
+          "mask": 239,
+          "atlas": [
+            5,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.grass_to_shallow_water.mask_255",
+          "mask": 255,
+          "atlas": [
+            6,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dirt_to_shallow_water",
+      "background": "dirt",
+      "foreground": "shallow_water",
+      "waterBody": "lake",
+      "file": "runtime/dirt_to_shallow_water.png",
+      "resource": "godot/dirt_to_shallow_water.tres",
+      "tileSize": 64,
+      "columns": 8,
+      "rowsPerFrame": 6,
+      "frames": 16,
+      "periodSeconds": 1.2,
+      "masks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        19,
+        23,
+        27,
+        31,
+        38,
+        39,
+        46,
+        47,
+        55,
+        63,
+        76,
+        77,
+        78,
+        79,
+        95,
+        110,
+        111,
+        127,
+        137,
+        139,
+        141,
+        143,
+        155,
+        159,
+        175,
+        191,
+        205,
+        207,
+        223,
+        239,
+        255
+      ],
+      "backgroundIndex": 47,
+      "regions": [
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_0",
+          "mask": 0,
+          "atlas": [
+            0,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_1",
+          "mask": 1,
+          "atlas": [
+            1,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_2",
+          "mask": 2,
+          "atlas": [
+            2,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_3",
+          "mask": 3,
+          "atlas": [
+            3,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_4",
+          "mask": 4,
+          "atlas": [
+            4,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_5",
+          "mask": 5,
+          "atlas": [
+            5,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_6",
+          "mask": 6,
+          "atlas": [
+            6,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_7",
+          "mask": 7,
+          "atlas": [
+            7,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_8",
+          "mask": 8,
+          "atlas": [
+            0,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_9",
+          "mask": 9,
+          "atlas": [
+            1,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_10",
+          "mask": 10,
+          "atlas": [
+            2,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_11",
+          "mask": 11,
+          "atlas": [
+            3,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_12",
+          "mask": 12,
+          "atlas": [
+            4,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_13",
+          "mask": 13,
+          "atlas": [
+            5,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_14",
+          "mask": 14,
+          "atlas": [
+            6,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_15",
+          "mask": 15,
+          "atlas": [
+            7,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_19",
+          "mask": 19,
+          "atlas": [
+            0,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_23",
+          "mask": 23,
+          "atlas": [
+            1,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_27",
+          "mask": 27,
+          "atlas": [
+            2,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_31",
+          "mask": 31,
+          "atlas": [
+            3,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_38",
+          "mask": 38,
+          "atlas": [
+            4,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_39",
+          "mask": 39,
+          "atlas": [
+            5,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_46",
+          "mask": 46,
+          "atlas": [
+            6,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_47",
+          "mask": 47,
+          "atlas": [
+            7,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_55",
+          "mask": 55,
+          "atlas": [
+            0,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_63",
+          "mask": 63,
+          "atlas": [
+            1,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_76",
+          "mask": 76,
+          "atlas": [
+            2,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_77",
+          "mask": 77,
+          "atlas": [
+            3,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_78",
+          "mask": 78,
+          "atlas": [
+            4,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_79",
+          "mask": 79,
+          "atlas": [
+            5,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_95",
+          "mask": 95,
+          "atlas": [
+            6,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_110",
+          "mask": 110,
+          "atlas": [
+            7,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_111",
+          "mask": 111,
+          "atlas": [
+            0,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_127",
+          "mask": 127,
+          "atlas": [
+            1,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_137",
+          "mask": 137,
+          "atlas": [
+            2,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_139",
+          "mask": 139,
+          "atlas": [
+            3,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_141",
+          "mask": 141,
+          "atlas": [
+            4,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_143",
+          "mask": 143,
+          "atlas": [
+            5,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_155",
+          "mask": 155,
+          "atlas": [
+            6,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_159",
+          "mask": 159,
+          "atlas": [
+            7,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_175",
+          "mask": 175,
+          "atlas": [
+            0,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_191",
+          "mask": 191,
+          "atlas": [
+            1,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_205",
+          "mask": 205,
+          "atlas": [
+            2,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_207",
+          "mask": 207,
+          "atlas": [
+            3,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_223",
+          "mask": 223,
+          "atlas": [
+            4,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_239",
+          "mask": 239,
+          "atlas": [
+            5,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.dirt_to_shallow_water.mask_255",
+          "mask": 255,
+          "atlas": [
+            6,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shallow_water_to_deep_water",
+      "background": "shallow_water",
+      "foreground": "deep_water",
+      "waterBody": "lake",
+      "file": "runtime/shallow_water_to_deep_water.png",
+      "resource": "godot/shallow_water_to_deep_water.tres",
+      "tileSize": 64,
+      "columns": 8,
+      "rowsPerFrame": 6,
+      "frames": 16,
+      "periodSeconds": 1.2,
+      "masks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        19,
+        23,
+        27,
+        31,
+        38,
+        39,
+        46,
+        47,
+        55,
+        63,
+        76,
+        77,
+        78,
+        79,
+        95,
+        110,
+        111,
+        127,
+        137,
+        139,
+        141,
+        143,
+        155,
+        159,
+        175,
+        191,
+        205,
+        207,
+        223,
+        239,
+        255
+      ],
+      "backgroundIndex": 47,
+      "regions": [
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_0",
+          "mask": 0,
+          "atlas": [
+            0,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_1",
+          "mask": 1,
+          "atlas": [
+            1,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_2",
+          "mask": 2,
+          "atlas": [
+            2,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_3",
+          "mask": 3,
+          "atlas": [
+            3,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_4",
+          "mask": 4,
+          "atlas": [
+            4,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_5",
+          "mask": 5,
+          "atlas": [
+            5,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_6",
+          "mask": 6,
+          "atlas": [
+            6,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_7",
+          "mask": 7,
+          "atlas": [
+            7,
+            0
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_8",
+          "mask": 8,
+          "atlas": [
+            0,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_9",
+          "mask": 9,
+          "atlas": [
+            1,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_10",
+          "mask": 10,
+          "atlas": [
+            2,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_11",
+          "mask": 11,
+          "atlas": [
+            3,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_12",
+          "mask": 12,
+          "atlas": [
+            4,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_13",
+          "mask": 13,
+          "atlas": [
+            5,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_14",
+          "mask": 14,
+          "atlas": [
+            6,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_15",
+          "mask": 15,
+          "atlas": [
+            7,
+            1
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_19",
+          "mask": 19,
+          "atlas": [
+            0,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_23",
+          "mask": 23,
+          "atlas": [
+            1,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_27",
+          "mask": 27,
+          "atlas": [
+            2,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_31",
+          "mask": 31,
+          "atlas": [
+            3,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_38",
+          "mask": 38,
+          "atlas": [
+            4,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_39",
+          "mask": 39,
+          "atlas": [
+            5,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_46",
+          "mask": 46,
+          "atlas": [
+            6,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_47",
+          "mask": 47,
+          "atlas": [
+            7,
+            2
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_55",
+          "mask": 55,
+          "atlas": [
+            0,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_63",
+          "mask": 63,
+          "atlas": [
+            1,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_76",
+          "mask": 76,
+          "atlas": [
+            2,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_77",
+          "mask": 77,
+          "atlas": [
+            3,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_78",
+          "mask": 78,
+          "atlas": [
+            4,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_79",
+          "mask": 79,
+          "atlas": [
+            5,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_95",
+          "mask": 95,
+          "atlas": [
+            6,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_110",
+          "mask": 110,
+          "atlas": [
+            7,
+            3
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_111",
+          "mask": 111,
+          "atlas": [
+            0,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_127",
+          "mask": 127,
+          "atlas": [
+            1,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_137",
+          "mask": 137,
+          "atlas": [
+            2,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_139",
+          "mask": 139,
+          "atlas": [
+            3,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_141",
+          "mask": 141,
+          "atlas": [
+            4,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_143",
+          "mask": 143,
+          "atlas": [
+            5,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_155",
+          "mask": 155,
+          "atlas": [
+            6,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_159",
+          "mask": 159,
+          "atlas": [
+            7,
+            4
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_175",
+          "mask": 175,
+          "atlas": [
+            0,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_191",
+          "mask": 191,
+          "atlas": [
+            1,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_205",
+          "mask": 205,
+          "atlas": [
+            2,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_207",
+          "mask": 207,
+          "atlas": [
+            3,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_223",
+          "mask": 223,
+          "atlas": [
+            4,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_239",
+          "mask": 239,
+          "atlas": [
+            5,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        },
+        {
+          "id": "cartoon.shallow_water_to_deep_water.mask_255",
+          "mask": 255,
+          "atlas": [
+            6,
+            5
+          ],
+          "size": [
+            64,
+            64
+          ],
+          "pivot": [
+            32,
+            32
+          ]
+        }
+      ]
+    }
+  ],
+  "animation": "Lake water only: stationary low-contrast substrate with six staggered local ripple highlights per cell. Highlights drift 2.5 pixels, form and fade over a 16-frame loop. No scrolling texture or whole-surface brightness wave. Not a river current, waterfall or sea animation.",
+  "limitations": [
+    "Needs visual approval.",
+    "Only four foundation transitions; full library is not complete.",
+    "No cliff or waterfall inlet/outlet connectors yet.",
+    "Margin-conditioned textures need repeated-pattern review."
+  ],
+  "map": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  ]
+}

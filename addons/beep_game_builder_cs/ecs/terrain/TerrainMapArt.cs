@@ -4,6 +4,7 @@ using System;
 namespace Beep.ECS;
 
 /// <summary>Presentation only. Never changes terrain, resources, placement or navigation.</summary>
+[Tool]
 [GlobalClass]
 public partial class TerrainMapArt : Resource
 {

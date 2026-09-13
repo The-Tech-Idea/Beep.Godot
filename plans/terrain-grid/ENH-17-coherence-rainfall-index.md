@@ -1,6 +1,12 @@
 # ENH-17 — Coherence rainfall index: stop re-deriving every sample's rainfall byte by string scan each pass
 
-**Type:** enhancement (generation time on the coherence path) · **Area:** `TerrainCoherenceStage` (`Smooth`, `RainfallIndex`) · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low — behaviour-preserving; gated by the generation baseline probe
+**Type:** enhancement (generation time on the coherence path) · **Area:** `TerrainCoherenceStage` (`Smooth`, `RainfallIndex`) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low — behaviour-preserving; gated by the generation baseline probe
+
+## Outcome (2026-09-11)
+
+`Smooth` now builds the `kind → byte` reverse index once per call (`Dictionary<string, byte>` with `StringComparer.Ordinal`) and `RainfallIndex` is a `TryGetValue` instead of an O(kinds) string scan — the per-sample cost drops from up to five ordinal compares to one hash lookup, across ~1.25M samples × passes. The dictionary is a derived index of `TerrainKindCatalog.Standard.RainfallKinds`, not a second owner of the kind set. Output is byte-identical.
+
+**The guard the plan asked for already existed — and one of its suggested mutations is wrong.** The plan assumed the baseline probe never sets `BiomeCoherencePasses`, leaving `Smooth` unpinned; in fact `TerrainGenerationBaselineSmoke.Settings` already sets `BiomeCoherencePasses = 2`, so the recorded fixture already covers the coherence path. No new case or `--record` cycle was needed: the probe was green before and after, and the mutation proves it bites — `(byte)i` instead of `(byte)(i + 1)` fails across every seed/shape (`layer terrain changed`, `layer sample_terrain changed`, …). But the plan's other suggested mutation, `StringComparer.OrdinalIgnoreCase`, does **not** trip it: every terrain kind is lowercase, so a case-insensitive map reproduces the identical mapping. Recorded so a future reader does not rely on that one. The optional contract-scan pin was not added — the scan is red at HEAD (see FIX-03's Outcome).
 
 ## Finding
 

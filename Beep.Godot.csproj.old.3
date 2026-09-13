@@ -1,0 +1,55 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Beep.Godot</RootNamespace>
+    <DefaultItemExcludes>$(DefaultItemExcludes);.godot/**;tests/**;**/bin/**;**/obj/**</DefaultItemExcludes>
+    <!-- Godot source generators emit these for intentional engine-surface cases:
+         Stat's Changed signal mirrors Resource.Changed, and nullable exported arrays
+         are generated outside a nullable annotations context. -->
+    <NoWarn>$(NoWarn);CS0108;CS8669</NoWarn>
+    <!-- The addon sources live under addons/. Godot.NET.Sdk auto-includes all
+         .cs files under the project directory, so the C# addon compiles with no
+         explicit Compile items. beep_ui is GDScript and is ignored by the build.
+         When a consumer copies addons/beep_game_builder_cs into their own project,
+         that project's own .csproj (also Godot.NET.Sdk) compiles them the same way. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- A chunk archive encodes a 32x32 chunk as one VarToBytes array of 100-300 KB. At the runtime's
+         default 85 KB threshold every one of them went to the large-object heap, and the gen2
+         collections that forced over a 200 MB live world were 100-200 ms main-thread stalls in the
+         retirement harness; measured with this threshold raised, the worst frame fell from 214 ms to
+         69 ms. 1 MB keeps those arrays in the small-object heap without moving anything else. -->
+    <RuntimeHostConfigurationOption Include="System.GC.LOHThreshold" Value="1048576" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="tests/DataBinderHostSmoke.cs" />
+    <Compile Include="tests/GridPlacementSmoke.cs" />
+    <Compile Include="tests/CoreGameplaySmoke.cs" />
+    <Compile Include="tests/TerrainFinalTopologySmoke.cs" />
+    <Compile Include="tests/TerrainResourceScaleSmoke.cs" />
+    <Compile Include="tests/TerrainStartScaleSmoke.cs" />
+    <Compile Include="tests/TerrainScratchLifetimeSmoke.cs" />
+    <Compile Include="tests/TerrainSampleValuesSmoke.cs" />
+    <Compile Include="tests/ComponentLookupSmoke.cs" />
+    <Compile Include="tests/NavigationQuerySmoke.cs" />
+    <Compile Include="tests/TerrainIdentitySmoke.cs" />
+    <Compile Include="tests/TerrainGenerationJobSmoke.cs" />
+    <Compile Include="tests/TerrainHugeGenerationSmoke.cs" />
+    <Compile Include="tests/TerrainWaterSurfaceSmoke.cs" />
+    <Compile Include="tests/TerrainCoastFilterSmoke.cs" />
+    <Compile Include="tests/TerrainShorelineContourSmoke.cs" />
+    <Compile Include="tests/TerrainGenerationBaselineSmoke.cs" />
+    <Compile Include="tests/TerrainChangeKindSmoke.cs" />
+    <Compile Include="tests/GridIdsSmoke.cs" />
+    <Compile Include="tests/GridProjectionSmoke.cs" />
+    <Compile Include="tests/GridInteractionHoverSmoke.cs" />
+    <Compile Include="tests/GridCellOverlaySmoke.cs" />
+    <Compile Include="tests/GridMinimapSmoke.cs" />
+    <Compile Include="tests/GridJobQueueSmoke.cs" />
+    <Compile Include="tests/TerrainKindCatalogSmoke.cs" />
+    <Compile Include="tests/ResourceWalletKeySmoke.cs" />
+  </ItemGroup>
+</Project>

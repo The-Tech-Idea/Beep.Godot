@@ -1,0 +1,639 @@
+[gd_scene format=3]
+
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_waterfall_v1/fall_16.tres" id="1_jalxn"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_waterfall_v1/fall_32.tres" id="2_k5071"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_waterfall_v1/fall_64.tres" id="3_kbc7a"]
+
+[node name="IsometricWaterOnlyReview" type="Node2D" unique_id=1342191606]
+
+[node name="north_south_Rise16_Width1" type="Node2D" parent="." unique_id=1011521326]
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise16_Width1" unique_id=223158515]
+texture_filter = 1
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.narrow"
+autoplay = "north_south.narrow"
+centered = false
+
+[node name="north_south_Rise16_Width2" type="Node2D" parent="." unique_id=588610832]
+position = Vector2(144, 0)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise16_Width2" unique_id=1136210326]
+texture_filter = 1
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise16_Width2" unique_id=1501895254]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise16_Width3" type="Node2D" parent="." unique_id=75668561]
+position = Vector2(320, 0)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise16_Width3" unique_id=1976452126]
+texture_filter = 1
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise16_Width3" unique_id=474463743]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise16_Width3" unique_id=338546216]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise16_Width5" type="Node2D" parent="." unique_id=1656969627]
+position = Vector2(528, 0)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise16_Width5" unique_id=922220961]
+texture_filter = 1
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise16_Width5" unique_id=2006807425]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise16_Width5" unique_id=454248216]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="north_south_Rise16_Width5" unique_id=1775080551]
+texture_filter = 1
+position = Vector2(96, 48)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="north_south_Rise16_Width5" unique_id=841996543]
+texture_filter = 1
+position = Vector2(128, 64)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="west_east_Rise16_Width1" type="Node2D" parent="." unique_id=77799658]
+position = Vector2(0, 176)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise16_Width1" unique_id=1018590492]
+texture_filter = 1
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.narrow"
+autoplay = "west_east.narrow"
+centered = false
+
+[node name="west_east_Rise16_Width2" type="Node2D" parent="." unique_id=1567589222]
+position = Vector2(144, 176)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise16_Width2" unique_id=520589693]
+texture_filter = 1
+position = Vector2(32, 0)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise16_Width2" unique_id=1394353104]
+texture_filter = 1
+position = Vector2(0, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise16_Width3" type="Node2D" parent="." unique_id=780541536]
+position = Vector2(320, 176)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise16_Width3" unique_id=356804976]
+texture_filter = 1
+position = Vector2(64, 0)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise16_Width3" unique_id=473905797]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise16_Width3" unique_id=1168615870]
+texture_filter = 1
+position = Vector2(0, 32)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise16_Width5" type="Node2D" parent="." unique_id=257016167]
+position = Vector2(528, 176)
+metadata/terrain_missing = true
+metadata/rise_pixels = 16.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise16_Width5" unique_id=1654386588]
+texture_filter = 1
+position = Vector2(128, 0)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise16_Width5" unique_id=1923111852]
+texture_filter = 1
+position = Vector2(96, 16)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise16_Width5" unique_id=1014587615]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="west_east_Rise16_Width5" unique_id=288754679]
+texture_filter = 1
+position = Vector2(32, 48)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="west_east_Rise16_Width5" unique_id=1320343506]
+texture_filter = 1
+position = Vector2(0, 64)
+sprite_frames = ExtResource("1_jalxn")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="north_south_Rise32_Width1" type="Node2D" parent="." unique_id=1069299684]
+position = Vector2(0, 352)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise32_Width1" unique_id=1919045376]
+texture_filter = 1
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.narrow"
+autoplay = "north_south.narrow"
+centered = false
+
+[node name="north_south_Rise32_Width2" type="Node2D" parent="." unique_id=1833410843]
+position = Vector2(144, 352)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise32_Width2" unique_id=1496681245]
+texture_filter = 1
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise32_Width2" unique_id=1715754320]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise32_Width3" type="Node2D" parent="." unique_id=1507672963]
+position = Vector2(320, 352)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise32_Width3" unique_id=580869457]
+texture_filter = 1
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise32_Width3" unique_id=1880497642]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise32_Width3" unique_id=89670268]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise32_Width5" type="Node2D" parent="." unique_id=960584339]
+position = Vector2(528, 352)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise32_Width5" unique_id=1177154514]
+texture_filter = 1
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise32_Width5" unique_id=1154218627]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise32_Width5" unique_id=19987073]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="north_south_Rise32_Width5" unique_id=1139160754]
+texture_filter = 1
+position = Vector2(96, 48)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="north_south_Rise32_Width5" unique_id=1226500609]
+texture_filter = 1
+position = Vector2(128, 64)
+sprite_frames = ExtResource("2_k5071")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="west_east_Rise32_Width1" type="Node2D" parent="." unique_id=30778751]
+position = Vector2(0, 544)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise32_Width1" unique_id=1376513843]
+texture_filter = 1
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.narrow"
+autoplay = "west_east.narrow"
+centered = false
+
+[node name="west_east_Rise32_Width2" type="Node2D" parent="." unique_id=1037264817]
+position = Vector2(144, 544)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise32_Width2" unique_id=389278489]
+texture_filter = 1
+position = Vector2(32, 0)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise32_Width2" unique_id=1122976682]
+texture_filter = 1
+position = Vector2(0, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise32_Width3" type="Node2D" parent="." unique_id=812075037]
+position = Vector2(320, 544)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise32_Width3" unique_id=838719804]
+texture_filter = 1
+position = Vector2(64, 0)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise32_Width3" unique_id=197630643]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise32_Width3" unique_id=862937999]
+texture_filter = 1
+position = Vector2(0, 32)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise32_Width5" type="Node2D" parent="." unique_id=1540389966]
+position = Vector2(528, 544)
+metadata/terrain_missing = true
+metadata/rise_pixels = 32.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise32_Width5" unique_id=133045272]
+texture_filter = 1
+position = Vector2(128, 0)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise32_Width5" unique_id=1510965862]
+texture_filter = 1
+position = Vector2(96, 16)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise32_Width5" unique_id=1708966089]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="west_east_Rise32_Width5" unique_id=743736486]
+texture_filter = 1
+position = Vector2(32, 48)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="west_east_Rise32_Width5" unique_id=1511429401]
+texture_filter = 1
+position = Vector2(0, 64)
+sprite_frames = ExtResource("2_k5071")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="north_south_Rise64_Width1" type="Node2D" parent="." unique_id=1252145213]
+position = Vector2(0, 736)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise64_Width1" unique_id=602638865]
+texture_filter = 1
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.narrow"
+autoplay = "north_south.narrow"
+centered = false
+
+[node name="north_south_Rise64_Width2" type="Node2D" parent="." unique_id=965294754]
+position = Vector2(144, 736)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise64_Width2" unique_id=918130408]
+texture_filter = 1
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise64_Width2" unique_id=895109630]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise64_Width3" type="Node2D" parent="." unique_id=1688303002]
+position = Vector2(320, 736)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise64_Width3" unique_id=2082236386]
+texture_filter = 1
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise64_Width3" unique_id=684415572]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise64_Width3" unique_id=1447689379]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="north_south_Rise64_Width5" type="Node2D" parent="." unique_id=1363526317]
+position = Vector2(528, 736)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="north_south_Rise64_Width5" unique_id=1281824618]
+texture_filter = 1
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.low_bank"
+autoplay = "north_south.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="north_south_Rise64_Width5" unique_id=1485845375]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="north_south_Rise64_Width5" unique_id=1615820206]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="north_south_Rise64_Width5" unique_id=2037134474]
+texture_filter = 1
+position = Vector2(96, 48)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.middle"
+autoplay = "north_south.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="north_south_Rise64_Width5" unique_id=1887472901]
+texture_filter = 1
+position = Vector2(128, 64)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"north_south.high_bank"
+autoplay = "north_south.high_bank"
+centered = false
+
+[node name="west_east_Rise64_Width1" type="Node2D" parent="." unique_id=75023089]
+position = Vector2(0, 960)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise64_Width1" unique_id=302442828]
+texture_filter = 1
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.narrow"
+autoplay = "west_east.narrow"
+centered = false
+
+[node name="west_east_Rise64_Width2" type="Node2D" parent="." unique_id=1096857196]
+position = Vector2(144, 960)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise64_Width2" unique_id=1569879144]
+texture_filter = 1
+position = Vector2(32, 0)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise64_Width2" unique_id=874612624]
+texture_filter = 1
+position = Vector2(0, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise64_Width3" type="Node2D" parent="." unique_id=807068842]
+position = Vector2(320, 960)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise64_Width3" unique_id=238742950]
+texture_filter = 1
+position = Vector2(64, 0)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise64_Width3" unique_id=629928932]
+texture_filter = 1
+position = Vector2(32, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise64_Width3" unique_id=1301563118]
+texture_filter = 1
+position = Vector2(0, 32)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false
+
+[node name="west_east_Rise64_Width5" type="Node2D" parent="." unique_id=1532778166]
+position = Vector2(528, 960)
+metadata/terrain_missing = true
+metadata/rise_pixels = 64.0
+
+[node name="Section0" type="AnimatedSprite2D" parent="west_east_Rise64_Width5" unique_id=596183652]
+texture_filter = 1
+position = Vector2(128, 0)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.low_bank"
+autoplay = "west_east.low_bank"
+centered = false
+
+[node name="Section1" type="AnimatedSprite2D" parent="west_east_Rise64_Width5" unique_id=949278298]
+texture_filter = 1
+position = Vector2(96, 16)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section2" type="AnimatedSprite2D" parent="west_east_Rise64_Width5" unique_id=1302977117]
+texture_filter = 1
+position = Vector2(64, 32)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section3" type="AnimatedSprite2D" parent="west_east_Rise64_Width5" unique_id=250231494]
+texture_filter = 1
+position = Vector2(32, 48)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.middle"
+autoplay = "west_east.middle"
+centered = false
+
+[node name="Section4" type="AnimatedSprite2D" parent="west_east_Rise64_Width5" unique_id=968495427]
+texture_filter = 1
+position = Vector2(0, 64)
+sprite_frames = ExtResource("3_kbc7a")
+animation = &"west_east.high_bank"
+autoplay = "west_east.high_bank"
+centered = false

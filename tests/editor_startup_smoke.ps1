@@ -1,7 +1,8 @@
 param(
     [string]$GodotCommand = "godot",
     [int]$QuitAfterSeconds = 5,
-    [int]$TimeoutSeconds = 20
+    [int]$TimeoutSeconds = 20,
+    [string]$ScenePath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +17,10 @@ Remove-Item -LiteralPath $stdoutPath, $stderrPath -ErrorAction SilentlyContinue
 $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
 $startInfo.FileName = $resolvedGodotCommand
 $startInfo.Arguments = "--headless --editor --path `"$($projectRoot.Path)`" --quit-after $QuitAfterSeconds"
+if ($ScenePath) {
+    # Exercise scene/resource deserialization as well as plugin startup.
+    $startInfo.Arguments += " `"$ScenePath`""
+}
 $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardOutput = $true
 $startInfo.RedirectStandardError = $true

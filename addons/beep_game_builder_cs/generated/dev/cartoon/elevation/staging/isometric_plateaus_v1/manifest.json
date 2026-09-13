@@ -1,0 +1,54 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "scene": "plateau_1x1.tscn"
+    },
+    {
+      "dimensions": [
+        2,
+        2
+      ],
+      "scene": "plateau_2x2.tscn"
+    },
+    {
+      "dimensions": [
+        3,
+        2
+      ],
+      "scene": "plateau_3x2.tscn"
+    },
+    {
+      "dimensions": [
+        5,
+        3
+      ],
+      "scene": "plateau_5x3.tscn"
+    }
+  ],
+  "footprintCell": [
+    64,
+    32
+  ],
+  "pending": [
+    "Wall repetition review",
+    "Concave shapes and holes",
+    "Exposed ends",
+    "Bottom contacts",
+    "Visual approval"
+  ],
+  "productionReady": false,
+  "projection": "isometric",
+  "resources": [
+    "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/corner.tres",
+    "res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/isometric/surface_candidate_v1/grass_dirt_review.tscn"
+  ],
+  "risePixels": 64,
+  "schemaVersion": 1,
+  "status": "candidate",
+  "style": "cartoon"
+}

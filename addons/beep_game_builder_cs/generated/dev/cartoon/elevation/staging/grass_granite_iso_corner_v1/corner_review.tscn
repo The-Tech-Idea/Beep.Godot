@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader" id="1_2to20"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/plateau_mask.res" id="2_hkko0"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="3_m6ox3"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/corner.tres" id="4_fsbi8"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="5_gvcg3"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_66eqy"]
+shader = ExtResource("1_2to20")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_m6ox3")
+shader_parameter/surface_mask = ExtResource("2_hkko0")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[node name="IsometricGraniteCornerCandidate" type="Node2D" unique_id=1435638508]
+metadata/production_ready = false
+metadata/rise_pixels = 64
+
+[node name="Corner" type="TileMapLayer" parent="." unique_id=292092930]
+texture_filter = 1
+material = SubResource("ShaderMaterial_66eqy")
+tile_map_data = PackedByteArray(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+tile_set = ExtResource("4_fsbi8")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=1355586834]
+position = Vector2(0, -64)
+script = ExtResource("5_gvcg3")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../Corner")])

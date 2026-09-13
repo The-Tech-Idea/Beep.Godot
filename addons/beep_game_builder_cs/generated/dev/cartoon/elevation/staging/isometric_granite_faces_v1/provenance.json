@@ -1,0 +1,50 @@
+{
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/sources/faces_source.png",
+  "sourceSha256": "6e5bca2caf8aa506c8c028221ea10600ce4bae86f11375d86c7c14228ffa6e3d",
+  "generator": "built-in imagegen",
+  "generatedFile": "exec-08192996-c3b1-43af-833a-996ce5dc6aa9.png",
+  "guide": {
+    "canvas": [
+      1536,
+      1024
+    ],
+    "light": [
+      [
+        32,
+        80
+      ],
+      [
+        672,
+        400
+      ],
+      [
+        672,
+        720
+      ],
+      [
+        32,
+        400
+      ]
+    ],
+    "shade": [
+      [
+        864,
+        400
+      ],
+      [
+        1504,
+        80
+      ],
+      [
+        1504,
+        400
+      ],
+      [
+        864,
+        720
+      ]
+    ]
+  },
+  "request": "Original long isometric granite faces, varied large fractured slabs, no repeated masonry or pillars, separate light/shade art, fixed guide silhouette, green background, no grass top.",
+  "conversion": "Uniform 640 to 256 master to 128 runtime; chroma removal; near-opaque alpha normalization; no square-art projection warp."
+}

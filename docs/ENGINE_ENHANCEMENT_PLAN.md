@@ -1,5 +1,37 @@
 # Terrain + Grid + Resources — Enhancement and Fix Plan
 
+This file is the master tracker. The latest scene/map workflow review is listed first; the terrain/grid sections below retain their historical findings and implementation evidence. Historical clean-test statements are dated evidence, not the current working-tree baseline.
+
+## Game Builder scenes and terrain lifecycle review (2026-09-11)
+
+**Status: review and planning complete; BGB implementation Proposed.** Scope: project/scene creation, scene management, design-time terrain authoring, reusable map output, runtime generation and persistent dynamic worlds. The owner explicitly requires **populated, editable Godot TileMapLayer maps** that developers can save as scenes and use directly. A native scene profile must work without a Beep generator/runtime script; a separate Beep profile adds logical gameplay and save integration.
+
+Documents: [overview](game-builder/README.md), [source review](game-builder/REVIEW.md), [scene lifecycle](game-builder/SCENE_LIFECYCLE.md), [TileMapLayer output contract](game-builder/TILEMAP_OUTPUT.md), [editor authoring](game-builder/TERRAIN_AUTHORING.md), [runtime terrain](game-builder/RUNTIME_TERRAIN.md), [implementation plan](../plans/game-builder/IMPLEMENTATION_PLAN.md).
+
+Verified review finding: packing an owned GridCellDataComponent preserved an owned scene marker but lost a water cell, restoring it as default grass; explicit chunk-snapshot restoration recovered water. Scene-node ownership is therefore only one part of Beep gameplay-map persistence. Existing real tile renderers are foundations; their output still needs the reusable native-scene publication contract. No existing generator/save subsystem is being replaced by this plan.
+
+| ID | Work package | Priority | Delivery/dependencies | Estimate (developer-days) | Status |
+|---|---|---|---|---|---|
+| BGB-01 | Transactional project and scene generation; output preview and preservation | P2 | M3; baseline | 3–5 | Proposed |
+| BGB-02 | MapDefinition and complete versioned TerrainRecipe; explicit map modes | P1 | M2; tile contract; F09/FEAT-06 | 3–6 | Proposed |
+| BGB-03 | Editor preview/apply, undo/redo, native tile edit synchronization | P1 | M1 native / M2 Beep; BGB-13/02; FEAT-08 | 4–7 | Proposed |
+| BGB-04 | Publish populated TileMapLayer scenes; optional Beep gameplay baseline and loader | P1 | M1/M2; BGB-13/03, plus BGB-02/07 for Beep | 4–7 | Proposed |
+| BGB-05 | Scene catalog and one transactional transition coordinator | P1 | M3; BGB-02; existing F04/session work | 4–7 | Proposed |
+| BGB-06 | Dynamic generation and local edits with bounded native tile publication | P1 | M3; BGB-02/05/13 | 3–6 | Proposed |
+| BGB-07 | Stable authored/runtime entity IDs and multi-pass reconstruction | P1 | M2: BGB-02; M3 runtime integration: BGB-05; F05/F07 | 3–6 | Proposed |
+| BGB-08 | Complete streamed save transaction, async result and slot isolation | P1 | M4; BGB-02/05/06/07; ENH-04/10 | 4–8* | Proposed |
+| BGB-09 | Generation provenance and safe template-upgrade preview | P2 | M5; BGB-01 | 2–4 | Proposed |
+| BGB-10 | Integrated scenes/maps dock using shared services | P2 | Incremental; M5 completion | 4–7 | Proposed |
+| BGB-11 | Baseline, scene/resource validation and lifecycle regression gates | P1 | M0 onward; coverage with each package | 2–4* | Proposed |
+| BGB-12 | Native/authored/procedural/hybrid examples, tutorials and exported-game proof | P1 | Each milestone; M5 closeout | 3–5 | Proposed |
+| BGB-13 | Required populated TileMapLayer output, TileSet bindings and native portability | P1 | **First delivery M0/M1**, with BGB-11 | 3–7 | Proposed |
+
+Estimates are provisional; *BGB-08 excludes unfinished low-level streaming backlog, and BGB-11 package tests also land with their owning work. Order: prove native TileMapLayer generation/edit/save/reuse first → full authored gameplay persistence → scene/session integration and procedural generation → streamed saves → consolidated authoring UX and release evidence. The complete plan gives acceptance criteria and migration boundaries for each item.
+
+Existing F04/F05/F07/F09, FEAT-06/08 and ENH-10 remain linked requirements, not duplicate independent implementations. Update old and new entries with the same evidence when shared work lands. Review documents do not close those implementation items. Full hot reload, all-genre/export and large-world tests were not rerun for this planning turn; establish a current baseline through BGB-11.
+
+---
+
 This plan covers **all 108 files** under `addons/beep_game_builder_cs/ecs/terrain/` — the terrain engine (`Terrain*`), the gameplay grid system (`Grid*`), and the shared resource system — plus `ecs/ui/ResourceBadgeComponent.cs`. It is the result of a complete, file-by-file read of every one of those files on 2026-09-02, with every finding below verified against the actual source before inclusion.
 
 It is the successor to `docs/terrain-engine/ENHANCEMENT_AND_FIX_PLAN.md`, which covered only the `Terrain*` half and is closed (all its findings fixed). That plan explicitly declared the `Grid*` half out of scope — "a separate system … would need reviewing elsewhere". This is that review, plus the cross-system findings only a whole-directory read could see.

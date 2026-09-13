@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {GENERATED,inside} from './library.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const base=`${GENERATED}/dev/cartoon/water/staging`;
+const manifest=JSON.parse(fs.readFileSync(inside(root,`${base}/manifest.json`),'utf8'));
+const images=Object.fromEntries(manifest.assets.map(a=>[a.id,'data:image/png;base64,'+fs.readFileSync(inside(root,`${base}/${a.file}`)).toString('base64')]));
+fs.writeFileSync(inside(root,`${base}/preview-data.js`),'const DATA='+JSON.stringify({manifest,images})+';\n');
+console.log('Built local browser preview from the candidate atlases.');

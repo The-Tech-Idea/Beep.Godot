@@ -1,0 +1,56 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Use this attached image ONLY as an exact geometric paint guide. Keep the silhouette, all seven polygon vertices, flat green background and the divisions between the top and two wall faces EXACTLY in place. Do not change proportions, orientation, crop, canvas or perspective. Paint the muted top face as plain subtly mottled meadow grass, without tufts or props. Paint the two grey faces as original hand-painted cartoon cool-grey granite bedrock: large irregular interlocking masses, sparse natural fissures, broad restrained color shapes, no repeating blocks and no polygonal low-poly 3D aesthetic. Keep the left face gently lighter than the right under upper-left light. Add a thin soil edge ONLY along the two grass/front-wall boundaries; it may be irregular by a few pixels but must not move their nominal lines. No outer protrusions or foot boulders for this source; those will be separate connector overlays. Keep the outside #00FF00 green exactly flat and opaque. No text, grid, water, stairs, characters, decorations, shadows outside the shape, additional shapes, changed dimensions, curving or tapering of the walls. This is a production-geometry guide being painted as a DEVELOPMENT SOURCE candidate, not a new freeform terrain shape.",
+  "guide": {
+    "canvas": [
+      1152,
+      1320
+    ],
+    "top": [
+      [
+        576,
+        180
+      ],
+      [
+        896,
+        340
+      ],
+      [
+        576,
+        500
+      ],
+      [
+        256,
+        340
+      ]
+    ],
+    "bottom": [
+      [
+        256,
+        980
+      ],
+      [
+        576,
+        1140
+      ],
+      [
+        896,
+        980
+      ]
+    ],
+    "rise": 640
+  },
+  "experiments": [
+    {
+      "path": "../../experiments/iso_corner_freeform_v1/shallow.png",
+      "prompt": "Original cartoon 2D RPG terrain SOURCE SPRITE on a solid opaque bright chroma-green #00FF00 background. ONE isometric convex outer cliff corner module, not a scene, not a poster. Precisely two-to-one diamond projection: plateau top is a broad rhombus whose width is twice its depth, with screen-axis diagonal edges at 1 rise to 2 run. The foreground point joins TWO outward-visible vertical cool-grey granite cliff faces, left front and right front. Each wall descends VERTICALLY in screen space, not inward and not conically tapered; matching upper and lower diamond vertices separated by a vertical drop approximately equal to the diamond's full width. The top plateau is plain muted light meadow green with subtle mottling, no grass tufts, flowers or decorations. Thin irregular soil/grass rim transitioning naturally into stone, not thick floating turf. Broad varied interlocking granite bedrock formations with sparse irregular fissures, clean hand-painted cartoon shapes, restrained dark grey outlines, gentle upper-left lighting; the left face slightly lighter than right. No repeated stacked identical stones, masonry, faceted low-poly 3D look, photoreal noise or tiny pebbles everywhere. A shallow attached irregular rock-toe fringe at the bottom contact, no cast shadow on background. Rear/top boundaries are cut-through terrain connections, no tall rim or parapet; this is intended to connect to extendable plateau terrain, not a decorative freestanding pedestal. Clean readable silhouette. Isometric art authored directly, never a perspective view with vanishing points. No ramps, stairs, water, props, buildings, characters, text, labels or gridlines. Center the whole single corner sprite fully intact with generous flat BRIGHT GREEN margins. Do not use black, white or transparent background. No other pieces or rows. The artwork is a master candidate to calibrate into a 64x32-game-pixel diamond footprint and a separately measured 64-game-pixel vertical cliff rise.",
+      "reason": "Footprint too shallow and vertical rise too short."
+    },
+    {
+      "path": "../../experiments/iso_corner_freeform_v1/tall.png",
+      "prompt": "Create a SINGLE technical cartoon isometric cliff corner sprite on an OPAQUE solid bright #00FF00 green background, portrait composition. Geometry is critical: the diamond plateau is TWO times wider than its depth, and the vertical cliff drop is exactly the SAME measurement as the full diamond width. Thus this is a TALL NARROW corner module, NOT a squat wide plateau or cube. For example, if diamond width is 512 pixels, top diamond depth is 256 pixels, and the cliff drops 512 pixels vertically below each corresponding top vertex. The silhouette overall is approximately 550 pixels wide by 800 pixels tall including a shallow foot fringe. Keep that ratio. Diamond vertices symmetric: top/back, left, front, right, with every diagonal edge slope 1 vertical to 2 horizontal. Two visible front wall faces meet at the foremost vertical ridge. Corresponding bottom vertices directly below top vertices, NO taper inward. Plain muted light meadow-green top, no decorations. Cool neutral-grey granite faces with broad varied interlocking rock masses, sparse irregular fractures and clean cartoon painting; upper-left lighting, left wall slightly lighter. Keep rock construction natural, not identical bricks or repeated stacks. Thin soil seam at grass rim. Small attached rock toes along bottom, no detached props. Do not add an enclosing wall on top. Rear two top edges are cut-through connections to adjoining plateau tiles. No perspective vanishing points, no low-poly 3D rendering, no photorealistic texture, no pixel art. No water, stairs, ramps, characters, buildings, text, grids or extra objects. Show the complete tall sprite centered with generous bright green margins. This is an original separately authored isometric module for a 64x32 diamond game cell with 64 pixels of VERTICAL RISE, not an entire mountain or floating island.",
+      "reason": "Top and lower vertices do not retain the specified parallel diamond geometry."
+    }
+  ],
+  "approvalEvidence": null
+}

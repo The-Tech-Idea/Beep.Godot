@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.accessories.v1",
+  "style": "pixel",
+  "pack": "accessories",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

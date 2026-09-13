@@ -1,0 +1,115 @@
+{
+  "tool": "built-in image_gen",
+  "status": "generated_frames_with_region_definitions",
+  "animations": [
+    {
+      "name": "river_flow",
+      "fps": 8,
+      "frames": [
+        [
+          64,
+          52,
+          278,
+          278
+        ],
+        [
+          440,
+          52,
+          278,
+          278
+        ],
+        [
+          816,
+          52,
+          278,
+          278
+        ],
+        [
+          1192,
+          52,
+          278,
+          278
+        ]
+      ]
+    },
+    {
+      "name": "waterfall_flow",
+      "fps": 8,
+      "frames": [
+        [
+          24,
+          380,
+          360,
+          320
+        ],
+        [
+          400,
+          380,
+          360,
+          320
+        ],
+        [
+          776,
+          380,
+          360,
+          320
+        ],
+        [
+          1152,
+          380,
+          360,
+          320
+        ]
+      ]
+    },
+    {
+      "name": "splash",
+      "fps": 8,
+      "frames": [
+        [
+          24,
+          740,
+          360,
+          220
+        ],
+        [
+          400,
+          740,
+          360,
+          220
+        ],
+        [
+          776,
+          740,
+          360,
+          220
+        ],
+        [
+          1152,
+          740,
+          360,
+          220
+        ]
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "name": "cartoon_water_animation",
+      "prompt": "CARTOON WATER ANIMATION SPRITE SHEET for a 2D RPG. Exactly FOUR COLUMNS and THREE ROWS, each row is one four-frame looping animation read left to right, NOT different assets. All frames same cell dimensions and fixed anchor; motion of WATER ONLY. Landscape1536x1024 canvas concept with equal invisible cells. Pure opaque bright GREEN RGB0,255,0 background, no grid lines labels or text. Row1 four animation frames of the SAME square top-down turquoise river water surface tile: identical square silhouette and flat blue base, sparse white curved ripples move DOWN by small equal increments from frame to frame, wrapping across bottom to top for loop. Water fills each square to its edges without outline or shore. Row2 four animation frames of the SAME narrow vertical waterfall water curtain: identical width height and top lip position, pale vertical streaks progress DOWN each frame, small foam at bottom changes gently. Water only NO rocks NO cliffs NO grass. Row3 four animation frames of the SAME low wide oval splash foam overlay: central splash expands into ripples and settles cyclically, same center and bounded overall footprint. Clean hand drawn cel shaded style, cyan teal and ivory colors matching woodland cartoon waterfalls, smooth crisp outlines, no realism no pixelart no blur. Generous equal green gutters between cells, each sprite centered and completely intact. EXACTLY twelve sprites, no background scenery. No perspective or scale changes between frames.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-d063d2e1-2b01-4592-97c4-caa57bfb060c.png"
+    },
+    {
+      "name": "pixel_water_animation",
+      "prompt": "Redraw this water animation sheet as authentic crisp PIXEL ART. Preserve EXACTLY four columns three rows and 12 frames; every row is ONE four-frame animation left to right, not different assets. Same anchors, same dimensions and scale within each row. Row1 square blue river water tiles with highlights shifting down progressively across four frames. Row2 falling water curtain with fixed top lip and overall width/height, pale streaks falling down through frames. Row3 splash expands then settles through four frames with fixed base ripple footprint and center. Keep all water shapes turquoise/cyan and white, no terrain rocks banks grass or scenery. Hard square pixel clusters, limited palette, classic 48-64px sprite visual language enlarged nearest neighbor. No smoothing no antialiasing no blur. Use landscape canvas1536x1024 and equal invisible cells. Generous solid fully OPAQUE neon GREEN RGB0,255,0 background throughout all empty areas. No transparency, no black background, no text numbers grid lines borders. Complete sprites not cropped. Frame sequence intended as loop with last approaching first. No camera changes.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-87009016-b9b6-4bbb-a077-0ab51585fecf.png"
+    }
+  ],
+  "notes": [
+    "Four distinct frames per animation. Static terrain intentionally excluded.",
+    "Frame anchors visually estimated; dimensions consistent within each sequence.",
+    "Loop continuity and in-engine playback not validated. Minor silhouette variation may cause wobble.",
+    "Green background retained; color-key shader or alpha conversion needed for overlay use.",
+    "Source sheet pixels not normalized to a fixed native pixel-art resolution."
+  ]
+}

@@ -1,4 +1,6 @@
 # Godot 4+ specific ignores
+# Keep *.uid and asset *.import sidecars: they preserve resource identities
+# and import settings. The directories below contain disposable engine caches.
 .godot/
 .nomedia
 
@@ -18,6 +20,7 @@ mono_crash.*.json
 /.vs/Beep.Godot.slnx/FileContentIndex
 
 # .NET / C# build artifacts
+.vs/
 [Bb]in/
 [Oo]bj/
 *.user
@@ -25,6 +28,7 @@ mono_crash.*.json
 /.vs/Beep.Godot/v18
 
 # beep-mcp-server (Node)
+node_modules/
 tools/beep-mcp-server/node_modules/
 tools/beep-mcp-server/dist/
 
@@ -46,8 +50,20 @@ tests/output/*
 
 # Python bytecode from the tools/ and plans/ scripts
 __pycache__/
+*.pyc
+*.pyo
+
+# Local OS metadata (not artwork or Godot resource sidecars)
+.DS_Store
+Thumbs.db
+Desktop.ini
 /.vs/Beep.Godot/CopilotIndices/18.8.1093.27292
 /.vs/Beep.Godot.slnx/VSGitHubCopilot/ContextSpill/522b2a1ff75741cf9649c676428f5d8a/73d06f443f0d4616a0dd4a5698a5892a
 
 # generated/ contains authored prefab artwork, scenes, manifests and import
 # settings. Keep these versionable; only caches and temporary files are ignored.
+
+# Terrain library: approved production and root-level legacy_art remain tracked.
+/addons/beep_game_builder_cs/generated/dev/**/experiments/
+/addons/beep_game_builder_cs/generated/test/**/output/
+/.art_quarantine/

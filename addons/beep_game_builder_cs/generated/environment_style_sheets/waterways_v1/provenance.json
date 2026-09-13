@@ -1,0 +1,37 @@
+{
+  "status": "static_source_artwork",
+  "tool": "built-in image_gen",
+  "background": "green",
+  "sheets": [
+    {
+      "name": "cartoon_rivers",
+      "prompt": "Original CARTOON RIVER terrain sprite sheet for a top-down 2D RPG. Clean hand-drawn cel shaded jade grassy banks, thin warm earth at shoreline, turquoise blue water with sparse flowing white strokes. Exactly 16 isolated square source tiles in 4 columns 4 rows with generous solid opaque neon GREEN #00FF00 gutters. No gridlines no labels no text. Flat top-down terrain, not floating islands. Tile artwork extends flush to square edges where the river continues, same half-tile channel width at every connecting edge. Row1 vertical straight river, horizontal straight river, bend connecting north-east, bend east-south. Row2 bend south-west, bend west-north, river T junction connecting north-east-west, river cross connecting all four edges. Row3 narrow brook straight north-south, wide river straight north-south, narrow-to-wide transition, rocky shallow ford with continuous water. Row4 quiet water fill with no border, deeper water fill with no border, grassy bank with reeds and open water edge, rounded spring pool feeding a channel south. Keep shapes readable and water blue, no green water. Fill squares without frames, no dark outside box strokes, no rounded square corners. No buildings or trees. Original professional cartoon artwork, no pixelart no blurry gradients no 3D. Uniform green background not transparency.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-3ae300ae-4824-45a6-8658-6313ae98336b.png",
+      "file": "cartoon_rivers.png"
+    },
+    {
+      "name": "cartoon_waterfalls",
+      "prompt": "Original CARTOON WATERFALL and rocky cascade terrain asset sheet for a front-facing elevated orthographic 2D RPG. Match clean hand-drawn grassy grey rock cliff style, cel shading, fine contours, irregular fractured grey stone not repeated columns, sage grass top, bright turquoise water with ivory white foam. Exactly NINE fully isolated assets in 3 columns 3 rows, generous solid OPAQUE neon GREEN #00FF00 background between pieces. Row1 narrow tall waterfall down front grey cliff with upstream channel visible, wide curtain waterfall same cliff height, split twin waterfall separated by projecting stone. Row2 half-height broad cascade, quarter-height small stream drop, two-tier waterfall descending through an intermediate pool with base supporting both tiers. Row3 shallow rocky rapids channel, rounded plunge pool with OPEN outlet towards bottom, broad calm rocky lake shore with open water edge. All cliff objects show top surfaces and front rock walls, clean outward-facing side walls. Water flows over top edge and DOWN front to pool. No huge ground surrounds, no backdrop scene, no hills behind subjects, no trees or buildings. No text labels no grid lines no frames. No mist or shadow outside object footprint. Sharp legible cartoon not photoreal not pixelart not lowpoly. Each asset entirely intact not touching another.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-bc99e123-c8c7-4b42-aefe-1695b91f98ae.png",
+      "file": "cartoon_waterfalls.png"
+    },
+    {
+      "name": "pixel_rivers",
+      "prompt": "Original crisp PIXEL ART RIVER terrain source sheet for top-down 2D RPG. Exactly16 square tiles 4x4 on fully OPAQUE bright neon green RGB0,255,0 background with generous gaps. Hard square pixel clusters, classic32px tile visual language enlarged nearest-neighbor, limited palette, no antialiasing no blur no painted gradients. Sage/jade grass banks, warm earth shoreline, turquoise water with sparse pale ripple pixels. Water channels at edges centered and consistently half-tile width. Row1 vertical straight, horizontal straight, bend NORTH to EAST, bend EAST to SOUTH. Row2 bend SOUTH to WEST, bend WEST to NORTH, three-way T with grass across BOTTOM and water exits NORTH EAST WEST ONLY, four-way crossing. Row3 narrow stream straight, wide river straight, narrow to wide river transition, shallow rocky crossing. Row4 plain water fill, deep water fill, reed-covered left bank with water open at right edge, round spring pool with outlet south. Square tile art fills exact boundaries with no rim, no frame, no rounded square corners or shadow. No text no gridlines no props outside tiles no isometric platforms. Blue water never green. Original attractive readable coherent pixelart terrain.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-9f5ae3f5-86d2-4fde-a267-b01dbbe42039.png",
+      "file": "pixel_rivers.png"
+    },
+    {
+      "name": "pixel_waterfalls",
+      "prompt": "Redraw this supplied waterfall asset sheet into crisp classic PIXEL ART for front-facing elevated top-down RPG. Preserve nine asset categories and 3x3 layout: narrow high falls, wide curtain falls, twin falls; low stepped cascade, very small drop, two tier cascade; rocky rapids, round plunge pool with outlet, open rocky lakeshore. Use hard square pixels, clear stair-step contours, limited palette, 48-96px sprite visual scale enlarged nearest neighbor, NO smooth painting, no antialiasing no blurred gradients. Jade turf, lavender-grey fractured rocks, turquoise water, ivory foam. Clear visible rock side walls and grassy top surfaces. Small fall must be lower than large ones. Generous green gaps, sprites entirely intact not touching. No floating mist outside silhouette, no cast shadows on background, no trees buildings text or gridlines. Background fully OPAQUE UNIFORM bright neon GREEN RGB0,255,0 not black not transparent. Static source assets, all same pixel scale.",
+      "source": "C:\\Users\\f_ald\\.codex\\generated_images\\01a04987-d744-7b40-a3c8-866f00508feb\\exec-1e0b2cb4-e842-4384-b793-9afe9f212562.png",
+      "file": "pixel_waterfalls.png"
+    }
+  ],
+  "limitations": [
+    "Not sliced or imported into Godot.",
+    "River connection widths and directions need calibration; some bends repeat and the cartoon T junction is duplicated as a crossing.",
+    "Fall heights are visual variants, not calibrated gameplay heights.",
+    "No animation frames or seamless-loop validation."
+  ]
+}

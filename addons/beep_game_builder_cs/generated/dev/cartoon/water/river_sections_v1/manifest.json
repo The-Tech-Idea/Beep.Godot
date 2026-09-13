@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "id": "north_south.narrow",
+      "direction": "north_south",
+      "kind": "narrow",
+      "atlas": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "north_south.low_bank",
+      "direction": "north_south",
+      "kind": "low_bank",
+      "atlas": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "north_south.middle",
+      "direction": "north_south",
+      "kind": "middle",
+      "atlas": [
+        2,
+        0
+      ]
+    },
+    {
+      "id": "north_south.high_bank",
+      "direction": "north_south",
+      "kind": "high_bank",
+      "atlas": [
+        3,
+        0
+      ]
+    },
+    {
+      "id": "south_north.narrow",
+      "direction": "south_north",
+      "kind": "narrow",
+      "atlas": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "south_north.low_bank",
+      "direction": "south_north",
+      "kind": "low_bank",
+      "atlas": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "south_north.middle",
+      "direction": "south_north",
+      "kind": "middle",
+      "atlas": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "south_north.high_bank",
+      "direction": "south_north",
+      "kind": "high_bank",
+      "atlas": [
+        3,
+        1
+      ]
+    },
+    {
+      "id": "west_east.narrow",
+      "direction": "west_east",
+      "kind": "narrow",
+      "atlas": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "west_east.low_bank",
+      "direction": "west_east",
+      "kind": "low_bank",
+      "atlas": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "west_east.middle",
+      "direction": "west_east",
+      "kind": "middle",
+      "atlas": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "west_east.high_bank",
+      "direction": "west_east",
+      "kind": "high_bank",
+      "atlas": [
+        3,
+        2
+      ]
+    },
+    {
+      "id": "east_west.narrow",
+      "direction": "east_west",
+      "kind": "narrow",
+      "atlas": [
+        0,
+        3
+      ]
+    },
+    {
+      "id": "east_west.low_bank",
+      "direction": "east_west",
+      "kind": "low_bank",
+      "atlas": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "east_west.middle",
+      "direction": "east_west",
+      "kind": "middle",
+      "atlas": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": "east_west.high_bank",
+      "direction": "east_west",
+      "kind": "high_bank",
+      "atlas": [
+        3,
+        3
+      ]
+    }
+  ],
+  "widthExamples": [
+    {
+      "width": 1,
+      "sections": [
+        "narrow"
+      ]
+    },
+    {
+      "width": 2,
+      "sections": [
+        "low_bank",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 3,
+      "sections": [
+        "low_bank",
+        "middle",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 5,
+      "sections": [
+        "low_bank",
+        "middle",
+        "middle",
+        "middle",
+        "high_bank"
+      ]
+    }
+  ],
+  "banks": "low/high refer to the cross-channel coordinate, not upstream/downstream",
+  "godotScenes": [
+    "square/river_widths_review.tscn",
+    "isometric/river_widths_review.tscn"
+  ],
+  "godotTileSets": [
+    "square/river_sections.tres",
+    "isometric/river_sections.tres"
+  ],
+  "approvalEvidence": null,
+  "pending": [
+    "Wide bends",
+    "Narrow/wide adapters",
+    "Junctions",
+    "Waterfall/lake connectors",
+    "Visual animation review"
+  ]
+}

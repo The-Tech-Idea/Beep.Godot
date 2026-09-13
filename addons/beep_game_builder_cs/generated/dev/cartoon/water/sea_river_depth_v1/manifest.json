@@ -1,0 +1,43 @@
+{
+  "approvalEvidence": null,
+  "frames": 16,
+  "pending": [
+    "visual_approval",
+    "sand_rock_banks",
+    "large_map_cost",
+    "production_engine_integration"
+  ],
+  "periodSeconds": 1.2,
+  "ports": [
+    "north",
+    "east",
+    "south",
+    "west"
+  ],
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "scenes": [
+    "square/mouth_depth_north.tscn",
+    "square/mouth_depth_east.tscn",
+    "square/mouth_depth_south.tscn",
+    "square/mouth_depth_west.tscn",
+    "isometric/mouth_depth_north.tscn",
+    "isometric/mouth_depth_east.tscn",
+    "isometric/mouth_depth_south.tscn",
+    "isometric/mouth_depth_west.tscn"
+  ],
+  "schemaVersion": 1,
+  "sourceManifest": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/shared_sea_v1/manifest.json",
+  "sourceManifestSha256": "1c28393a32a8766db5f6bde947f6bc46869c0bd25c142f5b08c6cde44a62b481",
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "widthConstruction": "low_bank_repeatable_middle_high_bank",
+  "widthExamples": [
+    1,
+    2,
+    3,
+    5
+  ]
+}

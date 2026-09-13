@@ -36,25 +36,12 @@ namespace Beep.ECS
             if (!Engine.IsEditorHint() || BuildInEditor)
                 CallDeferred(nameof(RebuildHud));
 
-            if (!Engine.IsEditorHint() && _calendar != null)
-            {
-                _calendar.DayAdvanced += OnDayAdvanced;
-                _calendar.SeasonChanged += OnSeasonChanged;
-                _calendar.YearChanged += OnYearChanged;
-            }
-
             UpdateConfigurationWarnings();
         }
 
         public override void _ExitTree()
         {
-            if (_calendar != null && GodotObject.IsInstanceValid(_calendar))
-            {
-                _calendar.DayAdvanced -= OnDayAdvanced;
-                _calendar.SeasonChanged -= OnSeasonChanged;
-                _calendar.YearChanged -= OnYearChanged;
-            }
-
+            DisconnectCalendarSignals();
             DisconnectAdvanceButton();
         }
 
@@ -210,10 +197,39 @@ namespace Beep.ECS
         private void OnSeasonChanged(int season, int year) => RefreshHud();
         private void OnYearChanged(int year) => RefreshHud();
 
+        private void ConnectCalendarSignals()
+        {
+            if (_calendar == null || Engine.IsEditorHint())
+                return;
+
+            _calendar.DayAdvanced -= OnDayAdvanced;
+            _calendar.SeasonChanged -= OnSeasonChanged;
+            _calendar.YearChanged -= OnYearChanged;
+            _calendar.DayAdvanced += OnDayAdvanced;
+            _calendar.SeasonChanged += OnSeasonChanged;
+            _calendar.YearChanged += OnYearChanged;
+        }
+
+        private void DisconnectCalendarSignals()
+        {
+            if (_calendar == null || !GodotObject.IsInstanceValid(_calendar))
+                return;
+
+            _calendar.DayAdvanced -= OnDayAdvanced;
+            _calendar.SeasonChanged -= OnSeasonChanged;
+            _calendar.YearChanged -= OnYearChanged;
+        }
+
         private GridWorkClockComponent? _workClock;
 
         private void ResolveReferences()
-            => EntityComponent.Resolve(this, CalendarPath, ref _calendar);
+        {
+            if (_calendar == null || !GodotObject.IsInstanceValid(_calendar))
+            {
+                EntityComponent.Resolve(this, CalendarPath, ref _calendar);
+                ConnectCalendarSignals();
+            }
+        }
 
         public bool UsesSceneControls()
             => !DateLabelPath.IsEmpty || !DayProgressPath.IsEmpty || !AdvanceButtonPath.IsEmpty

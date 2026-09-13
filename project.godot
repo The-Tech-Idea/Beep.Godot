@@ -34,6 +34,10 @@ project/assembly_name="Beep.Godot"
 
 enabled=PackedStringArray("res://addons/beep_game_builder_cs/plugin.cfg", "res://addons/beep_ui/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 
+[filesystem]
+
+import/blender/enabled=false
+
 [godot_mcp]
 
 bridge/url="ws://127.0.0.1:8789"

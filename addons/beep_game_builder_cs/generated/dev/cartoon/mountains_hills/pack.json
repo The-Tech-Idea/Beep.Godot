@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.mountains_hills.v1",
+  "style": "cartoon",
+  "pack": "mountains_hills",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": [],
+  "approval": null
+}

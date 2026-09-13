@@ -1,0 +1,24 @@
+{
+  "source": "../cartoon_waterfalls.png",
+  "sourceRegion": [
+    32,
+    24,
+    384,
+    320
+  ],
+  "method": "Fixed original raster with upstream highlights traveling toward the lip, downward-translating curtain streaks, ballistic impact droplets and expanding broken foam arcs in the bottom pool. No UV warping, texture resampling, global brightness waves or generated redrawing.",
+  "frames": 16,
+  "columns": 4,
+  "rows": 4,
+  "frameSize": [
+    384,
+    320
+  ],
+  "fps": 13.333333,
+  "durationSeconds": 1.2,
+  "animation": "flow",
+  "greenBackgroundRetained": true,
+  "status": "Single narrow waterfall demonstration; other assets not converted.",
+  "verification": "Browser playback and export tested. Distinct frame changes measured separately in upstream water, curtain, splash and bottom pool. All frames preserve original non-mask pixels exactly. Endpoint at one full period equals frame zero. Godot resource not runtime-tested.",
+  "note": "Central baked-in impact foam is replaced by animated foam lobes and rising droplets, with outward-moving foam patches. The upstream stream and curtain remain animated. This is stylized animation, not a fluid simulation. Green-keying still needed before overlay."
+}

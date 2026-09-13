@@ -6,9 +6,12 @@ namespace Beep.GameBuilder;
 public partial class BeepGameBuilderPlugin : EditorPlugin
 {
     private EditorDock? _dock;
+    private TerrainLibraryInspector? _terrainInspector;
 
     public override void _EnterTree()
     {
+        _terrainInspector = new TerrainLibraryInspector(this);
+        AddInspectorPlugin(_terrainInspector);
         var dockContent = new BeepGameBuilderDock { EditorPlugin = this };
         _dock = new EditorDock
         {
@@ -33,6 +36,7 @@ public partial class BeepGameBuilderPlugin : EditorPlugin
 
     public override void _ExitTree()
     {
+        if (_terrainInspector is not null) { RemoveInspectorPlugin(_terrainInspector); _terrainInspector = null; }
         BeepMcpCommands.Unregister();
         BeepMcpKitCommands.Unregister();
 

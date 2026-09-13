@@ -1,6 +1,35 @@
 # DUP-16 — Duck-node registry: one pruning registry behind the transport and extraction managers
 
-**Type:** duplication · **Area:** `GridTransportManagerComponent`, `GridExtractionManagerComponent`, new `DuckTypedNodeRegistry` base · **Status:** **PROPOSED 2026-09-11** · **Effort:** M (~1 day) · **Risk:** low
+**Type:** duplication · **Area:** `GridTransportManagerComponent`, `GridExtractionManagerComponent`, new `DuckTypedNodeRegistry` base · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** M (~1 day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+Implemented as designed: extract-only, behaviour preserved exactly (including the refusal warning text — byte-identical, same manager and node names).
+
+**What landed**
+
+- **New `addons/beep_game_builder_cs/ecs/grid/DuckTypedNodeRegistry.cs`** — abstract `partial class DuckTypedNodeRegistry : Node`, no `[GlobalClass]`. Owns the one `List<Node>`, `public bool Register(Node node)` (null/freed → `false`; duplicate → `true`, no-op; contract failure → named `PushWarning` + `false`; else add → `OnRegistered(node)` → `true`), `public void Unregister(Node node)`, `public int Count`, `protected IReadOnlyList<Node> Registered`, `protected void Prune()` (the single reverse loop), and the hooks `protected abstract bool AnswersContract(Node node)` / `protected abstract string ContractSummary { get; }` / `protected virtual void OnRegistered`/`OnUnregistered`.
+- **`GridTransportManagerComponent : DuckTypedNodeRegistry`** — keeps `[Tool][GlobalClass]`, its four signals, `RequestHaul`/`Transfer`/`RateOf`/`OrderCandidates` and `public int TransporterCount => Count;`; overrides `AnswersContract` (the `HasMethod` block), `ContractSummary`, and both signal hooks. `RequestHaul` now iterates `Registered` instead of `_transporters`.
+- **`GridExtractionManagerComponent : DuckTypedNodeRegistry`** — same shape: overrides the property-`Nil` `AnswersContract`, keeps `Extractors()`/`ActiveCountFor`/`EstimatedRatePerTurn`/`IsActivelyExtracting` over `Registered`, and `public int ExtractorCount => Count;`. Its now-unused `using System.Collections.Generic;` went with the list.
+- **`Register` unified to `bool`**, and the one caller that was throwing the answer away now reads it: with the base returning a real result, `GridHaulerComponent.TryRegister` sets `_registered = _manager.Register(this)` instead of `_manager.Register(this); _registered = true;` — the exact defect `GridExtractorComponent`'s own comment already documents for the extraction side. Before this, a refused hauler believed it was registered and never retried. In-scope because the unification is what made the return value available; no behaviour change on the success path.
+
+**Guards, both mutation-proven**
+
+- **Guard 1 (structural scan pin)** asserts the base owns the mechanics *including* `GD.PushWarning` (so the "the refusal is reported" capability moved rather than evaporated), that both managers declare `: DuckTypedNodeRegistry` and declare their own `AnswersContract`, and that neither re-grows `private void Prune(` or `private readonly List<Node> _transporters`/`_extractors`. **Mutation:** re-adding an empty `private void Prune()` to the transport manager makes the scan throw at *this* pin (`GridTransportManagerComponent has re-grown a private copy of the shared registry mechanics`) instead of at the pre-existing `TerrainWorldComponent` pin it otherwise stops on — the two runs are distinguishable, which is what makes it a proof rather than a coincidence.
+- **Guard 2 (behavioural, `tests/grid_terrain_subsurface_probe.gd`)** — two assertions added:
+  - a second `Register` of the same node returns `true` and leaves `TransporterCount` at 1. **Mutation:** `Contains → return false` in the base makes this the *only* failing check (`1 FAILED`), which also shows the dup guard previously had no red anywhere — the shipped extractor only ever registers once, so `ExtractorCount == 1` cannot catch it.
+  - a registrant that vanishes **without** unregistering is dropped by the next read. **Mutation:** deleting `_nodes.RemoveAt(i)` from the base `Prune` makes it fail (`3 FAILED`, the other two being `RequestHaul` reading the un-pruned list — same root cause).
+- The probe is green as restored (`RESULT: all checks passed`), the two refusal warnings still print the same sentences with the same manager names, and the neighbouring grid probes are green: `grid_worker_build_effects`, `grid_resource_catalog_ports`, `grid_terrain_building`, `grid_job_queue`, `grid_ids`, `job_execution_requeue`. Build clean, 0 warnings.
+
+**Two corrections to this plan's own guard notes**
+
+1. **The scan pin had to go *before* the `TerrainWorldComponent` block.** That block is red against the streaming session's file, and a pin written after a `Fail` that throws is a pin no full scan run ever reaches. It now sits directly after the DUP-09 chunk-shift sweep, with a comment saying why.
+2. **Guard 2's claimed prune red was wrong.** The plan said a freed rig leaving the registry (`ExtractorCount == 0`) exercises `Prune`. It does not: `rig3.free()` runs the child extractor's `_ExitTree`, which calls `Unregister` first, so the entry never goes stale and `Prune` is never what removed it — deleting the `RemoveAt(i)` left the probe fully green. Guard 2 therefore needed the vanilla-registrant case added (a `GdTransporter` with no `_exit_tree` cleanup, which is also the realistic case: anything registered before it was ever added to the tree). Without it the shared `Prune` — the single most load-bearing line in this refactor — would have shipped with no behavioural guard at all.
+
+**Also needed, unavoidable knock-on:** two existing pins named strings that moved into the base (`public bool Register(Node extractor)` and `GD.PushWarning` in the extraction pin; the bare `Register(` in the transport pin). Both were retargeted at the capability rather than weakened — the extraction pin now requires `protected override bool AnswersContract(Node extractor)`, `IsExtractingProperty`, `ActiveResourceIdProperty`, `Variant.Type.Nil` and `ContractSummary`; the transport pin swaps `Register(` for `protected override bool AnswersContract(Node transporter)`. Both still fail if the per-manager contract check is removed, which is the thing they exist to protect.
+
+Docs updated: `docs/grid-system/DuckTypedNodeRegistry.md` added; `GridTransportManagerComponent.md` and `GridExtractionManagerComponent.md` rewritten where they described the mechanics as local (and `TransportRate` corrected to `TransportRatePerTurn` in the `RateOf` paragraph — pre-existing drift, but the paragraph was being rewritten anyway).
+
 
 ## Finding
 

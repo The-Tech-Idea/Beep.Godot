@@ -143,7 +143,15 @@ public partial class GridCellArchiveComponent
     {
         if (GridCellDataComponent.ChunkOf(new Vector2I(x, y)) == _readCoordinate) _readChanged = true;
     }
-    private void OnReadCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks) => _readChanged = true;
+    private void OnReadCellsChanged(int kind, Godot.Collections.Array<Vector2I> chunks)
+    {
+        // Residency-only moves (eviction/unchanged reload) touch no content the read cares about.
+        if (((TerrainChangeKind)kind & TerrainChangeKind.Content) == 0) return;
+        // A scoped change lists its chunks; only abort when the chunk being read is among them.
+        // An empty list means the whole map changed (bulk load / restore / publication) - still abort.
+        if (chunks.Count > 0 && !chunks.Contains(_readCoordinate)) return;
+        _readChanged = true;
+    }
     private void OnReadDayAdvanced(int days) => _readChanged = true;
     private void DisconnectReadSources()
     {

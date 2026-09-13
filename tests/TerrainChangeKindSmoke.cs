@@ -99,6 +99,18 @@ public partial class TerrainChangeKindSmoke : Node
         if (cells.NavigationRevision != navigationMark)
             return Fail("Eviction bumped NavigationRevision; an evicted unpinned chunk changes no search input");
 
+        // A gameplay first-touch of never-generated ground is NOT a terrain change:
+        // GetOrCreate must not bump the global terrain revision, only the chunk token.
+        var virginCell = new Vector2I(40, 40);                       // untouched chunk (ChunkSize 32 -> chunk (1,1))
+        var virginChunk = GridCellDataComponent.ChunkOf(virginCell);
+        ulong terrainMark2 = cells.TerrainRevision;
+        long chunkMark2 = cells.GetChunkRevision(virginChunk);
+        if (!cells.Till(virginCell)) return Fail("Till of a never-touched cell reported no change");
+        if (cells.TerrainRevision != terrainMark2)
+            return Fail("Till of a virgin cell bumped TerrainRevision; a gameplay first-touch is not a terrain change");
+        if (cells.GetChunkRevision(virginChunk) == chunkMark2)
+            return Fail("Till of a virgin cell did not advance the chunk content token");
+
         cells.Free();
         GD.Print("[terrain-change-kind] per-cell kinds, no-op early-outs, daily-index crop/water, bulk edit=Terrain(+Navigation), eviction=Residency OK");
         return true;

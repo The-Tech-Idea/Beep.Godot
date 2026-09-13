@@ -1,6 +1,12 @@
 # DUP-15 — Live-water sub-cell reconstruction: one reconstructor behind both streaming modes
 
-**Type:** duplication · **Area:** `TerrainCoastField` (`SampleLiveWater`, `CreateLiveWaterSampler`, `CreateLiveWaterQuery`) · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+**Type:** duplication · **Area:** `TerrainCoastField` (`SampleLiveWater`, `CreateLiveWaterSampler`, `CreateLiveWaterQuery`) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+The sub-cell reconstruction now lives once, in `TerrainCoastField.ReconstructWater(width, height, at, wet, patchAt)`; `SampleLiveWater` is a thin wrapper supplying array-backed delegates, and `CreateLiveWaterQuery` passes its live `Wet` and per-query `WaterPatchAtCell`. Each entry point keeps its own data source, so the snapshot-vs-live strategy split is untouched; `CreateLiveWaterSampler`'s other consumers (`BuildLivePixels`, `TerrainShorelineField`, `LiveCache`) were not modified.
+
+Guarded by two comparisons in the existing `TerrainWaterSurfaceSmoke` (no new file, so no csproj change): the pre-existing per-fine-sample check on generated maps, plus a new `VerifyLiveWaterReconstructionParity` fixture. **The generated fixture alone could not have guarded this**: every generated cell carries a `WaterPatch`, so both entry points agree through the patch branch and a mutation to the bilinear maths goes entirely undetected — measured, a re-inlined drifted query passed while the generated fixture was the only guard. The new fixture is hand-authored with a one-cell-wide water cross and NO patches, so the bilinear path is the one under test; the same drifted query then reports `728 positions differ between the snapshot sampler and the live query`. Note that the plan's other suggested mutation, `>= 0.5f` → `> 0.5f`, is **not** observable at these sample points (no position lands exactly on 0.5), so the half-cell centring drift is the reliable mutation. The contract-scan pin was not added — the scan is red at HEAD (see FIX-03's Outcome).
 
 ## Finding
 

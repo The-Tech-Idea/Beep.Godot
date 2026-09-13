@@ -1,6 +1,10 @@
 # FIX-06 — Archive auto-load abort ignores the CellsChanged payload: a Residency move of an unrelated chunk kills a demand load
 
-**Type:** fix · **Area:** `GridCellArchiveComponent.Loading.cs` (`OnReadCellsChanged`), against the ENH-01 `CellsChanged(kind, chunks)` contract · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+**Type:** fix · **Area:** `GridCellArchiveComponent.Loading.cs` (`OnReadCellsChanged`), against the ENH-01 `CellsChanged(kind, chunks)` contract · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`OnReadCellsChanged` now reads the ENH-01 payload instead of unconditionally setting `_readChanged`: it skips Residency-only moves (`kind & Content == 0`), and for a scoped change only aborts when `chunks.Contains(_readCoordinate)`; an empty chunk list (whole-map) still aborts. New probe `tests/terrain_chunk_load_abort_probe.gd` (registered in `run_actor_checks.ps1`) drives all three cases against a real in-flight read: evicting an unrelated chunk (Residency) and `FillTerrain` on an unrelated chunk (scoped content) both let the read complete and publish, while `ClearCells` (whole-map, empty chunks) aborts with `cell_data_changed`. Mutation-proven: reverting the handler to `=> _readChanged = true;` fails the probe ("Scoped content change of an unrelated chunk aborted the read"). The existing `terrain_chunk_loading`/`demand`/`eviction`/`revisions` probes stay green.
 
 ## Finding
 

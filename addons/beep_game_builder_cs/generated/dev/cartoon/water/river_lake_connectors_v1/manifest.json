@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "style": "cartoon",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "port": "north",
+      "mask": 111,
+      "incoming": "north_south",
+      "outgoing": "south_north",
+      "role": "inlet",
+      "id": "north_inlet",
+      "atlas": [
+        0,
+        0
+      ]
+    },
+    {
+      "port": "north",
+      "mask": 111,
+      "incoming": "north_south",
+      "outgoing": "south_north",
+      "role": "outlet",
+      "id": "north_outlet",
+      "atlas": [
+        1,
+        0
+      ]
+    },
+    {
+      "port": "east",
+      "mask": 207,
+      "incoming": "east_west",
+      "outgoing": "west_east",
+      "role": "inlet",
+      "id": "east_inlet",
+      "atlas": [
+        2,
+        0
+      ]
+    },
+    {
+      "port": "east",
+      "mask": 207,
+      "incoming": "east_west",
+      "outgoing": "west_east",
+      "role": "outlet",
+      "id": "east_outlet",
+      "atlas": [
+        3,
+        0
+      ]
+    },
+    {
+      "port": "south",
+      "mask": 159,
+      "incoming": "south_north",
+      "outgoing": "north_south",
+      "role": "inlet",
+      "id": "south_inlet",
+      "atlas": [
+        4,
+        0
+      ]
+    },
+    {
+      "port": "south",
+      "mask": 159,
+      "incoming": "south_north",
+      "outgoing": "north_south",
+      "role": "outlet",
+      "id": "south_outlet",
+      "atlas": [
+        5,
+        0
+      ]
+    },
+    {
+      "port": "west",
+      "mask": 63,
+      "incoming": "west_east",
+      "outgoing": "east_west",
+      "role": "inlet",
+      "id": "west_inlet",
+      "atlas": [
+        6,
+        0
+      ]
+    },
+    {
+      "port": "west",
+      "mask": 63,
+      "incoming": "west_east",
+      "outgoing": "east_west",
+      "role": "outlet",
+      "id": "west_outlet",
+      "atlas": [
+        7,
+        0
+      ]
+    }
+  ],
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "verification": [
+    {
+      "projection": "square",
+      "lakePixelsCompared": 458752,
+      "mismatches": 0
+    },
+    {
+      "projection": "isometric",
+      "lakePixelsCompared": 114688,
+      "mismatches": 0
+    }
+  ],
+  "approvalEvidence": null,
+  "scope": "Single-cell narrow river inlet/outlet contacts with existing grass lake banks; explicit flow selection required.",
+  "pending": [
+    "Visual current transition review",
+    "Wide mouths",
+    "Sand/rock banks",
+    "Sea estuaries"
+  ],
+  "godotScenes": [
+    "square/river_lake_review.tscn",
+    "isometric/river_lake_review.tscn"
+  ]
+}

@@ -1,5 +1,4 @@
 using Godot;
-using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -23,76 +22,52 @@ namespace Beep.ECS
     /// participates exactly like the shipped C# one. The shipped
     /// GridExtractorComponent registers itself automatically when a manager
     /// exists in the scene.
+    ///
+    /// The registry itself - the list, the duplicate guard, the count-with-prune
+    /// and the prune - is DuckTypedNodeRegistry's; what stays here is the shape
+    /// question and the fleet queries.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridExtractionManagerComponent : Node
+    public partial class GridExtractionManagerComponent : DuckTypedNodeRegistry
     {
         [Signal] public delegate void ExtractorRegisteredEventHandler(Node extractor);
         [Signal] public delegate void ExtractorUnregisteredEventHandler(Node extractor);
-
-        private readonly List<Node> _extractors = new();
 
         // The extractor contract is answered by PROPERTY, not by method, so
         // this cannot be the HasMethod check GridTransportManagerComponent
         // uses for its transporters - Get returns a Nil Variant for a property
         // the registrant does not have, which is the same "does it answer the
-        // shape" question one level down.
+        // shape" question one level down. That difference is the whole of what
+        // the two managers do not share, so it is the override, not a copy.
         private static readonly StringName IsExtractingProperty = new("IsExtracting");
         private static readonly StringName ActiveResourceIdProperty = new("ActiveResourceId");
 
+        /// <summary>The registered extractors, freed ones pruned first.</summary>
+        public int ExtractorCount => Count;
+
+        protected override string ContractSummary => "extractor contract (IsExtracting, ActiveResourceId)";
+
         /// <summary>
-        /// Adds an extractor to the registry. Registering the same node twice
-        /// is a no-op that still reports success. Returns false, with a named
-        /// warning, for a node that does not answer the extractor contract:
-        /// without this check a malformed registrant joined silently and only
-        /// failed later, at read time, in IsActivelyExtracting.
+        /// An extractor answers by PROPERTY. A node without them used to join the
+        /// registry silently and only fail later, at read time, in
+        /// IsActivelyExtracting.
         /// </summary>
-        public bool Register(Node extractor)
-        {
-            if (extractor == null || !GodotObject.IsInstanceValid(extractor))
-                return false;
+        protected override bool AnswersContract(Node extractor)
+            => extractor.Get(IsExtractingProperty).VariantType != Variant.Type.Nil
+                && extractor.Get(ActiveResourceIdProperty).VariantType != Variant.Type.Nil;
 
-            if (_extractors.Contains(extractor))
-                return true;
+        protected override void OnRegistered(Node extractor)
+            => EmitSignal(SignalName.ExtractorRegistered, extractor);
 
-            if (extractor.Get(IsExtractingProperty).VariantType == Variant.Type.Nil
-                || extractor.Get(ActiveResourceIdProperty).VariantType == Variant.Type.Nil)
-            {
-                GD.PushWarning($"[{Name}] {extractor.Name} does not answer the extractor contract "
-                    + "(IsExtracting, ActiveResourceId) and was not registered.");
-                return false;
-            }
-
-            _extractors.Add(extractor);
-            EmitSignal(SignalName.ExtractorRegistered, extractor);
-            return true;
-        }
-
-        public void Unregister(Node extractor)
-        {
-            if (extractor == null || !_extractors.Remove(extractor))
-                return;
-
-            if (GodotObject.IsInstanceValid(extractor))
-                EmitSignal(SignalName.ExtractorUnregistered, extractor);
-        }
-
-        public int ExtractorCount
-        {
-            get
-            {
-                Prune();
-                return _extractors.Count;
-            }
-        }
+        protected override void OnUnregistered(Node extractor)
+            => EmitSignal(SignalName.ExtractorUnregistered, extractor);
 
         /// <summary>The registered extractors, pruned of freed nodes.</summary>
         public Godot.Collections.Array<Node> Extractors()
         {
-            Prune();
             var result = new Godot.Collections.Array<Node>();
-            foreach (Node extractor in _extractors)
+            foreach (Node extractor in Registered)
                 result.Add(extractor);
             return result;
         }
@@ -100,9 +75,8 @@ namespace Beep.ECS
         /// <summary>How many registered extractors are actively working the resource.</summary>
         public int ActiveCountFor(string resourceId)
         {
-            Prune();
             int count = 0;
-            foreach (Node extractor in _extractors)
+            foreach (Node extractor in Registered)
             {
                 if (IsActivelyExtracting(extractor, resourceId))
                     count++;
@@ -119,9 +93,8 @@ namespace Beep.ECS
         /// </summary>
         public float EstimatedRatePerTurn(string resourceId)
         {
-            Prune();
             float total = 0f;
-            foreach (Node extractor in _extractors)
+            foreach (Node extractor in Registered)
             {
                 if (!IsActivelyExtracting(extractor, resourceId))
                     continue;
@@ -142,15 +115,6 @@ namespace Beep.ECS
                 return false;
             return string.IsNullOrEmpty(resourceId)
                 || extractor.Get("ActiveResourceId").AsString() == resourceId;
-        }
-
-        private void Prune()
-        {
-            for (int i = _extractors.Count - 1; i >= 0; i--)
-            {
-                if (!GodotObject.IsInstanceValid(_extractors[i]))
-                    _extractors.RemoveAt(i);
-            }
         }
     }
 }

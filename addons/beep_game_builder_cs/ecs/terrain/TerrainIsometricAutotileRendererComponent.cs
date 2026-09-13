@@ -43,6 +43,15 @@ namespace Beep.ECS
         /// peering bits painted on the transition tiles.
         /// </summary>
         [Export] public TileSet? Tiles { get; set; }
+        [Export] public TerrainLibraryPack? LibraryPack { get; set; }
+        private TileSet? EffectiveTiles => LibraryPack?.Tiles ?? Tiles;
+        private TerrainLibraryPack? _buildPack;
+        private TerrainLibraryPack? _publishedPack;
+        private string _publishedPackKey = "";
+        private string _buildPackKey = "";
+        private Rect2I _publishedPackBounds;
+        private readonly HashSet<Vector2I> _libraryDirty = new();
+        public int LibraryCellsUpdated { get; private set; }
 
         /// <summary>Which terrain set in the TileSet carries the terrains below.</summary>
         [Export(PropertyHint.Range, "0,8,1")] public int TerrainSet { get; set; }
@@ -124,7 +133,9 @@ namespace Beep.ECS
         public TileMapLayer GetTerrainLayer()
         {
             var layer = EnsureLayer();
-            layer.TileSet = Tiles;
+            if (LibraryPack is null) layer.TileSet = Tiles;
+            else if (LibraryPack.Validate(TerrainProjection.IsometricAutotile).Length == 0 && layer.TileSet is null)
+                layer.TileSet = LibraryPack.Tiles;
             return layer;
         }
 
@@ -137,9 +148,9 @@ namespace Beep.ECS
         /// <summary>Logical tile extent; sprite overhang is not included.</summary>
         public Rect2 GridExtent(Vector2I size)
         {
-            if (Tiles == null || size.X <= 0 || size.Y <= 0) return new Rect2();
+            if (EffectiveTiles == null || size.X <= 0 || size.Y <= 0) return new Rect2();
             var layer = GetTerrainLayer();
-            Vector2 tile = Tiles.TileSize;
+            Vector2 tile = layer.TileSet!.TileSize;
             Rect2 extent = new(layer.MapToLocal(BoundsOrigin) - tile * 0.5f, tile);
             void Include(int x, int y) => extent = extent.Merge(
                 new Rect2(layer.MapToLocal(BoundsOrigin + new Vector2I(x, y)) - tile * 0.5f, tile));
@@ -153,6 +164,32 @@ namespace Beep.ECS
         // a paint already in flight is also handed to the incremental path.
         protected override void PerformQueuedRebuild()
         {
+            if (TerrainLibraryEditSession.Blocks(this)) return;
+            if (LibraryPack is not null && _publishedPack == LibraryPack && !IsRebuilding && _libraryDirty.Count > 0
+                && _publishedPackKey == LibraryPack.RenderKey() && _publishedPackBounds == new Rect2I(BoundsOrigin, BoundsSize)
+                && _cells is not null && _layer is not null && _layer.TileSet == LibraryPack.Tiles)
+            {
+                string problem = LibraryPack.Validate(TerrainProjection.IsometricAutotile);
+                if (problem.Length == 0)
+                {
+                    try
+                    {
+                        LibraryCellsUpdated = TerrainLibraryPainter.Update(_layer, LibraryPack, new Rect2I(BoundsOrigin, BoundsSize),
+                            _libraryDirty, cell => GridCellRules.TerrainKindAt(_cells, cell), cell => LibraryPack.ElevationAt(_cells, cell));
+                        PublicationRevision++;
+                        TerrainLibraryEditSession.RestoreVisuals(this, _layer);
+                    }
+                    catch (Exception error) { problem = error.Message; }
+                }
+                _libraryDirty.Clear();
+                if (problem.Length > 0)
+                {
+                    _publishedPack = null;
+                    _paintDiagnostics = new() { ["valid"] = false, ["reason"] = problem };
+                    GD.PushWarning(problem);
+                }
+                return;
+            }
             if (IsRebuilding || (long)BoundsSize.X * BoundsSize.Y > 65536) RequestRebuild();
             else Rebuild();
         }
@@ -194,12 +231,26 @@ namespace Beep.ECS
         private void OnCellChanged(int x, int y, int kind)
         {
             if (((TerrainChangeKind)kind & (TerrainChangeKind.Terrain | TerrainChangeKind.Navigation)) == 0) return;
-            if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y))) QueueRebuild();
+            if (new Rect2I(BoundsOrigin, BoundsSize).HasPoint(new Vector2I(x, y)))
+            {
+                if (LibraryPack is not null) _libraryDirty.Add(new Vector2I(x, y));
+                QueueRebuild();
+            }
+        }
+        protected override void OnCellsChangedSignal(int kind, Godot.Collections.Array<Vector2I> chunks)
+        {
+            if (((TerrainChangeKind)kind & TerrainChangeKind.Content) != 0) _publishedPack = null;
+            base.OnCellsChangedSignal(kind, chunks);
         }
         public override string[] _GetConfigurationWarnings()
         {
             if (TerrainGeneratorPath.IsEmpty && CellDataPath.IsEmpty)
                 return new[] { "Assign CellDataPath for a live map or TerrainGeneratorPath for a generated preview." };
+            if (LibraryPack is not null)
+            {
+                string error = LibraryPack.Validate(TerrainProjection.IsometricAutotile);
+                return error.Length == 0 ? Array.Empty<string>() : new[] { error };
+            }
             if (!TryBindings(out var bindings, out string problem)) return new[] { problem };
             problem = TileSetProblem(bindings);
             if (problem.Length > 0) return new[] { problem };
@@ -209,14 +260,16 @@ namespace Beep.ECS
         /// <summary>Repaints the whole map, letting Godot match the transitions.</summary>
         public override void Rebuild()
         {
+            if (TerrainLibraryEditSession.Blocks(this)) return;
             CancelRebuild();
             using var build = RebuildSteps().GetEnumerator();
             while (build.MoveNext()) { }
-            if (_paintDiagnostics.ContainsKey("reason")) _layer?.Clear();
+            if (LibraryPack is null && _paintDiagnostics.ContainsKey("reason")) _layer?.Clear();
         }
 
         public void RequestRebuild()
         {
+            if (TerrainLibraryEditSession.Blocks(this)) return;
             CancelRebuild();
             ClearRebuildQueued();
             ResolveCells();
@@ -231,7 +284,9 @@ namespace Beep.ECS
             // A copy, so an array edited in place still reads as changed.
             _buildBindings = (string[])TerrainBindings.Clone();
             _buildSettings = CurrentGeneratorSettings();
-            _buildTiles = Tiles;
+            _buildPack = LibraryPack;
+            _buildPackKey = LibraryPack?.RenderKey() ?? "";
+            _buildTiles = EffectiveTiles;
             _buildTilesChanged = false;
             if (_buildTiles is not null) _buildTiles.Changed += OnBuildTilesChanged;
             _build = RebuildSteps().GetEnumerator();
@@ -268,10 +323,11 @@ namespace Beep.ECS
         /// </summary>
         private bool BuildIsStale()
         {
+            if ((LibraryPack?.RenderKey() ?? "") != _buildPackKey) return true;
             if (CellDataPath != _buildCellsPath || TerrainGeneratorPath != _buildGeneratorPath
                 || BoundsOrigin != _buildOrigin || BoundsSize != _buildSize
                 || TerrainSet != _buildTerrainSet || UseTerrainConnections != _buildConnections
-                || !ReferenceEquals(Tiles, _buildTiles))
+                || !ReferenceEquals(LibraryPack, _buildPack) || !ReferenceEquals(EffectiveTiles, _buildTiles))
                 return true;
             if (TerrainBindings.Length != _buildBindings.Length) return true;
             for (int i = 0; i < TerrainBindings.Length; i++)
@@ -314,6 +370,7 @@ namespace Beep.ECS
 
         private IEnumerable<int> RebuildSteps()
         {
+            _libraryDirty.Clear();
             HasRebuildAttempt = true;
             ClearRebuildQueued();
             ResolveCells();
@@ -325,6 +382,11 @@ namespace Beep.ECS
             {
                 _paintDiagnostics["reason"] = "Configured terrain source is missing.";
                 GD.PushWarning($"[{Name}] configured terrain source is missing; nothing was drawn.");
+                yield break;
+            }
+            if (LibraryPack is not null)
+            {
+                foreach (int count in RebuildLibrarySteps()) yield return count;
                 yield break;
             }
             bool validBindings = TryBindings(out var bindings, out string problem);
@@ -434,6 +496,44 @@ namespace Beep.ECS
             }
         }
 
+        private IEnumerable<int> RebuildLibrarySteps()
+        {
+            var pack = LibraryPack!;
+            string problem = pack.Validate(TerrainProjection.IsometricAutotile);
+            if (problem.Length > 0)
+            {
+                _paintDiagnostics["reason"] = problem;
+                GD.PushWarning(problem);
+                yield break;
+            }
+            var field = _cells is null ? _generator!.ResolveField() : null;
+            string KindAt(Vector2I cell) => _cells is not null ? GridCellRules.TerrainKindAt(_cells, cell)
+                : field!.TerrainAtCell(cell - BoundsOrigin);
+            var layer = EnsureLayer();
+            using var steps = TerrainLibraryPainter.Build(layer, pack, new Rect2I(BoundsOrigin, BoundsSize), KindAt, cell => pack.ElevationAt(_cells, cell)).GetEnumerator();
+            while (true)
+            {
+                bool more;
+                try { more = steps.MoveNext(); }
+                catch (Exception error)
+                {
+                    _paintDiagnostics["reason"] = error.Message;
+                    GD.PushWarning(error.Message);
+                    yield break;
+                }
+                if (!more) break;
+                yield return steps.Current;
+            }
+            PublicationRevision++;
+            _publishedPack = pack;
+            _publishedPackKey = pack.RenderKey();
+            _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);
+            LibraryCellsUpdated = BoundsSize.X * BoundsSize.Y;
+            TerrainLibraryEditSession.RestoreVisuals(this, layer);
+            _paintDiagnostics = new() { ["valid"] = true, ["requested"] = BoundsSize.X * BoundsSize.Y,
+                ["missing"] = 0, ["unmapped"] = 0 };
+        }
+
         private IEnumerable<int> PaintAssignedTiles(TileMapLayer layer, Godot.Collections.Array<Vector2I> cells, int terrain)
         {
             var choices = new List<(int Source, Vector2I Atlas, int Alternative)>();
@@ -536,7 +636,8 @@ namespace Beep.ECS
 
             // Authored isometric tiles are detailed art minified hard at map
             // zoom; without a mip-aware filter they alias into a shimmering grid.
-            _layer.TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+            _layer.TextureFilter = LibraryPack is null ? TextureFilterEnum.LinearWithMipmaps
+                : LibraryPack.PixelArt ? TextureFilterEnum.Nearest : TextureFilterEnum.Linear;
             return _layer;
         }
 

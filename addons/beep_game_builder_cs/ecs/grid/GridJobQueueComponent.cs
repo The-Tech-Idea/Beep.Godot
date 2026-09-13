@@ -256,7 +256,7 @@ namespace Beep.ECS
             if (!byChunk.TryGetValue(chunk, out List<string>? ids)) return 0;
             foreach (string id in ids)
             {
-                if (!_jobs.TryGetValue(id, out GridJob? job)) continue; // a stale id (pruned on its next index touch)
+                if (!_jobs.TryGetValue(id, out GridJob? job)) continue; // a stale id: live Queued exits own index removal, so this is defence in depth
                 if (!IsJobClaimable(job, workerId, allowedKinds, excludedJobs)) continue;
                 long distance = ManhattanTo(job.ApproachCell, workerCell);
                 if (best == null || BetterClaim(job, distance, best, bestDistance))
@@ -305,6 +305,22 @@ namespace Beep.ECS
                     IndexAddQueued(job);
         }
 
+        /// <summary>
+        /// Total ids across every priority tier and chunk bucket in the queued spatial index.
+        /// A leak shows up here as a count that does not fall when a queued job leaves the queue.
+        /// </summary>
+        internal int QueuedIndexEntryCount
+        {
+            get
+            {
+                int total = 0;
+                foreach (Dictionary<Vector2I, List<string>> byChunk in _queuedIndex.Values)
+                    foreach (List<string> ids in byChunk.Values)
+                        total += ids.Count;
+                return total;
+            }
+        }
+
         public bool ClaimJob(string id, string workerId)
         {
             if (!CanClaimJob(id, workerId)) return false;
@@ -344,6 +360,10 @@ namespace Beep.ECS
                 return false;
 
             string completedBy = string.IsNullOrEmpty(workerId) ? job.ClaimedBy : workerId;
+            // A job that never left Queued never reached ReserveClaim, so its queued spatial-index
+            // entry is still there. Every other Queued exit removes it (CancelJob, ReserveClaim);
+            // this one must too, or the id is orphaned in a bucket whose GridJob is gone.
+            if (job.State == GridJobState.Queued) IndexRemoveQueued(job);
             ReleaseReservation(job);
             job.State = GridJobState.Completed;
             job.ClaimedBy = completedBy;

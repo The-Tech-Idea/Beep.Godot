@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.landforms.v1",
+  "style": "cartoon",
+  "pack": "landforms",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": [],
+  "approval": null
+}

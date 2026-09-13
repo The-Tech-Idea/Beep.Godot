@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "approvalEvidence": null,
+  "style": "cartoon",
+  "sources": [
+    {"material":"grass","path":"sources/plain_grass_surface_v1.png","sha256":"4851e09d2444fad50d89903c70db1d93e50762999ffe1136736b519f00134f6a","generatorOutput":"exec-97a89e3f-f877-4e5e-a3c5-e9b5636a7fae.png","dimensions":[1254,1254]},
+    {"material":"dirt","path":"sources/plain_dirt_surface_v1.png","sha256":"db432ae86ae59d964b9277dea153243cbe5de2a03bb5a4d1bbefce60ca64e6d8","generatorOutput":"exec-199a9336-3c2a-4637-bf86-b15af23ddb0e.png","dimensions":[1254,1254]}
+  ],
+  "sourceLayout": "Opaque full-bleed material-plane textures; green backing remains for isolated artwork sheets, not continuous fills.",
+  "scenes": ["square/surface_candidate_v1/grass_dirt_review.tscn", "isometric/surface_candidate_v1/grass_dirt_review.tscn"],
+  "maskContract": {"primary":"red grass interior","secondary":"blue dirt interior","borders":"preserved authored color","sampling":"nearest atlas, linear surfaces","alpha":"atlas authoritative"},
+  "decorations": "Separate overlays; none baked into these surfaces.",
+  "validation": {"nativeMatching":"passed fixture checks","cameraTranslation":"passed GPU checks in both projections","edgeStatistics":"no large discontinuity flagged; not visual approval"},
+  "surfaceExports": {"masterPixels":[512,512],"runtimePixels":[256,256],"cellsPerRepeat":4,"resampling":"Lanczos","directory":"runtime/surfaces_v1/","sharedResources":["grass_256.res","dirt_256.res"]},
+  "nativeCoverage": {"configurationsPerProjection":47,"projections":["square","isometric"],"widths":[1,2,3,5],"erasure":"passed including neighboring cells"},
+  "surfacePlane": {"script":"res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd","splitLayerGPUComparison":"passed","transformedMapGPUComparison":"passed","invalidGroupValidation":"passed"},
+  "renderedCoverage": {"casesPerProjection":47,"alphaGaps":0,"exposedMaskColors":0,"inspection":"Both overview sheets inspected; user appearance approval requested separately"},
+  "pending": ["Rendered mixed-width compositions", "Elevated cross-layer connectors", "Visual approval before production promotion"]
+}

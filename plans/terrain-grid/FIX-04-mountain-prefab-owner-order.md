@@ -1,6 +1,17 @@
 # FIX-04 — Mountain prefab sprites lose their owner: owner set before parent, so editor-authored art vanishes on reload
 
-**Type:** fix · **Area:** `MountainPrefabGeneratorComponent` (`NewPartSprite`, `AddBakedPrefabSprite`, `AddVisualSprites`), routed through `TerrainAuthoring.Adopt` · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+**Type:** fix · **Area:** `MountainPrefabGeneratorComponent` (`NewPartSprite`, `AddBakedPrefabSprite`, `AddVisualSprites`), routed through `TerrainAuthoring.Adopt` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+Every generated node in `MountainPrefabGeneratorComponent` now goes through `TerrainAuthoring.Adopt` after its `AddChild`, and all four hand-rolled owner stamps are gone: `NewPartSprite` no longer sets `Owner` before the sprite has a parent (the assignment Godot rejected, leaving every art sprite ownerless), and the editor-gated `Owner = Owner` blocks in `AddWalkableAreas`, `AddRouteConnectorAreas`, `AddExplicitRouteRegionAreas` and `AddAnchorNodes` are replaced by the un-gated `Adopt` call. `PrepareOwnersForPacking` is untouched.
+
+Two things differed from the plan:
+
+- **`LoadTexture` was consolidated, not merely guarded.** It repeated `TerrainTextures.Load`'s external-file branch — including the unguarded `Image.LoadFromFile` / `Image.IsEmpty()` that FIX-03 fixed one file over. It now delegates to `TerrainTextures.Load(path, Name, "a mountain prefab texture")`, the one terrain-art loader, which already generates the mip chain a Sprite2D needs. That is a second copy of the FIX-03 defect removed rather than left standing.
+- **The probe asserts survival, not group membership.** `tests/mountain_prefab_owner_probe.gd` (fixture `tests/fixtures/mountain_prefab/prefab_manifest.json`) generates one baked-prefab sprite, asserts it was adopted by the scene root, packs the host, re-instantiates it and asserts the sprite is still present with `owner == reloaded root`. The plan asked to find the reloaded sprite *by its `GeneratedPartGroup`*; measured on Godot 4.7.2, `PackedScene` does not persist group membership, so the group identifies the generated part before the save only. Mutation-proven: dropping the `Adopt` call in `AddBakedPrefabSprite` leaves `owner=<Object#null>` and the packed scene drops the sprite.
+
+The contract-scan pin (adding this file to the creator list) was not added: the scan currently throws earlier in the file (see FIX-03's Outcome) and the behavioural probe is mutation-proven.
 
 ## Finding
 

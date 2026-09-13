@@ -1,6 +1,14 @@
 # FIX-01 — Erosion diffusion stability: cap the hillslope coefficient at its own documented limit
 
-**Type:** fix · **Area:** `TerrainErosionStage` (`TerrainGeneratorComponent.ErosionStrength` doc) · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+**Type:** fix · **Area:** `TerrainErosionStage` (`TerrainGeneratorComponent.ErosionStrength` doc) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`TerrainErosionStage.Diffuse` now computes its coefficient once as `Mathf.Min(Diffusion * strength, 1.0f)` and updates with it, so `ErosionStrength` above ~2.86 stops driving the weighted-average pass past the `D <= 1` limit its own doc states. The `ErosionStrength` export doc on `TerrainGeneratorComponent` gained a paragraph saying the hillslope smoothing saturates at its maximum stable rate while incision keeps growing. New `tests/TerrainErosionDiffusionStabilitySmoke.cs` plus `tests/terrain_erosion_diffusion_stability_probe.gd` (registered in `run_actor_checks.ps1`, with an explicit `Beep.Godot.csproj` entry) build an all-land, near-flat buffer carrying a ±0.01 checkerboard and run the stage at `ErosionStrength = 4`: the maximum deviation from 0.5 must stay at or below 0.05. Mutation-proven — with the cap removed the deviation reaches 0.3820 and the probe fails. `terrain_generation_baseline_probe` stays green, confirming the cap is a no-op at the default `ErosionStrength = 1.0` and the recorded fixtures do not move.
+
+The optional contract-scan pin was not added: the scan currently throws earlier in the file (see FIX-03's Outcome) and the behavioural guard is mutation-proven.
+
+**Correction — a second copy of the formula was missed when this first landed.** `TerrainWaterSurfaceSmoke.ReferenceErosion` is the parity oracle that reimplements the erosion maths independently and compares it against the stage bit-for-bit. It still applied `0.35f * dial` unclamped, so on its `ErosionStrength = 4f` case the oracle and the fixed stage diverged and the probe failed with `Optimized erosion changed a height bit`. The oracle now caps at 1 as well, with a comment stating it encodes the intended formula — a parity oracle has to follow an intentional change to the thing it oracles. This was not caught at the time because only the new FIX-01 smoke and the generation baseline were run, not `terrain_water_surface_probe`; all three are green now. Anyone touching `TerrainErosionStage` should run that probe too.
 
 ## Finding
 

@@ -183,19 +183,13 @@ namespace Beep.ECS
 
         /// <summary>
         /// A kind's position in the catalog's rainfall list plus one, or zero for
-        /// anything the rainfall table did not decide - water, beach, peak, tundra.
+        /// anything the rainfall table did not decide - water, beach, peak, tundra -
+        /// read from the reverse index <see cref="Smooth"/> builds once per call.
         /// The list order is arbitrary as far as the result goes (see RainfallKinds);
         /// this is just the compact code a pass votes with.
         /// </summary>
-        private static byte RainfallIndex(IReadOnlyList<string> rainfallKinds, string kind)
-        {
-            for (int i = 0; i < rainfallKinds.Count; i++)
-            {
-                if (rainfallKinds[i] == kind)
-                    return (byte)(i + 1);
-            }
-            return 0;
-        }
+        private static byte RainfallIndex(Dictionary<string, byte> rainfallIndex, string kind)
+            => rainfallIndex.TryGetValue(kind, out byte code) ? code : (byte)0;
 
         private static void Smooth(TerrainGenerationBuffer world, TerrainGenerationSettings settings)
         {
@@ -214,8 +208,16 @@ namespace Beep.ECS
             // rainfall kind it is, so a byte per sample answers it. Each pass
             // used to clone the whole string field to remember this.
             byte[] before = world.ByteScratch;
-            // The rainfall kinds and the byte code each maps to, from the catalog.
+            // The rainfall kinds and the byte code each maps to, from the catalog. That mapping is
+            // fixed by the list, so build the reverse index ONCE here rather than re-searching the
+            // list for every sample on every pass - up to five ordinal compares against 1.25M
+            // samples across six passes, to reproduce a five-entry lookup. Ordinal is load-bearing:
+            // RainfallIndex has always compared with == (ordinal equality), and a case-insensitive
+            // map would silently move samples to code 0.
             IReadOnlyList<string> rainfallKinds = TerrainKindCatalog.Standard.RainfallKinds;
+            var rainfallIndex = new Dictionary<string, byte>(rainfallKinds.Count, StringComparer.Ordinal);
+            for (int i = 0; i < rainfallKinds.Count; i++)
+                rainfallIndex[rainfallKinds[i]] = (byte)(i + 1);
             // Votes per rainfall kind, and the kinds in the order they were
             // first met - the order the winner is chosen in, so a tie between
             // two neighbouring kinds still goes to the one met first.
@@ -225,7 +227,7 @@ namespace Beep.ECS
             for (int pass = 0; pass < passes; pass++)
             {
                 for (int index = 0; index < world.Count; index++)
-                    before[index] = RainfallIndex(rainfallKinds, world.Terrain[index]);
+                    before[index] = RainfallIndex(rainfallIndex, world.Terrain[index]);
                 for (int y = 0; y < world.Height; y++)
                 {
                     for (int x = 0; x < world.Width; x++)

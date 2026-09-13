@@ -1,0 +1,36 @@
+{
+  "approvalEvidence": null,
+  "pending": [
+    "isometric_depth_route",
+    "wide_routes",
+    "sand_rock_banks",
+    "visual_approval",
+    "production_integration"
+  ],
+  "projection": "square",
+  "retainedArtwork": [
+    "UpperGround",
+    "LowerGround",
+    "StaticCliff",
+    "CliffBottomContact",
+    "WaterfallWaterOnly",
+    "Upstream",
+    "Downstream"
+  ],
+  "route": [
+    "upper_river",
+    "waterfall",
+    "lower_river_sprite",
+    "lower_river_native_tile",
+    "lake_inlet",
+    "depth_painted_lake"
+  ],
+  "scene": "square/route.tscn",
+  "schemaVersion": 1,
+  "sourceScene": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/river_waterfall_lake_review.tscn",
+  "sourceSceneSha256": "9346388e4b6d5e667b8a81e82f30a2805f55250231b73ef0a16dd8c75f27865f",
+  "spriteRendering": "original_atlas_frames_with_native_renderer_TIME_clock",
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "visualRisePixels": 64
+}

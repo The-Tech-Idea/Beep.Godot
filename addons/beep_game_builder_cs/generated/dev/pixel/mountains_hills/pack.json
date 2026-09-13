@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.mountains_hills.v1",
+  "style": "pixel",
+  "pack": "mountains_hills",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

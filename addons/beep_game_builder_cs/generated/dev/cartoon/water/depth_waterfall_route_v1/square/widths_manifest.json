@@ -1,0 +1,37 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "risePixels": 64,
+      "scene": "square/width_1.tscn",
+      "width": 1
+    },
+    {
+      "risePixels": 64,
+      "scene": "square/width_2.tscn",
+      "width": 2
+    },
+    {
+      "risePixels": 64,
+      "scene": "square/width_3.tscn",
+      "width": 3
+    },
+    {
+      "risePixels": 64,
+      "scene": "square/width_5.tscn",
+      "width": 5
+    },
+    {
+      "risePixels": 64,
+      "scene": "square/width_9.tscn",
+      "width": 9
+    }
+  ],
+  "pending": [
+    "GPU_join_phase_review",
+    "cliff_repetition_refinement",
+    "isometric_widths",
+    "production_integration"
+  ],
+  "status": "candidate"
+}

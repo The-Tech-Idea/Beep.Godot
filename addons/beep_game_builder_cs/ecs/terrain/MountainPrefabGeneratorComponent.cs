@@ -350,6 +350,7 @@ namespace Beep.ECS
                 sprite.SetMeta("mountain_visual_includes_wall", ReadBool(asset, "visual_includes_wall", false));
                 sprite.SetMeta("mountain_prefab_chunk", true);
                 AddChild(sprite);
+                TerrainAuthoring.Adopt(sprite, this);
 
                 _lastPrefabChunks.Add(JsonObjectToDictionary(asset));
                 count++;
@@ -443,6 +444,7 @@ namespace Beep.ECS
                 sprite.SetMeta("mountain_walkable", ReadBool(placement, "walkable", false));
                 sprite.SetMeta("mountain_climbable", ReadBool(placement, "climbable", false));
                 AddChild(sprite);
+                TerrainAuthoring.Adopt(sprite, this);
                 count++;
             }
 
@@ -507,11 +509,8 @@ namespace Beep.ECS
                     area.AddToGroup(WalkableAreaGroup);
                 area.AddChild(collisionNode);
                 AddChild(area);
-                if (Engine.IsEditorHint())
-                {
-                    area.Owner = Owner;
-                    collisionNode.Owner = Owner;
-                }
+                TerrainAuthoring.Adopt(area, this);
+                TerrainAuthoring.Adopt(collisionNode, this);
                 count++;
             }
 
@@ -607,11 +606,8 @@ namespace Beep.ECS
                         area.AddToGroup(RouteConnectorGroup);
                     area.AddChild(shape);
                     AddChild(area);
-                    if (Engine.IsEditorHint())
-                    {
-                        area.Owner = Owner;
-                        shape.Owner = Owner;
-                    }
+                    TerrainAuthoring.Adopt(area, this);
+                    TerrainAuthoring.Adopt(shape, this);
                     count++;
                 }
             }
@@ -664,11 +660,8 @@ namespace Beep.ECS
                     area.AddToGroup(RouteConnectorGroup);
                 area.AddChild(shape);
                 AddChild(area);
-                if (Engine.IsEditorHint())
-                {
-                    area.Owner = Owner;
-                    shape.Owner = Owner;
-                }
+                TerrainAuthoring.Adopt(area, this);
+                TerrainAuthoring.Adopt(shape, this);
                 count++;
             }
 
@@ -711,8 +704,7 @@ namespace Beep.ECS
                 if (!string.IsNullOrWhiteSpace(AnchorGroup))
                     marker.AddToGroup(AnchorGroup);
                 AddChild(marker);
-                if (Engine.IsEditorHint())
-                    marker.Owner = Owner;
+                TerrainAuthoring.Adopt(marker, this);
                 count++;
             }
 
@@ -729,6 +721,7 @@ namespace Beep.ECS
 
             var sprite = NewPartSprite("baked_prefab", texture, Vector2.Zero, Mathf.Max(0.01f, PrefabScale), BaseZIndex);
             AddChild(sprite);
+            TerrainAuthoring.Adopt(sprite, this);
             return 1;
         }
 
@@ -809,8 +802,8 @@ namespace Beep.ECS
             };
             if (!string.IsNullOrWhiteSpace(GeneratedPartGroup))
                 sprite.AddToGroup(GeneratedPartGroup);
-            if (Engine.IsEditorHint())
-                sprite.Owner = Owner;
+            // No owner here: the sprite has no parent yet, and Godot rejects an owner that is not
+            // an ancestor. Callers stamp it after AddChild through TerrainAuthoring.Adopt.
             return sprite;
         }
 
@@ -1067,25 +1060,15 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// A prefab part's art. The path is already resolved to a DISK path by
-        /// ResolvePath - a manifest may name res://, user:// or an absolute
-        /// location - so this deliberately does not go through the shared
-        /// TerrainTextures loader, which decides between the importer and the
-        /// disk by inspecting the path it is given.
-        ///
-        /// It still needs the mip chain: these become Sprite2Ds in the scene, and
-        /// CreateFromImage keeps only the levels the Image already has, which for
-        /// a freshly loaded one is none.
+        /// A prefab part's art, loaded through <see cref="TerrainTextures.Load"/> - the one
+        /// terrain-art loader, which already generates the mip chain a Sprite2D needs and
+        /// warns-then-returns-null for a file it could not read. <see cref="ResolvePath"/>
+        /// hands this an absolute disk path, so the shared loader takes its external-file
+        /// branch. It used to repeat that branch here, and repeated the unguarded
+        /// <c>Image.LoadFromFile</c> that threw a NullReferenceException on a failed load.
         /// </summary>
-        private static Texture2D? LoadTexture(string path)
-        {
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-                return null;
-
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
-        }
+        private Texture2D? LoadTexture(string path)
+            => TerrainTextures.Load(path, Name, "a mountain prefab texture");
 
         private static string ResolvePath(string path, string manifestDiskPath)
         {

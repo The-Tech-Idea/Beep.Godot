@@ -1,6 +1,15 @@
 # FIX-13 — A rejected actor-travel restore loads nothing and reports nothing
 
-**Type:** fix (silent restore failure) · **Area:** `GridActorTravelComponent.Load`/`RestoreState`, `GridNavigationComponent` (pending-request budget), `ActorRegistryComponent` (dormant-motion claim) · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+**Type:** fix (silent restore failure) · **Area:** `GridActorTravelComponent.Load`/`RestoreState`, `GridNavigationComponent` (pending-request budget), `ActorRegistryComponent` (dormant-motion claim) · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`Load` now reads `RestoreState`'s result and, on a rejection, pushes a warning naming the save key and the saved count and raises a new `TravelRestoreFailed(int savedCount)` signal — the same "a restore must reach its consumer" discipline FIX-09 applies to the objective tracker. `RestoreState` itself is unchanged: still all-or-nothing, still leaving the live routes untouched on a rejection. New probe `tests/actor_travel_restore_probe.gd` (registered in `run_actor_checks.ps1`) covers both halves: a saved route whose goal is now outside the shrunk navigation bounds is refused and reported with `savedCount == 1` while the live route survives, and a save one entry over the pending-request budget returns `false` with `TravellerCount` unchanged. Mutation-proven: restoring the bool-discarding `Load` leaves the signal unfired (`"got 0"`). Build clean (0 warnings); `actor_travel`, `job_execution`, `actor_residency` and `actor_reattachment` probes green.
+
+Two notes from landing it:
+
+- The probe builds its save through `GameStateData.FromJsonString` rather than assigning `GameData`: the `Dictionary<string, Variant>` property is not assignable from GDScript, and the JSON path also exercises the real save-parse route.
+- `RestoreState` keeps its `bool`; `Load` is the `ISaveable` void method, so the signal plus warning is the reporting channel — the plan's preferred option when no caller branches on the reason.
 
 ## Finding
 

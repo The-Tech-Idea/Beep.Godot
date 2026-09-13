@@ -1,0 +1,1465 @@
+{
+  "approvalEvidence": null,
+  "exports": [
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            112.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            32.0
+          ]
+        }
+      ],
+      "frameSize": [
+        64.0,
+        144.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "square",
+      "risePixels": 16.0,
+      "sheet": "square_rise_16.png",
+      "spriteFrames": "square_rise_16.0.tres"
+    },
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            128.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            32.0
+          ]
+        }
+      ],
+      "frameSize": [
+        64.0,
+        160.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "square",
+      "risePixels": 32.0,
+      "sheet": "square_rise_32.png",
+      "spriteFrames": "square_rise_32.0.tres"
+    },
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            160.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            32.0
+          ]
+        }
+      ],
+      "frameSize": [
+        64.0,
+        192.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "square",
+      "risePixels": 64.0,
+      "sheet": "shared_curtain_16.png",
+      "spriteFrames": "square_rise_64.0.tres"
+    },
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            48.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            48.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        64.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 20.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 21.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 22.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 23.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 24.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 25.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 26.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 27.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 28.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 29.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 30.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 31.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 32.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 33.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 34.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 35.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 36.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 37.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 38.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 39.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "isometric",
+      "risePixels": 16.0,
+      "sheet": "isometric_rise_16.png",
+      "spriteFrames": "isometric_rise_16.0.tres"
+    },
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            64.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            64.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        80.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 20.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 21.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 22.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 23.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 24.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 25.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 26.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 27.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 28.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 29.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 30.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 31.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 32.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 33.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 34.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 35.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 36.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 37.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 38.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 39.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "isometric",
+      "risePixels": 32.0,
+      "sheet": "isometric_rise_32.png",
+      "spriteFrames": "isometric_rise_32.0.tres"
+    },
+    {
+      "connectors": [
+        {
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            96.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            96.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        112.0
+      ],
+      "profiles": [
+        {
+          "column": 0.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 1.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 2.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 3.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 4.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 5.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 6.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 7.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 8.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 9.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 10.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 11.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 12.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 13.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 14.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 15.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 16.0,
+          "direction": "north_south",
+          "id": "north_south.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 17.0,
+          "direction": "north_south",
+          "id": "north_south.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 18.0,
+          "direction": "north_south",
+          "id": "north_south.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 19.0,
+          "direction": "north_south",
+          "id": "north_south.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 20.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_0",
+          "kind": "narrow",
+          "offset": 0.0
+        },
+        {
+          "column": 21.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_0",
+          "kind": "low_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 22.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_0",
+          "kind": "middle",
+          "offset": 0.0
+        },
+        {
+          "column": 23.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_0",
+          "kind": "high_bank",
+          "offset": 0.0
+        },
+        {
+          "column": 24.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_1",
+          "kind": "narrow",
+          "offset": 1.0
+        },
+        {
+          "column": 25.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_1",
+          "kind": "low_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 26.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_1",
+          "kind": "middle",
+          "offset": 1.0
+        },
+        {
+          "column": 27.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_1",
+          "kind": "high_bank",
+          "offset": 1.0
+        },
+        {
+          "column": 28.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_2",
+          "kind": "narrow",
+          "offset": 2.0
+        },
+        {
+          "column": 29.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_2",
+          "kind": "low_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 30.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_2",
+          "kind": "middle",
+          "offset": 2.0
+        },
+        {
+          "column": 31.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_2",
+          "kind": "high_bank",
+          "offset": 2.0
+        },
+        {
+          "column": 32.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_3",
+          "kind": "narrow",
+          "offset": 3.0
+        },
+        {
+          "column": 33.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_3",
+          "kind": "low_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 34.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_3",
+          "kind": "middle",
+          "offset": 3.0
+        },
+        {
+          "column": 35.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_3",
+          "kind": "high_bank",
+          "offset": 3.0
+        },
+        {
+          "column": 36.0,
+          "direction": "west_east",
+          "id": "west_east.narrow.offset_4",
+          "kind": "narrow",
+          "offset": 4.0
+        },
+        {
+          "column": 37.0,
+          "direction": "west_east",
+          "id": "west_east.low_bank.offset_4",
+          "kind": "low_bank",
+          "offset": 4.0
+        },
+        {
+          "column": 38.0,
+          "direction": "west_east",
+          "id": "west_east.middle.offset_4",
+          "kind": "middle",
+          "offset": 4.0
+        },
+        {
+          "column": 39.0,
+          "direction": "west_east",
+          "id": "west_east.high_bank.offset_4",
+          "kind": "high_bank",
+          "offset": 4.0
+        }
+      ],
+      "projection": "isometric",
+      "risePixels": 64.0,
+      "sheet": "isometric_rise_64.png",
+      "spriteFrames": "isometric_rise_64.0.tres"
+    }
+  ],
+  "frames": 16.0,
+  "nativePackaging": {
+    "errors": [],
+    "gpuReview": "pending",
+    "status": "passed"
+  },
+  "pending": [
+    "GPU_projection_review",
+    "arbitrary_width_sampling",
+    "visual_approval",
+    "production_integration"
+  ],
+  "periodSeconds": 1.2,
+  "schemaVersion": 1.0,
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "status": "candidate"
+}

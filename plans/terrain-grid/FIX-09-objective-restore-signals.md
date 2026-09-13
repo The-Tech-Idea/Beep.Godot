@@ -1,6 +1,10 @@
 # FIX-09 — Objective restore emits no signals: signal-driven HUDs stay stale after load
 
-**Type:** fix · **Area:** `GridObjectiveTrackerComponent` (fix), `GridObjectivePanelComponent` (consumer/guard), pattern from `GridCalendarComponent` · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+**Type:** fix · **Area:** `GridObjectiveTrackerComponent` (fix), `GridObjectivePanelComponent` (consumer/guard), pattern from `GridCalendarComponent` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`GridObjectiveTrackerComponent.RestoreState` now re-emits the tracker's three signals per restored objective — progress (carrying the target), active, and completed when complete — mirroring `GridCalendarComponent.RestoreState`. Two guards were added to `GridPlacementSmoke` and wired into `Run()`: `VerifyGridObjectiveRestoreSignals` (a direct recorder assertion that restore re-emits `ObjectiveProgressChanged("a", 3, 3)` and `ObjectiveCompleted("a")`) and `VerifyGridObjectiveRestorePanelRepaint` (an end-to-end check where restoring a completed objective into a `HideCompleted` + `AutoRefresh=false` panel drops the visible row count to 1 with no `RefreshPanel()` call). Mutation-proven: removing the emits leaves the recorder empty and the panel at 2 rows. Build clean (0 warnings). Note: the full `headless_runtime_smoke` has a pre-existing failure at `GridPlacementSmoke.cs:171` (`VerifyPlacementOccupancy` — untouched, unrelated to this fix), so these guards were validated in this session through a focused restore probe that exercised the same public API; they will run in the full smoke once that pre-existing failure is resolved.
 
 ## Finding
 

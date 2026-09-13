@@ -8,7 +8,7 @@ namespace Beep.ECS;
 internal sealed class TerrainResourceViewBinding(Action changed) : IDisposable
 {
     private Node? _root;
-    private SceneTree? _tree;
+    private readonly HashSet<Node> _observed = new();
     private readonly HashSet<GridResourceNodeComponent> _nodes = new();
 
     public void Bind(Node? root)
@@ -17,10 +17,7 @@ internal sealed class TerrainResourceViewBinding(Action changed) : IDisposable
         Dispose();
         _root = root;
         if (_root is null || !_root.IsInsideTree()) return;
-        Collect(_root);
-        _tree = _root.GetTree();
-        _tree.NodeAdded += OnAdded;
-        _tree.NodeRemoved += OnRemoved;
+        Observe(_root);
     }
 
     public IEnumerable<(Vector2I Cell, string Resource)> Entries()
@@ -35,10 +32,56 @@ internal sealed class TerrainResourceViewBinding(Action changed) : IDisposable
         }
     }
 
-    private void Collect(Node node)
+    /// <summary>
+    /// Observe the subtree from the nodes themselves, never from the engine's SceneTree.
+    ///
+    /// This used to subscribe SceneTree.NodeAdded/NodeRemoved and filter the callbacks with
+    /// IsAncestorOf. The SceneTree is engine-owned: it outlives an assembly reload, and _ExitTree
+    /// does NOT run on one, so the delegate stayed attached to the live tree with a dead method
+    /// handle. That pins the assembly it came from - which is what makes ".NET: Failed to unload
+    /// assemblies" happen at all - and then spams node_added/node_removed until the scene is
+    /// reopened. ChildEnteredTree/ChildExitingTree are emitted by the subtree's own nodes, so an
+    /// addition anywhere under the root is still seen. Owners must also Dispose before assembly
+    /// serialization: this helper is not a GodotObject, and its delegates cannot be restored as
+    /// node-method targets on hot reload. Scene-scoped signals alone do not cover that lifetime.
+    /// </summary>
+    private void Observe(Node node)
     {
+        if (!GodotObject.IsInstanceValid(node) || !_observed.Add(node)) return;
+        node.ChildEnteredTree += OnChildEntered;
+        node.ChildExitingTree += OnChildExiting;
         Track(node);
-        foreach (Node child in node.GetChildren()) Collect(child);
+        foreach (Node child in node.GetChildren()) Observe(child);
+    }
+
+    private void Unobserve(Node node)
+    {
+        // Not observed means nothing below it was either: Observe only ever recurses from an
+        // observed node, so the descendants cannot be holding subscriptions we would miss here.
+        if (!_observed.Remove(node)) return;
+        foreach (Node child in node.GetChildren()) Unobserve(child);
+        if (GodotObject.IsInstanceValid(node))
+        {
+            node.ChildEnteredTree -= OnChildEntered;
+            node.ChildExitingTree -= OnChildExiting;
+        }
+        Untrack(node);
+    }
+
+    private void OnChildEntered(Node node)
+    {
+        int tracked = _nodes.Count;
+        Observe(node);
+        // Rebuild only when a resource actually appeared, so an authored container or a stray
+        // helper node does not cost a redraw.
+        if (_nodes.Count != tracked) changed();
+    }
+
+    private void OnChildExiting(Node node)
+    {
+        bool wasTracked = node is GridResourceNodeComponent resource && _nodes.Contains(resource);
+        Unobserve(node);
+        if (wasTracked) changed();
     }
 
     private void Track(Node node)
@@ -47,33 +90,25 @@ internal sealed class TerrainResourceViewBinding(Action changed) : IDisposable
             resource.ResourceChanged += OnChanged;
     }
 
-    private void OnAdded(Node node)
-    {
-        if (node is not GridResourceNodeComponent || !GodotObject.IsInstanceValid(_root)
-            || (node != _root && !_root!.IsAncestorOf(node))) return;
-        Track(node);
-        changed();
-    }
-
-    private void OnRemoved(Node node)
+    private void Untrack(Node node)
     {
         if (node is not GridResourceNodeComponent resource || !_nodes.Remove(resource)) return;
-        resource.ResourceChanged -= OnChanged;
-        changed();
+        if (GodotObject.IsInstanceValid(resource)) resource.ResourceChanged -= OnChanged;
     }
 
     public void Dispose()
     {
-        if (GodotObject.IsInstanceValid(_tree))
-        {
-            _tree!.NodeAdded -= OnAdded;
-            _tree.NodeRemoved -= OnRemoved;
-        }
+        foreach (Node node in _observed)
+            if (GodotObject.IsInstanceValid(node))
+            {
+                node.ChildEnteredTree -= OnChildEntered;
+                node.ChildExitingTree -= OnChildExiting;
+            }
+        _observed.Clear();
         foreach (var node in _nodes)
             if (GodotObject.IsInstanceValid(node)) node.ResourceChanged -= OnChanged;
         _nodes.Clear();
         _root = null;
-        _tree = null;
     }
 
     private void OnChanged() => changed();

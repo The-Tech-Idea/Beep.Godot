@@ -1,0 +1,160 @@
+{
+  "openingDefinition": "Analytic wet interior at signedDistance > 0.7; raster edge review still required.",
+  "pending": [
+    "Isometric equivalents",
+    "Wide channels",
+    "Junctions with explicit inflow/outflow",
+    "Authored river/lake/waterfall adapters",
+    "Raster opening verification",
+    "Visual approval"
+  ],
+  "profiles": [
+    {
+      "id": "cartoon.square.river.north_south.inlet.v1",
+      "resource": "north_south_inlet.tres",
+      "sourceProfile": "north_south",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.north_south.outlet.v1",
+      "resource": "north_south_outlet.tres",
+      "sourceProfile": "north_south",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_north.inlet.v1",
+      "resource": "south_north_inlet.tres",
+      "sourceProfile": "south_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_north.outlet.v1",
+      "resource": "south_north_outlet.tres",
+      "sourceProfile": "south_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_east.inlet.v1",
+      "resource": "west_east_inlet.tres",
+      "sourceProfile": "west_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_east.outlet.v1",
+      "resource": "west_east_outlet.tres",
+      "sourceProfile": "west_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_west.inlet.v1",
+      "resource": "east_west_inlet.tres",
+      "sourceProfile": "east_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_west.outlet.v1",
+      "resource": "east_west_outlet.tres",
+      "sourceProfile": "east_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.north_east.inlet.v1",
+      "resource": "north_east_inlet.tres",
+      "sourceProfile": "north_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.north_east.outlet.v1",
+      "resource": "north_east_outlet.tres",
+      "sourceProfile": "north_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_north.inlet.v1",
+      "resource": "east_north_inlet.tres",
+      "sourceProfile": "east_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_north.outlet.v1",
+      "resource": "east_north_outlet.tres",
+      "sourceProfile": "east_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.north_west.inlet.v1",
+      "resource": "north_west_inlet.tres",
+      "sourceProfile": "north_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.north_west.outlet.v1",
+      "resource": "north_west_outlet.tres",
+      "sourceProfile": "north_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_north.inlet.v1",
+      "resource": "west_north_inlet.tres",
+      "sourceProfile": "west_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_north.outlet.v1",
+      "resource": "west_north_outlet.tres",
+      "sourceProfile": "west_north",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_south.inlet.v1",
+      "resource": "west_south_inlet.tres",
+      "sourceProfile": "west_south",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.west_south.outlet.v1",
+      "resource": "west_south_outlet.tres",
+      "sourceProfile": "west_south",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_west.inlet.v1",
+      "resource": "south_west_inlet.tres",
+      "sourceProfile": "south_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_west.outlet.v1",
+      "resource": "south_west_outlet.tres",
+      "sourceProfile": "south_west",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_east.inlet.v1",
+      "resource": "south_east_inlet.tres",
+      "sourceProfile": "south_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.south_east.outlet.v1",
+      "resource": "south_east_outlet.tres",
+      "sourceProfile": "south_east",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_south.inlet.v1",
+      "resource": "east_south_inlet.tres",
+      "sourceProfile": "east_south",
+      "status": "candidate"
+    },
+    {
+      "id": "cartoon.square.river.east_south.outlet.v1",
+      "resource": "east_south_outlet.tres",
+      "sourceProfile": "east_south",
+      "status": "candidate"
+    }
+  ],
+  "schemaVersion": 1,
+  "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_staging/manifest.json",
+  "status": "candidate"
+}

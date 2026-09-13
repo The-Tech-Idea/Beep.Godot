@@ -1,0 +1,686 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "authoringLayout": "north_south_lake_layout.tscn",
+      "direction": "north_south",
+      "downstreamAnchor": [
+        32.0,
+        96.0
+      ],
+      "downstreamElevationPixels": 0.0,
+      "inletCell": [
+        1.0,
+        3.0
+      ],
+      "lakeCells": [
+        {
+          "atlas": [
+            4,
+            2
+          ],
+          "cell": [
+            -1,
+            8
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_-1_8"
+        },
+        {
+          "atlas": [
+            7,
+            3
+          ],
+          "cell": [
+            0,
+            8
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_0_8"
+        },
+        {
+          "atlas": [
+            0,
+            0
+          ],
+          "cell": [
+            1,
+            8
+          ],
+          "sourceId": 1,
+          "sprite": "Lake_1_8"
+        },
+        {
+          "atlas": [
+            7,
+            3
+          ],
+          "cell": [
+            2,
+            8
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_2_8"
+        },
+        {
+          "atlas": [
+            2,
+            3
+          ],
+          "cell": [
+            3,
+            8
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_3_8"
+        },
+        {
+          "atlas": [
+            0,
+            3
+          ],
+          "cell": [
+            -1,
+            9
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_-1_9"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            0,
+            9
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_0_9"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            1,
+            9
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_1_9"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            2,
+            9
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_2_9"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            3,
+            9
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_3_9"
+        },
+        {
+          "atlas": [
+            0,
+            3
+          ],
+          "cell": [
+            -1,
+            10
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_-1_10"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            0,
+            10
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_0_10"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            1,
+            10
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_1_10"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            2,
+            10
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_2_10"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            3,
+            10
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_3_10"
+        },
+        {
+          "atlas": [
+            0,
+            3
+          ],
+          "cell": [
+            -1,
+            11
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_-1_11"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            0,
+            11
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_0_11"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            1,
+            11
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_1_11"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            2,
+            11
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_2_11"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            3,
+            11
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_3_11"
+        },
+        {
+          "atlas": [
+            0,
+            2
+          ],
+          "cell": [
+            -1,
+            12
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_-1_12"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            0,
+            12
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_0_12"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            1,
+            12
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_1_12"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            2,
+            12
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_2_12"
+        },
+        {
+          "atlas": [
+            2,
+            4
+          ],
+          "cell": [
+            3,
+            12
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_3_12"
+        }
+      ],
+      "lakeInletCell": [
+        1,
+        8
+      ],
+      "lakeInletProfile": "north_inlet",
+      "outletCell": [
+        1.0,
+        4.0
+      ],
+      "scene": "north_south.tscn",
+      "upstreamAnchor": [
+        64.0,
+        16.0
+      ],
+      "upstreamElevationPixels": 64.0
+    },
+    {
+      "authoringLayout": "west_east_lake_layout.tscn",
+      "direction": "west_east",
+      "downstreamAnchor": [
+        64.0,
+        96.0
+      ],
+      "downstreamElevationPixels": 0.0,
+      "inletCell": [
+        3.0,
+        1.0
+      ],
+      "lakeCells": [
+        {
+          "atlas": [
+            4,
+            2
+          ],
+          "cell": [
+            8,
+            -1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_8_-1"
+        },
+        {
+          "atlas": [
+            0,
+            3
+          ],
+          "cell": [
+            8,
+            0
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_8_0"
+        },
+        {
+          "atlas": [
+            6,
+            0
+          ],
+          "cell": [
+            8,
+            1
+          ],
+          "sourceId": 1,
+          "sprite": "Lake_8_1"
+        },
+        {
+          "atlas": [
+            0,
+            3
+          ],
+          "cell": [
+            8,
+            2
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_8_2"
+        },
+        {
+          "atlas": [
+            0,
+            2
+          ],
+          "cell": [
+            8,
+            3
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_8_3"
+        },
+        {
+          "atlas": [
+            7,
+            3
+          ],
+          "cell": [
+            9,
+            -1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_9_-1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            9,
+            0
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_9_0"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            9,
+            1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_9_1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            9,
+            2
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_9_2"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            9,
+            3
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_9_3"
+        },
+        {
+          "atlas": [
+            7,
+            3
+          ],
+          "cell": [
+            10,
+            -1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_10_-1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            10,
+            0
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_10_0"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            10,
+            1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_10_1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            10,
+            2
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_10_2"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            10,
+            3
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_10_3"
+        },
+        {
+          "atlas": [
+            7,
+            3
+          ],
+          "cell": [
+            11,
+            -1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_11_-1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            11,
+            0
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_11_0"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            11,
+            1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_11_1"
+        },
+        {
+          "atlas": [
+            6,
+            5
+          ],
+          "cell": [
+            11,
+            2
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_11_2"
+        },
+        {
+          "atlas": [
+            6,
+            4
+          ],
+          "cell": [
+            11,
+            3
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_11_3"
+        },
+        {
+          "atlas": [
+            2,
+            3
+          ],
+          "cell": [
+            12,
+            -1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_12_-1"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            12,
+            0
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_12_0"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            12,
+            1
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_12_1"
+        },
+        {
+          "atlas": [
+            2,
+            5
+          ],
+          "cell": [
+            12,
+            2
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_12_2"
+        },
+        {
+          "atlas": [
+            2,
+            4
+          ],
+          "cell": [
+            12,
+            3
+          ],
+          "sourceId": 0,
+          "sprite": "Lake_12_3"
+        }
+      ],
+      "lakeInletCell": [
+        8,
+        1
+      ],
+      "lakeInletProfile": "west_inlet",
+      "outletCell": [
+        4.0,
+        1.0
+      ],
+      "scene": "west_east.tscn",
+      "upstreamAnchor": [
+        32.0,
+        16.0
+      ],
+      "upstreamElevationPixels": 64.0
+    }
+  ],
+  "clock": "shared_AnimationPlayer",
+  "frames": 16,
+  "layoutEditSynchronization": "pending",
+  "nativeLayoutRetained": true,
+  "pending": [
+    "Visual approval",
+    "Natural cliff contacts",
+    "Foam refinement",
+    "Sea continuation",
+    "Wide river mouths",
+    "Engine pack bindings"
+  ],
+  "periodSeconds": 1.2,
+  "previewUsesBakedLayout": true,
+  "productionReady": false,
+  "projection": "isometric",
+  "schemaVersion": 1,
+  "sourceConnectors": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_lake_connectors_v1/manifest.json",
+  "sourceRoute": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_route_v1/manifest.json",
+  "status": "candidate",
+  "style": "cartoon"
+}

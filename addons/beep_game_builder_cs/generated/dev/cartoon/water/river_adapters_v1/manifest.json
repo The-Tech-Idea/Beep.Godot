@@ -1,0 +1,884 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "kind": "narrow_expand",
+      "from": 1,
+      "to": 2,
+      "offset": 0,
+      "direction": "north_south",
+      "id": "north_south.narrow_expand",
+      "patternIndex": 0,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            0,
+            0
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            1,
+            0
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            0,
+            1
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_contract",
+      "from": 2,
+      "to": 1,
+      "offset": 0,
+      "direction": "north_south",
+      "id": "north_south.narrow_contract",
+      "patternIndex": 1,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            2,
+            0
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            3,
+            0
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            2,
+            1
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            3,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_expand",
+      "from": 2,
+      "to": 3,
+      "offset": 64,
+      "direction": "north_south",
+      "id": "north_south.edge_expand",
+      "patternIndex": 2,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            4,
+            0
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            5,
+            0
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            4,
+            1
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_contract",
+      "from": 3,
+      "to": 2,
+      "offset": 64,
+      "direction": "north_south",
+      "id": "north_south.edge_contract",
+      "patternIndex": 3,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            6,
+            0
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            7,
+            0
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            6,
+            1
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            7,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_expand",
+      "from": 1,
+      "to": 2,
+      "offset": 0,
+      "direction": "south_north",
+      "id": "south_north.narrow_expand",
+      "patternIndex": 4,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            0,
+            2
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            1,
+            2
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            0,
+            3
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            1,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_contract",
+      "from": 2,
+      "to": 1,
+      "offset": 0,
+      "direction": "south_north",
+      "id": "south_north.narrow_contract",
+      "patternIndex": 5,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            2,
+            2
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            3,
+            2
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            2,
+            3
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_expand",
+      "from": 2,
+      "to": 3,
+      "offset": 64,
+      "direction": "south_north",
+      "id": "south_north.edge_expand",
+      "patternIndex": 6,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            4,
+            2
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            5,
+            2
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            4,
+            3
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            5,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_contract",
+      "from": 3,
+      "to": 2,
+      "offset": 64,
+      "direction": "south_north",
+      "id": "south_north.edge_contract",
+      "patternIndex": 7,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            6,
+            2
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            7,
+            2
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            6,
+            3
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            7,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_expand",
+      "from": 1,
+      "to": 2,
+      "offset": 0,
+      "direction": "west_east",
+      "id": "west_east.narrow_expand",
+      "patternIndex": 8,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            0,
+            4
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            1,
+            4
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            0,
+            5
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            1,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_contract",
+      "from": 2,
+      "to": 1,
+      "offset": 0,
+      "direction": "west_east",
+      "id": "west_east.narrow_contract",
+      "patternIndex": 9,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            2,
+            4
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            3,
+            4
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            2,
+            5
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            3,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_expand",
+      "from": 2,
+      "to": 3,
+      "offset": 64,
+      "direction": "west_east",
+      "id": "west_east.edge_expand",
+      "patternIndex": 10,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            4,
+            4
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            5,
+            4
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            4,
+            5
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            5,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_contract",
+      "from": 3,
+      "to": 2,
+      "offset": 64,
+      "direction": "west_east",
+      "id": "west_east.edge_contract",
+      "patternIndex": 11,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            6,
+            4
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            7,
+            4
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            6,
+            5
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            7,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_expand",
+      "from": 1,
+      "to": 2,
+      "offset": 0,
+      "direction": "east_west",
+      "id": "east_west.narrow_expand",
+      "patternIndex": 12,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            0,
+            6
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            1,
+            6
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            0,
+            7
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            1,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "narrow_contract",
+      "from": 2,
+      "to": 1,
+      "offset": 0,
+      "direction": "east_west",
+      "id": "east_west.narrow_contract",
+      "patternIndex": 13,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            2,
+            6
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            3,
+            6
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            2,
+            7
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            3,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_expand",
+      "from": 2,
+      "to": 3,
+      "offset": 64,
+      "direction": "east_west",
+      "id": "east_west.edge_expand",
+      "patternIndex": 14,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            4,
+            6
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            5,
+            6
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            4,
+            7
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            5,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "edge_contract",
+      "from": 3,
+      "to": 2,
+      "offset": 64,
+      "direction": "east_west",
+      "id": "east_west.edge_contract",
+      "patternIndex": 15,
+      "cells": [
+        {
+          "local": [
+            0,
+            0
+          ],
+          "atlas": [
+            6,
+            6
+          ]
+        },
+        {
+          "local": [
+            1,
+            0
+          ],
+          "atlas": [
+            7,
+            6
+          ]
+        },
+        {
+          "local": [
+            0,
+            1
+          ],
+          "atlas": [
+            6,
+            7
+          ]
+        },
+        {
+          "local": [
+            1,
+            1
+          ],
+          "atlas": [
+            7,
+            7
+          ]
+        }
+      ]
+    }
+  ],
+  "composition": "edge variants cover only the changing outer bank; combine with low_bank and repeatable middle sections for wider rivers.",
+  "godotScenes": [
+    "square/river_adapter_review.tscn",
+    "isometric/river_adapter_review.tscn"
+  ],
+  "directionalScenes": [
+    {
+      "projection": "square",
+      "direction": "north_south",
+      "path": "square/river_adapter_review.tscn"
+    },
+    {
+      "projection": "square",
+      "direction": "south_north",
+      "path": "square/river_adapter_south_north.tscn"
+    },
+    {
+      "projection": "square",
+      "direction": "west_east",
+      "path": "square/river_adapter_west_east.tscn"
+    },
+    {
+      "projection": "square",
+      "direction": "east_west",
+      "path": "square/river_adapter_east_west.tscn"
+    },
+    {
+      "projection": "isometric",
+      "direction": "north_south",
+      "path": "isometric/river_adapter_review.tscn"
+    },
+    {
+      "projection": "isometric",
+      "direction": "south_north",
+      "path": "isometric/river_adapter_south_north.tscn"
+    },
+    {
+      "projection": "isometric",
+      "direction": "west_east",
+      "path": "isometric/river_adapter_west_east.tscn"
+    },
+    {
+      "projection": "isometric",
+      "direction": "east_west",
+      "path": "isometric/river_adapter_east_west.tscn"
+    }
+  ],
+  "godotTileSets": [
+    "square/river_adapters.tres",
+    "isometric/river_adapters.tres"
+  ],
+  "approvalEvidence": null,
+  "pending": [
+    "Rendered review of every directional pattern",
+    "Wide bends and junctions",
+    "Cross-role connectors",
+    "Visual approval"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "cartoon.accessories.v1",
+  "style": "cartoon",
+  "pack": "accessories",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 128,
+  "assets": [],
+  "approval": null
+}

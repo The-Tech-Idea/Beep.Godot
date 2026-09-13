@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.water.v1",
+  "style": "pixel",
+  "pack": "water",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

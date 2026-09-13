@@ -3,8 +3,21 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 
+# A failed pin RECORDS and the scan carries on, then reports every failure and exits 1.
+#
+# It used to `throw` on the first one, and that is how this file lost its value: a single
+# stale pin aborted the run, so every pin below it stopped executing and nobody could see
+# that they had. By the time the abort was noticed, 101 pins had drifted away from the
+# code they guard - a suite that reports one failure can only ever be as current as its
+# first assertion.
+#
+# Continuing is safe here because every pin is an independent read of a file: no pin
+# depends on an earlier pin having passed, and the all-failures run completes with no
+# cascade exceptions. A genuine script error still stops the run - that path throws.
+$script:scanFailures = New-Object System.Collections.ArrayList
+
 function Fail($message) {
-    throw "[addon-contract] $message"
+    [void]$script:scanFailures.Add("line $($MyInvocation.ScriptLineNumber): $message")
 }
 
 function Read($relativePath) {
@@ -24,6 +37,86 @@ $chunkShiftStragglers = @(Get-ChildItem -Path $chunkShiftAddonRoot -Recurse -Fil
 })
 if ($chunkShiftStragglers.Count -gt 0) {
     Fail "The chunk shift '>> 5' must live only in ChunkedCellStore.ChunkAxis; re-derived in: $($chunkShiftStragglers -join ', '). Use GridCellDataComponent.ChunkOf / ChunkAxis or GridChunkPins."
+}
+
+# Observing the SceneTree leaks a managed delegate across every assembly reload. The SceneTree is
+# engine-owned and outlives the reload, and _ExitTree does NOT run on a reload - so the previous
+# assembly's delegate stays attached to node_added/node_removed with a dead method handle. That
+# delegate PINS THE ASSEMBLY it came from, which is what makes ".NET: Failed to unload assemblies"
+# happen at all - not merely a symptom of it - and every node the editor adds or removes then
+# fails continuously with:
+#     managed_callable.cpp:96 - Parameter "delegate_handle.value" is null.
+#     Can't get method on CallableCustom "Delegate::Invoke".
+#     object.cpp:1311 - Error calling from signal 'node_added' ... Method not found.
+# Subscribing to a COLLABORATOR node's own signals is fine: it is resolved and unsubscribed from in
+# _ExitTree, and it dies with the scene. The SceneTree's are the ones that survive a reload.
+#
+# Observed 2026-09-11 in TWO places, and this pin MISSED the second one. GridNavigationComponent is
+# [Tool] and subscribed in _Ready - that one it caught. TerrainResourceViewBinding subscribed on
+# behalf of two [Tool] renderers that call Bind() BEFORE their own IsEditorHint check, and the
+# sweep was limited to files carrying [Tool] while the subscription lived in the helper, so nothing
+# matched. The exemption that caused it was written down here as a design decision ("a plain helper
+# is deliberately exempt... forcing an editor guard there would DISABLE editor-time observation")
+# and it was simply wrong: the helper's editor-time observation is what pinned the assembly. True
+# of the general case too - a file boundary is not a reason to stop looking.
+#
+# The strong fix is to need no guard at all: take the subtree's OWN signals
+# (ChildEnteredTree/ChildExitingTree) so the subscriptions die with the scene and nothing
+# engine-owned ever holds a managed callable. The guard is for when the global tree is genuinely
+# required - and it must PRECEDE the subscription, because a test in _ExitTree unsubscribes nothing
+# on a reload. Sweep the whole addon, not just [Tool] files.
+foreach ($sceneTreeObserver in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs") -Filter *.cs -Recurse) {
+    $observerSource = Get-Content -Path $sceneTreeObserver.FullName -Raw
+    $observerSubscription = [regex]::Match($observerSource, 'NodeAdded \+=|NodeRemoved \+=')
+    if (-not $observerSubscription.Success) { continue }
+    $observerGuard = $observerSource.IndexOf('Engine.IsEditorHint()', [System.StringComparison]::Ordinal)
+    if ($observerGuard -lt 0 -or $observerGuard -gt $observerSubscription.Index) {
+        Fail "$($sceneTreeObserver.Name) subscribes to the engine-owned SceneTree's node signals with no editor guard running BEFORE the subscription. It leaks a dead delegate across every assembly reload; that delegate pins the old assembly ('.NET: Failed to unload assemblies') and then spams 'delegate_handle.value is null' for every node the editor touches. Subscribe to the subtree's own ChildEnteredTree/ChildExitingTree, or guard with Engine.IsEditorHint() before the subscription."
+    }
+}
+
+# One duck-typed registry rule (DUP-16). The pruning registry mechanics - the
+# backing list, the duplicate guard, the count-with-prune, and the reverse-loop
+# prune - are ONE capability, so they live in DuckTypedNodeRegistry. The
+# transport and extraction managers derive from it and supply only their own
+# contract question, their own refusal wording and their own typed signals. A
+# manager that grows its own list or its own Prune() is the second owner of
+# registry mechanics, and the next fix to them lands in one file only.
+#
+# Placed with the DUP-09 chunk-shift sweep rather than beside the two managers,
+# because this is the same kind of one-owner structural pin. (It went here first
+# to sit above a then-red TerrainWorldComponent pin - a pin written after a Fail
+# that throws is a pin no full run ever reaches. That stale pin has since been
+# repaired, so this is now simply its logical home.)
+$duckTypedRegistry = Read "addons/beep_game_builder_cs/ecs/grid/DuckTypedNodeRegistry.cs"
+foreach ($required in @(
+    "public abstract partial class DuckTypedNodeRegistry : Node",
+    "public bool Register(Node node)",
+    "public void Unregister(Node node)",
+    "public int Count",
+    "protected IReadOnlyList<Node> Registered",
+    "protected void Prune()",
+    "protected abstract bool AnswersContract(Node node)",
+    "protected abstract string ContractSummary",
+    "GD.PushWarning"
+)) {
+    if ($duckTypedRegistry -notmatch [regex]::Escape($required)) {
+        Fail "DuckTypedNodeRegistry must own the shared registry mechanics, including the refusal warning: $required."
+    }
+}
+foreach ($duckRegistryOwner in @("GridTransportManagerComponent", "GridExtractionManagerComponent")) {
+    $duckRegistrySource = Read "addons/beep_game_builder_cs/ecs/grid/$duckRegistryOwner.cs"
+    if ($duckRegistrySource -notmatch [regex]::Escape("class $duckRegistryOwner : DuckTypedNodeRegistry")) {
+        Fail "$duckRegistryOwner must derive from DuckTypedNodeRegistry rather than hand-roll the registry."
+    }
+    if ($duckRegistrySource -notmatch [regex]::Escape("protected override bool AnswersContract(Node ")) {
+        Fail "$duckRegistryOwner must answer its own contract in AnswersContract - that check is the one thing the two managers do not share."
+    }
+    foreach ($duckRegistryBanned in @("private void Prune(", "private readonly List<Node> _transporters", "private readonly List<Node> _extractors")) {
+        if ($duckRegistrySource -match [regex]::Escape($duckRegistryBanned)) {
+            Fail "$duckRegistryOwner has re-grown a private copy of the shared registry mechanics: $duckRegistryBanned."
+        }
+    }
 }
 
 $tween = Read "addons/beep_game_builder_cs/ecs/TweenComponent.cs"
@@ -176,8 +269,22 @@ if ($restoreWorldMethod.Value -match 'GenerateTerrain\(\)' -or $restoreWorldMeth
 }
 $newWorldOnReady = [regex]::Match($terrainWorld, 'private void NewWorldOnReady\(\)[\s\S]*?
         \}')
-if (-not $newWorldOnReady.Success -or $newWorldOnReady.Value -notmatch 'if \(_restoredFromSave\)\s*\r?\n\s*return;') {
-    Fail "TerrainWorldComponent's deferred BuildOnReady must yield to a restored save, or a load is followed by a fresh world over the restored cells."
+if (-not $newWorldOnReady.Success) {
+    Fail "TerrainWorldComponent.NewWorldOnReady not found."
+}
+# This asserts the GUARANTEE, not the shape. The guard's form changed deliberately - a
+# bare `if (_restoredFromSave) return;` became a three-clause early-out that also covers
+# an already-built world (BuiltSize.X > 0) and a load still in flight
+# (saves.HasPendingSaveRecord), both of which are the same intent served better. Pinning
+# the old literal turned that improvement into a red gate that aborted the whole scan,
+# so EVERY pin below this line stopped running. What must hold is: the flag is tested,
+# and the method returns before it reaches NewWorld().
+$newWorldBody = $newWorldOnReady.Value
+$restoredGuardIndex = $newWorldBody.IndexOf('_restoredFromSave')
+$newWorldCallIndex = $newWorldBody.IndexOf('NewWorld();')
+if ($restoredGuardIndex -lt 0 -or $newWorldCallIndex -lt 0 -or $restoredGuardIndex -gt $newWorldCallIndex -or
+    $newWorldBody.Substring($restoredGuardIndex, $newWorldCallIndex - $restoredGuardIndex) -notmatch 'return;') {
+    Fail "TerrainWorldComponent's deferred BuildOnReady must test _restoredFromSave and return before it builds a new world, or a load is followed by a fresh world over the restored cells."
 }
 if ($terrainWorld -match 'public void Build\(\)') {
     Fail "TerrainWorldComponent.Build is back; the two doors are NewWorld (fills cells) and RestoreWorld (never does)."
@@ -1040,7 +1147,7 @@ if ($dashComponent -notmatch 'EffectiveDashSpeed => NonNegative\(DashSpeed\)' -o
     $dashComponent -notmatch 'EffectiveDashCooldown => NonNegative\(DashCooldown\)' -or
     $dashComponent -notmatch 'EffectiveStaminaCost => NonNegative\(StaminaCost\)' -or
     $dashComponent -notmatch 'double\.IsFinite\(delta\)' -or
-    $dashComponent -notmatch 'if \(EffectiveDashDuration <= 0f \|\| EffectiveDashSpeed <= 0f\)[\s\S]*return;') {
+    $dashComponent -notmatch 'EffectiveDashSpeed => NonNegative\(DashSpeed\)[\s\S]*EffectiveDashDuration <= 0 \|\| EffectiveDashSpeed <= 0\)[\s\S]*return false;') {
     Fail "DashComponent must clamp invalid dash tuning and refuse zero/negative dash activation before spending stamina."
 }
 if ($jumpComponent -notmatch 'float\.IsFinite\(JumpForce\)' -or
@@ -1058,7 +1165,7 @@ if ($slideComponent -notmatch 'EffectiveSlideSpeed => NonNegative\(SlideSpeed\)'
     $slideComponent -notmatch 'float\.IsFinite\(HeightMultiplier\)' -or
     $slideComponent -notmatch 'double\.IsFinite\(delta\)' -or
     $slideComponent -notmatch 'HasEffect\("stun"\)[\s\S]*EndSlide\(\)' -or
-    $slideComponent -notmatch 'if \(EffectiveSlideDuration <= 0f \|\| EffectiveSlideSpeed <= 0f\)') {
+    $slideComponent -notmatch 'EffectiveSlideSpeed => NonNegative\(SlideSpeed\)[\s\S]*EffectiveSlideDuration <= 0f \|\| EffectiveSlideSpeed <= 0f\)[\s\S]*return false;') {
     Fail "SlideComponent must clamp slide tuning and restore active slide state when stunned."
 }
 if ($wallJumpComponent -notmatch 'EffectiveRayDistance => NonNegative\(RayDistance\)' -or
@@ -1102,25 +1209,41 @@ if ($statResource -notmatch 'if \(!float\.IsFinite\(mod\.Amount\)\)\s*\r?\n\s*re
 if ($statsComponent -notmatch 'double\.IsFinite\(delta\)' -or $statsComponent -notmatch 'Mathf\.Max\(0f, \(float\)delta\)') {
     Fail "StatsComponent must tick durations with a finite non-negative delta."
 }
+# Three guarantees per file, asserted separately so a failure names the one that was lost:
+# no simulation in the editor, none while inactive, and a check that the actor it moves is
+# still real. This used to pin ONE exact expression per file, and five of the fourteen went
+# red when the guard was legitimately restructured - Glide/Hover/Slide moved `!IsActive` into
+# a named interruption check a line below and dropped the `_body == null` test that
+# `IsInstanceValid` already covers; WallJump split its guard into two returns;
+# GridPathFollower replaced it with a `_runtimeReady` flag that also drives SetPhysicsProcess.
+# A guard is on one line in all fourteen, so the editor clause requires `return;` on the same
+# line; a two-line guard needs the pattern extended rather than the pin deleted.
 foreach ($entry in @(
-    @{ Path = "addons/beep_game_builder_cs/ecs/AIController.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/DashComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/FlyComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/FootstepComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| _player == null \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/GlideComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/HoverComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/KnockbackComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| _remaining <= 0 \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/JumpComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/PlatformerController.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/SlideComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/TopDownController.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/WallJumpComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| _body == null \|\| !GodotObject\.IsInstanceValid\(_body\) \|\| !IsActive' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/WindFieldComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| !IsActive \|\| _area == null \|\| !GodotObject\.IsInstanceValid\(_area\)' },
-    @{ Path = "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs"; Pattern = 'Engine\.IsEditorHint\(\) \|\| !IsActive' }
+    @{ Path = "addons/beep_game_builder_cs/ecs/AIController.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/DashComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/FlyComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/FootstepComponent.cs"; Validity = '_player\s*==\s*null' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/GlideComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/HoverComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/KnockbackComponent.cs"; Validity = '_body\s*==\s*null' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/JumpComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/PlatformerController.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/SlideComponent.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/TopDownController.cs"; Validity = 'GodotObject\.IsInstanceValid\(_body\)' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/WallJumpComponent.cs"; Validity = '_body\s*==\s*null' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/WindFieldComponent.cs"; Validity = '_area\s*==\s*null' },
+    @{ Path = "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerComponent.cs"; Validity = '_runtimeReady' }
 )) {
     $source = Read $entry.Path
-    if ($source -notmatch $entry.Pattern) {
-        Fail "$($entry.Path) must guard physics simulation against editor-time and inactive execution."
+    if ($source -notmatch 'Engine\.IsEditorHint\(\)[^\r\n]{0,90}return;' -and
+        $source -notmatch '_runtimeReady\s*=\s*!Engine\.IsEditorHint\(\)') {
+        Fail "$($entry.Path) must guard physics simulation against editor-time execution - no editor guard that returns was found."
+    }
+    if ($source -notmatch '!IsActive') {
+        Fail "$($entry.Path) must guard physics simulation against inactive execution - nothing in the file tests !IsActive."
+    }
+    if ($source -notmatch $entry.Validity) {
+        Fail "$($entry.Path) must guard physics simulation against a missing or freed actor: $($entry.Validity)."
     }
 }
 $ninePatchFrame = Read "addons/beep_game_builder_cs/ecs/ui/NinePatchFrameComponent.cs"
@@ -1274,9 +1397,14 @@ foreach ($required in @("EffectiveCategory", "Description")) {
 if ($gridObjectInspector -notmatch 'PanelPath' -or $gridObjectInspector -notmatch 'TitleLabelPath' -or $gridObjectInspector -notmatch 'DetailsLabelPath' -or $gridObjectInspector -notmatch 'BindExistingControls' -or $gridObjectInspector -notmatch 'UsesSceneControls' -or $gridObjectInspector -notmatch 'BuildGeneratedControls') {
     Fail "GridObjectInspectorComponent must bind authored inspector labels by default and only generate fallback UI when explicitly enabled."
 }
-foreach ($required in @("FindPanel", "FindTitleLabel", "FindDetailsLabel", 'FindChild\("Panel"', 'FindChild\("Title"', 'FindChild\("Details"', 'GetParent\(\)\?\.FindChild')) {
-    if ($gridObjectInspector -notmatch $required) {
-        Fail "GridObjectInspectorComponent must auto-bind conventional Panel/Title/Details controls before generated fallback: $required."
+# The three-tier lookup (own children, then parent/sibling, then a generated fallback) is
+# GridPanelComponent.FindControl's and is pinned at its own home above. Each panel keeps only
+# a finder that names the conventional control and hands its authored path to that one owner.
+# Pinning `GetParent()?.FindChild` and `FindChild("Panel")` INSIDE each panel is what went red:
+# the search moved to one place, which is the entire point of the change.
+foreach ($required in @("FindPanel() => FindControl<", "FindTitleLabel()", "FindDetailsLabel()", "FindControl<Label>", '"Panel"', '"Title"', '"Details"')) {
+    if ($gridObjectInspector -notmatch [regex]::Escape($required)) {
+        Fail "GridObjectInspectorComponent must auto-bind its conventional Panel/Title/Details through the shared GridPanelComponent.FindControl lookup: $required."
     }
 }
 $gridMinimap = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridMinimapComponent.cs"
@@ -1292,11 +1420,14 @@ $gridNavigation = Read "addons/beep_game_builder_cs/ecs/grid/GridNavigationCompo
 if ($gridNavigation -notmatch 'class\s+GridNavigationComponent' -or $gridNavigation -notmatch 'FindCellPath' -or $gridNavigation -notmatch 'PriorityQueue' -or $gridNavigation -notmatch 'RoadPath' -or $gridNavigation -notmatch 'CellDataPath' -or $gridNavigation -notmatch 'TraversalCost') {
     Fail "GridNavigationComponent is missing the expected reusable A* pathfinding surface."
 }
-# Collaborators go through EntityComponent.Resolve, which is what re-checks
-# IsInstanceValid and re-resolves a freed node (pinned at its home above).
-foreach ($required in @("EntityComponent.Resolve(this, PlacementPath, ref _placement)", "EntityComponent.Resolve(this, RoadPath, ref _roads)", "EntityComponent.Resolve(this, CellDataPath, ref _cellData)", "TreatCellDataBlockedAsBlocked", "BlockedTerrainKinds", "TerrainCostMultipliers", "MinimumTerrainCostMultiplier")) {
+# Every collaborator goes through EntityComponent.ResolveLive - the one owner of the
+# fresh-resolve rule, pinned at its home above. These clauses used to demand the older cached
+# EntityComponent.Resolve, which the components deliberately left: a cached reference survives
+# a live re-point of its path, so an inspector edit that moves GridPath to another node was
+# ignored until something invalidated the cache.
+foreach ($required in @("EntityComponent.ResolveLive(this, GridPath, ref _grid, fallbackWhenEmpty: false)", "EntityComponent.ResolveLive(this, path, ref cached)", "ResolveSource(PlacementPath, ref _placement)", "ResolveSource(RoadPath, ref _roads)", "ResolveSource(CellDataPath, ref _cellData)", "TreatCellDataBlockedAsBlocked", "BlockedTerrainKinds", "TerrainCostMultipliers", "MinimumTerrainCostMultiplier")) {
     if ($gridNavigation -notmatch [regex]::Escape($required)) {
-        Fail "GridNavigationComponent must integrate placement, roads, and cell terrain data: $required."
+        Fail "GridNavigationComponent must integrate placement, roads, and cell terrain data through the one resolve owner: $required."
     }
 }
 # Live terrain kind has ONE owner, GridCellDataComponent, and one rule that
@@ -1339,9 +1470,9 @@ $gridFollower = Read "addons/beep_game_builder_cs/ecs/grid/GridPathFollowerCompo
 if ($gridFollower -notmatch 'class\s+GridPathFollowerComponent' -or $gridFollower -notmatch 'MoveToCell' -or $gridFollower -notmatch 'AdvancePath') {
     Fail "GridPathFollowerComponent is missing the expected reusable grid movement surface."
 }
-foreach ($required in @("CancelMove();", "Resolve(GridPath, ref _grid)", "Resolve(NavigationPath, ref _navigation)")) {
+foreach ($required in @("CancelMove();", "EntityComponent.ResolveLive(this, GridPath, ref _grid, fallbackWhenEmpty: false)", "EntityComponent.ResolveLive(this, NavigationPath, ref _navigation, fallbackWhenEmpty: false)")) {
     if ($gridFollower -notmatch [regex]::Escape($required)) {
-        Fail "GridPathFollowerComponent must clear stuck moves and refresh stale grid/navigation references: $required."
+        Fail "GridPathFollowerComponent must clear stuck moves and refresh stale grid/navigation references through the one resolve owner: $required."
     }
 }
 foreach ($required in @("EffectiveSpeed", "EffectiveStopDistance", "float.IsFinite(point.X)", "double.IsFinite(delta)")) {
@@ -1369,9 +1500,22 @@ $gridCamera = Read "addons/beep_game_builder_cs/ecs/grid/GridCameraControllerCom
 if ($gridCamera -notmatch 'class\s+GridCameraControllerComponent' -or $gridCamera -notmatch 'FocusWorld' -or $gridCamera -notmatch 'ZoomAtWorldPoint' -or $gridCamera -notmatch 'ClampPosition') {
     Fail "GridCameraControllerComponent is missing the expected reusable map camera surface."
 }
-foreach ($required in @("EffectivePanSpeed", "EffectiveZoomStep", "EffectivePositionSmoothing", "EffectiveZoomSmoothing", "EffectiveBoundsSize", "EffectiveZoomRange", "DeltaSeconds(double delta)", "FiniteVector(Vector2 value", "float.IsFinite(value.X)", "double.IsFinite(delta)")) {
+# The guard BODIES belong to GridMath (DUP-06, swept above). An earlier version of this pin
+# demanded them inline in the camera file (`float.IsFinite(value.X)`, `double.IsFinite(delta)`)
+# which the DUP-06 sweep explicitly FORBIDS in every ecs/grid file except GridMath.cs itself -
+# so the two pins could never both pass. What the camera must do is keep the bounding
+# properties and route every value through the one owner's guards; `using static
+# Beep.ECS.GridMath` is what makes those calls unqualified, so the home is asserted too and
+# the sweep cannot pass vacuously if GridMath ever loses a guard.
+$gridMath = Read "addons/beep_game_builder_cs/ecs/grid/GridMath.cs"
+foreach ($required in @("public static float DeltaSeconds(double delta)", "public static bool IsFinite(Vector2 value)", "public static Vector2 FiniteVector(Vector2 value, Vector2 fallback)")) {
+    if ($gridMath -notmatch [regex]::Escape($required)) {
+        Fail "GridMath must own the numeric guards every grid component routes through: $required."
+    }
+}
+foreach ($required in @("EffectivePanSpeed", "EffectiveZoomStep", "EffectivePositionSmoothing", "EffectiveZoomSmoothing", "EffectiveBoundsSize", "EffectiveZoomRange", "DeltaSeconds(", "FiniteVector(", "IsFinite(")) {
     if ($gridCamera -notmatch [regex]::Escape($required)) {
-        Fail "GridCameraControllerComponent must bound invalid camera speed, zoom, smoothing, bounds, vectors, and frame deltas: $required."
+        Fail "GridCameraControllerComponent must bound invalid camera speed, zoom, smoothing, bounds, vectors, and frame deltas through GridMath's guards: $required."
     }
 }
 $gridJobQueue = Read "addons/beep_game_builder_cs/ecs/grid/GridJobQueueComponent.cs"
@@ -1400,7 +1544,12 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
 if ($gridJobQueue -notmatch [regex]::Escape('["work_turns"] = WorkTurns') -or $gridJobQueue -notmatch [regex]::Escape('"work_turns", EffectiveDefaultWorkTurns')) {
     Fail "GridJobQueueComponent must save and load a job's work under work_turns."
 }
-foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(dict, key, fallback)", "GridVariantReader.Float(dict, key, fallback)", "GridVariantReader.Vector2I(dict, key, fallback)")) {
+# Assert the reader is USED per type, not the spelling of its arguments. These clauses used to
+# read `GridVariantReader.Int(dict, key, fallback)` - a call template, not a real call site - so
+# they went red the moment nothing happened to use a variable literally named `key`. The real
+# calls are `GridVariantReader.Int(dict, "priority", 0)`. Bypassing the reader for a raw cast
+# still drops the string and still fails.
+foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(", "GridVariantReader.Float(", "GridVariantReader.Vector2I(")) {
     if ($gridJobQueue -notmatch [regex]::Escape($required)) {
         Fail "GridJobQueueComponent must parse loose/malformed saved jobs through GridVariantReader: $required."
     }
@@ -1570,9 +1719,9 @@ $gridWorkerSpawnerPanel = Read "addons/beep_game_builder_cs/ecs/grid/ui/GridWork
 if ($gridWorkerSpawnerPanel -notmatch 'class\s+GridWorkerSpawnerPanelComponent' -or $gridWorkerSpawnerPanel -notmatch 'RequestSpawn' -or $gridWorkerSpawnerPanel -notmatch 'RefreshPanel' -or $gridWorkerSpawnerPanel -notmatch 'GridWorkerSpawnerComponent' -or $gridWorkerSpawnerPanel -notmatch 'TitleLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'CountLabelPath' -or $gridWorkerSpawnerPanel -notmatch 'SpawnButtonPath') {
     Fail "GridWorkerSpawnerPanelComponent is missing the expected base spawn HUD surface."
 }
-foreach ($required in @("HasAuthoredControls", "FindTitleLabel", "FindCountLabel", "FindSpawnButton", 'FindChild\("Title"', 'FindChild\("Count"', 'FindChild\("SpawnButton"')) {
-    if ($gridWorkerSpawnerPanel -notmatch $required) {
-        Fail "GridWorkerSpawnerPanelComponent must auto-bind conventional design-time children before generated fallback: $required."
+foreach ($required in @("HasAuthoredControls", "FindTitleLabel() => FindControl<", "FindCountLabel() => FindControl<", "FindSpawnButton() => FindControl<", '"Title"', '"Count"', '"SpawnButton"')) {
+    if ($gridWorkerSpawnerPanel -notmatch [regex]::Escape($required)) {
+        Fail "GridWorkerSpawnerPanelComponent must auto-bind conventional design-time children through the shared GridPanelComponent.FindControl lookup: $required."
     }
 }
 $gridSelectionJobCommand = Read "addons/beep_game_builder_cs/ecs/grid/GridSelectionJobCommandComponent.cs"
@@ -1634,11 +1783,13 @@ foreach ($forbidden in @('(?<!\w)MarkPlacedCellsOccupied\s*=\s*definition\.Occup
 
 # Registration is a contract, and it can be refused: an extractor that does not
 # answer the shape used to join the registry silently and only fail later, at
-# read time, in IsActivelyExtracting.
+# read time, in IsActivelyExtracting. The refusal plumbing is
+# DuckTypedNodeRegistry's (DUP-16, pinned at the top of this file); what has to
+# stay HERE is the shape question itself and the words it is refused with.
 $gridExtractionManager = Read "addons/beep_game_builder_cs/ecs/grid/GridExtractionManagerComponent.cs"
-foreach ($required in @("public bool Register(Node extractor)", "IsExtractingProperty", "ActiveResourceIdProperty", "Variant.Type.Nil", "GD.PushWarning")) {
+foreach ($required in @("protected override bool AnswersContract(Node extractor)", "IsExtractingProperty", "ActiveResourceIdProperty", "Variant.Type.Nil", "ContractSummary")) {
     if ($gridExtractionManager -notmatch [regex]::Escape($required)) {
-        Fail "GridExtractionManagerComponent must validate an extractor's shape before registering it, and report the refusal: $required."
+        Fail "GridExtractionManagerComponent must validate an extractor's shape before registering it, and name the contract it refused: $required."
     }
 }
 $gridExtractor = Read "addons/beep_game_builder_cs/ecs/grid/GridExtractorComponent.cs"
@@ -1667,7 +1818,7 @@ $gridCellData = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent
 if ($gridCellData -notmatch 'class\s+GridCellDataComponent' -or $gridCellData -notmatch 'PlantCrop' -or $gridCellData -notmatch 'AdvanceDay' -or $gridCellData -notmatch 'HarvestReady' -or $gridCellData -notmatch 'LoadCells') {
     Fail "GridCellDataComponent is missing the expected Stardew-style cell state surface."
 }
-foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(dict, key, fallback)", "GridVariantReader.Vector2I(dict, key, fallback)")) {
+foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(", "GridVariantReader.Vector2I(")) {
     if ($gridCellData -notmatch [regex]::Escape($required)) {
         Fail "GridCellDataComponent must parse loose/malformed saved cells through GridVariantReader: $required."
     }
@@ -1762,13 +1913,13 @@ $gridSplatRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainPainte
 if ($gridSplatRenderer -notmatch 'class\s+TerrainPaintedRendererComponent' -or
     $gridSplatRenderer -notmatch 'TerrainGeneratorPath' -or
     $gridSplatRenderer -notmatch 'public void Rebuild\(\)' -or
-    $gridSplatRenderer -notmatch 'BuildIdMap\(field, size, out ImageTexture shadeMap, out ImageTexture coastMap\)') {
+    $gridSplatRenderer -notmatch '_idMap = ImageTexture\.CreateFromImage\(') {
     Fail "TerrainPaintedRendererComponent must draw the generated grid as one shader surface fed by an uploaded id map."
 }
 # A fragment shader cannot read a TileMapLayer, so the grid is uploaded as a
 # texture; neighbour lookups are then one-texel samples, which is what makes edge
 # blending possible at all.
-foreach ($required in @("id_map", "shade_map", "coast_map", "map_size", "blend_width", "beach_tiles")) {
+foreach ($required in @("id_map", "shade_map", "coast_map", "cell_size", "blend_width", "lake_width_map")) {
     if ($gridSplatRenderer -notmatch [regex]::Escape($required)) {
         Fail "TerrainPaintedRendererComponent must upload the terrain grid and its blending inputs to the shader: $required."
     }
@@ -1861,7 +2012,7 @@ foreach ($portFile in @("ITransporter.cs", "IExtractor.cs", "IStorage.cs")) {
     }
 }
 $gridTransportManager = Read "addons/beep_game_builder_cs/ecs/grid/GridTransportManagerComponent.cs"
-foreach ($required in @("Register(", "RequestHaul(", "Transfer(", "HasMethod(`"Load`")", "HasMethod(`"Unload`")")) {
+foreach ($required in @("protected override bool AnswersContract(Node transporter)", "RequestHaul(", "Transfer(", "HasMethod(`"Load`")", "HasMethod(`"Unload`")")) {
     if ($gridTransportManager -notmatch [regex]::Escape($required)) {
         Fail "GridTransportManagerComponent must be an open registry with the safe hand-off primitive: $required."
     }
@@ -2265,10 +2416,22 @@ foreach ($door in @("public void NewWorld()", "public void RestoreWorld()")) {
 
 $terrainNoiseSet = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainNoiseSet.cs"
 if ($terrainNoiseSet -notmatch 'internal sealed class TerrainNoiseSet' -or
-    $terrainNoiseSet -notmatch 'FastNoiseLite Shape' -or
+    $terrainNoiseSet -notmatch 'FastNoiseLite Ridge' -or
     $terrainNoiseSet -notmatch 'FastNoiseLite Moisture' -or
-    $terrainNoiseSet -notmatch 'FastNoiseLite Temperature') {
+    $terrainNoiseSet -notmatch 'FastNoiseLite Temperature' -or
+    $terrainNoiseSet -notmatch 'FastNoiseLite Vegetation') {
     Fail "TerrainNoiseSet must own every noise channel a generation run needs, rather than each stage allocating its own."
+}
+# FIX-02 (2026-09-11): Shape/ShapeWarpX/ShapeWarpY/Detail were built and disposed every generation run
+# and read by no stage - residue of the thresholded continental noise that TerrainLandmassStage replaced
+# with grown seeds (it takes no noise set at all). Removed by owner's call; they must not creep back.
+foreach ($deadNoiseChannel in @('FastNoiseLite Shape', 'FastNoiseLite ShapeWarpX', 'FastNoiseLite ShapeWarpY', 'FastNoiseLite Detail')) {
+    if ($terrainNoiseSet -match [regex]::Escape($deadNoiseChannel)) {
+        Fail "TerrainNoiseSet declares $deadNoiseChannel again; no stage reads it (FIX-02)."
+    }
+}
+if ($terrainNoiseSet -match 'decides where land is') {
+    Fail "TerrainNoiseSet still claims a noise channel decides where land is; land is grown from seeds and the noise set no longer places it (FIX-02)."
 }
 $gridCalendar = Read "addons/beep_game_builder_cs/ecs/grid/GridCalendarComponent.cs"
 if ($gridCalendar -notmatch 'class\s+GridCalendarComponent' -or $gridCalendar -notmatch 'AdvanceDay' -or $gridCalendar -notmatch 'GridSeason' -or $gridCalendar -notmatch 'CaptureState' -or $gridCalendar -notmatch 'GridCellDataComponent') {
@@ -2293,7 +2456,7 @@ foreach ($forbidden in @('\[Export\][^\r\n]*AutoAdvance', '\[Export\][^\r\n]*Sec
 if ($gridCalendar -match 'override\s+void\s+_Process') {
     Fail "GridCalendarComponent must not tick itself; AdvanceDay is its only mutator."
 }
-foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(dict, key, fallback)", "GridVariantReader.Float(dict, key, fallback)")) {
+foreach ($required in @("GridVariantReader.TryDictionary(value", "GridVariantReader.Int(")) {
     if ($gridCalendar -notmatch [regex]::Escape($required)) {
         Fail "GridCalendarComponent must parse loose/malformed saved calendar state through GridVariantReader: $required."
     }
@@ -2305,9 +2468,9 @@ if ($gridCalendarHud -notmatch 'class\s+GridCalendarHudComponent' -or $gridCalen
 if ($gridCalendarHud -notmatch 'DateLabelPath' -or $gridCalendarHud -notmatch 'DayProgressPath' -or $gridCalendarHud -notmatch 'AdvanceButtonPath' -or $gridCalendarHud -notmatch 'BindExistingControls' -or $gridCalendarHud -notmatch 'UsesSceneControls') {
     Fail "GridCalendarHudComponent must bind authored scene controls by default and only generate fallback UI when explicitly enabled."
 }
-foreach ($required in @("HasAuthoredControls", "FindDateLabel", "FindDayProgress", "FindAdvanceButton", 'FindChild\("Date"', 'FindChild\("DayProgress"', 'FindChild\("AdvanceDay"')) {
-    if ($gridCalendarHud -notmatch $required) {
-        Fail "GridCalendarHudComponent must auto-bind conventional design-time children before generated fallback: $required."
+foreach ($required in @("HasAuthoredControls", "FindDateLabel() => FindControl<", "FindDayProgress() => FindControl<", "FindAdvanceButton() => FindControl<", '"Date"', '"DayProgress"', '"AdvanceDay"')) {
+    if ($gridCalendarHud -notmatch [regex]::Escape($required)) {
+        Fail "GridCalendarHudComponent must auto-bind conventional design-time children through the shared GridPanelComponent.FindControl lookup: $required."
     }
 }
 $gridWorldState = Read "addons/beep_game_builder_cs/ecs/grid/GridWorldStateComponent.cs"
@@ -2329,10 +2492,14 @@ if ($gridPlacement -notmatch 'bool\s+IsOccupied\(Vector2I cell\)') { Fail "GridP
 if ($gridPlacement -notmatch 'BeginPlacement\(GridBuildDefinition' -or $gridPlacement -notmatch 'ResourceWalletPath' -or $gridPlacement -notmatch 'MovePreviewToCell' -or $gridPlacement -notmatch 'ConfigurePlacedObject' -or $gridPlacement -notmatch 'GridObjectComponent' -or $gridPlacement -notmatch 'NavigationPath') {
     Fail "GridPlacementComponent is missing catalog-driven build placement support."
 }
-# The placement root falls back to the parent, deliberately not scene-wide, so it
-# keeps its own check; every other collaborator goes through EntityComponent.Resolve,
-# whose cached-while-valid contract is pinned at its home above.
-foreach ($required in @("EntityComponent.Resolve(this, GridPath, ref _grid)", "!GodotObject.IsInstanceValid(_placementRoot)", "EntityComponent.Resolve(this, ResourceWalletPath, ref _resourceWallet)", "EntityComponent.Resolve(this, CellDataPath, ref _cellData)", "EntityComponent.Resolve(this, NavigationPath, ref _navigation)", "TreatCellDataBlockedAsUnplaceable", "TreatBlockedTerrainKindsAsUnplaceable", "AllowedTerrainKinds", "BlockedTerrainKinds", "MarkPlacedCellsBlockedInNavigation", "SetFootprintNavigationBlocked")) {
+# Every collaborator goes through EntityComponent.ResolveLive (the one owner of the fresh-
+# resolve rule), and the placement root keeps its own derivation because it deliberately falls
+# back to the PARENT rather than scene-wide. That root clause used to pin
+# `!GodotObject.IsInstanceValid(_placementRoot)`. The safety is stronger than that check now:
+# the field is re-derived unconditionally on every ResolveReferences call, so a stale root is
+# not merely detected but impossible - and the clause says so, which fails if someone makes the
+# assignment conditional.
+foreach ($required in @("EntityComponent.ResolveLive(this, GridPath, ref _grid)", "_placementRoot = !PlacementRootPath.IsEmpty", "EntityComponent.ResolveLive(this, ResourceWalletPath, ref _resourceWallet)", "EntityComponent.ResolveLive(this, CellDataPath, ref _cellData)", "EntityComponent.ResolveLive(this, NavigationPath, ref _navigation)", "TreatCellDataBlockedAsUnplaceable", "TreatBlockedTerrainKindsAsUnplaceable", "AllowedTerrainKinds", "BlockedTerrainKinds", "MarkPlacedCellsBlockedInNavigation", "SetFootprintNavigationBlocked")) {
     if ($gridPlacement -notmatch [regex]::Escape($required)) {
         Fail "GridPlacementComponent must refresh cached references safely without clobbering valid nodes: $required."
     }
@@ -2352,9 +2519,9 @@ if ($gridInteractionStatus -notmatch 'class\s+GridInteractionStatusComponent' -o
 if ($gridInteractionStatus -notmatch 'StatusLabelPath' -or $gridInteractionStatus -notmatch 'BindExistingControls' -or $gridInteractionStatus -notmatch 'UsesSceneControls') {
     Fail "GridInteractionStatusComponent must bind an authored status label by default and only generate fallback UI when explicitly enabled."
 }
-foreach ($required in @("FindStatusLabel", 'FindChild\("Status"')) {
-    if ($gridInteractionStatus -notmatch $required) {
-        Fail "GridInteractionStatusComponent must auto-bind a conventional design-time Status label before generated fallback: $required."
+foreach ($required in @("FindStatusLabel() => FindControl<", '"Status"')) {
+    if ($gridInteractionStatus -notmatch [regex]::Escape($required)) {
+        Fail "GridInteractionStatusComponent must auto-bind a conventional design-time Status label through the shared GridPanelComponent.FindControl lookup: $required."
     }
 }
 $gridInteractionCursor = Read "addons/beep_game_builder_cs/ecs/grid/GridInteractionCursorComponent.cs"
@@ -2512,18 +2679,18 @@ if ($gridObjectivePanel -notmatch 'class\s+GridObjectivePanelComponent' -or $gri
 if ($gridObjectivePanel -notmatch 'class\s+GridObjectivePanelComponent\s*:\s*GridListPanelComponent' -or $gridObjectivePanel -notmatch 'GeneratedRootName' -or $gridObjectivePanel -notmatch 'RowNamePrefix' -or $gridObjectivePanel -notmatch 'BindExistingControls' -or $gridObjectivePanel -notmatch 'HasAuthoredControls' -or $gridObjectivePanel -notmatch 'UpdateRows') {
     Fail "GridObjectivePanelComponent must bind authored panel controls by default and only generate fallback UI when explicitly enabled, through GridListPanelComponent."
 }
-# The four GridListPanelComponent panels are absent here on purpose: they
-# search parent/sibling controls through GridPanelComponent.FindControl, which
-# is pinned at its own home above. What remains are the panels that still do
-# their own lookup.
-$parentAwareTerrainFinders = @{
+# EVERY grid HUD panel now finds its authored controls through GridPanelComponent.FindControl -
+# including these three, which used to hand-roll `GetParent()?.FindChild`. The parent/
+# sibling search is pinned once, at that helper's home above, so re-asserting it in each
+# panel would only re-create the copies this check exists to prevent.
+$parentAwareControlFinders = @{
     "GridCalendarHudComponent" = $gridCalendarHud
     "GridInteractionStatusComponent" = $gridInteractionStatus
     "GridWorkerSpawnerPanelComponent" = $gridWorkerSpawnerPanel
 }
-foreach ($entry in $parentAwareTerrainFinders.GetEnumerator()) {
-    if ($entry.Value -notmatch 'GetParent\(\)\?\.FindChild') {
-        Fail "$($entry.Key) conventional control lookup must search parent/sibling authored controls, not only component children."
+foreach ($entry in $parentAwareControlFinders.GetEnumerator()) {
+    if ($entry.Value -notmatch 'FindControl<') {
+        Fail "$($entry.Key) must look up its authored controls through GridPanelComponent.FindControl, which searches own children and then parent/sibling controls."
     }
 }
 $gridObjectiveEventBinder = Read "addons/beep_game_builder_cs/ecs/grid/GridObjectiveEventBinderComponent.cs"
@@ -3339,6 +3506,46 @@ if ($kitControl -match 'DebugOutline|TEMPORARY diagnostic') { Fail "KitControl m
 if ($kitControl -match 'KitArt\.|TryDrawArt|ArtName|ArtModulate|DrawAfterArt|new StyleBoxTexture \{ Texture = tex \}') {
     Fail "KitControl must not draw texture-backed UI chrome; kit widgets should use procedural layers."
 }
+# Every kit widget's refresh path is the BASE's, not a per-file copy, and this is where that
+# guarantee lives now. The doc on the two methods records the consolidation this pin replaces:
+# "46 widgets each declared their own byte-identical copy" of RefreshVisualAndRedraw, and of
+# "the 27 widgets that had written their own copy" of RefreshMinimumAndRedraw, 22 called
+# UpdateMinimumSize() with no IsInsideTree guard while five guarded it - the guarded version is
+# the one that survived. A per-WIDGET pin asserts which refresh PATH a property takes
+# (RefreshMinimumAndRedraw for a size change, RefreshVisualAndRedraw for a repaint); asserting
+# the BODY of that path inside each widget is what went stale when the bodies moved here.
+foreach ($required in @(
+    "if (what == NotificationThemeChanged)",
+    "KitChrome.RefreshAutoMinimumSize(this, _GetMinimumSize())"
+)) {
+    if ($kitControl -notmatch [regex]::Escape($required)) {
+        Fail "KitControl must be the one owner of the kit refresh paths every widget shares: $required."
+    }
+}
+# These two are anchored to their METHOD BODIES deliberately. The first version asserted a bare
+# "QueueRedraw();" item, and it stayed GREEN with RefreshVisualAndRedraw emptied out - the file has
+# another QueueRedraw call at :1336, so the item was satisfied by an unrelated method. That is a
+# guard that cannot fail on the thing it guards, and it was found by mutating the body and
+# watching the pin not move.
+if ($kitControl -notmatch 'protected void RefreshVisualAndRedraw\(\)\s*\{\s*QueueRedraw\(\);\s*\}') {
+    Fail "KitControl.RefreshVisualAndRedraw must be exactly the shared repaint - a body of QueueRedraw()."
+}
+if ($kitControl -notmatch 'protected void RefreshMinimumAndRedraw\(\)\s*=>\s*KitChrome\.RefreshMinimumAndRedraw\(this, _GetMinimumSize\(\)\);') {
+    Fail "KitControl.RefreshMinimumAndRedraw must route through KitChrome.RefreshMinimumAndRedraw with the widget's own _GetMinimumSize()."
+}
+if ($kitChrome -notmatch 'if \(ctl\.IsInsideTree\(\)\)') {
+    Fail "KitChrome.RefreshMinimumAndRedraw must keep the IsInsideTree guard - a widget can take a property change before it enters the tree, and calling UpdateMinimumSize() unconditionally is what 22 copied versions got wrong."
+}
+# The corner badge's containment guarantee, which replaced the per-widget
+# `EllipsizeText(font, badge, ...)` calls the kit widgets used to carry: FitRole shrinks the text
+# to fit the badge box, the pill is then sized from the MEASURED text so it grows to the label
+# instead of clipping it, and the rect is clamped inside the control. Fit-and-grow plus a hard
+# clamp is stronger than ellipsizing, and it lives here so every badge-carrying widget gets it.
+if ($kitChrome -notmatch 'public static void DrawCornerBadge' -or
+    $kitChrome -notmatch 'UiSurface\.FitRole\(' -or
+    $kitChrome -notmatch 'Mathf\.Clamp\(r\.Position\.X, 0f,') {
+    Fail "KitChrome.DrawCornerBadge must fit the badge text to its box and clamp the badge inside its own control."
+}
 if ($uiSurface -match 'StyleBoxTexture|ArtNominalLuminance') {
     Fail "UiSurface must not compensate for removed texture-backed chrome."
 }
@@ -3936,7 +4143,7 @@ $kitPushButton = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPushButton.cs"
 if ($kitPushButton -notmatch 'public UiSurface\.Role Accent[\s\S]*QueueRedraw\(\)') {
     Fail "KitPushButton.Accent must redraw immediately for design-time edits."
 }
-if ($kitPushButton -notmatch 'DrawLabel\(state,\s*face\)' -or $kitPushButton -notmatch 'UiSurface\.Ink\(face\)') {
+if ($kitPushButton -notmatch 'KitChrome\.DrawPlate\(this, _genre, body, face, state,' -or $kitPushButton -notmatch 'UiSurface\.Ink\(face\)') {
     Fail "KitPushButton must draw label text against the actual accent plate face, not generic surface text."
 }
 if ($kitPushButton -notmatch 'string\[\]\s+lines\s*=\s*KitChrome\.Case\(Text,\s*_genre\)\.Split' -or $kitPushButton -notmatch 'EllipsizeText\(font,\s*lines\[i\]') {
@@ -3953,12 +4160,12 @@ if ($kitPushButton -notmatch 'BadgeText[\s\S]*SuppressBaseChrome\(\)[\s\S]*Updat
 if ($kitPushButton -notmatch 'public UiSurface\.Role BadgeRole[\s\S]*if \(_badgeRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)') {
     Fail "KitPushButton.BadgeRole must redraw immediately for design-time edits."
 }
-foreach ($required in @("string badge = KitChrome.Case(_badge, _genre)", "EllipsizeText(font, badge")) {
+foreach ($required in @("string badge = KitChrome.Case(_badge, _genre)", "KitChrome.BadgeOverhang(this)")) {
     if ($kitPushButton -notmatch [regex]::Escape($required)) {
         Fail "KitPushButton must case and ellipsize badge text inside its actual draw bounds: $required."
     }
 }
-if ($kitPushButton -notmatch 'BadgeLabelReserve\(\)') {
+if ($kitPushButton -notmatch 'KitChrome\.BadgeOverhang\(this\)') {
     Fail "KitPushButton must reserve label room for the badge, or a long caption runs underneath it."
 }
 
@@ -3978,7 +4185,7 @@ if ($kitPanel -notmatch 'Title\s*\{[^\r\n]*SetText\(ref\s+_title' -or $kitPanel 
 if ($kitPanel -notmatch 'private float _titleFontScale = 0\.90f') {
     Fail "KitPanel default header title scale must stay readable; do not regress it to tiny utility text."
 }
-if ($kitPanel -notmatch 'ApplyCloseFocusDefault' -or $kitPanel -notmatch 'ShowClose\s*\?\s*FocusModeEnum\.All\s*:\s*FocusModeEnum\.None' -or $kitPanel -notmatch 'InputEventKey[\s\S]*IsConfirmKey[\s\S]*IsCancelKey[\s\S]*CloseRequested' -or $kitPanel -notmatch 'GrabFocus\(\)[\s\S]*CloseRequested' -or $kitPanel -notmatch 'DrawFocusRing\(this,\s*_genre,\s*CloseRect\(\)') {
+if ($kitPanel -notmatch 'ApplyCloseFocusDefault' -or $kitPanel -notmatch 'ShowClose\s*\?\s*FocusModeEnum\.All\s*:\s*FocusModeEnum\.None' -or $kitPanel -notmatch 'KitChrome\.IsConfirm\(@event\) \|\| KitChrome\.IsCancel\(@event\)[\s\S]*CloseRequested' -or $kitPanel -notmatch 'GrabFocus\(\)[\s\S]*CloseRequested' -or $kitPanel -notmatch 'DrawFocusRing\(this,\s*_genre,\s*CloseRect\(\)') {
     Fail "KitPanel.ShowClose draws an interactive close affordance and must support focus, keyboard close, mouse focus, and a close-button focus ring."
 }
 if ($kitPanel -notmatch 'AutoMouseFilter[\s\S]*_autoMouseFilter\s*=\s*true') {
@@ -4017,11 +4224,11 @@ if ($kitPanel -notmatch 'GenerateOrnamentsWhenMissing[\s\S]*_generateOrnamentsWh
     Fail "KitPanel archetype ornaments must bind authored KitOrnament children by default and only generate fallback ornaments when explicitly enabled."
 }
 $kitOrnament = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitOrnament.cs"
-if ($kitOrnament -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitOrnament -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitOrnament -notmatch 'OrnamentScale[\s\S]*Mathf\.IsEqualApprox\(_ornamentScale,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitOrnament -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitOrnament -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitOrnament -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitOrnament -notmatch 'OrnamentScale[\s\S]*Mathf\.IsEqualApprox\(_ornamentScale,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' ) {
     Fail "KitOrnament authored kind, role, and scale must use guarded visual-only redraw."
 }
 $kitPanelHanger = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPanelHanger.cs"
-if ($kitPanelHanger -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanelHanger -notmatch 'Inset[\s\S]*Mathf\.IsEqualApprox\(_inset,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanelHanger -notmatch 'Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanelHanger -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitPanelHanger -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanelHanger -notmatch 'Inset[\s\S]*Mathf\.IsEqualApprox\(_inset,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanelHanger -notmatch 'Accent[\s\S]*if \(_accent == value\) return[^}]*RefreshVisualAndRedraw\(\)' ) {
     Fail "KitPanelHanger authored kind, inset, and accent must use guarded visual-only redraw."
 }
 $kitArchetypes = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitArchetypes.cs"
@@ -4043,10 +4250,10 @@ $kitMeter = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitMeter.cs"
 if ($kitMeter -notmatch 'public UiSurface\.Role Fill[\s\S]*Rebuild\(\)') {
     Fail "KitMeter.Fill must rebuild immediately because end-cap attachment roles depend on it."
 }
-if ($kitMeter -notmatch 'override void _Notification\(int what\)[\s\S]*NotificationThemeChanged[\s\S]*SuppressNativeStyles\(\)[\s\S]*Rebuild\(\)' -or $kitMeter -notmatch 'private void SuppressNativeStyles\(\)[\s\S]*SetEmptyStyleboxOverride' -or $kitMeter -notmatch 'Rebuild[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitMeter -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)') {
+if ($kitMeter -notmatch 'override void _Notification\(int what\)[\s\S]*NotificationThemeChanged[\s\S]*SuppressNativeStyles\(\)[\s\S]*Rebuild\(\)' -or $kitMeter -notmatch 'private void SuppressNativeStyles\(\)[\s\S]*SetEmptyStyleboxOverride' -or $kitMeter -notmatch 'Rebuild[\s\S]*RefreshMinimumAndRedraw\(\)' ) {
     Fail "KitMeter is a native ProgressBar with custom kit drawing; it must suppress native styles, refresh minimum size, and rebuild attachments on theme changes."
 }
-if ($kitMeter -notmatch 'RefreshMinimumAndRedraw' -or $kitMeter -notmatch 'TextWidth' -or $kitMeter -notmatch 'Segments[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitMeter -notmatch 'Readout[\s\S]*if \(_readout == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitMeter -notmatch 'UpdateMinimumSize\(\)' -or $kitMeter -notmatch '_segments \* Mathf\.Max' -or $kitMeter -notmatch '_cap != null[\s\S]*w \+=' -or $kitMeter -notmatch '_caps[\s\S]*w \+=' -or $kitMeter -notmatch 'EllipsizeText\(font,\s*readout,\s*fs,\s*bar\.Size\.X') {
+if ($kitMeter -notmatch 'RefreshMinimumAndRedraw' -or $kitMeter -notmatch 'TextWidth' -or $kitMeter -notmatch 'Segments[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitMeter -notmatch 'Readout[\s\S]*if \(_readout == next\) return[^}]*RefreshMinimumAndRedraw\(\)'  -or $kitMeter -notmatch '_segments \* Mathf\.Max' -or $kitMeter -notmatch '_cap != null[\s\S]*w \+=' -or $kitMeter -notmatch '_caps[\s\S]*w \+=' -or $kitMeter -notmatch 'EllipsizeText\(font,\s*readout,\s*fs,\s*bar\.Size\.X') {
     Fail "KitMeter must refresh and derive its minimum size from segment count, readout text, and cap overhangs, and ellipsize readout inside the bar."
 }
 $kitSlider = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSlider.cs"
@@ -4167,21 +4374,21 @@ foreach ($fileName in $startupSafeSemanticFiles) {
     }
 }
 $kitToggle = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitToggle.cs"
-if ($kitToggle -notmatch 'Style[\s\S]*if \(_style == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitToggle -notmatch 'OnRole[\s\S]*if \(_onRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'Toggled \+= _ => RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitToggle -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitToggle -notmatch 'Style[\s\S]*if \(_style == value\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitToggle -notmatch 'OnRole[\s\S]*if \(_onRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'Toggled \+= _ => RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitToggle -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitToggle -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitToggle authored style must relayout once, while OnRole and theme changes use guarded visual redraw."
 }
 $kitModalShade = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitModalShade.cs"
 if ($kitModalShade -notmatch 'override void _Notification\(int what\)[\s\S]*NotificationThemeChanged[\s\S]*QueueRedraw\(\)' -or $kitModalShade -notmatch 'UiSurface\.SemanticOrDerived\(this,\s*UiSurface\.Role\.Accent\)') {
     Fail "KitModalShade draws theme accent lines and must redraw when the active kit theme changes."
 }
-if ($kitModalShade -notmatch 'OverlayColor[\s\S]*if \(_overlayColor == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitModalShade -notmatch 'NotificationThemeChanged[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitModalShade -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitModalShade -notmatch 'OverlayColor[\s\S]*if \(_overlayColor == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitModalShade -notmatch 'NotificationThemeChanged[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitModalShade -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitModalShade authored overlay and theme changes must use guarded visual-only redraw."
 }
-if ($kitModalShade -notmatch $kitFocusDefaultPattern -or $kitModalShade -notmatch 'NotificationVisibilityChanged[\s\S]*Visible[\s\S]*GrabFocus\(\)' -or $kitModalShade -notmatch 'InputEventKey[\s\S]*IsCancelKey[\s\S]*ShadePressed' -or $kitModalShade -notmatch 'InputEventMouseButton \{ Pressed: true, ButtonIndex: MouseButton\.Left \}[\s\S]*GrabFocus\(\)[\s\S]*ShadePressed') {
+if ($kitModalShade -notmatch $kitFocusDefaultPattern -or $kitModalShade -notmatch 'NotificationVisibilityChanged[\s\S]*Visible[\s\S]*GrabFocus\(\)' -or $kitModalShade -notmatch 'KitChrome\.IsCancel\(@event\)[\s\S]*ShadePressed' -or $kitModalShade -notmatch 'InputEventMouseButton \{ Pressed: true, ButtonIndex: MouseButton\.Left \}[\s\S]*GrabFocus\(\)[\s\S]*ShadePressed') {
     Fail "KitModalShade must capture keyboard focus and dismiss on Escape as well as left-click backdrop presses."
 }
 $kitSwitchVisual = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSwitchVisual.cs"
-if ($kitSwitchVisual -notmatch 'IsOn[\s\S]*if \(_isOn == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'OnRole[\s\S]*if \(_onRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'NotificationThemeChanged[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'override Vector2 _GetMinimumSize\(\)' -or $kitSwitchVisual -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitSwitchVisual -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitSwitchVisual -notmatch 'IsOn[\s\S]*if \(_isOn == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'OnRole[\s\S]*if \(_onRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'NotificationThemeChanged[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitSwitchVisual -notmatch 'override Vector2 _GetMinimumSize\(\)'  ) {
     Fail "KitSwitchVisual authored on state, role, theme, and direct scene use must use guarded redraw and expose a natural minimum size."
 }
 $themePreset = Read "addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs"
@@ -4363,7 +4570,13 @@ $autoMinimumRefreshRequirements = @{
 }
 foreach ($entry in $autoMinimumRefreshRequirements.GetEnumerator()) {
     $source = Read "addons/beep_game_builder_cs/ecs/ui/kit/$($entry.Key)"
-    if ($source -notmatch 'RefreshAutoMinimumSize') {
+    # Either entry point satisfies the guarantee: KitChrome.RefreshAutoMinimumSize is the
+    # low-level "compute and set the auto minimum" helper, and RefreshMinimumAndRedraw is the
+    # call that sets it and queues the redraw. Demanding the LOW-LEVEL name is what went red
+    # here - seven controls (KitSpinner.Kind, KitStarRating.Total, KitChip.Kind, KitHeartRow,
+    # KitInputHint.Keys, KitPager.ShowJump, KitSlotGrid.Columns) set the same minimum through
+    # the higher-level call, so the property setter still refreshes and still redraws.
+    if ($source -notmatch 'RefreshAutoMinimumSize' -and $source -notmatch 'RefreshMinimumAndRedraw') {
         Fail "$($entry.Key) must refresh kit-owned minimum size when '$($entry.Value)' changes."
     }
 }
@@ -4371,7 +4584,7 @@ $kitInputHint = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitInputHint.cs"
 if ($kitInputHint -notmatch 'EllipsizeText\(font,\s*k' -or $kitInputHint -notmatch 'string\s+action\s*=\s*KitCase\(_action\)' -or $kitInputHint -notmatch 'FitRole\(this,\s*UiSurface\.TextRole\.Caption,[\s\S]*action,\s*font' -or $kitInputHint -notmatch 'EllipsizeText\(font,\s*action,\s*afs,\s*remaining\)') {
     Fail "KitInputHint must ellipsize key/action text so long chords and actions stay inside the control."
 }
-if ($kitInputHint -notmatch 'TextWidth' -or $kitInputHint -notmatch 'RefreshMinimumAndRedraw' -or $kitInputHint -notmatch 'Keys[\s\S]*NormalizeKeys\(value\)[\s\S]*SameKeys\(_keys,\s*next\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitInputHint -notmatch 'Action[\s\S]*if \(_action == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitInputHint -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitInputHint -notmatch 'SameKeys' -or $kitInputHint -notmatch 'NormalizeKeys[\s\S]*next\[i\] = keys\[i\] \?\? ""') {
+if ($kitInputHint -notmatch 'TextWidth' -or $kitInputHint -notmatch 'RefreshMinimumAndRedraw' -or $kitInputHint -notmatch 'Keys[\s\S]*NormalizeKeys\(value\)[\s\S]*SameKeys\(_keys,\s*next\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitInputHint -notmatch 'Action[\s\S]*if \(_action == next\) return[^}]*RefreshMinimumAndRedraw\(\)'  -or $kitInputHint -notmatch 'SameKeys' -or $kitInputHint -notmatch 'NormalizeKeys[\s\S]*next\[i\] = keys\[i\] \?\? ""') {
     Fail "KitInputHint must derive its minimum width from normalized key chords and action text, not a fixed constant."
 }
 if ($kitInputHint -notmatch 'TextWidth\(font,\s*KitCase\(_action\),\s*UiSurface\.FontSize\(this,\s*UiSurface\.TextRole\.Caption\)\)') {
@@ -4451,7 +4664,7 @@ if ($kitTabStrip -notmatch 'EllipsizeText\(font,\s*b,\s*small,\s*r\.Size\.X \* 0
 if ($kitTabStrip -notmatch 'FindEnabledTab' -or $kitTabStrip -notmatch 'SelectKeyboardTab' -or $kitTabStrip -notmatch 'IsTabDisabled\(index\)' -or $kitTabStrip -notmatch 'IsTabDisabled\(i\)' -or $kitTabStrip -notmatch 'disabled[\s\S]*A = 0\.38f') {
     Fail "KitTabStrip keyboard navigation and drawing must skip and visually mute disabled tabs."
 }
-if ($kitTabStrip -notmatch 'Selection[\s\S]*if \(_selection == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTabStrip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)' -or $kitTabStrip -notmatch 'RebuildTabsFromList[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTabStrip -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)') {
+if ($kitTabStrip -notmatch 'Selection[\s\S]*if \(_selection == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitTabStrip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)' -or $kitTabStrip -notmatch 'RebuildTabsFromList[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTabStrip -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)') {
     Fail "KitTabStrip authored selection style must use guarded visual redraw, while tab/theme rebuilds update minimum size."
 }
 $kitSegmentedIconGroup = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconGroup.cs"
@@ -4488,7 +4701,7 @@ if ($missingNotificationBaseFiles.Count -gt 0) {
     Fail "Kit _Notification overrides must call base._Notification() before custom handling: $missingNotificationBaseList."
 }
 $kitControl = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitControl.cs"
-if ($kitControl -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'OverrideShape[\s\S]*if \(_overrideShape == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'Shape[\s\S]*if \(_shape == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'Elevation[\s\S]*if \(_elevation == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'CornerOverride[\s\S]*Mathf\.IsEqualApprox\(_cornerOverride,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitControl -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'OverrideShape[\s\S]*if \(_overrideShape == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'Shape[\s\S]*if \(_shape == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'Elevation[\s\S]*if \(_elevation == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'CornerOverride[\s\S]*Mathf\.IsEqualApprox\(_cornerOverride,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitControl -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitControl must refresh kit-owned minimum size on theme changes so font/genre changes relayout design-time controls."
 }
 $kitBuildTile = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitBuildTile.cs"
@@ -4502,7 +4715,7 @@ if ($kitLabelValue -notmatch 'string\s+label\s*=\s*KitCase\(_label\)' -or $kitLa
 if ($kitLabelValue -notmatch 'DrawTextIn[\s\S]*EllipsizeText\(font,\s*text,\s*fs,\s*maxWidth\)[\s\S]*DrawText\(font') {
     Fail "KitLabelValue must ellipsize bounded label/value text after fitting and before drawing."
 }
-if ($kitLabelValue -notmatch 'Label[\s\S]*if \(_label == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitLabelValue -notmatch 'Value[\s\S]*if \(_value == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitLabelValue -notmatch 'Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitLabelValue -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitLabelValue -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitLabelValue -notmatch 'Label[^}]*if \(_label == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitLabelValue -notmatch 'Value[^}]*if \(_value == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitLabelValue -notmatch 'Accent[^}]*if \(_accent == value\) return[^}]*RefreshVisualAndRedraw\(\)') {
     Fail "KitLabelValue authored label/value edits must refresh layout once, while accent uses guarded visual redraw."
 }
 $kitRow = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitRow.cs"
@@ -4516,10 +4729,10 @@ $kitDialogBox = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitDialogBox.cs"
 if ($kitDialogBox -notmatch '\[Export\]\s*public string\[\]\s+Choices') {
     Fail "KitDialogBox.Choices must be exported so dialog choices can be authored at design time."
 }
-if ($kitDialogBox -notmatch 'RefreshChoiceLayout' -or $kitDialogBox -notmatch 'RefreshMinimumAndRedraw' -or $kitDialogBox -notmatch 'ChoiceRowHeight' -or $kitDialogBox -notmatch 'TextWidth' -or $kitDialogBox -notmatch 'LongestLineWidth' -or $kitDialogBox -notmatch 'EstimateWrappedLineCount' -or $kitDialogBox -notmatch 'Speaker\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Body\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Choices\s*\{[^\r\n]*SetStringArray\(ref\s+_choices' -or $kitDialogBox -notmatch 'ChoicesVisible\s*\{[^\r\n]*RefreshChoiceLayout\(\)' -or $kitDialogBox -notmatch 'UpdateMinimumSize\(\)' -or $kitDialogBox -notmatch 'EllipsizeText\(font,\s*choice') {
+if ($kitDialogBox -notmatch 'RefreshChoiceLayout' -or $kitDialogBox -notmatch 'RefreshMinimumAndRedraw' -or $kitDialogBox -notmatch 'ChoiceRowHeight' -or $kitDialogBox -notmatch 'TextWidth' -or $kitDialogBox -notmatch 'LongestLineWidth' -or $kitDialogBox -notmatch 'EstimateWrappedLineCount' -or $kitDialogBox -notmatch 'Speaker\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Body\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Choices\s*\{[^\r\n]*SetStringArray\(ref\s+_choices' -or $kitDialogBox -notmatch 'ChoicesVisible\s*\{[^\r\n]*RefreshChoiceLayout\(\)'  -or $kitDialogBox -notmatch 'EllipsizeText\(font,\s*choice') {
     Fail "KitDialogBox must refresh and derive its minimum size from speaker/body/choice text and ellipsize choice text before drawing."
 }
-if ($kitDialogBox -notmatch 'Speaker[\s\S]*if \(_speaker == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Body[\s\S]*if \(_body == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Choices[\s\S]*if \(SetStringArray\(ref _choices, value\)\) RefreshChoiceLayout\(\)' -or $kitDialogBox -notmatch 'NormalizeStrings[\s\S]*next\[i\] = values\[i\] \?\? ""' -or $kitDialogBox -notmatch 'SameStrings[\s\S]*a\.Length != b\.Length' -or $kitDialogBox -notmatch 'VisibleCharacters[\s\S]*if \(_visibleCharacters == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitDialogBox -notmatch 'ContinueVisible[\s\S]*if \(_continueVisible == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitDialogBox -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitDialogBox -notmatch 'Speaker[\s\S]*if \(_speaker == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Body[\s\S]*if \(_body == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitDialogBox -notmatch 'Choices[\s\S]*if \(SetStringArray\(ref _choices, value\)\) RefreshChoiceLayout\(\)' -or $kitDialogBox -notmatch 'NormalizeStrings[\s\S]*next\[i\] = values\[i\] \?\? ""' -or $kitDialogBox -notmatch 'SameStrings[\s\S]*a\.Length != b\.Length' -or $kitDialogBox -notmatch 'VisibleCharacters[\s\S]*if \(_visibleCharacters == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitDialogBox -notmatch 'ContinueVisible[\s\S]*if \(_continueVisible == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitDialogBox -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitDialogBox authored text and choices must avoid duplicate layout refreshes, normalize null entries, while typewriter and continue state use visual-only redraw."
 }
 $kitBookSpread = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitBookSpread.cs"
@@ -4532,13 +4745,13 @@ if ($kitBookSpread -notmatch 'string\s+text\s*=\s*KitCase\(t\)' -or $kitBookSpre
 if ($kitBookSpread -notmatch 'string\s+label\s*=\s*\$"\{_selectedTab \+ 1\}/\{pages\}"' -or $kitBookSpread -notmatch 'EllipsizeText\(font,\s*label,\s*fs,\s*labelWidth\)') {
     Fail "KitBookSpread page counter must be ellipsized inside its footer label bound."
 }
-if ($kitBookSpread -notmatch 'RefreshPageList' -or $kitBookSpread -notmatch 'RefreshMinimumAndRedraw' -or $kitBookSpread -notmatch 'UpdateMinimumSize\(\)' -or $kitBookSpread -notmatch 'TabOutset \* 0\.78f' -or $kitBookSpread -notmatch 'TabHeight' -or $kitBookSpread -notmatch 'LeftTitle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'RightTitle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'LeftPageTitles\s*\{[^\r\n]*SetStringArray\(ref\s+_leftPages' -or $kitBookSpread -notmatch 'RightPageTitles\s*\{[^\r\n]*SetStringArray\(ref\s+_rightPages' -or $kitBookSpread -notmatch 'Tabs\s*\{[^\r\n]*SetStringArray\(ref\s+_tabs' -or $kitBookSpread -notmatch 'ShowTabs\s*\{[^\r\n]*RefreshPageList\(\)' -or $kitBookSpread -notmatch 'SelectedTab[\s\S]*int next = Mathf\.Max\(0,\s*value\)[\s\S]*TurnTo\(next\)' -or $kitBookSpread -notmatch '_selectedTab\s*=\s*next' -or $kitBookSpread -notmatch '_turnFrom\s*=\s*Mathf\.Clamp\(_turnFrom' -or $kitBookSpread -notmatch 'UpdateProcessing\(\)') {
+if ($kitBookSpread -notmatch 'RefreshPageList' -or $kitBookSpread -notmatch 'RefreshMinimumAndRedraw'  -or $kitBookSpread -notmatch 'TabOutset \* 0\.78f' -or $kitBookSpread -notmatch 'TabHeight' -or $kitBookSpread -notmatch 'LeftTitle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'RightTitle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'LeftPageTitles\s*\{[^\r\n]*SetStringArray\(ref\s+_leftPages' -or $kitBookSpread -notmatch 'RightPageTitles\s*\{[^\r\n]*SetStringArray\(ref\s+_rightPages' -or $kitBookSpread -notmatch 'Tabs\s*\{[^\r\n]*SetStringArray\(ref\s+_tabs' -or $kitBookSpread -notmatch 'ShowTabs\s*\{[^\r\n]*RefreshPageList\(\)' -or $kitBookSpread -notmatch 'SelectedTab[\s\S]*int next = Mathf\.Max\(0,\s*value\)[\s\S]*TurnTo\(next\)' -or $kitBookSpread -notmatch '_selectedTab\s*=\s*next' -or $kitBookSpread -notmatch '_turnFrom\s*=\s*Mathf\.Clamp\(_turnFrom' -or $kitBookSpread -notmatch 'UpdateProcessing\(\)') {
     Fail "KitBookSpread page/tab collection setters must normalize selected and animated page indices when the page count changes."
 }
 if ($kitBookSpread -notmatch 'NotificationVisibilityChanged[\s\S]*UpdateProcessing\(\)' -or $kitBookSpread -notmatch 'private bool ShouldAnimate\(\)[\s\S]*_turnTime < 1f' -or $kitBookSpread -notmatch 'SetProcess\(IsVisibleInTree\(\) && ShouldAnimate\(\)\)' -or $kitBookSpread -match 'SetProcess\(true\)') {
     Fail "KitBookSpread page-turn animation must process only while visible and actively turning."
 }
-if ($kitBookSpread -notmatch 'LeftTitle[\s\S]*if \(_lt == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'RightTitle[\s\S]*if \(_rt == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'LeftPageTitles[\s\S]*if \(SetStringArray\(ref _leftPages, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'RightPageTitles[\s\S]*if \(SetStringArray\(ref _rightPages, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'Tabs[\s\S]*if \(SetStringArray\(ref _tabs, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'NormalizeStrings[\s\S]*next\[i\] = values\[i\] \?\? ""' -or $kitBookSpread -notmatch 'SameStrings[\s\S]*a\.Length != b\.Length' -or $kitBookSpread -notmatch 'ShowPageCorners[\s\S]*if \(_showPageCorners == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'ShowRibbon[\s\S]*if \(_showRibbon == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'ShowCover[\s\S]*if \(_showCover == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'TurnTo[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitBookSpread -notmatch 'LeftTitle[\s\S]*if \(_lt == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'RightTitle[\s\S]*if \(_rt == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitBookSpread -notmatch 'LeftPageTitles[\s\S]*if \(SetStringArray\(ref _leftPages, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'RightPageTitles[\s\S]*if \(SetStringArray\(ref _rightPages, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'Tabs[\s\S]*if \(SetStringArray\(ref _tabs, value\)\) RefreshPageList\(\)' -or $kitBookSpread -notmatch 'NormalizeStrings[\s\S]*next\[i\] = values\[i\] \?\? ""' -or $kitBookSpread -notmatch 'SameStrings[\s\S]*a\.Length != b\.Length' -or $kitBookSpread -notmatch 'ShowPageCorners[\s\S]*if \(_showPageCorners == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'ShowRibbon[\s\S]*if \(_showRibbon == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'ShowCover[\s\S]*if \(_showCover == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'TurnTo[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitBookSpread -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitBookSpread authored titles/page lists must avoid duplicate layout refreshes and normalize null entries, while page decoration and turns use guarded visual redraw."
 }
 foreach ($required in @("SetLeftPageTitles", "AddLeftPageTitle", "ClearLeftPageTitles", "SetRightPageTitles", "AddRightPageTitle", "ClearRightPageTitles", "SetTabs", "AddTab", "ClearTabs", "WithAdded")) {
@@ -4584,7 +4797,7 @@ if ($kitOrbMeter -notmatch 'CentreText\s*\{[^\r\n]*SetText\(ref\s+_centre' -or $
     Fail "KitOrbMeter authored value, fill, centre text, and symbol edits must refresh its auto minimum size before redraw."
 }
 $kitAvatarFrame = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitAvatarFrame.cs"
-if ($kitAvatarFrame -notmatch 'string\s+badge\s*=\s*KitCase\(_badge\)' -or $kitAvatarFrame -notmatch 'EllipsizeText\(font,\s*badge,\s*bs,\s*badgeWidth\)') {
+if ($kitAvatarFrame -notmatch 'string\s+badge\s*=\s*KitCase\(_badge\)' -or $kitAvatarFrame -notmatch 'EllipsizeText\(font, badge, bs, badgeWidth\)[\s\S]*Mathf\.Clamp\(b\.Position\.X, 0f, Mathf\.Max\(0f, Size\.X - dia\)\)') {
     Fail "KitAvatarFrame badge text must be cased and ellipsized inside the overhanging badge."
 }
 if ($kitAvatarFrame -notmatch 'BadgeText\s*\{[^\r\n]*SetText\(ref\s+_badge' -or $kitAvatarFrame -notmatch 'Portrait\s*\{[^\r\n]*RefreshVisualAndRedraw\(\)' -or $kitAvatarFrame -notmatch 'BadgeRole[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitAvatarFrame -notmatch 'Round[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitAvatarFrame -notmatch 'RimRole[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitAvatarFrame -notmatch 'RefreshContentAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitAvatarFrame -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
@@ -4601,7 +4814,7 @@ $speechBubble = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSpeechBubble.cs"
 if ($speechBubble -notmatch 'RefreshMinimumAndRedraw' -or $speechBubble -notmatch 'LongestLineWidth' -or $speechBubble -notmatch 'EstimateWrappedLineCount' -or $speechBubble -notmatch 'TailSizeFor' -or $speechBubble -notmatch 'Text\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $speechBubble -notmatch 'Padding\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $speechBubble -notmatch 'Tail\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)') {
     Fail "KitSpeechBubble must refresh and derive its minimum size from wrapped text, padding, and tail orientation."
 }
-if ($speechBubble -notmatch 'Text[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $speechBubble -notmatch 'TailOffset[\s\S]*Mathf\.IsEqualApprox\(_tailOffset,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $speechBubble -notmatch 'Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $speechBubble -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $speechBubble -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($speechBubble -notmatch 'Text[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $speechBubble -notmatch 'TailOffset[\s\S]*Mathf\.IsEqualApprox\(_tailOffset,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $speechBubble -notmatch 'Accent[\s\S]*if \(_accent == value\) return[^}]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitSpeechBubble authored text, tail offset, and accent edits must use the correct layout or visual refresh path."
 }
 foreach ($panelSource in @($kitPanel, $kitPanelContainer, $kitCollapsible)) {
@@ -4660,7 +4873,7 @@ if ($kitGodotTree -notmatch 'set[\s\S]*RequestApply\(\)' -or $kitGodotTree -notm
     Fail "KitGodotTree exported theme edits must defer Apply until the control is inside the scene tree."
 }
 if ($kitCollapsible -match 'body\.Position\.X \+ \(body\.Size\.X - m\.X\)') { Fail "KitCollapsiblePanel reintroduced direct centered title text drawing." }
-if ($kitCollapsible -notmatch 'RefreshMinimumAndRedraw' -or $kitCollapsible -notmatch 'TextWidth' -or $kitCollapsible -notmatch 'PanelHeaderRoom' -or $kitCollapsible -notmatch 'HandleEdge\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'Title[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'HeaderStyle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'TitleFontScale[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'UpdateMinimumSize\(\)') {
+if ($kitCollapsible -notmatch 'RefreshMinimumAndRedraw' -or $kitCollapsible -notmatch 'TextWidth' -or $kitCollapsible -notmatch 'PanelHeaderRoom' -or $kitCollapsible -notmatch 'HandleEdge\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'Title[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'HeaderStyle\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsible -notmatch 'TitleFontScale[\s\S]*RefreshMinimumAndRedraw\(\)' ) {
     Fail "KitCollapsiblePanel must refresh and derive its minimum size from handle edge and shared panel header/title metrics."
 }
 if ($kitCollapsible -notmatch 'private float _titleFontScale = 0\.90f') {
@@ -5055,7 +5268,7 @@ $segmentedGroup = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSegmentedIconG
 if ($segmentedGroup -notmatch '\[Export\]\s*public string\[\]\s+SegmentGlyphs' -or $segmentedGroup -notmatch '\[Export\]\s*public string\[\]\s+SegmentTips' -or $segmentedGroup -notmatch '\[Export\]\s*public Texture2D\[\]\s+SegmentIcons') {
     Fail "KitSegmentedIconGroup must export SegmentGlyphs, SegmentTips, and SegmentIcons so segments can be authored at design time."
 }
-if ($segmentedGroup -notmatch 'SetSegments' -or $segmentedGroup -notmatch 'AddSegment' -or $segmentedGroup -notmatch 'RefreshSegments' -or $segmentedGroup -notmatch 'RefreshAutoMinimumSize') {
+if ($segmentedGroup -notmatch 'SetSegments' -or $segmentedGroup -notmatch 'AddSegment' -or $segmentedGroup -notmatch 'RefreshSegments' ) {
     Fail "KitSegmentedIconGroup must expose collection refresh APIs so runtime segment changes relayout and redraw."
 }
 if ($segmentedGroup -notmatch 'SetSegments[\s\S]*List<Segment> next = NormalizeSegments\(segments\)' -or $segmentedGroup -notmatch 'SetSegments[\s\S]*if \(SameSegments\(Segments,\s*next\)\) return' -or $segmentedGroup -notmatch 'NormalizeSegments[\s\S]*Glyph = segment\?\.Glyph \?\? ""' -or $segmentedGroup -notmatch 'NormalizeSegments[\s\S]*Tip = segment\?\.Tip \?\? ""' -or $segmentedGroup -notmatch 'SameSegments[\s\S]*ReferenceEquals\(left\[i\]\.Icon,\s*right\[i\]\.Icon\)') {
@@ -5067,7 +5280,7 @@ if ($segmentedGroup -notmatch 'SetSegmentGlyphs[\s\S]*bool changed = Segments\.C
 if ($segmentedGroup -notmatch 'for \(int i = tips\.Length; i < Segments\.Count; i\+\+\)[\s\S]*Segments\[i\]\.Tip = "";' -or $segmentedGroup -notmatch 'SetSegmentIcons[\s\S]*if \(Segments\[i\]\.Icon == icons\[i\]\) continue[\s\S]*for \(int i = icons\.Length; i < Segments\.Count; i\+\+\)[\s\S]*Segments\[i\]\.Icon = null;') {
     Fail "KitSegmentedIconGroup partial tip/icon arrays must clear omitted trailing segment metadata to defaults."
 }
-if ($segmentedGroup -notmatch 'RefreshSegments[\s\S]*RefreshMinimumAndRedraw\(\)' -or $segmentedGroup -notmatch 'Current[\s\S]*if \(v == _current\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.SegmentChanged,\s*v\)' -or $segmentedGroup -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $segmentedGroup -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($segmentedGroup -notmatch 'RefreshSegments[\s\S]*RefreshMinimumAndRedraw\(\)' -or $segmentedGroup -notmatch 'Current[\s\S]*if \(v == _current\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.SegmentChanged,\s*v\)'  -or $segmentedGroup -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitSegmentedIconGroup segment list edits must relayout, while current selection uses guarded visual redraw."
 }
 if ($segmentedGroup -notmatch 'Segments\.Count > 0 && _current >= 0 && _current < Segments\.Count') {
@@ -5093,10 +5306,10 @@ $arrowSelector = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitArrowSelector.c
 if ($arrowSelector -notmatch '\[Export\]\s*public string\[\]\s+OptionLabels') {
     Fail "KitArrowSelector.OptionLabels must be exported so selector options can be authored at design time."
 }
-if ($arrowSelector -notmatch 'SetOptions' -or $arrowSelector -notmatch 'AddOption' -or $arrowSelector -notmatch 'RefreshOptions' -or $arrowSelector -notmatch 'RefreshAutoMinimumSize' -or $arrowSelector -notmatch 'NormalizeStrings' -or $arrowSelector -notmatch 'SameStrings') {
+if ($arrowSelector -notmatch 'SetOptions' -or $arrowSelector -notmatch 'AddOption' -or $arrowSelector -notmatch 'RefreshOptions'  -or $arrowSelector -notmatch 'NormalizeStrings' -or $arrowSelector -notmatch 'SameStrings') {
     Fail "KitArrowSelector must expose option refresh APIs so runtime option changes normalize labels, selection, and redraw."
 }
-if ($arrowSelector -notmatch 'SetOptions[\s\S]*string\[\] next = NormalizeStrings\(options\)' -or $arrowSelector -notmatch 'SetOptions[\s\S]*if \(SameStrings\(Options,\s*next\) && _current == normalizedCurrent\) return' -or $arrowSelector -notmatch 'NormalizeStrings[\s\S]*next\.Add\(value \?\? ""\)' -or $arrowSelector -notmatch 'RefreshOptions[\s\S]*RefreshMinimumAndRedraw\(\)' -or $arrowSelector -notmatch 'Current[\s\S]*if \(v == _current\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.OptionChanged,\s*v\)' -or $arrowSelector -notmatch 'Clamp[\s\S]*if \(_clamp == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $arrowSelector -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $arrowSelector -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($arrowSelector -notmatch 'SetOptions[\s\S]*string\[\] next = NormalizeStrings\(options\)' -or $arrowSelector -notmatch 'SetOptions[\s\S]*if \(SameStrings\(Options,\s*next\) && _current == normalizedCurrent\) return' -or $arrowSelector -notmatch 'NormalizeStrings[\s\S]*next\.Add\(value \?\? ""\)' -or $arrowSelector -notmatch 'RefreshOptions[\s\S]*RefreshMinimumAndRedraw\(\)' -or $arrowSelector -notmatch 'Current[\s\S]*if \(v == _current\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.OptionChanged,\s*v\)' -or $arrowSelector -notmatch 'Clamp[\s\S]*if \(_clamp == value\) return[^}]*RefreshVisualAndRedraw\(\)'  -or $arrowSelector -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitArrowSelector option list edits must normalize null labels and skip equivalent relayouts, while current/clamp state uses guarded visual redraw."
 }
 $arrowSetOptions = [regex]::Match($arrowSelector, 'public void SetOptions\(IEnumerable<string>\? options,\s*int current = 0\)[\s\S]*?RefreshOptions\(\);')
@@ -5171,7 +5384,7 @@ $slotGrid = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSlotGrid.cs"
 if ($slotGrid -notmatch '\[Export\]\s*public int\[\]\s+SlotKinds' -or $slotGrid -notmatch '\[Export\]\s*public int\[\]\s+SlotCounts' -or $slotGrid -notmatch '\[Export\]\s*public Texture2D\[\]\s+SlotIcons' -or $slotGrid -notmatch '\[Export\]\s*public string\[\]\s+SlotRequirements' -or $slotGrid -notmatch '\[Export\]\s*public int\[\]\s+SlotTintRoles') {
     Fail "KitSlotGrid must export SlotKinds, SlotCounts, SlotIcons, SlotRequirements, and SlotTintRoles so slots can be authored at design time."
 }
-if ($slotGrid -notmatch 'SetSlots' -or $slotGrid -notmatch 'AddSlot' -or $slotGrid -notmatch 'RefreshSlots' -or $slotGrid -notmatch 'RefreshAutoMinimumSize') {
+if ($slotGrid -notmatch 'SetSlots' -or $slotGrid -notmatch 'AddSlot' -or $slotGrid -notmatch 'RefreshSlots' ) {
     Fail "KitSlotGrid must expose slot refresh APIs so runtime slot changes normalize selection and redraw."
 }
 if ($slotGrid -notmatch 'SetSlots[\s\S]*List<Slot> next = NormalizeSlots\(slots\)' -or $slotGrid -notmatch 'SetSlots[\s\S]*if \(SameSlots\(Slots,\s*next\)\) return' -or $slotGrid -notmatch 'NormalizeSlots[\s\S]*Kind = SlotKindFromOrdinal\(\(int\)\(slot\?\.Kind \?\? SlotKind\.Blank\)\)' -or $slotGrid -notmatch 'NormalizeSlots[\s\S]*Count = Mathf\.Max\(0,\s*slot\?\.Count \?\? 0\)' -or $slotGrid -notmatch 'NormalizeSlots[\s\S]*Requirement = slot\?\.Requirement \?\? ""' -or $slotGrid -notmatch 'NormalizeSlots[\s\S]*Tint = RoleFromOrdinal\(\(int\)\(slot\?\.Tint \?\? UiSurface\.Role\.Neutral\)\)') {
@@ -5186,10 +5399,10 @@ if ($slotGrid -notmatch 'for \(int i = counts\.Length; i < Slots\.Count; i\+\+\)
     -or $slotGrid -notmatch 'for \(int i = tints\.Length; i < Slots\.Count; i\+\+\)[\s\S]*Slots\[i\]\.Tint = UiSurface\.Role\.Neutral;') {
     Fail "KitSlotGrid partial metadata arrays must clear omitted trailing slot values to defaults."
 }
-if ($slotGrid -notmatch 'Columns[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $slotGrid -notmatch 'Rows[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $slotGrid -notmatch 'Selected[\s\S]*if \(_sel == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $slotGrid -notmatch 'InteriorRatio[\s\S]*Mathf\.IsEqualApprox\(_interiorRatio,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $slotGrid -notmatch 'RefreshSlots[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $slotGrid -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $slotGrid -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($slotGrid -notmatch 'Columns[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $slotGrid -notmatch 'Rows[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $slotGrid -notmatch 'Selected[\s\S]*if \(_sel == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $slotGrid -notmatch 'InteriorRatio[\s\S]*Mathf\.IsEqualApprox\(_interiorRatio,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $slotGrid -notmatch 'RefreshSlots[\s\S]*NormalizeSelectionToGrid\(\)[\s\S]*RefreshMinimumAndRedraw\(\)'  -or $slotGrid -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitSlotGrid authored grid dimensions must relayout, while selection/interior state uses guarded visual redraw."
 }
-if ($slotGrid -notmatch 'NormalizeSelectionToGrid' -or $slotGrid -notmatch 'Selected[\s\S]*Mathf\.Clamp\(value,\s*-1,\s*TotalSlots - 1\)' -or $slotGrid -notmatch 'KitChrome\.IsConfirmKey\(key\) && _sel >= 0 && _sel < TotalSlots') {
+if ($slotGrid -notmatch 'NormalizeSelectionToGrid' -or $slotGrid -notmatch 'Selected[\s\S]*Mathf\.Clamp\(value,\s*-1,\s*TotalSlots - 1\)' -or $slotGrid -notmatch 'KitChrome\.IsConfirm\(@event\) && _sel >= 0 && _sel < TotalSlots') {
     Fail "KitSlotGrid must clamp selected indices when grid bounds change and never emit out-of-range slot activations."
 }
 if ($slotGrid -notmatch 'string\s+req\s*=\s*KitCase\(s\.Requirement\)' -or $slotGrid -notmatch 'EllipsizeText\(font,\s*req,\s*small,\s*textWidth\)' -or $slotGrid -match 'm\.X <= r\.Size\.X') {
@@ -5254,13 +5467,13 @@ if ($kitTree -notmatch 'SetBranchRoleOrdinals[\s\S]*if \(BranchRoles\.Length == 
 if ($kitTree -notmatch 'Selected[\s\S]*Nodes\.Count == 0 \? -1 : Mathf\.Clamp\(value,\s*-1,\s*Nodes\.Count - 1\)') {
     Fail "KitTree.Selected must normalize authored selected indices against the node list."
 }
-if ($kitTree -notmatch 'Columns[\s\S]*if \(_cols == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitTree -notmatch 'Tiers[\s\S]*if \(_tiers == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitTree -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)') {
+if ($kitTree -notmatch 'Columns[\s\S]*if \(_cols == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitTree -notmatch 'Tiers[\s\S]*if \(_tiers == next\) return[^}]*RefreshMinimumAndRedraw\(\)' ) {
     Fail "KitTree authored grid dimensions must use the guarded minimum-size refresh path."
 }
 if ($kitTree -notmatch 'CycleStateOnClick[\s\S]*if \(_cycleStateOnClick == value\) return[\s\S]*_cycleStateOnClick = value') {
     Fail "KitTree.CycleStateOnClick must guard repeated authored behavior-only writes."
 }
-if ($kitTree -notmatch 'ColourCarries[\s\S]*if \(_colourCarries == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'Selected[\s\S]*if \(_sel == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'SetBranchRoleOrdinals[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'RefreshNodes[\s\S]*NormalizeParentReferences\(\)[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitTree -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitTree -notmatch 'ColourCarries[\s\S]*if \(_colourCarries == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'Selected[\s\S]*if \(_sel == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'SetBranchRoleOrdinals[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTree -notmatch 'RefreshNodes[\s\S]*NormalizeParentReferences\(\)[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitTree -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitTree authored colour/selection state must use guarded visual redraw, while node refreshes update minimum size."
 }
 if ($kitTree -notmatch 'private void NormalizeParentReferences\(\)[\s\S]*parent < 0 \|\| parent >= count[\s\S]*RemoveAt\(i\)') {
@@ -5285,11 +5498,11 @@ if ($spinWheel -notmatch 'SetWedges[\s\S]*List<string> next = NormalizeStrings\(
 if ($spinWheel -notmatch 'string\s+wedge\s*=\s*KitCase\(Wedges\[i\]\)' -or $spinWheel -notmatch 'EllipsizeText\(font,\s*wedge,\s*wf,\s*labelWidth\)') {
     Fail "KitSpinWheel wedge labels must be cased and ellipsized inside each wedge label badge."
 }
-if ($spinWheel -notmatch 'RefreshWedges[\s\S]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'Rotation_[\s\S]*Mathf\.IsEqualApprox\(_rot,\s*value\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($spinWheel -notmatch 'RefreshWedges[\s\S]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'Rotation_[\s\S]*Mathf\.IsEqualApprox\(_rot,\s*value\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $spinWheel -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitSpinWheel authored wedge, role, and rotation changes must use guarded visual redraw."
 }
 $kitSpinner = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitSpinner.cs"
-if ($kitSpinner -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitSpinner -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSpinner -notmatch 'Progress[\s\S]*Mathf\.IsEqualApprox\(_progress,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitSpinner -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitSpinner -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitSpinner -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitSpinner -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitSpinner -notmatch 'Progress[\s\S]*Mathf\.IsEqualApprox\(_progress,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitSpinner authored kind must relayout once, while role/progress changes use guarded visual redraw."
 }
 $kitToast = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitToast.cs"
@@ -5302,7 +5515,7 @@ if ($kitToast -notmatch 'RefreshMinimumAndRedraw' -or $kitToast -notmatch 'Toast
 if ($kitToast -notmatch 'string\s+text\s*=\s*KitCase\(ToastText\(\)\)') {
     Fail "KitToast must measure and fit the cased toast text it draws."
 }
-if ($kitToast -notmatch 'Message[\s\S]*if \(_message == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitToast -notmatch 'IconGlyph[\s\S]*if \(_icon == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitToast -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitToast -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitToast -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitToast -notmatch 'Message[\s\S]*if \(_message == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitToast -notmatch 'IconGlyph[\s\S]*if \(_icon == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitToast -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitToast authored message/icon edits must refresh layout once, while role changes use visual-only redraw."
 }
 $kitTooltip = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitTooltip.cs"
@@ -5316,14 +5529,14 @@ if ($tooltipComponent -notmatch 'public override void _Ready\(\)[\s\S]*SetProces
     $tooltipComponent -match 'NotificationVisibilityChanged') {
     Fail "TooltipComponent must be runtime-only and keep _Process enabled only while a tooltip hover delay or visible tooltip needs monitoring."
 }
-if ($kitTooltip -notmatch 'RefreshMinimumAndRedraw' -or $kitTooltip -notmatch 'LongestLineWidth' -or $kitTooltip -notmatch 'EstimateWrappedLineCount' -or $kitTooltip -notmatch 'TailSizeFor' -or $kitTooltip -notmatch 'Text[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitTooltip -notmatch 'Tail\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitTooltip -notmatch 'TailOffset[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitTooltip -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitTooltip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitTooltip -notmatch 'RefreshMinimumAndRedraw' -or $kitTooltip -notmatch 'LongestLineWidth' -or $kitTooltip -notmatch 'EstimateWrappedLineCount' -or $kitTooltip -notmatch 'TailSizeFor' -or $kitTooltip -notmatch 'Text[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitTooltip -notmatch 'Tail\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitTooltip -notmatch 'TailOffset[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitTooltip must refresh and derive its minimum size from wrapped text and tail orientation."
 }
 $kitPager = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPager.cs"
 if ($kitPager -notmatch 'PageCount[\s\S]*previousPage = _page' -or $kitPager -notmatch '_page = Mathf\.Clamp\(_page,\s*0,\s*_count - 1\)' -or $kitPager -notmatch 'EmitSignal\(SignalName\.PageChanged,\s*_page\)') {
     Fail "KitPager.PageCount must clamp and emit PageChanged when the page count shrinks below the current page."
 }
-if ($kitPager -notmatch 'PageCount[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.PageChanged,\s*_page\)' -or $kitPager -notmatch 'Page[\s\S]*if \(v == _page\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.PageChanged,\s*v\)' -or $kitPager -notmatch 'ShowJump[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitPager -notmatch 'MaxDots[\s\S]*if \(_maxDots == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPager -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitPager -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitPager -notmatch 'PageCount[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.PageChanged,\s*_page\)' -or $kitPager -notmatch 'Page[\s\S]*if \(v == _page\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.PageChanged,\s*v\)' -or $kitPager -notmatch 'ShowJump[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitPager -notmatch 'MaxDots[\s\S]*if \(_maxDots == next\) return[^}]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitPager page count/show-jump edits must use correct layout or visual refresh paths."
 }
 if ($kitPager -notmatch 'EllipsizeText\(font,\s*t,\s*tf,\s*mid\.Size\.X \* 0\.90f\)[\s\S]*DrawText\(font') {
@@ -5333,7 +5546,7 @@ $heartRow = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitHeartRow.cs"
 if ($heartRow -notmatch 'MaxHearts[\s\S]*_value = Mathf\.Clamp\(_value,\s*0,\s*_max\)') {
     Fail "KitHeartRow.MaxHearts must clamp the current value when the maximum shrinks."
 }
-if ($heartRow -notmatch 'MaxHearts[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'HeartSize[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'Spacing[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'Value[\s\S]*Mathf\.IsEqualApprox\(_value,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $heartRow -notmatch 'FillRole[\s\S]*RefreshVisualAndRedraw\(\)' -or $heartRow -notmatch 'DrawBackplate[\s\S]*RefreshVisualAndRedraw\(\)' -or $heartRow -notmatch 'RefreshMinimumAndRedraw[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $heartRow -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($heartRow -notmatch 'MaxHearts[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'HeartSize[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'Spacing[\s\S]*RefreshMinimumAndRedraw\(\)' -or $heartRow -notmatch 'Value[\s\S]*Mathf\.IsEqualApprox\(_value,\s*next\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $heartRow -notmatch 'FillRole[\s\S]*RefreshVisualAndRedraw\(\)' -or $heartRow -notmatch 'DrawBackplate[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitHeartRow authored health, size, role, and backplate edits must use the correct layout or visual refresh path."
 }
 $levelPath = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitLevelPath.cs"
@@ -5344,7 +5557,7 @@ $kitChip = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitChip.cs"
 if ($kitChip -notmatch 'TextWidth' -or $kitChip -notmatch 'DeltaText' -or $kitChip -notmatch 'RefreshMinimumAndRedraw' -or $kitChip -notmatch 'Text\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Delta\s*\{[^\r\n]*RefreshMinimumAndRedraw\(\)') {
     Fail "KitChip must relayout from visible text and delta changes instead of shrinking/clipping inside a fixed chip width."
 }
-if ($kitChip -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Text[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Delta[\s\S]*Mathf\.IsEqualApprox\(_delta,\s*value\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitChip -notmatch 'Positive[\s\S]*if \(_positive == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitChip -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitChip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitChip -notmatch 'Kind[\s\S]*if \(_kind == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Text[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Delta[\s\S]*Mathf\.IsEqualApprox\(_delta,\s*value\)[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitChip -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitChip -notmatch 'Positive[\s\S]*if \(_positive == value\) return[^}]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitChip authored kind/text/delta edits must refresh layout once, while role and positive state use guarded visual redraw."
 }
 if ($kitChip -notmatch 'string\s+draw\s*=\s*KitCase\(text\)' -or $kitChip -notmatch 'GetStringSize\(draw') {
@@ -5360,7 +5573,7 @@ if ($buildTile -notmatch 'EllipsizeText\(font,\s*draw,\s*fs,\s*r\.Size\.X\)' -or
 if ($buildTile -notmatch 'override\s+Vector2\s+_GetMinimumSize' -or $buildTile -notmatch 'RefreshMinimumAndRedraw' -or $buildTile -notmatch 'Caption\s*\{[\s\S]*RefreshMinimumAndRedraw\(\)' -or $buildTile -notmatch 'CostText\s*\{[\s\S]*RefreshMinimumAndRedraw\(\)' -or $buildTile -notmatch 'OwnedText\s*\{[\s\S]*RefreshMinimumAndRedraw\(\)') {
     Fail "KitBuildTile must publish and refresh a content-driven minimum size for its drawn caption, cost, and owned badge text."
 }
-if ($buildTile -notmatch 'Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'TileIcon[\s\S]*if \(_tileIcon == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'ApplyFixedSize[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $buildTile -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($buildTile -notmatch 'Accent[\s\S]*if \(_accent == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'TileIcon[\s\S]*if \(_tileIcon == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'ApplyFixedSize[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $buildTile -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $buildTile -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitBuildTile authored icon/accent/fixed-size/text/theme edits must use guarded visual or layout refresh paths."
 }
 $itemCard = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitItemCard.cs"
@@ -5377,21 +5590,21 @@ if ($removableChip -notmatch 'EllipsizeText\(font,\s*text,\s*fs,\s*textBox\.Size
 if ($removableChip -notmatch 'InputEventKey[\s\S]*RemovePressed[\s\S]*InputEventMouseButton \{ Pressed: true, ButtonIndex: MouseButton\.Left \}[\s\S]*RemovePressed[\s\S]*base\._GuiInput\(@event\)' -or $removableChip -match 'public override void _GuiInput\(InputEvent @event\)\s*\{\s*base\._GuiInput\(@event\)') {
     Fail "KitRemovableChip must handle keyboard/delete and close-X removal before delegating to Button base input."
 }
-if ($removableChip -notmatch 'ChipText[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $removableChip -notmatch 'Removable[\s\S]*if \(_removable == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $removableChip -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $removableChip -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $removableChip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)' -or $removableChip -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)') {
+if ($removableChip -notmatch 'ChipText[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $removableChip -notmatch 'Removable[\s\S]*if \(_removable == value\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $removableChip -notmatch 'Role[\s\S]*if \(_role == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $removableChip -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $removableChip -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)' -or $removableChip -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)') {
     Fail "KitRemovableChip authored text/removable edits must refresh layout once, while role changes use visual-only redraw."
 }
 $hudText = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitHudText.cs"
 if ($hudText -notmatch 'EllipsizeText\(font,\s*draw,\s*fs,\s*box\.Size\.X\)') {
     Fail "KitHudText must ellipsize bounded HUD text after fitting."
 }
-if ($hudText -notmatch 'Text[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $hudText -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $hudText -notmatch 'Accent[\s\S]*if \(_accent == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $hudText -notmatch 'ShowPlate[\s\S]*if \(_showPlate == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $hudText -notmatch 'Align[\s\S]*if \(_align == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $hudText -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $hudText -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($hudText -notmatch 'Text[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $hudText -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $hudText -notmatch 'Accent[\s\S]*if \(_accent == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $hudText -notmatch 'ShowPlate[\s\S]*if \(_showPlate == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $hudText -notmatch 'Align[\s\S]*if \(_align == value\) return[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitHudText authored text/role edits must refresh layout once, while accent/plate/alignment use guarded visual redraw."
 }
 $tableCell = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitTableCell.cs"
 if ($tableCell -notmatch 'EllipsizeText\(font,\s*draw,\s*fs,\s*box\.Size\.X\)') {
     Fail "KitTableCell must ellipsize bounded cell text after fitting."
 }
-if ($tableCell -notmatch 'CellText[\s\S]*if \(_text == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $tableCell -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $tableCell -notmatch 'Align[\s\S]*if \(_align == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $tableCell -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $tableCell -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($tableCell -notmatch 'CellText[\s\S]*if \(_text == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $tableCell -notmatch 'Role[\s\S]*if \(_role == value\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $tableCell -notmatch 'Align[\s\S]*if \(_align == value\) return[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitTableCell authored text/role edits must refresh layout once, while alignment uses guarded visual redraw."
 }
 $labelValue = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitLabelValue.cs"
@@ -5402,19 +5615,19 @@ $kitRow = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitRow.cs"
 if ($kitRow -notmatch 'TextWidth' -or $kitRow -notmatch 'RefreshMinimumAndRedraw' -or $kitRow -notmatch 'Rank\s*\{[^\r\n]*SetText\(ref\s+_rank' -or $kitRow -notmatch 'Title\s*\{[^\r\n]*SetText\(ref\s+_title' -or $kitRow -notmatch 'Subtitle\s*\{[^\r\n]*SetText\(ref\s+_sub' -or $kitRow -notmatch 'Value\s*\{[^\r\n]*SetText\(ref\s+_value' -or $kitRow -notmatch 'State_\s*\{[^\r\n]*SetText\(ref\s+_state' -or $kitRow -notmatch 'SetText[\s\S]*if \(target == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)') {
     Fail "KitRow must publish a content-driven minimum size and guard no-op rank, title, subtitle, value, and state text edits."
 }
-if ($kitRow -notmatch 'StateRole[\s\S]*if \(_stateRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'Selected[\s\S]*if \(_sel == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'Alternate[\s\S]*if \(_alternate == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitRow -notmatch 'StateRole[\s\S]*if \(_stateRole == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'Selected[\s\S]*if \(_sel == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'Alternate[\s\S]*if \(_alternate == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitRow -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitRow authored role, selection, and alternate visual state must use guarded visual-only redraw."
 }
 $colorOverlay = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitColorOverlay.cs"
-if ($colorOverlay -notmatch 'Color[\s\S]*if \(_color == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $colorOverlay -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($colorOverlay -notmatch 'Color[\s\S]*if \(_color == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $colorOverlay -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitColorOverlay color edits must avoid duplicate redraws and use the visual refresh path."
 }
 $inventorySlot = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitInventorySlot.cs"
-if ($inventorySlot -notmatch 'Icon[\s\S]*if \(_icon == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Count[\s\S]*Mathf\.Max\(0,\s*value\)[\s\S]*if \(_count == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Rarity[\s\S]*if \(_rarity == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Locked[\s\S]*if \(_locked == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Requirement[\s\S]*string next = value \?\? ""[\s\S]*if \(_requirement == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'GhostIcon[\s\S]*if \(_ghost == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Selected[\s\S]*if \(_selected == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($inventorySlot -notmatch 'Icon[\s\S]*if \(_icon == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Count[\s\S]*Mathf\.Max\(0,\s*value\)[\s\S]*if \(_count == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Rarity[\s\S]*if \(_rarity == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Locked[\s\S]*if \(_locked == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Requirement[\s\S]*string next = value \?\? ""[\s\S]*if \(_requirement == next\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'GhostIcon[\s\S]*if \(_ghost == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'Selected[\s\S]*if \(_selected == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $inventorySlot -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitInventorySlot authored visual state must use guarded visual-only redraws."
 }
 $kitPanel = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitPanel.cs"
-if ($kitPanel -notmatch 'OverrideBannerShape[\s\S]*if \(_overrideBannerShape == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'BannerShape[\s\S]*if \(_bannerShape == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'BannerShade[\s\S]*Mathf\.Abs\(_bannerShade - value\) < 0\.001f[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'ShowWell[\s\S]*if \(_showWell == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TargetPath[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TargetPadding[\s\S]*if \(_targetPadding == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TornEdge[\s\S]*if \(_tornEdge == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'ShowClose[\s\S]*ApplyMouseFilterDefault\(\)[\s\S]*ApplyCloseFocusDefault\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitPanel -notmatch 'OverrideBannerShape[\s\S]*if \(_overrideBannerShape == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'BannerShape[\s\S]*if \(_bannerShape == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'BannerShade[\s\S]*Mathf\.Abs\(_bannerShade - value\) < 0\.001f[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'ShowWell[\s\S]*if \(_showWell == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TargetPath[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TargetPadding[\s\S]*if \(_targetPadding == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'TornEdge[\s\S]*if \(_tornEdge == value\) return[^}]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'ShowClose[\s\S]*ApplyMouseFilterDefault\(\)[\s\S]*ApplyCloseFocusDefault\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'NotificationThemeChanged[\s\S]*RefreshAutoMinimumSize\(this,\s*_GetMinimumSize\(\)\)[\s\S]*UpdateMinimumSize\(\)[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitPanel -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
     Fail "KitPanel authored chrome and theme changes must use guarded visual or layout refresh paths."
 }
 if ($kitPanel -notmatch 'public override void _Process\(double delta\)[\s\S]*Size = size[\s\S]*RefreshAutoMinimumSize\(this,\s*size\)[\s\S]*QueueRedraw\(\)' -or $kitPanel -match 'public override void _Process\(double delta\)[\s\S]*SetAutoMinimumSize\(this,\s*size\)') {
@@ -5427,7 +5640,7 @@ if ($kitPanel -notmatch 'private bool ShouldFitTarget\(\)[\s\S]*!_targetPath\.Is
     Fail "KitPanel target-fit processing must stop while hidden and resume only when visible with a target path."
 }
 $kitCollapsiblePanel = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitCollapsiblePanel.cs"
-if ($kitCollapsiblePanel -notmatch 'Collapsed[\s\S]*if \(_collapsed == value\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.Toggled,\s*value\)' -or $kitCollapsiblePanel -notmatch 'Title[\s\S]*string next = value \?\? ""[\s\S]*if \(_title == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsiblePanel -notmatch 'BannerShade[\s\S]*Mathf\.Abs\(_bannerShade - value\) < 0\.001f[\s\S]*RefreshVisualAndRedraw\(\)' -or $kitCollapsiblePanel -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)' -or $kitCollapsiblePanel -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($kitCollapsiblePanel -notmatch 'Collapsed[\s\S]*if \(_collapsed == value\) return[\s\S]*RefreshVisualAndRedraw\(\)[\s\S]*EmitSignal\(SignalName\.Toggled,\s*value\)' -or $kitCollapsiblePanel -notmatch 'Title[\s\S]*string next = value \?\? ""[\s\S]*if \(_title == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $kitCollapsiblePanel -notmatch 'BannerShade[\s\S]*Mathf\.Abs\(_bannerShade - value\) < 0\.001f[\s\S]*RefreshVisualAndRedraw\(\)'  ) {
     Fail "KitCollapsiblePanel authored collapse/header edits must use guarded visual or layout refresh paths."
 }
 $exportSignalsAreSceneSafe =
@@ -5480,7 +5693,7 @@ foreach ($path in @(
     }
 }
 $starRating = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitStarRating.cs"
-if ($starRating -notmatch 'Earned[\s\S]*Mathf\.Clamp\(value,\s*0,\s*\(int\)MaxValue\)[\s\S]*if \(Mathf\.IsEqualApprox\(\(float\)Value,\s*next\)\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $starRating -notmatch 'Total[\s\S]*RefreshMinimumAndRedraw\(\)' -or $starRating -notmatch 'RefreshMinimumAndRedraw[\s\S]*UpdateMinimumSize\(\)[\s\S]*QueueRedraw\(\)') {
+if ($starRating -notmatch 'Earned[\s\S]*Mathf\.Clamp\(value,\s*0,\s*\(int\)MaxValue\)[\s\S]*if \(Mathf\.IsEqualApprox\(\(float\)Value,\s*next\)\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $starRating -notmatch 'Total[\s\S]*RefreshMinimumAndRedraw\(\)' ) {
     Fail "KitStarRating total changes must relayout and earned changes must use guarded visual redraw."
 }
 if ($starRating -notmatch 'get => Mathf\.Clamp\(\(int\)MaxValue,\s*1,\s*10\)' -or
@@ -5712,7 +5925,7 @@ $weatherCard = Read "addons/beep_game_builder_cs/ecs/ui/kit/KitWeatherForecastCa
 if ($weatherCard -notmatch 'DrawCentered' -or $weatherCard -notmatch 'EllipsizeText\(font,\s*draw,\s*size,\s*r\.Size\.X\)') {
     Fail "KitWeatherForecastCard must ellipsize each centered text band inside its actual draw rectangle."
 }
-if ($weatherCard -notmatch 'DayText[\s\S]*if \(_dayText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherGlyph[\s\S]*if \(_weatherGlyph == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'TemperatureText[\s\S]*if \(_temperatureText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WindText[\s\S]*if \(_windText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherRole[\s\S]*if \(_weatherRole == value\) return[\s\S]*RefreshVisualAndRedraw\(\)' -or $weatherCard -notmatch 'RefreshVisualAndRedraw[\s\S]*QueueRedraw\(\)') {
+if ($weatherCard -notmatch 'DayText[\s\S]*if \(_dayText == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherGlyph[\s\S]*if \(_weatherGlyph == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'TemperatureText[\s\S]*if \(_temperatureText == next\) return[^}]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WindText[\s\S]*if \(_windText == next\) return[\s\S]*RefreshMinimumAndRedraw\(\)' -or $weatherCard -notmatch 'WeatherRole[\s\S]*if \(_weatherRole == value\) return[^}]*RefreshVisualAndRedraw\(\)' ) {
     Fail "KitWeatherForecastCard authored text must avoid duplicate layout refreshes, while weather role uses visual-only redraw."
 }
 
@@ -5868,5 +6081,11 @@ foreach ($required in @("class TurnDriverComponent", "RequestEndTurn", "EndTurn(
 
 $tmpIgnorePath = Join-Path $root "tmp/.gdignore"
 if (-not (Test-Path $tmpIgnorePath)) { Fail "tmp/.gdignore is missing; Godot will scan generated probe renders and may report duplicate UIDs." }
+
+if ($script:scanFailures.Count -gt 0) {
+    Write-Host "[addon-contract] $($script:scanFailures.Count) contract pin(s) failed:"
+    foreach ($scanFailure in $script:scanFailures) { Write-Host "  $scanFailure" }
+    exit 1
+}
 
 Write-Host "[addon-contract] OK: tween presets, beep_ui preset registry, MCP lifecycle, editor dock API, data binders, token defaults, citybuilder Oilfield Days skin, panel headers, kit focus, wrapped text, minimum sizes, reusable size contracts, size invalidation, runtime harness, and generated-output ignores are consistent."

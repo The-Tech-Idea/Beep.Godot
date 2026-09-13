@@ -1,6 +1,12 @@
 # FIX-10 — Objective panel goal count: the summary reports the row cap, not the goal total
 
-**Type:** fix · **Area:** `GridObjectivePanelComponent` (`ecs/grid/ui/`), reading `GridListPanelComponent.UpdateRows` · **Status:** **PROPOSED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+**Type:** fix · **Area:** `GridObjectivePanelComponent` (`ecs/grid/ui/`), reading `GridListPanelComponent.UpdateRows` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** S (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+The `if (objectives.Count >= MaxVisibleObjectives) break;` in `VisibleObjectives()` is gone, so the returned list is the full filtered goal set the summary counts; the drawn rows stay capped by `UpdateRows`' `maxVisible` argument, which already owned that decision. Guard `VerifyGridObjectivePanelGoalCount` was added to `GridPlacementSmoke` and wired into `Run()` — a separate method rather than an extension of `VerifyGridObjectivePanel`, so each guard keeps one concern: 8 active-on-start goals against the default cap of 6 must read `Goals 8 | Done 0` while drawing 6 rows, and completing a goal beyond the drawn rows must read `Goals 8 | Done 1` with the row count unchanged. Mutation-proven: restoring the `break` reads `Goals 6 | Done 0`. Build clean (0 warnings).
+
+As with FIX-09 and FIX-11, the guard lives in `GridPlacementSmoke`, which the full headless smoke cannot currently reach (pre-existing failure at `GridPlacementSmoke.cs:171`), so behaviour and mutation were validated in this session with a focused probe driving the same public panel API.
 
 ## Finding
 

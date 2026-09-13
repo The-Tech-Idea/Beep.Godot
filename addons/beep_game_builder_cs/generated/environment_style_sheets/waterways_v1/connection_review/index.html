@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>River and waterfall connection review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#171c1c;color:#eef2ee;font:14px system-ui}header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid #404848;flex-wrap:wrap}h1{font-size:18px;margin:0;margin-right:auto}button{width:36px;height:36px;background:#303b39;color:white;border:1px solid #63716e;border-radius:4px;cursor:pointer}label{display:flex;align-items:center;gap:6px}main{max-width:760px;margin:auto}canvas{display:block;width:100%;height:auto}output{min-width:85px}a{color:#a2dfdd}#error{color:#ffb5ac}
+</style>
+<header><h1>River / Waterfall</h1><button id="play" title="Pause" aria-label="Pause">&#10074;&#10074;</button><label><input id="joins" type="checkbox">Joins</label><label><input id="green" type="checkbox">Green background</label><output id="frame"></output></header>
+<main><canvas id="scene" width="760" height="900"></canvas><p id="error"></p></main>
+<script src="sources.js"></script><script>
+'use strict';
+const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d');
+let playing=true,frame=0,last=0,elapsed=0;
+const load=async src=>{const i=new Image();i.src=src;await i.decode();return i};
+function crop(image,x,y,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,x,y,w,h,0,0,w,h);return c}
+// Key only the saturated backing color; olive and sage foliage stay opaque.
+function key(c){const x=c.getContext('2d'),p=x.getImageData(0,0,c.width,c.height);for(let i=0;i<p.data.length;i+=4){const r=p.data[i],g=p.data[i+1],b=p.data[i+2];if(g>190&&r<85&&b<85)p.data[i+3]=0;}x.putImageData(p,0,0);return c}
+async function boot(){
+const river=await load(SOURCES.river),ground=await load(SOURCES.ground),sheet=await load(SOURCES.fall);
+const grass=crop(ground,34,36,217,211),stream=crop(river,43,25,249,247);
+const frames=Array.from({length:16},(_,k)=>key(crop(sheet,k%4*384,Math.floor(k/4)*320,384,320)));
+function draw(k){
+ctx.clearRect(0,0,760,900);
+if(document.getElementById('green').checked){ctx.fillStyle='#00ff00';ctx.fillRect(0,0,760,900)}else{for(let y=0;y<900;y+=211)for(let x=0;x<760;x+=217)ctx.drawImage(grass,x,y)}
+// Separate ground, downstream, upstream and waterfall layers preserve source files.
+ctx.drawImage(stream,125,535,530,530);
+ctx.drawImage(stream,289,0,220,310);
+ctx.drawImage(frames[k],208,260);
+if(document.getElementById('joins').checked){ctx.save();ctx.strokeStyle='#fa507c';ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.strokeRect(342,290,116,46);ctx.strokeRect(274,530,283,58);ctx.restore()}
+document.getElementById('frame').value='Frame '+(k+1)+' / 16';
+}
+document.getElementById('play').onclick=()=>{playing=!playing;const b=document.getElementById('play');b.innerHTML=playing?'&#10074;&#10074;':'&#9654;';b.title=b.ariaLabel=playing?'Pause':'Play'};
+window.connectionReview={ready:true,show(k){frame=k%16;draw(frame)},setPlaying(v){playing=v},sources:{river:[43,25,249,247],ground:[34,36,217,211],waterfall:[384,320]},frame:()=>frame};
+function tick(t){if(last&&playing){elapsed+=Math.min(t-last,100);frame=Math.floor(elapsed/75)%16}last=t;draw(frame);requestAnimationFrame(tick)}requestAnimationFrame(tick);
+}
+boot().catch(e=>document.getElementById('error').textContent=e.message);
+</script></html>

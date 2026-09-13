@@ -25,6 +25,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { includeAddonPath } from "./terrain-library/distribution.mjs";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -69,7 +70,7 @@ const done = [];
 const copyDir = (rel) => {
   const from = join(SRC, rel);
   if (!existsSync(from)) return;
-  cpSync(from, join(dst, rel), { recursive: true });
+  cpSync(from, join(dst, rel), { recursive: true, filter: includeAddonPath });
   done.push(rel);
 };
 

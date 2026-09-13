@@ -1,0 +1,32 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_mask_surface_cartoon.gdshader" id="1_aa6xc"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="2_eb03b"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_lake_connectors_v1/isometric/river_lake.tres" id="3_d8v4u"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="4_eo4m6"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vqfpj"]
+shader = ExtResource("1_aa6xc")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("2_eb03b")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[node name="ExplicitRiverLakeInletReview" type="Node2D" unique_id=846021533]
+
+[node name="Water" type="TileMapLayer" parent="." unique_id=1362277572]
+texture_filter = 1
+material = SubResource("ShaderMaterial_vqfpj")
+tile_map_data = PackedByteArray("AAAAAAAA//////////8BAAAA//////////8CAAAA//////////8DAAAA//////////8EAAAA//////////8FAAAA//////////8GAAAA//////////8HAAAAAAAHAAUAAAAIAAAAAAAAAAMAAAAJAAAAAAAGAAUAAAAKAAAAAAAGAAUAAAALAAAAAAAGAAUAAAAAAAEA//////////8BAAEA//////////8CAAEA//////////8DAAEA//////////8EAAEA//////////8FAAEA//////////8GAAEA//////////8HAAEAAgAAAAIAAAAIAAEAAQAGAAAAAAAJAAEAAAAGAAUAAAAKAAEAAAAGAAUAAAALAAEAAAAGAAUAAAAAAAIA//////////8BAAIA//////////8CAAIA//////////8DAAIA//////////8EAAIA//////////8FAAIA//////////8GAAIA//////////8HAAIAAAAHAAUAAAAIAAIAAAAAAAMAAAAJAAIAAAAGAAUAAAAKAAIAAAAGAAUAAAALAAIAAAAGAAUAAAAAAAMA//////////8BAAMA//////////8CAAMA//////////8DAAMA//////////8EAAMA//////////8FAAMA//////////8GAAMA//////////8HAAMAAAAHAAUAAAAIAAMAAAAAAAIAAAAJAAMAAAAGAAQAAAAKAAMAAAAGAAQAAAALAAMAAAAGAAQAAAAAAAQA//////////8BAAQA//////////8CAAQA//////////8DAAQA//////////8EAAQA//////////8FAAQA//////////8GAAQA//////////8HAAQAAAAHAAUAAAAIAAQAAAAHAAUAAAAJAAQAAAAHAAUAAAAKAAQAAAAHAAUAAAALAAQAAAAHAAUAAAAAAAUA//////////8BAAUA//////////8CAAUA//////////8DAAUA//////////8EAAUA//////////8FAAUA//////////8GAAUA//////////8HAAUA//////////8IAAUA//////////8JAAUA//////////8KAAUA//////////8LAAUA//////////8AAAYA//////////8BAAYA//////////8CAAYA//////////8DAAYA//////////8EAAYA//////////8FAAYA//////////8GAAYA//////////8HAAYA//////////8IAAYA//////////8JAAYA//////////8KAAYA//////////8LAAYA//////////8AAAcA//////////8BAAcA//////////8CAAcA//////////8DAAcA//////////8EAAcA//////////8FAAcA//////////8GAAcA//////////8HAAcA//////////8IAAcA//////////8JAAcA//////////8KAAcA//////////8LAAcA//////////8AAAgA//////////8BAAgA//////////8CAAgA//////////8DAAgA//////////8EAAgA//////////8FAAgA//////////8GAAgA//////////8HAAgA//////////8IAAgA//////////8JAAgA//////////8KAAgA//////////8LAAgA//////////8AAAkA//////////8BAAkA//////////8CAAkA//////////8DAAkA//////////8EAAkA//////////8FAAkA//////////8GAAkA//////////8HAAkA//////////8IAAkA//////////8JAAkA//////////8KAAkA//////////8LAAkA//////////8AAAoA//////////8BAAoA//////////8CAAoA//////////8DAAoA//////////8EAAoA//////////8FAAoA//////////8GAAoA//////////8HAAoA//////////8IAAoA//////////8JAAoA//////////8KAAoA//////////8HAP7/AAAHAAUAAAAHAP//AAAHAAUAAAAIAP7/AAAHAAUAAAAIAP//AAAEAAIAAAAJAP7/AAAHAAUAAAAJAP//AAAHAAMAAAAKAP7/AAAHAAUAAAAKAP//AAAHAAMAAAALAP7/AAAHAAUAAAALAP//AAAHAAMAAAAMAP7/AAAHAAUAAAAMAP//AAACAAMAAAAMAAAAAAACAAUAAAAMAAEAAAACAAUAAAAMAAIAAAACAAUAAAAMAAMAAAACAAQAAAAMAAQAAAAHAAUAAAANAP7/AAAHAAUAAAANAP//AAAHAAUAAAANAAAAAAAHAAUAAAANAAEAAAAHAAUAAAANAAIAAAAHAAUAAAANAAMAAAAHAAUAAAANAAQAAAAHAAUAAAA=")
+tile_set = ExtResource("3_d8v4u")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=987674661]
+script = ExtResource("4_eo4m6")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../Water")])

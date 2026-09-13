@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.landforms.v1",
+  "style": "pixel",
+  "pack": "landforms",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

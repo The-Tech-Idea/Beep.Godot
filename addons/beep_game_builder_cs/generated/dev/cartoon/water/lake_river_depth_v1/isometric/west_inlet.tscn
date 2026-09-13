@@ -1,0 +1,82 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_lake_depth.gdshader" id="1_c2w5n"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_depth_v1/isometric/depth_masks_16.res" id="2_v1bw0"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="3_vfyh1"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_river_depth_v1/isometric/lake_river_depth.tres" id="4_kghdl"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="5_p2mkb"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_depth_v1/isometric/lake_depth.tres" id="6_v01oo"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLakeDepthBinding.gd" id="7_t8rtt"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kolav"]
+resource_local_to_scene = true
+shader = ExtResource("1_c2w5n")
+shader_parameter/depth_field_enabled = false
+shader_parameter/depth_mask_texture = ExtResource("2_v1bw0")
+shader_parameter/depth_field_origin = Vector2(3, 3)
+shader_parameter/depth_cell_bias = Vector2(-0.5, 0.5)
+shader_parameter/depth_field_size = Vector2(7, 7)
+shader_parameter/depth_mask_cell_size = Vector2(64, 32)
+shader_parameter/depth_mask_texture_size = Vector2(512, 3072)
+shader_parameter/shore_field_origin = Vector2(0, 3)
+shader_parameter/shore_field_size = Vector2(10, 7)
+shader_parameter/surface_enabled = null
+shader_parameter/depth_permitted = null
+shader_parameter/depth_authoring_layer = null
+shader_parameter/secondary_texture = ExtResource("3_vfyh1")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+shader_parameter/surface_repeat_cells = 4.0
+shader_parameter/deep_tint = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rnfkr"]
+resource_local_to_scene = true
+shader = ExtResource("1_c2w5n")
+shader_parameter/depth_field_enabled = null
+shader_parameter/depth_field_origin = null
+shader_parameter/depth_cell_bias = null
+shader_parameter/depth_field_size = null
+shader_parameter/depth_mask_cell_size = null
+shader_parameter/depth_mask_texture_size = null
+shader_parameter/shore_field_origin = null
+shader_parameter/shore_field_size = null
+shader_parameter/surface_enabled = null
+shader_parameter/depth_permitted = false
+shader_parameter/depth_authoring_layer = true
+shader_parameter/secondary_texture = ExtResource("3_vfyh1")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+shader_parameter/surface_repeat_cells = 4.0
+shader_parameter/deep_tint = null
+
+[node name="LakeRiverDepthCandidate" type="Node2D" unique_id=846021533]
+metadata/pending = "Visual approval, wider contacts, other banks, sea-depth contacts and production integration"
+metadata/flow_profile = "west_inlet"
+
+[node name="Water" type="TileMapLayer" parent="." unique_id=1362277572]
+texture_filter = 1
+material = SubResource("ShaderMaterial_kolav")
+tile_map_data = PackedByteArray("AAAAAAAAAAAHAAUAAAABAAAAAAAHAAUAAAACAAAAAAAHAAUAAAADAAAAAAAHAAUAAAAEAAAAAAAHAAUAAAAFAAAAAAAHAAUAAAAGAAAAAAAHAAUAAAAHAAAAAAAHAAUAAAAIAAAAAAAHAAUAAAAJAAAAAAAHAAUAAAAKAAAAAAAHAAUAAAALAAAAAAAHAAUAAAAAAAEAAAAHAAUAAAABAAEAAAAHAAUAAAACAAEAAAAHAAUAAAADAAEAAAAHAAUAAAAEAAEAAAAHAAUAAAAFAAEAAAAHAAUAAAAGAAEAAAAHAAUAAAAHAAEAAAAHAAUAAAAIAAEAAAAHAAUAAAAJAAEAAAAHAAUAAAAKAAEAAAAHAAUAAAALAAEAAAAHAAUAAAAAAAIAAAAHAAUAAAABAAIAAAAHAAUAAAACAAIAAAAHAAUAAAADAAIAAAAHAAUAAAAEAAIAAAAHAAUAAAAFAAIAAAAHAAUAAAAGAAIAAAAHAAUAAAAHAAIAAAAHAAUAAAAIAAIAAAAHAAUAAAAJAAIAAAAHAAUAAAAKAAIAAAAHAAUAAAALAAIAAAAHAAUAAAAAAAMAAAAHAAUAAAABAAMAAAAHAAUAAAACAAMAAAAHAAUAAAADAAMAAAAEAAIAAAAEAAMAAAAHAAMAAAAFAAMAAAAHAAMAAAAGAAMAAAAHAAMAAAAHAAMAAAAHAAMAAAAIAAMAAAAHAAMAAAAJAAMAAAACAAMAAAAKAAMAAAAHAAUAAAALAAMAAAAHAAUAAAAAAAQAAAAHAAUAAAABAAQAAAAHAAUAAAACAAQAAAAHAAUAAAADAAQAAAAAAAMAAAAEAAQAAAAGAAUAAAAFAAQAAAAGAAUAAAAGAAQAAAAGAAUAAAAHAAQAAAAGAAUAAAAIAAQAAAAGAAUAAAAJAAQAAAACAAUAAAAKAAQAAAAHAAUAAAALAAQAAAAHAAUAAAAAAAUAAAAHAAUAAAABAAUAAAAHAAUAAAACAAUAAAAHAAUAAAADAAUAAAAAAAMAAAAEAAUAAAAGAAUAAAAFAAUAAAAGAAUAAAAGAAUAAAAGAAUAAAAHAAUAAAAGAAUAAAAIAAUAAAAGAAUAAAAJAAUAAAACAAUAAAAKAAUAAAAHAAUAAAALAAUAAAAHAAUAAAAAAAYAAgAAAAIAAAABAAYAAgAAAAIAAAACAAYAAgAAAAIAAAADAAYAAQAGAAAAAAAEAAYAAAAGAAUAAAAFAAYAAAAGAAUAAAAGAAYAAAAGAAUAAAAHAAYAAAAGAAUAAAAIAAYAAAAGAAUAAAAJAAYAAAACAAUAAAAKAAYAAAAHAAUAAAALAAYAAAAHAAUAAAAAAAcAAAAHAAUAAAABAAcAAAAHAAUAAAACAAcAAAAHAAUAAAADAAcAAAAAAAMAAAAEAAcAAAAGAAUAAAAFAAcAAAAGAAUAAAAGAAcAAAAGAAUAAAAHAAcAAAAGAAUAAAAIAAcAAAAGAAUAAAAJAAcAAAACAAUAAAAKAAcAAAAHAAUAAAALAAcAAAAHAAUAAAAAAAgAAAAHAAUAAAABAAgAAAAHAAUAAAACAAgAAAAHAAUAAAADAAgAAAAAAAMAAAAEAAgAAAAGAAUAAAAFAAgAAAAGAAUAAAAGAAgAAAAGAAUAAAAHAAgAAAAGAAUAAAAIAAgAAAAGAAUAAAAJAAgAAAACAAUAAAAKAAgAAAAHAAUAAAALAAgAAAAHAAUAAAAAAAkAAAAHAAUAAAABAAkAAAAHAAUAAAACAAkAAAAHAAUAAAADAAkAAAAAAAIAAAAEAAkAAAAGAAQAAAAFAAkAAAAGAAQAAAAGAAkAAAAGAAQAAAAHAAkAAAAGAAQAAAAIAAkAAAAGAAQAAAAJAAkAAAACAAQAAAAKAAkAAAAHAAUAAAALAAkAAAAHAAUAAAAMAAAAAAAHAAUAAAAMAAEAAAAHAAUAAAAMAAIAAAAHAAUAAAAMAAMAAAAHAAUAAAAMAAQAAAAHAAUAAAAMAAUAAAAHAAUAAAAMAAYAAAAHAAUAAAAMAAcAAAAHAAUAAAAMAAgAAAAHAAUAAAAMAAkAAAAHAAUAAAAAAAoAAAAHAAUAAAABAAoAAAAHAAUAAAACAAoAAAAHAAUAAAADAAoAAAAHAAUAAAAEAAoAAAAHAAUAAAAFAAoAAAAHAAUAAAAGAAoAAAAHAAUAAAAHAAoAAAAHAAUAAAAIAAoAAAAHAAUAAAAJAAoAAAAHAAUAAAAKAAoAAAAHAAUAAAALAAoAAAAHAAUAAAAMAAoAAAAHAAUAAAAAAAsAAAAHAAUAAAABAAsAAAAHAAUAAAACAAsAAAAHAAUAAAADAAsAAAAHAAUAAAAEAAsAAAAHAAUAAAAFAAsAAAAHAAUAAAAGAAsAAAAHAAUAAAAHAAsAAAAHAAUAAAAIAAsAAAAHAAUAAAAJAAsAAAAHAAUAAAAKAAsAAAAHAAUAAAALAAsAAAAHAAUAAAAMAAsAAAAHAAUAAAAAAAwAAAAHAAUAAAABAAwAAAAHAAUAAAACAAwAAAAHAAUAAAADAAwAAAAHAAUAAAAEAAwAAAAHAAUAAAAFAAwAAAAHAAUAAAAGAAwAAAAHAAUAAAAHAAwAAAAHAAUAAAAIAAwAAAAHAAUAAAAJAAwAAAAHAAUAAAAKAAwAAAAHAAUAAAALAAwAAAAHAAUAAAAMAAwAAAAHAAUAAAA=")
+tile_set = ExtResource("4_kghdl")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=987674661]
+script = ExtResource("5_p2mkb")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../Water"), NodePath("../Depth")])
+
+[node name="Depth" type="TileMapLayer" parent="." unique_id=1549159976]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_rnfkr")
+tile_map_data = PackedByteArray("AAADAAcAAAAAAAMAAAADAAYAAAAAAAMAAAAJAAUAAAACAAQAAAAIAAUAAAAGAAQAAAADAAUAAAAAAAMAAAAJAAQAAAACAAUAAAAIAAQAAAAGAAUAAAADAAQAAAAAAAMAAAAJAAMAAAACAAMAAAAIAAMAAAAHAAMAAAAHAAMAAAAHAAMAAAAGAAMAAAAHAAMAAAAFAAMAAAAHAAMAAAAEAAMAAAAHAAMAAAADAAMAAAAEAAIAAAAFAAkAAAACAAQAAAAEAAkAAAAGAAQAAAADAAkAAAAAAAIAAAAFAAgAAAACAAUAAAAEAAgAAAAGAAUAAAADAAgAAAAAAAMAAAAFAAcAAAACAAUAAAAEAAcAAAAGAAUAAAAFAAYAAAACAAUAAAAEAAYAAAAGAAUAAAAHAAUAAAAGAAQAAAAGAAUAAAAGAAQAAAAFAAUAAAAEAAUAAAAEAAUAAAAGAAUAAAAHAAQAAAAGAAUAAAAGAAQAAAAGAAUAAAAFAAQAAAAGAAUAAAAEAAQAAAAGAAUAAAA=")
+tile_set = ExtResource("6_v01oo")
+collision_enabled = false
+navigation_enabled = false
+
+[node name="CoastalDepthBinding" type="Node" parent="." unique_id=560289755]
+script = ExtResource("7_t8rtt")
+water_path = NodePath("../Water")
+depth_path = NodePath("../Depth")

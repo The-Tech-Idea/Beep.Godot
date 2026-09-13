@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "style": "cartoon",
+  "projection": "isometric",
+  "material": "grass_granite",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/sources/corner_source.png",
+  "sourceSha256": "8005eb982840dcc4a7e0d6261745fa449e38e9d7b5e3e93474e9655d36e83acc",
+  "crop": {
+    "left": 260,
+    "top": 182,
+    "width": 652,
+    "height": 978
+  },
+  "masterSize": [
+    128,
+    192
+  ],
+  "runtimeSize": [
+    64,
+    96
+  ],
+  "footprint": [
+    64,
+    32
+  ],
+  "risePixels": 64,
+  "topVertices": [
+    [
+      32,
+      0
+    ],
+    [
+      64,
+      16
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      0,
+      16
+    ]
+  ],
+  "bottomFrontVertices": [
+    [
+      0,
+      80
+    ],
+    [
+      32,
+      96
+    ],
+    [
+      64,
+      80
+    ]
+  ],
+  "groundAnchor": [
+    32,
+    80
+  ],
+  "spriteOffset": [
+    -32,
+    -80
+  ],
+  "tileTextureOrigin": [
+    0,
+    32
+  ],
+  "sourceGeometry": "Painted against an exact diamond/rise guide; uniform calibration, not skewed square art.",
+  "runtime": "runtime/corner_64.png",
+  "surfaceMask": "runtime/plateau_mask.png",
+  "godotResource": "runtime/corner.tres",
+  "approvalEvidence": null,
+  "pending": [
+    "Visual approval",
+    "Plateau connection review",
+    "Concave corners",
+    "Repeatable wall connections",
+    "Bottom contact overlays"
+  ],
+  "productionReady": false
+}

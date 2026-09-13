@@ -4,10 +4,15 @@ namespace Beep.ECS
 {
     /// <summary>
     /// The one implementation of the safe port hand-off, shared by the
-    /// transport manager, the pipeline and the hauler's depot delivery:
-    /// unload from the giver, load into the receiver, remainder BACK to the
-    /// giver - cargo is never duplicated and never lost. Ports are read by
-    /// NAME so GDScript nodes participate; see ILoadPort / IUnloadPort.
+    /// transport manager, the pipeline and the hauler's depot delivery.
+    ///
+    /// The guarantee: the giver is never drawn beyond the room the receiver
+    /// advertises; material the receiver declines is returned to a giver that
+    /// can re-accept it; and a shortfall that cannot be returned - an
+    /// unload-only giver handing to a receiver that under-takes its own
+    /// reported free space - is REPORTED rather than dropped. Cargo is never
+    /// duplicated, and never silently lost. Ports are read by NAME so GDScript
+    /// nodes participate; see ILoadPort / IUnloadPort.
     /// </summary>
     internal static class GridPorts
     {
@@ -64,13 +69,32 @@ namespace Beep.ECS
             if (!to.Call("CanAccept", resourceId).AsBool())
                 return 0;
 
-            int given = from.Call("Unload", resourceId, amount).AsInt32();
+            // Never draw more than the receiver advertises room for. An unload-only giver has no
+            // way to take material back, so over-drawing it destroys cargo that then cannot be
+            // returned - the whole point of this being the one safe hand-off.
+            int room = FreeSpace(to);
+            if (room <= 0)
+                return 0;
+            int want = Mathf.Min(amount, room);
+
+            int given = from.Call("Unload", resourceId, want).AsInt32();
             if (given <= 0)
                 return 0;
 
             int taken = to.Call("Load", resourceId, given).AsInt32();
-            if (taken < given && from.HasMethod("Load"))
-                from.Call("Load", resourceId, given - taken);
+            if (taken < given)
+            {
+                // The receiver took less than it reported room for (a type filter, or a per-id cap
+                // inside Load). Return the remainder to the giver if it can re-accept it; a giver
+                // that cannot - an unload-only source - means this hand-off could not honour the
+                // "never lost" contract, so report the shortfall instead of swallowing it.
+                int returned = from.HasMethod("Load")
+                    ? from.Call("Load", resourceId, given - taken).AsInt32()
+                    : 0;
+                int lost = (given - taken) - returned;
+                if (lost > 0)
+                    GD.PushWarning($"GridPorts.Transfer: {lost} '{resourceId}' could not be delivered or returned to {from.Name}; the giver is unload-only or full.");
+            }
             return taken;
         }
     }

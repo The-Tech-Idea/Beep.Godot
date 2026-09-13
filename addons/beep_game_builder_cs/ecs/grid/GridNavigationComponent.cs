@@ -74,15 +74,22 @@ namespace Beep.ECS
         private GridCellDataComponent? _cellData;
         private readonly Dictionary<Type, Node?> _fallbackSources = new();
         private Node? _fallbackRoot;
-        private SceneTree? _observedTree;
         private string[] _blockedKindValues = System.Array.Empty<string>();
         private HashSet<string>? _normalizedBlockedKinds;
 
+        public override void _EnterTree()
+        {
+            if (Engine.IsEditorHint()) return;
+            var tree = GetTree();
+            // Store an object ID and method name in the native SceneTree, not a
+            // managed delegate handle that becomes invalid on assembly reload.
+            var callback = new Callable(this, MethodName.OnReferenceNodeChanged);
+            tree.Connect(SceneTree.SignalName.NodeAdded, callback);
+            tree.Connect(SceneTree.SignalName.NodeRemoved, callback);
+        }
+
         public override void _Ready()
         {
-            _observedTree = GetTree();
-            _observedTree.NodeAdded += OnReferenceNodeChanged;
-            _observedTree.NodeRemoved += OnReferenceNodeChanged;
             ResolveReferences();
             UpdateConfigurationWarnings();
         }
@@ -91,12 +98,16 @@ namespace Beep.ECS
         {
             ClearPathRequests();
             DisconnectRequestSources();
-            if (GodotObject.IsInstanceValid(_observedTree))
+            // Resolve the live tree here: non-exported fields are lost on hot reload.
+            var tree = GetTree();
+            if (GodotObject.IsInstanceValid(tree))
             {
-                _observedTree!.NodeAdded -= OnReferenceNodeChanged;
-                _observedTree.NodeRemoved -= OnReferenceNodeChanged;
+                var callback = new Callable(this, MethodName.OnReferenceNodeChanged);
+                if (tree.IsConnected(SceneTree.SignalName.NodeAdded, callback))
+                    tree.Disconnect(SceneTree.SignalName.NodeAdded, callback);
+                if (tree.IsConnected(SceneTree.SignalName.NodeRemoved, callback))
+                    tree.Disconnect(SceneTree.SignalName.NodeRemoved, callback);
             }
-            _observedTree = null;
             _fallbackSources.Clear();
             _fallbackRoot = null;
         }
@@ -376,7 +387,10 @@ namespace Beep.ECS
         {
             // Resolve explicit paths once per query, not per visited cell. A valid
             // cached node may have moved, or its authored path may now name another node.
-            _grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
+            // _grid is explicit-ONLY: an unwired GridPath means this component has no
+            // projection, never "adopt whichever one the scene holds" - same policy as
+            // GridPlacementComponent's, through the same one owner.
+            EntityComponent.ResolveLive(this, GridPath, ref _grid, fallbackWhenEmpty: false);
             ResolveSource(PlacementPath, ref _placement);
             ResolveSource(RoadPath, ref _roads);
             ResolveSource(CellDataPath, ref _cellData);
@@ -384,7 +398,10 @@ namespace Beep.ECS
 
         private void ResolveSource<T>(NodePath path, ref T? cached) where T : Node
         {
-            if (!path.IsEmpty) { cached = GetNodeOrNull<T>(path); return; }
+            // The fresh-resolve rule is EntityComponent.ResolveLive's; this wrapper adds only the
+            // repeated-fallback memo below. Delegating keeps one implementation of "re-point the
+            // path and the new node is picked up next query".
+            if (!path.IsEmpty) { EntityComponent.ResolveLive(this, path, ref cached); return; }
             Node? root = IsInsideTree() ? GetTree().CurrentScene : null;
             if (root != _fallbackRoot)
             {

@@ -1,0 +1,229 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_lake_depth.gdshader" id="1_px6b2"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_depth_v1/square/depth_masks_16.res" id="2_0mxdq"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="3_e0r06"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_river_depth_v1/square/lake_river_depth.tres" id="4_ej3ty"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader" id="5_wmh16"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/runtime/grass_surface_mask.res" id="6_x4bbi"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/runtime/front_wall_320.res" id="7_p2551"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_contact_v1/runtime/contact_320.res" id="8_wgcod"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_native_clock_sprite.gdshader" id="9_xcecp"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/waterfall_sections_v1/water_rise_64_16.res" id="10_4cx5h"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_sections_v1/square/river_sections_16.res" id="11_m3qh1"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="12_6isso"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_depth_v1/square/lake_depth.tres" id="13_bevpr"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLakeDepthBinding.gd" id="14_s34mc"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fsiw4"]
+resource_local_to_scene = true
+shader = ExtResource("1_px6b2")
+shader_parameter/depth_field_enabled = false
+shader_parameter/depth_mask_texture = ExtResource("2_0mxdq")
+shader_parameter/depth_field_origin = Vector2(1, 5)
+shader_parameter/depth_cell_bias = Vector2(0, 0)
+shader_parameter/depth_field_size = Vector2(2, 4)
+shader_parameter/depth_mask_cell_size = Vector2(64, 64)
+shader_parameter/depth_mask_texture_size = Vector2(512, 6144)
+shader_parameter/shore_field_origin = Vector2(1, 4)
+shader_parameter/shore_field_size = Vector2(3, 5)
+shader_parameter/surface_enabled = null
+shader_parameter/depth_permitted = null
+shader_parameter/depth_authoring_layer = null
+shader_parameter/connected_water_clock = true
+shader_parameter/secondary_texture = ExtResource("3_e0r06")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0)
+shader_parameter/surface_v = Vector2(0, 0.00390625)
+shader_parameter/surface_repeat_cells = 4.0
+shader_parameter/deep_tint = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_d1yks"]
+resource_local_to_scene = true
+shader = ExtResource("5_wmh16")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_e0r06")
+shader_parameter/surface_mask = ExtResource("6_x4bbi")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0)
+shader_parameter/surface_v = Vector2(0, 0.00390625)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vv8m6"]
+resource_local_to_scene = true
+shader = ExtResource("9_xcecp")
+shader_parameter/shared_waterfall_enabled = null
+shader_parameter/waterfall_base_bytes = null
+shader_parameter/waterfall_offset = null
+shader_parameter/waterfall_rise = null
+shader_parameter/waterfall_kind = null
+shader_parameter/waterfall_projection = null
+shader_parameter/animation_atlas = ExtResource("10_4cx5h")
+shader_parameter/animation_origin = Vector2(0, 0)
+shader_parameter/animation_stride = Vector2(0, 192)
+shader_parameter/animation_size = Vector2(64, 192)
+shader_parameter/animation_atlas_size = Vector2(256, 3072)
+shader_parameter/frame_override = null
+shader_parameter/surface_enabled = null
+shader_parameter/secondary_enabled = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8fpad"]
+atlas = ExtResource("10_4cx5h")
+region = Rect2(0, 0, 64, 192)
+filter_clip = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jr4mu"]
+resource_local_to_scene = true
+shader = ExtResource("9_xcecp")
+shader_parameter/shared_waterfall_enabled = null
+shader_parameter/waterfall_base_bytes = null
+shader_parameter/waterfall_offset = null
+shader_parameter/waterfall_rise = null
+shader_parameter/waterfall_kind = null
+shader_parameter/waterfall_projection = null
+shader_parameter/animation_atlas = ExtResource("11_m3qh1")
+shader_parameter/animation_origin = Vector2(0, 0)
+shader_parameter/animation_stride = Vector2(0, 256)
+shader_parameter/animation_size = Vector2(64, 64)
+shader_parameter/animation_atlas_size = Vector2(256, 4096)
+shader_parameter/frame_override = null
+shader_parameter/surface_enabled = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_e0r06")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0)
+shader_parameter/surface_v = Vector2(0, 0.00390625)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4mpab"]
+atlas = ExtResource("11_m3qh1")
+region = Rect2(0, 0, 64, 64)
+filter_clip = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_871nq"]
+resource_local_to_scene = true
+shader = ExtResource("9_xcecp")
+shader_parameter/shared_waterfall_enabled = null
+shader_parameter/waterfall_base_bytes = null
+shader_parameter/waterfall_offset = null
+shader_parameter/waterfall_rise = null
+shader_parameter/waterfall_kind = null
+shader_parameter/waterfall_projection = null
+shader_parameter/animation_atlas = ExtResource("11_m3qh1")
+shader_parameter/animation_origin = Vector2(0, 0)
+shader_parameter/animation_stride = Vector2(0, 256)
+shader_parameter/animation_size = Vector2(64, 64)
+shader_parameter/animation_atlas_size = Vector2(256, 4096)
+shader_parameter/frame_override = null
+shader_parameter/surface_enabled = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_e0r06")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0)
+shader_parameter/surface_v = Vector2(0, 0.00390625)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_c35lv"]
+resource_local_to_scene = true
+shader = ExtResource("1_px6b2")
+shader_parameter/depth_field_enabled = null
+shader_parameter/depth_field_origin = null
+shader_parameter/depth_cell_bias = null
+shader_parameter/depth_field_size = null
+shader_parameter/depth_mask_cell_size = null
+shader_parameter/depth_mask_texture_size = null
+shader_parameter/shore_field_origin = null
+shader_parameter/shore_field_size = null
+shader_parameter/surface_enabled = null
+shader_parameter/depth_permitted = false
+shader_parameter/depth_authoring_layer = true
+shader_parameter/connected_water_clock = null
+shader_parameter/secondary_texture = ExtResource("3_e0r06")
+shader_parameter/surface_origin = Vector2(0, 0)
+shader_parameter/surface_u = Vector2(0.00390625, 0)
+shader_parameter/surface_v = Vector2(0, 0.00390625)
+shader_parameter/surface_repeat_cells = 4.0
+shader_parameter/deep_tint = null
+
+[node name="DepthAwareWaterfallLakeRoute" type="Node2D" unique_id=372147244]
+metadata/production_ready = false
+metadata/visual_rise_pixels = 64
+metadata/missing_connections = "Outer cliff repeats, side/corner contacts, sea outlet and isometric waterfall"
+metadata/pending = "Isometric depth route, wider routes, other banks, visual approval and production integration"
+
+[node name="LowerLake" type="TileMapLayer" parent="." unique_id=1645551116]
+texture_filter = 1
+material = SubResource("ShaderMaterial_fsiw4")
+tile_map_data = PackedByteArray("AAAAAAIAAAAHAAUAAAABAAIAAAAHAAUAAAACAAIAAAAHAAUAAAADAAIAAAAHAAUAAAAEAAIAAAAHAAUAAAAAAAMAAAAHAAUAAAABAAMAAAAHAAUAAAACAAMAAAAHAAUAAAADAAMAAAAHAAUAAAAEAAMAAAAHAAUAAAAAAAQAAAAHAAUAAAABAAQAAAAHAAUAAAACAAQAAgAAAAAAAAADAAQAAAAHAAUAAAAEAAQAAAAHAAUAAAAAAAUAAAAHAAUAAAABAAUAAAAEAAIAAAACAAUAAQAAAAAAAAADAAUAAAACAAMAAAAEAAUAAAAHAAUAAAAAAAYAAAAHAAUAAAABAAYAAAAAAAMAAAACAAYAAAAGAAUAAAADAAYAAAACAAUAAAAEAAYAAAAHAAUAAAAAAAcAAAAHAAUAAAABAAcAAAAAAAMAAAACAAcAAAAGAAUAAAADAAcAAAACAAUAAAAEAAcAAAAHAAUAAAAAAAgAAAAHAAUAAAABAAgAAAAAAAIAAAACAAgAAAAGAAQAAAADAAgAAAACAAQAAAAEAAgAAAAHAAUAAAAAAAkAAAAHAAUAAAABAAkAAAAHAAUAAAACAAkAAAAHAAUAAAADAAkAAAAHAAUAAAAEAAkAAAAHAAUAAAA=")
+tile_set = ExtResource("4_ej3ty")
+
+[node name="UpperGround" type="Sprite2D" parent="." unique_id=382377200]
+texture_filter = 2
+texture_repeat = 2
+position = Vector2(0, -64)
+texture = ExtResource("3_e0r06")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, -64, 320, 128)
+
+[node name="LowerGround" type="Sprite2D" parent="." unique_id=510011226]
+texture_filter = 2
+texture_repeat = 2
+position = Vector2(0, 128)
+texture = ExtResource("3_e0r06")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 128, 320, 128)
+
+[node name="StaticCliff" type="Sprite2D" parent="." unique_id=522216183]
+texture_filter = 2
+material = SubResource("ShaderMaterial_d1yks")
+position = Vector2(0, 48)
+texture = ExtResource("7_p2551")
+centered = false
+
+[node name="CliffBottomContact" type="Sprite2D" parent="." unique_id=2045269000]
+texture_filter = 2
+position = Vector2(0, 108)
+texture = ExtResource("8_wgcod")
+centered = false
+metadata/nominal_contact_y = 20
+metadata/visual_rise_contribution = 0
+
+[node name="WaterfallWaterOnly" type="Sprite2D" parent="." unique_id=372054608]
+texture_filter = 1
+material = SubResource("ShaderMaterial_vv8m6")
+position = Vector2(128, 0)
+texture = SubResource("AtlasTexture_8fpad")
+centered = false
+
+[node name="Upstream" type="Sprite2D" parent="." unique_id=225856576]
+texture_filter = 1
+material = SubResource("ShaderMaterial_jr4mu")
+position = Vector2(128, -64)
+texture = SubResource("AtlasTexture_4mpab")
+centered = false
+
+[node name="Downstream" type="Sprite2D" parent="." unique_id=390223993]
+texture_filter = 1
+material = SubResource("ShaderMaterial_871nq")
+position = Vector2(128, 192)
+texture = SubResource("AtlasTexture_4mpab")
+centered = false
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=503839912]
+script = ExtResource("12_6isso")
+layer_paths = Array[NodePath]([NodePath("../StaticCliff"), NodePath("../Upstream"), NodePath("../Downstream"), NodePath("../LowerLake"), NodePath("../LakeDepth")])
+
+[node name="LakeDepth" type="TileMapLayer" parent="." unique_id=72139951]
+texture_filter = 1
+material = SubResource("ShaderMaterial_c35lv")
+tile_map_data = PackedByteArray("AAABAAgAAAABAAAAAAABAAcAAAAFAAAAAAABAAYAAAAFAAAAAAABAAUAAAAGAAAAAAACAAUAAAAAAAEAAAA=")
+tile_set = ExtResource("13_bevpr")
+collision_enabled = false
+navigation_enabled = false
+
+[node name="LakeDepthBinding" type="Node" parent="." unique_id=34639013]
+script = ExtResource("14_s34mc")
+water_path = NodePath("../LowerLake")
+depth_path = NodePath("../LakeDepth")

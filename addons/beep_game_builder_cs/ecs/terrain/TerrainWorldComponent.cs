@@ -86,6 +86,7 @@ namespace Beep.ECS
         [Export] public NodePath TileRendererPath { get; set; } = new("");
         [Export] public NodePath IsometricRendererPath { get; set; } = new("");
         [Export] public NodePath IsometricAutotileRendererPath { get; set; } = new("");
+        [Export] public Godot.Collections.Array<NodePath> StructureLayerPaths { get; set; } = new();
         [Export] public NodePath FeaturesPath { get; set; } = new("");
         [Export] public NodePath IsometricFeaturesPath { get; set; } = new("");
         [Export] public NodePath MapOverlayPath { get; set; } = new("");
@@ -126,7 +127,28 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,1,0.001")] public float ClimateLatitudeSpan { get; set; } = 0.12f;
 
         [ExportGroup("Drawing")]
-        [Export] public TerrainProjection Projection { get; set; } = TerrainProjection.Painted;
+        private TerrainProjection _projection = TerrainProjection.Painted;
+        [Export] public TerrainProjection Projection
+        {
+            get => _projection;
+            set
+            {
+                if (value != _projection && HasPendingTerrainEdits())
+                { GD.PushWarning("Apply or discard terrain/structure edits before switching projection."); return; }
+                _projection = value;
+                RefreshStructureVisibility();
+            }
+        }
+
+        public bool HasPendingTerrainEdits()
+        {
+            if (!IsInsideTree()) return false;
+            foreach (NodePath path in new[] { TileRendererPath, IsometricAutotileRendererPath })
+                if (!path.IsEmpty && GetNodeOrNull<Node>(path) is { } renderer && TerrainLibraryEditSession.Blocks(renderer)) return true;
+            foreach (var layer in RegisteredStructureLayers())
+                if (layer.HasPendingStructureEdits()) return true;
+            return false;
+        }
         /// <summary>Optional flat-map art and prop limits; isometric art is independently authored.</summary>
         [Export] public TerrainMapArt? MapArt { get; set; }
         [Export] public TerrainPropSizing? PropSizing { get; set; }
@@ -190,6 +212,8 @@ namespace Beep.ECS
 
         public override void _Ready()
         {
+            AddToGroup(StructureWorldGroup);
+            RefreshStructureVisibility();
             if (Engine.IsEditorHint())
                 return;
 
@@ -204,6 +228,7 @@ namespace Beep.ECS
 
         public override void _ExitTree()
         {
+            RemoveFromGroup(StructureWorldGroup);
             RetireGeneration();
             if (ParticipatesInSave)
                 RemoveFromGroup(SaveableHelper.Group);
@@ -253,6 +278,7 @@ namespace Beep.ECS
         /// </summary>
         public void NewWorld()
         {
+            if (HasPendingTerrainEdits()) { GD.PushWarning("Apply or discard terrain edits before generating a world."); return; }
             RetireGeneration();
             if (!ConfigureGenerator(out Vector2I size))
                 return;
@@ -279,6 +305,7 @@ namespace Beep.ECS
         /// </summary>
         public void RestoreWorld()
         {
+            if (HasPendingTerrainEdits()) { GD.PushWarning("Apply or discard terrain edits before restoring a world."); return; }
             RetireGeneration();
             if (!ConfigureGenerator(out Vector2I size))
                 return;
@@ -295,6 +322,7 @@ namespace Beep.ECS
         /// <summary>Switches or refreshes views without generating or replacing live cells.</summary>
         public void Redraw()
         {
+            if (HasPendingTerrainEdits()) { GD.PushWarning("Apply or discard terrain edits before redrawing."); return; }
             Resolve();
             if (BuiltSize.X <= 0 || BuiltSize.Y <= 0 || !BindCellSource()) return;
             Draw(BuiltSize, rebuildRecipeData: false);

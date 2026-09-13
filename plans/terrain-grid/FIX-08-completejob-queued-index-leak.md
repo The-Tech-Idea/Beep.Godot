@@ -1,6 +1,10 @@
 # FIX-08 — CompleteJob queued-index leak: force-completing a queued job orphans its id in the spatial index
 
-**Type:** fix · **Area:** `GridJobQueueComponent.CompleteJob` (`GridJobQueueComponent.cs`), `GridJobQueueComponent.Reservations.cs`, one test hook + `GridJobQueueSmoke` · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+**Type:** fix · **Area:** `GridJobQueueComponent.CompleteJob` (`GridJobQueueComponent.cs`), `GridJobQueueComponent.Reservations.cs`, one test hook + `GridJobQueueSmoke` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (½ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`CompleteJob` now removes a still-`Queued` job from the queued spatial index before flipping state (`if (job.State == GridJobState.Queued) IndexRemoveQueued(job);`) — the exact guard `CancelJob` already used — and the `Claimed → Completed` path is unaffected. The misleading "pruned on its next index touch" comment at the `ScanChunk` stale-id skip was corrected to say that live `Queued` exits own removal and the `TryGetValue` guard is defence in depth. A read-only `internal int QueuedIndexEntryCount` hook was added with its consumer in the same change (rule 6): `tests/GridJobQueueSmoke` adds one queued job, asserts the index holds 1, force-completes it through the public no-worker path, and asserts the index holds 0 while `HasJob(id)` is false — then claims the next job from a distant cell to prove the dead bucket is not revisited. Mutation-proven: reverting the guard reports `CompleteJob left 1 queued-index entries behind`. Build clean (0 warnings); `grid_job_queue_probe` green.
 
 ## Finding
 

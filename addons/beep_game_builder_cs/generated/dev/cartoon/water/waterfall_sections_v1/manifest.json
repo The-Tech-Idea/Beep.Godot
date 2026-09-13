@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "status": "technical_candidate",
+  "projection": "square",
+  "style": "cartoon",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "method": "Analytic water-only connector animation; existing painted waterfall artwork is retained unchanged.",
+  "editableMaster": "tools/terrain-library/waterfall-sections.mjs",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "rises": [
+    {
+      "risePixels": 16,
+      "frameSize": [
+        64,
+        144
+      ],
+      "lipY": 64,
+      "impactY": 80,
+      "sheet": "water_rise_16_16.png",
+      "spriteFrames": "water_rise_16.tres"
+    },
+    {
+      "risePixels": 32,
+      "frameSize": [
+        64,
+        160
+      ],
+      "lipY": 64,
+      "impactY": 96,
+      "sheet": "water_rise_32_16.png",
+      "spriteFrames": "water_rise_32.tres"
+    },
+    {
+      "risePixels": 64,
+      "frameSize": [
+        64,
+        192
+      ],
+      "lipY": 64,
+      "impactY": 128,
+      "sheet": "water_rise_64_16.png",
+      "spriteFrames": "water_rise_64.tres"
+    }
+  ],
+  "sections": [
+    "narrow",
+    "low_bank",
+    "middle",
+    "high_bank"
+  ],
+  "widthExamples": [
+    {
+      "width": 1,
+      "sections": [
+        "narrow"
+      ]
+    },
+    {
+      "width": 2,
+      "sections": [
+        "low_bank",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 3,
+      "sections": [
+        "low_bank",
+        "middle",
+        "high_bank"
+      ]
+    },
+    {
+      "width": 5,
+      "sections": [
+        "low_bank",
+        "middle",
+        "middle",
+        "middle",
+        "high_bank"
+      ]
+    }
+  ],
+  "connector": {
+    "upstream": "north",
+    "downstream": "south",
+    "upstreamPlaneLength": 64,
+    "downstreamPlaneLength": 64,
+    "horizontalContract": "river_sections_v1",
+    "visualRiseIsNavigation": false
+  },
+  "approvalEvidence": null,
+  "pending": [
+    "Authored cliff terrain",
+    "Isometric water modules",
+    "Visual foam review",
+    "Lake/sea outlet adapters",
+    "Production promotion"
+  ],
+  "terrainIncluded": false,
+  "showcase": "water_only_review.tscn"
+}

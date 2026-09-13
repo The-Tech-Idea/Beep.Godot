@@ -1,0 +1,1234 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader" id="1_l8fe1"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/plateau_mask.res" id="2_284e3"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="3_8nxgq"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/corner.tres" id="4_0lw0r"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="5_lm8wr"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_mask_surface_cartoon.gdshader" id="6_xkm3f"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/dirt_256.res" id="7_23sla"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/isometric/surface_candidate_v1/grass_dirt_masks.tres" id="8_uyi0v"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/face_tiles.tres" id="9_n4fx4"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_route_v1/north_south_river.tres" id="10_404l4"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_waterfall_v1/fall_64.tres" id="11_48s4v"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_4_2.tres" id="12_y12mo"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_7_3.tres" id="13_l18wo"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_1_0_0.tres" id="14_uwtet"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_2_3.tres" id="15_1l25b"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_0_3.tres" id="16_rhmfp"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_6_5.tres" id="17_40b7f"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_2_5.tres" id="18_8lh7e"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_0_2.tres" id="19_0y7cy"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_6_4.tres" id="20_kmhnl"]
+[ext_resource type="SpriteFrames" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_granite_lake_v1/runtime/lake_0_2_4.tres" id="21_43bcn"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_66eqy"]
+shader = ExtResource("1_l8fe1")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_8nxgq")
+shader_parameter/surface_mask = ExtResource("2_284e3")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nrqx1"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_8nxgq")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("7_23sla")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_46w7o"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("3_8nxgq")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("7_23sla")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p14ux"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nsxmh"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lmcni"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qcgn3"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_e2gbo"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_f4sb6"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0lk5j"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4g22q"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="Animation" id="Animation_kn8r5"]
+length = 1.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("UpperRiver0:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("UpperRiver1:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("UpperRiver2:frame")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("UpperRiver3:frame")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("LowerRiver4:frame")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("LowerRiver5:frame")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("LowerRiver6:frame")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("LowerRiver7:frame")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Waterfall:frame")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Lake_-1_8:frame")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Lake_0_8:frame")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Lake_1_8:frame")
+tracks/11/interp = 1
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/12/type = "value"
+tracks/12/imported = false
+tracks/12/enabled = true
+tracks/12/path = NodePath("Lake_2_8:frame")
+tracks/12/interp = 1
+tracks/12/loop_wrap = true
+tracks/12/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/13/type = "value"
+tracks/13/imported = false
+tracks/13/enabled = true
+tracks/13/path = NodePath("Lake_3_8:frame")
+tracks/13/interp = 1
+tracks/13/loop_wrap = true
+tracks/13/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/14/type = "value"
+tracks/14/imported = false
+tracks/14/enabled = true
+tracks/14/path = NodePath("Lake_-1_9:frame")
+tracks/14/interp = 1
+tracks/14/loop_wrap = true
+tracks/14/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/15/type = "value"
+tracks/15/imported = false
+tracks/15/enabled = true
+tracks/15/path = NodePath("Lake_0_9:frame")
+tracks/15/interp = 1
+tracks/15/loop_wrap = true
+tracks/15/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/16/type = "value"
+tracks/16/imported = false
+tracks/16/enabled = true
+tracks/16/path = NodePath("Lake_1_9:frame")
+tracks/16/interp = 1
+tracks/16/loop_wrap = true
+tracks/16/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/17/type = "value"
+tracks/17/imported = false
+tracks/17/enabled = true
+tracks/17/path = NodePath("Lake_2_9:frame")
+tracks/17/interp = 1
+tracks/17/loop_wrap = true
+tracks/17/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/18/type = "value"
+tracks/18/imported = false
+tracks/18/enabled = true
+tracks/18/path = NodePath("Lake_3_9:frame")
+tracks/18/interp = 1
+tracks/18/loop_wrap = true
+tracks/18/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/19/type = "value"
+tracks/19/imported = false
+tracks/19/enabled = true
+tracks/19/path = NodePath("Lake_-1_10:frame")
+tracks/19/interp = 1
+tracks/19/loop_wrap = true
+tracks/19/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/20/type = "value"
+tracks/20/imported = false
+tracks/20/enabled = true
+tracks/20/path = NodePath("Lake_0_10:frame")
+tracks/20/interp = 1
+tracks/20/loop_wrap = true
+tracks/20/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/21/type = "value"
+tracks/21/imported = false
+tracks/21/enabled = true
+tracks/21/path = NodePath("Lake_1_10:frame")
+tracks/21/interp = 1
+tracks/21/loop_wrap = true
+tracks/21/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/22/type = "value"
+tracks/22/imported = false
+tracks/22/enabled = true
+tracks/22/path = NodePath("Lake_2_10:frame")
+tracks/22/interp = 1
+tracks/22/loop_wrap = true
+tracks/22/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/23/type = "value"
+tracks/23/imported = false
+tracks/23/enabled = true
+tracks/23/path = NodePath("Lake_3_10:frame")
+tracks/23/interp = 1
+tracks/23/loop_wrap = true
+tracks/23/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/24/type = "value"
+tracks/24/imported = false
+tracks/24/enabled = true
+tracks/24/path = NodePath("Lake_-1_11:frame")
+tracks/24/interp = 1
+tracks/24/loop_wrap = true
+tracks/24/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/25/type = "value"
+tracks/25/imported = false
+tracks/25/enabled = true
+tracks/25/path = NodePath("Lake_0_11:frame")
+tracks/25/interp = 1
+tracks/25/loop_wrap = true
+tracks/25/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/26/type = "value"
+tracks/26/imported = false
+tracks/26/enabled = true
+tracks/26/path = NodePath("Lake_1_11:frame")
+tracks/26/interp = 1
+tracks/26/loop_wrap = true
+tracks/26/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/27/type = "value"
+tracks/27/imported = false
+tracks/27/enabled = true
+tracks/27/path = NodePath("Lake_2_11:frame")
+tracks/27/interp = 1
+tracks/27/loop_wrap = true
+tracks/27/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/28/type = "value"
+tracks/28/imported = false
+tracks/28/enabled = true
+tracks/28/path = NodePath("Lake_3_11:frame")
+tracks/28/interp = 1
+tracks/28/loop_wrap = true
+tracks/28/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/29/type = "value"
+tracks/29/imported = false
+tracks/29/enabled = true
+tracks/29/path = NodePath("Lake_-1_12:frame")
+tracks/29/interp = 1
+tracks/29/loop_wrap = true
+tracks/29/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/30/type = "value"
+tracks/30/imported = false
+tracks/30/enabled = true
+tracks/30/path = NodePath("Lake_0_12:frame")
+tracks/30/interp = 1
+tracks/30/loop_wrap = true
+tracks/30/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/31/type = "value"
+tracks/31/imported = false
+tracks/31/enabled = true
+tracks/31/path = NodePath("Lake_1_12:frame")
+tracks/31/interp = 1
+tracks/31/loop_wrap = true
+tracks/31/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/32/type = "value"
+tracks/32/imported = false
+tracks/32/enabled = true
+tracks/32/path = NodePath("Lake_2_12:frame")
+tracks/32/interp = 1
+tracks/32/loop_wrap = true
+tracks/32/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+tracks/33/type = "value"
+tracks/33/imported = false
+tracks/33/enabled = true
+tracks/33/path = NodePath("Lake_3_12:frame")
+tracks/33/interp = 1
+tracks/33/loop_wrap = true
+tracks/33/keys = {
+"times": PackedFloat32Array(0, 0.075, 0.15, 0.225, 0.3, 0.375, 0.45, 0.525, 0.6, 0.675, 0.75, 0.825, 0.9, 0.975, 1.05, 1.125),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_eqti4"]
+_data = {
+&"flow": SubResource("Animation_kn8r5")
+}
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wv1rd"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dw3cs"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_23ye5"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_iwhnp"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_uix4b"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_l553f"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b68b8"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fhjf8"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bgo3b"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hfjpf"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_edf6r"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_o7eyq"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qx4vl"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tk61g"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tf2f2"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_soteg"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lgulv"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pd2cd"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7fidp"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2w1ud"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bdeey"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_e6hlb"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pfvof"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b16of"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mb4gq"]
+shader = ExtResource("6_xkm3f")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("3_8nxgq")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[node name="IsometricWaterfallLakeRoute" type="Node2D" unique_id=250244186]
+metadata/production_ready = false
+metadata/rise_pixels = 64
+metadata/dimensions_cells = Vector2i(4, 4)
+metadata/missing_artwork = "Natural cliff bank contacts, foam approval, sea continuation, wide river mouths"
+metadata/visual_rise_pixels = 64
+
+[node name="CliffWalls" type="TileMapLayer" parent="." unique_id=2070149576]
+y_sort_enabled = true
+texture_filter = 1
+material = SubResource("ShaderMaterial_66eqy")
+tile_map_data = PackedByteArray("AAAAAAAA//////////8=")
+tile_set = ExtResource("4_0lw0r")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=832999033]
+position = Vector2(0, -64)
+script = ExtResource("5_lm8wr")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../CliffWalls"), NodePath("../PlateauSurface"), NodePath("../UpperRiver0"), NodePath("../UpperRiver1"), NodePath("../UpperRiver2"), NodePath("../UpperRiver3")])
+
+[node name="PlateauSurface" type="TileMapLayer" parent="." unique_id=592631229]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_nrqx1")
+position = Vector2(0, -64)
+tile_map_data = PackedByteArray("AAAAAAAAAAAGAAUAAAABAAAAAAAGAAUAAAACAAAAAAAGAAUAAAADAAAAAAAGAAUAAAAAAAEAAAAGAAUAAAABAAEAAAAGAAUAAAACAAEAAAAGAAUAAAADAAEAAAAGAAUAAAAAAAIAAAAGAAUAAAABAAIAAAAGAAUAAAACAAIAAAAGAAUAAAADAAIAAAAGAAUAAAAAAAMAAAAGAAUAAAABAAMAAAAGAAUAAAACAAMAAAAGAAUAAAADAAMAAAAGAAUAAAA=")
+tile_set = ExtResource("8_uyi0v")
+
+[node name="LightFace" type="TileMapLayer" parent="." unique_id=88498224]
+y_sort_enabled = true
+texture_filter = 1
+tile_map_data = PackedByteArray("AAAAAAMAAAAAAAAAAAABAAMAAQAAAAAAAAACAAMAAgAAAAAAAAADAAMAAwAAAAAAAAA=")
+tile_set = ExtResource("9_n4fx4")
+
+[node name="ShadeFace" type="TileMapLayer" parent="." unique_id=22972448]
+y_sort_enabled = true
+texture_filter = 1
+tile_map_data = PackedByteArray("AAADAAAABwAAAAAAAAADAAEABgAAAAAAAAADAAIABQAAAAAAAAADAAMABAAAAAAAAAA=")
+tile_set = ExtResource("9_n4fx4")
+
+[node name="LowerGround" type="TileMapLayer" parent="." unique_id=612967901]
+z_index = -1
+texture_filter = 1
+material = SubResource("ShaderMaterial_46w7o")
+tile_map_data = PackedByteArray("AAAAAAQAAAAGAAUAAAABAAQAAAAGAAUAAAACAAQAAAAGAAUAAAADAAQAAAAGAAUAAAAAAAUAAAAGAAUAAAABAAUAAAAGAAUAAAACAAUAAAAGAAUAAAADAAUAAAAGAAUAAAAAAAYAAAAGAAUAAAABAAYAAAAGAAUAAAACAAYAAAAGAAUAAAADAAYAAAAGAAUAAAAAAAcAAAAGAAUAAAABAAcAAAAGAAUAAAACAAcAAAAGAAUAAAADAAcAAAAGAAUAAAD+/wcAAAAGAAUAAAD//wcAAAAGAAUAAAAEAAcAAAAGAAUAAAD+/wgAAAAGAAUAAAD//wgAAAAGAAUAAAAAAAgAAAAGAAUAAAABAAgAAAAGAAUAAAACAAgAAAAGAAUAAAADAAgAAAAGAAUAAAAEAAgAAAAGAAUAAAD+/wkAAAAGAAUAAAD//wkAAAAGAAUAAAAAAAkAAAAGAAUAAAABAAkAAAAGAAUAAAACAAkAAAAGAAUAAAADAAkAAAAGAAUAAAAEAAkAAAAGAAUAAAD+/woAAAAGAAUAAAD//woAAAAGAAUAAAAAAAoAAAAGAAUAAAABAAoAAAAGAAUAAAACAAoAAAAGAAUAAAADAAoAAAAGAAUAAAAEAAoAAAAGAAUAAAD+/wsAAAAGAAUAAAD//wsAAAAGAAUAAAAAAAsAAAAGAAUAAAABAAsAAAAGAAUAAAACAAsAAAAGAAUAAAADAAsAAAAGAAUAAAAEAAsAAAAGAAUAAAD+/wwAAAAGAAUAAAD//wwAAAAGAAUAAAAAAAwAAAAGAAUAAAABAAwAAAAGAAUAAAACAAwAAAAGAAUAAAADAAwAAAAGAAUAAAAEAAwAAAAGAAUAAAD+/w0AAAAGAAUAAAD//w0AAAAGAAUAAAAAAA0AAAAGAAUAAAABAA0AAAAGAAUAAAACAA0AAAAGAAUAAAADAA0AAAAGAAUAAAAEAA0AAAAGAAUAAAA=")
+tile_set = ExtResource("8_uyi0v")
+
+[node name="LowerSurfacePlane" type="Node2D" parent="." unique_id=1591980724]
+script = ExtResource("5_lm8wr")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../LowerGround"), NodePath("../LowerRiver4"), NodePath("../LowerRiver5"), NodePath("../LowerRiver6"), NodePath("../LowerRiver7"), NodePath("../Lake_-1_8"), NodePath("../Lake_0_8"), NodePath("../Lake_1_8"), NodePath("../Lake_2_8"), NodePath("../Lake_3_8"), NodePath("../Lake_-1_9"), NodePath("../Lake_0_9"), NodePath("../Lake_1_9"), NodePath("../Lake_2_9"), NodePath("../Lake_3_9"), NodePath("../Lake_-1_10"), NodePath("../Lake_0_10"), NodePath("../Lake_1_10"), NodePath("../Lake_2_10"), NodePath("../Lake_3_10"), NodePath("../Lake_-1_11"), NodePath("../Lake_0_11"), NodePath("../Lake_1_11"), NodePath("../Lake_2_11"), NodePath("../Lake_3_11"), NodePath("../Lake_-1_12"), NodePath("../Lake_0_12"), NodePath("../Lake_1_12"), NodePath("../Lake_2_12"), NodePath("../Lake_3_12")])
+
+[node name="UpperRiver0" type="AnimatedSprite2D" parent="." unique_id=1160745797]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_p14ux")
+position = Vector2(32, -48)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="UpperRiver1" type="AnimatedSprite2D" parent="." unique_id=1467039891]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_nsxmh")
+position = Vector2(0, -32)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="UpperRiver2" type="AnimatedSprite2D" parent="." unique_id=1996941837]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_lmcni")
+position = Vector2(-32, -16)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="UpperRiver3" type="AnimatedSprite2D" parent="." unique_id=1684358662]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_qcgn3")
+position = Vector2(-64, 0)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="LowerRiver4" type="AnimatedSprite2D" parent="." unique_id=829577415]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_e2gbo")
+position = Vector2(-96, 80)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="LowerRiver5" type="AnimatedSprite2D" parent="." unique_id=777659927]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_f4sb6")
+position = Vector2(-128, 96)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="LowerRiver6" type="AnimatedSprite2D" parent="." unique_id=495915178]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_0lk5j")
+position = Vector2(-160, 112)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="LowerRiver7" type="AnimatedSprite2D" parent="." unique_id=1985562030]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_4g22q")
+position = Vector2(-192, 128)
+sprite_frames = ExtResource("10_404l4")
+animation = &"flow"
+centered = false
+
+[node name="Waterfall" type="AnimatedSprite2D" parent="." unique_id=54558789]
+z_index = 3
+texture_filter = 1
+position = Vector2(-96, 0)
+sprite_frames = ExtResource("11_48s4v")
+animation = &"north_south.narrow"
+centered = false
+
+[node name="WaterClock" type="AnimationPlayer" parent="." unique_id=2071786225]
+libraries/ = SubResource("AnimationLibrary_eqti4")
+autoplay = &"flow"
+
+[node name="Lake_-1_8" type="AnimatedSprite2D" parent="." unique_id=775317495]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_wv1rd")
+position = Vector2(-288, 112)
+sprite_frames = ExtResource("12_y12mo")
+animation = &"lake"
+centered = false
+
+[node name="Lake_0_8" type="AnimatedSprite2D" parent="." unique_id=1577078743]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_dw3cs")
+position = Vector2(-256, 128)
+sprite_frames = ExtResource("13_l18wo")
+animation = &"lake"
+centered = false
+
+[node name="Lake_1_8" type="AnimatedSprite2D" parent="." unique_id=1331489467]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_23ye5")
+position = Vector2(-224, 144)
+sprite_frames = ExtResource("14_uwtet")
+animation = &"lake"
+centered = false
+
+[node name="Lake_2_8" type="AnimatedSprite2D" parent="." unique_id=556577918]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_iwhnp")
+position = Vector2(-192, 160)
+sprite_frames = ExtResource("13_l18wo")
+animation = &"lake"
+centered = false
+
+[node name="Lake_3_8" type="AnimatedSprite2D" parent="." unique_id=1153265741]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_uix4b")
+position = Vector2(-160, 176)
+sprite_frames = ExtResource("15_1l25b")
+animation = &"lake"
+centered = false
+
+[node name="Lake_-1_9" type="AnimatedSprite2D" parent="." unique_id=488666418]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_l553f")
+position = Vector2(-320, 128)
+sprite_frames = ExtResource("16_rhmfp")
+animation = &"lake"
+centered = false
+
+[node name="Lake_0_9" type="AnimatedSprite2D" parent="." unique_id=110343181]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_b68b8")
+position = Vector2(-288, 144)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_1_9" type="AnimatedSprite2D" parent="." unique_id=1755209713]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_fhjf8")
+position = Vector2(-256, 160)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_2_9" type="AnimatedSprite2D" parent="." unique_id=254713882]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_bgo3b")
+position = Vector2(-224, 176)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_3_9" type="AnimatedSprite2D" parent="." unique_id=85251246]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_hfjpf")
+position = Vector2(-192, 192)
+sprite_frames = ExtResource("18_8lh7e")
+animation = &"lake"
+centered = false
+
+[node name="Lake_-1_10" type="AnimatedSprite2D" parent="." unique_id=2039070059]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_edf6r")
+position = Vector2(-352, 144)
+sprite_frames = ExtResource("16_rhmfp")
+animation = &"lake"
+centered = false
+
+[node name="Lake_0_10" type="AnimatedSprite2D" parent="." unique_id=492403229]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_o7eyq")
+position = Vector2(-320, 160)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_1_10" type="AnimatedSprite2D" parent="." unique_id=356078773]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_qx4vl")
+position = Vector2(-288, 176)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_2_10" type="AnimatedSprite2D" parent="." unique_id=1432873610]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_tk61g")
+position = Vector2(-256, 192)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_3_10" type="AnimatedSprite2D" parent="." unique_id=1659646968]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_tf2f2")
+position = Vector2(-224, 208)
+sprite_frames = ExtResource("18_8lh7e")
+animation = &"lake"
+centered = false
+
+[node name="Lake_-1_11" type="AnimatedSprite2D" parent="." unique_id=1437210513]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_soteg")
+position = Vector2(-384, 160)
+sprite_frames = ExtResource("16_rhmfp")
+animation = &"lake"
+centered = false
+
+[node name="Lake_0_11" type="AnimatedSprite2D" parent="." unique_id=1796323192]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_lgulv")
+position = Vector2(-352, 176)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_1_11" type="AnimatedSprite2D" parent="." unique_id=1317218942]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_pd2cd")
+position = Vector2(-320, 192)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_2_11" type="AnimatedSprite2D" parent="." unique_id=667442297]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_7fidp")
+position = Vector2(-288, 208)
+sprite_frames = ExtResource("17_40b7f")
+animation = &"lake"
+centered = false
+
+[node name="Lake_3_11" type="AnimatedSprite2D" parent="." unique_id=1598071914]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_2w1ud")
+position = Vector2(-256, 224)
+sprite_frames = ExtResource("18_8lh7e")
+animation = &"lake"
+centered = false
+
+[node name="Lake_-1_12" type="AnimatedSprite2D" parent="." unique_id=1276260727]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_bdeey")
+position = Vector2(-416, 176)
+sprite_frames = ExtResource("19_0y7cy")
+animation = &"lake"
+centered = false
+
+[node name="Lake_0_12" type="AnimatedSprite2D" parent="." unique_id=1484109133]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_e6hlb")
+position = Vector2(-384, 192)
+sprite_frames = ExtResource("20_kmhnl")
+animation = &"lake"
+centered = false
+
+[node name="Lake_1_12" type="AnimatedSprite2D" parent="." unique_id=44461049]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_pfvof")
+position = Vector2(-352, 208)
+sprite_frames = ExtResource("20_kmhnl")
+animation = &"lake"
+centered = false
+
+[node name="Lake_2_12" type="AnimatedSprite2D" parent="." unique_id=1803093663]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_b16of")
+position = Vector2(-320, 224)
+sprite_frames = ExtResource("20_kmhnl")
+animation = &"lake"
+centered = false
+
+[node name="Lake_3_12" type="AnimatedSprite2D" parent="." unique_id=559135538]
+z_index = 2
+texture_filter = 1
+material = SubResource("ShaderMaterial_mb4gq")
+position = Vector2(-288, 240)
+sprite_frames = ExtResource("21_43bcn")
+animation = &"lake"
+centered = false

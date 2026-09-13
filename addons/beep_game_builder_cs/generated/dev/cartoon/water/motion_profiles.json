@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "shared": ["palette", "tile_grid", "bank_connections", "stable_terrain"],
+  "profiles": {
+    "lake": {"status":"candidate", "motion":"Small staggered ripples, stationary base, no bulk current", "shore":"Quiet bank, no breaking surf", "implementation":"tools/terrain-library/water-motion.mjs:lakeFrame"},
+    "river": {"status":"single_cell_candidate", "motion":"Advected local highlights following channel direction and bends", "shore":"Bank stays fixed", "candidate":"river_staging/manifest.json", "implemented":["four_straight_directions", "eight_directed_bends", "matching_endpoint_phase"], "requires":["wide_channels", "junctions", "obstacle_wakes", "waterfall_connectors", "visual_approval"]},
+    "waterfall": {"status":"existing_separate_reference", "motion":"Downward curtain, animated impact foam, droplets and outward pool ripples", "source":"addons/beep_game_builder_cs/generated/environment_style_sheets/waterways_v1/fixed_source_animation", "changedByLakeRevision":false},
+    "sea": {"status":"planned", "motion":"Broad travelling wave fronts and swells", "shore":"Breaking surf, foam advance and retreat", "requires":["wave_direction", "coast_normal", "surf_transition_tiles"]}
+  },
+  "rule":"Shared tile topology does not imply interchangeable motion. Never publish lake frames as river, waterfall or sea animation."
+}

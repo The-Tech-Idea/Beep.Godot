@@ -1,0 +1,18 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainConnectorProfile.gd" id="1_iri8p"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_staging/godot/river_current.tres" id="2_4ou2v"]
+
+[resource]
+script = ExtResource("1_iri8p")
+stable_id = "cartoon.square.river.south_west.inlet.v1"
+direction = 2
+opening_width_pixels = 42.120000000000005
+flow_role = 1
+motion_role = 2
+bank_profile = "river_current_v1"
+frame_count = 16
+period_seconds = 1.2
+phase_group = "river_current_v1"
+tiles = ExtResource("2_4ou2v")
+atlas_coords = Vector2i(1, 2)

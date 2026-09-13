@@ -1,6 +1,12 @@
 # FIX-12 — Ports transfer remainder: an unload-only giver silently loses the un-accepted cargo
 
-**Type:** fix · **Area:** `GridPorts.Transfer`, `IUnloadPort`, `ILoadPort`, `GridTransportChainComponent`, `GridHaulerComponent` · **Status:** **PROPOSED 2026-09-11** · **Effort:** XS (¼ day) · **Risk:** low
+**Type:** fix · **Area:** `GridPorts.Transfer`, `IUnloadPort`, `ILoadPort`, `GridTransportChainComponent`, `GridHaulerComponent` · **Status:** **IMPLEMENTED 2026-09-11** · **Effort:** XS (¼ day) · **Risk:** low
+
+## Outcome (2026-09-11)
+
+`GridPorts.Transfer` now reads `FreeSpace(to)` before unloading and caps the draw to it (`want = Mathf.Min(amount, room)`), returns whatever remainder the receiver declines, and reports a shortfall it could not return through `GD.PushWarning` rather than dropping it; the class doc now states that guarantee accurately instead of promising an unconditional remainder return. New probe `tests/grid_ports_transfer_probe.gd` (registered in `run_actor_checks.ps1`) drives both cases through the real consumer, `GridTransportChainComponent`: an `IUnloadPort`-shaped source holding 10 into a capacity-4 sink conserves 10 (giver 6 / sink 4), and a sink that under-takes its own reported room returns the remainder to a giver that can re-accept it (giver 8 / sink 2). Mutation-proven: the old body reports `unload-only giver lost cargo: giver 0 + sink 4 != 10`, the 6 units the plan predicted. Build clean (0 warnings); `grid_resource_catalog_ports_probe`, `storage_material_reservations_probe` and `terrain_haul_demand_probe` stay green — no regression in the shared hand-off.
+
+The plan asked to extend `tests/grid_resource_catalog_ports_probe.gd`; a dedicated probe was used instead, because that file's subject is resource-catalog acceptance on storage and hauler, while the conservation guard needs a transport chain rather than the duck-typed acceptance ports. The `Transfer` return type was left as `int` (the plan's own preference): a warning on the unrecoverable path is enough, and neither `MoveLink` nor `TryDeliverCargo` changed.
 
 ## Finding
 

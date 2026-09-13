@@ -191,6 +191,14 @@ namespace Beep.ECS
                 objective.Completed = ReadBool(data, "completed", objective.Completed);
                 if (objective.Completed)
                     objective.Progress = target;
+
+                // Restore re-writes state that signal-driven consumers (the HUD panel) read only
+                // through these signals; emit per objective so a loaded save reaches them, exactly
+                // as GridCalendarComponent.RestoreState re-emits DayAdvanced for the calendar HUD.
+                EmitSignal(SignalName.ObjectiveProgressChanged, objective.ObjectiveId, objective.Progress, target);
+                EmitSignal(SignalName.ObjectiveActivated, objective.ObjectiveId, objective.Active);
+                if (objective.Completed)
+                    EmitSignal(SignalName.ObjectiveCompleted, objective.ObjectiveId);
             }
         }
 

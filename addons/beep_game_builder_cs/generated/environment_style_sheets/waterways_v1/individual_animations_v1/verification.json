@@ -1,0 +1,151 @@
+{
+  "stats": [
+    {
+      "id": "wide_curtain",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 22327,
+      "regions": {
+        "surfaces": [
+          1147
+        ],
+        "falls": [
+          14318
+        ],
+        "splashes": [
+          9132
+        ]
+      }
+    },
+    {
+      "id": "twin_falls",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 12960,
+      "regions": {
+        "surfaces": [
+          396
+        ],
+        "falls": [
+          3871,
+          3725
+        ],
+        "splashes": [
+          2150,
+          2128
+        ]
+      }
+    },
+    {
+      "id": "low_stepped_cascade",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 23112,
+      "regions": {
+        "surfaces": [
+          1370
+        ],
+        "falls": [
+          6026,
+          11093
+        ],
+        "splashes": [
+          2453,
+          5268
+        ]
+      }
+    },
+    {
+      "id": "small_drop",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 7599,
+      "regions": {
+        "surfaces": [
+          650
+        ],
+        "falls": [
+          3442
+        ],
+        "splashes": [
+          1823
+        ]
+      }
+    },
+    {
+      "id": "two_tier",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 19927,
+      "regions": {
+        "surfaces": [
+          668,
+          2767
+        ],
+        "falls": [
+          4218,
+          7772
+        ],
+        "splashes": [
+          1769,
+          3822
+        ]
+      }
+    },
+    {
+      "id": "rocky_rapids",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 16110,
+      "regions": {
+        "surfaces": [
+          8505
+        ],
+        "falls": [
+          2156,
+          3157,
+          4241
+        ],
+        "splashes": [
+          786,
+          1025,
+          3191
+        ]
+      }
+    },
+    {
+      "id": "plunge_pool",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 5792,
+      "regions": {
+        "surfaces": [
+          4190
+        ],
+        "falls": [
+          1403
+        ],
+        "splashes": [
+          623
+        ]
+      }
+    },
+    {
+      "id": "rocky_lakeshore",
+      "staticChanges": 0,
+      "loopDifference": 0,
+      "changedPixels": 8107,
+      "regions": {
+        "surfaces": [
+          7981
+        ],
+        "falls": [],
+        "splashes": []
+      }
+    }
+  ],
+  "before": "Frame 1 / 16",
+  "after": "Frame 5 / 16",
+  "errors": [],
+  "overflow": false
+}

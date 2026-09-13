@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel.elevation.v1",
+  "style": "pixel",
+  "pack": "elevation",
+  "status": "planned",
+  "gameCell": 64,
+  "masterCell": 32,
+  "assets": [],
+  "approval": null
+}

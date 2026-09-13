@@ -51,6 +51,12 @@ namespace Beep.ECS
         /// <summary>
         /// How hard running water cuts the land, 0 to 4. Zero leaves the height
         /// field exactly as the noise made it.
+        ///
+        /// The two halves of the erosion stage respond differently across the
+        /// range: stream-power incision keeps growing with the dial, while the
+        /// hillslope smoothing saturates at its maximum stable rate - its
+        /// coefficient is bounded at 1, because past that point the pass would
+        /// amplify high-frequency speckle instead of smoothing it.
         /// </summary>
         [Export(PropertyHint.Range, "0,4,0.05")] public float ErosionStrength { get; set; } = 1.0f;
 

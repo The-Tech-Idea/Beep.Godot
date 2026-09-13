@@ -56,7 +56,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainResourceRendererComponent : TerrainRendererComponent
+    public partial class TerrainResourceRendererComponent : TerrainRendererComponent, ISerializationListener
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         /// <summary>Optional subtree of live resource nodes; empty shows generated resources.</summary>
@@ -171,6 +171,26 @@ namespace Beep.ECS
             if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
             _grid = null;
             ClearRebuildQueued();
+        }
+
+        // Release the plain managed helper's signal targets before Godot unloads
+        // this assembly; scene exit alone does not cover editor hot reload.
+        public void OnBeforeSerialize()
+        {
+            _liveResources?.Dispose();
+            _liveResources = null;
+            if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
+            _grid = null;
+            ClearRebuildQueued();
+        }
+
+        public void OnAfterDeserialize() => CallDeferred(nameof(RestoreResourceView));
+
+        private void RestoreResourceView()
+        {
+            if (!IsInsideTree()) return;
+            ResolveGenerator();
+            QueueRebuild();
         }
 
         public override void _EnterTree()

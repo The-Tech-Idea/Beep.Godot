@@ -14,7 +14,7 @@ namespace Beep.ECS
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class TerrainMapOverlayComponent : TerrainRendererComponent
+    public partial class TerrainMapOverlayComponent : TerrainRendererComponent, ISerializationListener
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
@@ -96,6 +96,25 @@ namespace Beep.ECS
             DisconnectSources();
             _liveResources?.Dispose();
             ClearRebuildQueued();
+        }
+
+        // The helper is a managed object, not a GodotObject whose signal target can
+        // be restored by the engine. _ExitTree is not called on assembly reload.
+        public void OnBeforeSerialize()
+        {
+            DisconnectSources();
+            _liveResources?.Dispose();
+            _liveResources = null;
+            ClearRebuildQueued();
+        }
+
+        public void OnAfterDeserialize() => CallDeferred(nameof(RestoreResourceView));
+
+        private void RestoreResourceView()
+        {
+            if (!IsInsideTree()) return;
+            ResolveSources();
+            QueueRebuild();
         }
 
         public override void _EnterTree()

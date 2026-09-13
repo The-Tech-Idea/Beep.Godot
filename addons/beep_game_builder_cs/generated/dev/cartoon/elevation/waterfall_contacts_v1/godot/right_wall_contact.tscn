@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/godot/right_wall_contact.res" id="1_si31y"]
+
+[node name="RightWallContact" type="Node2D" unique_id=752297368]
+metadata/status = "calibration_candidate"
+metadata/visual_rise_pixels = 64.0
+metadata/water_side = "left"
+metadata/source_sha256 = "33e524e19f89dbb2abd54abd95539c374367e03e2af5d4122e2bee920e4a439c"
+
+[node name="Artwork" type="Sprite2D" parent="." unique_id=1340729995]
+texture_filter = 2
+position = Vector2(-8, -16)
+texture = ExtResource("1_si31y")
+centered = false

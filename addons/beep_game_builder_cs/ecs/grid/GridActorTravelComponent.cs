@@ -15,6 +15,13 @@ public partial class GridActorTravelComponent : Node, ISaveable
     [Export] public NodePath WorkClockPath { get; set; } = new("");
     [Export] public string SaveKey { get; set; } = "actor_travel";
     [Signal] public delegate void TravelFinishedEventHandler(string actorId, bool arrived, string reason);
+
+    /// <summary>
+    /// Raised by <see cref="Load"/> when a saved travel state was rejected outright, so a HUD or
+    /// campaign layer can surface it. A rejected restore drops every saved traveller (the live
+    /// routes are deliberately left untouched); reporting it is what keeps that from being silent.
+    /// </summary>
+    [Signal] public delegate void TravelRestoreFailedEventHandler(int savedCount);
     public int TravellerCount => _routes.Count;
     public bool IsTravelling(string actorId) => _routes.ContainsKey(actorId);
     internal bool MatchesRoute(string actorId, Vector2I goal, float speed) =>
@@ -204,8 +211,21 @@ public partial class GridActorTravelComponent : Node, ISaveable
     }
 
     public void Save(GameBuilder.GameStateData state) { if (SaveKey.Length > 0) state.GameData[SaveKey] = CaptureState(); }
+
     public void Load(GameBuilder.GameStateData state)
     {
-        if (state.GameData.TryGetValue(SaveKey, out var saved) && GridVariantReader.TryDictionary(saved, out var data)) RestoreState(data);
+        if (!state.GameData.TryGetValue(SaveKey, out var saved) || !GridVariantReader.TryDictionary(saved, out var data))
+            return;
+
+        if (RestoreState(data))
+            return;
+
+        // Failing safe (the live routes are left untouched) is correct; failing silently is not.
+        // A rejected restore drops every saved traveller, so surface it rather than returning as
+        // if the load had succeeded - the caller has no other way to tell.
+        int savedCount = data.Count;
+        GD.PushWarning($"[{Name}] actor travel restore rejected: {savedCount} saved route(s) under '{SaveKey}' could not be restored; live routes left untouched.");
+        if (GodotObject.IsInstanceValid(this) && IsInsideTree())
+            EmitSignal(SignalName.TravelRestoreFailed, savedCount);
     }
 }

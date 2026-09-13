@@ -1,0 +1,94 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "scene": "tiers_2.tscn",
+      "tiers": [
+        {
+          "baseElevationPixels": 0,
+          "cell": [
+            0,
+            0
+          ],
+          "dimensions": [
+            5,
+            3
+          ],
+          "node": "Tier0",
+          "topElevationPixels": 64
+        },
+        {
+          "baseElevationPixels": 64,
+          "cell": [
+            1,
+            0
+          ],
+          "dimensions": [
+            3,
+            2
+          ],
+          "node": "Tier1",
+          "topElevationPixels": 128
+        }
+      ]
+    },
+    {
+      "scene": "tiers_3.tscn",
+      "tiers": [
+        {
+          "baseElevationPixels": 0,
+          "cell": [
+            0,
+            0
+          ],
+          "dimensions": [
+            5,
+            3
+          ],
+          "node": "Tier0",
+          "topElevationPixels": 64
+        },
+        {
+          "baseElevationPixels": 64,
+          "cell": [
+            1,
+            0
+          ],
+          "dimensions": [
+            3,
+            2
+          ],
+          "node": "Tier1",
+          "topElevationPixels": 128
+        },
+        {
+          "baseElevationPixels": 128,
+          "cell": [
+            2,
+            0
+          ],
+          "dimensions": [
+            1,
+            1
+          ],
+          "node": "Tier2",
+          "topElevationPixels": 192
+        }
+      ]
+    }
+  ],
+  "pending": [
+    "Visual approval",
+    "Wall variation",
+    "Concave tiers",
+    "Bottom contacts",
+    "Navigation authored separately"
+  ],
+  "productionReady": false,
+  "projection": "isometric",
+  "risePerTierPixels": 64,
+  "schemaVersion": 1,
+  "sourceManifest": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_plateaus_v1/manifest.json",
+  "status": "candidate",
+  "style": "cartoon"
+}

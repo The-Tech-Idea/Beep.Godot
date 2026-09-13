@@ -1,0 +1,399 @@
+{
+  "approvalEvidence": null,
+  "construction": "low_bank_repeatable_middle_high_bank",
+  "depthSupported": true,
+  "frames": 16.0,
+  "godotScenes": [
+    "square/widths_north_inlet.tscn",
+    "square/widths_north_outlet.tscn",
+    "square/widths_east_inlet.tscn",
+    "square/widths_east_outlet.tscn",
+    "square/widths_south_inlet.tscn",
+    "square/widths_south_outlet.tscn",
+    "square/widths_west_inlet.tscn",
+    "square/widths_west_outlet.tscn",
+    "isometric/widths_north_inlet.tscn",
+    "isometric/widths_north_outlet.tscn",
+    "isometric/widths_east_inlet.tscn",
+    "isometric/widths_east_outlet.tscn",
+    "isometric/widths_south_inlet.tscn",
+    "isometric/widths_south_outlet.tscn",
+    "isometric/widths_west_inlet.tscn",
+    "isometric/widths_west_outlet.tscn"
+  ],
+  "lakeFrames": "addons/beep_game_builder_cs/generated/dev/cartoon/water/lake_banks_v1/lake_surface_frames.png",
+  "lakeFramesSha256": "afe7ac285c7197c493ee41c57340a4290c93eca0e07a26c24b003ca38ac23f1b",
+  "patternsPerProjection": 32,
+  "pending": [
+    "visual_approval",
+    "sand_rock_banks",
+    "large_map_cost",
+    "production_integration"
+  ],
+  "periodSeconds": 1.2,
+  "profiles": [
+    {
+      "atlas": [
+        0.0,
+        0.0
+      ],
+      "id": "north_inlet.low_bank",
+      "incoming": "north_south",
+      "kind": "low_bank",
+      "mask": 127.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        0.0
+      ],
+      "id": "north_inlet.middle",
+      "incoming": "north_south",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        0.0
+      ],
+      "id": "north_inlet.high_bank",
+      "incoming": "north_south",
+      "kind": "high_bank",
+      "mask": 239.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        1.0
+      ],
+      "id": "north_outlet.low_bank",
+      "incoming": "north_south",
+      "kind": "low_bank",
+      "mask": 127.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        1.0
+      ],
+      "id": "north_outlet.middle",
+      "incoming": "north_south",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        1.0
+      ],
+      "id": "north_outlet.high_bank",
+      "incoming": "north_south",
+      "kind": "high_bank",
+      "mask": 239.0,
+      "outgoing": "south_north",
+      "port": "north",
+      "profileId": "north_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        2.0
+      ],
+      "id": "east_inlet.low_bank",
+      "incoming": "east_west",
+      "kind": "low_bank",
+      "mask": 239.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        2.0
+      ],
+      "id": "east_inlet.middle",
+      "incoming": "east_west",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        2.0
+      ],
+      "id": "east_inlet.high_bank",
+      "incoming": "east_west",
+      "kind": "high_bank",
+      "mask": 223.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        3.0
+      ],
+      "id": "east_outlet.low_bank",
+      "incoming": "east_west",
+      "kind": "low_bank",
+      "mask": 239.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        3.0
+      ],
+      "id": "east_outlet.middle",
+      "incoming": "east_west",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        3.0
+      ],
+      "id": "east_outlet.high_bank",
+      "incoming": "east_west",
+      "kind": "high_bank",
+      "mask": 223.0,
+      "outgoing": "west_east",
+      "port": "east",
+      "profileId": "east_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        4.0
+      ],
+      "id": "south_inlet.low_bank",
+      "incoming": "south_north",
+      "kind": "low_bank",
+      "mask": 191.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        4.0
+      ],
+      "id": "south_inlet.middle",
+      "incoming": "south_north",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        4.0
+      ],
+      "id": "south_inlet.high_bank",
+      "incoming": "south_north",
+      "kind": "high_bank",
+      "mask": 223.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        5.0
+      ],
+      "id": "south_outlet.low_bank",
+      "incoming": "south_north",
+      "kind": "low_bank",
+      "mask": 191.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        5.0
+      ],
+      "id": "south_outlet.middle",
+      "incoming": "south_north",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        5.0
+      ],
+      "id": "south_outlet.high_bank",
+      "incoming": "south_north",
+      "kind": "high_bank",
+      "mask": 223.0,
+      "outgoing": "north_south",
+      "port": "south",
+      "profileId": "south_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        6.0
+      ],
+      "id": "west_inlet.low_bank",
+      "incoming": "west_east",
+      "kind": "low_bank",
+      "mask": 127.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        6.0
+      ],
+      "id": "west_inlet.middle",
+      "incoming": "west_east",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        6.0
+      ],
+      "id": "west_inlet.high_bank",
+      "incoming": "west_east",
+      "kind": "high_bank",
+      "mask": 191.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_inlet",
+      "role": "inlet"
+    },
+    {
+      "atlas": [
+        0.0,
+        7.0
+      ],
+      "id": "west_outlet.low_bank",
+      "incoming": "west_east",
+      "kind": "low_bank",
+      "mask": 127.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        1.0,
+        7.0
+      ],
+      "id": "west_outlet.middle",
+      "incoming": "west_east",
+      "kind": "middle",
+      "mask": 255.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_outlet",
+      "role": "outlet"
+    },
+    {
+      "atlas": [
+        2.0,
+        7.0
+      ],
+      "id": "west_outlet.high_bank",
+      "incoming": "west_east",
+      "kind": "high_bank",
+      "mask": 191.0,
+      "outgoing": "east_west",
+      "port": "west",
+      "profileId": "west_outlet",
+      "role": "outlet"
+    }
+  ],
+  "projections": [
+    "square",
+    "isometric"
+  ],
+  "reviewWidthsCells": [
+    1.0,
+    2.0,
+    3.0,
+    5.0
+  ],
+  "schemaVersion": 1.0,
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "verification": [
+    {
+      "lakePixelsCompared": 1376256.0,
+      "mismatches": 0.0,
+      "projection": "square"
+    },
+    {
+      "lakePixelsCompared": 344064.0,
+      "mismatches": 0.0,
+      "projection": "isometric"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Date: 2026-09-05. Status: review complete; economy fixes and initial session coordination implemented; broader backlog open.
 
+Follow-up review, 2026-09-11: the [scene and TileMapLayer delivery plan](game-builder/IMPLEMENTATION_PLAN.md) rechecks the lifecycle against current source and incorporates the owner's requirement for reusable native TileMapLayer map output. Its BGB-02/05/07/08 work packages integrate the remaining recipe, transition, identity and persistence requirements here. Read the implementation log before treating the original findings below as current defects; the new plan does not undo completed session/snapshot fixes or close remaining items by documentation alone.
+
 This began as a review of the current working tree, not a claim that all addon features were audited
 or that the campaign plan is implemented. The implementation log below records subsequent fixes.
 The original runtime reproductions are retained in `tests/workflow_review_probe.gd`.

@@ -44,6 +44,27 @@ public partial class GridJobQueueSmoke : Node
         queue.QueueChanged -= OnQueueChanged;
         queue.Free();
 
+        // --- Queued-index exit on a direct Queued -> Completed (FIX-08) ---
+        // CompleteJob is a public force-complete, and a job that never left Queued still has an
+        // entry in the queued spatial index. Every other Queued exit removes it; if this one does
+        // not, the id is orphaned in a bucket whose GridJob is gone and every outward claim walk
+        // keeps revisiting that dead chunk.
+        var direct = new GridJobQueueComponent { Name = "DirectComplete" };
+        AddChild(direct);
+        string indexed = direct.AddJob(new Vector2I(6, 6), "clear");
+        if (direct.QueuedIndexEntryCount != 1)
+            return Fail($"A queued job should hold one spatial-index entry, got {direct.QueuedIndexEntryCount}");
+        if (!direct.CompleteJob(indexed))
+            return Fail("CompleteJob should accept a queued job on the public path");
+        if (direct.QueuedIndexEntryCount != 0)
+            return Fail($"CompleteJob left {direct.QueuedIndexEntryCount} queued-index entries behind");
+        if (direct.HasJob(indexed))
+            return Fail("CompleteJob should drop the job from _jobs when RemoveCompletedJobs is on");
+        string next = direct.AddJob(new Vector2I(0, 0), "clear");
+        if (direct.ClaimNextJob("w", new Vector2I(64, 64)) != next)
+            return Fail("Claiming after a direct complete did not find the remaining queued job");
+        direct.Free();
+
         // --- Count-cache correctness (ENH-12) ---
         // QueuedCount/ClaimedCount/CompletedCount are cached and recomputed on mutation; a missed
         // invalidation would return a stale count. Walk the transitions and check the values.

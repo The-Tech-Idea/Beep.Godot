@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "style": "cartoon",
+  "projection": "square",
+  "material": "grass_granite",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_contact_v1/sources/contact_original_rgba.png",
+  "sourceSha256": "8a4591469904ec78495bdf6d8417bf1693836f30e2e1afe5136adef4cf6359b8",
+  "crop": {
+    "left": 21,
+    "top": 586,
+    "width": 1179,
+    "height": 125
+  },
+  "cropAlphaThreshold": 8,
+  "cropPaddingPixels": 3,
+  "masterSize": [
+    640,
+    80
+  ],
+  "runtimeSize": [
+    320,
+    40
+  ],
+  "uniformScale": 0.542832909245123,
+  "nominalContactY": 20,
+  "visualRiseContribution": 0,
+  "role": "separate_bottom_contact_overlay",
+  "greenSource": "sources/contact_master_green_640.png",
+  "alphaMaster": "sources/contact_master_rgba_640.png",
+  "runtime": "runtime/contact_320.png",
+  "provenance": "provenance.json",
+  "approvalEvidence": null,
+  "regions": [
+    {
+      "id": "contact_0",
+      "region": [
+        0,
+        0,
+        64,
+        40
+      ]
+    },
+    {
+      "id": "contact_1",
+      "region": [
+        64,
+        0,
+        64,
+        40
+      ]
+    },
+    {
+      "id": "contact_2",
+      "region": [
+        128,
+        0,
+        64,
+        40
+      ]
+    },
+    {
+      "id": "contact_3",
+      "region": [
+        192,
+        0,
+        64,
+        40
+      ]
+    },
+    {
+      "id": "contact_4",
+      "region": [
+        256,
+        0,
+        64,
+        40
+      ]
+    }
+  ],
+  "adjacency": "Original consecutive source regions only; arbitrary and outer joins remain unvalidated.",
+  "pending": [
+    "Visual approval",
+    "Outer repeat seam",
+    "Side/corner contacts",
+    "Isometric counterpart"
+  ],
+  "productionReady": false
+}

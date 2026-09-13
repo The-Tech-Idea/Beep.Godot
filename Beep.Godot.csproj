@@ -51,5 +51,7 @@
     <Compile Include="tests/GridJobQueueSmoke.cs" />
     <Compile Include="tests/TerrainKindCatalogSmoke.cs" />
     <Compile Include="tests/ResourceWalletKeySmoke.cs" />
+    <Compile Include="tests/TerrainTexturesLoadSmoke.cs" />
+    <Compile Include="tests/TerrainErosionDiffusionStabilitySmoke.cs" />
   </ItemGroup>
 </Project>

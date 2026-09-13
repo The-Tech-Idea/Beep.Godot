@@ -10,6 +10,7 @@ public partial class TerrainWaterSurfaceSmoke : Node
         VerifyScratchLifetime();
         VerifyFeatureRanking();
         VerifyErosionParity();
+        _ = VerifyLiveWaterReconstructionParity();
         VerifyCompactCellMetadata();
         VerifyCellChunks();
         VerifyChunkSnapshots();
@@ -181,6 +182,43 @@ public partial class TerrainWaterSurfaceSmoke : Node
         copy.Free();
     }
 
+    /// <summary>
+    /// DUP-15: the snapshot sampler and the live query must reconstruct water identically.
+    ///
+    /// This uses a hand-authored map with NO water patches, so the half-cell bilinear path - not
+    /// the patch branch - is the one under test. A generated fixture cannot do this: every
+    /// generated cell carries a patch, so the two entry points agree through the patch branch
+    /// whatever the bilinear geometry does.
+    /// </summary>
+    private bool VerifyLiveWaterReconstructionParity()
+    {
+        var host = new Node { Name = "LiveWaterParityHost" };
+        AddChild(host);
+        var cells = new GridCellDataComponent { Name = "Cells" };
+        host.AddChild(cells);
+        var origin = Vector2I.Zero;
+        var size = new Vector2I(24, 24);
+        for (int y = 0; y < size.Y; y++)
+        for (int x = 0; x < size.X; x++)
+        {
+            bool water = x == 12 || y == 6;   // a one-cell-wide cross of water, no patches
+            cells.SetTerrainKind(new Vector2I(x, y), water ? "deep_water" : "grass");
+        }
+
+        var sampled = TerrainCoastField.CreateLiveWaterSampler(cells, origin, size);
+        var live = TerrainCoastField.CreateLiveWaterQuery(cells, origin, size);
+        int disagreements = 0;
+        for (float sy = 0f; sy <= size.Y; sy += 0.25f)
+        for (float sx = 0f; sx <= size.X; sx += 0.25f)
+        {
+            var at = new Vector2(sx, sy);
+            if (sampled(at) != live(at)) disagreements++;
+        }
+        Check(disagreements == 0, $"{disagreements} positions differ between the snapshot sampler and the live query");
+        host.Free();
+        return disagreements == 0;
+    }
+
     private static void VerifyErosionParity()
     {
         foreach (int seed in new[] { 7, 31415, 42 })
@@ -216,6 +254,10 @@ public partial class TerrainWaterSurfaceSmoke : Node
         Array.Sort(sorted);
         float typical = Mathf.Max(1f, sorted[count / 2]);
         float dial = Mathf.Clamp(strength, 0f, 4f);
+        // FIX-01: the production Diffuse bounds its coefficient at 1, because the weighted-average
+        // form is unstable above it and 0.35 * dial reaches 1.4 at ErosionStrength 4. The oracle
+        // must encode the same intended formula, or the parity test is asserting the bug.
+        float diffusion = Mathf.Min(0.35f * dial, 1f);
         var settled = new float[world.Count];
         for (int pass = 0; pass < 12; pass++)
         {
@@ -247,7 +289,7 @@ public partial class TerrainWaterSurfaceSmoke : Node
                     neighbors++;
                 }
                 settled[index] = neighbors == 0 ? world.Elevation[index] : world.Elevation[index]
-                    + (0.35f * dial * ((total / neighbors) - world.Elevation[index]));
+                    + (diffusion * ((total / neighbors) - world.Elevation[index]));
             }
             for (int i = 0; i < count; i++) world.Elevation[order[i]] = Mathf.Clamp(settled[order[i]], 0f, 1f);
         }
@@ -446,6 +488,18 @@ public partial class TerrainWaterSurfaceSmoke : Node
             Check(new Rect2(Vector2.Zero, (Vector2)size).HasPoint(local) && !waterAt(local),
                 $"Jittered feature anchor submerged at {local}");
         }
+
+        // DUP-15: the snapshot sampler and the live query share one reconstruction, so they must
+        // agree at every position - the same coastline has to place props the same way whatever the
+        // map size. Sweep cell centres, half-cell boundaries and patch interiors at a quarter-cell step.
+        int disagreements = 0;
+        for (float sy = 0f; sy <= size.Y; sy += 0.25f)
+        for (float sx = 0f; sx <= size.X; sx += 0.25f)
+        {
+            var probe = new Vector2(sx, sy);
+            if (waterAt(probe) != liveWaterAt(probe)) disagreements++;
+        }
+        Check(disagreements == 0, $"{disagreements} positions differ between the live sampler and the live query");
 
         foreach (int detail in new[] { 4, 8 })
         {

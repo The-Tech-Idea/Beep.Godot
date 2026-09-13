@@ -1,0 +1,176 @@
+[gd_scene format=4]
+
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_plateaus_v1/plateau_5x3.tscn" id="1_c0yfd"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_masked_art_surface.gdshader" id="2_bvor8"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/plateau_mask.res" id="3_hnat2"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="4_logaa"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_iso_corner_v1/runtime/corner.tres" id="5_6cjbv"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="6_gg4qs"]
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_mask_surface_cartoon.gdshader" id="7_q548r"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/dirt_256.res" id="8_3rglf"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/isometric/surface_candidate_v1/grass_dirt_masks.tres" id="9_jlqlf"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_plateaus_v1/plateau_3x2.tscn" id="10_488he"]
+[ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_plateaus_v1/plateau_1x1.tscn" id="11_etrx8"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_66eqy"]
+shader = ExtResource("2_bvor8")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/surface_mask = ExtResource("3_hnat2")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4xcq4"]
+shader = ExtResource("7_q548r")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("8_3rglf")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pxop8"]
+shader = ExtResource("2_bvor8")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/surface_mask = ExtResource("3_hnat2")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_a7miy"]
+shader = ExtResource("7_q548r")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("8_3rglf")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_a6bq2"]
+shader = ExtResource("2_bvor8")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/surface_mask = ExtResource("3_hnat2")
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nrqx1"]
+shader = ExtResource("7_q548r")
+shader_parameter/surface_enabled = true
+shader_parameter/surface_texture = ExtResource("4_logaa")
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("8_3rglf")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = Vector2(0.00390625, 0.0078125)
+shader_parameter/surface_v = Vector2(-0.00390625, 0.0078125)
+
+[node name="IsometricTieredPlateau" type="Node2D" unique_id=1256019923]
+
+[node name="Tier0" parent="." unique_id=250244186 instance=ExtResource("1_c0yfd")]
+metadata/production_ready = false
+metadata/rise_pixels = 64
+metadata/dimensions_cells = Vector2i(5, 3)
+metadata/missing_artwork = "Wall variations, concave faces, exposed ends and bottom overlays"
+metadata/base_elevation_pixels = 0
+
+[node name="CliffWalls" parent="Tier0" index="0" unique_id=2070149576]
+y_sort_enabled = true
+texture_filter = 1
+material = SubResource("ShaderMaterial_66eqy")
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAABAAEAAAAAAAAAAAACAAEAAAAAAAAAAAADAAEAAAAAAAAAAAAEAAEAAAAAAAAAAAAAAAIAAAAAAAAAAAABAAIAAAAAAAAAAAACAAIAAAAAAAAAAAADAAIAAAAAAAAAAAAEAAIAAAAAAAAAAAA=")
+tile_set = ExtResource("5_6cjbv")
+
+[node name="SurfacePlane" type="Node2D" parent="Tier0" unique_id=832999033]
+position = Vector2(0, -64)
+script = ExtResource("6_gg4qs")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../CliffWalls"), NodePath("../PlateauSurface")])
+
+[node name="PlateauSurface" parent="Tier0" index="2" unique_id=1628471588]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_4xcq4")
+position = Vector2(0, -64)
+tile_map_data = PackedByteArray("AAAAAAAAAAAGAAUAAAABAAAAAAAGAAUAAAACAAAAAAAGAAUAAAADAAAAAAAGAAUAAAAEAAAAAAAGAAUAAAAAAAEAAAAGAAUAAAABAAEAAAAGAAUAAAACAAEAAAAGAAUAAAADAAEAAAAGAAUAAAAEAAEAAAAGAAUAAAAAAAIAAAAGAAUAAAABAAIAAAAGAAUAAAACAAIAAAAGAAUAAAADAAIAAAAGAAUAAAAEAAIAAAAGAAUAAAA=")
+tile_set = ExtResource("9_jlqlf")
+
+[node name="Tier1" parent="." unique_id=167021313 instance=ExtResource("10_488he")]
+z_index = 2
+position = Vector2(32, -48)
+metadata/production_ready = false
+metadata/rise_pixels = 64
+metadata/dimensions_cells = Vector2i(3, 2)
+metadata/missing_artwork = "Wall variations, concave faces, exposed ends and bottom overlays"
+metadata/base_elevation_pixels = 64
+
+[node name="CliffWalls" parent="Tier1" index="0" unique_id=2070149576]
+y_sort_enabled = true
+texture_filter = 1
+material = SubResource("ShaderMaterial_pxop8")
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAABAAEAAAAAAAAAAAACAAEAAAAAAAAAAAA=")
+tile_set = ExtResource("5_6cjbv")
+
+[node name="SurfacePlane" type="Node2D" parent="Tier1" unique_id=664685296]
+position = Vector2(-32, -80)
+script = ExtResource("6_gg4qs")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../CliffWalls"), NodePath("../PlateauSurface")])
+
+[node name="PlateauSurface" parent="Tier1" index="2" unique_id=1818096399]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_a7miy")
+position = Vector2(0, -64)
+tile_map_data = PackedByteArray("AAAAAAAAAAAGAAUAAAABAAAAAAAGAAUAAAACAAAAAAAGAAUAAAAAAAEAAAAGAAUAAAABAAEAAAAGAAUAAAACAAEAAAAGAAUAAAA=")
+tile_set = ExtResource("9_jlqlf")
+
+[node name="Tier2" parent="." unique_id=1546643762 instance=ExtResource("11_etrx8")]
+z_index = 4
+position = Vector2(64, -96)
+metadata/production_ready = false
+metadata/rise_pixels = 64
+metadata/dimensions_cells = Vector2i(1, 1)
+metadata/missing_artwork = "Wall variations, concave faces, exposed ends and bottom overlays"
+metadata/base_elevation_pixels = 128
+
+[node name="CliffWalls" parent="Tier2" index="0" unique_id=2070149576]
+y_sort_enabled = true
+texture_filter = 1
+material = SubResource("ShaderMaterial_a6bq2")
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAA=")
+tile_set = ExtResource("5_6cjbv")
+
+[node name="SurfacePlane" type="Node2D" parent="Tier2" unique_id=1684221756]
+position = Vector2(-64, -96)
+script = ExtResource("6_gg4qs")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../CliffWalls"), NodePath("../PlateauSurface")])
+
+[node name="PlateauSurface" parent="Tier2" index="2" unique_id=592631229]
+z_index = 1
+texture_filter = 1
+material = SubResource("ShaderMaterial_nrqx1")
+position = Vector2(0, -64)
+tile_map_data = PackedByteArray("AAAAAAAAAAAGAAUAAAA=")
+tile_set = ExtResource("9_jlqlf")
+
+[editable path="Tier0"]
+[editable path="Tier1"]
+[editable path="Tier2"]

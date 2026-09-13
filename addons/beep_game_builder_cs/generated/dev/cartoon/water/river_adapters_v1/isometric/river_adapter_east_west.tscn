@@ -1,0 +1,32 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://addons/beep_game_builder_cs/shaders/terrain_mask_surface_cartoon.gdshader" id="1_hepra"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/ground_masks/staging/runtime/surfaces_v1/grass_256.res" id="2_d62wb"]
+[ext_resource type="TileSet" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_adapters_v1/isometric/river_adapters.tres" id="3_kmkkl"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainSurfacePlane.gd" id="4_05t7e"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6ckbh"]
+shader = ExtResource("1_hepra")
+shader_parameter/surface_enabled = null
+shader_parameter/mask_color = null
+shader_parameter/secondary_enabled = true
+shader_parameter/secondary_texture = ExtResource("2_d62wb")
+shader_parameter/secondary_mask_color = null
+shader_parameter/mask_tolerance = null
+shader_parameter/surface_origin = null
+shader_parameter/surface_u = null
+shader_parameter/surface_v = null
+
+[node name="RiverWidthTransitionReview" type="Node2D" unique_id=309243276]
+
+[node name="Water" type="TileMapLayer" parent="." unique_id=1459446576]
+texture_filter = 1
+material = SubResource("ShaderMaterial_6ckbh")
+tile_map_data = PackedByteArray("AAAAAAAAAQAAAAAAAAABAAAAAQAAAAAAAAACAAAAAQAAAAAAAAADAAAAAQAAAAAAAAAEAAAAAQAAAAAAAAAFAAAAAQAAAAAAAAAGAAAAAQAAAAAAAAAHAAAAAQAAAAAAAAAIAAAAAQAAAAAAAAAJAAAAAQAAAAAAAAAKAAAAAQAAAAAAAAALAAAAAQAAAAAAAAAMAAAAAQAAAAAAAAANAAAAAQAAAAAAAAAOAAAAAQAAAAAAAAAPAAAAAQAAAAAAAAAQAAAAAQAAAAAAAAARAAAAAQAAAAAAAAASAAAA//////////8TAAAA//////////8AAAEAAgAAAAMAAAABAAEAAgAAAAMAAAACAAEAAAACAAYAAAADAAEAAAADAAYAAAAEAAEAAgABAAMAAAAFAAEAAgABAAMAAAAGAAEAAgABAAMAAAAHAAEAAgABAAMAAAAIAAEAAgABAAMAAAAJAAEAAgABAAMAAAAKAAEAAgABAAMAAAALAAEAAgABAAMAAAAMAAEAAgABAAMAAAANAAEAAgABAAMAAAAOAAEAAAAAAAYAAAAPAAEAAAABAAYAAAAQAAEAAgAAAAMAAAARAAEAAgAAAAMAAAASAAEA//////////8TAAEA//////////8AAAIAAQAAAAAAAAABAAIAAQAAAAAAAAACAAIAAAACAAcAAAADAAIAAAADAAcAAAAEAAIAAgADAAMAAAAFAAIAAgADAAMAAAAGAAIAAAAGAAYAAAAHAAIAAAAHAAYAAAAIAAIAAgACAAMAAAAJAAIAAgACAAMAAAAKAAIAAAAEAAYAAAALAAIAAAAFAAYAAAAMAAIAAgADAAMAAAANAAIAAgADAAMAAAAOAAIAAAAAAAcAAAAPAAIAAAABAAcAAAAQAAIAAQAAAAAAAAARAAIAAQAAAAAAAAASAAIA//////////8TAAIA//////////8AAAMAAQAAAAAAAAABAAMAAQAAAAAAAAACAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAAFAAMAAQAAAAAAAAAGAAMAAAAGAAcAAAAHAAMAAAAHAAcAAAAIAAMAAgADAAMAAAAJAAMAAgADAAMAAAAKAAMAAAAEAAcAAAALAAMAAAAFAAcAAAAMAAMAAQAAAAAAAAANAAMAAQAAAAAAAAAOAAMAAQAAAAAAAAAPAAMAAQAAAAAAAAAQAAMAAQAAAAAAAAARAAMAAQAAAAAAAAASAAMA//////////8TAAMA//////////8AAAQAAQAAAAAAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAFAAQAAQAAAAAAAAAGAAQAAQAAAAAAAAAHAAQAAQAAAAAAAAAIAAQAAQAAAAAAAAAJAAQAAQAAAAAAAAAKAAQAAQAAAAAAAAALAAQAAQAAAAAAAAAMAAQAAQAAAAAAAAANAAQAAQAAAAAAAAAOAAQAAQAAAAAAAAAPAAQAAQAAAAAAAAAQAAQAAQAAAAAAAAARAAQAAQAAAAAAAAASAAQA//////////8TAAQA//////////8AAAUAAQAAAAAAAAABAAUAAQAAAAAAAAACAAUAAQAAAAAAAAADAAUAAQAAAAAAAAAEAAUAAQAAAAAAAAAFAAUAAQAAAAAAAAAGAAUAAQAAAAAAAAAHAAUAAQAAAAAAAAAIAAUAAQAAAAAAAAAJAAUAAQAAAAAAAAAKAAUAAQAAAAAAAAALAAUAAQAAAAAAAAAMAAUAAQAAAAAAAAANAAUAAQAAAAAAAAAOAAUAAQAAAAAAAAAPAAUAAQAAAAAAAAAQAAUAAQAAAAAAAAARAAUAAQAAAAAAAAASAAUA//////////8TAAUA//////////8AAAYA//////////8BAAYA//////////8CAAYA//////////8DAAYA//////////8EAAYA//////////8FAAYA//////////8GAAYA//////////8HAAYA//////////8IAAYA//////////8JAAYA//////////8KAAYA//////////8LAAYA//////////8MAAYA//////////8NAAYA//////////8OAAYA//////////8PAAYA//////////8QAAYA//////////8RAAYA//////////8SAAYA//////////8TAAYA//////////8AAAcA//////////8BAAcA//////////8CAAcA//////////8DAAcA//////////8EAAcA//////////8FAAcA//////////8GAAcA//////////8HAAcA//////////8IAAcA//////////8JAAcA//////////8KAAcA//////////8LAAcA//////////8MAAcA//////////8NAAcA//////////8OAAcA//////////8PAAcA//////////8QAAcA//////////8RAAcA//////////8SAAcA//////////8TAAcA//////////8AAAgA//////////8BAAgA//////////8CAAgA//////////8DAAgA//////////8EAAgA//////////8FAAgA//////////8AAAkA//////////8BAAkA//////////8CAAkA//////////8DAAkA//////////8EAAkA//////////8FAAkA//////////8AAAoA//////////8BAAoA//////////8CAAoA//////////8DAAoA//////////8EAAoA//////////8FAAoA//////////8AAAsA//////////8BAAsA//////////8CAAsA//////////8DAAsA//////////8EAAsA//////////8FAAsA//////////8AAAwA//////////8BAAwA//////////8CAAwA//////////8DAAwA//////////8EAAwA//////////8FAAwA//////////8AAA0A//////////8BAA0A//////////8CAA0A//////////8DAA0A//////////8EAA0A//////////8FAA0A//////////8AAA4A//////////8BAA4A//////////8CAA4A//////////8DAA4A//////////8EAA4A//////////8FAA4A//////////8AAA8A//////////8BAA8A//////////8CAA8A//////////8DAA8A//////////8EAA8A//////////8FAA8A//////////8AABAA//////////8BABAA//////////8CABAA//////////8DABAA//////////8EABAA//////////8FABAA//////////8AABEA//////////8BABEA//////////8CABEA//////////8DABEA//////////8EABEA//////////8FABEA//////////8=")
+tile_set = ExtResource("3_kmkkl")
+
+[node name="SurfacePlane" type="Node2D" parent="." unique_id=1541491589]
+script = ExtResource("4_05t7e")
+projection = 1
+cell_size = Vector2(64, 32)
+layer_paths = Array[NodePath]([NodePath("../Water")])

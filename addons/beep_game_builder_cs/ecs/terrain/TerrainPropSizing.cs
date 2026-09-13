@@ -5,6 +5,7 @@ using System.Collections.Generic;
 namespace Beep.ECS;
 
 /// <summary>Shared visible prop dimensions in logical cell units, independent of art and projection.</summary>
+[Tool]
 [GlobalClass]
 public partial class TerrainPropSizing : Resource
 {

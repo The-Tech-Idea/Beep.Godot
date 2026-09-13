@@ -1,0 +1,152 @@
+extends "res://tests/terrain_library_pack_probe.gd"
+
+func run() -> void:
+    for iso in [false, true]:
+        var host := Node2D.new()
+        root.add_child(host)
+        current_scene = host
+        var cells = load("res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs").new()
+        cells.name = "Cells"
+        host.add_child(cells)
+        cells.owner = host
+        cells.FillTerrain(Rect2i(0, 0, 8, 8), "dirt")
+        var renderer = load(ROOT + ("TerrainIsometricAutotileRendererComponent.cs" if iso else "TerrainTileRendererComponent.cs")).new()
+        renderer.name = "Renderer"
+        renderer.RefreshOnReady = false
+        renderer.LibraryPack = make_pack(iso)
+        var atlas: TileSetAtlasSource = renderer.LibraryPack.Tiles.get_source(0)
+        var background := Vector2i(7, 5)
+        atlas.create_alternative_tile(background, 1)
+        var variant := atlas.get_tile_data(background, 1)
+        variant.terrain_set = 0
+        variant.terrain = -1
+        variant.probability = 0.0
+        renderer.BoundsSize = Vector2i(8, 8)
+        host.add_child(renderer)
+        renderer.owner = host
+        renderer.CellDataPath = renderer.get_path_to(cells)
+        renderer.Rebuild()
+        var world = load(ROOT + "TerrainWorldComponent.cs").new()
+        world.name = "World"
+        world.BuildOnReady = false
+        world.Projection = 3 if iso else 1
+        host.add_child(world)
+        world.owner = host
+        if iso: world.IsometricAutotileRendererPath = world.get_path_to(renderer)
+        else: world.TileRendererPath = world.get_path_to(renderer)
+        var session = load(ROOT + "TerrainLibraryEditSession.cs").new()
+        session.name = "TerrainEditSession"
+        renderer.add_child(session)
+        session.owner = host
+        check(session.Begin() == "", "Begin failed: " + session.Problem)
+        var working: TileMapLayer = session.get_node("WorkingTerrain")
+        var display: TileMapLayer = renderer.get_node("IsoTerrain" if iso else "LibraryTerrain")
+        check(working.visible and not display.visible, "Working/display visibility incorrect")
+        check(world.HasPendingTerrainEdits(), "World did not find pending session")
+        world.Projection = 0
+        check(world.Projection == (3 if iso else 1), "Projection changed during editing")
+        var point := Vector2i(3, 3)
+        renderer.BoundsSize = Vector2i(7, 8)
+        check(session.PrepareApply().is_empty(), "Changed map bounds were accepted")
+        renderer.BoundsSize = Vector2i(8, 8)
+        cells.SetFlags(point, 5)
+        cells.SetMetadata(point, "inventory_note", "keep me")
+        working.set_cell(point, 0, Vector2i(6, 5))
+        check(session.PrepareApply().is_empty(), "Manually placed incompatible connection was accepted")
+        working.tile_map_data = display.tile_map_data.duplicate()
+        working.set_cell(Vector2i(99, 99), 0, Vector2i(7, 5))
+        check(session.PrepareApply().is_empty(), "Out-of-bounds paint was accepted")
+        working.tile_map_data = display.tile_map_data.duplicate()
+        working.set_cells_terrain_connect([point], 0, 0, false)
+        var painted := working.tile_map_data.duplicate()
+        renderer.Rebuild()
+        check(working.tile_map_data == painted and cells.GetTerrainKind(point) == "dirt", "Painting touched live data or rebuild touched working layer")
+        var patch: Dictionary = session.PrepareApply()
+        check(not patch.is_empty(), "Prepare failed: " + session.Problem)
+        if patch.is_empty():
+            host.free()
+            continue
+        check(patch.after.size() == 1, "Unexpected logical edit count")
+        var history := UndoRedo.new()
+        history.create_action("Apply terrain edits")
+        history.add_do_method(session.Commit.bind(patch, true))
+        history.add_undo_method(session.Commit.bind(patch, false))
+        history.commit_action()
+        check(cells.GetTerrainKind(point) == "grass" and not session.Active, "Apply failed")
+        check(cells.GetFlags(point) == 5 and cells.GetMetadata(point, "inventory_note") == "keep me", "Apply changed gameplay fields")
+        cells.SetFlags(point, 9)
+        history.undo()
+        check(cells.GetTerrainKind(point) == "dirt" and session.Active, "Undo did not restore terrain and working session")
+        check(cells.GetFlags(point) == 9, "Undo overwrote newer gameplay flags")
+        history.redo()
+        check(cells.GetTerrainKind(point) == "grass" and not session.Active, "Redo failed")
+        check(session.Begin() == "", "Cosmetic Begin failed")
+        working.set_cell(Vector2i(1, 1), 0, background, 1)
+        var cosmetic: Dictionary = session.PrepareApply()
+        check(not cosmetic.is_empty(), "Compatible cosmetic alternative rejected: " + session.Problem)
+        if not cosmetic.is_empty():
+            check(cosmetic.after.is_empty(), "Cosmetic choice changed logical terrain")
+            session.Commit(cosmetic, true)
+            renderer.Rebuild()
+            check(display.get_cell_alternative_tile(Vector2i(1, 1)) == 1, "Cosmetic alternative lost on rebuild")
+            var approved_pack = session.Pack
+            renderer.LibraryPack = null
+            check(session.Begin() != "", "Edit accepted a missing pack")
+            check(session.Pack == approved_pack and not session.Active, "Rejected Begin replaced saved session context")
+            renderer.LibraryPack = approved_pack
+            renderer.Rebuild()
+            check(display.get_cell_alternative_tile(Vector2i(1, 1)) == 1, "Rejected Begin lost cosmetic choices")
+        var first: Dictionary = cells.CaptureTerrainEditCell(Vector2i(6, 6))
+        var second: Dictionary = cells.CaptureTerrainEditCell(Vector2i(6, 7))
+        var next_first: Dictionary = cells.PreviewTerrainEdit(Vector2i(6, 6), "grass")
+        var next_second: Dictionary = cells.PreviewTerrainEdit(Vector2i(6, 7), "grass")
+        cells.SetTerrainKind(Vector2i(6, 7), "grass")
+        check(cells.ApplyTerrainEditPatch([first, second], [next_first, next_second]) != "", "Conflicting batch accepted")
+        check(cells.GetTerrainKind(Vector2i(6, 6)) == "dirt", "Conflicting batch partially applied")
+        cells.SetTerrainKind(Vector2i(6, 7), "dirt")
+        renderer.Rebuild()
+        check(session.Begin() == "", "Erase Begin failed")
+        working = session.get_node("WorkingTerrain")
+        working.erase_cell(point)
+        var erased: Dictionary = session.PrepareApply()
+        check(not erased.is_empty(), "Erasure could not map to explicit background: " + session.Problem)
+        if not erased.is_empty():
+            session.Commit(erased, true)
+            check(cells.GetTerrainKind(point) == "dirt", "Erasure did not apply background terrain")
+        check(session.Begin() == "", "Second Begin failed")
+        working = session.get_node("WorkingTerrain")
+        working.set_cells_terrain_connect([Vector2i(4, 4)], 0, 0, false)
+        cells.SetMetadata(Vector2i(5, 5), "terrain_elevation", 32.0)
+        check(session.PrepareApply().is_empty() and session.Active, "External terrain conflict was accepted")
+        check(session.Problem.contains("changed"), "Conflict diagnostic missing")
+        session.Discard()
+        check(cells.GetTerrainKind(Vector2i(4, 4)) == "dirt", "Discard applied paint")
+        check(cells.GetMetadata(Vector2i(5, 5), "terrain_elevation") == 32.0, "Discard reverted external terrain edit")
+        check(session.Begin() == "", "Persistence Begin failed")
+        working = session.get_node("WorkingTerrain")
+        working.set_cells_terrain_connect([Vector2i(2, 2)], 0, 0, false)
+        var live: Array = cells.GetCells()
+        var packed := PackedScene.new()
+        check(packed.pack(host) == OK, "Could not pack scene with pending edits")
+        var saved_path := "res://addons/beep_game_builder_cs/generated/test/library/output/pending_%s.tscn" % ("iso" if iso else "square")
+        check(ResourceSaver.save(packed, saved_path) == OK, "Could not save pending scene")
+        var from_disk: PackedScene = ResourceLoader.load(saved_path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE)
+        var reopened := from_disk.instantiate()
+        history.clear_history()
+        history.free()
+        host.free()
+        root.add_child(reopened)
+        current_scene = reopened
+        reopened.get_node("Cells").LoadCells(live, true)
+        var restored = reopened.get_node("Renderer/TerrainEditSession")
+        check(restored.Active and restored.Baseline.size() == 64, "Pending baseline/session not serialized")
+        check(restored.get_node("WorkingTerrain").get_cell_tile_data(Vector2i(2, 2)).terrain == 0, "Pending paint was not serialized")
+        var restored_patch: Dictionary = restored.PrepareApply()
+        check(not restored_patch.is_empty(), "Restored session cannot apply: " + restored.Problem)
+        if not restored_patch.is_empty(): restored.Commit(restored_patch, true)
+        check(reopened.get_node("Cells").GetTerrainKind(Vector2i(2, 2)) == "grass", "Restored pending paint was not committed")
+        check(restored.EditorCellSeed.size() == 64, "Editor seed was not persisted")
+        reopened.free()
+        current_scene = null
+    print("TERRAIN LIBRARY EDIT: ", "PASS" if errors.is_empty() else "FAIL")
+    quit(0 if errors.is_empty() else 1)

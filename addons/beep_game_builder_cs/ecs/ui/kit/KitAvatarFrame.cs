@@ -112,6 +112,14 @@ namespace Beep.ECS.UI.Kit
 
             // Bottom-right, straddling the rim. Badge is always a circle so every avatar uses
             // the same visual language whether the text is "3" or "12".
+            // Duplicated MACHINERY, not a duplicated look: this hand-rolls the
+            // fit -> ellipsize -> measure -> rect -> clamp-inside-the-control sequence that
+            // KitChrome.DrawCornerBadge already owns, because that one draws a PILL at a corner
+            // and an avatar's badge is deliberately a circle straddling the rim. The containment
+            // invariant is the same, so the two can drift apart one edit at a time.
+            // Rule-3 work item: give DrawCornerBadge the marker shape/placement and delete this
+            // block. Not done here - it changes how the badge looks, which wants the kit badge
+            // / gallery probes, not a guard-triage pass.
             float dia = Mathf.Clamp(d * 0.32f, 18f, 30f);
             string badge = KitCase(_badge);
             float badgeWidth = dia * 0.68f;

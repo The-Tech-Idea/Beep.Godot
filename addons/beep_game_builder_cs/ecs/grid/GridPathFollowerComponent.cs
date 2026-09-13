@@ -468,8 +468,11 @@ namespace Beep.ECS
                 _characterBody = _body as CharacterBody2D;
             }
 
-            _grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
-            _navigation = NavigationPath.IsEmpty ? null : GetNodeOrNull<GridNavigationComponent>(NavigationPath);
+            // Explicit-ONLY, through the one owner of the fresh-resolve rule: an unwired path
+            // means this follower has no grid/navigation, never "adopt whichever one the scene
+            // holds". Live re-pointing still takes effect on the next query.
+            EntityComponent.ResolveLive(this, GridPath, ref _grid, fallbackWhenEmpty: false);
+            EntityComponent.ResolveLive(this, NavigationPath, ref _navigation, fallbackWhenEmpty: false);
         }
 
         private bool RefreshCellSegment()

@@ -1,0 +1,69 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "direction": "north_south",
+      "downstreamAnchor": [
+        32.0,
+        96.0
+      ],
+      "downstreamElevationPixels": 0,
+      "inletCell": [
+        1,
+        3
+      ],
+      "outletCell": [
+        1,
+        4
+      ],
+      "scene": "north_south.tscn",
+      "upstreamAnchor": [
+        64.0,
+        16.0
+      ],
+      "upstreamElevationPixels": 64
+    },
+    {
+      "direction": "west_east",
+      "downstreamAnchor": [
+        64.0,
+        96.0
+      ],
+      "downstreamElevationPixels": 0,
+      "inletCell": [
+        3,
+        1
+      ],
+      "outletCell": [
+        4,
+        1
+      ],
+      "scene": "west_east.tscn",
+      "upstreamAnchor": [
+        32.0,
+        16.0
+      ],
+      "upstreamElevationPixels": 64
+    }
+  ],
+  "clock": "AnimationPlayer:WaterClock/flow",
+  "frames": 16,
+  "pending": [
+    "Natural bank and cliff contacts",
+    "Foam visual approval",
+    "Lake and sea continuation",
+    "Wide routes",
+    "Engine pack bindings"
+  ],
+  "periodSeconds": 1.2,
+  "productionReady": false,
+  "projection": "isometric",
+  "schemaVersion": 1,
+  "sourceScenes": [
+    "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/native_faces_review.tscn",
+    "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/river_sections_v1/isometric/river_widths_review.tscn"
+  ],
+  "status": "candidate",
+  "style": "cartoon",
+  "waterfallFrames": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/isometric_waterfall_v1/fall_64.tres"
+}

@@ -1,0 +1,149 @@
+{
+  "approvalEvidence": null,
+  "faces": [
+    {
+      "allowedSequence": [
+        0.0,
+        1.0,
+        2.0,
+        3.0
+      ],
+      "crop": {
+        "height": 640.0,
+        "left": 32.0,
+        "top": 80.0,
+        "width": 640.0
+      },
+      "name": "light",
+      "regions": [
+        {
+          "godotResource": "runtime/light_module_0.tres",
+          "height": 80.0,
+          "index": 0.0,
+          "width": 32.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "godotResource": "runtime/light_module_1.tres",
+          "height": 80.0,
+          "index": 1.0,
+          "width": 32.0,
+          "x": 32.0,
+          "y": 16.0
+        },
+        {
+          "godotResource": "runtime/light_module_2.tres",
+          "height": 80.0,
+          "index": 2.0,
+          "width": 32.0,
+          "x": 64.0,
+          "y": 32.0
+        },
+        {
+          "godotResource": "runtime/light_module_3.tres",
+          "height": 80.0,
+          "index": 3.0,
+          "width": 32.0,
+          "x": 96.0,
+          "y": 48.0
+        }
+      ],
+      "repeatEndValidated": false,
+      "runtime": "runtime/light_span.png",
+      "runtimeSize": [
+        128.0,
+        128.0
+      ]
+    },
+    {
+      "allowedSequence": [
+        0.0,
+        1.0,
+        2.0,
+        3.0
+      ],
+      "crop": {
+        "height": 640.0,
+        "left": 864.0,
+        "top": 80.0,
+        "width": 640.0
+      },
+      "name": "shade",
+      "regions": [
+        {
+          "godotResource": "runtime/shade_module_0.tres",
+          "height": 80.0,
+          "index": 0.0,
+          "width": 32.0,
+          "x": 0.0,
+          "y": 48.0
+        },
+        {
+          "godotResource": "runtime/shade_module_1.tres",
+          "height": 80.0,
+          "index": 1.0,
+          "width": 32.0,
+          "x": 32.0,
+          "y": 32.0
+        },
+        {
+          "godotResource": "runtime/shade_module_2.tres",
+          "height": 80.0,
+          "index": 2.0,
+          "width": 32.0,
+          "x": 64.0,
+          "y": 16.0
+        },
+        {
+          "godotResource": "runtime/shade_module_3.tres",
+          "height": 80.0,
+          "index": 3.0,
+          "width": 32.0,
+          "x": 96.0,
+          "y": 0.0
+        }
+      ],
+      "repeatEndValidated": false,
+      "runtime": "runtime/shade_span.png",
+      "runtimeSize": [
+        128.0,
+        128.0
+      ]
+    }
+  ],
+  "material": "grass_granite",
+  "nativeAuthoring": {
+    "arbitrarySequenceValidated": false,
+    "layers": [
+      "LightFace",
+      "ShadeFace",
+      "PlateauSurface"
+    ],
+    "matchingMode": "authored_structural_patterns",
+    "navigationFromVisualRise": false,
+    "patterns": [
+      "runtime/light_span_pattern.tres",
+      "runtime/shade_span_pattern.tres"
+    ],
+    "requiresCSharp": false,
+    "scene": "native_faces_review.tscn",
+    "tileSet": "runtime/face_tiles.tres"
+  },
+  "pending": [
+    "Visual approval",
+    "Outer end seams",
+    "Corner contacts",
+    "Arbitrary length assembly",
+    "Cross-family joins"
+  ],
+  "productionReady": false,
+  "projection": "isometric",
+  "risePixels": 64.0,
+  "schemaVersion": 1.0,
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/sources/faces_source.png",
+  "sourceSha256": "6e5bca2caf8aa506c8c028221ea10600ce4bae86f11375d86c7c14228ffa6e3d",
+  "spanCells": 4.0,
+  "status": "candidate",
+  "style": "cartoon"
+}

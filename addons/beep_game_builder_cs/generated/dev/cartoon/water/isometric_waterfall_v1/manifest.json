@@ -1,0 +1,369 @@
+{
+  "approvalEvidence": null,
+  "cases": [
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise16_Width1",
+      "risePixels": 16.0,
+      "width": 1.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise16_Width2",
+      "risePixels": 16.0,
+      "width": 2.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise16_Width3",
+      "risePixels": 16.0,
+      "width": 3.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise16_Width5",
+      "risePixels": 16.0,
+      "width": 5.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise16_Width1",
+      "risePixels": 16.0,
+      "width": 1.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise16_Width2",
+      "risePixels": 16.0,
+      "width": 2.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise16_Width3",
+      "risePixels": 16.0,
+      "width": 3.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise16_Width5",
+      "risePixels": 16.0,
+      "width": 5.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise32_Width1",
+      "risePixels": 32.0,
+      "width": 1.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise32_Width2",
+      "risePixels": 32.0,
+      "width": 2.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise32_Width3",
+      "risePixels": 32.0,
+      "width": 3.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise32_Width5",
+      "risePixels": 32.0,
+      "width": 5.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise32_Width1",
+      "risePixels": 32.0,
+      "width": 1.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise32_Width2",
+      "risePixels": 32.0,
+      "width": 2.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise32_Width3",
+      "risePixels": 32.0,
+      "width": 3.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise32_Width5",
+      "risePixels": 32.0,
+      "width": 5.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise64_Width1",
+      "risePixels": 64.0,
+      "width": 1.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise64_Width2",
+      "risePixels": 64.0,
+      "width": 2.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise64_Width3",
+      "risePixels": 64.0,
+      "width": 3.0
+    },
+    {
+      "direction": "north_south",
+      "node": "north_south_Rise64_Width5",
+      "risePixels": 64.0,
+      "width": 5.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise64_Width1",
+      "risePixels": 64.0,
+      "width": 1.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise64_Width2",
+      "risePixels": 64.0,
+      "width": 2.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise64_Width3",
+      "risePixels": 64.0,
+      "width": 3.0
+    },
+    {
+      "direction": "west_east",
+      "node": "west_east_Rise64_Width5",
+      "risePixels": 64.0,
+      "width": 5.0
+    }
+  ],
+  "editableMaster": "tools/terrain-library/isometric-waterfall.mjs",
+  "frames": 16.0,
+  "method": "Physical upstream and downstream isometric planes joined by a vertical screen-space curtain; shared water phases, no warped square sprite.",
+  "pending": [
+    "GPU animation review",
+    "Authored inlet and bank contacts",
+    "Cliff route integration",
+    "Stepped and split falls",
+    "Visual approval"
+  ],
+  "periodSeconds": 1.2,
+  "productionReady": false,
+  "profiles": [
+    {
+      "direction": "north_south",
+      "id": "north_south.narrow",
+      "kind": "narrow"
+    },
+    {
+      "direction": "north_south",
+      "id": "north_south.low_bank",
+      "kind": "low_bank"
+    },
+    {
+      "direction": "north_south",
+      "id": "north_south.middle",
+      "kind": "middle"
+    },
+    {
+      "direction": "north_south",
+      "id": "north_south.high_bank",
+      "kind": "high_bank"
+    },
+    {
+      "direction": "west_east",
+      "id": "west_east.narrow",
+      "kind": "narrow"
+    },
+    {
+      "direction": "west_east",
+      "id": "west_east.low_bank",
+      "kind": "low_bank"
+    },
+    {
+      "direction": "west_east",
+      "id": "west_east.middle",
+      "kind": "middle"
+    },
+    {
+      "direction": "west_east",
+      "id": "west_east.high_bank",
+      "kind": "high_bank"
+    }
+  ],
+  "projection": "isometric",
+  "rises": [
+    {
+      "connectors": [
+        {
+          "acrossCellStep": [
+            32.0,
+            16.0
+          ],
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            48.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "acrossCellStep": [
+            -32.0,
+            16.0
+          ],
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            48.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        64.0
+      ],
+      "risePixels": 16.0,
+      "sheet": "fall_16_16.png",
+      "spriteFrames": "fall_16.tres"
+    },
+    {
+      "connectors": [
+        {
+          "acrossCellStep": [
+            32.0,
+            16.0
+          ],
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            64.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "acrossCellStep": [
+            -32.0,
+            16.0
+          ],
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            64.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        80.0
+      ],
+      "risePixels": 32.0,
+      "sheet": "fall_32_16.png",
+      "spriteFrames": "fall_32.tres"
+    },
+    {
+      "connectors": [
+        {
+          "acrossCellStep": [
+            32.0,
+            16.0
+          ],
+          "direction": "north_south",
+          "downstreamAnchor": [
+            32.0,
+            96.0
+          ],
+          "upstreamAnchor": [
+            64.0,
+            16.0
+          ]
+        },
+        {
+          "acrossCellStep": [
+            -32.0,
+            16.0
+          ],
+          "direction": "west_east",
+          "downstreamAnchor": [
+            64.0,
+            96.0
+          ],
+          "upstreamAnchor": [
+            32.0,
+            16.0
+          ]
+        }
+      ],
+      "frameSize": [
+        96.0,
+        112.0
+      ],
+      "risePixels": 64.0,
+      "sheet": "fall_64_16.png",
+      "spriteFrames": "fall_64.tres"
+    }
+  ],
+  "schemaVersion": 1.0,
+  "showcase": "water_only_review.tscn",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "status": "technical_candidate",
+  "style": "cartoon",
+  "terrainIncluded": false,
+  "widthExamples": [
+    {
+      "sections": [
+        "narrow"
+      ],
+      "width": 1.0
+    },
+    {
+      "sections": [
+        "low_bank",
+        "high_bank"
+      ],
+      "width": 2.0
+    },
+    {
+      "sections": [
+        "low_bank",
+        "middle",
+        "high_bank"
+      ],
+      "width": 3.0
+    },
+    {
+      "sections": [
+        "low_bank",
+        "middle",
+        "middle",
+        "middle",
+        "high_bank"
+      ],
+      "width": 5.0
+    }
+  ]
+}

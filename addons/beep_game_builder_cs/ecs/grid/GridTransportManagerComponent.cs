@@ -15,52 +15,40 @@ namespace Beep.ECS
     /// drone or a conveyor head participates exactly like the shipped
     /// GridHaulerComponent. The manager never decides what hauling MEANS;
     /// each transporter does.
+    ///
+    /// The registry itself - the list, the duplicate guard, the count-with-prune
+    /// and the prune - is DuckTypedNodeRegistry's; what stays here is the shape
+    /// question (by METHOD, unlike the extractor's by-property one) and the
+    /// dispatch policy.
     /// </summary>
     [Tool]
     [GlobalClass]
-    public partial class GridTransportManagerComponent : Node
+    public partial class GridTransportManagerComponent : DuckTypedNodeRegistry
     {
         [Signal] public delegate void TransporterRegisteredEventHandler(Node transporter);
         [Signal] public delegate void TransporterUnregisteredEventHandler(Node transporter);
         [Signal] public delegate void HaulAssignedEventHandler(Node transporter, int x, int y, string resourceId, int amount);
         [Signal] public delegate void HaulUnassignedEventHandler(int x, int y, string resourceId, int amount);
 
-        private readonly List<Node> _transporters = new();
+        /// <summary>The registered transporters, freed ones pruned first.</summary>
+        public int TransporterCount => Count;
 
-        /// <summary>Adds a transporter; duplicates are ignored.</summary>
-        public void Register(Node transporter)
-        {
-            if (transporter == null || !GodotObject.IsInstanceValid(transporter) || _transporters.Contains(transporter))
-                return;
+        protected override string ContractSummary => "transporter contract (CanAccept, Load, Unload, RequestHaul)";
 
-            if (!transporter.HasMethod("RequestHaul") || !transporter.HasMethod("CanAccept")
-                || !transporter.HasMethod("Load") || !transporter.HasMethod("Unload"))
-            {
-                GD.PushWarning($"[{Name}] {transporter.Name} does not answer the transporter contract (CanAccept, Load, Unload, RequestHaul) and was not registered.");
-                return;
-            }
+        /// <summary>
+        /// A transporter answers by METHOD: the four calls dispatch makes. A node
+        /// missing one of them would otherwise fail from inside RequestHaul, one
+        /// haul late and with no named warning.
+        /// </summary>
+        protected override bool AnswersContract(Node transporter)
+            => transporter.HasMethod("RequestHaul") && transporter.HasMethod("CanAccept")
+                && transporter.HasMethod("Load") && transporter.HasMethod("Unload");
 
-            _transporters.Add(transporter);
-            EmitSignal(SignalName.TransporterRegistered, transporter);
-        }
+        protected override void OnRegistered(Node transporter)
+            => EmitSignal(SignalName.TransporterRegistered, transporter);
 
-        public void Unregister(Node transporter)
-        {
-            if (transporter == null || !_transporters.Remove(transporter))
-                return;
-
-            if (GodotObject.IsInstanceValid(transporter))
-                EmitSignal(SignalName.TransporterUnregistered, transporter);
-        }
-
-        public int TransporterCount
-        {
-            get
-            {
-                Prune();
-                return _transporters.Count;
-            }
-        }
+        protected override void OnUnregistered(Node transporter)
+            => EmitSignal(SignalName.TransporterUnregistered, transporter);
 
         /// <summary>
         /// Offers a haul to the registered transporters - FASTEST first, by
@@ -71,10 +59,8 @@ namespace Beep.ECS
         /// </summary>
         public bool RequestHaul(Vector2I fromCell, string resourceId, int amount)
         {
-            Prune();
-
             var candidates = new List<(Node Transporter, float Rate)>();
-            foreach (Node transporter in _transporters)
+            foreach (Node transporter in Registered)
             {
                 if (transporter.Get("IsBusy").AsBool())
                     continue;
@@ -120,14 +106,5 @@ namespace Beep.ECS
         /// </summary>
         public int Transfer(Node from, Node to, string resourceId, int amount)
             => GridPorts.Transfer(from, to, resourceId, amount);
-
-        private void Prune()
-        {
-            for (int i = _transporters.Count - 1; i >= 0; i--)
-            {
-                if (!GodotObject.IsInstanceValid(_transporters[i]))
-                    _transporters.RemoveAt(i);
-            }
-        }
     }
 }

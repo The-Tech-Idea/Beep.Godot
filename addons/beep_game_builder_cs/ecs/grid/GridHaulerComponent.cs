@@ -563,8 +563,11 @@ namespace Beep.ECS
             if (_manager == null || _registered)
                 return;
 
-            _manager.Register(this);
-            _registered = true;
+            // Registration can be REFUSED, so the flag records what the manager
+            // actually did - the same reason GridExtractorComponent reads it.
+            // Marking it true regardless would leave a rejected hauler believing
+            // it was registered and never retrying.
+            _registered = _manager.Register(this);
         }
 
         private void ResolveReferences()

@@ -197,6 +197,12 @@ namespace Beep.ECS
             float[] elevation = world.Elevation;
             bool[] land = world.Land;
             int width = world.Width, height = world.Height;
+            // The weighted-average form is stable only for D <= 1: new = (1-D)*old + D*mean, so the
+            // per-pass factor on the highest-frequency mode is |1 - 2D|, which exceeds one once
+            // D > 1. The dial drives Diffusion * strength to 1.4 at ErosionStrength = 4, where this
+            // pass would AMPLIFY checkerboard speckle instead of relaxing it - so bound the
+            // coefficient at the limit the Diffusion doc states.
+            float coefficient = Mathf.Min(Diffusion * strength, 1.0f);
             Span<int> around = stackalloc int[4];
             for (int index = 0; index < world.Count; index++)
             {
@@ -220,7 +226,7 @@ namespace Beep.ECS
                 settled[index] = counted == 0
                     ? elevation[index]
                     : elevation[index]
-                        + (Diffusion * strength * ((total / counted) - elevation[index]));
+                        + (coefficient * ((total / counted) - elevation[index]));
             }
 
             for (int index = 0; index < world.Count; index++)

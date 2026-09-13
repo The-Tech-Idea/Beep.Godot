@@ -1,0 +1,34 @@
+{
+  "status": "candidate",
+  "source": "addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/runtime/shallow_water_64.png",
+  "sourceSha256": "ce1732ba8acb10e7c8804735cc7d1cd3ca421f2496510ccbff6917c75289a975",
+  "frames": 16,
+  "periodSeconds": 1.2,
+  "risePixels": 64,
+  "frameSize": [
+    64,
+    192
+  ],
+  "offsetsCells": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "kinds": [
+    "narrow",
+    "low_bank",
+    "middle",
+    "high_bank"
+  ],
+  "atlasColumn": "offsetCells * 4 + kindIndex",
+  "approvalEvidence": null,
+  "pending": [
+    "visual_review",
+    "arbitrary_width_runtime_sampling",
+    "isometric_export",
+    "other_rises",
+    "production_integration"
+  ]
+}

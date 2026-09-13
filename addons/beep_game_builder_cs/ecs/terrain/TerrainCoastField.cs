@@ -633,20 +633,8 @@ namespace Beep.ECS
         {
             int width = Mathf.Max(1, size.X), height = Mathf.Max(1, size.Y);
             bool Wet(int x, int y) => TerrainTileSets.IsWaterKind(GridCellRules.TerrainKindAt(cells, origin + new Vector2I(x, y)));
-            return at =>
-            {
-                int cx = Mathf.Clamp(Mathf.FloorToInt(at.X), 0, width - 1);
-                int cy = Mathf.Clamp(Mathf.FloorToInt(at.Y), 0, height - 1);
-                if (cells.WaterPatchAtCell(origin + new Vector2I(cx, cy)) is { } patch)
-                    return patch.IsWater(at - new Vector2(cx, cy), Wet(cx, cy));
-                float x = Mathf.Clamp(at.X - 0.5f, 0, width - 1f);
-                float y = Mathf.Clamp(at.Y - 0.5f, 0, height - 1f);
-                int x0 = (int)x, y0 = (int)y;
-                int x1 = Math.Min(x0 + 1, width - 1), y1 = Math.Min(y0 + 1, height - 1);
-                float upper = Mathf.Lerp(Wet(x0, y0) ? 1f : 0f, Wet(x1, y0) ? 1f : 0f, x - x0);
-                float lower = Mathf.Lerp(Wet(x0, y1) ? 1f : 0f, Wet(x1, y1) ? 1f : 0f, x - x0);
-                return Mathf.Lerp(upper, lower, y - y0) >= 0.5f;
-            };
+            return at => ReconstructWater(width, height, at, Wet,
+                (x, y) => cells.WaterPatchAtCell(origin + new Vector2I(x, y)));
         }
 
         private static GridTerrainWaterPatch?[] ReadPatches(GridCellDataComponent cells, Vector2I origin, Vector2I size)
@@ -721,13 +709,21 @@ namespace Beep.ECS
             return detail;
         }
 
-        private static bool SampleLiveWater(bool[] wet, GridTerrainWaterPatch?[] patches, int width, int height, Vector2 at)
+        /// <summary>
+        /// The sub-cell water reconstruction, in ONE place: a patch cell answers for its own
+        /// interior, and everywhere else the four nearest cell centres are bilinearly interpolated
+        /// and thresholded at a half. The two live entry points differ only in where they read
+        /// wet-ness and patches from - a captured whole-map snapshot or a per-query live read - so
+        /// they supply those as delegates and share this geometry. If the two copies diverged, the
+        /// same coastline would place props differently by map size.
+        /// </summary>
+        private static bool ReconstructWater(int width, int height, Vector2 at,
+            Func<int, int, bool> wet, Func<int, int, GridTerrainWaterPatch?> patchAt)
         {
             int cellX = Mathf.Clamp(Mathf.FloorToInt(at.X), 0, width - 1);
             int cellY = Mathf.Clamp(Mathf.FloorToInt(at.Y), 0, height - 1);
-            int cell = cellY * width + cellX;
-            if (patches[cell] is { } patch)
-                return patch.IsWater(at - new Vector2(cellX, cellY), wet[cell]);
+            if (patchAt(cellX, cellY) is { } patch)
+                return patch.IsWater(at - new Vector2(cellX, cellY), wet(cellX, cellY));
 
             // Interpolate centre samples, not cell rectangles. The half-cell
             // contour rounds corners while preserving every gameplay cell centre
@@ -737,12 +733,15 @@ namespace Beep.ECS
             float y = Mathf.Clamp(at.Y - 0.5f, 0f, height - 1f);
             int x0 = (int)x, y0 = (int)y;
             int x1 = Math.Min(x0 + 1, width - 1), y1 = Math.Min(y0 + 1, height - 1);
-            float upper = Mathf.Lerp(wet[y0 * width + x0] ? 1f : 0f,
-                wet[y0 * width + x1] ? 1f : 0f, x - x0);
-            float lower = Mathf.Lerp(wet[y1 * width + x0] ? 1f : 0f,
-                wet[y1 * width + x1] ? 1f : 0f, x - x0);
+            float upper = Mathf.Lerp(wet(x0, y0) ? 1f : 0f, wet(x1, y0) ? 1f : 0f, x - x0);
+            float lower = Mathf.Lerp(wet(x0, y1) ? 1f : 0f, wet(x1, y1) ? 1f : 0f, x - x0);
             return Mathf.Lerp(upper, lower, y - y0) >= 0.5f;
         }
+
+        private static bool SampleLiveWater(bool[] wet, GridTerrainWaterPatch?[] patches, int width, int height, Vector2 at)
+            => ReconstructWater(width, height, at,
+                (x, y) => wet[y * width + x],
+                (x, y) => patches[y * width + x]);
 
         private static ImageTexture Build(Vector2I size, int detail, float rangeTiles, Func<Vector2, bool> isWater, bool[] ocean, bool[]? smoothCells = null)
             => BuildPixels(size, detail, rangeTiles, isWater, ocean, smoothCells).Upload();

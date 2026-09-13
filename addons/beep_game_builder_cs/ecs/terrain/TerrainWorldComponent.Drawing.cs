@@ -31,6 +31,7 @@ namespace Beep.ECS
 
         private void Draw(Vector2I size, bool rebuildRecipeData = true, bool queueCollision = false, bool preparedAutotile = false)
         {
+            RefreshStructureVisibility();
             bool propsFollowSurface = _iso is not null && _isometricFeatures?.FollowsSurface(_iso) == true;
             bool flat = Projection is not (TerrainProjection.Isometric or TerrainProjection.IsometricAutotile);
             if (_features is not null) _features.PropSizing = PropSizing;

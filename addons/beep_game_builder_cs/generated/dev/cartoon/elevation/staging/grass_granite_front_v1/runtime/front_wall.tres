@@ -1,0 +1,16 @@
+[gd_resource type="TileSet" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/grass_granite_front_v1/runtime/front_wall_320.res" id="1_bstfs"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pj2ky"]
+texture = ExtResource("1_bstfs")
+texture_region_size = Vector2i(64, 80)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+
+[resource]
+tile_size = Vector2i(64, 64)
+sources/0 = SubResource("TileSetAtlasSource_pj2ky")

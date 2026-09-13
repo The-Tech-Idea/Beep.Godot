@@ -1,0 +1,39 @@
+{
+  "engine": "Godot 4.7 stable mono",
+  "isolatedProject": "C:/Users/f_ald/.codex/visualizations/2026/08/28/01a04987-d744-7b40-a3c8-866f00508feb/water_animation_import_v1",
+  "status": "passed",
+  "assets": [
+    {
+      "id": "wide_curtain",
+      "framesLoaded": 16
+    },
+    {
+      "id": "twin_falls",
+      "framesLoaded": 16
+    },
+    {
+      "id": "low_stepped_cascade",
+      "framesLoaded": 16
+    },
+    {
+      "id": "small_drop",
+      "framesLoaded": 16
+    },
+    {
+      "id": "two_tier",
+      "framesLoaded": 16
+    },
+    {
+      "id": "rocky_rapids",
+      "framesLoaded": 16
+    },
+    {
+      "id": "plunge_pool",
+      "framesLoaded": 16
+    },
+    {
+      "id": "rocky_lakeshore",
+      "framesLoaded": 16
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cartoon lake candidate</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#18231f;color:#f0f5ed;font:14px system-ui}header{padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid #54645c}h1{font-size:18px;margin:0 auto 0 0}select,button{height:36px;color:inherit;background:#293b31;border:1px solid #718277;border-radius:4px}select{max-width:100%;padding:0 8px}button{width:36px;cursor:pointer}main{max-width:1152px;margin:auto}canvas{display:block;width:100%;height:auto}#tiles{margin:24px auto;max-width:768px}output{width:80px}footer{padding:14px}a{color:#b8dfc9}#error{color:#ffbbba}
+</style>
+<header><h1>Cartoon Lake Candidate</h1><select id="pack" aria-label="Terrain pair"></select><button id="play" title="Pause" aria-label="Pause">&#10074;&#10074;</button><output id="frame"></output></header>
+<main><canvas id="map" width="1152" height="768"></canvas><canvas id="tiles" width="512" height="384"></canvas><p id="error"></p></main>
+<footer><a id="atlas" href="#">Atlas PNG</a> | <a id="resource" href="#">Godot TileSet</a> | <a href="manifest.json">Candidate manifest</a></footer>
+<script src="preview-data.js"></script>
+<script>
+'use strict';
+const mapCanvas=document.getElementById('map'),ctx=mapCanvas.getContext('2d'),tc=document.getElementById('tiles').getContext('2d');
+const masks=new Map(DATA.manifest.assets[0].masks.map((m,i)=>[m,i]));
+const offsets=[[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]];
+const map=DATA.manifest.map;
+function maskAt(x,y){let m=offsets.reduce((m,[dx,dy],i)=>m|(map[y+dy]?.[x+dx]?1<<i:0),0);for(const [d,a,b] of [[4,0,1],[5,1,2],[6,2,3],[7,3,0]])if(!(m&(1<<a))||!(m&(1<<b)))m&=~(1<<d);return m;}
+let selected=1,playing=true,frame=0,elapsed=0,last=0;
+async function boot(){
+ const images=[];
+ for(const entry of DATA.manifest.assets){const image=new Image();image.src=DATA.images[entry.id];await image.decode();images.push(image);const option=document.createElement('option');option.textContent=entry.background.replaceAll('_',' ')+' / '+entry.foreground.replaceAll('_',' ');option.value=images.length-1;document.getElementById('pack').append(option);}
+ document.getElementById('pack').value=selected;
+ const draw=()=>{const e=DATA.manifest.assets[selected],image=images[selected],f=e.frames>1?frame:0;for(let y=0;y<map.length;y++)for(let x=0;x<map[y].length;x++){const k=map[y][x]?masks.get(maskAt(x,y)):47;ctx.drawImage(image,k%8*64,(Math.floor(k/8)+f*6)*64,64,64,x*64,y*64,64,64);}tc.drawImage(image,0,f*384,512,384,0,0,512,384);document.getElementById('frame').value=(f+1)+' / '+e.frames;document.getElementById('atlas').href=e.file;document.getElementById('resource').href='godot/'+e.id+'.tres';};
+ document.getElementById('pack').onchange=e=>{selected=Number(e.target.value);draw()};
+ document.getElementById('play').onclick=()=>{playing=!playing;const b=document.getElementById('play');b.innerHTML=playing?'&#10074;&#10074;':'&#9654;';b.title=b.ariaLabel=playing?'Pause':'Play'};
+ window.foundationReview={ready:true,frame:()=>frame,show(k){playing=false;frame=k%16;draw()},select(k){selected=k;draw()}};
+ function tick(t){if(last&&playing){elapsed+=Math.min(100,t-last);frame=Math.floor(elapsed/75)%16;}last=t;draw();requestAnimationFrame(tick)}requestAnimationFrame(tick);
+}boot().catch(e=>document.getElementById('error').textContent=e.message);
+</script></html>

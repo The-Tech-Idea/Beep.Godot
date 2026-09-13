@@ -1,0 +1,117 @@
+[gd_resource type="TileSet" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/light_module_0.tres" id="1_yak34"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/light_module_1.tres" id="2_nv0xn"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/light_module_2.tres" id="3_xap5c"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/light_module_3.tres" id="4_d5ytt"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/shade_module_0.tres" id="5_bmh81"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/shade_module_1.tres" id="6_7pl87"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/shade_module_2.tres" id="7_6oqbj"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/staging/isometric_granite_faces_v1/runtime/shade_module_3.tres" id="8_pwmrh"]
+
+[sub_resource type="TileMapPattern" id="TileMapPattern_wlml1"]
+tile_data = PackedInt32Array(0, 0, 0, 1, 1, 0, 2, 2, 0, 3, 3, 0)
+
+[sub_resource type="TileMapPattern" id="TileMapPattern_fjo7e"]
+tile_data = PackedInt32Array(0, 7, 0, 65536, 6, 0, 131072, 5, 0, 196608, 4, 0)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_03607"]
+texture = ExtResource("1_yak34")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(16, 24)
+0:0/0/custom_data_0 = "light"
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_au0h8"]
+texture = ExtResource("2_nv0xn")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(16, 24)
+0:0/0/custom_data_0 = "light"
+0:0/0/custom_data_1 = 1
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_d3e45"]
+texture = ExtResource("3_xap5c")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(16, 24)
+0:0/0/custom_data_0 = "light"
+0:0/0/custom_data_1 = 2
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pdor1"]
+texture = ExtResource("4_d5ytt")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(16, 24)
+0:0/0/custom_data_0 = "light"
+0:0/0/custom_data_1 = 3
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yqtu7"]
+texture = ExtResource("5_bmh81")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(-16, 24)
+0:0/0/custom_data_0 = "shade"
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dwd3q"]
+texture = ExtResource("6_7pl87")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(-16, 24)
+0:0/0/custom_data_0 = "shade"
+0:0/0/custom_data_1 = 1
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_7vmmv"]
+texture = ExtResource("7_6oqbj")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(-16, 24)
+0:0/0/custom_data_0 = "shade"
+0:0/0/custom_data_1 = 2
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_lac34"]
+texture = ExtResource("8_pwmrh")
+texture_region_size = Vector2i(32, 80)
+0:0/0 = 0
+0:0/0/texture_origin = Vector2i(-16, 24)
+0:0/0/custom_data_0 = "shade"
+0:0/0/custom_data_1 = 3
+0:0/0/custom_data_2 = 64
+0:0/0/custom_data_3 = "grass_granite"
+
+[resource]
+tile_shape = 1
+tile_layout = 5
+tile_size = Vector2i(64, 32)
+custom_data_layer_0/name = "art_face"
+custom_data_layer_0/type = 4
+custom_data_layer_1/name = "art_sequence_index"
+custom_data_layer_1/type = 2
+custom_data_layer_2/name = "visual_rise_pixels"
+custom_data_layer_2/type = 2
+custom_data_layer_3/name = "art_material"
+custom_data_layer_3/type = 4
+sources/0 = SubResource("TileSetAtlasSource_03607")
+sources/1 = SubResource("TileSetAtlasSource_au0h8")
+sources/2 = SubResource("TileSetAtlasSource_d3e45")
+sources/3 = SubResource("TileSetAtlasSource_pdor1")
+sources/4 = SubResource("TileSetAtlasSource_yqtu7")
+sources/5 = SubResource("TileSetAtlasSource_dwd3q")
+sources/6 = SubResource("TileSetAtlasSource_7vmmv")
+sources/7 = SubResource("TileSetAtlasSource_lac34")
+pattern_0 = SubResource("TileMapPattern_wlml1")
+pattern_1 = SubResource("TileMapPattern_fjo7e")

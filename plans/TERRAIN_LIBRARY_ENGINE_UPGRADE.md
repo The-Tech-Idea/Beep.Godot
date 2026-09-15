@@ -1,5 +1,32 @@
 # Terrain Library and Engine Upgrade
 
+## Contact overlap regression - 2026-09-13
+
+`terrain_contact_motion_probe.gd` compares simultaneous source/review renders at
+widths 1/2/3/5 across 16 controlled frames. All 64 cases preserve every sampled
+water-corridor pixel while showing land contacts and distinct curtain frames.
+Frame overrides isolate this gate from clock testing. Existing clock regressions
+remain separate; no renderer defaults, resource promotion or navigation changes.
+
+## Isolated contact integration - 2026-09-13
+
+`package-contact-route-review.gd` creates development-only square width 1/2/3/5
+review scenes from the tested routes and six standalone contact scenes. It checks
+save/reopen, retained contact count and unchanged source hashes, then captures
+Godot output. Four cases pass. No existing routes or renderer defaults change.
+One static capture was visually inspected; animated joins and isometric contact
+integration remain pending. Near-transparent RGB noise in raw previews is not
+equivalent to visible compositing artifacts.
+
+## Standalone contact candidates - 2026-09-13
+
+`package-waterfall-contacts.gd` packages six development Sprite2D scenes with
+explicit local pivots, visual-rise metadata and external textures. Save/reopen
+checks pass; no collision, navigation, flow or existing route resource changes
+are introduced. Seven export-contract tests also pass. Magnified left-wall
+inspection found edge-color artifacts; runtime appearance, actual waterfall
+contact fit and projection-specific isometric artwork remain unvalidated.
+
 ## Contact artwork preparation - 2026-09-13
 
 Six square granite contact pieces have predeclared bounds and pivots plus a new

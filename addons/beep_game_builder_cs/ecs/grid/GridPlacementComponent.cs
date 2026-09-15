@@ -244,7 +244,10 @@ namespace Beep.ECS
             CurrentCellValid = CanPlace(CurrentCell);
             if (!CurrentCellValid || _grid is null)
             {
-                EmitSignal(SignalName.PlacementRejected, _activeId, CurrentCell.X, CurrentCell.Y, "occupied");
+                // WHY, not the word "occupied". See WhyNot below: the bare word named one of five
+                // checks and was wrong for four of them.
+                EmitSignal(SignalName.PlacementRejected, _activeId, CurrentCell.X, CurrentCell.Y,
+                    WhyNot(CurrentCell));
                 return null;
             }
 
@@ -326,22 +329,51 @@ namespace Beep.ECS
             return CurrentCellValid;
         }
 
-        public bool CanPlace(Vector2I anchorCell)
+        public bool CanPlace(Vector2I anchorCell) => WhyNot(anchorCell).Length == 0;
+
+        /// <summary>
+        /// Why a footprint cannot stand here, or the empty string when it can.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>One place decides, and it says which rule refused.</b> The refusal used to be
+        /// reported as the bare word <c>occupied</c> whatever the cause — so a footprint turned
+        /// away for straddling a hillside, or for hanging off the edge of the map, told the player
+        /// its ground was already taken, and told whoever was reading the log exactly the same
+        /// thing. A reason that names the wrong check is worse than no reason: it sends the reader
+        /// looking for a building that is not there.</para>
+        /// <para>This is the only implementation of the rules; <see cref="CanPlace"/> asks it and
+        /// checks for an empty answer, so a rule and its reason cannot drift apart.</para>
+        /// </remarks>
+        private string WhyNot(Vector2I anchorCell)
         {
             ResolveReferences();
             if (_grid is null || anchorCell.X == int.MinValue || anchorCell.Y == int.MinValue
                 || (!CellDataPath.IsEmpty && _cellData is null)
                 || (!NavigationPath.IsEmpty && _navigation is null)
                 || (!PlacementRootPath.IsEmpty && _placementRoot is null))
-                return false;
+                return "not_ready";
+
             int anchorLevel = ReliefAt(anchorCell);
+
             foreach (Vector2I cell in GridFootprint.Cells(anchorCell, EffectiveFootprint))
-                if ((_navigation is not null && !_navigation.IsInBounds(cell))
-                    || !_grid.CellToWorld(cell).IsFinite()
-                    || (RequireLevelFootprint && ReliefAt(cell) != anchorLevel)
-                    || _occupied.Contains(cell) || !CanPlaceOnCellData(cell))
-                    return false;
-            return true;
+            {
+                if (_navigation is not null && !_navigation.IsInBounds(cell))
+                    return "out_of_bounds";
+
+                if (!_grid.CellToWorld(cell).IsFinite())
+                    return "off_grid";
+
+                if (RequireLevelFootprint && ReliefAt(cell) != anchorLevel)
+                    return "not_level";
+
+                if (_occupied.Contains(cell))
+                    return "occupied";
+
+                if (!CanPlaceOnCellData(cell))
+                    return "blocked_ground";
+            }
+
+            return "";
         }
 
         private int ReliefAt(Vector2I cell)

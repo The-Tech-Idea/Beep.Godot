@@ -59,14 +59,17 @@
   "priorityRule":"terrain_milestones_before_new_structure_editor_features",
   "candidateMilestones": {
     "graniteWaterfallContactSource": {
-      "status":"source_candidate",
+      "status":"calibration_candidate",
       "specification":"addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/specification.json",
       "projections":["square"],
       "material":"grass_granite",
       "pieces":["left_wall_contact","right_wall_contact","left_lip_contact","right_lip_contact","left_bottom_contact","right_bottom_contact"],
       "runtimeValidated":false,
+      "calibrationEvidence":{"test":"tools/terrain-library/waterfall-contacts.test.mjs","passedTests":7,"packager":"tools/terrain-library/package-waterfall-contacts.gd","godotManifest":"addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/godot/manifest.json","standaloneScenesSaveReopen":6,"visualFinding":"Magnified left wall has colored edge specks and reduced runtime detail; not approved."},
       "approvalEvidence":null,
-      "pending":["appearance_review","calibration","alpha","protected_water_edges","Godot_integration","separate_isometric_art"]
+      "routeReviewEvidence":{"packager":"tools/terrain-library/package-contact-route-review.gd","manifest":"addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/staging/routes_manifest.json","widthsCells":[1,2,3,5],"saveReopen":true,"sourceRoutesUnchanged":true,"staticCaptureInspected":3,"alphaFinding":"Bright raw-preview specks are primarily near-transparent RGB noise; grey-composited inspection does not reproduce them."},
+      "motionOverlapEvidence":{"probe":"tests/terrain_contact_motion_probe.gd","report":"addons/beep_game_builder_cs/generated/test/library/output/contact_motion_report.json","widthsCells":[1,2,3,5],"framesPerWidth":16,"changedWaterPixels":0,"distinctCurtainFramesPerWidth":16,"scope":"Controlled-frame GPU overlap only; visual and real-time clock gates are separate"},
+      "pending":["appearance_review","source_anchor_visual_review","visual_animated_contact_review","rock_detail_consistency","separate_isometric_art"]
     },
     "isometricConnectedWidths": {
       "status":"candidate",

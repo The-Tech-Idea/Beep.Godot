@@ -1,0 +1,47 @@
+{
+  "cases": [
+    {
+      "approvalEvidence": null,
+      "capture": "res://addons/beep_game_builder_cs/generated/test/library/output/contact_route_width_1.png",
+      "saveReopen": true,
+      "scene": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/staging/route_width_1.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/depth_waterfall_route_v1/square/width_1.tscn",
+      "sourceSha256": "41d48667a93fc71420df35b536268607dae88afab84bd846a7cc3fb89d3a4686",
+      "width": 1
+    },
+    {
+      "approvalEvidence": null,
+      "capture": "res://addons/beep_game_builder_cs/generated/test/library/output/contact_route_width_2.png",
+      "saveReopen": true,
+      "scene": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/staging/route_width_2.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/depth_waterfall_route_v1/square/width_2.tscn",
+      "sourceSha256": "a015de9ae21cb27d1911c9a03706946346f2fe50120a77eb31aa5a578d621f49",
+      "width": 2
+    },
+    {
+      "approvalEvidence": null,
+      "capture": "res://addons/beep_game_builder_cs/generated/test/library/output/contact_route_width_3.png",
+      "saveReopen": true,
+      "scene": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/staging/route_width_3.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/depth_waterfall_route_v1/square/width_3.tscn",
+      "sourceSha256": "fcd71bf0549ce311546eba346754978f3ae80bec86b95cb77809e6375f68405a",
+      "width": 3
+    },
+    {
+      "approvalEvidence": null,
+      "capture": "res://addons/beep_game_builder_cs/generated/test/library/output/contact_route_width_5.png",
+      "saveReopen": true,
+      "scene": "res://addons/beep_game_builder_cs/generated/dev/cartoon/elevation/waterfall_contacts_v1/staging/route_width_5.tscn",
+      "source": "res://addons/beep_game_builder_cs/generated/dev/cartoon/water/depth_waterfall_route_v1/square/width_5.tscn",
+      "sourceSha256": "913f3be1cd79e0193f28a08b7259046057e46723ecbc0568c53221f2951828a1",
+      "width": 5
+    }
+  ],
+  "pending": [
+    "visual_joins",
+    "animated_contact_review",
+    "isometric_contacts",
+    "production_approval"
+  ],
+  "status": "visual_review_candidate"
+}

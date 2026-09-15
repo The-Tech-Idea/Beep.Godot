@@ -1,5 +1,36 @@
 # Terrain library rebuild
 
+## Contact motion overlap gate - 2026-09-13
+
+The four square contact reviews pass all 16 controlled waterfall frames each.
+Comparing simultaneous original/candidate renders finds zero changed pixels in
+the protected water corridor from lip through impact pool. Land contacts remain
+visible, and a curtain-only sample identifies 16 distinct renders at every width.
+This is overlap/motion evidence, not real-time phase or visual-quality approval.
+Native-scale captures remain in disposable test output; rock-detail consistency,
+visual animated review and separately authored isometric contacts remain pending.
+
+## Contact route review - 2026-09-13
+
+Separate contact-review scenes now cover square widths 1/2/3/5, with wall/lip
+anchors at the curtain's y=64 and bottom anchors at y=128. All four save/reopen
+and render; source-route hashes remain unchanged. Captures are disposable test
+output. The three-cell capture was inspected, not approved. Raw-preview bright
+specks were primarily RGB values with alpha 1-2/255 and disappear on neutral
+compositing; do not treat raw RGB as proof of visible edge contamination or trim
+alpha blindly. Rock-detail consistency and animated joins still need review.
+
+## Granite contact calibration - 2026-09-13
+
+Six source crops now have uniform-scale exports and explicit anchors. Seven
+Node checks pass source identity, piece completeness, runtime dimensions,
+mathematical pivot/rise mapping and transparent protected water half-planes.
+Six standalone Godot scenes save/reopen with those pivots and no collision.
+Magnified inspection of the left wall reveals colored edge specks and reduced
+detail at runtime size. Alpha-edge cleanup and appearance review remain blocking
+promotion gates; numerical checks are not visual approval. Existing routes are
+unchanged. Separate isometric contacts and in-scene fitting remain pending.
+
 ## Granite contact source candidate - 2026-09-13
 
 `waterfall_contacts_v1` now contains a new six-piece green-backed source for
